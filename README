@@ -1,0 +1,49 @@
+dinit
+-----
+v0.1
+
+What is it?
+=-=-=-=-=-=
+
+"dinit" is destined to eventually become a replacement "init" program for
+Linux (and possibly other) systems. But it's not there yet.
+
+However, dinit can be used as a general service monitor. Specifically it
+can launch multiple services (generally, "daemon" processes, but see notes
+below) in parallel, with dependency management (i.e. if one service's
+operation depends on another, the latter service will be started first).
+
+For "process" services (the only kind of service that v0.1 supports) dinit
+can monitor the process corresponding to the service, and re-start it if it
+dies. It does this in an intelligent way, first "rolling back" all dependent
+services (which it will later re-start, if configured to do so).
+
+Notes on services
+=-=-=-=-=-=-=-=-=
+
+The only type of service supported in v0.1 are "process" services. Process
+services are so named because they run as a process which dinit launches
+and monitors directly (this is opposed to "scripted" services, scheduled for
+v0.5, which will be started and stopped with the aid of a script or other
+program, and which cannot be directly monitored by dinit).
+
+Many programs that you might want to run under dinit's supervision can run
+either "in the foreground" or as a daemon ("in the background"), and the
+choice is dictated by a command line switch (for instance the -D and -F
+switches to Samba's "smbd"). Although it might seem counterintuitive,
+the "foreground" mode should be used for programs registered as process
+services in dinit; this allows dinit to monitor the process.
+
+Process services are attractive due to the ease of monitoring (and
+restarting) the service, however, they have one inherent problem, which is
+that dinit cannot tell when the service is truly started. Once the process
+has been launched, dinit assumes that the service has started, but in fact
+there will be a short delay before the process sets itself up, starts
+listening on sockets, etc; during this time any other process (including
+one from a service listed as dependent) which tries to contact it will not
+be able to do so.
+
+
+Things to document about current implementation
+-----------------------------------------------
+* logfiles won't work until filesystem mounted (/dev/null should, though)
