@@ -180,11 +180,11 @@ int main(int argc, char **argv)
         }
         catch (ServiceNotFound &snf) {
             // TODO log this better
-            std::cerr << "Could not find service: " << snf.serviceName << endl;
+            cerr << "Could not find service description: " << snf.serviceName << endl;
         }
-        catch (std::string err) {
-            std::cerr << err << std::endl;
-            throw err;
+        catch (ServiceLoadExc &sle) {
+            // TODO log this better
+            cerr << "Problem loading service description: " << sle.serviceName << endl;
         }
     }
     
@@ -196,6 +196,7 @@ int main(int argc, char **argv)
     }
     
     if (am_system_init) {
+        // TODO log this output properly
         cout << "dinit: No more active services.";
         if (reboot) {
             cout << " Will reboot.";

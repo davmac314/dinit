@@ -4,24 +4,60 @@
 #include "ev.h"
 
 /* Possible service states */
-#define SVC_STOPPED   0  /* service is not running */
-#define SVC_STARTING  1  /* service script is running with "start" */
-#define SVC_STARTED   2  /* service is running; start script finished. */
-#define SVC_STOPPING  3  /* service script is running with "stop" */
+// TODO can we use typesafe enum?
+constexpr static int SVC_STOPPED  = 0;  // service is not running
+constexpr static int SVC_STARTING = 1;  // service script is running with "start"
+constexpr static int SVC_STARTED  = 2;  // service is running; start script finished.
+constexpr static int SVC_STOPPING = 3;  // service script is running with "stop"
+
 
 /* Service types */
-#define SVC_PROCESS  0  /* service runs as a process, and can be stopped
+#define SVC_DUMMY    0  /* dummy service, used to detect cyclic dependencies */
+#define SVC_PROCESS  1  /* service runs as a process, and can be stopped
                            by sending the process a signal */
-#define SVC_SCRIPTED 1  /* service requires a command to start, and another
+#define SVC_SCRIPTED 2  /* service requires a command to start, and another
                            command to stop */
 
 
-
-// Exception
-class ServiceNotFound
+// Exception loading service
+class ServiceLoadExc
 {
     public:
     std::string serviceName;
+    
+    ServiceLoadExc(std::string serviceName)
+        : serviceName(serviceName)
+    {
+    }
+};
+
+class ServiceNotFound : public ServiceLoadExc
+{
+    public:
+    ServiceNotFound(std::string serviceName)
+        : ServiceLoadExc(serviceName)
+    {
+    }
+};
+
+class ServiceCyclicDependency : public ServiceLoadExc
+{
+    public:
+    ServiceCyclicDependency(std::string serviceName)
+        : ServiceLoadExc(serviceName)
+    {
+    }
+};
+
+class ServiceDescriptionExc : public ServiceLoadExc
+{
+    public:
+    std::string extraInfo;
+    
+    ServiceDescriptionExc(std::string serviceName, std::string extraInfo)
+        : ServiceLoadExc(serviceName), extraInfo(extraInfo)
+    {
+    }    
 };
 
 
@@ -91,12 +127,19 @@ class ServiceRecord
     void forceStop(); // force-stop this service and all dependents
     
     public:
+
+    ServiceRecord(ServiceSet *set, string name)
+        : service_state(SVC_STOPPED), desired_state(SVC_STOPPED)
+    {
+        service_set = set;
+        service_name = name;
+        service_type = SVC_DUMMY;
+    }
+    
     ServiceRecord(ServiceSet *set, string name, int service_type, string command,
             std::list<ServiceRecord *> * pdepends_on)
+        : service_state(SVC_STOPPED), desired_state(SVC_STOPPED)
     {
-        service_state = SVC_STOPPED;
-        desired_state = SVC_STOPPED;
-        
         service_set = set;
         service_name = name;
         this->service_type = service_type;
@@ -129,6 +172,11 @@ class ServiceRecord
     
     void start();  // start the service
     void stop();   // stop the service
+    
+    bool isDummy()
+    {
+        return service_type == SVC_DUMMY;
+    }
 };
 
 

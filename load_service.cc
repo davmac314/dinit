@@ -88,8 +88,8 @@ static string read_setting_value(string_iterator * const i, string_iterator end)
 // Find a service record, or load it from file. If the service has
 // dependencies, load those also.
 //
-// Might throw an exception if a dependency cycle is found or if another
-// problem occurs (I/O error, service description not found).
+// Might throw a ServiceLoadExc exception if a dependency cycle is found or if another
+// problem occurs (I/O error, service description not found etc).
 ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
 {
     using std::string;
@@ -102,6 +102,9 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     // First try and find an existing record...
     ServiceRecord * rval = findService(string(name));
     if (rval != 0) {
+        if (rval->isDummy()) {
+            throw ServiceCyclicDependency(name);
+        }
         return rval;
     }
 
@@ -127,10 +130,12 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
         service_file.open(service_filename.c_str(), ios::in);
     }
     catch (std::ios_base::failure &exc) {
-        ServiceNotFound snf;
-        snf.serviceName = name;
-        throw snf;
+        throw ServiceNotFound(name);
     }
+    
+    // Add a dummy service record now to prevent cyclic dependencies
+    rval = new ServiceRecord(this, string(name));
+    records.push_back(rval);
     
     // getline can set failbit if it reaches end-of-file, we don't want an exception in that case:
     service_file.exceptions(ios::badbit);
@@ -148,8 +153,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
             string setting = read_setting_name(&i, end);
             i = skipws(i, end);
             if (i == end || *i != '=') {
-                // TODO: throw a documented exception
-                throw std::string("Badly formed line.");
+                throw ServiceDescriptionExc(name, "Badly formed line.");
             }
             i = skipws(++i, end);
             
@@ -176,25 +180,32 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                     service_type = SVC_PROCESS;
                 }
                 else {
-                    throw string("Service type must be \"scripted\""
+                    throw ServiceDescriptionExc(name, "Service type must be \"scripted\""
                         " or \"process\"");
-                    // TODO throw a better exception
                 }
             }
             else {
-                // TODO throw a better exception
-                throw string("Unknown setting");
+                throw ServiceDescriptionExc(name, "Unknown setting: " + setting);
             }
         }
     }
     
+    service_file.close();
     // TODO check we actually have all the settings - type, command
     
-    rval = new ServiceRecord(this, string(name), service_type, command,
-            &depends_on);
-    rval->setLogfile(logfile);
-    rval->setAutoRestart(auto_restart);
-            
-    records.push_back(rval);
+    // Now replace the dummy service record with a real record:
+    for (auto iter = records.begin(); iter != records.end(); iter++) {
+        if (*iter == rval) {
+            // We've found the dummy record
+            delete rval;
+            rval = new ServiceRecord(this, string(name), service_type, command,
+                    &depends_on);
+            rval->setLogfile(logfile);
+            rval->setAutoRestart(auto_restart);
+            *iter = rval;
+            break;
+        }
+    }
+    
     return rval;
 }
