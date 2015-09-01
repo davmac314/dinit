@@ -129,7 +129,7 @@ class ServiceRecord
     public:
 
     ServiceRecord(ServiceSet *set, string name)
-        : service_state(SVC_STOPPED), desired_state(SVC_STOPPED)
+        : service_state(SVC_STOPPED), desired_state(SVC_STOPPED), force_stop(false), auto_restart(false)
     {
         service_set = set;
         service_name = name;
@@ -138,13 +138,12 @@ class ServiceRecord
     
     ServiceRecord(ServiceSet *set, string name, int service_type, string command,
             std::list<ServiceRecord *> * pdepends_on)
-        : service_state(SVC_STOPPED), desired_state(SVC_STOPPED)
+        : service_state(SVC_STOPPED), desired_state(SVC_STOPPED), force_stop(false), auto_restart(false)
     {
         service_set = set;
         service_name = name;
         this->service_type = service_type;
         program_name = command;
-        auto_restart = false;
         // TODO splice the contents from the depends_on parameter
         // rather than duplicating the list.
         this->depends_on = *pdepends_on;
