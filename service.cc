@@ -92,7 +92,6 @@ void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, in
         }
         else {
             sr->forceStop();
-            sr->stop();
         }
         
         if (sr->auto_restart && sr->service_set->get_auto_restart()) {
@@ -385,6 +384,7 @@ bool ServiceRecord::start_ps_process(const std::vector<std::string> &pargs)
 void ServiceRecord::forceStop()
 {
     force_stop = true;
+    stop();
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
         (*i)->forceStop();
     }        
