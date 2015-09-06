@@ -130,7 +130,10 @@ int main(int argc, char **argv)
             }
         }
         else {
-            services_to_start.push_back(argv[i]);
+            // LILO puts "auto" on the kernel command line for unattended boots; we'll filter it.
+            if (! am_system_init || strcmp(argv[i], "auto") != 0) {
+                services_to_start.push_back(argv[i]);
+            }
         }
       }
     }
