@@ -98,8 +98,12 @@ int main(int argc, char **argv)
     /* service directory name */
     const char * service_dir = "/etc/dinit.d";
     
-    /* arguments, if given, specify a list of services to start. */
-    /* if none are given the "boot" service is started. */
+    // Arguments, if given, specify a list of services to start.
+    // If we are running as init (PID=1), the kernel gives us any command line
+    // arguments it was given but didn't recognize, including "single" (usual
+    // for "boot to single user mode" aka just start the shell). We can treat
+    // them as services. In the worst case we can't find any of the named
+    // services, and so we'll start the "boot" service by default.
     if (argc > 1) {
       for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -257,6 +261,10 @@ int main(int argc, char **argv)
 // Callback for control socket
 static void control_socket_cb(struct ev_loop *loop, ev_io *w, int revents)
 {
+    // TODO limit the number of active connections. Keep a tally, and disable the
+    // control connection listening socket watcher if it gets high, and re-enable
+    // it once it falls below the maximum.
+
     // Accept a connection
     int sockfd = w->fd;
     
