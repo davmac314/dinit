@@ -76,13 +76,14 @@ class ServiceRecord
                      // and all its dependencies, MUST be stopped.
     string program_name;  /* executable program or script */
     string logfile; /* log file name, empty string specifies /dev/null */
-    bool auto_restart; /* whether to restart this (process) if it dies */
+    bool auto_restart; /* whether to restart this (process) if it dies unexpectedly */
     
     typedef std::list<ServiceRecord *> sr_list;
     typedef sr_list::iterator sr_iter;
     
     sr_list depends_on; // services this one depends on
     sr_list dependents; // services depending on this one
+    sr_list soft_dependents;  // services depending on this one via a "soft" dependency
     // unsigned wait_count;  /* if we are waiting for dependents/dependencies to
     //                         start/stop, this is how many we're waiting for */
     
@@ -137,7 +138,7 @@ class ServiceRecord
     }
     
     ServiceRecord(ServiceSet *set, string name, int service_type, string command,
-            std::list<ServiceRecord *> * pdepends_on)
+            sr_list * pdepends_on, sr_list * pdepends_soft)
         : service_state(SVC_STOPPED), desired_state(SVC_STOPPED), force_stop(false), auto_restart(false)
     {
         service_set = set;
@@ -147,10 +148,14 @@ class ServiceRecord
         // TODO splice the contents from the depends_on parameter
         // rather than duplicating the list.
         this->depends_on = *pdepends_on;
+        this->depends_on.insert(this->depends_on.end(), pdepends_soft->begin(), pdepends_soft->end());
         
         // For each dependency, add us as a dependent.
-        for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
+        for (sr_iter i = pdepends_on->begin(); i != pdepends_on->end(); ++i) {
             (*i)->dependents.push_back(this);
+        }
+        for (sr_iter i = pdepends_soft->begin(); i != pdepends_soft->end(); ++i) {
+            (*i)->soft_dependents.push_back(this);
         }
     }
     

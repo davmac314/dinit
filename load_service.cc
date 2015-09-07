@@ -118,6 +118,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     string command;
     int service_type = SVC_PROCESS;
     std::list<ServiceRecord *> depends_on;
+    std::list<ServiceRecord *> depends_soft;
     string logfile;
     
     // TODO catch I/O exceptions, wrap & re-throw?
@@ -164,6 +165,10 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 string dependency_name = read_setting_value(&i, end);
                 depends_on.push_back(loadServiceRecord(dependency_name.c_str()));
             }
+            else if (setting == "depends-soft") {
+                string dependency_name = read_setting_value(&i, end);
+                depends_soft.push_back(loadServiceRecord(dependency_name.c_str()));
+            }
             else if (setting == "logfile") {
                 logfile = read_setting_value(&i, end);
             }
@@ -199,7 +204,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
             // We've found the dummy record
             delete rval;
             rval = new ServiceRecord(this, string(name), service_type, command,
-                    &depends_on);
+                    & depends_on, & depends_soft);
             rval->setLogfile(logfile);
             rval->setAutoRestart(auto_restart);
             *iter = rval;

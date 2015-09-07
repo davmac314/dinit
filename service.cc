@@ -194,6 +194,11 @@ void ServiceRecord::started()
                 (*i)->start();
             }
         }
+        for (sr_iter i = soft_dependents.begin(); i != soft_dependents.end(); i++) {
+            if ((*i)->desired_state == SVC_STARTED) {
+                (*i)->start();
+            }
+        }
     }
     else {
         stop();
@@ -206,79 +211,26 @@ void ServiceRecord::failed_to_start()
     desired_state = SVC_STOPPED;
     service_set->service_inactive(this);
     // failure to start
-    // TODO - inform listeners of failure
     // Cancel start of dependents:
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
         if ((*i)->desired_state == SVC_STARTED) {
             (*i)->failed_dependency();
         }
     }    
+    // What about soft dependents?
+    // TODO we should probably send them "start" rather than "failed_dependency",
+    // or add a parameter to failed_dependency which says whether the dependency
+    // was soft and change start handling as appropriate.
+    // For now just fail the startup:
+    for (sr_iter i = soft_dependents.begin(); i != soft_dependents.end(); i++) {
+        if ((*i)->desired_state == SVC_STARTED) {
+            (*i)->failed_dependency();
+        }
+    }
 }
 
 bool ServiceRecord::start_ps_process()
 {
-    // BIG FAT NOTE: We rely on linux semantics of vfork() here.
-    // Specifically:
-    // * Parent process execution is suspended until the forked child
-    //   successfully exec's another program, or it exits
-    // * Memory is shared between the two processes until exec()
-    //   succeeds.
-    // Both of the above mean that we can determine in the parent process
-    // whether or not the exec succeeded. If vfork instead is implemented
-    // as an alias of fork, it will look like the exec always succeeded.
-    
-    /*
-    volatile int exec_status = 0;
-    pid_t forkpid = vfork();
-    if (forkpid == 0) {
-        // Child process
-        // ev_default_destroy(); // won't need that on this side, free up fds.
-        // Hmm. causes segfault. Of course. Memory is shared due to vfork.
-        
-        // Re-set stdin, stdout, stderr
-        close(0); close(1); close(2);
-        string logfile = this->logfile;
-        if (logfile.length() == 0) {
-            logfile = "/dev/null";
-        }
-        
-        if (open("/dev/null", O_RDONLY) == 0) {
-          // stdin = 0. That's what we should have; proceed with opening
-          // stdout and stderr.
-          open(logfile.c_str(), O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
-          dup2(1, 2);
-        }
-        
-        const char * pname = program_name.c_str();
-        char const * args[2] = { pname, 0 };
-        execvp(pname, (char ** const) args);
-        // If we got here, the exec failed
-        exec_status = errno;
-        _exit(0);
-    }
-    else {
-        // Parent process - we only reach here once the exec() above
-        // has succeeded, or _exit() above was called (because vfork()
-        // suspends the parent until either of those occurs).
-        if (exec_status == 0) {
-            // success
-            pid = forkpid;
-
-            // Add a process listener so we can detect when the
-            // service stops
-            ev_child_init(&child_listener, process_child_callback, pid, 0);
-            child_listener.data = this;
-            ev_child_start(ev_default_loop(EVFLAG_AUTO), &child_listener);
-
-            service_state = SVC_STARTED;
-            return true;
-        }
-        else {
-            return false;
-        }
-    }
-    */
-    
     return start_ps_process(std::vector<std::string>());
 }
 
@@ -387,13 +339,13 @@ void ServiceRecord::forceStop()
     stop();
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
         (*i)->forceStop();
-    }        
+    }
+    // We don't want to force stop soft dependencies, however.
 }
 
 // A dependency of this service failed to start.
 void ServiceRecord::failed_dependency()
 {
-    // TODO notify listeners
     desired_state = SVC_STOPPED;
     
     // Presumably, we were starting. So now we're not.
@@ -404,12 +356,17 @@ void ServiceRecord::failed_dependency()
         if ((*i)->desired_state == SVC_STARTED) {
             (*i)->failed_dependency();
         }
+    }
+    for (sr_iter i = soft_dependents.begin(); i != soft_dependents.end(); i++) {
+        if ((*i)->desired_state == SVC_STARTED) {
+            (*i)->failed_dependency();
+        }
     }    
 }
 
 void ServiceRecord::dependentStopped()
 {
-    if (desired_state == SVC_STOPPED || force_stop) {
+    if (service_state != SVC_STOPPED && (desired_state == SVC_STOPPED || force_stop)) {
         bool all_deps_stopped = true;
         for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
             if ((*i)->service_state != SVC_STOPPED) {
