@@ -284,7 +284,7 @@ bool ServiceRecord::start_ps_process(const std::vector<std::string> &pargs)
         // Tokenize the command, and add additional arguments from pargs:
         vector<string> progAndArgs = tokenize(program_name);
         progAndArgs.insert(progAndArgs.end(), pargs.begin(), pargs.end());
-        
+       
         const char * pname = progAndArgs[0].c_str();
         const char ** args = new const char *[progAndArgs.size() + 1];
         
@@ -367,15 +367,8 @@ void ServiceRecord::failed_dependency()
 void ServiceRecord::dependentStopped()
 {
     if (service_state != SVC_STOPPED && (desired_state == SVC_STOPPED || force_stop)) {
-        bool all_deps_stopped = true;
-        for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
-            if ((*i)->service_state != SVC_STOPPED) {
-                all_deps_stopped = false;
-                break;
-            }
-        }
-        
-        if (all_deps_stopped) {
+        // Check the other dependents before we stop.
+        if (stopCheckDependents()) {
             stopping();
         }
     }
@@ -390,16 +383,45 @@ void ServiceRecord::stop()
         // TODO inform listeners waiting for start of cancellation
     }
     
+    if (desired_state == SVC_STOPPED) return;
+    
     desired_state = SVC_STOPPED;
 
     if (service_state != SVC_STARTED) {
+        if (service_state == SVC_STARTING) {
+            // Well this is awkward: we're going to have to continue
+            // starting, but we don't want any dependents to think that
+            // they are still waiting to start.
+            // Make sure they remain stopped:
+            stopDependents();
+        }
+        
         // If we're starting we need to wait for that to complete.
         // If we're already stopping/stopped there's nothing to do.
         return;
     }
-
-    // Make sure all dependents have stopped.
     
+    // If we get here, we are in STARTED state; stop all dependents.
+    if (stopCheckDependents()) {
+        stopping();
+    }
+}
+
+bool ServiceRecord::stopCheckDependents()
+{
+    bool all_deps_stopped = true;
+    for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
+        if ((*i)->service_state != SVC_STOPPED) {
+            all_deps_stopped = false;
+            break;
+        }
+    }
+    
+    return all_deps_stopped;
+}
+
+bool ServiceRecord::stopDependents()
+{
     bool all_deps_stopped = true;
     for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
         if ((*i)->service_state != SVC_STOPPED) {
@@ -408,14 +430,10 @@ void ServiceRecord::stop()
         }
     }
     
-    if (! all_deps_stopped) {
-        // The dependents will notify this service once they've stopped.
-        return;
-    }
-    
-    // Ok, dependents have stopped. We can stop ourselves.
-    stopping();
+    return all_deps_stopped;
 }
+
+
 
 // Dependency stopped or is stopping; we must stop too.
 void ServiceRecord::stopping()

@@ -3,12 +3,33 @@
 #include <vector>
 #include "ev.h"
 
-/* Possible service states */
+/*
+ * Possible service states
+ *
+ * Services have both a current state and a desired state. The desired state can be
+ * either SVC_STARTED or SVC_STOPPED. The current state can also be SVC_STARTING
+ * or SVC_STOPPING.
+ *
+ * The total state is a combination of the two, current and desired:
+ * SVC_STOPPED/SVC_STOPPED  : stopped and will remain stopped
+ * SVC_STOPPED/SVC_STARTED  : stopped and will be started; waiting for dependencies to start.
+ * SVC_STARTING/SVC_STARTED : starting, but not yet started. All dependencies have started already.
+ * SVC_STARTING/SVC_STOPPED : as above, but the service will be stopped again as soon as it has
+ *                            completed startup.
+ * SVC_STARTED/SVC_STARTED  : running and will continue running.
+ * SVC_STARTED/SVC_STOPPED  : running but will stop; waiting for dependents to stop.
+ * SVC_STOPPING/SVC_STOPPED : stopping and will stop. All dependents have stopped.
+ * SVC_STOPPING/SVC_STARTED : as above, but the service will be re-started again once it stops.
+ *
+ * A scripted service is in the STARTING/STOPPING states during the script execution.
+ * A process service is in the STOPPING state when it has been signalled to stop (and is never
+ *       in the STARTING state; it moves directly from STOPPED to STARTED).
+ */
 // TODO can we use typesafe enum?
 constexpr static int SVC_STOPPED  = 0;  // service is not running
-constexpr static int SVC_STARTING = 1;  // service script is running with "start"
-constexpr static int SVC_STARTED  = 2;  // service is running; start script finished.
-constexpr static int SVC_STOPPING = 3;  // service script is running with "stop"
+constexpr static int SVC_STARTING = 1;  // service is starting, and will start (or fail to start) in time. All dependencies have started.
+constexpr static int SVC_STARTED  = 2;  // service is running
+constexpr static int SVC_STOPPING = 3;  // service script is stopping and will stop.
 
 
 /* Service types */
@@ -123,7 +144,14 @@ class ServiceRecord
     static void process_child_callback(struct ev_loop *loop, struct ev_child *w,
             int revents);
     
-    void dependentStopped(); // called when a dependent stopped
+    // A dependent has reached STOPPED state
+    void dependentStopped();
+
+    // check if all dependents have stopped
+    bool stopCheckDependents();
+    
+    // issue a stop to all dependents, return true if they are all already stopped
+    bool stopDependents();
     
     void forceStop(); // force-stop this service and all dependents
     
