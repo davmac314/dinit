@@ -132,20 +132,20 @@ void ServiceRecord::start()
         // TODO any listeners waiting for stop should be notified of
         //      its cancellation
     }
-    
-    desired_state = SVC_STARTED;
 
-    if (service_state != SVC_STOPPED) {
-        // Either we need do nothing (service is already started/starting)
-        // or the service is currently being stopped and we must wait for
-        // that to complete.
+    auto old_desired_state = desired_state;
+    desired_state = SVC_STARTED;
+    
+    if (service_state == SVC_STARTED || service_state == SVC_STARTING) {
+        // We couldn't be started or starting unless all dependencies have
+        // already started: so there's nothing left to do.
         return;
     }
     
-    // Service state is SVC_STOPPED. Start the service.
-    
-    // First, start dependencies
     bool all_deps_started = true;
+
+    // Ask dependencies to start, mark them as being waited on.
+    
     for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
         // Note, we cannot treat a dependency as started if its force_stop
         // flag is set.
@@ -155,6 +155,35 @@ void ServiceRecord::start()
         }
     }
     
+    if (old_desired_state != SVC_STARTED) {
+        // This is a fresh start, so we mark all soft dependencies as 'waiting on' and ask them
+        // to start:
+        for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
+            if (i->getTo()->service_state != SVC_STARTED) {
+                all_deps_started = false;
+                i->getTo()->start();
+                i->waiting_on = true;
+            }
+        }
+    }
+    else {
+        // This is (or at least may be) a notification that a dependency is ready; let's
+        // just check them:
+        for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
+            ServiceRecord * to = i->getTo();
+            if (i->waiting_on) {
+                if ((to->desired_state != SVC_STARTED && to->service_state != SVC_STARTING) || to->service_state == SVC_STARTED) {
+                    // Service has either started or is no longer starting
+                    i->waiting_on = false;
+                }
+                else {
+                    all_deps_started = false;
+                }
+            }
+        }
+    }
+    
+
     if (! all_deps_started) {
         // The dependencies will notify this service once they've started.
         return;
@@ -189,14 +218,14 @@ void ServiceRecord::started()
 
     if (desired_state == SVC_STARTED) {
         // Start any dependents whose desired state is SVC_STARTED:
-        for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
+        for (auto i = dependents.begin(); i != dependents.end(); i++) {
             if ((*i)->desired_state == SVC_STARTED) {
                 (*i)->start();
             }
         }
-        for (sr_iter i = soft_dependents.begin(); i != soft_dependents.end(); i++) {
-            if ((*i)->desired_state == SVC_STARTED) {
-                (*i)->start();
+        for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
+            if ((*i)->getFrom()->desired_state == SVC_STARTED) {
+                (*i)->getFrom()->start();
             }
         }
     }
@@ -217,14 +246,11 @@ void ServiceRecord::failed_to_start()
             (*i)->failed_dependency();
         }
     }    
-    // What about soft dependents?
-    // TODO we should probably send them "start" rather than "failed_dependency",
-    // or add a parameter to failed_dependency which says whether the dependency
-    // was soft and change start handling as appropriate.
-    // For now just fail the startup:
-    for (sr_iter i = soft_dependents.begin(); i != soft_dependents.end(); i++) {
-        if ((*i)->desired_state == SVC_STARTED) {
-            (*i)->failed_dependency();
+    for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
+        if ((*i)->getFrom()->desired_state == SVC_STARTED) {
+            // We can send 'start', because this is only a soft dependency.
+            // Our startup failure means that they don't have to wait for us.
+            (*i)->getFrom()->start();
         }
     }
 }
@@ -352,14 +378,16 @@ void ServiceRecord::failed_dependency()
     service_state = SVC_STOPPED;
     
     // Notify dependents of this service also
-    for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
+    for (auto i = dependents.begin(); i != dependents.end(); i++) {
         if ((*i)->desired_state == SVC_STARTED) {
             (*i)->failed_dependency();
         }
     }
-    for (sr_iter i = soft_dependents.begin(); i != soft_dependents.end(); i++) {
-        if ((*i)->desired_state == SVC_STARTED) {
-            (*i)->failed_dependency();
+    for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
+        if ((*i)->getFrom()->desired_state == SVC_STARTED) {
+            // It's a soft dependency, so send them 'started' rather than
+            // 'failed dep'.
+            (*i)->getFrom()->started();
         }
     }    
 }

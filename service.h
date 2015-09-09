@@ -81,8 +81,34 @@ class ServiceDescriptionExc : public ServiceLoadExc
     }    
 };
 
-
+class ServiceRecord; // forward declaration
 class ServiceSet; // forward declaration
+
+/* Service dependency record */
+class ServiceDep
+{
+    ServiceRecord * from;
+    ServiceRecord * to;
+    
+    public:
+    /* Whether the 'from' service is waiting for the 'to' service to start */
+    bool waiting_on;
+    
+    ServiceDep(ServiceRecord * from, ServiceRecord * to) : from(from), to(to), waiting_on(false)
+    {  }
+    
+    ServiceRecord * getFrom()
+    {
+        return from;
+    }
+    
+    ServiceRecord * getTo()
+    {
+        return to;
+    }
+};
+
+
 
 class ServiceRecord
 {
@@ -102,9 +128,17 @@ class ServiceRecord
     typedef std::list<ServiceRecord *> sr_list;
     typedef sr_list::iterator sr_iter;
     
+    // list of soft dependencies
+    typedef std::list<ServiceDep> softdep_list;
+    
+    // list of soft dependents
+    typedef std::list<ServiceDep *> softdpt_list;
+    
     sr_list depends_on; // services this one depends on
     sr_list dependents; // services depending on this one
-    sr_list soft_dependents;  // services depending on this one via a "soft" dependency
+    softdep_list soft_deps;  // services this one depends on via a soft dependency
+    softdpt_list soft_dpts;  // services depending on this one via a soft dependency
+    
     // unsigned wait_count;  /* if we are waiting for dependents/dependencies to
     //                         start/stop, this is how many we're waiting for */
     
@@ -176,8 +210,21 @@ class ServiceRecord
         // TODO splice the contents from the depends_on parameter
         // rather than duplicating the list.
         this->depends_on = *pdepends_on;
-        this->depends_on.insert(this->depends_on.end(), pdepends_soft->begin(), pdepends_soft->end());
+        //this->depends_on.insert(this->depends_on.end(), pdepends_soft->begin(), pdepends_soft->end());
+
+        for (sr_iter i = pdepends_on->begin(); i != pdepends_on->end(); ++i) {
+            (*i)->dependents.push_back(this);
+        }
         
+        // Soft dependencies
+        auto b_iter = soft_deps.end();
+        for (sr_iter i = pdepends_soft->begin(); i != pdepends_soft->end(); ++i) {
+            b_iter = soft_deps.emplace(b_iter, this, *i);
+            (*i)->soft_dpts.push_back(&(*b_iter));
+            ++b_iter;
+        }
+
+        /*
         // For each dependency, add us as a dependent.
         for (sr_iter i = pdepends_on->begin(); i != pdepends_on->end(); ++i) {
             (*i)->dependents.push_back(this);
@@ -185,6 +232,7 @@ class ServiceRecord
         for (sr_iter i = pdepends_soft->begin(); i != pdepends_soft->end(); ++i) {
             (*i)->soft_dependents.push_back(this);
         }
+        */
     }
     
     // Set logfile, should be done before service is started
