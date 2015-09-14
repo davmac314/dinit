@@ -1,0 +1,10 @@
+# LLVM/clang++ with libc++ on Linux
+#CXX=clang++
+#CXXOPTS=-stdlib=libc++
+#EXTRA_LIBS=-lc++abi
+
+# GCC. Note with GCC 5,5.1,5.2 the new C++11 ABI is buggy.
+CXX=g++
+CXXOPTS=-D_GLIBCXX_USE_CXX11_ABI=0
+EXTRA_LIBS=
+
