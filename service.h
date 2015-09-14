@@ -207,10 +207,7 @@ class ServiceRecord
         service_name = name;
         this->service_type = service_type;
         program_name = command;
-        // TODO splice the contents from the depends_on parameter
-        // rather than duplicating the list.
-        this->depends_on = *pdepends_on;
-        //this->depends_on.insert(this->depends_on.end(), pdepends_soft->begin(), pdepends_soft->end());
+        this->depends_on = std::move(*pdepends_on);
 
         for (sr_iter i = pdepends_on->begin(); i != pdepends_on->end(); ++i) {
             (*i)->dependents.push_back(this);
@@ -223,16 +220,6 @@ class ServiceRecord
             (*i)->soft_dpts.push_back(&(*b_iter));
             ++b_iter;
         }
-
-        /*
-        // For each dependency, add us as a dependent.
-        for (sr_iter i = pdepends_on->begin(); i != pdepends_on->end(); ++i) {
-            (*i)->dependents.push_back(this);
-        }
-        for (sr_iter i = pdepends_soft->begin(); i != pdepends_soft->end(); ++i) {
-            (*i)->soft_dependents.push_back(this);
-        }
-        */
     }
     
     // Set logfile, should be done before service is started

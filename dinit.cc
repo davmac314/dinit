@@ -198,7 +198,7 @@ int main(int argc, char **argv)
     event_loop:
     
     // Process events until all services have terminated.
-    while (! service_set->count_active_services() == 0) {
+    while (service_set->count_active_services() != 0) {
         ev_loop(loop, EVLOOP_ONESHOT);
     }
     
