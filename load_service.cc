@@ -53,15 +53,48 @@ static string read_setting_value(string_iterator * const i, string_iterator end)
     *i = skipws(*i, end);
     
     string rval;
-    // bool quoting = false;
     
     while (*i != end) {
         char c = **i;
         if (c == '\"') {
-            // quoted ...
-            // TODO
+            // quoted string
+            ++(*i);
+            while (*i != end) {
+                c = **i;
+                if (c == '\"') break;
+                if (c == '\n') {
+                    // TODO error here.
+                }
+                else if (c == '\\') {
+                    // A backslash escapes the following character.
+                    ++(*i);
+                    if (*i != end) {
+                        c = **i;
+                        rval += c;
+                    }
+                }
+                else {
+                    rval += c;
+                }
+                ++(*i);
+            }
+            if (*i == end) {
+                // String wasn't terminated
+                // TODO error here
+                break;
+            }
         }
-        if (isspace(c, locale::classic())) {
+        else if (c == '\\') {
+            // A backslash escapes the next character
+            ++(*i);
+            if (*i != end) {
+                rval += **i;
+            }
+            else {
+                // TODO error here
+            }
+        }
+        else if (isspace(c, locale::classic())) {
             *i = skipws(*i, end);
             if (*i == end) break;
             if (**i == '#') break; // comment
@@ -153,7 +186,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
             }
             string setting = read_setting_name(&i, end);
             i = skipws(i, end);
-            if (i == end || *i != '=') {
+            if (i == end || (*i != '=' && *i != ':')) {
                 throw ServiceDescriptionExc(name, "Badly formed line.");
             }
             i = skipws(++i, end);
@@ -184,9 +217,12 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 else if (type_str == "process") {
                     service_type = SVC_PROCESS;
                 }
+                else if (type_str == "internal") {
+                    service_type = SVC_INTERNAL;
+                }
                 else {
                     throw ServiceDescriptionExc(name, "Service type must be \"scripted\""
-                        " or \"process\"");
+                        " or \"process\" or \"internal\"");
                 }
             }
             else {

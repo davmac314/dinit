@@ -202,12 +202,16 @@ void ServiceRecord::start()
             failed_to_start();
         }
     }
-    else {
+    else if (service_type == SVC_SCRIPTED) {
         // Script-controlled service
         bool start_success = start_ps_process(std::vector<std::string>(1, "start"));
         if (! start_success) {
             failed_to_start();
         }
+    }
+    else {
+        // "internal" service
+        started();
     }
 }
 

@@ -38,7 +38,7 @@ constexpr static int SVC_STOPPING = 3;  // service script is stopping and will s
                            by sending the process a signal */
 #define SVC_SCRIPTED 2  /* service requires a command to start, and another
                            command to stop */
-
+#define SVC_INTERNAL 3  /* internal service, runs no external process */
 
 // Exception loading service
 class ServiceLoadExc
