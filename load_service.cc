@@ -193,7 +193,6 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     std::list<ServiceRecord *> depends_soft;
     string logfile;
     
-    // TODO catch I/O exceptions, wrap & re-throw?
     string line;
     bool auto_restart = false;
     ifstream service_file;
@@ -206,7 +205,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
         throw ServiceNotFound(name);
     }
     
-    // Add a dummy service record now to prevent cyclic dependencies
+    // Add a dummy service record now to prevent infinite recursion in case of cyclic dependency
     rval = new ServiceRecord(this, string(name));
     records.push_back(rval);
     
@@ -232,6 +231,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
             
             if (setting == "command") {
                 command = read_setting_value(i, end);
+                // TODO check for valid command
             }
             else if (setting == "depends-on") {
                 string dependency_name = read_setting_value(i, end);
