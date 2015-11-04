@@ -37,7 +37,10 @@
  * SIGQUIT - init will exec() shutdown. shutdown will detect that it is
  *           running as pid 1 and will just loop and reap child processes.
  *           This is used by shutdown so that init will not hang on to its
- *           inode, allowing clean filesystem unmounting.
+ *           inode, allowing the filesystem to be re-mounted readonly
+ *           (this is only an issue if the init binary has been unlinked,
+ *           since it's then holding an inode which can't be maintained
+ *           when the filesystem is unmounted).
  *
  * Not sent by shutdown:
  * SIGHUP -  re-read inittab and spawn any new getty entries
