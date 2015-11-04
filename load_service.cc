@@ -42,8 +42,22 @@ static string read_setting_name(string_iterator & i, string_iterator end)
 }
 
 // Read a setting value
-// Try to allow quoted strings:
-static string read_setting_value(string_iterator & i, string_iterator end)
+//
+// In general a setting value is a single-line string. It may contain multiple parts
+// separated by white space (which is normally collapsed). A hash mark - # - denotes
+// the end of the value and the beginning of a comment (it should be preceded by
+// whitespace).
+//
+// Part of a value may be quoted using double quote marks, which prevents collapse
+// of whitespace and interpretation of most special characters (the quote marks will
+// not be considered part of the value). A backslash can precede a character (such
+// as '#' or '"' or another backslash) to remove its special meaning. Newline
+// characters are not allowed in values and cannot be quoted.
+//
+// This function expects the string to be in an ASCII-compatible, single byte
+// encoding (the "classic" locale).
+static string read_setting_value(string_iterator & i, string_iterator end,
+        std::list<std::pair<int,int>> * part_positions = nullptr)
 {
     using std::locale;
     using std::isspace;
@@ -51,10 +65,16 @@ static string read_setting_value(string_iterator & i, string_iterator end)
     i = skipws(i, end);
     
     string rval;
+    bool new_part = true;
+    int part_start;
     
     while (i != end) {
         char c = *i;
         if (c == '\"') {
+            if (new_part) {
+                part_start = rval.length();
+                new_part = false;
+            }
             // quoted string
             ++i;
             while (i != end) {
@@ -68,6 +88,9 @@ static string read_setting_value(string_iterator & i, string_iterator end)
                     ++i;
                     if (i != end) {
                         c = *i;
+                        if (c == '\n') {
+                            // TODO error here.
+                        }
                         rval += c;
                     }
                 }
@@ -83,6 +106,10 @@ static string read_setting_value(string_iterator & i, string_iterator end)
             }
         }
         else if (c == '\\') {
+            if (new_part) {
+                part_start = rval.length();
+                new_part = false;
+            }
             // A backslash escapes the next character
             ++i;
             if (i != end) {
@@ -93,6 +120,10 @@ static string read_setting_value(string_iterator & i, string_iterator end)
             }
         }
         else if (isspace(c, locale::classic())) {
+            if (! new_part && part_positions != nullptr) {
+                part_positions->emplace_back(part_start, rval.length());
+                new_part = true;
+            }
             i = skipws(i, end);
             if (i == end) break;
             if (*i == '#') break; // comment
@@ -107,6 +138,10 @@ static string read_setting_value(string_iterator & i, string_iterator end)
             break;
         }
         else {
+            if (new_part) {
+                part_start = rval.length();
+                new_part = false;
+            }
             rval += c;
         }
         ++i;
