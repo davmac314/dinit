@@ -56,6 +56,12 @@ static string read_setting_name(string_iterator & i, string_iterator end)
 //
 // This function expects the string to be in an ASCII-compatible, single byte
 // encoding (the "classic" locale).
+//
+// Params:
+//    i  -  reference to string iterator through the line
+//    end -   iterator at end of line
+//    part_positions -  list of <int,int> to which the position of each setting value
+//                      part will be added as [start,end). May be null.
 static string read_setting_value(string_iterator & i, string_iterator end,
         std::list<std::pair<int,int>> * part_positions = nullptr)
 {
