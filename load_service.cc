@@ -24,7 +24,7 @@ static string_iterator skipws(string_iterator i, string_iterator end)
 }
 
 // Read a setting name.
-static string read_setting_name(string_iterator * const i, string_iterator end)
+static string read_setting_name(string_iterator & i, string_iterator end)
 {
     using std::locale;
     using std::ctype;
@@ -34,51 +34,49 @@ static string read_setting_name(string_iterator * const i, string_iterator end)
 
     string rval;
     // Allow alphabetical characters, and dash (-) in setting name
-    while (*i != end && (**i == '-' || facet.is(ctype<char>::alpha, **i))) {
-        rval += **i;
-        ++(*i);
+    while (i != end && (*i == '-' || facet.is(ctype<char>::alpha, *i))) {
+        rval += *i;
+        ++i;
     }
     return rval;
 }
 
 // Read a setting value
 // Try to allow quoted strings:
-static string read_setting_value(string_iterator * const i, string_iterator end)
+static string read_setting_value(string_iterator & i, string_iterator end)
 {
-    // TODO handle quoting, error if multiple white-space separated strings
-    // occur without quoting (unless the second one is a '#' comment)
     using std::locale;
     using std::isspace;
 
-    *i = skipws(*i, end);
+    i = skipws(i, end);
     
     string rval;
     
-    while (*i != end) {
-        char c = **i;
+    while (i != end) {
+        char c = *i;
         if (c == '\"') {
             // quoted string
-            ++(*i);
-            while (*i != end) {
-                c = **i;
+            ++i;
+            while (i != end) {
+                c = *i;
                 if (c == '\"') break;
                 if (c == '\n') {
                     // TODO error here.
                 }
                 else if (c == '\\') {
                     // A backslash escapes the following character.
-                    ++(*i);
-                    if (*i != end) {
-                        c = **i;
+                    ++i;
+                    if (i != end) {
+                        c = *i;
                         rval += c;
                     }
                 }
                 else {
                     rval += c;
                 }
-                ++(*i);
+                ++i;
             }
-            if (*i == end) {
+            if (i == end) {
                 // String wasn't terminated
                 // TODO error here
                 break;
@@ -86,18 +84,18 @@ static string read_setting_value(string_iterator * const i, string_iterator end)
         }
         else if (c == '\\') {
             // A backslash escapes the next character
-            ++(*i);
-            if (*i != end) {
-                rval += **i;
+            ++i;
+            if (i != end) {
+                rval += *i;
             }
             else {
                 // TODO error here
             }
         }
         else if (isspace(c, locale::classic())) {
-            *i = skipws(*i, end);
-            if (*i == end) break;
-            if (**i == '#') break; // comment
+            i = skipws(i, end);
+            if (i == end) break;
+            if (*i == '#') break; // comment
             rval += ' ';  // collapse ws to a single space
             continue;
         }
@@ -111,7 +109,7 @@ static string read_setting_value(string_iterator * const i, string_iterator end)
         else {
             rval += c;
         }
-        ++(*i);
+        ++i;
     }
     
     return rval;
@@ -184,7 +182,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
             if (*i == '#') {
                 continue;  // comment line
             }
-            string setting = read_setting_name(&i, end);
+            string setting = read_setting_name(i, end);
             i = skipws(i, end);
             if (i == end || (*i != '=' && *i != ':')) {
                 throw ServiceDescriptionExc(name, "Badly formed line.");
@@ -192,25 +190,25 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
             i = skipws(++i, end);
             
             if (setting == "command") {
-                command = read_setting_value(&i, end);
+                command = read_setting_value(i, end);
             }
             else if (setting == "depends-on") {
-                string dependency_name = read_setting_value(&i, end);
+                string dependency_name = read_setting_value(i, end);
                 depends_on.push_back(loadServiceRecord(dependency_name.c_str()));
             }
-            else if (setting == "depends-soft") {
-                string dependency_name = read_setting_value(&i, end);
+            else if (setting == "waits-for") {
+                string dependency_name = read_setting_value(i, end);
                 depends_soft.push_back(loadServiceRecord(dependency_name.c_str()));
             }
             else if (setting == "logfile") {
-                logfile = read_setting_value(&i, end);
+                logfile = read_setting_value(i, end);
             }
             else if (setting == "restart") {
-                string restart = read_setting_value(&i, end);
+                string restart = read_setting_value(i, end);
                 auto_restart = (restart == "yes" || restart == "true");
             }
             else if (setting == "type") {
-                string type_str = read_setting_value(&i, end);
+                string type_str = read_setting_value(i, end);
                 if (type_str == "scripted") {
                     service_type = SVC_SCRIPTED;
                 }
