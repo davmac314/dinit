@@ -231,7 +231,6 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
             
             if (setting == "command") {
                 command = read_setting_value(i, end);
-                // TODO check for valid command
             }
             else if (setting == "depends-on") {
                 string dependency_name = read_setting_value(i, end);
