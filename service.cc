@@ -265,13 +265,18 @@ bool ServiceRecord::start_ps_process()
 }
 
 
+// TODO this can currently throw std::bad_alloc, fix that (in the worst case,
+//      return failure instead).
 bool ServiceRecord::start_ps_process(const std::vector<std::string> &pargs)
 {
     // In general, you can't tell whether fork/exec is successful. We use a pipe to communicate
     // success/failure from the child to the parent. The pipe is set CLOEXEC so a successful
     // exec closes the pipe, and the parent sees EOF. If the exec is unsuccessful, the errno
     // is written to the pipe, and the parent can read it.
-    
+
+    // TODO should NOT wait for the exec to succeed or fail here, as that could (when/if we allow
+    // running child processes with lower priority) result in priority inversion.
+
     using std::vector;
     using std::string;
     
@@ -323,7 +328,7 @@ bool ServiceRecord::start_ps_process(const std::vector<std::string> &pargs)
         }
         args[progAndArgs.size()] = nullptr;
         
-        execvp(pname, (char ** const) args);
+        execvp(pname, const_cast<char **>(args));
         
         // If we got here, the exec failed:        
         int exec_status = errno;
