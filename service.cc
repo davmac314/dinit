@@ -336,10 +336,7 @@ bool ServiceRecord::start_ps_process(const std::vector<std::string> &pargs)
         exit(0);
     }
     else {
-        // Parent process - we only reach here once the exec() above
-        // has succeeded, or _exit() above was called (because vfork()
-        // suspends the parent until either of those occurs).
-        
+        // Parent process
         close(pipefd[1]); // close the 'other end' fd
 
         int exec_status;        
