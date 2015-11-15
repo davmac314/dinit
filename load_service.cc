@@ -63,7 +63,7 @@ static string read_setting_name(string_iterator & i, string_iterator end)
 //    part_positions -  list of <int,int> to which the position of each setting value
 //                      part will be added as [start,end). May be null.
 static string read_setting_value(string_iterator & i, string_iterator end,
-        std::list<std::pair<int,int>> * part_positions = nullptr)
+        std::list<std::pair<unsigned,unsigned>> * part_positions = nullptr)
 {
     using std::locale;
     using std::isspace;
@@ -152,16 +152,40 @@ static string read_setting_value(string_iterator & i, string_iterator end,
         }
         ++i;
     }
-    
+
+    // Got to end:
+    if (part_positions != nullptr) {
+        part_positions->emplace_back(part_start, rval.length());
+    }
+
     return rval;
 }
 
+
+// Given a string and a list of pairs of (start,end) indices for each argument in that string,
+// store a null terminator for the argument. Return a `char *` array pointing at the beginning
+// of each argument. (The returned array is invalidated if the string is later modified).
+static const char ** separate_args(string &s, std::list<std::pair<unsigned,unsigned>> &arg_indices)
+{
+    const char * cstr = s.c_str();
+    const char ** r = new const char *[arg_indices.size()];
+    int i = 0;
+    for (auto index_pair : arg_indices) {
+        r[i] = cstr + index_pair.first;
+        if (index_pair.second < s.length()) {
+            s[index_pair.second] = 0;
+        }
+        i++;
+    }
+    return r;
+}
 
 // Find a service record, or load it from file. If the service has
 // dependencies, load those also.
 //
 // Might throw a ServiceLoadExc exception if a dependency cycle is found or if another
-// problem occurs (I/O error, service description not found etc).
+// problem occurs (I/O error, service description not found etc). Throws std::bad_alloc
+// if a memory allocation failure occurs.
 ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
 {
     using std::string;
@@ -188,6 +212,9 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     service_filename += name;
     
     string command;
+    const char ** commands = nullptr;
+    int num_args = 0;
+
     int service_type = SVC_PROCESS;
     std::list<ServiceRecord *> depends_on;
     std::list<ServiceRecord *> depends_soft;
@@ -230,7 +257,10 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
             i = skipws(++i, end);
             
             if (setting == "command") {
-                command = read_setting_value(i, end);
+                std::list<std::pair<unsigned,unsigned>> indices;
+                command = read_setting_value(i, end, &indices);
+                commands = separate_args(command, indices);
+                num_args = indices.size();
             }
             else if (setting == "depends-on") {
                 string dependency_name = read_setting_value(i, end);
@@ -277,7 +307,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
         if (*iter == rval) {
             // We've found the dummy record
             delete rval;
-            rval = new ServiceRecord(this, string(name), service_type, command,
+            rval = new ServiceRecord(this, string(name), service_type, command, commands, num_args,
                     & depends_on, & depends_soft);
             rval->setLogfile(logfile);
             rval->setAutoRestart(auto_restart);

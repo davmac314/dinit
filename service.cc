@@ -8,15 +8,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-// Tokenize a string, allow quoting
-// TODO doesn't yet allow quoting...
-static std::vector<std::string> tokenize(std::string arg)
-{
-    // TODO rewrite to be more efficient.
-    using namespace std;
-    istringstream iss(arg);
-    return vector<string>(istream_iterator<string>(iss), istream_iterator<string>());
-}
 
 // Find the requested service by name
 static ServiceRecord * findService(const std::list<ServiceRecord *> & records,
@@ -182,7 +173,6 @@ void ServiceRecord::start()
             }
         }
     }
-    
 
     if (! all_deps_started) {
         // The dependencies will notify this service once they've started.
@@ -316,19 +306,18 @@ bool ServiceRecord::start_ps_process(const std::vector<std::string> &pargs)
           dup2(1, 2);
         }
         
-        // Tokenize the command, and add additional arguments from pargs:
-        vector<string> progAndArgs = tokenize(program_name);
-        progAndArgs.insert(progAndArgs.end(), pargs.begin(), pargs.end());
-       
-        const char * pname = progAndArgs[0].c_str();
-        const char ** args = new const char *[progAndArgs.size() + 1];
-        
-        for (std::vector<std::string>::size_type i = 0; i < progAndArgs.size(); i++) {
-            args[i] = progAndArgs[i].c_str();
+        const char ** args = new const char *[num_args + pargs.size() + 1];
+        int i;
+        for (i = 0; i < num_args; i++) {
+            args[i] = exec_arg_parts[i];
         }
-        args[progAndArgs.size()] = nullptr;
+        for (auto progarg : pargs) {
+            args[i] = progarg.c_str();
+            i++;
+        }
+        args[i] = nullptr;
         
-        execvp(pname, const_cast<char **>(args));
+        execvp(exec_arg_parts[0], const_cast<char **>(args));
         
         // If we got here, the exec failed:        
         int exec_status = errno;

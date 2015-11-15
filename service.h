@@ -121,7 +121,11 @@ class ServiceRecord
     bool force_stop; // true if the service must actually stop. This is the
                      // case if for example the process dies; the service,
                      // and all its dependencies, MUST be stopped.
-    string program_name;  /* executable program or script */
+
+    string program_name;          /* storage for program/script and arguments */
+    const char **exec_arg_parts;  /* pointer to each argument/part of the program_name */
+    int num_args;                 /* number of argumrnets (including program) */
+
     string logfile; /* log file name, empty string specifies /dev/null */
     bool auto_restart; /* whether to restart this (process) if it dies unexpectedly */
     
@@ -199,15 +203,18 @@ class ServiceRecord
         service_type = SVC_DUMMY;
     }
     
-    ServiceRecord(ServiceSet *set, string name, int service_type, string command,
-            sr_list * pdepends_on, sr_list * pdepends_soft)
+    ServiceRecord(ServiceSet *set, string name, int service_type, string command, const char ** commands,
+            int num_argsx, sr_list * pdepends_on, sr_list * pdepends_soft)
         : service_state(SVC_STOPPED), desired_state(SVC_STOPPED), force_stop(false), auto_restart(false)
     {
         service_set = set;
         service_name = name;
         this->service_type = service_type;
-        program_name = command;
         this->depends_on = std::move(*pdepends_on);
+
+        program_name = command;
+        exec_arg_parts = commands;
+        num_args = num_argsx;
 
         for (sr_iter i = pdepends_on->begin(); i != pdepends_on->end(); ++i) {
             (*i)->dependents.push_back(this);
@@ -222,6 +229,8 @@ class ServiceRecord
         }
     }
     
+    // TODO write a destructor
+
     // Set logfile, should be done before service is started
     void setLogfile(string logfile)
     {
