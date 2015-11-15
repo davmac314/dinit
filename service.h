@@ -175,8 +175,8 @@ class ServiceRecord
     void failed_dependency();
     
     // For process services, start the process, return true on success
-    bool start_ps_process();
-    bool start_ps_process(const std::vector<std::string> &args);
+    bool start_ps_process() noexcept;
+    bool start_ps_process(const std::vector<std::string> &args) noexcept;
    
     // Callback from libev when a child process dies
     static void process_child_callback(struct ev_loop *loop, struct ev_child *w,
