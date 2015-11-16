@@ -7,40 +7,44 @@
  * Possible service states
  *
  * Services have both a current state and a desired state. The desired state can be
- * either SVC_STARTED or SVC_STOPPED. The current state can also be SVC_STARTING
- * or SVC_STOPPING.
+ * either STARTED or STOPPED. The current state can also be STARTING or STOPPING.
  *
  * The total state is a combination of the two, current and desired:
- * SVC_STOPPED/SVC_STOPPED  : stopped and will remain stopped
- * SVC_STOPPED/SVC_STARTED  : stopped and will be started; waiting for dependencies to start.
- * SVC_STARTING/SVC_STARTED : starting, but not yet started. All dependencies have started already.
- * SVC_STARTING/SVC_STOPPED : as above, but the service will be stopped again as soon as it has
- *                            completed startup.
- * SVC_STARTED/SVC_STARTED  : running and will continue running.
- * SVC_STARTED/SVC_STOPPED  : running but will stop; waiting for dependents to stop.
- * SVC_STOPPING/SVC_STOPPED : stopping and will stop. All dependents have stopped.
- * SVC_STOPPING/SVC_STARTED : as above, but the service will be re-started again once it stops.
+ *      STOPPED/STOPPED  : stopped and will remain stopped
+ *      STOPPED/STARTED  : stopped and will be started; waiting for dependencies to start.
+ *      STARTING/STARTED : starting, but not yet started. All dependencies have started already.
+ *      STARTING/STOPPED : as above, but the service will be stopped again as soon as it has
+ *                         completed startup.
+ *      STARTED/STARTED  : running and will continue running.
+ *      STARTED/STOPPED  : running but will stop; waiting for dependents to stop.
+ *      STOPPING/STOPPED : stopping and will stop. All dependents have stopped.
+ *      STOPPING/STARTED : as above, but the service will be re-started again once it stops.
  *
  * A scripted service is in the STARTING/STOPPING states during the script execution.
  * A process service is in the STOPPING state when it has been signalled to stop (and is never
  *       in the STARTING state; it moves directly from STOPPED to STARTED).
  */
-// TODO can we use typesafe enum?
-constexpr static int SVC_STOPPED  = 0;  // service is not running
-constexpr static int SVC_STARTING = 1;  // service is starting, and will start (or fail to start) in time. All dependencies have started.
-constexpr static int SVC_STARTED  = 2;  // service is running
-constexpr static int SVC_STOPPING = 3;  // service script is stopping and will stop.
+enum class ServiceState {
+    STOPPED,    // service is not running.
+    STARTING,   // service is starting, and will start (or fail to start) in time. All dependencies have started.
+    STARTED,    // service is running,
+    STOPPING    // service script is stopping and will stop.
+};
+
 
 
 /* Service types */
-#define SVC_DUMMY    0  /* dummy service, used to detect cyclic dependencies */
-#define SVC_PROCESS  1  /* service runs as a process, and can be stopped
-                           by sending the process a signal */
-#define SVC_SCRIPTED 2  /* service requires a command to start, and another
-                           command to stop */
-#define SVC_INTERNAL 3  /* internal service, runs no external process */
+enum class ServiceType {
+    DUMMY,      // dummy service, used to detect cyclice dependencies
+    PROCESS,    // service runs as a process, and can be stopped by
+                // sending the process a signal (SIGTERM)
+    SCRIPTED,   // service requires an external command to start,
+                // and a second command to stop
+    INTERNAL    // internal service, runs no external process
+};
 
-// Exception loading service
+
+// Exception while loading a service
 class ServiceLoadExc
 {
     public:
@@ -115,9 +119,9 @@ class ServiceRecord
     typedef std::string string;
     
     string service_name;
-    int service_type;  /* SVC_DAEMON or SVC_SCRIPTED */
-    int service_state; /* SVC_STOPPED, _STARTING, _STARTED, _STOPPING */
-    int desired_state; /* SVC_STOPPED / SVC_STARTED */
+    ServiceType service_type;  /* ServiceType::DUMMY, PROCESS, SCRIPTED, INTERNAL */
+    ServiceState service_state; /* ServiceState::STOPPED, STARTING, STARTED, STOPPING */
+    ServiceState desired_state; /* ServiceState::STOPPED / STARTED */
     bool force_stop; // true if the service must actually stop. This is the
                      // case if for example the process dies; the service,
                      // and all its dependencies, MUST be stopped.
@@ -196,16 +200,16 @@ class ServiceRecord
     public:
 
     ServiceRecord(ServiceSet *set, string name)
-        : service_state(SVC_STOPPED), desired_state(SVC_STOPPED), force_stop(false), auto_restart(false)
+        : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), force_stop(false), auto_restart(false)
     {
         service_set = set;
         service_name = name;
-        service_type = SVC_DUMMY;
+        service_type = ServiceType::DUMMY;
     }
     
-    ServiceRecord(ServiceSet *set, string name, int service_type, string command, const char ** commands,
+    ServiceRecord(ServiceSet *set, string name, ServiceType service_type, string command, const char ** commands,
             int num_argsx, sr_list * pdepends_on, sr_list * pdepends_soft)
-        : service_state(SVC_STOPPED), desired_state(SVC_STOPPED), force_stop(false), auto_restart(false)
+        : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), force_stop(false), auto_restart(false)
     {
         service_set = set;
         service_name = name;
@@ -244,14 +248,14 @@ class ServiceRecord
     }
     
     const char *getServiceName() const { return service_name.c_str(); }
-    int getState() const { return service_state; }
+    ServiceState getState() const { return service_state; }
     
     void start();  // start the service
     void stop();   // stop the service
     
     bool isDummy()
     {
-        return service_type == SVC_DUMMY;
+        return service_type == ServiceType::DUMMY;
     }
 };
 
@@ -293,11 +297,11 @@ class ServiceSet
     // transition to the 'stopped' state.
     void stopService(const std::string &name);
     
-    // Notification from service that it is active (state != SVC_STOPPED)
+    // Notification from service that it is active (state != STOPPED)
     // Only to be called on the transition from inactive to active.
     void service_active(ServiceRecord *);
     
-    // Notification from service that it is inactive (SVC_STOPPED)
+    // Notification from service that it is inactive (STOPPED)
     // Only to be called on the transition from active to inactive.
     void service_inactive(ServiceRecord *);
     

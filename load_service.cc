@@ -215,7 +215,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     const char ** commands = nullptr;
     int num_args = 0;
 
-    int service_type = SVC_PROCESS;
+    ServiceType service_type = ServiceType::PROCESS;
     std::list<ServiceRecord *> depends_on;
     std::list<ServiceRecord *> depends_soft;
     string logfile;
@@ -280,13 +280,13 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
             else if (setting == "type") {
                 string type_str = read_setting_value(i, end);
                 if (type_str == "scripted") {
-                    service_type = SVC_SCRIPTED;
+                    service_type = ServiceType::SCRIPTED;
                 }
                 else if (type_str == "process") {
-                    service_type = SVC_PROCESS;
+                    service_type = ServiceType::PROCESS;
                 }
                 else if (type_str == "internal") {
-                    service_type = SVC_INTERNAL;
+                    service_type = ServiceType::INTERNAL;
                 }
                 else {
                     throw ServiceDescriptionExc(name, "Service type must be \"scripted\""

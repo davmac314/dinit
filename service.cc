@@ -48,10 +48,10 @@ void ServiceSet::stopService(const std::string & name)
 // Called when a service has actually stopped.
 void ServiceRecord::stopped()
 {
-    service_state = SVC_STOPPED;
+    service_state = ServiceState::STOPPED;
     force_stop = false;
     
-    // Stop any dependencies whose desired state is SVC_STOPPED:
+    // Stop any dependencies whose desired state is STOPPED:
     for (sr_iter i = depends_on.begin(); i != depends_on.end(); i++) {
         (*i)->dependentStopped();
     }
@@ -59,7 +59,7 @@ void ServiceRecord::stopped()
     service_set->service_inactive(this);
     
     // TODO inform listeners.
-    if (desired_state == SVC_STARTED) {
+    if (desired_state == ServiceState::STARTED) {
         // Desired state is "started".
         start();
     }
@@ -74,12 +74,12 @@ void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, in
     
     // Ok, for a process service, any process death which we didn't rig
     // ourselves is a bit... unexpected. Probably, the child died because
-    // we asked it to (sr->service_state == SVC_STOPPING). But even if
+    // we asked it to (sr->service_state == STOPPING). But even if
     // we didn't, there's not much we can do.
     
-    if (sr->service_type == SVC_PROCESS) {
+    if (sr->service_type == ServiceType::PROCESS) {
         // TODO log non-zero rstatus?
-        if (sr->service_state == SVC_STOPPING) {
+        if (sr->service_state == ServiceState::STOPPING) {
             sr->stopped();
         }
         else {
@@ -90,8 +90,8 @@ void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, in
             sr->start();
         }
     }
-    else {  // SVC_SCRIPTED
-        if (sr->service_state == SVC_STOPPING) {
+    else {  // SCRIPTED
+        if (sr->service_state == ServiceState::STOPPING) {
             if (w->rstatus == 0) {
                 sr->stopped();
             }
@@ -103,7 +103,7 @@ void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, in
                 sr->stopped();
             }
         }
-        else { // SVC_STARTING
+        else { // STARTING
             if (w->rstatus == 0) {
                 sr->started();
             }
@@ -117,8 +117,8 @@ void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, in
 
 void ServiceRecord::start()
 {
-    if ((service_state == SVC_STARTING || service_state == SVC_STARTED)
-            && desired_state == SVC_STOPPED) {
+    if ((service_state == ServiceState::STARTING || service_state == ServiceState::STARTED)
+            && desired_state == ServiceState::STOPPED) {
         // This service was starting, or started, but was set to be stopped.
         // Cancel the stop (and continue starting/running).
         // TODO any listeners waiting for stop should be notified of
@@ -126,9 +126,9 @@ void ServiceRecord::start()
     }
 
     auto old_desired_state = desired_state;
-    desired_state = SVC_STARTED;
+    desired_state = ServiceState::STARTED;
     
-    if (service_state == SVC_STARTED || service_state == SVC_STARTING) {
+    if (service_state == ServiceState::STARTED || service_state == ServiceState::STARTING) {
         // We couldn't be started or starting unless all dependencies have
         // already started: so there's nothing left to do.
         return;
@@ -141,17 +141,17 @@ void ServiceRecord::start()
     for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
         // Note, we cannot treat a dependency as started if its force_stop
         // flag is set.
-        if ((*i)->service_state != SVC_STARTED || (*i)->force_stop) {
+        if ((*i)->service_state != ServiceState::STARTED || (*i)->force_stop) {
             all_deps_started = false;
             (*i)->start();
         }
     }
     
-    if (old_desired_state != SVC_STARTED) {
+    if (old_desired_state != ServiceState::STARTED) {
         // This is a fresh start, so we mark all soft dependencies as 'waiting on' and ask them
         // to start:
         for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
-            if (i->getTo()->service_state != SVC_STARTED) {
+            if (i->getTo()->service_state != ServiceState::STARTED) {
                 all_deps_started = false;
                 i->getTo()->start();
                 i->waiting_on = true;
@@ -164,7 +164,7 @@ void ServiceRecord::start()
         for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
             ServiceRecord * to = i->getTo();
             if (i->waiting_on) {
-                if ((to->desired_state != SVC_STARTED && to->service_state != SVC_STARTING) || to->service_state == SVC_STARTED) {
+                if ((to->desired_state != ServiceState::STARTED && to->service_state != ServiceState::STARTING) || to->service_state == ServiceState::STARTED) {
                     // Service has either started or is no longer starting
                     i->waiting_on = false;
                 }
@@ -181,10 +181,10 @@ void ServiceRecord::start()
     }
     
     // Actually start this service.
-    service_state = SVC_STARTING;
+    service_state = ServiceState::STARTING;
     service_set->service_active(this);
     
-    if (service_type == SVC_PROCESS) {
+    if (service_type == ServiceType::PROCESS) {
         bool start_success = start_ps_process();
         if (start_success) {
             started();
@@ -193,7 +193,7 @@ void ServiceRecord::start()
             failed_to_start();
         }
     }
-    else if (service_type == SVC_SCRIPTED) {
+    else if (service_type == ServiceType::SCRIPTED) {
         // Script-controlled service
         bool start_success = start_ps_process(std::vector<std::string>(1, "start"));
         if (! start_success) {
@@ -208,18 +208,18 @@ void ServiceRecord::start()
 
 void ServiceRecord::started()
 {
-    service_state = SVC_STARTED;
+    service_state = ServiceState::STARTED;
     // TODO - inform listeners
 
-    if (desired_state == SVC_STARTED) {
-        // Start any dependents whose desired state is SVC_STARTED:
+    if (desired_state == ServiceState::STARTED) {
+        // Start any dependents whose desired state is STARTED:
         for (auto i = dependents.begin(); i != dependents.end(); i++) {
-            if ((*i)->desired_state == SVC_STARTED) {
+            if ((*i)->desired_state == ServiceState::STARTED) {
                 (*i)->start();
             }
         }
         for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
-            if ((*i)->getFrom()->desired_state == SVC_STARTED) {
+            if ((*i)->getFrom()->desired_state == ServiceState::STARTED) {
                 (*i)->getFrom()->start();
             }
         }
@@ -231,18 +231,18 @@ void ServiceRecord::started()
 
 void ServiceRecord::failed_to_start()
 {
-    service_state = SVC_STOPPED;
-    desired_state = SVC_STOPPED;
+    service_state = ServiceState::STOPPED;
+    desired_state = ServiceState::STOPPED;
     service_set->service_inactive(this);
     // failure to start
     // Cancel start of dependents:
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
-        if ((*i)->desired_state == SVC_STARTED) {
+        if ((*i)->desired_state == ServiceState::STARTED) {
             (*i)->failed_dependency();
         }
     }    
     for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
-        if ((*i)->getFrom()->desired_state == SVC_STARTED) {
+        if ((*i)->getFrom()->desired_state == ServiceState::STARTED) {
             // We can send 'start', because this is only a soft dependency.
             // Our startup failure means that they don't have to wait for us.
             (*i)->getFrom()->start();
@@ -385,19 +385,19 @@ void ServiceRecord::forceStop()
 // A dependency of this service failed to start.
 void ServiceRecord::failed_dependency()
 {
-    desired_state = SVC_STOPPED;
+    desired_state = ServiceState::STOPPED;
     
     // Presumably, we were starting. So now we're not.
-    service_state = SVC_STOPPED;
+    service_state = ServiceState::STOPPED;
     
     // Notify dependents of this service also
     for (auto i = dependents.begin(); i != dependents.end(); i++) {
-        if ((*i)->desired_state == SVC_STARTED) {
+        if ((*i)->desired_state == ServiceState::STARTED) {
             (*i)->failed_dependency();
         }
     }
     for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
-        if ((*i)->getFrom()->desired_state == SVC_STARTED) {
+        if ((*i)->getFrom()->desired_state == ServiceState::STARTED) {
             // It's a soft dependency, so send them 'started' rather than
             // 'failed dep'.
             (*i)->getFrom()->started();
@@ -407,7 +407,7 @@ void ServiceRecord::failed_dependency()
 
 void ServiceRecord::dependentStopped()
 {
-    if (service_state != SVC_STOPPED && (desired_state == SVC_STOPPED || force_stop)) {
+    if (service_state != ServiceState::STOPPED && (desired_state == ServiceState::STOPPED || force_stop)) {
         // Check the other dependents before we stop.
         if (stopCheckDependents()) {
             stopping();
@@ -417,19 +417,19 @@ void ServiceRecord::dependentStopped()
 
 void ServiceRecord::stop()
 {
-    if ((service_state == SVC_STOPPING || service_state == SVC_STOPPED)
-            && desired_state == SVC_STARTED) {
+    if ((service_state == ServiceState::STOPPING || service_state == ServiceState::STOPPED)
+            && desired_state == ServiceState::STARTED) {
         // The service *was* stopped/stopping, but it was going to restart.
         // Now, we'll cancel the restart.
         // TODO inform listeners waiting for start of cancellation
     }
     
-    if (desired_state == SVC_STOPPED) return;
+    if (desired_state == ServiceState::STOPPED) return;
     
-    desired_state = SVC_STOPPED;
+    desired_state = ServiceState::STOPPED;
 
-    if (service_state != SVC_STARTED) {
-        if (service_state == SVC_STARTING) {
+    if (service_state != ServiceState::STARTED) {
+        if (service_state == ServiceState::STARTING) {
             // Well this is awkward: we're going to have to continue
             // starting, but we don't want any dependents to think that
             // they are still waiting to start.
@@ -452,7 +452,7 @@ bool ServiceRecord::stopCheckDependents()
 {
     bool all_deps_stopped = true;
     for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
-        if ((*i)->service_state != SVC_STOPPED) {
+        if ((*i)->service_state != ServiceState::STOPPED) {
             all_deps_stopped = false;
             break;
         }
@@ -465,7 +465,7 @@ bool ServiceRecord::stopDependents()
 {
     bool all_deps_stopped = true;
     for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
-        if ((*i)->service_state != SVC_STOPPED) {
+        if ((*i)->service_state != ServiceState::STOPPED) {
             all_deps_stopped = false;
             (*i)->stop();
         }
@@ -479,9 +479,9 @@ bool ServiceRecord::stopDependents()
 // Dependency stopped or is stopping; we must stop too.
 void ServiceRecord::stopping()
 {
-    service_state = SVC_STOPPING;
+    service_state = ServiceState::STOPPING;
 
-    if (service_type == SVC_PROCESS) {
+    if (service_type == ServiceType::PROCESS) {
         if (pid != -1) {
           // The process is still kicking on - must actually kill it.
           kill(pid, SIGTERM);
