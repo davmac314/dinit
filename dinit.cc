@@ -1,7 +1,8 @@
 #include <iostream>
+#include <list>
 #include <cstring>
 #include <csignal>
-#include <list>
+#include <cstddef>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -11,7 +12,7 @@
 #include "service.h"
 #include "ev++.h"
 #include "control.h"
-
+#include "dinit-log.h"
 
 /* TODO: prevent services from respawning too quickly */
 /* TODO: detect/guard against dependency cycles */
@@ -47,8 +48,8 @@
  * SIGINT - (ctrl+alt+del handler) - fork & exec "reboot"
  * 
  * On the contrary dinit currently uses:
- * SIGTERM - roll back services and then exec /sbin/halt
- * SIGINT - roll back services and then exec /sbin/reboot
+ * SIGTERM - roll back services and then fork/exec /sbin/halt
+ * SIGINT - roll back services and then fork/exec /sbin/reboot
  *
  * It's an open question about whether dinit should roll back services *before*
  * running halt/reboot, since those commands should prompt rollback of services
@@ -63,11 +64,13 @@ static ServiceSet *service_set;
 static bool am_system_init = false; // true if we are the system init process
 static bool reboot = false; // whether to reboot (instead of halting)
 
+static bool control_socket_open = false;
+
 static void sigint_reboot_cb(struct ev_loop *loop, ev_signal *w, int revents);
 static void sigquit_cb(struct ev_loop *loop, ev_signal *w, int revents);
 static void sigterm_cb(struct ev_loop *loop, ev_signal *w, int revents);
 
-static void open_control_socket(struct ev_loop *loop);
+void open_control_socket(struct ev_loop *loop);
 
 struct ev_io control_socket_io;
 
@@ -103,9 +106,9 @@ int main(int argc, char **argv)
     
     // Arguments, if given, specify a list of services to start.
     // If we are running as init (PID=1), the kernel gives us any command line
-    // arguments it was given but didn't recognize, including "single" (usual
+    // arguments it was given but didn't recognize, including "single" (usually
     // for "boot to single user mode" aka just start the shell). We can treat
-    // them as services. In the worst case we can't find any of the named
+    // them as service names. In the worst case we can't find any of the named
     // services, and so we'll start the "boot" service by default.
     if (argc > 1) {
       for (int i = 1; i < argc; i++) {
@@ -189,12 +192,12 @@ int main(int argc, char **argv)
             service_set->startService(*i);
         }
         catch (ServiceNotFound &snf) {
-            // TODO log this better
-            cerr << "Could not find service description: " << snf.serviceName << endl;
+            log(LogLevel::ERROR, "Could not find service description: " + snf.serviceName);
+            // TODO catch bad_alloc
         }
         catch (ServiceLoadExc &sle) {
-            // TODO log this better
-            cerr << "Problem loading service description: " << sle.serviceName << endl;
+            log(LogLevel::ERROR, "Problem loading service description: " + sle.serviceName);
+            // TODO catch bad_alloc
         }
     }
     
@@ -206,8 +209,7 @@ int main(int argc, char **argv)
     }
     
     if (am_system_init) {
-        // TODO log this output properly
-        cout << "dinit: No more active services.";
+        log(LogLevel::INFO, " No more active services.");
         if (reboot) {
             cout << " Will reboot.";
         }
@@ -244,8 +246,8 @@ int main(int argc, char **argv)
                 goto event_loop; // yes, the "evil" goto
             }
             catch (...) {
-                // TODO catch exceptions and log message as appropriate
                 // Now WTF do we do? try and reboot
+                log(LogLevel::ERROR, "Could not start 'boot' service; rebooting.");
                 if (fork() == 0) {
                     execl("/sbin/reboot", "/sbin/reboot", (char *) 0);
                 }
@@ -270,9 +272,9 @@ static void control_socket_cb(struct ev_loop *loop, ev_io *w, int revents)
 
     // Accept a connection
     int sockfd = w->fd;
-    
+
     int newfd = accept4(sockfd, nullptr, nullptr, SOCK_NONBLOCK | SOCK_CLOEXEC);
-    
+
     if (newfd != -1) {    
         new ControlConn(loop, service_set, newfd);  // will delete itself when it's finished
         // TODO keep a set of control connections so that we can close them when
@@ -280,50 +282,64 @@ static void control_socket_cb(struct ev_loop *loop, ev_io *w, int revents)
     }
 }
 
-static void open_control_socket(struct ev_loop *loop)
+void open_control_socket(struct ev_loop *loop)
 {
-    // TODO make this use a per-user address if PID != 1, and make the address
-    // overridable from the command line
-    
-    const char * saddrname = "/dev/dinitctl";
-    struct sockaddr_un name;
+    if (! control_socket_open) {
+        // TODO make this use a per-user address if PID != 1, and make the address
+        // overridable from the command line
 
-    unlink(saddrname);
+        const char * saddrname = "/dev/dinitctl";
+        struct sockaddr_un name;
 
-    name.sun_family = AF_UNIX;
-    strcpy(name.sun_path, saddrname); // TODO make this safe for long names
-    int namelen = 2 + strlen(saddrname);
-    //int namelen = sizeof(name);
-    
-    int sockfd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
-    if (sockfd == -1) {
-        // TODO log error
-        perror("socket");
-        return;
+        if (am_system_init) {
+            unlink(saddrname);
+        }
+
+        name.sun_family = AF_UNIX;
+        strcpy(name.sun_path, saddrname); // TODO make this safe for long names
+        int namelen = offsetof(struct sockaddr_un, sun_path) + 1 + strlen(saddrname);
+
+        int sockfd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+        if (sockfd == -1) {
+            log(LogLevel::ERROR, std::string("Error creating control socket: ") + strerror(errno));
+            // TODO catch/prevent bad_alloc
+            return;
+        }
+
+        if (bind(sockfd, (struct sockaddr *) &name, namelen) == -1) {
+            log(LogLevel::ERROR, std::string("Error binding control socket: ") + strerror(errno));
+            // TODO catch/prevent bad_alloc
+            close(sockfd);
+            return;
+        }
+
+        // No connections can be made until we listen, so it is fine to change the permissions now
+        // (and anyway there is no way to atomically create the socket and set permissions):
+        if (chmod(saddrname, S_IRUSR | S_IWUSR) == -1) {
+            log(LogLevel::ERROR, std::string("Error setting control socket permissions: ") + strerror(errno));
+            // TODO catch/prevent bad_alloc
+            close(sockfd);
+            return;
+        }
+
+        if (listen(sockfd, 10) == -1) {
+            log(LogLevel::ERROR, std::string("Error listening on control socket: ") + strerror(errno));
+            // TODO catch/prevent bad_alloc
+            close(sockfd);
+            return;
+        }
+
+        control_socket_open = true;
+        ev_io_init(&control_socket_io, control_socket_cb, sockfd, EV_READ);
+        ev_io_start(loop, &control_socket_io);
     }
-    
-    if (bind(sockfd, (struct sockaddr *) &name, namelen) == -1) {
-        // TODO log error
-        perror("bind");
-        close(sockfd);
-        return;
-    }
-    
-    if (listen(sockfd, 10) == -1) {
-        // TODO log error
-        perror("listen");
-        close(sockfd);
-        return;
-    }
-    
-    ev_io_init(&control_socket_io, control_socket_cb, sockfd, EV_READ);
-    ev_io_start(loop, &control_socket_io);
 }
 
 /* handle SIGINT signal (generated by kernel when ctrl+alt+del pressed) */
 static void sigint_reboot_cb(struct ev_loop *loop, ev_signal *w, int revents)
 {
     reboot = true;
+    log_to_console = true;
     service_set->stop_all_services();
 }
 
@@ -334,11 +350,14 @@ static void sigquit_cb(struct ev_loop *loop, ev_signal *w, int revents)
     // unlinked. In that case the kernel holds the binary open, so that it can't be
     // properly removed.
     execl("/sbin/shutdown", "/sbin/shutdown", (char *) 0);
+    log(LogLevel::ERROR, std::string("Error executing /sbin/shutdown: ") + strerror(errno));
+    // TODO catch/prevent bad_alloc
 }
 
 /* handle SIGTERM - stop all services */
 static void sigterm_cb(struct ev_loop *loop, ev_signal *w, int revents)
 {
     got_sigterm = true;
+    log_to_console = true;
     service_set->stop_all_services();
 }

@@ -1,8 +1,8 @@
 -include mconfig
 
-objects = dinit.o load_service.o service.o dinit-start.o
+objects = dinit.o load_service.o service.o dinit-log.o dinit-start.o
 
-dinit_objects = dinit.o load_service.o service.o
+dinit_objects = dinit.o load_service.o service.o dinit-log.o
 
 all: dinit dinit-start
 

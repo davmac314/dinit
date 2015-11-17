@@ -1,4 +1,3 @@
-#include "service.h"
 #include <cstring>
 #include <cerrno>
 #include <sstream>
@@ -8,6 +7,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include "service.h"
+#include "dinit-log.h"
+
+// from dinit.cc:
+void open_control_socket(struct ev_loop *loop);
 
 
 // Find the requested service by name
@@ -48,6 +52,7 @@ void ServiceSet::stopService(const std::string & name)
 // Called when a service has actually stopped.
 void ServiceRecord::stopped()
 {
+    logServiceStopped(service_name);
     service_state = ServiceState::STOPPED;
     force_stop = false;
     
@@ -208,8 +213,17 @@ void ServiceRecord::start()
 
 void ServiceRecord::started()
 {
+    logServiceStarted(service_name);
     service_state = ServiceState::STARTED;
     // TODO - inform listeners
+
+    if (onstart_flags.release_console) {
+        log_to_console = false;
+    }
+
+    if (onstart_flags.rw_ready) {
+        open_control_socket(ev_default_loop(EVFLAG_AUTO));
+    }
 
     if (desired_state == ServiceState::STARTED) {
         // Start any dependents whose desired state is STARTED:
@@ -231,6 +245,7 @@ void ServiceRecord::started()
 
 void ServiceRecord::failed_to_start()
 {
+    logServiceFailed(service_name);
     service_state = ServiceState::STOPPED;
     desired_state = ServiceState::STOPPED;
     service_set->service_inactive(this);

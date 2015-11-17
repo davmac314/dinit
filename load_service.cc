@@ -162,24 +162,6 @@ static string read_setting_value(string_iterator & i, string_iterator end,
 }
 
 
-// Given a string and a list of pairs of (start,end) indices for each argument in that string,
-// store a null terminator for the argument. Return a `char *` array pointing at the beginning
-// of each argument. (The returned array is invalidated if the string is later modified).
-static const char ** separate_args(string &s, std::list<std::pair<unsigned,unsigned>> &arg_indices)
-{
-    const char * cstr = s.c_str();
-    const char ** r = new const char *[arg_indices.size()];
-    int i = 0;
-    for (auto index_pair : arg_indices) {
-        r[i] = cstr + index_pair.first;
-        if (index_pair.second < s.length()) {
-            s[index_pair.second] = 0;
-        }
-        i++;
-    }
-    return r;
-}
-
 // Find a service record, or load it from file. If the service has
 // dependencies, load those also.
 //
@@ -212,13 +194,13 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     service_filename += name;
     
     string command;
-    const char ** commands = nullptr;
-    int num_args = 0;
+    std::list<std::pair<unsigned,unsigned>> command_offsets;
 
     ServiceType service_type = ServiceType::PROCESS;
     std::list<ServiceRecord *> depends_on;
     std::list<ServiceRecord *> depends_soft;
     string logfile;
+    OnstartFlags onstart_flags = {false, false};
     
     string line;
     bool auto_restart = false;
@@ -257,10 +239,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
             i = skipws(++i, end);
             
             if (setting == "command") {
-                std::list<std::pair<unsigned,unsigned>> indices;
-                command = read_setting_value(i, end, &indices);
-                commands = separate_args(command, indices);
-                num_args = indices.size();
+                command = read_setting_value(i, end, &command_offsets);
             }
             else if (setting == "depends-on") {
                 string dependency_name = read_setting_value(i, end);
@@ -293,6 +272,22 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                         " or \"process\" or \"internal\"");
                 }
             }
+            else if (setting == "onstart") {
+                std::list<std::pair<unsigned,unsigned>> indices;
+                string onstart_cmds = read_setting_value(i, end, &indices);
+                for (auto indexpair : indices) {
+                    string onstart_cmd = onstart_cmds.substr(indexpair.first, indexpair.second - indexpair.first);
+                    if (onstart_cmd == "release_console") {
+                        onstart_flags.release_console = true;
+                    }
+                    else if (onstart_cmd == "rw_ready") {
+                        onstart_flags.rw_ready = true;
+                    }
+                    else {
+                        throw new ServiceDescriptionExc(name, "Unknown onstart command: " + onstart_cmd);
+                    }
+                }
+            }
             else {
                 throw ServiceDescriptionExc(name, "Unknown setting: " + setting);
             }
@@ -307,10 +302,11 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
         if (*iter == rval) {
             // We've found the dummy record
             delete rval;
-            rval = new ServiceRecord(this, string(name), service_type, command, commands, num_args,
+            rval = new ServiceRecord(this, string(name), service_type, std::move(command), command_offsets,
                     & depends_on, & depends_soft);
             rval->setLogfile(logfile);
             rval->setAutoRestart(auto_restart);
+            rval->setOnstartFlags(onstart_flags);
             *iter = rval;
             break;
         }

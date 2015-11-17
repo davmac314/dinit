@@ -44,6 +44,11 @@ enum class ServiceType {
 };
 
 
+struct OnstartFlags {
+    bool release_console : 1;
+    bool rw_ready : 1;
+};
+
 // Exception while loading a service
 class ServiceLoadExc
 {
@@ -93,26 +98,48 @@ class ServiceDep
 {
     ServiceRecord * from;
     ServiceRecord * to;
-    
+
     public:
     /* Whether the 'from' service is waiting for the 'to' service to start */
     bool waiting_on;
-    
+
     ServiceDep(ServiceRecord * from, ServiceRecord * to) : from(from), to(to), waiting_on(false)
     {  }
-    
+
     ServiceRecord * getFrom()
     {
         return from;
     }
-    
+
     ServiceRecord * getTo()
     {
         return to;
     }
 };
 
+// Given a string and a list of pairs of (start,end) indices for each argument in that string,
+// store a null terminator for the argument. Return a `char *` array pointing at the beginning
+// of each argument. (The returned array is invalidated if the string is later modified).
+static const char ** separate_args(std::string &s, std::list<std::pair<unsigned,unsigned>> &arg_indices)
+{
+    const char ** r = new const char *[arg_indices.size()];
+    int i = 0;
 
+    // First store nul terminator for each part:
+    for (auto index_pair : arg_indices) {
+        if (index_pair.second < s.length()) {
+            s[index_pair.second] = 0;
+        }
+    }
+
+    // Now we can get the C string (c_str) and store offsets into it:
+    const char * cstr = s.c_str();
+    for (auto index_pair : arg_indices) {
+        r[i] = cstr + index_pair.first;
+        i++;
+    }
+    return r;
+}
 
 class ServiceRecord
 {
@@ -129,6 +156,7 @@ class ServiceRecord
     string program_name;          /* storage for program/script and arguments */
     const char **exec_arg_parts;  /* pointer to each argument/part of the program_name */
     int num_args;                 /* number of argumrnets (including program) */
+    OnstartFlags onstart_flags;
 
     string logfile; /* log file name, empty string specifies /dev/null */
     bool auto_restart; /* whether to restart this (process) if it dies unexpectedly */
@@ -207,8 +235,8 @@ class ServiceRecord
         service_type = ServiceType::DUMMY;
     }
     
-    ServiceRecord(ServiceSet *set, string name, ServiceType service_type, string command, const char ** commands,
-            int num_argsx, sr_list * pdepends_on, sr_list * pdepends_soft)
+    ServiceRecord(ServiceSet *set, string name, ServiceType service_type, string &&command, std::list<std::pair<unsigned,unsigned>> &command_offsets,
+            sr_list * pdepends_on, sr_list * pdepends_soft)
         : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), force_stop(false), auto_restart(false)
     {
         service_set = set;
@@ -217,13 +245,13 @@ class ServiceRecord
         this->depends_on = std::move(*pdepends_on);
 
         program_name = command;
-        exec_arg_parts = commands;
-        num_args = num_argsx;
+        exec_arg_parts = separate_args(program_name, command_offsets);
+        num_args = command_offsets.size();
 
-        for (sr_iter i = pdepends_on->begin(); i != pdepends_on->end(); ++i) {
+        for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
             (*i)->dependents.push_back(this);
         }
-        
+
         // Soft dependencies
         auto b_iter = soft_deps.end();
         for (sr_iter i = pdepends_soft->begin(); i != pdepends_soft->end(); ++i) {
@@ -247,6 +275,12 @@ class ServiceRecord
         this->auto_restart = auto_restart;
     }
     
+    // Set "on start" flags (commands)
+    void setOnstartFlags(OnstartFlags flags)
+    {
+        this->onstart_flags = flags;
+    }
+
     const char *getServiceName() const { return service_name.c_str(); }
     ServiceState getState() const { return service_state; }
     
