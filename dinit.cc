@@ -203,7 +203,6 @@ int main(int argc, char **argv)
     // Process events until all services have terminated.
     while (service_set->count_active_services() != 0) {
         ev_loop(loop, EVLOOP_ONESHOT);
-        log(LogLevel::ERROR, std::string("Got event, active service count now = ") + std::to_string(service_set->count_active_services())); // DAV
     }
     
     if (am_system_init) {
@@ -219,8 +218,6 @@ int main(int argc, char **argv)
         }
         cout << endl;
     }
-    
-    log(LogLevel::ERROR, "No more services"); // DAV
     
     if (am_system_init) {
         if (reboot) {
