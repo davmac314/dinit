@@ -101,9 +101,9 @@ void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, in
                 sr->stopped();
             }
             else {
-                // TODO
-                // ??? failed to stop!
-                // For now just pretend we stopped, so that any dependencies
+                // ??? failed to stop! Let's log it as info:
+                log(LogLevel::INFO, "service ", sr->service_name, " stop command failed with exit code ", w->rstatus);
+                // Just assume that we stopped, so that any dependencies
                 // can be stopped:
                 sr->stopped();
             }
@@ -276,8 +276,6 @@ bool ServiceRecord::start_ps_process() noexcept
     }
 }
 
-// TODO this can currently throw std::bad_alloc, fix that (in the worst case,
-//      return failure instead).
 bool ServiceRecord::start_ps_process(const std::vector<std::string> &pargs) noexcept
 {
     // In general, you can't tell whether fork/exec is successful. We use a pipe to communicate
@@ -378,7 +376,7 @@ bool ServiceRecord::start_ps_process(const std::vector<std::string> &pargs) noex
         }
     }
     catch (std::bad_alloc &bad_alloc_exc) {
-        // TODO log error
+        log(LogLevel::ERROR, "Out of memory");
         return false;
     }
 }

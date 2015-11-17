@@ -15,7 +15,6 @@
 #include "dinit-log.h"
 
 /* TODO: prevent services from respawning too quickly */
-/* TODO: detect/guard against dependency cycles */
 /* TODO: optional automatic restart of services */
 
 /*
@@ -192,12 +191,10 @@ int main(int argc, char **argv)
             service_set->startService(*i);
         }
         catch (ServiceNotFound &snf) {
-            log(LogLevel::ERROR, "Could not find service description: " + snf.serviceName);
-            // TODO catch bad_alloc
+            log(LogLevel::ERROR, "Could not find service description: ", snf.serviceName);
         }
         catch (ServiceLoadExc &sle) {
-            log(LogLevel::ERROR, "Problem loading service description: " + sle.serviceName);
-            // TODO catch bad_alloc
+            log(LogLevel::ERROR, "Problem loading service description: ", sle.serviceName);
         }
     }
     
@@ -206,6 +203,7 @@ int main(int argc, char **argv)
     // Process events until all services have terminated.
     while (service_set->count_active_services() != 0) {
         ev_loop(loop, EVLOOP_ONESHOT);
+        log(LogLevel::ERROR, std::string("Got event, active service count now = ") + std::to_string(service_set->count_active_services())); // DAV
     }
     
     if (am_system_init) {
@@ -222,6 +220,7 @@ int main(int argc, char **argv)
         cout << endl;
     }
     
+    log(LogLevel::ERROR, "No more services"); // DAV
     
     if (am_system_init) {
         if (reboot) {
@@ -301,14 +300,12 @@ void open_control_socket(struct ev_loop *loop)
 
         int sockfd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
         if (sockfd == -1) {
-            log(LogLevel::ERROR, std::string("Error creating control socket: ") + strerror(errno));
-            // TODO catch/prevent bad_alloc
+            log(LogLevel::ERROR, "Error creating control socket: ", strerror(errno));
             return;
         }
 
         if (bind(sockfd, (struct sockaddr *) &name, namelen) == -1) {
-            log(LogLevel::ERROR, std::string("Error binding control socket: ") + strerror(errno));
-            // TODO catch/prevent bad_alloc
+            log(LogLevel::ERROR, "Error binding control socket: ", strerror(errno));
             close(sockfd);
             return;
         }
@@ -316,15 +313,13 @@ void open_control_socket(struct ev_loop *loop)
         // No connections can be made until we listen, so it is fine to change the permissions now
         // (and anyway there is no way to atomically create the socket and set permissions):
         if (chmod(saddrname, S_IRUSR | S_IWUSR) == -1) {
-            log(LogLevel::ERROR, std::string("Error setting control socket permissions: ") + strerror(errno));
-            // TODO catch/prevent bad_alloc
+            log(LogLevel::ERROR, "Error setting control socket permissions: ", strerror(errno));
             close(sockfd);
             return;
         }
 
         if (listen(sockfd, 10) == -1) {
-            log(LogLevel::ERROR, std::string("Error listening on control socket: ") + strerror(errno));
-            // TODO catch/prevent bad_alloc
+            log(LogLevel::ERROR, "Error listening on control socket: ", strerror(errno));
             close(sockfd);
             return;
         }
@@ -350,8 +345,7 @@ static void sigquit_cb(struct ev_loop *loop, ev_signal *w, int revents)
     // unlinked. In that case the kernel holds the binary open, so that it can't be
     // properly removed.
     execl("/sbin/shutdown", "/sbin/shutdown", (char *) 0);
-    log(LogLevel::ERROR, std::string("Error executing /sbin/shutdown: ") + strerror(errno));
-    // TODO catch/prevent bad_alloc
+    log(LogLevel::ERROR, "Error executing /sbin/shutdown: ", strerror(errno));
 }
 
 /* handle SIGTERM - stop all services */
