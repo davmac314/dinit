@@ -12,7 +12,7 @@ dinit: $(dinit_objects)
 dinit-start: dinit-start.o
 	$(CXX) -o dinit-start dinit-start.o $(EXTRA_LIBS)
 
-$(objects): %.o: %.cc service.h
+$(objects): %.o: %.cc service.h dinit-log.h
 	$(CXX) -D_GLIBCXX_USE_CXX11_ABI=0 -std=gnu++11 -c -Os -Wall $< -o $@
 
 #install: all
