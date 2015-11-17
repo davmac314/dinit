@@ -1,31 +1,32 @@
-dinit
+Dinit
 -----
-v0.1
+v0.1 (pre-release)
+
 
 What is it?
 =-=-=-=-=-=
 
-"dinit" is destined to eventually become a replacement "init" program for
-Linux (and possibly other) systems. But it's not there yet.
+"Dinit" is a service supervisor with dependency support which can also
+act as the system "init" program.
 
-However, dinit can be used as a general service monitor. Specifically it
-can launch multiple services (generally, "daemon" processes, but see notes
-below) in parallel, with dependency management (i.e. if one service's
-operation depends on another, the latter service will be started first).
+Specifically it can launch multiple services (generally, "daemon" processes,
+but see notes below) in parallel, with dependency management (i.e. if one
+service's operation depends on another, the latter service will be started
+first).
 
-For "process" services (the only kind of service that v0.1 supports) dinit
-can monitor the process corresponding to the service, and re-start it if it
-dies. It does this in an intelligent way, first "rolling back" all dependent
-services (which it will later re-start, if configured to do so).
+For "process" services dinit can monitor the process corresponding to the
+service, and re-start it if it dies. It does this in an intelligent way,
+first "rolling back" all dependent services (which it will later re-start,
+if configured to do so).
 
-Notes on services
-=-=-=-=-=-=-=-=-=
 
-The only type of service supported in v0.1 are "process" services. Process
-services are so named because they run as a process which dinit launches
-and monitors directly (this is opposed to "scripted" services, scheduled for
-v0.5, which will be started and stopped with the aid of a script or other
-program, and which cannot be directly monitored by dinit).
+Introduction to services
+=-=-=-=-=-=-=-=-=-=-=-=-
+
+A "service" is nominally a persistent process or system state. The two main
+types of service are a _process_ service (represented by a an actual process)
+and a _scripted_ service (which is started and stopped by running a process -
+often a shell script - to completion).
 
 Many programs that you might want to run under dinit's supervision can run
 either "in the foreground" or as a daemon ("in the background"), and the
@@ -41,9 +42,63 @@ has been launched, dinit assumes that the service has started, but in fact
 there will be a short delay before the process sets itself up, starts
 listening on sockets, etc; during this time any other process (including
 one from a service listed as dependent) which tries to contact it will not
-be able to do so.
+be able to do so. In practice, this is not usually a problem (and external
+solutions, like D-Bus, do exist).
 
 
-Things to document about current implementation
------------------------------------------------
-* logfiles won't work until filesystem mounted (/dev/null should, though)
+
+Service Description files
+=-=-=-=-=-=-=-=-=-=-=-=-=
+
+Dinit discovers services by reading _service description files_. These files
+reside in a directory (/etc/dinit.d is the default "system" location) and
+their name matches the name of the service. Service descriptions are loaded
+lazily, as needed by Dinit.
+
+A service description file consists of a number of parameter settings.
+Settings in the SDF are denoted as a parameter name followed by either an
+equal sign or colon and then the parameter value (all on the same line).
+Comments begin with a hash mark (#) and extend to the end of the line.
+
+Parameter values are interpreted literally, except that:
+ - whitespace is collapsed to a single space
+ - double quotes can be used around all or part(s) of a parameter to prevent
+   whitespace collapse and interpretation of special characters
+ - backslash can be used to 'escape' the next character, preventing any
+   special meaning from being associated with it. It can be used to include
+   non-collapsing whitespace, double-quote marks, and backslashes in the
+   parameter value.
+
+Parameters are:
+
+type = process | scripted | internal
+command = ...
+restart = yes | true | no | false
+logfile = ...
+onstart = ...
+depends-on = (service name)
+waits-for = (service name)
+
+command = (external script or executable and arguments)
+   For a 'process' service, this is the process to run.
+   For a 'scripted' service, this process is run both to start the service
+   (with the command-line argument "start" appended) and to stop the
+   service (with "stop").
+ 
+onstart = (internal commands)
+   release_console - stop performing output to the console (usually used
+              when login prompt is spawned)
+   rw_ready - try again to open any logs, control socket etc that could not
+              be opened previously due to a read-only filesystem.
+
+depends-on = (service name)
+   This service depends on the named service. Starting this service will
+   start the named service; the command to start this service will not be
+   executed until the named service has started. If the named service is
+   stopped then this service will also be stopped.
+
+waits-for = (service name)
+   When this service is started, wait for the named service to finish
+   starting (or to fail starting) before commencing the start procedure
+   for this service. Starting this service will automatically start
+   the named service.
