@@ -383,9 +383,6 @@ bool ServiceRecord::start_ps_process(const std::vector<std::string> &pargs) noex
     }
 }
 
-
-
-
 // Mark this and all dependent services as force-stopped.
 void ServiceRecord::forceStop()
 {
@@ -507,10 +504,13 @@ void ServiceRecord::stopping()
             stopped();
         }
     }
-    else {
+    else if (service_type == ServiceType::SCRIPTED) {
         // Scripted service.
         start_ps_process(std::vector<string>(1, "stop"));
-    }    
+    }
+    else {
+        stopped();
+    }
 }
 
 void ServiceSet::service_active(ServiceRecord *sr)
