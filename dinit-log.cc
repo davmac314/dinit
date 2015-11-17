@@ -3,6 +3,7 @@
 
 LogLevel log_level = LogLevel::WARN;
 bool log_to_console = true;    // whether we should output log messages to console
+bool log_current_line;
 
 // Log a message
 void log(LogLevel lvl, const char *msg) noexcept
@@ -10,6 +11,37 @@ void log(LogLevel lvl, const char *msg) noexcept
     if (lvl >= log_level) {
         if (log_to_console) {
             std::cout << "dinit: " << msg << std::endl;
+        }
+    }
+}
+
+// Log a multi-part message beginning
+void logMsgBegin(LogLevel lvl, const char *msg) noexcept
+{
+    log_current_line = lvl >= log_level;
+    if (log_current_line) {
+        if (log_to_console) {
+            std::cout << "dinit: " << msg;
+        }
+    }
+}
+
+// Continue a multi-part log message
+void logMsgPart(const char *msg) noexcept
+{
+    if (log_current_line) {
+        if (log_to_console) {
+            std::cout << msg;
+        }
+    }
+}
+
+// Complete a multi-part log message
+void logMsgEnd(const char *msg) noexcept
+{
+    if (log_current_line) {
+        if (log_to_console) {
+            std::cout << msg << std::endl;
         }
     }
 }
