@@ -1,44 +1,58 @@
-* Documentation including sample service definitions
-* if PID = 1, don't interpret comnand line args as services to start (except for
-  "single").
+For version 1.0:
+----------------
+* Add command line arg to start in "PID 1" mode (even if PID != 1).
+  Basically, allow running as a system service monitor, without
+  requiring that dinit runs as PID 1.
 * if PID != 1, choose a more sensible service definition directory
   (something like $HOME/dinit.d)
-* Support "virtual" services (so you don't have to have "scripted" services where
-  where the script is /bin/true)
+* Documentation including sample service definitions
 * Better error handling, logging of errors
 * Implement a control utility to start/stop services after dinit has started
-* Allow command-line arguments to service processes
+* Write wtmp entry on startup (see simpleinit)
+* Allow running services as a different UID
+
+For later:
 * Allow logging tasks to memory (growing or circular buffer) and later
   switching to disk logging (allows for filesystem mounted readonly on boot)
 * Rate control on process respawn
 * Maybe re-implement "shutdown" ("halt", "reboot") from util-linux to better work
   with dinit.
+* Allow running services with different resource limits, chroot, cgroups,
+  namespaces (pid/fs/uid), etc
+* Make default control socket location build-time configurable
+* Allow specifying a timeout for killing services; if they don't die within
+  the timeout (after a TERM) then hit them with a KILL.
+
+Even later:
 * Support recognising /etc/init.d services automatically (as script services, with
   no dependency management - or upstart compatible dependency management)
-* Write wtmp entry on startup (see simpleinit)
-* Allow running services as a different UID, resource limits, chroot, cgroups,
-  namespaces (pid/fs/uid), etc
-* Should services be started in a new session (setsid()?) and/or process group
-  (setpgid()?)
-* Make default control socket location build-time configurable
-
-Later:
+  Also BSD's rc.d style scripts (PROVIDE, REQUIRE).
 * Place some reasonable, soft limit on the number of services to be started
   simultaneously, to prevent thrashing. Services that are taking a long time
   to start don't count to the limit. Maybe use CPU/IO usage as a controlling
   factor.
 * Cron-like tasks (if started, they run a sub-task periodically. Stopping the
-  task will wait until the sub-task is complete). These don't need to be
-  special service type, just have dinit handle cron entries which specify when
-  a particular service needs to be started (and have it not auto-restart).
-* Allow binding AF_UNIX sockets and when receiving connection to them, start some
-  service which implements that service eg:
-   /dev/log -> syslog service
-   /var/run/mdnsd -> mDNSResponder (mdndsd)
+  task will wait until the sub-task is complete). 
+* Socket activation of services? Not sure if enough non-SystemD derived
+  daemons actually support this to warrant implementing it.
 * Allow to run services attached to virtual tty, allow connection to that tty (ala "screen").
 * SystemD-like handling of filesystem mounts (see autofs documentation in kernel)
+  i.e. a filesystem become ready is equivalent to a service starting.
 
 
-Investigate:
+Documentation:
+
 * What's the best TERM setting? gogetty gives me "linux" but I think other variants may be
-  better.
+  better (eg "linux-c").
+
+* Figure out the ConsoleKit/logind / PolicyKit mess & how dinit needs to fit into it.
+  * Consolekit/logind tracks "sessions". Provides a mechanism to mark a session starting,
+    associates processes with sessions, provides calls to terminate sessions etc (why?!!)
+    Can use environment variable or cgroups to track processes in a session.
+    A PAM module exists to create/destroy sessions.
+  * Consolekit/logind also allows for requesting shutdown, reboot, and inhibiting reboot
+    (via dbus API).
+  * "seats" are a set of input/output hardware (mouse/keyboard/monitor) on which a session
+    can be run. You can have multiple sessions on a seat - one is in the foreground
+    (eg linux virtual ttys implement multiple sessions on a single seat).
+    Sessions can run without a seat (eg ssh session).
