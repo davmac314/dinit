@@ -11,18 +11,18 @@
  *
  * The total state is a combination of the two, current and desired:
  *      STOPPED/STOPPED  : stopped and will remain stopped
- *      STOPPED/STARTED  : stopped and will be started; waiting for dependencies to start.
- *      STARTING/STARTED : starting, but not yet started. All dependencies have started already.
+ *      STOPPED/STARTED  :  - (this state cannot occur)
+ *      STARTING/STARTED : starting, but not yet started. Dependencies may also be starting.
  *      STARTING/STOPPED : as above, but the service will be stopped again as soon as it has
  *                         completed startup.
  *      STARTED/STARTED  : running and will continue running.
- *      STARTED/STOPPED  : running but will stop; waiting for dependents to stop.
- *      STOPPING/STOPPED : stopping and will stop. All dependents have stopped.
+ *      STARTED/STOPPED  :  - (this state cannot occur)
+ *      STOPPING/STOPPED : stopping and will stop. Dependents may be stopping.
  *      STOPPING/STARTED : as above, but the service will be re-started again once it stops.
  *
  * A scripted service is in the STARTING/STOPPING states during the script execution.
- * A process service is in the STOPPING state when it has been signalled to stop (and is never
- *       in the STARTING state; it moves directly from STOPPED to STARTED).
+ * A process service is in the STOPPING state when it has been signalled to stop, and is
+ *       in the STARTING state when waiting for dependencies to start.
  */
 enum class ServiceState {
     STOPPED,    // service is not running.
@@ -47,6 +47,10 @@ enum class ServiceType {
 struct OnstartFlags {
     bool release_console : 1;
     bool rw_ready : 1;
+    
+    OnstartFlags() : release_console(false), rw_ready(false)
+    {
+    }
 };
 
 // Exception while loading a service
@@ -147,8 +151,8 @@ class ServiceRecord
     
     string service_name;
     ServiceType service_type;  /* ServiceType::DUMMY, PROCESS, SCRIPTED, INTERNAL */
-    ServiceState service_state; /* ServiceState::STOPPED, STARTING, STARTED, STOPPING */
-    ServiceState desired_state; /* ServiceState::STOPPED / STARTED */
+    ServiceState service_state = ServiceState::STOPPED; /* ServiceState::STOPPED, STARTING, STARTED, STOPPING */
+    ServiceState desired_state = ServiceState::STOPPED; /* ServiceState::STOPPED / STARTED */
 
     string program_name;          /* storage for program/script and arguments */
     const char **exec_arg_parts;  /* pointer to each argument/part of the program_name */
@@ -192,9 +196,8 @@ class ServiceRecord
 
     ev_child child_listener;
     
-    // Move service to STOPPING state. This can only be called once
-    // all dependents have stopped.
-    void stopping();
+    // All dependents have stopped.
+    void allDepsStopped();
     
     // Service has actually stopped (includes having all dependents
     // reaching STOPPED state).
@@ -219,6 +222,11 @@ class ServiceRecord
 
     // A dependency has reached STARTED state
     void dependencyStarted();
+    
+    void allDepsStarted();
+    
+    // Check whether dependencies have started, and optionally ask them to start
+    bool startCheckDependencies(bool do_start);
 
     // A dependent has reached STOPPED state
     void dependentStopped();

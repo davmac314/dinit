@@ -200,7 +200,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     std::list<ServiceRecord *> depends_on;
     std::list<ServiceRecord *> depends_soft;
     string logfile;
-    OnstartFlags onstart_flags = {false, false};
+    OnstartFlags onstart_flags;
     
     string line;
     bool auto_restart = false;

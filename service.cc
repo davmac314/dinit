@@ -130,65 +130,84 @@ void ServiceRecord::start()
         //      its cancellation
     }
 
-    auto old_desired_state = desired_state;
+    if (desired_state == ServiceState::STARTED) return;
+
     desired_state = ServiceState::STARTED;
     
-    if (service_state == ServiceState::STARTED || service_state == ServiceState::STARTING) {
-        // We couldn't be started or starting unless all dependencies have
-        // already started: so there's nothing left to do.
+    if (service_state != ServiceState::STOPPED) {
+        // We're already starting/started, or we are stopping and need to wait for
+        // that the complete.
         return;
     }
     
-    bool all_deps_started = true;
-
-    // Ask dependencies to start, mark them as being waited on.
-    
-    for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
-        // Note, we cannot treat a dependency as started if its force_stop
-        // flag is set.
-        if ((*i)->service_state != ServiceState::STARTED || (*i)->force_stop) {
-            all_deps_started = false;
-            (*i)->start();
-        }
-    }
-    
-    if (old_desired_state != ServiceState::STARTED) {
-        // This is a fresh start, so we mark all soft dependencies as 'waiting on' and ask them
-        // to start:
-        for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
-            if (i->getTo()->service_state != ServiceState::STARTED) {
-                all_deps_started = false;
-                i->getTo()->start();
-                i->waiting_on = true;
-            }
-        }
-    }
-    else {
-        // This is (or at least may be) a notification that a dependency is ready; let's
-        // just check them:
-        for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
-            ServiceRecord * to = i->getTo();
-            if (i->waiting_on) {
-                if ((to->desired_state != ServiceState::STARTED && to->service_state != ServiceState::STARTING) || to->service_state == ServiceState::STARTED) {
-                    // Service has either started or is no longer starting
-                    i->waiting_on = false;
-                }
-                else {
-                    all_deps_started = false;
-                }
-            }
-        }
-    }
-
-    if (! all_deps_started) {
-        // The dependencies will notify this service once they've started.
-        return;
-    }
-    
-    // Actually start this service.
     service_state = ServiceState::STARTING;
     service_set->service_active(this);
+
+    // Ask dependencies to start, mark them as being waited on.
+    if (! startCheckDependencies(true)) {
+        return;
+    }
+
+    // Actually start this service.
+    allDepsStarted();
+}
+
+void ServiceRecord::dependencyStarted()
+{
+    if (service_state != ServiceState::STARTING) {
+        return;
+    }
+
+    if (startCheckDependencies(false)) {
+        allDepsStarted();
+    }
+}
+
+bool ServiceRecord::startCheckDependencies(bool start_deps)
+{
+    bool all_deps_started = true;
+
+    for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
+        if ((*i)->service_state != ServiceState::STARTED) {
+            if (start_deps) {
+                all_deps_started = false;
+                (*i)->start();
+            }
+            else {
+                return false;
+            }
+        }
+    }
+
+    for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
+        ServiceRecord * to = i->getTo();
+        if (start_deps) {
+            if (to->service_state != ServiceState::STARTED) {
+                to->start();
+                i->waiting_on = true;
+                all_deps_started = false;
+            }
+            else {
+                i->waiting_on = false;
+            }
+        }
+        else if (i->waiting_on) {
+            if (to->service_state != ServiceState::STARTING) {
+                // Service has either started or is no longer starting
+                i->waiting_on = false;
+            }
+            else {
+                // We are still waiting on this service
+                return false;
+            }
+        }
+    }
     
+    return all_deps_started;
+}
+
+void ServiceRecord::allDepsStarted()
+{
     if (service_type == ServiceType::PROCESS) {
         bool start_success = start_ps_process();
         if (start_success) {
@@ -211,11 +230,6 @@ void ServiceRecord::start()
     }
 }
 
-void ServiceRecord::dependencyStarted()
-{
-    start();
-}
-
 void ServiceRecord::started()
 {
     logServiceStarted(service_name);
@@ -230,21 +244,22 @@ void ServiceRecord::started()
         open_control_socket(ev_default_loop(EVFLAG_AUTO));
     }
 
-    if (desired_state == ServiceState::STARTED) {
-        // Start any dependents whose desired state is STARTED:
-        for (auto i = dependents.begin(); i != dependents.end(); i++) {
-            if ((*i)->desired_state == ServiceState::STARTED) {
-                (*i)->dependencyStarted();
-            }
-        }
-        for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
-            if ((*i)->getFrom()->desired_state == ServiceState::STARTED) {
-                (*i)->getFrom()->dependencyStarted();
-            }
+    if (force_stop || desired_state == ServiceState::STOPPED) {
+        // We must now stop.
+        stop();
+        return;
+    }
+
+    // Notify any dependents whose desired state is STARTED:
+    for (auto i = dependents.begin(); i != dependents.end(); i++) {
+        if ((*i)->desired_state == ServiceState::STARTED) {
+            (*i)->dependencyStarted();
         }
     }
-    else {
-        stop();
+    for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
+        if ((*i)->getFrom()->desired_state == ServiceState::STARTED) {
+            (*i)->getFrom()->dependencyStarted();
+        }
     }
 }
 
@@ -422,10 +437,10 @@ void ServiceRecord::failed_dependency()
 
 void ServiceRecord::dependentStopped()
 {
-    if (service_state != ServiceState::STOPPED && (desired_state == ServiceState::STOPPED || force_stop)) {
+    if (service_state == ServiceState::STOPPING) {
         // Check the other dependents before we stop.
         if (stopCheckDependents()) {
-            stopping();
+            allDepsStopped();
         }
     }
 }
@@ -457,9 +472,10 @@ void ServiceRecord::stop()
         return;
     }
     
+    service_state = ServiceState::STOPPING;
     // If we get here, we are in STARTED state; stop all dependents.
-    if (stopCheckDependents()) {
-        stopping();
+    if (stopDependents()) {
+        allDepsStopped();
     }
 }
 
@@ -492,10 +508,8 @@ bool ServiceRecord::stopDependents()
 
 
 // Dependency stopped or is stopping; we must stop too.
-void ServiceRecord::stopping()
+void ServiceRecord::allDepsStopped()
 {
-    service_state = ServiceState::STOPPING;
-
     if (service_type == ServiceType::PROCESS) {
         if (pid != -1) {
           // The process is still kicking on - must actually kill it.
@@ -509,7 +523,10 @@ void ServiceRecord::stopping()
     }
     else if (service_type == ServiceType::SCRIPTED) {
         // Scripted service.
-        start_ps_process(std::vector<string>(1, "stop"));
+        if (! start_ps_process(std::vector<string>(1, "stop"))) {
+            // stop script failed, but there's not much we can do:
+            stopped();
+        }
     }
     else {
         stopped();
