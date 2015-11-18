@@ -53,6 +53,7 @@
  * On the contrary dinit currently uses:
  * SIGTERM - roll back services and then fork/exec /sbin/halt
  * SIGINT - roll back services and then fork/exec /sbin/reboot
+ * SIGQUIT - exec() /sbin/shutdown as per above.
  *
  * It's an open question about whether dinit should roll back services *before*
  * running halt/reboot, since those commands should prompt rollback of services
@@ -253,7 +254,7 @@ int main(int argc, char **argv)
                 goto event_loop; // yes, the "evil" goto
             }
             catch (...) {
-                // Now WTF do we do? try and reboot
+                // Now WTF do we do? try to reboot
                 log(LogLevel::ERROR, "Could not start 'boot' service; rebooting.");
                 if (fork() == 0) {
                     execl("/sbin/reboot", "/sbin/reboot", (char *) 0);
@@ -282,10 +283,16 @@ static void control_socket_cb(struct ev_loop *loop, ev_io *w, int revents)
 
     int newfd = accept4(sockfd, nullptr, nullptr, SOCK_NONBLOCK | SOCK_CLOEXEC);
 
-    if (newfd != -1) {    
-        new ControlConn(loop, service_set, newfd);  // will delete itself when it's finished
-        // TODO keep a set of control connections so that we can close them when
-        // terminating?
+    if (newfd != -1) {
+        try {
+            new ControlConn(loop, service_set, newfd);  // will delete itself when it's finished
+            // TODO keep a set of control connections so that we can close them when
+            // terminating?
+        }
+        catch (std::bad_alloc &bad_alloc_exc) {
+            log(LogLevel::ERROR, "Accepting control connection: Out of memory");
+            close(newfd);
+        }
     }
 }
 
