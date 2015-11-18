@@ -211,6 +211,11 @@ void ServiceRecord::start()
     }
 }
 
+void ServiceRecord::dependencyStarted()
+{
+    start();
+}
+
 void ServiceRecord::started()
 {
     logServiceStarted(service_name);
@@ -229,12 +234,12 @@ void ServiceRecord::started()
         // Start any dependents whose desired state is STARTED:
         for (auto i = dependents.begin(); i != dependents.end(); i++) {
             if ((*i)->desired_state == ServiceState::STARTED) {
-                (*i)->start();
+                (*i)->dependencyStarted();
             }
         }
         for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
             if ((*i)->getFrom()->desired_state == ServiceState::STARTED) {
-                (*i)->getFrom()->start();
+                (*i)->getFrom()->dependencyStarted();
             }
         }
     }

@@ -149,9 +149,6 @@ class ServiceRecord
     ServiceType service_type;  /* ServiceType::DUMMY, PROCESS, SCRIPTED, INTERNAL */
     ServiceState service_state; /* ServiceState::STOPPED, STARTING, STARTED, STOPPING */
     ServiceState desired_state; /* ServiceState::STOPPED / STARTED */
-    bool force_stop; // true if the service must actually stop. This is the
-                     // case if for example the process dies; the service,
-                     // and all its dependencies, MUST be stopped.
 
     string program_name;          /* storage for program/script and arguments */
     const char **exec_arg_parts;  /* pointer to each argument/part of the program_name */
@@ -160,7 +157,8 @@ class ServiceRecord
 
     string logfile; /* log file name, empty string specifies /dev/null */
     bool auto_restart; /* whether to restart this (process) if it dies unexpectedly */
-    
+
+
     typedef std::list<ServiceRecord *> sr_list;
     typedef sr_list::iterator sr_iter;
     
@@ -180,6 +178,11 @@ class ServiceRecord
     
     ServiceSet *service_set; // the set this service belongs to
     
+    // Process services:
+    bool force_stop; // true if the service must actually stop. This is the
+                     // case if for example the process dies; the service,
+                     // and all its dependencies, MUST be stopped.
+
     // Implementation details
     
     pid_t pid;  /* PID of the process. If state is STARTING or STOPPING,
@@ -209,11 +212,14 @@ class ServiceRecord
     // For process services, start the process, return true on success
     bool start_ps_process() noexcept;
     bool start_ps_process(const std::vector<std::string> &args) noexcept;
-   
+
     // Callback from libev when a child process dies
     static void process_child_callback(struct ev_loop *loop, struct ev_child *w,
             int revents);
-    
+
+    // A dependency has reached STARTED state
+    void dependencyStarted();
+
     // A dependent has reached STOPPED state
     void dependentStopped();
 
@@ -228,7 +234,7 @@ class ServiceRecord
     public:
 
     ServiceRecord(ServiceSet *set, string name)
-        : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), force_stop(false), auto_restart(false)
+        : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), auto_restart(false), force_stop(false)
     {
         service_set = set;
         service_name = name;
@@ -237,7 +243,7 @@ class ServiceRecord
     
     ServiceRecord(ServiceSet *set, string name, ServiceType service_type, string &&command, std::list<std::pair<unsigned,unsigned>> &command_offsets,
             sr_list * pdepends_on, sr_list * pdepends_soft)
-        : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), force_stop(false), auto_restart(false)
+        : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), auto_restart(false), force_stop(false)
     {
         service_set = set;
         service_name = name;
