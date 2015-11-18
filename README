@@ -19,6 +19,13 @@ service, and re-start it if it dies. It does this in an intelligent way,
 first "rolling back" all dependent services (which it will later re-start,
 if configured to do so).
 
+Dinit is designed to work on POSIXy operating systems such as Linux and
+OpenBSD. It is written in C++ and uses the "libev" event handling library.
+
+See doc/COMPARISON for a comparison of Dinit with similar software packages.
+
+The primary author of Dinit is Davin McCall <davmac@davmac.org>.
+
 
 Introduction to services
 =-=-=-=-=-=-=-=-=-=-=-=-
