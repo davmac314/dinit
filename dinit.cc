@@ -69,6 +69,7 @@ static bool am_system_init = false; // true if we are the system init process
 static bool do_reboot = false; // whether to reboot (instead of halting)
 
 static bool control_socket_open = false;
+int active_control_conns = 0;
 
 static void sigint_reboot_cb(struct ev_loop *loop, ev_signal *w, int revents);
 static void sigquit_cb(struct ev_loop *loop, ev_signal *w, int revents);
@@ -213,22 +214,21 @@ int main(int argc, char **argv)
     event_loop:
     
     // Process events until all services have terminated.
-    while (service_set->count_active_services() != 0) {
+    while (service_set->count_active_services() != 0 || active_control_conns != 0) {
         ev_loop(loop, EVLOOP_ONESHOT);
     }
     
     if (am_system_init) {
-        log(LogLevel::INFO, " No more active services.");
+        logMsgBegin(LogLevel::INFO, "No more active services.");
         if (do_reboot) {
-            cout << " Will reboot.";
+            logMsgEnd(" Will reboot.");
         }
         else if (got_sigterm) {
-            cout << " Will halt.";
+            logMsgEnd(" Will halt.");
         }
         else {
-            cout << " Re-initiating boot sequence.";
+            logMsgEnd(" Re-initiating boot sequence.");
         }
-        cout << endl;
     }
     
     if (am_system_init) {
@@ -286,8 +286,6 @@ static void control_socket_cb(struct ev_loop *loop, ev_io *w, int revents)
     if (newfd != -1) {
         try {
             new ControlConn(loop, service_set, newfd);  // will delete itself when it's finished
-            // TODO keep a set of control connections so that we can close them when
-            // terminating?
         }
         catch (std::bad_alloc &bad_alloc_exc) {
             log(LogLevel::ERROR, "Accepting control connection: Out of memory");
