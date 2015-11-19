@@ -18,9 +18,6 @@
 #include <sys/klog.h>
 #endif
 
-/* TODO: prevent services from respawning too quickly */
-/* TODO: optional automatic restart of services */
-
 /*
  * "simpleinit" from util-linux package handles signals as follows:
  * SIGTSTP - spawn no more gettys (in preparation for shutdown etc).
