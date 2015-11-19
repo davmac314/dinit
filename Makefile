@@ -1,8 +1,8 @@
 -include mconfig
 
-objects = dinit.o load_service.o service.o dinit-log.o dinit-start.o
+objects = dinit.o load_service.o service.o control.o dinit-log.o dinit-start.o
 
-dinit_objects = dinit.o load_service.o service.o dinit-log.o
+dinit_objects = dinit.o load_service.o service.o control.o dinit-log.o
 
 all: dinit dinit-start
 
@@ -12,7 +12,7 @@ dinit: $(dinit_objects)
 dinit-start: dinit-start.o
 	$(CXX) -o dinit-start dinit-start.o $(EXTRA_LIBS)
 
-$(objects): %.o: %.cc service.h dinit-log.h
+$(objects): %.o: %.cc service.h dinit-log.h control.h control-cmds.h
 	$(CXX) -D_GLIBCXX_USE_CXX11_ABI=0 -std=gnu++11 -c -Os -Wall $< -o $@
 
 #install: all

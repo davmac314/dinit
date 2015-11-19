@@ -3,6 +3,7 @@
 #include <vector>
 #include <csignal>
 #include "ev.h"
+#include "control.h"
 
 /*
  * Possible service states
@@ -323,6 +324,7 @@ class ServiceSet
     std::list<ServiceRecord *> records;
     const char *service_dir;  // directory containing service descriptions
     bool restart_enabled; // whether automatic restart is enabled (allowed)
+    ControlConn *rollback_handler; // recieves notification when all services stopped
     
     // Private methods
     
@@ -385,5 +387,26 @@ class ServiceSet
     bool get_auto_restart()
     {
         return restart_enabled;
+    }
+    
+    // Set the rollback handler, which will be notified when all services have stopped.
+    // There can be only one rollback handler; attempts to set it when already set will
+    // fail. Returns true if successful.
+    bool setRollbackHandler(ControlConn *conn)
+    {
+        if (rollback_handler == nullptr) {
+            rollback_handler = conn;
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    
+    void clearRollbackHandler(ControlConn *conn)
+    {
+        if (rollback_handler == conn) {
+            rollback_handler = nullptr;
+        }
     }
 };

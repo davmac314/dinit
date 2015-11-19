@@ -544,4 +544,7 @@ void ServiceSet::service_active(ServiceRecord *sr)
 void ServiceSet::service_inactive(ServiceRecord *sr)
 {
     active_services--;
+    if (active_services == 0 && rollback_handler != nullptr) {
+        rollback_handler->rollbackComplete();
+    }
 }
