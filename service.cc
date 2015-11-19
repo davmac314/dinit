@@ -11,12 +11,12 @@
 #include "dinit-log.h"
 
 // from dinit.cc:
-void open_control_socket(struct ev_loop *loop);
+void open_control_socket(struct ev_loop *loop) noexcept;
 
 
 // Find the requested service by name
 static ServiceRecord * findService(const std::list<ServiceRecord *> & records,
-                                    const char *name)
+                                    const char *name) noexcept
 {
     using std::list;
     list<ServiceRecord *>::const_iterator i = records.begin();
@@ -28,7 +28,7 @@ static ServiceRecord * findService(const std::list<ServiceRecord *> & records,
     return (ServiceRecord *)0;
 }
 
-ServiceRecord * ServiceSet::findService(std::string name)
+ServiceRecord * ServiceSet::findService(std::string name) noexcept
 {
     return ::findService(records, name.c_str());
 }
@@ -41,7 +41,7 @@ void ServiceSet::startService(const char *name)
     record->start();
 }
 
-void ServiceSet::stopService(const std::string & name)
+void ServiceSet::stopService(const std::string & name) noexcept
 {
     ServiceRecord *record = findService(name);
     if (record != nullptr) {
@@ -50,7 +50,7 @@ void ServiceSet::stopService(const std::string & name)
 }
 
 // Called when a service has actually stopped.
-void ServiceRecord::stopped()
+void ServiceRecord::stopped() noexcept
 {
     logServiceStopped(service_name);
     service_state = ServiceState::STOPPED;
@@ -70,7 +70,7 @@ void ServiceRecord::stopped()
     }
 }
 
-void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, int revents)
+void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, int revents) noexcept
 {    
     ServiceRecord *sr = (ServiceRecord *) w->data;
 
@@ -120,7 +120,7 @@ void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, in
     }
 }
 
-void ServiceRecord::start()
+void ServiceRecord::start() noexcept
 {
     if ((service_state == ServiceState::STARTING || service_state == ServiceState::STARTED)
             && desired_state == ServiceState::STOPPED) {
@@ -152,7 +152,7 @@ void ServiceRecord::start()
     allDepsStarted();
 }
 
-void ServiceRecord::dependencyStarted()
+void ServiceRecord::dependencyStarted() noexcept
 {
     if (service_state != ServiceState::STARTING) {
         return;
@@ -163,7 +163,7 @@ void ServiceRecord::dependencyStarted()
     }
 }
 
-bool ServiceRecord::startCheckDependencies(bool start_deps)
+bool ServiceRecord::startCheckDependencies(bool start_deps) noexcept
 {
     bool all_deps_started = true;
 
@@ -206,7 +206,7 @@ bool ServiceRecord::startCheckDependencies(bool start_deps)
     return all_deps_started;
 }
 
-void ServiceRecord::allDepsStarted()
+void ServiceRecord::allDepsStarted() noexcept
 {
     if (service_type == ServiceType::PROCESS) {
         bool start_success = start_ps_process();
@@ -402,7 +402,7 @@ bool ServiceRecord::start_ps_process(const std::vector<std::string> &pargs) noex
 }
 
 // Mark this and all dependent services as force-stopped.
-void ServiceRecord::forceStop()
+void ServiceRecord::forceStop() noexcept
 {
     force_stop = true;
     stop();
@@ -435,7 +435,7 @@ void ServiceRecord::failed_dependency()
     }    
 }
 
-void ServiceRecord::dependentStopped()
+void ServiceRecord::dependentStopped() noexcept
 {
     if (service_state == ServiceState::STOPPING) {
         // Check the other dependents before we stop.
@@ -445,7 +445,7 @@ void ServiceRecord::dependentStopped()
     }
 }
 
-void ServiceRecord::stop()
+void ServiceRecord::stop() noexcept
 {
     if ((service_state == ServiceState::STOPPING || service_state == ServiceState::STOPPED)
             && desired_state == ServiceState::STARTED) {
@@ -479,7 +479,7 @@ void ServiceRecord::stop()
     }
 }
 
-bool ServiceRecord::stopCheckDependents()
+bool ServiceRecord::stopCheckDependents() noexcept
 {
     bool all_deps_stopped = true;
     for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
@@ -492,7 +492,7 @@ bool ServiceRecord::stopCheckDependents()
     return all_deps_stopped;
 }
 
-bool ServiceRecord::stopDependents()
+bool ServiceRecord::stopDependents() noexcept
 {
     bool all_deps_stopped = true;
     for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
@@ -536,12 +536,12 @@ void ServiceRecord::allDepsStopped()
     }
 }
 
-void ServiceSet::service_active(ServiceRecord *sr)
+void ServiceSet::service_active(ServiceRecord *sr) noexcept
 {
     active_services++;
 }
 
-void ServiceSet::service_inactive(ServiceRecord *sr)
+void ServiceSet::service_inactive(ServiceRecord *sr) noexcept
 {
     active_services--;
     if (active_services == 0 && rollback_handler != nullptr) {

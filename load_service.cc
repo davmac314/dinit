@@ -1,4 +1,5 @@
 #include "service.h"
+#include <algorithm>
 #include <string>
 #include <fstream>
 #include <locale>
@@ -228,110 +229,118 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     rval = new ServiceRecord(this, string(name));
     records.push_back(rval);
     
-    // getline can set failbit if it reaches end-of-file, we don't want an exception in that case:
-    service_file.exceptions(ios::badbit);
-    
-    while (! (service_file.rdstate() & ios::eofbit)) {
-        getline(service_file, line);
-        string::iterator i = line.begin();
-        string::iterator end = line.end();
-      
-        i = skipws(i, end);
-        if (i != end) {
-            if (*i == '#') {
-                continue;  // comment line
-            }
-            string setting = read_setting_name(i, end);
+    try {
+        // getline can set failbit if it reaches end-of-file, we don't want an exception in that case:
+        service_file.exceptions(ios::badbit);
+        
+        while (! (service_file.rdstate() & ios::eofbit)) {
+            getline(service_file, line);
+            string::iterator i = line.begin();
+            string::iterator end = line.end();
+          
             i = skipws(i, end);
-            if (i == end || (*i != '=' && *i != ':')) {
-                throw ServiceDescriptionExc(name, "Badly formed line.");
-            }
-            i = skipws(++i, end);
-            
-            if (setting == "command") {
-                command = read_setting_value(i, end, &command_offsets);
-            }
-            else if (setting == "depends-on") {
-                string dependency_name = read_setting_value(i, end);
-                depends_on.push_back(loadServiceRecord(dependency_name.c_str()));
-            }
-            else if (setting == "waits-for") {
-                string dependency_name = read_setting_value(i, end);
-                depends_soft.push_back(loadServiceRecord(dependency_name.c_str()));
-            }
-            else if (setting == "logfile") {
-                logfile = read_setting_value(i, end);
-            }
-            else if (setting == "restart") {
-                string restart = read_setting_value(i, end);
-                auto_restart = (restart == "yes" || restart == "true");
-            }
-            else if (setting == "type") {
-                string type_str = read_setting_value(i, end);
-                if (type_str == "scripted") {
-                    service_type = ServiceType::SCRIPTED;
+            if (i != end) {
+                if (*i == '#') {
+                    continue;  // comment line
                 }
-                else if (type_str == "process") {
-                    service_type = ServiceType::PROCESS;
+                string setting = read_setting_name(i, end);
+                i = skipws(i, end);
+                if (i == end || (*i != '=' && *i != ':')) {
+                    throw ServiceDescriptionExc(name, "Badly formed line.");
                 }
-                else if (type_str == "internal") {
-                    service_type = ServiceType::INTERNAL;
+                i = skipws(++i, end);
+                
+                if (setting == "command") {
+                    command = read_setting_value(i, end, &command_offsets);
                 }
-                else {
-                    throw ServiceDescriptionExc(name, "Service type must be \"scripted\""
-                        " or \"process\" or \"internal\"");
+                else if (setting == "depends-on") {
+                    string dependency_name = read_setting_value(i, end);
+                    depends_on.push_back(loadServiceRecord(dependency_name.c_str()));
                 }
-            }
-            else if (setting == "onstart") {
-                std::list<std::pair<unsigned,unsigned>> indices;
-                string onstart_cmds = read_setting_value(i, end, &indices);
-                for (auto indexpair : indices) {
-                    string onstart_cmd = onstart_cmds.substr(indexpair.first, indexpair.second - indexpair.first);
-                    if (onstart_cmd == "release_console") {
-                        onstart_flags.release_console = true;
+                else if (setting == "waits-for") {
+                    string dependency_name = read_setting_value(i, end);
+                    depends_soft.push_back(loadServiceRecord(dependency_name.c_str()));
+                }
+                else if (setting == "logfile") {
+                    logfile = read_setting_value(i, end);
+                }
+                else if (setting == "restart") {
+                    string restart = read_setting_value(i, end);
+                    auto_restart = (restart == "yes" || restart == "true");
+                }
+                else if (setting == "type") {
+                    string type_str = read_setting_value(i, end);
+                    if (type_str == "scripted") {
+                        service_type = ServiceType::SCRIPTED;
                     }
-                    else if (onstart_cmd == "rw_ready") {
-                        onstart_flags.rw_ready = true;
+                    else if (type_str == "process") {
+                        service_type = ServiceType::PROCESS;
+                    }
+                    else if (type_str == "internal") {
+                        service_type = ServiceType::INTERNAL;
                     }
                     else {
-                        throw new ServiceDescriptionExc(name, "Unknown onstart command: " + onstart_cmd);
+                        throw ServiceDescriptionExc(name, "Service type must be \"scripted\""
+                            " or \"process\" or \"internal\"");
                     }
                 }
-            }
-            else if (setting == "termsignal") {
-                string signame = read_setting_value(i, end, nullptr);
-                int signo = signalNameToNumber(signame);
-                if (signo == -1) {
-                    throw new ServiceDescriptionExc(name, "Unknown/unsupported termination signal: " + signame);
+                else if (setting == "onstart") {
+                    std::list<std::pair<unsigned,unsigned>> indices;
+                    string onstart_cmds = read_setting_value(i, end, &indices);
+                    for (auto indexpair : indices) {
+                        string onstart_cmd = onstart_cmds.substr(indexpair.first, indexpair.second - indexpair.first);
+                        if (onstart_cmd == "release_console") {
+                            onstart_flags.release_console = true;
+                        }
+                        else if (onstart_cmd == "rw_ready") {
+                            onstart_flags.rw_ready = true;
+                        }
+                        else {
+                            throw new ServiceDescriptionExc(name, "Unknown onstart command: " + onstart_cmd);
+                        }
+                    }
+                }
+                else if (setting == "termsignal") {
+                    string signame = read_setting_value(i, end, nullptr);
+                    int signo = signalNameToNumber(signame);
+                    if (signo == -1) {
+                        throw new ServiceDescriptionExc(name, "Unknown/unsupported termination signal: " + signame);
+                    }
+                    else {
+                        term_signal = signo;
+                    }
                 }
                 else {
-                    term_signal = signo;
+                    throw ServiceDescriptionExc(name, "Unknown setting: " + setting);
                 }
             }
-            else {
-                throw ServiceDescriptionExc(name, "Unknown setting: " + setting);
+        }
+        
+        service_file.close();
+        // TODO check we actually have all the settings - type, command
+        
+        // Now replace the dummy service record with a real record:
+        for (auto iter = records.begin(); iter != records.end(); iter++) {
+            if (*iter == rval) {
+                // We've found the dummy record
+                delete rval;
+                rval = new ServiceRecord(this, string(name), service_type, std::move(command), command_offsets,
+                        & depends_on, & depends_soft);
+                rval->setLogfile(logfile);
+                rval->setAutoRestart(auto_restart);
+                rval->setOnstartFlags(onstart_flags);
+                rval->setExtraTerminationSignal(term_signal);
+                *iter = rval;
+                break;
             }
         }
+        
+        return rval;
     }
-    
-    service_file.close();
-    // TODO check we actually have all the settings - type, command
-    
-    // Now replace the dummy service record with a real record:
-    for (auto iter = records.begin(); iter != records.end(); iter++) {
-        if (*iter == rval) {
-            // We've found the dummy record
-            delete rval;
-            rval = new ServiceRecord(this, string(name), service_type, std::move(command), command_offsets,
-                    & depends_on, & depends_soft);
-            rval->setLogfile(logfile);
-            rval->setAutoRestart(auto_restart);
-            rval->setOnstartFlags(onstart_flags);
-            rval->setExtraTerminationSignal(term_signal);
-            *iter = rval;
-            break;
-        }
+    catch (...) {
+        // Must remove the dummy service record.
+        std::remove(records.begin(), records.end(), rval);
+        delete rval;
+        throw;
     }
-    
-    return rval;
 }

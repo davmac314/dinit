@@ -50,7 +50,7 @@ struct OnstartFlags {
     bool release_console : 1;
     bool rw_ready : 1;
     
-    OnstartFlags() : release_console(false), rw_ready(false)
+    OnstartFlags() noexcept : release_console(false), rw_ready(false)
     {
     }
 };
@@ -61,7 +61,7 @@ class ServiceLoadExc
     public:
     std::string serviceName;
     
-    ServiceLoadExc(std::string serviceName)
+    ServiceLoadExc(std::string serviceName) noexcept
         : serviceName(serviceName)
     {
     }
@@ -70,7 +70,7 @@ class ServiceLoadExc
 class ServiceNotFound : public ServiceLoadExc
 {
     public:
-    ServiceNotFound(std::string serviceName)
+    ServiceNotFound(std::string serviceName) noexcept
         : ServiceLoadExc(serviceName)
     {
     }
@@ -79,7 +79,7 @@ class ServiceNotFound : public ServiceLoadExc
 class ServiceCyclicDependency : public ServiceLoadExc
 {
     public:
-    ServiceCyclicDependency(std::string serviceName)
+    ServiceCyclicDependency(std::string serviceName) noexcept
         : ServiceLoadExc(serviceName)
     {
     }
@@ -90,7 +90,7 @@ class ServiceDescriptionExc : public ServiceLoadExc
     public:
     std::string extraInfo;
     
-    ServiceDescriptionExc(std::string serviceName, std::string extraInfo)
+    ServiceDescriptionExc(std::string serviceName, std::string extraInfo) noexcept
         : ServiceLoadExc(serviceName), extraInfo(extraInfo)
     {
     }    
@@ -109,15 +109,15 @@ class ServiceDep
     /* Whether the 'from' service is waiting for the 'to' service to start */
     bool waiting_on;
 
-    ServiceDep(ServiceRecord * from, ServiceRecord * to) : from(from), to(to), waiting_on(false)
+    ServiceDep(ServiceRecord * from, ServiceRecord * to) noexcept : from(from), to(to), waiting_on(false)
     {  }
 
-    ServiceRecord * getFrom()
+    ServiceRecord * getFrom() noexcept
     {
         return from;
     }
 
-    ServiceRecord * getTo()
+    ServiceRecord * getTo() noexcept
     {
         return to;
     }
@@ -205,7 +205,7 @@ class ServiceRecord
     
     // Service has actually stopped (includes having all dependents
     // reaching STOPPED state).
-    void stopped();
+    void stopped() noexcept;
     
     // Service has successfully started
     void started();
@@ -222,26 +222,26 @@ class ServiceRecord
 
     // Callback from libev when a child process dies
     static void process_child_callback(struct ev_loop *loop, struct ev_child *w,
-            int revents);
+            int revents) noexcept;
 
     // A dependency has reached STARTED state
-    void dependencyStarted();
+    void dependencyStarted() noexcept;
     
-    void allDepsStarted();
+    void allDepsStarted() noexcept;
     
     // Check whether dependencies have started, and optionally ask them to start
-    bool startCheckDependencies(bool do_start);
+    bool startCheckDependencies(bool do_start) noexcept;
 
     // A dependent has reached STOPPED state
-    void dependentStopped();
+    void dependentStopped() noexcept;
 
     // check if all dependents have stopped
-    bool stopCheckDependents();
+    bool stopCheckDependents() noexcept;
     
     // issue a stop to all dependents, return true if they are all already stopped
-    bool stopDependents();
+    bool stopDependents() noexcept;
     
-    void forceStop(); // force-stop this service and all dependents
+    void forceStop() noexcept; // force-stop this service and all dependents
     
     public:
 
@@ -288,30 +288,30 @@ class ServiceRecord
     }
     
     // Set whether this service should automatically restart when it dies
-    void setAutoRestart(bool auto_restart)
+    void setAutoRestart(bool auto_restart) noexcept
     {
         this->auto_restart = auto_restart;
     }
     
     // Set "on start" flags (commands)
-    void setOnstartFlags(OnstartFlags flags)
+    void setOnstartFlags(OnstartFlags flags) noexcept
     {
         this->onstart_flags = flags;
     }
     
     // Set an additional signal (other than SIGTERM) to be used to terminate the process
-    void setExtraTerminationSignal(int signo)
+    void setExtraTerminationSignal(int signo) noexcept
     {
         this->term_signal = signo;
     }
 
-    const char *getServiceName() const { return service_name.c_str(); }
-    ServiceState getState() const { return service_state; }
+    const char *getServiceName() const noexcept { return service_name.c_str(); }
+    ServiceState getState() const noexcept { return service_state; }
     
-    void start();  // start the service
-    void stop();   // stop the service
+    void start() noexcept;  // start the service
+    void stop() noexcept;   // stop the service
     
-    bool isDummy()
+    bool isDummy() noexcept
     {
         return service_type == ServiceType::DUMMY;
     }
@@ -329,10 +329,13 @@ class ServiceSet
     // Private methods
     
     // Locate an existing service record.
-    ServiceRecord *findService(std::string name);
+    ServiceRecord *findService(std::string name) noexcept;
     
     // Load a service description, and dependencies, if there is no existing
     // record for the given name.
+    // Throws:
+    //   ServiceLoadException (or subclass) on problem with service description
+    //   std::bad_alloc on out-of-memory condition
     ServiceRecord *loadServiceRecord(const char *name);
 
     // Public
@@ -348,30 +351,31 @@ class ServiceSet
     // Start the service with the given name. The named service will begin
     // transition to the 'started' state.
     //
-    // Throws an exception if the
-    // service description cannot be loaded.
+    // Throws a ServiceLoadException (or subclass) if the service description
+    // cannot be loaded or is invalid;
+    // Throws std::bad_alloc if out of memory.
     void startService(const char *name);
     
     // Stop the service with the given name. The named service will begin
     // transition to the 'stopped' state.
-    void stopService(const std::string &name);
+    void stopService(const std::string &name) noexcept;
     
     // Notification from service that it is active (state != STOPPED)
     // Only to be called on the transition from inactive to active.
-    void service_active(ServiceRecord *);
+    void service_active(ServiceRecord *) noexcept;
     
     // Notification from service that it is inactive (STOPPED)
     // Only to be called on the transition from active to inactive.
-    void service_inactive(ServiceRecord *);
+    void service_inactive(ServiceRecord *) noexcept;
     
     // Find out how many services are active (starting, running or stopping,
     // but not stopped).
-    int count_active_services()
+    int count_active_services() noexcept
     {
         return active_services;
     }
     
-    void stop_all_services()
+    void stop_all_services() noexcept
     {
         restart_enabled = false;
         for (std::list<ServiceRecord *>::iterator i = records.begin(); i != records.end(); ++i) {
@@ -379,12 +383,12 @@ class ServiceSet
         }
     }
     
-    void set_auto_restart(bool restart)
+    void set_auto_restart(bool restart) noexcept
     {
         restart_enabled = restart;
     }
     
-    bool get_auto_restart()
+    bool get_auto_restart() noexcept
     {
         return restart_enabled;
     }
@@ -392,7 +396,7 @@ class ServiceSet
     // Set the rollback handler, which will be notified when all services have stopped.
     // There can be only one rollback handler; attempts to set it when already set will
     // fail. Returns true if successful.
-    bool setRollbackHandler(ControlConn *conn)
+    bool setRollbackHandler(ControlConn *conn) noexcept
     {
         if (rollback_handler == nullptr) {
             rollback_handler = conn;
@@ -403,7 +407,7 @@ class ServiceSet
         }
     }
     
-    void clearRollbackHandler(ControlConn *conn)
+    void clearRollbackHandler(ControlConn *conn) noexcept
     {
         if (rollback_handler == conn) {
             rollback_handler = nullptr;

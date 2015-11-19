@@ -53,10 +53,10 @@ class ControlConn
     }
     
     void processPacket();
-    void rollbackComplete();
+    void rollbackComplete() noexcept;
     void dataReady();
     
-    ~ControlConn();
+    ~ControlConn() noexcept;
 };
 
 

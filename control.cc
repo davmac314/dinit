@@ -34,8 +34,16 @@ void ControlConn::processPacket()
         string serviceName(iobuf + 3, (size_t) svcSize);
         if (pktType == DINIT_CP_STARTSERVICE) {
             // TODO do not allow services to be started during system shutdown
-            service_set->startService(serviceName.c_str());
-            // TODO catch exceptions, error response
+            try {
+                service_set->startService(serviceName.c_str());
+                // TODO ack response
+            }
+            catch (ServiceLoadExc &slexc) {
+                // TODO error response
+            }
+            catch (std::bad_alloc &baexc) {
+                // TODO error response
+            }
         }
         else {
             // TODO verify the named service exists?
@@ -64,7 +72,7 @@ void ControlConn::processPacket()
     }
 }
 
-void ControlConn::rollbackComplete()
+void ControlConn::rollbackComplete() noexcept
 {
     char ackBuf[1] = { DINIT_RP_COMPLETED };
     if (write(iob.fd, ackBuf, 1) == -1) {
@@ -111,7 +119,7 @@ void ControlConn::dataReady()
     }
 }
 
-ControlConn::~ControlConn()
+ControlConn::~ControlConn() noexcept
 {
     close(iob.fd);
     ev_io_stop(loop, &iob);

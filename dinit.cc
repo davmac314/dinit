@@ -72,7 +72,7 @@ static void sigint_reboot_cb(struct ev_loop *loop, ev_signal *w, int revents);
 static void sigquit_cb(struct ev_loop *loop, ev_signal *w, int revents);
 static void sigterm_cb(struct ev_loop *loop, ev_signal *w, int revents);
 
-void open_control_socket(struct ev_loop *loop);
+void open_control_socket(struct ev_loop *loop) noexcept;
 
 struct ev_io control_socket_io;
 
@@ -206,6 +206,9 @@ int main(int argc, char **argv)
         catch (ServiceLoadExc &sle) {
             log(LogLevel::ERROR, "Problem loading service description: ", sle.serviceName);
         }
+        catch (std::bad_alloc &badalloce) {
+            log(LogLevel::ERROR, "Out of memory when trying to start service: ", *i);
+        }
     }
     
     event_loop:
@@ -291,7 +294,7 @@ static void control_socket_cb(struct ev_loop *loop, ev_io *w, int revents)
     }
 }
 
-void open_control_socket(struct ev_loop *loop)
+void open_control_socket(struct ev_loop *loop) noexcept
 {
     if (! control_socket_open) {
         // TODO make this use a per-user address if PID != 1, and make the address
