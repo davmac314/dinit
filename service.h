@@ -1,6 +1,7 @@
 #include <string>
 #include <list>
 #include <vector>
+#include <csignal>
 #include "ev.h"
 
 /*
@@ -187,6 +188,8 @@ class ServiceRecord
                      // case if for example the process dies; the service,
                      // and all its dependencies, MUST be stopped.
 
+    int term_signal = -1;  // signal to use for process termination
+
     // Implementation details
     
     pid_t pid;  /* PID of the process. If state is STARTING or STOPPING,
@@ -293,6 +296,12 @@ class ServiceRecord
     void setOnstartFlags(OnstartFlags flags)
     {
         this->onstart_flags = flags;
+    }
+    
+    // Set an additional signal (other than SIGTERM) to be used to terminate the process
+    void setExtraTerminationSignal(int signo)
+    {
+        this->term_signal = signo;
     }
 
     const char *getServiceName() const { return service_name.c_str(); }

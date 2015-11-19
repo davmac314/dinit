@@ -514,6 +514,9 @@ void ServiceRecord::allDepsStopped()
         if (pid != -1) {
           // The process is still kicking on - must actually kill it.
           kill(pid, SIGTERM);
+          if (term_signal != -1) {
+              kill(pid, term_signal);
+          }
           // Now we wait; the rest is done in process_child_callback
         }
         else {

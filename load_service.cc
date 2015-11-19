@@ -161,6 +161,15 @@ static string read_setting_value(string_iterator & i, string_iterator end,
     return rval;
 }
 
+static int signalNameToNumber(std::string &signame)
+{
+    if (signame == "HUP") return SIGHUP;
+    if (signame == "INT") return SIGINT;
+    if (signame == "QUIT") return SIGQUIT;
+    if (signame == "USR1") return SIGUSR1;
+    if (signame == "USR2") return SIGUSR2;
+    return -1;
+}
 
 // Find a service record, or load it from file. If the service has
 // dependencies, load those also.
@@ -201,6 +210,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     std::list<ServiceRecord *> depends_soft;
     string logfile;
     OnstartFlags onstart_flags;
+    int term_signal = -1;  // additional termination signal
     
     string line;
     bool auto_restart = false;
@@ -288,6 +298,16 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                     }
                 }
             }
+            else if (setting == "termsignal") {
+                string signame = read_setting_value(i, end, nullptr);
+                int signo = signalNameToNumber(signame);
+                if (signo == -1) {
+                    throw new ServiceDescriptionExc(name, "Unknown/unsupported termination signal: " + signame);
+                }
+                else {
+                    term_signal = signo;
+                }
+            }
             else {
                 throw ServiceDescriptionExc(name, "Unknown setting: " + setting);
             }
@@ -307,6 +327,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
             rval->setLogfile(logfile);
             rval->setAutoRestart(auto_restart);
             rval->setOnstartFlags(onstart_flags);
+            rval->setExtraTerminationSignal(term_signal);
             *iter = rval;
             break;
         }
