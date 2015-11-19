@@ -28,7 +28,7 @@
  */
 enum class ServiceState {
     STOPPED,    // service is not running.
-    STARTING,   // service is starting, and will start (or fail to start) in time. All dependencies have started.
+    STARTING,   // service is starting, and will start (or fail to start) in time.
     STARTED,    // service is running,
     STOPPING    // service script is stopping and will stop.
 };
