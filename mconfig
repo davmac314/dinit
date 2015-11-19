@@ -1,14 +1,14 @@
 # LLVM/clang++ with libc++ on Linux
 #CXX=clang++
-#CXXOPTS=-stdlib=libc++
+#CXXOPTS=-stdlib=libc++ -std=gnu++11 -Os -Wall
 #EXTRA_LIBS=-lc++abi
 
 # GCC. Note with GCC 5,5.1,5.2 the new C++11 ABI is buggy.
 CXX=g++
-CXXOPTS=-D_GLIBCXX_USE_CXX11_ABI=0
+CXXOPTS=-D_GLIBCXX_USE_CXX11_ABI=0 -std=gnu++11 -Os -Wall
 EXTRA_LIBS=
 
 # OpenBSD, tested with GCC 4.9.3 and gmake:
 #CXX=eg++
-#CXXOPTS=
+#CXXOPTS=-D_GLIBCXX_USE_CXX11_ABI=0 -std=gnu++11 -Os -Wall
 #EXTRA_LIBS=
