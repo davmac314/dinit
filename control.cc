@@ -42,8 +42,9 @@ void ControlConn::processPacket()
         if (pktType == DINIT_CP_STARTSERVICE) {
             // TODO do not allow services to be started during system shutdown
             try {
+                char ack_buf[] = { DINIT_RP_ACK };
                 service_set->startService(serviceName.c_str());
-                // TODO ack response
+                queuePacket(ack_buf, 1);
             }
             catch (ServiceLoadExc &slexc) {
                 // TODO error response
@@ -68,7 +69,8 @@ void ControlConn::processPacket()
         if (service_set->setRollbackHandler(this)) {
             service_set->stop_all_services();
             log_to_console = true;
-            // TODO send ACK
+            char ackBuf[] = { DINIT_RP_ACK };
+            queuePacket(ackBuf, 1);
         }
         else {
             // TODO send NAK
@@ -79,14 +81,39 @@ void ControlConn::processPacket()
     }
 }
 
-bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
+bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
 {
+    if (bad_conn_close) return false;
+
     bool was_empty = outbuf.empty();
-    try {
-        outbuf.emplace_back(pkt);
-        if (was_empty) {
-            ev_io_set(&iob, iob.fd, EV_READ | EV_WRITE);
+
+    if (was_empty) {
+        int wr = write(iob.fd, pkt, size);
+        if (wr == -1) {
+            if (errno == EPIPE) {
+                delete this;
+                return false;
+            }
+            if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                // TODO log error
+                delete this;
+                return false;
+            }
         }
+        else {
+            if ((unsigned)wr == size) {
+                // Ok, all written.
+                return true;
+            }
+            pkt += wr;
+            size -= wr;
+        }
+        ev_io_set(&iob, iob.fd, EV_READ | EV_WRITE);
+    }
+    
+    // Create a vector out of the (remaining part of the) packet:
+    try {
+        outbuf.emplace_back(pkt, pkt + size);
         return true;
     }
     catch (std::bad_alloc &baexc) {
@@ -94,7 +121,62 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
         bad_conn_close = true;
         oom_close = true;
         if (was_empty) {
-            // TODO send out-of-memory response
+            // We can't send out-of-memory response as we already wrote as much as we
+            // could above. Neither can we later send the response since we have currently
+            // sent an incomplete packet. All we can do is close the connection.
+            delete this;
+        }
+        else {
+            ev_io_set(&iob, iob.fd, EV_WRITE);
+        }
+        return false;    
+    }
+}
+
+
+bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
+{
+    if (bad_conn_close) return false;
+
+    bool was_empty = outbuf.empty();
+    
+    if (was_empty) {
+        outpkt_index = 0;
+        // We can try sending the packet immediately:
+        int wr = write(iob.fd, pkt.data(), pkt.size());
+        if (wr == -1) {
+            if (errno == EPIPE) {
+                delete this;
+                return false;
+            }
+            if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                // TODO log error
+                delete this;
+                return false;
+            }
+        }
+        else {
+            if ((unsigned)wr == pkt.size()) {
+                // Ok, all written.
+                return true;
+            }
+            outpkt_index = wr;
+        }
+        ev_io_set(&iob, iob.fd, EV_READ | EV_WRITE);
+    }
+    
+    try {
+        outbuf.emplace_back(pkt);
+        return true;
+    }
+    catch (std::bad_alloc &baexc) {
+        // Mark the connection bad, and stop reading further requests
+        bad_conn_close = true;
+        oom_close = true;
+        if (was_empty) {
+            // We can't send out-of-memory response as we already wrote as much as we
+            // could above. Neither can we later send the response since we have currently
+            // sent an incomplete packet. All we can do is close the connection.
             delete this;
         }
         else {
@@ -106,12 +188,8 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
 
 void ControlConn::rollbackComplete() noexcept
 {
-    char ackBuf[1] = { DINIT_RP_COMPLETED };
-    // TODO Queue response instead of trying to write it directly like this
-    if (write(iob.fd, ackBuf, 1) == -1) {
-        log(LogLevel::ERROR, "Couldn't write response to control socket");
-        delete this;
-    }
+    char ackBuf[1] = { DINIT_ROLLBACK_COMPLETED };
+    queuePacket(ackBuf, 1);
 }
 
 void ControlConn::dataReady() noexcept

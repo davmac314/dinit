@@ -56,8 +56,9 @@ class ControlConn
     // Queue a packet to be sent
     //  Returns:  true if the packet was successfully queued, false if otherwise
     //            (eg if out of memory); in the latter case the connection might
-    //            no longer be valid
+    //            no longer be valid.
     bool queuePacket(vector<char> &&v) noexcept;
+    bool queuePacket(const char *pkt, unsigned size) noexcept;
     
     public:
     ControlConn(struct ev_loop * loop, ServiceSet * service_set, int fd) : loop(loop), service_set(service_set), bufidx(0), chklen(0)
