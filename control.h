@@ -41,6 +41,7 @@ class ControlConn
     int bufidx;
     
     bool bad_conn_close; // close when finished output?
+    //bool bad_conn_wrerr; // write error has occurred
     bool oom_close;      // send final 'out of memory' indicator
     
     template <typename T> using list = std::list<T>;
@@ -56,9 +57,13 @@ class ControlConn
     // Queue a packet to be sent
     //  Returns:  true if the packet was successfully queued, false if otherwise
     //            (eg if out of memory); in the latter case the connection might
-    //            no longer be valid.
+    //            no longer be valid (iff there are no outgoing packets queued).
     bool queuePacket(vector<char> &&v) noexcept;
     bool queuePacket(const char *pkt, unsigned size) noexcept;
+
+    // Process a packet. Can cause the ControlConn to be deleted iff there are no
+    // outgoing packets queued.
+    void processPacket();
     
     public:
     ControlConn(struct ev_loop * loop, ServiceSet * service_set, int fd) : loop(loop), service_set(service_set), bufidx(0), chklen(0)
@@ -72,8 +77,8 @@ class ControlConn
         active_control_conns++;
     }
     
-    void processPacket();
     void rollbackComplete() noexcept;
+    // Notify that data is ready to be read from the socket.
     void dataReady() noexcept;
     void sendData() noexcept;
     
@@ -88,7 +93,7 @@ static void control_conn_cb(struct ev_loop * loop, ev_io * w, int revents)
     if (revents & EV_READ) {
         conn->dataReady();
     }
-    // TODO issu ehere: what if above deletes the connection?
+    // TODO issue here: what if above deletes the connection?
     if (revents & EV_WRITE) {
         conn->sendData();
     }    

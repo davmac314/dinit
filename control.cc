@@ -1,11 +1,7 @@
 #include "control.h"
 #include "service.h"
 
-// TODO at the moment we rely on the readiness notification to send "bad packet" responses.
-//   It would probably be better to, if the outgoing buffer is empty, try and send the packet
-//   immediately and only queue it if necessary. However this means we would potentially
-//   delete 'this' object which needs to be accounted for in calling methods. (Might be better
-//   to return a bool indicating that delete is required).
+// TODO queuePacket can close connection, so make sure not to touch instance variables after calling it
 void ControlConn::processPacket()
 {
     using std::string;
@@ -20,9 +16,12 @@ void ControlConn::processPacket()
         uint16_t svcSize;
         memcpy(&svcSize, iobuf + 1, 2);
         if (svcSize <= 0) {
-            // TODO queue error response
+            // Queue error response mark connection bad
+            char badreqRep[] = { DINIT_RP_BADREQ };
+            queuePacket(badreqRep, 1);
             bad_conn_close = true;
             ev_io_set(&iob, iob.fd, EV_WRITE);
+            return;
         }
         
         chklen = svcSize + 3;
@@ -31,6 +30,7 @@ void ControlConn::processPacket()
             // TODO error response
             bad_conn_close = true;
             ev_io_set(&iob, iob.fd, EV_WRITE);
+            return;
         }
         
         if (bufidx < chklen) {
@@ -47,10 +47,12 @@ void ControlConn::processPacket()
                 queuePacket(ack_buf, 1);
             }
             catch (ServiceLoadExc &slexc) {
-                // TODO error response
+                char outbuf[] = { DINIT_RP_SERVICELOADERR };
+                queuePacket(outbuf, 1);
             }
             catch (std::bad_alloc &baexc) {
-                // TODO error response
+                char outbuf[] = { DINIT_RP_SERVICEOOM };
+                queuePacket(outbuf, 1); // might degenerate to DINIT_RP_OOM, which is fine.
             }
         }
         else {
@@ -75,10 +77,17 @@ void ControlConn::processPacket()
         else {
             // TODO send NAK
         }
+        
+        // Clear the packet from the buffer
+        memmove(iobuf, iobuf + 1, 1024 - 1);
+        bufidx -= 1;
+        chklen = 0;
+        return;
     }
     else {
         // TODO error response
     }
+    return;
 }
 
 bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
@@ -201,11 +210,10 @@ void ControlConn::dataReady() noexcept
     
     // Note file descriptor is non-blocking
     if (r == -1) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-            return;
+        if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+            // TODO log error
+            delete this;
         }
-        // TODO log error
-        delete this;
         return;
     }
     
@@ -234,13 +242,17 @@ void ControlConn::dataReady() noexcept
         bad_conn_close = true;
         ev_io_set(&iob, iob.fd, EV_WRITE);
     }
+    
+    return;
 }
 
 void ControlConn::sendData() noexcept
 {
     if (outbuf.empty() && bad_conn_close) {
         if (oom_close) {
-            // TODO send oom response
+            // Send oom response
+            char oomBuf[] = { DINIT_RP_OOM };
+            write(iob.fd, oomBuf, 1);
         }
         delete this;
         return;
@@ -258,7 +270,7 @@ void ControlConn::sendData() noexcept
             // spurious readiness notification?
         }
         else {
-            // TODO log error
+            log(LogLevel::ERROR, "Error writing to control connection: ", strerror(errno));
             delete this;
         }
         return;
@@ -269,14 +281,11 @@ void ControlConn::sendData() noexcept
         // We've finished this packet, move on to the next:
         outbuf.pop_front();
         outpkt_index = 0;
-        if (outbuf.empty()) {
+        if (outbuf.empty() && ! oom_close) {
             if (! bad_conn_close) {
                 ev_io_set(&iob, iob.fd, EV_READ);
             }
             else {
-                if (oom_close) {
-                    // TODO send out-of-memory reply if possible
-                }
                 delete this;
             }
         }
