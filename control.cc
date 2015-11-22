@@ -18,7 +18,7 @@ void ControlConn::processPacket()
         if (svcSize <= 0) {
             // Queue error response mark connection bad
             char badreqRep[] = { DINIT_RP_BADREQ };
-            queuePacket(badreqRep, 1);
+            if (! queuePacket(badreqRep, 1)) return;
             bad_conn_close = true;
             ev_io_set(&iob, iob.fd, EV_WRITE);
             return;
@@ -44,15 +44,15 @@ void ControlConn::processPacket()
             try {
                 char ack_buf[] = { DINIT_RP_ACK };
                 service_set->startService(serviceName.c_str());
-                queuePacket(ack_buf, 1);
+                if (! queuePacket(ack_buf, 1)) return;
             }
             catch (ServiceLoadExc &slexc) {
                 char outbuf[] = { DINIT_RP_SERVICELOADERR };
-                queuePacket(outbuf, 1);
+                if (! queuePacket(outbuf, 1)) return;
             }
             catch (std::bad_alloc &baexc) {
                 char outbuf[] = { DINIT_RP_SERVICEOOM };
-                queuePacket(outbuf, 1); // might degenerate to DINIT_RP_OOM, which is fine.
+                if (! queuePacket(outbuf, 1)) return; // might degenerate to DINIT_RP_OOM, which is fine.
             }
         }
         else {
@@ -72,7 +72,7 @@ void ControlConn::processPacket()
             service_set->stop_all_services();
             log_to_console = true;
             char ackBuf[] = { DINIT_RP_ACK };
-            queuePacket(ackBuf, 1);
+            if (! queuePacket(ackBuf, 1)) return;
         }
         else {
             // TODO send NAK
@@ -195,10 +195,10 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
     }
 }
 
-void ControlConn::rollbackComplete() noexcept
+bool ControlConn::rollbackComplete() noexcept
 {
     char ackBuf[1] = { DINIT_ROLLBACK_COMPLETED };
-    queuePacket(ackBuf, 1);
+    return queuePacket(ackBuf, 1);
 }
 
 void ControlConn::dataReady() noexcept

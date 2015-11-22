@@ -34,6 +34,8 @@ class ServiceSet;
 
 class ControlConn
 {
+    friend void control_conn_cb(struct ev_loop *, ev_io *, int);
+    
     struct ev_io iob;
     struct ev_loop *loop;
     ServiceSet *service_set;
@@ -64,6 +66,10 @@ class ControlConn
     // Process a packet. Can cause the ControlConn to be deleted iff there are no
     // outgoing packets queued.
     void processPacket();
+
+    // Notify that data is ready to be read from the socket.
+    void dataReady() noexcept;
+    void sendData() noexcept;
     
     public:
     ControlConn(struct ev_loop * loop, ServiceSet * service_set, int fd) : loop(loop), service_set(service_set), bufidx(0), chklen(0)
@@ -77,12 +83,8 @@ class ControlConn
         active_control_conns++;
     }
     
-    void rollbackComplete() noexcept;
-    // Notify that data is ready to be read from the socket.
-    void dataReady() noexcept;
-    void sendData() noexcept;
-    
-    
+    bool rollbackComplete() noexcept;
+        
     ~ControlConn() noexcept;
 };
 
