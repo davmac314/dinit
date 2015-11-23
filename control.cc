@@ -1,10 +1,13 @@
 #include "control.h"
 #include "service.h"
 
-// TODO queuePacket can close connection, so make sure not to touch instance variables after calling it
 void ControlConn::processPacket()
 {
     using std::string;
+    
+    // Note that where we call queuePacket, we must generally check the return value. If it
+    // returns false it has either deleted the connection or marked it for deletion; we
+    // shouldn't touch instance members after that point.
 
     int pktType = iobuf[0];
     if (pktType == DINIT_CP_STARTSERVICE || pktType == DINIT_CP_STOPSERVICE) {
