@@ -67,8 +67,10 @@ class ControlConn
     // outgoing packets queued.
     void processPacket();
 
-    // Notify that data is ready to be read from the socket.
-    void dataReady() noexcept;
+    // Notify that data is ready to be read from the socket. Returns true in cases where the
+    // connection was deleted with potentially pending outgoing packets.
+    bool dataReady() noexcept;
+    
     void sendData() noexcept;
     
     public:
@@ -93,9 +95,11 @@ static void control_conn_cb(struct ev_loop * loop, ev_io * w, int revents)
 {
     ControlConn *conn = (ControlConn *) w->data;
     if (revents & EV_READ) {
-        conn->dataReady();
+        if (conn->dataReady()) {
+            // ControlConn was deleted
+            return;
+        }
     }
-    // TODO issue here: what if above deletes the connection?
     if (revents & EV_WRITE) {
         conn->sendData();
     }    

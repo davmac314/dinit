@@ -201,7 +201,7 @@ bool ControlConn::rollbackComplete() noexcept
     return queuePacket(ackBuf, 1);
 }
 
-void ControlConn::dataReady() noexcept
+bool ControlConn::dataReady() noexcept
 {
     int fd = iob.fd;
     int buffree = 1024 - bufidx;
@@ -213,13 +213,14 @@ void ControlConn::dataReady() noexcept
         if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
             // TODO log error
             delete this;
+            return true;
         }
-        return;
+        return false;
     }
     
     if (r == 0) {
         delete this;
-        return;
+        return true;
     }
     
     bufidx += r;
@@ -243,7 +244,7 @@ void ControlConn::dataReady() noexcept
         ev_io_set(&iob, iob.fd, EV_WRITE);
     }
     
-    return;
+    return false;
 }
 
 void ControlConn::sendData() noexcept
