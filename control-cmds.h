@@ -9,6 +9,9 @@ constexpr static int DINIT_CP_STOPSERVICE  = 1;
 // Roll-back all services:
 constexpr static int DINIT_CP_ROLLBACKALL = 2;
 
+// Query protocol version:
+constexpr static int DINIT_CP_QUERYVERSION = 3;
+
 
 // Replies:
 
@@ -28,3 +31,6 @@ constexpr static int DINIT_ROLLBACK_COMPLETED = 60;
 // Start service replies:
 constexpr static int DINIT_RP_SERVICELOADERR = 61;
 constexpr static int DINIT_RP_SERVICEOOM = 62; // couldn't start due to out-of-memory
+
+// Query version response:
+constexpr static int DINIT_RP_CPVERSION = 63;

@@ -10,6 +10,15 @@ void ControlConn::processPacket()
     // shouldn't touch instance members after that point.
 
     int pktType = iobuf[0];
+    if (pktType == DINIT_CP_QUERYVERSION) {
+        // Responds with:
+        // DINIT_RP_CVERSION, (2 byte) minimum compatible version, (2 byte) maximum compatible version
+        char replyBuf[] = { DINIT_RP_CPVERSION, 0, 0, 0, 0 };
+        if (! queuePacket(replyBuf, 1)) return;
+        memmove(iobuf, iobuf + 1, 1024 - 1);
+        bufidx -= 1;
+        return;
+    }
     if (pktType == DINIT_CP_STARTSERVICE || pktType == DINIT_CP_STOPSERVICE) {
         if (bufidx < 4) {
             chklen = 4;
@@ -42,6 +51,7 @@ void ControlConn::processPacket()
                 if (! queuePacket(ack_buf, 1)) return;
             }
             catch (ServiceLoadExc &slexc) {
+                log(LogLevel::ERROR, "Could not start service ", slexc.serviceName, ": ", slexc.excDescription);
                 char outbuf[] = { DINIT_RP_SERVICELOADERR };
                 if (! queuePacket(outbuf, 1)) return;
             }
@@ -81,7 +91,11 @@ void ControlConn::processPacket()
         return;
     }
     else {
-        // TODO error response
+        // Unrecognized: give error response
+        char outbuf[] = { DINIT_RP_BADREQ };
+        if (! queuePacket(outbuf, 1)) return;
+        bad_conn_close = true;
+        ev_io_set(&iob, iob.fd, EV_WRITE);
     }
     return;
 }
