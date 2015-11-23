@@ -18,19 +18,11 @@ void ControlConn::processPacket()
         
         uint16_t svcSize;
         memcpy(&svcSize, iobuf + 1, 2);
-        if (svcSize <= 0) {
+        chklen = svcSize + 3;
+        if (svcSize <= 0 || chklen > 1024) {
             // Queue error response mark connection bad
             char badreqRep[] = { DINIT_RP_BADREQ };
             if (! queuePacket(badreqRep, 1)) return;
-            bad_conn_close = true;
-            ev_io_set(&iob, iob.fd, EV_WRITE);
-            return;
-        }
-        
-        chklen = svcSize + 3;
-        if (chklen > 1024) {
-            // We can't have a service name this long
-            // TODO error response
             bad_conn_close = true;
             ev_io_set(&iob, iob.fd, EV_WRITE);
             return;
@@ -78,7 +70,8 @@ void ControlConn::processPacket()
             if (! queuePacket(ackBuf, 1)) return;
         }
         else {
-            // TODO send NAK
+            char nakBuf[] = { DINIT_RP_NAK };
+            if (! queuePacket(nakBuf, 1)) return;
         }
         
         // Clear the packet from the buffer

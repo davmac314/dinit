@@ -11,6 +11,8 @@
 
 // Control connection for dinit
 
+// TODO: Use the input buffer as a circular buffer, instead of chomping data from
+// the front using a data move.
 
 // forward-declaration of callback:
 static void control_conn_cb(struct ev_loop * loop, ev_io * w, int revents);
@@ -43,7 +45,6 @@ class ControlConn
     int bufidx;
     
     bool bad_conn_close; // close when finished output?
-    //bool bad_conn_wrerr; // write error has occurred
     bool oom_close;      // send final 'out of memory' indicator
     
     template <typename T> using list = std::list<T>;
