@@ -60,7 +60,9 @@ class ServiceLoadExc
 {
     public:
     std::string serviceName;
+    const char *excDescription;
     
+    protected:
     ServiceLoadExc(std::string serviceName) noexcept
         : serviceName(serviceName)
     {
@@ -73,6 +75,7 @@ class ServiceNotFound : public ServiceLoadExc
     ServiceNotFound(std::string serviceName) noexcept
         : ServiceLoadExc(serviceName)
     {
+        excDescription = "Not found.";
     }
 };
 
@@ -82,6 +85,7 @@ class ServiceCyclicDependency : public ServiceLoadExc
     ServiceCyclicDependency(std::string serviceName) noexcept
         : ServiceLoadExc(serviceName)
     {
+        excDescription = "Cyclic dependency.";
     }
 };
 
@@ -93,6 +97,7 @@ class ServiceDescriptionExc : public ServiceLoadExc
     ServiceDescriptionExc(std::string serviceName, std::string extraInfo) noexcept
         : ServiceLoadExc(serviceName), extraInfo(extraInfo)
     {
+        excDescription = extraInfo.c_str();
     }    
 };
 
