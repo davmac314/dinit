@@ -512,12 +512,14 @@ void ServiceRecord::allDepsStopped()
 {
     if (service_type == ServiceType::PROCESS) {
         if (pid != -1) {
-          // The process is still kicking on - must actually kill it.
-          kill(pid, SIGTERM);
-          if (term_signal != -1) {
-              kill(pid, term_signal);
-          }
-          // Now we wait; the rest is done in process_child_callback
+            // The process is still kicking on - must actually kill it.
+            if (! onstart_flags.no_sigterm) {
+                kill(pid, SIGTERM);
+            }
+            if (term_signal != -1) {
+                kill(pid, term_signal);
+            }
+            // Now we wait; the rest is done in process_child_callback
         }
         else {
             // The process is already dead.

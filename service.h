@@ -50,7 +50,10 @@ struct OnstartFlags {
     bool release_console : 1;
     bool rw_ready : 1;
     
-    OnstartFlags() noexcept : release_console(false), rw_ready(false)
+    // Not actually "onstart" commands:
+    bool no_sigterm : 1;  // do not send SIGTERM
+    
+    OnstartFlags() noexcept : release_console(false), rw_ready(false), no_sigterm(false)
     {
     }
 };

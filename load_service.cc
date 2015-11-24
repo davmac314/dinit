@@ -310,6 +310,10 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                         term_signal = signo;
                     }
                 }
+                else if (setting == "nosigterm") {
+                    string sigtermsetting = read_setting_value(i, end);
+                    onstart_flags.no_sigterm = (sigtermsetting == "yes" || sigtermsetting == "true");
+                }
                 else {
                     throw ServiceDescriptionExc(name, "Unknown setting: " + setting);
                 }

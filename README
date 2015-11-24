@@ -85,6 +85,7 @@ logfile = ...
 onstart = ...
 depends-on = (service name)
 waits-for = (service name)
+termsignal = HUP | INT | QUIT | USR1 | USR2
 
 command = (external script or executable and arguments)
    For a 'process' service, this is the process to run.
@@ -109,3 +110,15 @@ waits-for = (service name)
    starting (or to fail starting) before commencing the start procedure
    for this service. Starting this service will automatically start
    the named service.
+
+termsignal = (signal)
+   Specifies an additional signal to send to the process when requesting it
+   to terminate (applies to 'process' services only). SIGTERM is always
+   sent along with the specified signal, unless the 'nosigterm' setting is
+   set true.
+
+nosigterm = yes | true | no | false
+   If true, the TERM signal will not be sent to the process to kill it. (If
+   an alternate signal is specified using the "termsignal" setting, that
+   signal will be sent instead; otherwise, no signal will be sent, and the
+   process must be killed by external means).
