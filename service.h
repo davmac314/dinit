@@ -78,7 +78,7 @@ class ServiceNotFound : public ServiceLoadExc
     ServiceNotFound(std::string serviceName) noexcept
         : ServiceLoadExc(serviceName)
     {
-        excDescription = "Not found.";
+        excDescription = "Service description not found.";
     }
 };
 
@@ -88,7 +88,7 @@ class ServiceCyclicDependency : public ServiceLoadExc
     ServiceCyclicDependency(std::string serviceName) noexcept
         : ServiceLoadExc(serviceName)
     {
-        excDescription = "Cyclic dependency.";
+        excDescription = "Has cyclic dependency.";
     }
 };
 

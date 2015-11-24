@@ -19,22 +19,19 @@
 #endif
 
 /*
- * "simpleinit" from util-linux package handles signals as follows:
+ * "simpleinit" from util-linux-ng package handles signals as follows:
  * SIGTSTP - spawn no more gettys (in preparation for shutdown etc).
- *          In dinit terms this should probably mean "no more auto restarts"
- *          (for any service). (Actually the signal acts as a toggle, if
- *          respawn is disabled it will be re-enabled and init will
- *          act as if SIGHUP had also been sent)
+ *           In dinit terms this should probably mean "no more auto restarts"
+ *           (for any service). (Actually the signal acts as a toggle, if
+ *           respawn is disabled it will be re-enabled and init will
+ *           act as if SIGHUP had also been sent)
  * SIGTERM - kill spawned gettys (which are still alive)
- *          Interestingly, simpleinit just sends a SIGTERM to the gettys.
- *          "shutdown" however has already sent SIGTERM to every process...
- * "/sbin/initctl -r" - rollback services (ran by "shutdown"/halt etc)
+ *           Interestingly, simpleinit just sends a SIGTERM to the gettys,
+ *           which will not normall kill shells (eg bash ignores SIGTERM).
+ * "/sbin/initctl -r" - rollback services (ran by "shutdown"/halt etc);
  *           shouldn't return until all services have been stopped.
- *           shutdown calls this *after* sending SIGTERM to all processes.
- *           I guess this allows user processes, if any are still around,
- *           to die before (or just as) the services fall out from underneath
- *           them. On the other hand it largely subverts the ordered service
- *           shutdown that init provides.
+ *           shutdown calls this after sending SIGTERM to processes running
+ *           with uid >= 100 ("mortals").
  * SIGQUIT - init will exec() shutdown. shutdown will detect that it is
  *           running as pid 1 and will just loop and reap child processes.
  *           This is used by shutdown so that init will not hang on to its
@@ -201,13 +198,13 @@ int main(int argc, char **argv)
             service_set->startService(*i);
         }
         catch (ServiceNotFound &snf) {
-            log(LogLevel::ERROR, "Could not find service description: ", snf.serviceName);
+            log(LogLevel::ERROR, snf.serviceName, ": Could not find service description.");
         }
         catch (ServiceLoadExc &sle) {
-            log(LogLevel::ERROR, "Problem loading service description: ", sle.serviceName);
+            log(LogLevel::ERROR, sle.serviceName, ": ", sle.excDescription);
         }
         catch (std::bad_alloc &badalloce) {
-            log(LogLevel::ERROR, "Out of memory when trying to start service: ", *i);
+            log(LogLevel::ERROR, "Out of memory when trying to start service: ", *i, ".");
         }
     }
     
