@@ -10,15 +10,17 @@
  *
  * Services have both a current state and a desired state. The desired state can be
  * either STARTED or STOPPED. The current state can also be STARTING or STOPPING.
+ * A service can be "pinned" in either the STARTED or STOPPED states to prevent it
+ * from leaving that state until it is unpinned.
  *
  * The total state is a combination of the two, current and desired:
  *      STOPPED/STOPPED  : stopped and will remain stopped
- *      STOPPED/STARTED  :  - (this state cannot occur)
+ *      STOPPED/STARTED  : stopped (pinned), must be unpinned to start
  *      STARTING/STARTED : starting, but not yet started. Dependencies may also be starting.
  *      STARTING/STOPPED : as above, but the service will be stopped again as soon as it has
  *                         completed startup.
  *      STARTED/STARTED  : running and will continue running.
- *      STARTED/STOPPED  :  - (this state cannot occur)
+ *      STARTED/STOPPED  : started (pinned), must be unpinned to stop
  *      STOPPING/STOPPED : stopping and will stop. Dependents may be stopping.
  *      STOPPING/STARTED : as above, but the service will be re-started again once it stops.
  *
@@ -170,8 +172,9 @@ class ServiceRecord
     OnstartFlags onstart_flags;
 
     string logfile; /* log file name, empty string specifies /dev/null */
-    bool auto_restart; /* whether to restart this (process) if it dies unexpectedly */
-
+    bool auto_restart : 1; /* whether to restart this (process) if it dies unexpectedly */
+    bool pinned_stopped : 1;
+    bool pinned_started : 1;
 
     typedef std::list<ServiceRecord *> sr_list;
     typedef sr_list::iterator sr_iter;
@@ -254,7 +257,8 @@ class ServiceRecord
     public:
 
     ServiceRecord(ServiceSet *set, string name)
-        : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), auto_restart(false), force_stop(false)
+        : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), auto_restart(false),
+            pinned_stopped(false), pinned_started(false), force_stop(false)
     {
         service_set = set;
         service_name = name;
@@ -263,7 +267,7 @@ class ServiceRecord
     
     ServiceRecord(ServiceSet *set, string name, ServiceType service_type, string &&command, std::list<std::pair<unsigned,unsigned>> &command_offsets,
             sr_list * pdepends_on, sr_list * pdepends_soft)
-        : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), auto_restart(false), force_stop(false)
+        : ServiceRecord(set, name)
     {
         service_set = set;
         service_name = name;
@@ -316,8 +320,12 @@ class ServiceRecord
     const char *getServiceName() const noexcept { return service_name.c_str(); }
     ServiceState getState() const noexcept { return service_state; }
     
-    void start() noexcept;  // start the service
-    void stop() noexcept;   // stop the service
+    void start(bool unpinned = false) noexcept;  // start the service
+    void stop(bool unpinned = false) noexcept;   // stop the service
+    
+    void pinStart() noexcept;  // start the service and pin it
+    void pinStop() noexcept;   // stop the service and pin it
+    void unpin() noexcept;     // unpin the service
     
     bool isDummy() noexcept
     {

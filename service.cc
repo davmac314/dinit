@@ -120,7 +120,7 @@ void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, in
     }
 }
 
-void ServiceRecord::start() noexcept
+void ServiceRecord::start(bool unpinned) noexcept
 {
     if ((service_state == ServiceState::STARTING || service_state == ServiceState::STARTED)
             && desired_state == ServiceState::STOPPED) {
@@ -130,7 +130,7 @@ void ServiceRecord::start() noexcept
         //      its cancellation
     }
 
-    if (desired_state == ServiceState::STARTED) return;
+    if (desired_state == ServiceState::STARTED && !unpinned) return;
 
     desired_state = ServiceState::STARTED;
     
@@ -139,6 +139,8 @@ void ServiceRecord::start() noexcept
         // that the complete.
         return;
     }
+    
+    if (pinned_stopped) return;
     
     service_state = ServiceState::STARTING;
     service_set->service_active(this);
@@ -445,7 +447,7 @@ void ServiceRecord::dependentStopped() noexcept
     }
 }
 
-void ServiceRecord::stop() noexcept
+void ServiceRecord::stop(bool unpinned) noexcept
 {
     if ((service_state == ServiceState::STOPPING || service_state == ServiceState::STOPPED)
             && desired_state == ServiceState::STARTED) {
@@ -454,9 +456,11 @@ void ServiceRecord::stop() noexcept
         // TODO inform listeners waiting for start of cancellation
     }
     
-    if (desired_state == ServiceState::STOPPED) return;
+    if (desired_state == ServiceState::STOPPED && !unpinned) return;
     
     desired_state = ServiceState::STOPPED;
+    
+    if (pinned_started) return;
 
     if (service_state != ServiceState::STARTED) {
         if (service_state == ServiceState::STARTING) {
@@ -535,6 +539,36 @@ void ServiceRecord::allDepsStopped()
     }
     else {
         stopped();
+    }
+}
+
+void ServiceRecord::pinStart() noexcept
+{
+    pinned_stopped = false;
+    start();
+    pinned_started = true;
+}
+
+void ServiceRecord::pinStop() noexcept
+{
+    pinned_started = false;
+    stop();
+    pinned_stopped = true;
+}
+
+void ServiceRecord::unpin() noexcept
+{
+    if (pinned_started) {
+        pinned_started = false;
+        if (desired_state == ServiceState::STOPPED) {
+            stop(true);
+        }
+    }
+    if (pinned_stopped) {
+        pinned_stopped = false;
+        if (desired_state == ServiceState::STARTED) {
+            start(true);
+        }
     }
 }
 
