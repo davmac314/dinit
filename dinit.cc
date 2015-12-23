@@ -3,12 +3,14 @@
 #include <cstring>
 #include <csignal>
 #include <cstddef>
+#include <cstdlib>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/un.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <pwd.h>
 #include "service.h"
 #include "ev++.h"
 #include "control.h"
@@ -55,6 +57,16 @@
  */
 
 
+static void sigint_reboot_cb(struct ev_loop *loop, ev_signal *w, int revents);
+static void sigquit_cb(struct ev_loop *loop, ev_signal *w, int revents);
+static void sigterm_cb(struct ev_loop *loop, ev_signal *w, int revents);
+void open_control_socket(struct ev_loop *loop) noexcept;
+
+struct ev_io control_socket_io;
+
+
+// Variables
+
 static bool got_sigterm = false;
 
 static ServiceSet *service_set;
@@ -65,13 +77,8 @@ static bool do_reboot = false; // whether to reboot (instead of halting)
 static bool control_socket_open = false;
 int active_control_conns = 0;
 
-static void sigint_reboot_cb(struct ev_loop *loop, ev_signal *w, int revents);
-static void sigquit_cb(struct ev_loop *loop, ev_signal *w, int revents);
-static void sigterm_cb(struct ev_loop *loop, ev_signal *w, int revents);
-
-void open_control_socket(struct ev_loop *loop) noexcept;
-
-struct ev_io control_socket_io;
+static const char *control_socket_path = "/dev/dinitctl";
+static std::string control_socket_str;
 
 
 int main(int argc, char **argv)
@@ -100,6 +107,22 @@ int main(int argc, char **argv)
     /* list of services to start */
     list<const char *> services_to_start;
     
+    if (! am_system_init) {
+        char * userhome = getenv("HOME");
+        if (userhome == nullptr) {
+            struct passwd * pwuid_p = getpwuid(getuid());
+            if (pwuid_p != nullptr) {
+                userhome = pwuid_p->pw_dir;
+            }
+        }
+        
+        if (userhome != nullptr) {
+            control_socket_str = userhome;
+            control_socket_str += "/.dinitctl";
+            control_socket_path = control_socket_str.c_str();
+        }
+    }
+    
     /* service directory name */
     const char * service_dir = "/etc/dinit.d";
     
@@ -120,7 +143,8 @@ int main(int argc, char **argv)
                     service_dir = argv[i];
                 }
                 else {
-                    // error TODO
+                    cerr << "dinit: '--services-dir' (-d) requires an argument" << endl;
+                    return 1;
                 }
             }
             else if (strcmp(argv[i], "--help") == 0) {
@@ -133,7 +157,7 @@ int main(int argc, char **argv)
             else {
                 // unrecognized
                 if (! am_system_init) {
-                    cerr << "Unrecognized option: " << argv[i] << endl;
+                    cerr << "dinit: Unrecognized option: " << argv[i] << endl;
                     return 1;
                 }
             }
@@ -230,15 +254,23 @@ int main(int argc, char **argv)
     
     if (am_system_init) {
         if (do_reboot) {
-            // TODO log error from fork
-            if (fork() == 0) {
+            // Fork and execute /sbin/reboot
+            int fres = fork();
+            if (fres == 0) {
                 execl("/sbin/reboot", "/sbin/reboot", (char *) 0);
+            }
+            else if (fres == -1) {
+                log(LogLevel::ERROR, "Could not fork for reboot: ", strerror(errno));
             }
         }
         else if (got_sigterm) {
-            // TODO log error from fork
-            if (fork() == 0) {
+            // Fork and execute /sbin/halt
+            int fres = fork();
+            if (fres == 0) {
                 execl("/sbin/halt", "/sbin/halt", (char *) 0);
+            }
+            else if (fres == -1) {
+                log(LogLevel::ERROR, "Could not fork for halt: ", strerror(errno));
             }
         }
         else {
@@ -294,31 +326,39 @@ static void control_socket_cb(struct ev_loop *loop, ev_io *w, int revents)
 void open_control_socket(struct ev_loop *loop) noexcept
 {
     if (! control_socket_open) {
-        // TODO make this use a per-user address if PID != 1, and make the address
-        // overridable from the command line
-
-        const char * saddrname = "/dev/dinitctl";
-        struct sockaddr_un name;
+        const char * saddrname = control_socket_path;
+        uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + strlen(saddrname) + 1;
+        
+        struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
+        if (name == nullptr) {
+            log(LogLevel::ERROR, "Opening control socket: out of memory");
+            return;
+        }
 
         if (am_system_init) {
+            // Unlink any stale control socket file, but only if we are system init, since otherwise
+            // the 'stale' file may not be stale at all:
             unlink(saddrname);
         }
 
-        name.sun_family = AF_UNIX;
-        strcpy(name.sun_path, saddrname); // TODO make this safe for long names
-        int namelen = offsetof(struct sockaddr_un, sun_path) + 1 + strlen(saddrname);
+        name->sun_family = AF_UNIX;
+        strcpy(name->sun_path, saddrname);
 
         int sockfd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
         if (sockfd == -1) {
             log(LogLevel::ERROR, "Error creating control socket: ", strerror(errno));
+            free(name);
             return;
         }
 
-        if (bind(sockfd, (struct sockaddr *) &name, namelen) == -1) {
+        if (bind(sockfd, (struct sockaddr *) &name, sockaddr_size) == -1) {
             log(LogLevel::ERROR, "Error binding control socket: ", strerror(errno));
             close(sockfd);
+            free(name);
             return;
         }
+        
+        free(name);
 
         // No connections can be made until we listen, so it is fine to change the permissions now
         // (and anyway there is no way to atomically create the socket and set permissions):
