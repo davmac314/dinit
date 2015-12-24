@@ -41,21 +41,24 @@ class ControlConn
     struct ev_io iob;
     struct ev_loop *loop;
     ServiceSet *service_set;
-    char * iobuf;
-    int bufidx;
     
     bool bad_conn_close; // close when finished output?
     bool oom_close;      // send final 'out of memory' indicator
+
+    // The packet length before we need to re-check if the packet is complete.
+    // processPacket() will not be called until the packet reaches this size.
+    int chklen;
+    
+    char * iobuf;
+    int bufidx;
     
     template <typename T> using list = std::list<T>;
     template <typename T> using vector = std::vector<T>;
     
     // Buffer for outgoing packets. Each outgoing back is represented as a vector<char>.
     list<vector<char>> outbuf;
+    // Current index within the first outgoing packet (all previous bytes have been sent).
     unsigned outpkt_index = 0;
-    
-    // The packet length before we need to re-check if the packet is complete
-    int chklen;
     
     // Queue a packet to be sent
     //  Returns:  true if the packet was successfully queued, false if otherwise
