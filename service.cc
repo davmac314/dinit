@@ -62,8 +62,8 @@ void ServiceRecord::stopped() noexcept
     }
 
     service_set->service_inactive(this);
+    notifyListeners(ServiceEvent::STOPPED);
     
-    // TODO inform listeners.
     if (desired_state == ServiceState::STARTED) {
         // Desired state is "started".
         start();
@@ -126,8 +126,7 @@ void ServiceRecord::start(bool unpinned) noexcept
             && desired_state == ServiceState::STOPPED) {
         // This service was starting, or started, but was set to be stopped.
         // Cancel the stop (and continue starting/running).
-        // TODO any listeners waiting for stop should be notified of
-        //      its cancellation
+        notifyListeners(ServiceEvent::STOPCANCELLED);
     }
 
     if (desired_state == ServiceState::STARTED && !unpinned) return;
@@ -236,7 +235,7 @@ void ServiceRecord::started()
 {
     logServiceStarted(service_name);
     service_state = ServiceState::STARTED;
-    // TODO - inform listeners
+    notifyListeners(ServiceEvent::STARTED);
 
     if (onstart_flags.release_console) {
         log_to_console = false;
@@ -271,6 +270,8 @@ void ServiceRecord::failed_to_start()
     service_state = ServiceState::STOPPED;
     desired_state = ServiceState::STOPPED;
     service_set->service_inactive(this);
+    notifyListeners(ServiceEvent::FAILEDSTART);
+    
     // failure to start
     // Cancel start of dependents:
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
@@ -453,7 +454,7 @@ void ServiceRecord::stop(bool unpinned) noexcept
             && desired_state == ServiceState::STARTED) {
         // The service *was* stopped/stopping, but it was going to restart.
         // Now, we'll cancel the restart.
-        // TODO inform listeners waiting for start of cancellation
+        notifyListeners(ServiceEvent::STARTCANCELLED);
     }
     
     if (desired_state == ServiceState::STOPPED && !unpinned) return;

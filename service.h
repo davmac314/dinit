@@ -1,9 +1,14 @@
+#ifndef SERVICE_H
+#define SERVICE_H
+
 #include <string>
 #include <list>
 #include <vector>
 #include <csignal>
+#include <unordered_set>
 #include "ev.h"
 #include "control.h"
+#include "service-listener.h"
 
 /*
  * Possible service states
@@ -157,6 +162,7 @@ static const char ** separate_args(std::string &s, std::list<std::pair<unsigned,
     return r;
 }
 
+
 class ServiceRecord
 {
     typedef std::string string;
@@ -199,6 +205,8 @@ class ServiceRecord
     bool force_stop; // true if the service must actually stop. This is the
                      // case if for example the process dies; the service,
                      // and all its dependencies, MUST be stopped.
+    
+    std::unordered_set<ServiceListener *> listeners;
 
     int term_signal = -1;  // signal to use for process termination
 
@@ -253,6 +261,14 @@ class ServiceRecord
     bool stopDependents() noexcept;
     
     void forceStop() noexcept; // force-stop this service and all dependents
+    
+    void notifyListeners(ServiceEvent event)
+    {
+        for (auto l : listeners) {
+            l->serviceEvent(this, event);
+        }
+    }
+    
     
     public:
 
@@ -331,6 +347,20 @@ class ServiceRecord
     {
         return service_type == ServiceType::DUMMY;
     }
+    
+    // Add a listener. A listener must only be added once. May throw std::bad_alloc.
+    void addListener(ServiceListener * listener)
+    {
+        listeners.insert(listener);
+    }
+    
+    // Remove a listener.    
+    void removeListener(ServiceListener * listener) noexcept
+    {
+        listeners.erase(listener);
+    }
+    
+    // TODO notify listeners when service events occur
 };
 
 
@@ -430,3 +460,5 @@ class ServiceSet
         }
     }
 };
+
+#endif
