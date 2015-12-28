@@ -308,6 +308,11 @@ class ServiceRecord
     }
     
     // TODO write a destructor
+    
+    ServiceState getState() noexcept
+    {
+        return service_state;
+    }
 
     // Set logfile, should be done before service is started
     void setLogfile(string logfile)
@@ -373,10 +378,7 @@ class ServiceSet
     ControlConn *rollback_handler; // recieves notification when all services stopped
     
     // Private methods
-    
-    // Locate an existing service record.
-    ServiceRecord *findService(std::string name) noexcept;
-    
+        
     // Load a service description, and dependencies, if there is no existing
     // record for the given name.
     // Throws:
@@ -401,6 +403,22 @@ class ServiceSet
     // cannot be loaded or is invalid;
     // Throws std::bad_alloc if out of memory.
     void startService(const char *name);
+    
+    // Locate an existing service record.
+    ServiceRecord *findService(const std::string &name) noexcept;
+    
+    // Find a loaded service record, or load it if it is not loaded.
+    // Throws:
+    //   ServiceLoadException (or subclass) on problem with service description
+    //   std::bad_alloc on out-of-memory condition 
+    ServiceRecord *loadService(const std::string &name)
+    {
+        ServiceRecord *record = findService(name);
+        if (record == nullptr) {
+            loadServiceRecord(name.c_str());
+        }
+        return record;
+    }
     
     // Stop the service with the given name. The named service will begin
     // transition to the 'stopped' state.

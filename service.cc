@@ -28,7 +28,7 @@ static ServiceRecord * findService(const std::list<ServiceRecord *> & records,
     return (ServiceRecord *)0;
 }
 
-ServiceRecord * ServiceSet::findService(std::string name) noexcept
+ServiceRecord * ServiceSet::findService(const std::string &name) noexcept
 {
     return ::findService(records, name.c_str());
 }
