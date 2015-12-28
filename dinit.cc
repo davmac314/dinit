@@ -4,6 +4,7 @@
 #include <csignal>
 #include <cstddef>
 #include <cstdlib>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -61,6 +62,7 @@ static void sigint_reboot_cb(struct ev_loop *loop, ev_signal *w, int revents);
 static void sigquit_cb(struct ev_loop *loop, ev_signal *w, int revents);
 static void sigterm_cb(struct ev_loop *loop, ev_signal *w, int revents);
 void open_control_socket(struct ev_loop *loop) noexcept;
+void close_control_socket(struct ev_loop *loop) noexcept;
 
 struct ev_io control_socket_io;
 
@@ -252,6 +254,8 @@ int main(int argc, char **argv)
         }
     }
     
+    close_control_socket(ev_default_loop(EVFLAG_AUTO));
+    
     if (am_system_init) {
         if (do_reboot) {
             // Fork and execute /sbin/reboot
@@ -351,7 +355,7 @@ void open_control_socket(struct ev_loop *loop) noexcept
             return;
         }
 
-        if (bind(sockfd, (struct sockaddr *) &name, sockaddr_size) == -1) {
+        if (bind(sockfd, (struct sockaddr *) name, sockaddr_size) == -1) {
             log(LogLevel::ERROR, "Error binding control socket: ", strerror(errno));
             close(sockfd);
             free(name);
@@ -377,6 +381,18 @@ void open_control_socket(struct ev_loop *loop) noexcept
         control_socket_open = true;
         ev_io_init(&control_socket_io, control_socket_cb, sockfd, EV_READ);
         ev_io_start(loop, &control_socket_io);
+    }
+}
+
+void close_control_socket(struct ev_loop *loop) noexcept
+{
+    if (control_socket_open) {
+        int fd = control_socket_io.fd;
+        ev_io_stop(loop, &control_socket_io);
+        close(fd);
+        
+        // Unlink the socket:
+        unlink(control_socket_path);
     }
 }
 
