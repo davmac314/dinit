@@ -9,14 +9,13 @@ void ControlConn::processPacket()
     // returns false it has either deleted the connection or marked it for deletion; we
     // shouldn't touch instance members after that point.
 
-    int pktType = iobuf[0];
+    int pktType = rbuf[0];
     if (pktType == DINIT_CP_QUERYVERSION) {
         // Responds with:
         // DINIT_RP_CVERSION, (2 byte) minimum compatible version, (2 byte) maximum compatible version
         char replyBuf[] = { DINIT_RP_CPVERSION, 0, 0, 0, 0 };
         if (! queuePacket(replyBuf, 1)) return;
-        memmove(iobuf, iobuf + 1, 1024 - 1);
-        bufidx -= 1;
+        rbuf.consume(1);
         return;
     }
     if (pktType == DINIT_CP_FINDSERVICE || pktType == DINIT_CP_LOADSERVICE) {
@@ -41,8 +40,7 @@ void ControlConn::processPacket()
         }
         
         // Clear the packet from the buffer
-        memmove(iobuf, iobuf + 1, 1024 - 1);
-        bufidx -= 1;
+        rbuf.consume(1);
         chklen = 0;
         return;
     }
@@ -62,13 +60,13 @@ void ControlConn::processFindLoad(int pktType)
     
     constexpr int pkt_size = 4;
     
-    if (bufidx < pkt_size) {
+    if (rbuf.get_length() < pkt_size) {
         chklen = pkt_size;
         return;
     }
     
     uint16_t svcSize;
-    memcpy(&svcSize, iobuf + 1, 2);
+    rbuf.extract((char *)&svcSize, 1, 2);
     chklen = svcSize + 3;
     if (svcSize <= 0 || chklen > 1024) {
         // Queue error response / mark connection bad
@@ -79,14 +77,15 @@ void ControlConn::processFindLoad(int pktType)
         return;
     }
     
-    if (bufidx < chklen) {
+    if (rbuf.get_length() < chklen) {
         // packet not complete yet; read more
         return;
     }
     
     ServiceRecord * record = nullptr;
     
-    string serviceName(iobuf + 3, (size_t) svcSize);
+    string serviceName = std::move(rbuf.extract_string(3, svcSize));
+    
     if (pktType == DINIT_CP_LOADSERVICE) {
         // LOADSERVICE
         try {
@@ -119,8 +118,7 @@ void ControlConn::processFindLoad(int pktType)
     }
     
     // Clear the packet from the buffer
-    memmove(iobuf, iobuf + chklen, 1024 - chklen);
-    bufidx -= chklen;
+    rbuf.consume(chklen);
     chklen = 0;
     return;
 }
@@ -131,7 +129,7 @@ void ControlConn::processStartStop(int pktType)
     
     constexpr int pkt_size = 2 + sizeof(handle_t);
     
-    if (bufidx < pkt_size) {
+    if (rbuf.get_length() < pkt_size) {
         chklen = pkt_size;
         return;
     }
@@ -140,9 +138,9 @@ void ControlConn::processStartStop(int pktType)
     // 1 byte: pin in requested state (0 = no pin, 1 = pin)
     // 4 bytes: service handle
     
-    bool do_pin = (iobuf[1] == 1);
+    bool do_pin = (rbuf[1] == 1);
     handle_t handle;
-    memcpy(&handle, iobuf + 2, sizeof(handle));
+    rbuf.extract((char *) &handle, 2, sizeof(handle));
     
     ServiceRecord *service = findServiceForKey(handle);
     if (service == nullptr) {
@@ -176,8 +174,7 @@ void ControlConn::processStartStop(int pktType)
     }
     
     // Clear the packet from the buffer
-    memmove(iobuf, iobuf + pkt_size, 1024 - pkt_size);
-    bufidx -= pkt_size;
+    rbuf.consume(pkt_size);
     chklen = 0;
     return;
 }
@@ -321,9 +318,8 @@ bool ControlConn::rollbackComplete() noexcept
 bool ControlConn::dataReady() noexcept
 {
     int fd = iob.fd;
-    int buffree = 1024 - bufidx;
     
-    int r = read(fd, iobuf + bufidx, buffree);
+    int r = rbuf.fill(fd);
     
     // Note file descriptor is non-blocking
     if (r == -1) {
@@ -340,11 +336,8 @@ bool ControlConn::dataReady() noexcept
         return true;
     }
     
-    bufidx += r;
-    buffree -= r;
-    
     // complete packet?
-    if (bufidx >= chklen) {
+    if (rbuf.get_length() >= chklen) {
         try {
             processPacket();
         }
@@ -353,7 +346,7 @@ bool ControlConn::dataReady() noexcept
         }
     }
     
-    if (bufidx == 1024) {
+    if (rbuf.get_length() == 1024) {
         // Too big packet
         // TODO log error?
         // TODO error response?
@@ -414,7 +407,6 @@ ControlConn::~ControlConn() noexcept
 {
     close(iob.fd);
     ev_io_stop(loop, &iob);
-    delete [] iobuf;
     
     // Clear service listeners
     for (auto p : serviceKeyMap) {

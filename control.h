@@ -8,9 +8,11 @@
 
 #include <unistd.h>
 #include <ev++.h>
+
 #include "dinit-log.h"
 #include "control-cmds.h"
 #include "service-listener.h"
+#include "cpbuffer.h"
 
 // Control connection for dinit
 
@@ -57,8 +59,8 @@ class ControlConn : private ServiceListener
     // processPacket() will not be called until the packet reaches this size.
     int chklen;
     
-    char * iobuf;
-    int bufidx;
+    // Receive buffer
+    CPBuffer rbuf;
     
     template <typename T> using list = std::list<T>;
     template <typename T> using vector = std::vector<T>;
@@ -87,8 +89,10 @@ class ControlConn : private ServiceListener
     //    std::bad_alloc - if an out-of-memory condition prevents processing
     void processPacket();
     
+    // Process a STARTSERVICE/STOPSERVICE packet. May throw std::bad_alloc.
     void processStartStop(int pktType);
     
+    // Process a FINDSERVICE/LOADSERVICE packet. May throw std::bad_alloc.
     void processFindLoad(int pktType);
 
     // Notify that data is ready to be read from the socket. Returns true in cases where the
@@ -148,10 +152,8 @@ class ControlConn : private ServiceListener
     }
     
     public:
-    ControlConn(struct ev_loop * loop, ServiceSet * service_set, int fd) : loop(loop), service_set(service_set), chklen(0), bufidx(0)
+    ControlConn(struct ev_loop * loop, ServiceSet * service_set, int fd) : loop(loop), service_set(service_set), chklen(0)
     {
-        iobuf = new char[1024];
-    
         ev_io_init(&iob, control_conn_cb, fd, EV_READ);
         iob.data = this;
         ev_io_start(loop, &iob);
