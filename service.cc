@@ -407,12 +407,15 @@ bool ServiceRecord::start_ps_process(const std::vector<std::string> &pargs) noex
 // Mark this and all dependent services as force-stopped.
 void ServiceRecord::forceStop() noexcept
 {
-    force_stop = true;
-    stop();
-    for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
-        (*i)->forceStop();
+    if (service_state != ServiceState::STOPPED) {
+        force_stop = true;
+        for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
+            (*i)->forceStop();
+        }
+        stop();
+        
+        // We don't want to force stop soft dependencies, however.
     }
-    // We don't want to force stop soft dependencies, however.
 }
 
 // A dependency of this service failed to start.
@@ -545,14 +548,12 @@ void ServiceRecord::allDepsStopped()
 
 void ServiceRecord::pinStart() noexcept
 {
-    pinned_stopped = false;
     start();
     pinned_started = true;
 }
 
 void ServiceRecord::pinStop() noexcept
 {
-    pinned_started = false;
     stop();
     pinned_stopped = true;
 }
