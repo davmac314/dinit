@@ -3,11 +3,14 @@
 
 #include <list>
 #include <vector>
+#include <unordered_map>
+#include <limits>
 
 #include <unistd.h>
 #include <ev++.h>
 #include "dinit-log.h"
 #include "control-cmds.h"
+#include "service-listener.h"
 
 // Control connection for dinit
 
@@ -27,14 +30,19 @@ extern int active_control_conns;
 // "packet" format:
 // (1 byte) packet type
 // (N bytes) additional data (service name, etc)
-//   for STARTSERVICE/STOPSERVICE:
+//   for LOADSERVICE/FINDSERVICE:
 //      (2 bytes) service name length
-//      (M buyes) service name (without nul terminator)
+//      (M bytes) service name (without nul terminator)
+
+// Information packet:
+// (1 byte) packet type, >= 100
+// (1 byte) packet length (including all fields)
+//       N bytes: packet data (N = (length - 2))
 
 class ServiceSet;
+class ServiceRecord;
 
-
-class ControlConn
+class ControlConn : private ServiceListener
 {
     friend void control_conn_cb(struct ev_loop *, ev_io *, int);
     
@@ -55,6 +63,12 @@ class ControlConn
     template <typename T> using list = std::list<T>;
     template <typename T> using vector = std::vector<T>;
     
+    // A mapping between service records and their associated numerical identifier used
+    // in communction
+    using handle_t = uint32_t;
+    std::unordered_multimap<ServiceRecord *, handle_t> serviceKeyMap;
+    std::unordered_map<handle_t, ServiceRecord *> keyServiceMap;
+    
     // Buffer for outgoing packets. Each outgoing back is represented as a vector<char>.
     list<vector<char>> outbuf;
     // Current index within the first outgoing packet (all previous bytes have been sent).
@@ -69,7 +83,13 @@ class ControlConn
 
     // Process a packet. Can cause the ControlConn to be deleted iff there are no
     // outgoing packets queued.
+    // Throws:
+    //    std::bad_alloc - if an out-of-memory condition prevents processing
     void processPacket();
+    
+    void processStartStop(int pktType);
+    
+    void processFindLoad(int pktType);
 
     // Notify that data is ready to be read from the socket. Returns true in cases where the
     // connection was deleted with potentially pending outgoing packets.
@@ -77,8 +97,58 @@ class ControlConn
     
     void sendData() noexcept;
     
+    // Allocate a new handle for a service; may throw std::bad_alloc
+    handle_t allocateServiceHandle(ServiceRecord *record);
+    
+    ServiceRecord *findServiceForKey(uint32_t key)
+    {
+        try {
+            return keyServiceMap.at(key);
+        }
+        catch (std::out_of_range &exc) {
+            return nullptr;
+        }
+    }
+    
+    // Close connection due to out-of-memory condition.
+    void doOomClose()
+    {
+        bad_conn_close = true;
+        oom_close = true;
+        ev_io_set(&iob, iob.fd, EV_WRITE);
+    }
+    
+    // Process service event broadcast.
+    void serviceEvent(ServiceRecord * service, ServiceEvent event) noexcept final override
+    {
+        // For each service handle corresponding to the event, send an information packet.
+        auto range = serviceKeyMap.equal_range(service);
+        auto & i = range.first;
+        auto & end = range.second;
+        try {
+            while (i != end) {
+                uint32_t key = i->second;
+                std::vector<char> pkt;
+                constexpr int pktsize = 3 + sizeof(key);
+                pkt.reserve(pktsize);
+                pkt.push_back(DINIT_IP_SERVICEEVENT);
+                pkt.push_back(pktsize);
+                char * p = (char *) &key;
+                for (int j = 0; j < (int)sizeof(key); j++) {
+                    pkt.push_back(*p++);
+                }
+                pkt.push_back(static_cast<char>(event));
+                queuePacket(std::move(pkt));
+                ++i;
+            }
+        }
+        catch (std::bad_alloc &exc) {
+            doOomClose();
+        }
+    }
+    
     public:
-    ControlConn(struct ev_loop * loop, ServiceSet * service_set, int fd) : loop(loop), service_set(service_set), bufidx(0), chklen(0)
+    ControlConn(struct ev_loop * loop, ServiceSet * service_set, int fd) : loop(loop), service_set(service_set), chklen(0), bufidx(0)
     {
         iobuf = new char[1024];
     
@@ -91,7 +161,7 @@ class ControlConn
     
     bool rollbackComplete() noexcept;
         
-    ~ControlConn() noexcept;
+    virtual ~ControlConn() noexcept;
 };
 
 

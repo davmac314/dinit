@@ -2,15 +2,22 @@
 
 // Requests:
 
-// Start or stop a named service:
-constexpr static int DINIT_CP_STARTSERVICE = 0;
-constexpr static int DINIT_CP_STOPSERVICE  = 1;
+// Query protocol version:
+constexpr static int DINIT_CP_QUERYVERSION = 0;
+
+// Find (but don't load) a service:
+constexpr static int DINIT_CP_FINDSERVICE = 1;
+
+// Find or load a service:
+constexpr static int DINIT_CP_LOADSERVICE = 2;
+
+// Start or stop a service:
+constexpr static int DINIT_CP_STARTSERVICE = 3;
+constexpr static int DINIT_CP_STOPSERVICE  = 4;
 
 // Roll-back all services:
-constexpr static int DINIT_CP_ROLLBACKALL = 2;
+constexpr static int DINIT_CP_ROLLBACKALL = 5;
 
-// Query protocol version:
-constexpr static int DINIT_CP_QUERYVERSION = 3;
 
 
 // Replies:
@@ -25,12 +32,29 @@ constexpr static int DINIT_RP_BADREQ = 52;
 // Connection being closed due to out-of-memory condition
 constexpr static int DINIT_RP_OOM = 53;
 
-// Reply: rollback completed
-constexpr static int DINIT_ROLLBACK_COMPLETED = 60;
-
 // Start service replies:
-constexpr static int DINIT_RP_SERVICELOADERR = 61;
-constexpr static int DINIT_RP_SERVICEOOM = 62; // couldn't start due to out-of-memory
+constexpr static int DINIT_RP_SERVICELOADERR = 54;
+constexpr static int DINIT_RP_SERVICEOOM = 55; // couldn't start due to out-of-memory
+
+constexpr static int DINIT_RP_SSISSUED = 56;  // service start/stop was issued (includes 4-byte service handle)
+constexpr static int DINIT_RP_SSREDUNDANT = 57;  // service was already started/stopped (or for stop, not loaded)
 
 // Query version response:
-constexpr static int DINIT_RP_CPVERSION = 63;
+constexpr static int DINIT_RP_CPVERSION = 58;
+
+// Service record loaded/found
+constexpr static int DINIT_RP_SERVICERECORD = 59;
+//     followed by 4-byte service handle, 1-byte service state
+
+// Couldn't find/load service
+constexpr static int DINIT_RP_NOSERVICE = 60;
+
+
+
+// Information:
+
+// Service event occurred (4-byte service handle, 1 byte event code)
+constexpr static int DINIT_IP_SERVICEEVENT = 100;
+
+// rollback completed
+constexpr static int DINIT_ROLLBACK_COMPLETED = 101;

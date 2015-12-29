@@ -19,56 +19,12 @@ void ControlConn::processPacket()
         bufidx -= 1;
         return;
     }
+    if (pktType == DINIT_CP_FINDSERVICE || pktType == DINIT_CP_LOADSERVICE) {
+        processFindLoad(pktType);
+        return;
+    }
     if (pktType == DINIT_CP_STARTSERVICE || pktType == DINIT_CP_STOPSERVICE) {
-        if (bufidx < 4) {
-            chklen = 4;
-            return;
-        }
-        
-        uint16_t svcSize;
-        memcpy(&svcSize, iobuf + 1, 2);
-        chklen = svcSize + 3;
-        if (svcSize <= 0 || chklen > 1024) {
-            // Queue error response mark connection bad
-            char badreqRep[] = { DINIT_RP_BADREQ };
-            if (! queuePacket(badreqRep, 1)) return;
-            bad_conn_close = true;
-            ev_io_set(&iob, iob.fd, EV_WRITE);
-            return;
-        }
-        
-        if (bufidx < chklen) {
-            // packet not complete yet; read more
-            return;
-        }
-        
-        string serviceName(iobuf + 3, (size_t) svcSize);
-        if (pktType == DINIT_CP_STARTSERVICE) {
-            // TODO do not allow services to be started during system shutdown
-            try {
-                char ack_buf[] = { DINIT_RP_ACK };
-                service_set->startService(serviceName.c_str());
-                if (! queuePacket(ack_buf, 1)) return;
-            }
-            catch (ServiceLoadExc &slexc) {
-                log(LogLevel::ERROR, "Could not start service ", slexc.serviceName, ": ", slexc.excDescription);
-                char outbuf[] = { DINIT_RP_SERVICELOADERR };
-                if (! queuePacket(outbuf, 1)) return;
-            }
-            catch (std::bad_alloc &baexc) {
-                char outbuf[] = { DINIT_RP_SERVICEOOM };
-                if (! queuePacket(outbuf, 1)) return; // might degenerate to DINIT_RP_OOM, which is fine.
-            }
-        }
-        else {
-            // TODO verify the named service exists?
-            service_set->stopService(serviceName.c_str());
-        }
-        
-        // Clear the packet from the buffer
-        memmove(iobuf, iobuf + chklen, 1024 - chklen);
-        bufidx -= chklen;
-        chklen = 0;
+        processStartStop(pktType);
         return;
     }
     else if (pktType == DINIT_CP_ROLLBACKALL) {
@@ -99,6 +55,157 @@ void ControlConn::processPacket()
     }
     return;
 }
+
+void ControlConn::processFindLoad(int pktType)
+{
+    using std::string;
+    
+    constexpr int pkt_size = 4;
+    
+    if (bufidx < pkt_size) {
+        chklen = pkt_size;
+        return;
+    }
+    
+    uint16_t svcSize;
+    memcpy(&svcSize, iobuf + 1, 2);
+    chklen = svcSize + 3;
+    if (svcSize <= 0 || chklen > 1024) {
+        // Queue error response / mark connection bad
+        char badreqRep[] = { DINIT_RP_BADREQ };
+        if (! queuePacket(badreqRep, 1)) return;
+        bad_conn_close = true;
+        ev_io_set(&iob, iob.fd, EV_WRITE);
+        return;
+    }
+    
+    if (bufidx < chklen) {
+        // packet not complete yet; read more
+        return;
+    }
+    
+    ServiceRecord * record = nullptr;
+    
+    string serviceName(iobuf + 3, (size_t) svcSize);
+    if (pktType == DINIT_CP_LOADSERVICE) {
+        // LOADSERVICE
+        try {
+            record = service_set->loadService(serviceName);
+        }
+        catch (ServiceLoadExc &slexc) {
+            log(LogLevel::ERROR, "Could not load service ", slexc.serviceName, ": ", slexc.excDescription);
+        }
+    }
+    else {
+        // FINDSERVICE
+        record = service_set->findService(serviceName.c_str());
+    }
+    
+    if (record != nullptr) {
+        // Allocate a service handle
+        handle_t handle = allocateServiceHandle(record);
+        std::vector<char> rp_buf;
+        rp_buf.reserve(6);
+        rp_buf.push_back(DINIT_RP_SERVICERECORD);
+        rp_buf.push_back(static_cast<char>(record->getState()));
+        for (int i = 0; i < (int) sizeof(handle); i++) {
+            rp_buf.push_back(*(((char *) &handle) + i));
+        }
+        if (! queuePacket(std::move(rp_buf))) return;
+    }
+    else {
+        std::vector<char> rp_buf = { DINIT_RP_NOSERVICE };
+        if (! queuePacket(std::move(rp_buf))) return;
+    }
+    
+    // Clear the packet from the buffer
+    memmove(iobuf, iobuf + chklen, 1024 - chklen);
+    bufidx -= chklen;
+    chklen = 0;
+    return;
+}
+
+void ControlConn::processStartStop(int pktType)
+{
+    using std::string;
+    
+    constexpr int pkt_size = 2 + sizeof(handle_t);
+    
+    if (bufidx < pkt_size) {
+        chklen = pkt_size;
+        return;
+    }
+    
+    // 1 byte: packet type
+    // 1 byte: pin in requested state (0 = no pin, 1 = pin)
+    // 4 bytes: service handle
+    
+    bool do_pin = (iobuf[1] == 1);
+    handle_t handle;
+    memcpy(&handle, iobuf + 2, sizeof(handle));
+    
+    ServiceRecord *service = findServiceForKey(handle);
+    if (service == nullptr) {
+        // Service handle is bad
+        char badreqRep[] = { DINIT_RP_BADREQ };
+        if (! queuePacket(badreqRep, 1)) return;
+        bad_conn_close = true;
+        ev_io_set(&iob, iob.fd, EV_WRITE);
+        return;
+    }
+    else {
+        if (pktType == DINIT_CP_STARTSERVICE) {
+            if (do_pin) {
+                service->pinStart();
+            }
+            else {
+                service->start();
+            }
+        }
+        else {
+            if (do_pin) {
+                service->pinStop();
+            }
+            else {
+                service->stop();
+            }
+        }
+        
+        char ack_buf[] = { DINIT_RP_ACK };
+        if (! queuePacket(ack_buf, 1)) return;
+    }
+    
+    // Clear the packet from the buffer
+    memmove(iobuf, iobuf + pkt_size, 1024 - pkt_size);
+    bufidx -= pkt_size;
+    chklen = 0;
+    return;
+}
+
+ControlConn::handle_t ControlConn::allocateServiceHandle(ServiceRecord *record)
+{
+    bool is_unique = true;
+    handle_t largest_seen = 0;
+    handle_t candidate = 0;
+    for (auto p : keyServiceMap) {
+        if (p.first > largest_seen) largest_seen = p.first;
+        if (p.first == candidate) {
+            if (largest_seen == std::numeric_limits<handle_t>::max()) throw std::bad_alloc();
+            candidate = largest_seen + 1;
+        }
+        is_unique &= (p.second != record);
+    }
+    
+    keyServiceMap[candidate] = record;
+    serviceKeyMap.insert(std::make_pair(record, candidate));
+    
+    if (is_unique) {
+        record->addListener(this);
+    }
+    
+    return candidate;
+}
+
 
 bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
 {
@@ -207,8 +314,8 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
 
 bool ControlConn::rollbackComplete() noexcept
 {
-    char ackBuf[1] = { DINIT_ROLLBACK_COMPLETED };
-    return queuePacket(ackBuf, 1);
+    char ackBuf[2] = { DINIT_ROLLBACK_COMPLETED, 2 };
+    return queuePacket(ackBuf, 2);
 }
 
 bool ControlConn::dataReady() noexcept
@@ -242,7 +349,7 @@ bool ControlConn::dataReady() noexcept
             processPacket();
         }
         catch (std::bad_alloc &baexc) {
-            // TODO
+            doOomClose();
         }
     }
     
@@ -308,6 +415,12 @@ ControlConn::~ControlConn() noexcept
     close(iob.fd);
     ev_io_stop(loop, &iob);
     delete [] iobuf;
+    
+    // Clear service listeners
+    for (auto p : serviceKeyMap) {
+        p.first->removeListener(this);
+    }
+    
     service_set->clearRollbackHandler(this);
     active_control_conns--;
 }
