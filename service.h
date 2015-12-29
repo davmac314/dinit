@@ -346,8 +346,6 @@ class ServiceRecord
     {
         listeners.erase(listener);
     }
-    
-    // TODO notify listeners when service events occur
 };
 
 
