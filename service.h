@@ -9,6 +9,7 @@
 #include "ev.h"
 #include "control.h"
 #include "service-listener.h"
+#include "service-constants.h"
 
 /*
  * Possible service states
@@ -33,25 +34,6 @@
  * A process service is in the STOPPING state when it has been signalled to stop, and is
  *       in the STARTING state when waiting for dependencies to start.
  */
-enum class ServiceState {
-    STOPPED,    // service is not running.
-    STARTING,   // service is starting, and will start (or fail to start) in time.
-    STARTED,    // service is running,
-    STOPPING    // service script is stopping and will stop.
-};
-
-
-
-/* Service types */
-enum class ServiceType {
-    DUMMY,      // dummy service, used to detect cyclice dependencies
-    PROCESS,    // service runs as a process, and can be stopped by
-                // sending the process a signal (SIGTERM)
-    SCRIPTED,   // service requires an external command to start,
-                // and a second command to stop
-    INTERNAL    // internal service, runs no external process
-};
-
 
 struct OnstartFlags {
     bool release_console : 1;
