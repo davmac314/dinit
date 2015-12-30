@@ -9,8 +9,6 @@ enum class ServiceState {
     STOPPING    // service script is stopping and will stop.
 };
 
-
-
 /* Service types */
 enum class ServiceType {
     DUMMY,      // dummy service, used to detect cyclice dependencies
@@ -20,5 +18,15 @@ enum class ServiceType {
                 // and a second command to stop
     INTERNAL    // internal service, runs no external process
 };
+
+/* Service events */
+enum class ServiceEvent {
+    STARTED,           // Service was started (reached STARTED state)
+    STOPPED,           // Service was stopped (reached STOPPED state)
+    FAILEDSTART,       // Service failed to start (possibly due to dependency failing)
+    STARTCANCELLED,    // Service was set to be started but a stop was requested
+    STOPCANCELLED      // Service was set to be stopped but a start was requested
+};
+
 
 #endif
