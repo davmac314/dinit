@@ -2,7 +2,43 @@ Comparison of Dinit with other supervision / init systems
 =========================================================
 
 This is intended to be an objective description of the differences between Dinit
-and several other similar software packages.
+and several other similar software packages. I started writing this with the
+intention of justifying Dinit's existence, but don't know feel that this
+document achieves that goal. It does, however, serve as a short survey of
+service supervision and init systems.
+
+
+Systems without dependency management
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+A variety of init/supervision packages do not perform proper dependency management
+of supervisions. By this I mean that:
+ - starting a service should automatically start any services that the former
+   requires (and wait, if appropriate, until they have started)
+ - likewise, stopping a service should automatically stop any dependent services.
+
+Dinit (and various other packages) perform dependency management. The following
+packages do not:
+
+ * Daemontools (http://cr.yp.to/daemontools.html)
+ * Epoch (http://universe2.us/epoch.html)
+ * Finit (http://github.com/troglobit/finit)
+ * Minit (http://www.fefe.de/minit)
+ * Perp (http://b0llix.net/perp/)
+ * Runit (http://smarden.org/runit/)
+
+
+Cinit (http://www.nico.schottelius.org/software/cinit)
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+An obscure init system which apparently offers portability and dependency
+management, just as Dinit does.
+
+
+InitNG (http://initng.org/trac)
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+A highly modular init system which apparently offers dependency management
+(as Dinit does). Portability status is unclear; may be Linux-only (Dinit
+strives for portability).
 
 
 OpenRC (Gentoo)
@@ -15,6 +51,23 @@ startup of services (like Dinit). Compared to Dinit:
    intended that OpenRC be started by init.
  - Although the build system seems to have some support for BSD OSes, it did not
    build successfully on OpenBSD when tested (revision 33d3f33).
+
+
+S6-RC (http://skarnet.org/software/s6-rc/s6-rc.html)
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+S6-RC provides a dependency-management system over the top of the S6 supervision
+system. Apparently it maintains most state on disk. S6-RC requires compiling the
+complete set of service descriptions into a database. New services apparently
+cannot be added once the system is in operation.
+
+S6 in general follows a philosophy of breaking up functionality into smaller
+parts and implementing these smaller parts as separate programs, wherever
+practical. Thus, process supervision, log file management, and service management
+are all separate programs.
+
+In contrast, Dinit does not requires compiling service definitions, and allows
+new services to be added after the system starts. Also, Dinit houses a much larger
+body of functionality in a single executable program.
 
 
 Systemd
@@ -35,9 +88,9 @@ or two. Compared to Dinit:
    be used to supplement the functionality of Dinit.
  - Systemd running in "system" mode does not properly support running with a PID
    other than 1 [1]. That is, it must replace /sbin/init. Systemd can however be run in
-   "user" mode where it (most likely) provides the same level of functionality of
-   Dinit, though in a more complex package.
- - Systemd exposes a D-Bus API.
+   "user" mode where it (most likely) provides the same or greater level of functionality
+   as Dinit, though in a more complex package.
+ - Systemd exposes a D-Bus API. Dinit eschews D-Bus in favor of a compact custom protocol.
  - Systemd makes no attempt to be portable to operating system kernels other than
    Linux. The maintainers consider it infeasible to port to non-Linux-based OSes
    and will refuse patches designed to do so [2]. Dinit, by comparison, strives to be
@@ -46,3 +99,16 @@ or two. Compared to Dinit:
 [1] http://freedesktop.org/software/systemd/man/systemd.html as at 18/11/2015
 [2] http://freedesktop.org/wiki/Software/systemd/InterfacePortabilityAndStabilityChart/
     as at 18/11/2015
+
+
+Upstart (Ubuntu; http://upstart.ubuntu.com)
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+Upstart does not provide real dependency management; instead "events" (including services
+starting or stopping) can be specified to trigger start/stop of other services. This is
+backwards from the Dinit approach (and that taken by most dependency-managing supervision
+systems) which allow the dependencies of a service to be specified declaratively. That is,
+if service A depends on service B, Upstart is configured so as to start B whenever A starts
+(and it's not possible, or at least not trival, to start A without also starting B).
+
+Upstart apparently offers a D-Bus interface. Dinit eschews D-Bus in favour of a simple
+custom control protocol.
