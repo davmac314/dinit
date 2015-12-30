@@ -67,7 +67,7 @@ void ControlConn::processFindLoad(int pktType)
     
     uint16_t svcSize;
     rbuf.extract((char *)&svcSize, 1, 2);
-    chklen = svcSize + 3;
+    chklen = svcSize + 3; // packet type + (2 byte) length + service name
     if (svcSize <= 0 || chklen > 1024) {
         // Queue error response / mark connection bad
         char badreqRep[] = { DINIT_RP_BADREQ };
@@ -104,12 +104,13 @@ void ControlConn::processFindLoad(int pktType)
         // Allocate a service handle
         handle_t handle = allocateServiceHandle(record);
         std::vector<char> rp_buf;
-        rp_buf.reserve(6);
+        rp_buf.reserve(7);
         rp_buf.push_back(DINIT_RP_SERVICERECORD);
         rp_buf.push_back(static_cast<char>(record->getState()));
         for (int i = 0; i < (int) sizeof(handle); i++) {
             rp_buf.push_back(*(((char *) &handle) + i));
         }
+        rp_buf.push_back(static_cast<char>(record->getTargetState()));
         if (! queuePacket(std::move(rp_buf))) return;
     }
     else {
