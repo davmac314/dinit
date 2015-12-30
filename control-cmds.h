@@ -15,8 +15,9 @@ constexpr static int DINIT_CP_LOADSERVICE = 2;
 constexpr static int DINIT_CP_STARTSERVICE = 3;
 constexpr static int DINIT_CP_STOPSERVICE  = 4;
 
-// Roll-back all services:
-constexpr static int DINIT_CP_ROLLBACKALL = 5;
+// Shutdown:
+constexpr static int DINIT_CP_SHUTDOWN = 5;
+ // followed by 1-byte shutdown type
 
 
 

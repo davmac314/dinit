@@ -26,21 +26,22 @@ void ControlConn::processPacket()
         processStartStop(pktType);
         return;
     }
-    else if (pktType == DINIT_CP_ROLLBACKALL) {
-        // Roll-back all services
-        if (service_set->setRollbackHandler(this)) {
-            service_set->stop_all_services();
-            log_to_console = true;
-            char ackBuf[] = { DINIT_RP_ACK };
-            if (! queuePacket(ackBuf, 1)) return;
-        }
-        else {
-            char nakBuf[] = { DINIT_RP_NAK };
-            if (! queuePacket(nakBuf, 1)) return;
+    else if (pktType == DINIT_CP_SHUTDOWN) {
+        // Shutdown/reboot
+        if (rbuf.get_length() < 2) {
+            chklen = 2;
+            return;
         }
         
+        auto sd_type = static_cast<ShutdownType>(rbuf[1]);
+        
+        service_set->stop_all_services(sd_type);
+        log_to_console = true;
+        char ackBuf[] = { DINIT_RP_ACK };
+        if (! queuePacket(ackBuf, 1)) return;
+        
         // Clear the packet from the buffer
-        rbuf.consume(1);
+        rbuf.consume(2);
         chklen = 0;
         return;
     }
@@ -414,6 +415,5 @@ ControlConn::~ControlConn() noexcept
         p.first->removeListener(this);
     }
     
-    service_set->clearRollbackHandler(this);
     active_control_conns--;
 }

@@ -582,7 +582,4 @@ void ServiceSet::service_active(ServiceRecord *sr) noexcept
 void ServiceSet::service_inactive(ServiceRecord *sr) noexcept
 {
     active_services--;
-    if (active_services == 0 && rollback_handler != nullptr) {
-        rollback_handler->rollbackComplete();
-    }
 }
