@@ -364,6 +364,8 @@ class ServiceSet
     bool restart_enabled; // whether automatic restart is enabled (allowed)
     ControlConn *rollback_handler; // recieves notification when all services stopped
     
+    ShutdownType shutdown_type = ShutdownType::CONTINUE;  // Shutdown type, if stopping
+    
     // Private methods
         
     // Load a service description, and dependencies, if there is no existing
@@ -426,9 +428,10 @@ class ServiceSet
         return active_services;
     }
     
-    void stop_all_services() noexcept
+    void stop_all_services(ShutdownType type = ShutdownType::HALT) noexcept
     {
         restart_enabled = false;
+        shutdown_type = type;
         for (std::list<ServiceRecord *>::iterator i = records.begin(); i != records.end(); ++i) {
             (*i)->stop();
         }
@@ -442,6 +445,11 @@ class ServiceSet
     bool get_auto_restart() noexcept
     {
         return restart_enabled;
+    }
+    
+    ShutdownType getShutdownType() noexcept
+    {
+        return shutdown_type;
     }
     
     // Set the rollback handler, which will be notified when all services have stopped.

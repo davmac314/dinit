@@ -28,5 +28,12 @@ enum class ServiceEvent {
     STOPCANCELLED      // Service was set to be stopped but a start was requested
 };
 
+/* Shutdown types */
+enum class ShutdownType {
+    CONTINUE,          // Continue normal boot sequence (used after single-user shell)
+    HALT,              // Halt system without powering down
+    POWEROFF,          // Power off system
+    REBOOT             // Reboot system
+};
 
 #endif
