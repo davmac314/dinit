@@ -2,3 +2,5 @@
 dinit
 dinit-start
 test
+shutdown
+dinit-reboot
