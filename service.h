@@ -291,9 +291,16 @@ class ServiceRecord
     
     // TODO write a destructor
     
+    // Get the current service state.
     ServiceState getState() noexcept
     {
         return service_state;
+    }
+    
+    // Get the target (aka desired) state.
+    ServiceState getTargetState() noexcept
+    {
+        return desired_state;
     }
 
     // Set logfile, should be done before service is started
@@ -395,7 +402,7 @@ class ServiceSet
     {
         ServiceRecord *record = findService(name);
         if (record == nullptr) {
-            loadServiceRecord(name.c_str());
+            record = loadServiceRecord(name.c_str());
         }
         return record;
     }
