@@ -21,12 +21,16 @@
 // shutdown:  shut down the system
 // This utility communicates with the dinit daemon via a unix socket (/dev/initctl).
 
+void do_system_shutdown(ShutdownType shutdown_type);
+static void unmount_disks();
+static void swap_off();
+
 int main(int argc, char **argv)
 {
     using namespace std;
     
-    //bool show_help = argc < 2;
     bool show_help = false;
+    bool sys_shutdown = false;
     
     auto shutdown_type = ShutdownType::POWEROFF;
         
@@ -36,10 +40,17 @@ int main(int argc, char **argv)
                 show_help = true;
                 break;
             }
+            
+            if (strcmp(argv[i], "--system") == 0) {
+                sys_shutdown = true;
+            }
             else if (strcmp(argv[i], "-r") == 0) {
                 shutdown_type = ShutdownType::REBOOT;
             }
             else if (strcmp(argv[i], "-h") == 0) {
+                shutdown_type = ShutdownType::HALT;
+            }
+            else if (strcmp(argv[i], "-p") == 0) {
                 shutdown_type = ShutdownType::POWEROFF;
             }
             else {
@@ -49,13 +60,25 @@ int main(int argc, char **argv)
         }
         else {
             // time argument? TODO
+            show_help = true;
         }
     }
 
     if (show_help) {
         cout << "dinit-shutdown :   shutdown the system" << endl;
         cout << "  --help           : show this help" << endl;
+        cout << "  -r               : reboot" << endl;
+        cout << "  -h               : halt system" << endl;
+        cout << "  -p               : power down (default)" << endl;
+        cout << "  --system         : perform shutdown immediately, instead of issuing shutdown" << endl;
+        cout << "                     command to the init program. Not recommended for use" << endl;
+        cout << "                     by users." << endl;
         return 1;
+    }
+    
+    if (sys_shutdown) {
+        do_system_shutdown(shutdown_type);
+        return 0;
     }
     
     int socknum = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -85,27 +108,7 @@ int main(int argc, char **argv)
     buf[0] = DINIT_CP_SHUTDOWN;
     buf[1] = static_cast<char>(shutdown_type);
     
-    //memcpy(buf + 1, &sname_len, 2);
-    //memcpy(buf + 3, service_name, sname_len);
-    
-    // Make sure we can't die due to a signal at this point:
-    //sigset_t sigmask;
-    //sigfillset(&sigmask);
-    //sigprocmask(SIG_BLOCK, &sigmask, nullptr);
-    
-    // Write to console rather than any terminal, since we lose the terminal it seems:
-    //close(STDOUT_FILENO);
-    //int consfd = open("/dev/console", O_WRONLY);
-    //if (consfd != STDOUT_FILENO) {
-    //    dup2(consfd, STDOUT_FILENO);
-    //}
-    
-    // At this point, util-linux 2.13 shutdown sends SIGTERM to all processes with uid >= 100 and
-    // calls it 'sendiong SIGTERM to mortals'.
-    // Equivalent would probably be to rollback 'loginready' service. However, that will happen as
-    // part of the regular rollback anyway.
-    
-    cout << "Writing shutdown command..." << endl; // DAV
+    cout << "Issuing shutdown command..." << endl; // DAV
     
     // TODO make sure to write the whole buffer
     int r = write(socknum, buf, bufsize);
@@ -113,11 +116,82 @@ int main(int argc, char **argv)
         perror("write");
     }
     
-    cout << "Waiting for ACK..." << endl; // DAV
-    
     // Wait for ACK/NACK
     r = read(socknum, buf, 1);
     // TODO: check result
     
     return 0;
+}
+
+void do_system_shutdown(ShutdownType shutdown_type)
+{
+    using namespace std;
+    
+    int reboot_type = 0;
+    if (shutdown_type == ShutdownType::REBOOT) reboot_type = RB_AUTOBOOT;
+    else if (shutdown_type == ShutdownType::POWEROFF) reboot_type = RB_POWER_OFF;
+    else reboot_type = RB_HALT_SYSTEM;
+    
+    // Write to console rather than any terminal, since we lose the terminal it seems:
+    close(STDOUT_FILENO);
+    int consfd = open("/dev/console", O_WRONLY);
+    if (consfd != STDOUT_FILENO) {
+        dup2(consfd, STDOUT_FILENO);
+    }
+    
+    cout << "Sending TERM/KILL to all processes..." << endl; // DAV
+    
+    // Send TERM/KILL to all (remaining) processes
+    kill(-1, SIGTERM);
+    sleep(1);
+    kill(-1, SIGKILL);
+    
+    // cout << "Sending QUIT to init..." << endl; // DAV
+    
+    // Tell init to exec reboot:
+    // TODO what if it's not PID=1? probably should have dinit pass us its PID
+    // kill(1, SIGQUIT);
+    
+    // TODO can we wait somehow for above to work?
+    // maybe have a pipe/socket and we read from our end...
+    
+    // TODO: close all ancillary file descriptors.
+    
+    // perform shutdown
+    cout << "Turning off swap..." << endl;
+    swap_off();
+    cout << "Unmounting disks..." << endl;
+    unmount_disks();
+    sync();
+    
+    cout << "Issuing shutdown via kernel..." << endl;
+    reboot(reboot_type);
+}
+
+static void unmount_disks()
+{
+    pid_t chpid = fork();
+    if (chpid == 0) {
+        // umount -a -r
+        //  -a : all filesystems (except proc)
+        //  -r : mount readonly if can't unmount
+        execl("/bin/umount", "/bin/umount", "-a", "-r", nullptr);
+    }
+    else if (chpid > 0) {
+        int status;
+        waitpid(chpid, &status, 0);
+    }
+}
+
+static void swap_off()
+{
+    pid_t chpid = fork();
+    if (chpid == 0) {
+        // swapoff -a
+        execl("/sbin/swapoff", "/sbin/swapoff", "-a", nullptr);
+    }
+    else if (chpid > 0) {
+        int status;
+        waitpid(chpid, &status, 0);
+    }
 }

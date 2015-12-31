@@ -6,7 +6,7 @@ dinit_objects = dinit.o load_service.o service.o control.o dinit-log.o
 
 all: dinit dinit-start
 
-shutdown-utils: shutdown dinit-reboot
+shutdown-utils: shutdown
 
 dinit: $(dinit_objects)
 	$(CXX) -o dinit $(dinit_objects) -lev $(EXTRA_LIBS)

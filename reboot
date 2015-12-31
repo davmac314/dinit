@@ -1,2 +1,2 @@
 #!/bin/sh
-shutdown -r
+shutdown -r "$@"

@@ -292,8 +292,8 @@ int main(int argc, char **argv)
         }
         
         // Fork and execute dinit-reboot.
-        execl("/usr/libexec/dinit-reboot", "/usr/libexec/dinit-reboot", cmd_arg, nullptr);
-        log(LogLevel::ERROR, "Could not execl() for reboot: ", strerror(errno));
+        execl("/sbin/shutdown", "/sbin/shutdown", "--system", cmd_arg, nullptr);
+        log(LogLevel::ERROR, "Could not execute /sbin/shutdown: ", strerror(errno));
         
         // PID 1 must not actually exit, although we should never reach this point:
         while (true) {
