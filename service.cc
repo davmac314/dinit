@@ -425,6 +425,7 @@ void ServiceRecord::failed_dependency()
     
     // Presumably, we were starting. So now we're not.
     service_state = ServiceState::STOPPED;
+    service_set->service_inactive(this);
     
     // Notify dependents of this service also
     for (auto i = dependents.begin(); i != dependents.end(); i++) {
