@@ -220,7 +220,7 @@ void ServiceRecord::allDepsStarted() noexcept
     }
     else if (service_type == ServiceType::SCRIPTED) {
         // Script-controlled service
-        bool start_success = start_ps_process(std::vector<std::string>(1, "start"));
+        bool start_success = start_ps_process();
         if (! start_success) {
             failed_to_start();
         }
@@ -291,7 +291,7 @@ void ServiceRecord::failed_to_start()
 bool ServiceRecord::start_ps_process() noexcept
 {
     try {
-        return start_ps_process(std::vector<std::string>());
+        return start_ps_process(exec_arg_parts);
     }
     catch (std::bad_alloc & bad_alloc_exc) {
         // TODO log error
@@ -299,7 +299,7 @@ bool ServiceRecord::start_ps_process() noexcept
     }
 }
 
-bool ServiceRecord::start_ps_process(const std::vector<std::string> &pargs) noexcept
+bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd) noexcept
 {
     // In general, you can't tell whether fork/exec is successful. We use a pipe to communicate
     // success/failure from the child to the parent. The pipe is set CLOEXEC so a successful
@@ -319,88 +319,71 @@ bool ServiceRecord::start_ps_process(const std::vector<std::string> &pargs) noex
     }
     
     // Set up the argument array and other data now (before fork), in case memory allocation fails.
+    
+    auto args = cmd.data();
+    
+    const char * logfile = this->logfile.c_str();
+    if (*logfile == 0) {
+        logfile = "/dev/null";
+    }
 
-    try {
-        //auto argsv = std::vector<const char *>(num_args + pargs.size() + 1);
-        auto argsv = std::vector<const char *>(num_args + pargs.size() + 1);
-        auto args = argsv.data();
-        int i;
-        for (i = 0; i < num_args; i++) {
-            args[i] = exec_arg_parts[i];
-        }
-        for (auto progarg : pargs) {
-            args[i] = progarg.c_str();
-            i++;
-        }
-        args[i] = nullptr;
-        
-        string logfile = this->logfile;
-        if (logfile.length() == 0) {
-            logfile = "/dev/null";
+    // TODO make sure pipefd's are not 0/1/2 (STDIN/OUT/ERR) - if they are, dup them
+    // until they are not.
+
+    pid_t forkpid = fork();
+    if (forkpid == -1) {
+        // TODO log error
+        close(pipefd[0]);
+        close(pipefd[1]);
+        return false;
+    }
+
+    if (forkpid == 0) {
+        // Child process. Must not allocate memory (or otherwise risk throwing any exception)
+        // from here until exit().
+        ev_default_destroy(); // won't need that on this side, free up fds.
+
+        // Re-set stdin, stdout, stderr
+        close(0); close(1); close(2);
+
+        // TODO rethink this logic. If we open it at not-0, shouldn't we just dup it to 0?:
+        if (open("/dev/null", O_RDONLY) == 0) {
+          // stdin = 0. That's what we should have; proceed with opening
+          // stdout and stderr.
+          open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
+          dup2(1, 2);
         }
 
-        // TODO make sure pipefd's are not 0/1/2 (STDIN/OUT/ERR) - if they are, dup them
-        // until they are not.
+        execvp(exec_arg_parts[0], const_cast<char **>(args));
 
-        pid_t forkpid = fork();
-        if (forkpid == -1) {
-            // TODO log error
+        // If we got here, the exec failed:
+        int exec_status = errno;
+        write(pipefd[1], &exec_status, sizeof(int));
+        exit(0);
+    }
+    else {
+        // Parent process
+        close(pipefd[1]); // close the 'other end' fd
+
+        int exec_status;
+        if (read(pipefd[0], &exec_status, sizeof(int)) == 0) {
+            // pipe closed; success
+            pid = forkpid;
+
+            // Add a process listener so we can detect when the
+            // service stops
+            ev_child_init(&child_listener, process_child_callback, pid, 0);
+            child_listener.data = this;
+            ev_child_start(ev_default_loop(EVFLAG_AUTO), &child_listener);
+
             close(pipefd[0]);
-            close(pipefd[1]);
-            return false;
-        }
-
-        if (forkpid == 0) {
-            // Child process. Must not allocate memory (or otherwise risk throwing any exception)
-            // from here until exit().
-            ev_default_destroy(); // won't need that on this side, free up fds.
-
-            // Re-set stdin, stdout, stderr
-            close(0); close(1); close(2);
-
-            // TODO rethink this logic. If we open it at not-0, shouldn't we just dup it to 0?:
-            if (open("/dev/null", O_RDONLY) == 0) {
-              // stdin = 0. That's what we should have; proceed with opening
-              // stdout and stderr.
-              open(logfile.c_str(), O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
-              dup2(1, 2);
-            }
-
-            execvp(exec_arg_parts[0], const_cast<char **>(args));
-
-            // If we got here, the exec failed:
-            int exec_status = errno;
-            write(pipefd[1], &exec_status, sizeof(int));
-            exit(0);
+            return true;
         }
         else {
-            // Parent process
-            close(pipefd[1]); // close the 'other end' fd
-
-            int exec_status;
-            if (read(pipefd[0], &exec_status, sizeof(int)) == 0) {
-                // pipe closed; success
-                pid = forkpid;
-
-                // Add a process listener so we can detect when the
-                // service stops
-                ev_child_init(&child_listener, process_child_callback, pid, 0);
-                child_listener.data = this;
-                ev_child_start(ev_default_loop(EVFLAG_AUTO), &child_listener);
-
-                close(pipefd[0]);
-                return true;
-            }
-            else {
-                // TODO log error
-                close(pipefd[0]);
-                return false;
-            }
+            // TODO log error
+            close(pipefd[0]);
+            return false;
         }
-    }
-    catch (std::bad_alloc &bad_alloc_exc) {
-        log(LogLevel::ERROR, "Out of memory");
-        return false;
     }
 }
 
@@ -537,7 +520,7 @@ void ServiceRecord::allDepsStopped()
     }
     else if (service_type == ServiceType::SCRIPTED) {
         // Scripted service.
-        if (! start_ps_process(std::vector<string>(1, "stop"))) {
+        if (! start_ps_process(stop_arg_parts)) {
             // stop script failed, but there's not much we can do:
             stopped();
         }

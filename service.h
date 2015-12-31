@@ -121,12 +121,12 @@ class ServiceDep
 };
 
 // Given a string and a list of pairs of (start,end) indices for each argument in that string,
-// store a null terminator for the argument. Return a `char *` array pointing at the beginning
-// of each argument. (The returned array is invalidated if the string is later modified).
-static const char ** separate_args(std::string &s, std::list<std::pair<unsigned,unsigned>> &arg_indices)
+// store a null terminator for the argument. Return a `char *` vector containing the beginning
+// of each argument and a trailing nullptr. (The returned array is invalidated if the string is later modified).
+static std::vector<const char *> separate_args(std::string &s, std::list<std::pair<unsigned,unsigned>> &arg_indices)
 {
-    const char ** r = new const char *[arg_indices.size()];
-    int i = 0;
+    std::vector<const char *> r;
+    r.reserve(arg_indices.size() + 1);
 
     // First store nul terminator for each part:
     for (auto index_pair : arg_indices) {
@@ -138,9 +138,9 @@ static const char ** separate_args(std::string &s, std::list<std::pair<unsigned,
     // Now we can get the C string (c_str) and store offsets into it:
     const char * cstr = s.c_str();
     for (auto index_pair : arg_indices) {
-        r[i] = cstr + index_pair.first;
-        i++;
+        r.push_back(cstr + index_pair.first);
     }
+    r.push_back(nullptr);
     return r;
 }
 
@@ -155,8 +155,11 @@ class ServiceRecord
     ServiceState desired_state = ServiceState::STOPPED; /* ServiceState::STOPPED / STARTED */
 
     string program_name;          /* storage for program/script and arguments */
-    const char **exec_arg_parts;  /* pointer to each argument/part of the program_name */
-    int num_args;                 /* number of argumrnets (including program) */
+    std::vector<const char *> exec_arg_parts; /* pointer to each argument/part of the program_name */
+    
+    string stop_command;          /* storage for stop program/script and arguments */
+    std::vector<const char *> stop_arg_parts; /* pointer to each argument/part of the stop_command */
+    
     OnstartFlags onstart_flags;
 
     string logfile; /* log file name, empty string specifies /dev/null */
@@ -219,7 +222,7 @@ class ServiceRecord
     
     // For process services, start the process, return true on success
     bool start_ps_process() noexcept;
-    bool start_ps_process(const std::vector<std::string> &args) noexcept;
+    bool start_ps_process(const std::vector<const char *> &args) noexcept;
 
     // Callback from libev when a child process dies
     static void process_child_callback(struct ev_loop *loop, struct ev_child *w,
@@ -274,7 +277,6 @@ class ServiceRecord
 
         program_name = command;
         exec_arg_parts = separate_args(program_name, command_offsets);
-        num_args = command_offsets.size();
 
         for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
             (*i)->dependents.push_back(this);
@@ -290,6 +292,13 @@ class ServiceRecord
     }
     
     // TODO write a destructor
+    
+    // Set the stop command and arguments (may throw std::bad_alloc)
+    void setStopCommand(std::string command, std::list<std::pair<unsigned,unsigned>> &stop_command_offsets)
+    {
+        stop_command = command;
+        stop_arg_parts = separate_args(stop_command, stop_command_offsets);
+    }
     
     // Get the current service state.
     ServiceState getState() noexcept

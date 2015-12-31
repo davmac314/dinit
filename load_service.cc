@@ -187,6 +187,9 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     using std::locale;
     using std::isspace;
     
+    using std::list;
+    using std::pair;
+    
     // First try and find an existing record...
     ServiceRecord * rval = findService(string(name));
     if (rval != 0) {
@@ -204,7 +207,9 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     service_filename += name;
     
     string command;
-    std::list<std::pair<unsigned,unsigned>> command_offsets;
+    list<pair<unsigned,unsigned>> command_offsets;
+    string stop_command;
+    list<pair<unsigned,unsigned>> stop_command_offsets;
 
     ServiceType service_type = ServiceType::PROCESS;
     std::list<ServiceRecord *> depends_on;
@@ -252,6 +257,9 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 
                 if (setting == "command") {
                     command = read_setting_value(i, end, &command_offsets);
+                }
+                else if (setting == "stop-command") {
+                    stop_command = read_setting_value(i, end, &stop_command_offsets);
                 }
                 else if (setting == "depends-on") {
                     string dependency_name = read_setting_value(i, end);
@@ -330,6 +338,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 delete rval;
                 rval = new ServiceRecord(this, string(name), service_type, std::move(command), command_offsets,
                         & depends_on, & depends_soft);
+                rval->setStopCommand(stop_command, stop_command_offsets);
                 rval->setLogfile(logfile);
                 rval->setAutoRestart(auto_restart);
                 rval->setOnstartFlags(onstart_flags);
