@@ -316,7 +316,7 @@ void ServiceRecord::failed_to_start()
         if ((*i)->getFrom()->desired_state == ServiceState::STARTED) {
             // We can send 'start', because this is only a soft dependency.
             // Our startup failure means that they don't have to wait for us.
-            (*i)->getFrom()->start();
+            (*i)->getFrom()->dependencyStarted();
         }
     }
 }
