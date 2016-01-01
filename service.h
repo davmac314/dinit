@@ -36,14 +36,13 @@
  */
 
 struct OnstartFlags {
-    bool release_console : 1;
     bool rw_ready : 1;
     
     // Not actually "onstart" commands:
     bool no_sigterm : 1;  // do not send SIGTERM
     bool runs_on_console : 1;  // run "in the foreground"
     
-    OnstartFlags() noexcept : release_console(false), rw_ready(false),
+    OnstartFlags() noexcept : rw_ready(false),
             no_sigterm(false), runs_on_console(false)
     {
     }

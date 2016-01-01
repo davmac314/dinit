@@ -223,15 +223,17 @@ bool ServiceRecord::startCheckDependencies(bool start_deps) noexcept
     return all_deps_started;
 }
 
-void ServiceRecord::allDepsStarted(bool hasConsole) noexcept
+void ServiceRecord::allDepsStarted(bool has_console) noexcept
 {
-    if (onstart_flags.runs_on_console && ! hasConsole) {
+    if (onstart_flags.runs_on_console && ! has_console) {
         waiting_for_deps = true;
         queueForConsole();
         return;
     }
     
     waiting_for_deps = false;
+
+    if (has_console) log_to_console = false;
 
     if (service_type == ServiceType::PROCESS) {
         bool start_success = start_ps_process();
@@ -280,10 +282,6 @@ void ServiceRecord::started()
     logServiceStarted(service_name);
     service_state = ServiceState::STARTED;
     notifyListeners(ServiceEvent::STARTED);
-
-    if (onstart_flags.release_console) {
-        log_to_console = false;
-    }
 
     if (onstart_flags.rw_ready) {
         open_control_socket(ev_default_loop(EVFLAG_AUTO));
@@ -646,6 +644,7 @@ void ServiceRecord::queueForConsole() noexcept
 
 void ServiceRecord::releaseConsole() noexcept
 {
+    log_to_console = true;
     if (next_for_console != nullptr) {
         next_for_console->acquiredConsole();
     }

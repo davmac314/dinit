@@ -297,10 +297,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                     string onstart_cmds = read_setting_value(i, end, &indices);
                     for (auto indexpair : indices) {
                         string onstart_cmd = onstart_cmds.substr(indexpair.first, indexpair.second - indexpair.first);
-                        if (onstart_cmd == "release_console") {
-                            onstart_flags.release_console = true;
-                        }
-                        else if (onstart_cmd == "rw_ready") {
+                        if (onstart_cmd == "rw_ready") {
                             onstart_flags.rw_ready = true;
                         }
                         else {
