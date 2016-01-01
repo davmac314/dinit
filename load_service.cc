@@ -322,6 +322,10 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                     string sigtermsetting = read_setting_value(i, end);
                     onstart_flags.no_sigterm = (sigtermsetting == "yes" || sigtermsetting == "true");
                 }
+                else if (setting == "runs-on-console") {
+                    string runconsolesetting = read_setting_value(i, end);
+                    onstart_flags.runs_on_console = (runconsolesetting == "yes" || runconsolesetting == "true");
+                }
                 else {
                     throw ServiceDescriptionExc(name, "Unknown setting: " + setting);
                 }

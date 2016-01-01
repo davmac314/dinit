@@ -41,8 +41,10 @@ struct OnstartFlags {
     
     // Not actually "onstart" commands:
     bool no_sigterm : 1;  // do not send SIGTERM
+    bool runs_on_console : 1;  // run "in the foreground"
     
-    OnstartFlags() noexcept : release_console(false), rw_ready(false), no_sigterm(false)
+    OnstartFlags() noexcept : release_console(false), rw_ready(false),
+            no_sigterm(false), runs_on_console(false)
     {
     }
 };
@@ -186,6 +188,9 @@ class ServiceRecord
     
     ServiceSet *service_set; // the set this service belongs to
     
+    // Next service (after this one) in the queue for the console:
+    ServiceRecord *next_for_console;
+    
     // Process services:
     bool force_stop; // true if the service must actually stop. This is the
                      // case if for example the process dies; the service,
@@ -222,7 +227,7 @@ class ServiceRecord
     
     // For process services, start the process, return true on success
     bool start_ps_process() noexcept;
-    bool start_ps_process(const std::vector<const char *> &args) noexcept;
+    bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
 
     // Callback from libev when a child process dies
     static void process_child_callback(struct ev_loop *loop, struct ev_child *w,
@@ -231,7 +236,7 @@ class ServiceRecord
     // A dependency has reached STARTED state
     void dependencyStarted() noexcept;
     
-    void allDepsStarted() noexcept;
+    void allDepsStarted(bool haveConsole = false) noexcept;
     
     // Check whether dependencies have started, and optionally ask them to start
     bool startCheckDependencies(bool do_start) noexcept;
@@ -247,13 +252,21 @@ class ServiceRecord
     
     void forceStop() noexcept; // force-stop this service and all dependents
     
-    void notifyListeners(ServiceEvent event)
+    void notifyListeners(ServiceEvent event) noexcept
     {
         for (auto l : listeners) {
             l->serviceEvent(this, event);
         }
     }
     
+    // Queue to run on the console. 'acquiredConsole()' will be called when the console is available.
+    void queueForConsole() noexcept;
+    
+    // Console is available.
+    void acquiredConsole() noexcept;
+    
+    // Release console (console must be currently held by this service)
+    void releaseConsole() noexcept;
     
     public:
 
@@ -374,6 +387,8 @@ class ServiceSet
     
     ShutdownType shutdown_type = ShutdownType::CONTINUE;  // Shutdown type, if stopping
     
+    ServiceRecord * console_queue_tail = nullptr; // last record in console queue
+    
     // Private methods
         
     // Load a service description, and dependencies, if there is no existing
@@ -420,6 +435,14 @@ class ServiceSet
     // Stop the service with the given name. The named service will begin
     // transition to the 'stopped' state.
     void stopService(const std::string &name) noexcept;
+    
+    // Set the console queue tail (returns previous tail)
+    ServiceRecord * consoleQueueTail(ServiceRecord * newTail) noexcept
+    {
+        auto prev_tail = console_queue_tail;
+        console_queue_tail = newTail;
+        return prev_tail;
+    }
     
     // Notification from service that it is active (state != STOPPED)
     // Only to be called on the transition from inactive to active.
