@@ -479,7 +479,7 @@ void ServiceRecord::stop(bool unpinned) noexcept
         notifyListeners(ServiceEvent::STARTCANCELLED);
     }
     
-    if (desired_state == ServiceState::STOPPED && !unpinned) return;
+    if (desired_state == ServiceState::STOPPED && service_state != ServiceState::STARTED) return;
     
     desired_state = ServiceState::STOPPED;
     
@@ -491,7 +491,13 @@ void ServiceRecord::stop(bool unpinned) noexcept
             // starting, but we don't want any dependents to think that
             // they are still waiting to start.
             // Make sure they remain stopped:
-            stopDependents();
+            if (stopDependents()) {
+                if (service_type == ServiceType::INTERNAL) {
+                    // Internal services can go straight from STARTING to STOPPED.
+                    allDepsStopped();
+                    // (Other types have to finish starting first).
+                }
+            }
         }
         
         // If we're starting we need to wait for that to complete.
