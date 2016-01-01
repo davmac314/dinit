@@ -52,6 +52,10 @@ void ServiceSet::stopService(const std::string & name) noexcept
 // Called when a service has actually stopped.
 void ServiceRecord::stopped() noexcept
 {
+    if (service_type != ServiceType::SCRIPTED && onstart_flags.runs_on_console) {
+        releaseConsole();
+    }
+
     logServiceStopped(service_name);
     service_state = ServiceState::STOPPED;
     force_stop = false;
@@ -207,8 +211,13 @@ bool ServiceRecord::startCheckDependencies(bool start_deps) noexcept
     return all_deps_started;
 }
 
-void ServiceRecord::allDepsStarted() noexcept
+void ServiceRecord::allDepsStarted(bool hasConsole) noexcept
 {
+    if (onstart_flags.runs_on_console && ! hasConsole) {
+        queueForConsole();
+        return;
+    }
+
     if (service_type == ServiceType::PROCESS) {
         bool start_success = start_ps_process();
         if (start_success) {
@@ -231,8 +240,28 @@ void ServiceRecord::allDepsStarted() noexcept
     }
 }
 
+void ServiceRecord::acquiredConsole() noexcept
+{
+    if (service_state != ServiceState::STARTING) {
+        // We got the console but no longer want it.
+        releaseConsole();
+    }
+    else if (startCheckDependencies(false)) {
+        allDepsStarted(true);
+    }
+    else {
+        // We got the console but can't use it yet.
+        releaseConsole();
+        queueForConsole();
+    }
+}
+
 void ServiceRecord::started()
 {
+    if (onstart_flags.runs_on_console && service_type == ServiceType::SCRIPTED) {
+        releaseConsole();
+    }
+
     logServiceStarted(service_name);
     service_state = ServiceState::STARTED;
     notifyListeners(ServiceEvent::STARTED);
@@ -266,6 +295,10 @@ void ServiceRecord::started()
 
 void ServiceRecord::failed_to_start()
 {
+    if (onstart_flags.runs_on_console) {
+        releaseConsole();
+    }
+    
     logServiceFailed(service_name);
     service_state = ServiceState::STOPPED;
     desired_state = ServiceState::STOPPED;
@@ -275,7 +308,7 @@ void ServiceRecord::failed_to_start()
     // failure to start
     // Cancel start of dependents:
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
-        if ((*i)->desired_state == ServiceState::STARTED) {
+        if ((*i)->service_state == ServiceState::STARTING) {
             (*i)->failed_dependency();
         }
     }    
@@ -291,7 +324,7 @@ void ServiceRecord::failed_to_start()
 bool ServiceRecord::start_ps_process() noexcept
 {
     try {
-        return start_ps_process(exec_arg_parts);
+        return start_ps_process(exec_arg_parts, onstart_flags.runs_on_console);
     }
     catch (std::bad_alloc & bad_alloc_exc) {
         // TODO log error
@@ -299,7 +332,7 @@ bool ServiceRecord::start_ps_process() noexcept
     }
 }
 
-bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd) noexcept
+bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool on_console) noexcept
 {
     // In general, you can't tell whether fork/exec is successful. We use a pipe to communicate
     // success/failure from the child to the parent. The pipe is set CLOEXEC so a successful
@@ -343,15 +376,17 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd) noexc
         // from here until exit().
         ev_default_destroy(); // won't need that on this side, free up fds.
 
-        // Re-set stdin, stdout, stderr
-        close(0); close(1); close(2);
+        if (! on_console) {
+            // Re-set stdin, stdout, stderr
+            close(0); close(1); close(2);
 
-        // TODO rethink this logic. If we open it at not-0, shouldn't we just dup it to 0?:
-        if (open("/dev/null", O_RDONLY) == 0) {
-          // stdin = 0. That's what we should have; proceed with opening
-          // stdout and stderr.
-          open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
-          dup2(1, 2);
+            // TODO rethink this logic. If we open it at not-0, shouldn't we just dup it to 0?:
+            if (open("/dev/null", O_RDONLY) == 0) {
+              // stdin = 0. That's what we should have; proceed with opening
+              // stdout and stderr.
+              open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
+              dup2(1, 2);
+            }
         }
 
         execvp(exec_arg_parts[0], const_cast<char **>(args));
@@ -412,15 +447,15 @@ void ServiceRecord::failed_dependency()
     
     // Notify dependents of this service also
     for (auto i = dependents.begin(); i != dependents.end(); i++) {
-        if ((*i)->desired_state == ServiceState::STARTED) {
+        if ((*i)->service_state == ServiceState::STARTING) {
             (*i)->failed_dependency();
         }
     }
     for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
-        if ((*i)->getFrom()->desired_state == ServiceState::STARTED) {
+        if ((*i)->getFrom()->service_state == ServiceState::STARTING) {
             // It's a soft dependency, so send them 'started' rather than
             // 'failed dep'.
-            (*i)->getFrom()->started();
+            (*i)->getFrom()->dependencyStarted();
         }
     }    
 }
@@ -520,7 +555,7 @@ void ServiceRecord::allDepsStopped()
     }
     else if (service_type == ServiceType::SCRIPTED) {
         // Scripted service.
-        if (! start_ps_process(stop_arg_parts)) {
+        if (! start_ps_process(stop_arg_parts, false)) {
             // stop script failed, but there's not much we can do:
             stopped();
         }
@@ -555,6 +590,28 @@ void ServiceRecord::unpin() noexcept
         if (desired_state == ServiceState::STARTED) {
             start(true);
         }
+    }
+}
+
+void ServiceRecord::queueForConsole() noexcept
+{
+    next_for_console = nullptr;
+    auto tail = service_set->consoleQueueTail(this);
+    if (tail == nullptr) {
+        acquiredConsole();
+    }
+    else {
+        tail->next_for_console = this;
+    }
+}
+
+void ServiceRecord::releaseConsole() noexcept
+{
+    if (next_for_console != nullptr) {
+        next_for_console->acquiredConsole();
+    }
+    else {
+        service_set->consoleQueueTail(nullptr);
     }
 }
 
