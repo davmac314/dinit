@@ -168,6 +168,8 @@ class ServiceRecord
     bool auto_restart : 1; /* whether to restart this (process) if it dies unexpectedly */
     bool pinned_stopped : 1;
     bool pinned_started : 1;
+    
+    bool waiting_for_deps : 1;  /* if STARTING, whether we are waiting for dependencies (inc console) to start */
 
     typedef std::list<ServiceRecord *> sr_list;
     typedef sr_list::iterator sr_iter;
@@ -240,6 +242,19 @@ class ServiceRecord
     
     // Check whether dependencies have started, and optionally ask them to start
     bool startCheckDependencies(bool do_start) noexcept;
+    
+    // Whether a STARTING service can immediately transition to STOPPED (as opposed to
+    // having to wait for it reach STARTED and then go through STOPPING).
+    bool can_interrupt_start() noexcept
+    {
+        return waiting_for_deps;
+    }
+    
+    // Whether a STOPPING service can immediately transition to STARTED.
+    bool can_interrupt_stop() noexcept
+    {
+        return waiting_for_deps && ! force_stop;
+    }
 
     // A dependent has reached STOPPED state
     void dependentStopped() noexcept;
@@ -352,8 +367,8 @@ class ServiceRecord
     const char *getServiceName() const noexcept { return service_name.c_str(); }
     ServiceState getState() const noexcept { return service_state; }
     
-    void start(bool unpinned = false) noexcept;  // start the service
-    void stop(bool unpinned = false) noexcept;   // stop the service
+    void start() noexcept;  // start the service
+    void stop() noexcept;   // stop the service
     
     void pinStart() noexcept;  // start the service and pin it
     void pinStop() noexcept;   // stop the service and pin it
