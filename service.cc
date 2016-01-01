@@ -252,7 +252,6 @@ void ServiceRecord::acquiredConsole() noexcept
     else {
         // We got the console but can't use it yet.
         releaseConsole();
-        queueForConsole();
     }
 }
 
