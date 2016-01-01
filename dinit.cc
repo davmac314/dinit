@@ -105,6 +105,13 @@ int main(int argc, char **argv)
     /* sigaddset(&sigwait_set, SIGTERM); */
     /* sigprocmask(SIG_BLOCK, &sigwait_set, NULL); */
     
+    // Terminal access control signals - we block these so that dinit can't be
+    // suspended if it writes to the terminal after some other process has claimed
+    // ownership of it.
+    signal(SIGTSTP, SIG_IGN);
+    signal(SIGTTIN, SIG_IGN);
+    signal(SIGTTOU, SIG_IGN);
+    
     /* list of services to start */
     list<const char *> services_to_start;
     

@@ -3,10 +3,14 @@
 #include <sstream>
 #include <iterator>
 #include <memory>
+
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <termios.h>
+
 #include "service.h"
 #include "dinit-log.h"
 
@@ -53,6 +57,7 @@ void ServiceSet::stopService(const std::string & name) noexcept
 void ServiceRecord::stopped() noexcept
 {
     if (service_type != ServiceType::SCRIPTED && onstart_flags.runs_on_console) {
+        tcsetpgrp(0, getpgrp());
         releaseConsole();
     }
 
@@ -258,6 +263,7 @@ void ServiceRecord::acquiredConsole() noexcept
 void ServiceRecord::started()
 {
     if (onstart_flags.runs_on_console && service_type == ServiceType::SCRIPTED) {
+        tcsetpgrp(0, getpgrp());
         releaseConsole();
     }
 
@@ -295,6 +301,7 @@ void ServiceRecord::started()
 void ServiceRecord::failed_to_start()
 {
     if (onstart_flags.runs_on_console) {
+        tcsetpgrp(0, getpgrp());
         releaseConsole();
     }
     
@@ -370,6 +377,11 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
         return false;
     }
 
+    // If the console already has a session leader, presumably it is us. On the other hand
+    // if it has no session leader, and we don't create one, then control inputs such as
+    // ^C will have no effect.
+    bool do_set_ctty = (tcgetsid(0) == -1);
+
     if (forkpid == 0) {
         // Child process. Must not allocate memory (or otherwise risk throwing any exception)
         // from here until exit().
@@ -386,6 +398,18 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
               open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
               dup2(1, 2);
             }
+        }
+        else {
+            // "run on console" - run as a foreground job on the terminal/console device
+            if (do_set_ctty) {
+                setsid();
+                ioctl(0, TIOCSCTTY, 0);
+            }
+            setpgid(0,0);
+            tcsetpgrp(0, getpgrp());
+            
+            // TODO disable suspend (^Z)? (via tcsetattr)
+            //      (should be done before TIOCSCTTY)
         }
 
         execvp(exec_arg_parts[0], const_cast<char **>(args));
