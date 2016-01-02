@@ -4,31 +4,13 @@
   - support for listing all services
 * Implement a control utility to start/stop services after dinit has started
   - very basic version exists, needs thorough cleanup
-* Service rollback (for shutdown/reboot etc) should unpin pinned-started services.
 
 For version 1.0:
 ----------------
-* Think about shutdown. TTY services:
-   - potentially don't respond to SIGTERM (eg interactive bash doesn't, though it
-     does to SIGHUP) or even any signal other than SIGKILL.
-   - but SIGKILL is a big hammer to wield immediately.
-   - termination timeouts could solve this.
-   - another way: the option to not wait for the process to terminate as a
-     per-service flag (or to wait for a limited time)
-   - ideally, we want to signal all processes in the session, not just the session
-     leader.
-* Re-think handling of crashing daemons. If udevd crashes for example it should not
-  bring the whole system down. On the other hand udevd failing to start *should*
-  prevent the system from booting further.
-   - maybe make it possible to mark services as "once it's up it's up", so eg you
-     can mark loginready and/or tty services as such. These services will not
-     stop if their dependencies stop. On the other hand this subverts the dependency
-     system. ***  Now have this - "pinned started" state.
-   - Another possibility is to mark process services so that they will restart the
-     process without bringing the service itself down. (Maybe this should be the
-     default for auto-restart services anyway).
-   - Perhaps also need a way to prevent script services from re-starting.
-     (eg there's no need to mount filesystems twice).
+* Perhaps need a way to prevent script services from re-starting.
+  (eg there's no need to mount filesystems twice; there might be various other
+   system initialisations that can't or shouldn't really be "undone" and so do
+   not need to be re-done).
 * Add command line arg to start in "PID 1" mode (even if PID != 1).
   Basically, allow running as a system service monitor, without
   requiring that dinit runs as PID 1.
@@ -40,6 +22,12 @@ For version 1.0:
 * Allow running services as a different UID
 
 For later:
+* When we take down a service or tty session, it would be ideal if we could kill
+  the whole process tree, not just the leader process.
+* Investigate using cn_proc netlink connector (cn_proc.h) to receive process
+  termination events even when running with PID != 1 (Linux only).
+  Also, there is the possibility of having a small, simple PID-1 init which
+  sends terminated process IDs over a pipe to Dinit.
 * Allow logging tasks to memory (growing or circular buffer) and later
   switching to disk logging (allows for filesystem mounted readonly on boot)
 * Rate control on process respawn
