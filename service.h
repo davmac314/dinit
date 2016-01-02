@@ -169,6 +169,7 @@ class ServiceRecord
     bool pinned_started : 1;
     
     bool waiting_for_deps : 1;  /* if STARTING, whether we are waiting for dependencies (inc console) to start */
+    bool waiting_for_execstat : 1;  /* if we are waiting for exec status after fork() */
 
     typedef std::list<ServiceRecord *> sr_list;
     typedef sr_list::iterator sr_iter;
@@ -203,12 +204,13 @@ class ServiceRecord
 
     // Implementation details
     
-    pid_t pid;  /* PID of the process. If state is STARTING or STOPPING,
-                   this is PID of the service script; otherwise it is the
-                   PID of the process itself (process service).
-                   */
+    pid_t pid;  // PID of the process. If state is STARTING or STOPPING,
+                //   this is PID of the service script; otherwise it is the
+                //   PID of the process itself (process service).
+    int exit_status;  // Exit status, if the process has exited (pid == -1).
 
     ev_child child_listener;
+    ev_io child_status_listener;
     
     // All dependents have stopped.
     void allDepsStopped();
@@ -229,11 +231,16 @@ class ServiceRecord
     // For process services, start the process, return true on success
     bool start_ps_process() noexcept;
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
-
+    
     // Callback from libev when a child process dies
     static void process_child_callback(struct ev_loop *loop, struct ev_child *w,
             int revents) noexcept;
-
+    
+    static void process_child_status(struct ev_loop *loop, ev_io * stat_io,
+            int revents) noexcept;
+    
+    void handle_exit_status() noexcept;
+    
     // A dependency has reached STARTED state
     void dependencyStarted() noexcept;
     

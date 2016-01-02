@@ -84,46 +84,94 @@ void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, in
     ServiceRecord *sr = (ServiceRecord *) w->data;
 
     sr->pid = -1;
-    ev_child_stop(ev_default_loop(EVFLAG_AUTO), &sr->child_listener);
+    sr->exit_status = w->rstatus;
+    ev_child_stop(loop, w);
     
     // Ok, for a process service, any process death which we didn't rig
     // ourselves is a bit... unexpected. Probably, the child died because
     // we asked it to (sr->service_state == STOPPING). But even if
     // we didn't, there's not much we can do.
     
-    if (sr->service_type == ServiceType::PROCESS) {
+    if (sr->waiting_for_execstat) {
+        // We still don't have an exec() status from the forked child, wait for that
+        // before doing any further processing.
+        return;
+    }
+    
+    sr->handle_exit_status();
+}
+
+void ServiceRecord::handle_exit_status() noexcept
+{
+    if (service_type == ServiceType::PROCESS) {
         // TODO log non-zero rstatus?
-        if (sr->service_state == ServiceState::STOPPING) {
-            sr->stopped();
+        if (service_state == ServiceState::STOPPING) {
+            stopped();
         }
         else {
-            sr->forceStop();
+            forceStop();
         }
         
-        if (sr->auto_restart && sr->service_set->get_auto_restart()) {
-            sr->start();
+        if (auto_restart && service_set->get_auto_restart()) {
+            start();
         }
     }
     else {  // SCRIPTED
-        if (sr->service_state == ServiceState::STOPPING) {
-            if (w->rstatus == 0) {
-                sr->stopped();
+        if (service_state == ServiceState::STOPPING) {
+            if (exit_status == 0) {
+                stopped();
             }
             else {
                 // ??? failed to stop! Let's log it as info:
-                log(LogLevel::INFO, "service ", sr->service_name, " stop command failed with exit code ", w->rstatus);
+                log(LogLevel::INFO, "service ", service_name, " stop command failed with exit code ", exit_status);
                 // Just assume that we stopped, so that any dependencies
                 // can be stopped:
-                sr->stopped();
+                stopped();
             }
         }
         else { // STARTING
-            if (w->rstatus == 0) {
-                sr->started();
+            if (exit_status == 0) {
+                started();
             }
             else {
                 // failed to start
-                sr->failed_to_start();
+                log(LogLevel::ERROR, "service ", service_name, " command failed with exit code ", exit_status);
+                failed_to_start();
+            }
+        }
+    }
+}
+
+void ServiceRecord::process_child_status(struct ev_loop *loop, ev_io * stat_io, int revents) noexcept
+{
+    ServiceRecord *sr = (ServiceRecord *) stat_io->data;
+    sr->waiting_for_execstat = false;
+    
+    int exec_status;
+    int r = read(stat_io->fd, &exec_status, sizeof(int));
+    close(stat_io->fd);
+    ev_io_stop(loop, stat_io);
+    
+    if (r != 0) {
+        // We read an errno code; exec() failed, and the service startup failed.
+        log(LogLevel::ERROR, sr->service_name, ": execution failed: ", strerror(exec_status));
+        if (sr->service_state == ServiceState::STARTING) {
+            sr->failed_to_start();
+        }
+        else if (sr->service_state == ServiceState::STOPPING) {
+            // Must be a scripted servce. We've logged the failure, but it's probably better
+            // not to leave the service in STARTED state:
+            sr->stopped();
+        }
+        sr->pid = -1;
+    }
+    else {
+        // exec() succeeded.
+        if (sr->service_type == ServiceType::PROCESS) {
+            sr->started();
+            if (sr->pid == -1) {
+                // Somehow the process managed to complete before we even saw the status.
+                sr->handle_exit_status();
             }
         }
     }
@@ -235,17 +283,7 @@ void ServiceRecord::allDepsStarted(bool has_console) noexcept
 
     if (has_console) log_to_console = false;
 
-    if (service_type == ServiceType::PROCESS) {
-        bool start_success = start_ps_process();
-        if (start_success) {
-            started();
-        }
-        else {
-            failed_to_start();
-        }
-    }
-    else if (service_type == ServiceType::SCRIPTED) {
-        // Script-controlled service
+    if (service_type == ServiceType::PROCESS || service_type == ServiceType::SCRIPTED) {
         bool start_success = start_ps_process();
         if (! start_success) {
             failed_to_start();
@@ -331,13 +369,7 @@ void ServiceRecord::failed_to_start()
 
 bool ServiceRecord::start_ps_process() noexcept
 {
-    try {
-        return start_ps_process(exec_arg_parts, onstart_flags.runs_on_console);
-    }
-    catch (std::bad_alloc & bad_alloc_exc) {
-        // TODO log error
-        return false;
-    }
+    return start_ps_process(exec_arg_parts, onstart_flags.runs_on_console);
 }
 
 bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool on_console) noexcept
@@ -347,12 +379,6 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
     // exec closes the pipe, and the parent sees EOF. If the exec is unsuccessful, the errno
     // is written to the pipe, and the parent can read it.
 
-    // TODO should NOT wait for the exec to succeed or fail here, as that could (when/if we allow
-    // running child processes with lower priority) result in priority inversion.
-
-    using std::vector;
-    using std::string;
-    
     int pipefd[2];
     if (pipe2(pipefd, O_CLOEXEC)) {
         // TODO log error
@@ -425,25 +451,20 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
         // Parent process
         close(pipefd[1]); // close the 'other end' fd
 
-        int exec_status;
-        if (read(pipefd[0], &exec_status, sizeof(int)) == 0) {
-            // pipe closed; success
-            pid = forkpid;
+        pid = forkpid;
 
-            // Add a process listener so we can detect when the
-            // service stops
-            ev_child_init(&child_listener, process_child_callback, pid, 0);
-            child_listener.data = this;
-            ev_child_start(ev_default_loop(EVFLAG_AUTO), &child_listener);
+        // Listen for status
+        ev_io_init(&child_status_listener, process_child_status, pipefd[0], EV_READ);
+        child_status_listener.data = this;
+        ev_io_start(ev_default_loop(EVFLAG_AUTO), &child_status_listener);
 
-            close(pipefd[0]);
-            return true;
-        }
-        else {
-            // TODO log error
-            close(pipefd[0]);
-            return false;
-        }
+        // Add a process listener so we can detect when the
+        // service stops
+        ev_child_init(&child_listener, process_child_callback, pid, 0);
+        child_listener.data = this;
+        ev_child_start(ev_default_loop(EVFLAG_AUTO), &child_listener);
+        waiting_for_execstat = true;
+        return true;
     }
 }
 
@@ -593,7 +614,7 @@ void ServiceRecord::allDepsStopped()
     else if (service_type == ServiceType::SCRIPTED) {
         // Scripted service.
         if (! start_ps_process(stop_arg_parts, false)) {
-            // stop script failed, but there's not much we can do:
+            // Couldn't execute stop script, but there's not much we can do:
             stopped();
         }
     }
