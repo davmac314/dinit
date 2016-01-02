@@ -82,12 +82,10 @@ Parameters are:
 
 type = process | scripted | internal
 command = ...
-restart = yes | true | no | false
 logfile = ...
 onstart = ...
 depends-on = (service name)
 waits-for = (service name)
-termsignal = HUP | INT | QUIT | USR1 | USR2
 
 command = (external script or executable, and arguments)
    For a 'process' service, this is the process to run.
@@ -95,7 +93,19 @@ command = (external script or executable, and arguments)
 
 stop-command = (external script or executable, and arguments)
    For a 'scripted' service, this command is run to stop the service.
- 
+
+restart = yes | true | no | false
+   Specifies whether the service should automatically restart if it becomes
+   stopped (for any reason, including being explicitly requested to stop).
+
+smooth-recovery = yes | true | no | false
+   For process services only. Specifies that, should the process die, it
+   can be restarted without bringing the service itself down. This means that
+   any dependent services do not need to be stopped/restarted. Such recovery
+   happens regardless of the "restart" setting (if smooth-recovery is enabled,
+   the service does not reach the stopped state when the process terminates
+   unexpectedly).
+
 onstart = (internal commands)
    rw_ready - try again to open any logs, control socket etc that could not
               be opened previously due to a read-only filesystem.
@@ -112,7 +122,7 @@ waits-for = (service name)
    for this service. Starting this service will automatically start
    the named service.
 
-termsignal = (signal)
+termsignal = HUP | INT | QUIT | USR1 | USR2
    Specifies an additional signal to send to the process when requesting it
    to terminate (applies to 'process' services only). SIGTERM is always
    sent along with the specified signal, unless the 'nosigterm' setting is

@@ -163,8 +163,9 @@ class ServiceRecord
     
     OnstartFlags onstart_flags;
 
-    string logfile; /* log file name, empty string specifies /dev/null */
-    bool auto_restart : 1; /* whether to restart this (process) if it dies unexpectedly */
+    string logfile;           // log file name, empty string specifies /dev/null
+    bool auto_restart : 1;    // whether to restart this (process) if it dies unexpectedly
+    bool smooth_recovery : 1; // whether the service process can restart without bringing down service
     bool pinned_stopped : 1;
     bool pinned_started : 1;
     
@@ -356,6 +357,11 @@ class ServiceRecord
     void setAutoRestart(bool auto_restart) noexcept
     {
         this->auto_restart = auto_restart;
+    }
+    
+    void setSmoothRecovery(bool smooth_recovery) noexcept
+    {
+        this->smooth_recovery = smooth_recovery;
     }
     
     // Set "on start" flags (commands)

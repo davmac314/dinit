@@ -108,6 +108,14 @@ void ServiceRecord::handle_exit_status() noexcept
         if (service_state == ServiceState::STOPPING) {
             stopped();
         }
+        else if (smooth_recovery) {
+            // TODO ensure a minimum time between restarts
+            // TODO if we are pinned-started then we should probably check
+            //      that dependencies have started before trying to re-start the
+            //      service process.
+            start_ps_process();
+            return;
+        }
         else {
             forceStop();
         }
@@ -168,7 +176,9 @@ void ServiceRecord::process_child_status(struct ev_loop *loop, ev_io * stat_io, 
     else {
         // exec() succeeded.
         if (sr->service_type == ServiceType::PROCESS) {
-            sr->started();
+            if (sr->service_state != ServiceState::STARTED) {
+                sr->started();
+            }
             if (sr->pid == -1) {
                 // Somehow the process managed to complete before we even saw the status.
                 sr->handle_exit_status();

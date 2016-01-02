@@ -217,9 +217,10 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     string logfile;
     OnstartFlags onstart_flags;
     int term_signal = -1;  // additional termination signal
+    bool auto_restart = false;
+    bool smooth_recovery = false;
     
     string line;
-    bool auto_restart = false;
     ifstream service_file;
     service_file.exceptions(ios::badbit | ios::failbit);
     
@@ -275,6 +276,10 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 else if (setting == "restart") {
                     string restart = read_setting_value(i, end);
                     auto_restart = (restart == "yes" || restart == "true");
+                }
+                else if (setting == "smooth-recovery") {
+                    string recovery = read_setting_value(i, end);
+                    smooth_recovery = (recovery == "yes" || recovery == "true");
                 }
                 else if (setting == "type") {
                     string type_str = read_setting_value(i, end);
@@ -342,6 +347,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 rval->setStopCommand(stop_command, stop_command_offsets);
                 rval->setLogfile(logfile);
                 rval->setAutoRestart(auto_restart);
+                rval->setSmoothRecovery(smooth_recovery);
                 rval->setOnstartFlags(onstart_flags);
                 rval->setExtraTerminationSignal(term_signal);
                 *iter = rval;
