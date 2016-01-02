@@ -621,7 +621,10 @@ void ServiceRecord::allDepsStopped()
     }
     else if (service_type == ServiceType::SCRIPTED) {
         // Scripted service.
-        if (! start_ps_process(stop_arg_parts, false)) {
+        if (stop_command.length() == 0) {
+            stopped();
+        }
+        else if (! start_ps_process(stop_arg_parts, false)) {
             // Couldn't execute stop script, but there's not much we can do:
             stopped();
         }
