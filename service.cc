@@ -162,6 +162,7 @@ void ServiceRecord::process_child_status(struct ev_loop *loop, ev_io * stat_io, 
     
     if (r != 0) {
         // We read an errno code; exec() failed, and the service startup failed.
+        sr->pid = -1;
         log(LogLevel::ERROR, sr->service_name, ": execution failed: ", strerror(exec_status));
         if (sr->service_state == ServiceState::STARTING) {
             sr->failed_to_start();
@@ -171,7 +172,6 @@ void ServiceRecord::process_child_status(struct ev_loop *loop, ev_io * stat_io, 
             // not to leave the service in STARTED state:
             sr->stopped();
         }
-        sr->pid = -1;
     }
     else {
         // exec() succeeded.
@@ -179,10 +179,10 @@ void ServiceRecord::process_child_status(struct ev_loop *loop, ev_io * stat_io, 
             if (sr->service_state != ServiceState::STARTED) {
                 sr->started();
             }
-            if (sr->pid == -1) {
-                // Somehow the process managed to complete before we even saw the status.
-                sr->handle_exit_status();
-            }
+        }
+        if (sr->pid == -1) {
+            // Somehow the process managed to complete before we even saw the status.
+            sr->handle_exit_status();
         }
     }
 }
@@ -598,8 +598,6 @@ bool ServiceRecord::stopDependents() noexcept
     
     return all_deps_stopped;
 }
-
-
 
 // Dependency stopped or is stopping; we must stop too.
 void ServiceRecord::allDepsStopped()
