@@ -301,8 +301,6 @@ void ServiceRecord::allDepsStarted(bool has_console) noexcept
     
     waiting_for_deps = false;
 
-    if (has_console) log_to_console = false;
-
     if (service_type == ServiceType::PROCESS || service_type == ServiceType::BGPROCESS
             || service_type == ServiceType::SCRIPTED) {
         bool start_success = start_ps_process();
@@ -323,6 +321,7 @@ void ServiceRecord::acquiredConsole() noexcept
         releaseConsole();
     }
     else if (startCheckDependencies(false)) {
+        log_to_console = false;
         allDepsStarted(true);
     }
     else {
@@ -342,8 +341,8 @@ void ServiceRecord::started() noexcept
         const char *pid_file_c = pid_file.c_str();
         int fd = open(pid_file_c, O_CLOEXEC);
         if (fd != -1) {
-            char pidbuf[10];
-            int r = read(fd, pidbuf, 9);
+            char pidbuf[21]; // just enought to hold any 64-bit integer
+            int r = read(fd, pidbuf, 20);
             if (r > 0) {
                 pidbuf[r] = 0; // store nul terminator
                 pid = std::atoi(pidbuf);
@@ -353,7 +352,11 @@ void ServiceRecord::started() noexcept
                     ev_child_start(ev_default_loop(EVFLAG_AUTO), &child_listener);
                 }
                 else {
+                    log(LogLevel::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
                     pid = -1;
+                    failed_to_start();
+                    close(fd);
+                    return;
                 }
             }
             close(fd);
