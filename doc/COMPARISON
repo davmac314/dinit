@@ -41,6 +41,21 @@ A highly modular init system which apparently offers dependency management
 strives for portability).
 
 
+Nosh (http://homepage.ntlworld.com/jonathan.deboynepollard/Softwares/nosh.html)
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+Another seeminly modular init system offering dependency management and socket
+activation, with BSD licensing. Service configuration is expressed through
+directory structure (symbolic links represent service dependencies, etc). It
+provides a simple shell-like scripting language with a fast interpreter, avoiding
+the need for standard shell scripts. It was originally designed for BSD systems but
+works on Linux too (i.e. is portable). It does not provide a D-Bus interface.
+Seemingly, this package addresses most of the various complaints that have been
+levelled against SystemD. Compared to Dinit, it favors chain-loading of smaller
+utilities to provide even more basic functionality. By comparison Dinit tends to
+avoid starting additional processes by design, expresses configuration in files
+and tracks state internally.
+
+
 OpenRC (Gentoo)
 -=-=-=-=-=-=-=-
 The OpenRC system used in Gentoo Linux is a dependency-managing service supervision
