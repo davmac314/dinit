@@ -7,6 +7,9 @@
 
 For version 1.0:
 ----------------
+* Log messages are completely prevented from going to the console if the console
+  is being held by a service, meaning some can get lost. It would be better if
+  there was a (limited) buffer.
 * Perhaps need a way to prevent script services from re-starting.
   (eg there's no need to mount filesystems twice; there might be various other
    system initialisations that can't or shouldn't really be "undone" and so do
