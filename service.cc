@@ -103,6 +103,36 @@ void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, in
 
 void ServiceRecord::handle_exit_status() noexcept
 {
+    if (exit_status != 0 && service_state != ServiceState::STOPPING) {
+        log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ", exit_status);
+    }
+
+    if (doing_recovery) {
+        // (BGPROCESS only)
+        doing_recovery = false;
+        bool do_stop = false;
+        if (exit_status != 0) {
+            do_stop = true;
+        }
+        else {
+            // We need to re-read the PID, since it has now changed.
+            if (service_type == ServiceType::BGPROCESS && pid_file.length() != 0) {
+                if (! read_pid_file()) {
+                    do_stop = true;
+                }
+            }
+        }
+        
+        if (do_stop) {
+            stop();
+            if (auto_restart && service_set->get_auto_restart()) {
+                start();
+            }
+        }
+        
+        return;
+    }
+    
     if (service_type == ServiceType::PROCESS || service_type == ServiceType::BGPROCESS) {
         if (service_state == ServiceState::STARTING) {
             // (only applies to BGPROCESS)
@@ -110,7 +140,6 @@ void ServiceRecord::handle_exit_status() noexcept
                 started();
             }
             else {
-                log(LogLevel::ERROR, "service ", service_name, " failed to start with exit code", exit_status);
                 failed_to_start();
             }
         }
@@ -123,6 +152,7 @@ void ServiceRecord::handle_exit_status() noexcept
             // TODO if we are pinned-started then we should probably check
             //      that dependencies have started before trying to re-start the
             //      service process.
+            doing_recovery = (service_type == ServiceType::BGPROCESS);
             start_ps_process();
             return;
         }
@@ -190,6 +220,7 @@ void ServiceRecord::process_child_status(struct ev_loop *loop, ev_io * stat_io, 
                 sr->started();
             }
         }
+        
         if (sr->pid == -1) {
             // Somehow the process managed to complete before we even saw the status.
             sr->handle_exit_status();
@@ -330,6 +361,37 @@ void ServiceRecord::acquiredConsole() noexcept
     }
 }
 
+bool ServiceRecord::read_pid_file() noexcept
+{
+    const char *pid_file_c = pid_file.c_str();
+    int fd = open(pid_file_c, O_CLOEXEC);
+    if (fd != -1) {
+        char pidbuf[21]; // just enought to hold any 64-bit integer
+        int r = read(fd, pidbuf, 20);
+        if (r > 0) {
+            pidbuf[r] = 0; // store nul terminator
+            pid = std::atoi(pidbuf);
+            if (kill(pid, 0) == 0) {
+                ev_child_init(&child_listener, process_child_callback, pid, 0);
+                child_listener.data = this;
+                ev_child_start(ev_default_loop(EVFLAG_AUTO), &child_listener);
+            }
+            else {
+                log(LogLevel::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
+                pid = -1;
+                close(fd);
+                return false;
+            }
+        }
+        close(fd);
+        return true;
+    }
+    else {
+        log(LogLevel::ERROR, service_name, ": read pid file: ", strerror(errno));
+        return false;
+    }
+}
+
 void ServiceRecord::started() noexcept
 {
     if (onstart_flags.runs_on_console && (service_type == ServiceType::SCRIPTED || service_type == ServiceType::BGPROCESS)) {
@@ -338,34 +400,12 @@ void ServiceRecord::started() noexcept
     }
     
     if (service_type == ServiceType::BGPROCESS && pid_file.length() != 0) {
-        const char *pid_file_c = pid_file.c_str();
-        int fd = open(pid_file_c, O_CLOEXEC);
-        if (fd != -1) {
-            char pidbuf[21]; // just enought to hold any 64-bit integer
-            int r = read(fd, pidbuf, 20);
-            if (r > 0) {
-                pidbuf[r] = 0; // store nul terminator
-                pid = std::atoi(pidbuf);
-                if (kill(pid, 0) == 0) {
-                    ev_child_init(&child_listener, process_child_callback, pid, 0);
-                    child_listener.data = this;
-                    ev_child_start(ev_default_loop(EVFLAG_AUTO), &child_listener);
-                }
-                else {
-                    log(LogLevel::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
-                    pid = -1;
-                    failed_to_start();
-                    close(fd);
-                    return;
-                }
-            }
-            close(fd);
-        }
-        else {
-            log(LogLevel::ERROR, service_name, ": read pid file: ", strerror(errno));
+        if (! read_pid_file()) {
+            failed_to_start();
+            return;
         }
     }
-
+    
     logServiceStarted(service_name);
     service_state = ServiceState::STARTED;
     notifyListeners(ServiceEvent::STARTED);

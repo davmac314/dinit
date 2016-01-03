@@ -171,8 +171,10 @@ class ServiceRecord
     bool pinned_stopped : 1;
     bool pinned_started : 1;
     
-    bool waiting_for_deps : 1;  /* if STARTING, whether we are waiting for dependencies (inc console) to start */
-    bool waiting_for_execstat : 1;  /* if we are waiting for exec status after fork() */
+    bool waiting_for_deps : 1;  // if STARTING, whether we are waiting for dependencies (inc console) to start
+    bool waiting_for_execstat : 1;  // if we are waiting for exec status after fork()
+    bool doing_recovery : 1;    // if we are currently recovering a BGPROCESS (restarting process, while
+                                //   holding STARTED service state)
 
     typedef std::list<ServiceRecord *> sr_list;
     typedef sr_list::iterator sr_iter;
@@ -248,6 +250,9 @@ class ServiceRecord
     void dependencyStarted() noexcept;
     
     void allDepsStarted(bool haveConsole = false) noexcept;
+    
+    // Read the pid-file, return false on failure
+    bool read_pid_file() noexcept;
     
     // Check whether dependencies have started, and optionally ask them to start
     bool startCheckDependencies(bool do_start) noexcept;
