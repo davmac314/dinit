@@ -416,7 +416,11 @@ void ServiceRecord::started() noexcept
 
     if (force_stop || desired_state == ServiceState::STOPPED) {
         // We must now stop.
+        bool do_restart = (desired_state != ServiceState::STOPPED);
         stop();
+        if (do_restart) {
+            start();
+        }
         return;
     }
 
