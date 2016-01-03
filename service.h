@@ -301,7 +301,8 @@ class ServiceRecord
 
     ServiceRecord(ServiceSet *set, string name)
         : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), auto_restart(false),
-            pinned_stopped(false), pinned_started(false), force_stop(false)
+            pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
+            waiting_for_execstat(false), doing_recovery(false), force_stop(false)
     {
         service_set = set;
         service_name = name;
