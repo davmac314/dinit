@@ -161,6 +161,8 @@ class ServiceRecord
     string stop_command;          /* storage for stop program/script and arguments */
     std::vector<const char *> stop_arg_parts; /* pointer to each argument/part of the stop_command */
     
+    string pid_file;
+    
     OnstartFlags onstart_flags;
 
     string logfile;           // log file name, empty string specifies /dev/null
@@ -221,7 +223,7 @@ class ServiceRecord
     void stopped() noexcept;
     
     // Service has successfully started
-    void started();
+    void started() noexcept;
     
     // Service failed to start
     void failed_to_start();
@@ -374,6 +376,11 @@ class ServiceRecord
     void setExtraTerminationSignal(int signo) noexcept
     {
         this->term_signal = signo;
+    }
+    
+    void set_pid_file(string &&pid_file) noexcept
+    {
+        this->pid_file = pid_file;
     }
 
     const char *getServiceName() const noexcept { return service_name.c_str(); }

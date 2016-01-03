@@ -35,7 +35,8 @@ Introduction to services
 A "service" is nominally a persistent process or system state. The two main
 types of service are a _process_ service (represented by a an actual process)
 and a _scripted_ service (which is started and stopped by running a process -
-often a shell script - to completion).
+often a shell script - to completion). There are also _bgprocess_ services
+and _internal_services.
 
 Many programs that you might want to run under dinit's supervision can run
 either "in the foreground" or as a daemon ("in the background"), and the
@@ -54,6 +55,21 @@ one from a service listed as dependent) which tries to contact it will not
 be able to do so. In practice, this is not usually a problem (and external
 solutions, like D-Bus, do exist).
 
+A _scripted_ service has separate commands for startup and (optional)
+shutdown. Scripted services can be used for tasks such as mounting file
+systems that don't need a persisten process, and in some cases can be used
+for daemon processes (although Dinit will not be able to supervise a
+process that is registered as a scripted service).
+
+A _bgprocess_ service is a mix between a process service and a scripted
+service. A command is used to start the service, and once started, the
+process ID is expected to be available in a file which Dinit can then
+read. Many existing daemons can operate in this way. Dinit can only
+supervise the process if it runs as the system "init" (PID 1),
+
+An _internal_ service is just a placeholder service that can be used to
+describe a set of dependencies. An internal service has no corresponding
+process.
 
 
 Service Description files
@@ -80,7 +96,7 @@ Parameter values are interpreted literally, except that:
 
 Parameters are:
 
-type = process | scripted | internal
+type = process | bgprocess | scripted | internal
 command = ...
 logfile = ...
 onstart = ...

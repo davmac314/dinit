@@ -56,7 +56,7 @@ void ServiceSet::stopService(const std::string & name) noexcept
 // Called when a service has actually stopped.
 void ServiceRecord::stopped() noexcept
 {
-    if (service_type != ServiceType::SCRIPTED && onstart_flags.runs_on_console) {
+    if (service_type != ServiceType::SCRIPTED && service_type != ServiceType::BGPROCESS && onstart_flags.runs_on_console) {
         tcsetpgrp(0, getpgrp());
         releaseConsole();
     }
@@ -103,12 +103,22 @@ void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, in
 
 void ServiceRecord::handle_exit_status() noexcept
 {
-    if (service_type == ServiceType::PROCESS) {
-        // TODO log non-zero rstatus?
-        if (service_state == ServiceState::STOPPING) {
+    if (service_type == ServiceType::PROCESS || service_type == ServiceType::BGPROCESS) {
+        if (service_state == ServiceState::STARTING) {
+            // (only applies to BGPROCESS)
+            if (exit_status == 0) {
+                started();
+            }
+            else {
+                log(LogLevel::ERROR, "service ", service_name, " failed to start with exit code", exit_status);
+                failed_to_start();
+            }
+        }
+        else if (service_state == ServiceState::STOPPING) {
+            // TODO log non-zero rstatus?
             stopped();
         }
-        else if (smooth_recovery) {
+        else if (smooth_recovery && service_state == ServiceState::STARTED) {
             // TODO ensure a minimum time between restarts
             // TODO if we are pinned-started then we should probably check
             //      that dependencies have started before trying to re-start the
@@ -293,7 +303,8 @@ void ServiceRecord::allDepsStarted(bool has_console) noexcept
 
     if (has_console) log_to_console = false;
 
-    if (service_type == ServiceType::PROCESS || service_type == ServiceType::SCRIPTED) {
+    if (service_type == ServiceType::PROCESS || service_type == ServiceType::BGPROCESS
+            || service_type == ServiceType::SCRIPTED) {
         bool start_success = start_ps_process();
         if (! start_success) {
             failed_to_start();
@@ -320,11 +331,36 @@ void ServiceRecord::acquiredConsole() noexcept
     }
 }
 
-void ServiceRecord::started()
+void ServiceRecord::started() noexcept
 {
-    if (onstart_flags.runs_on_console && service_type == ServiceType::SCRIPTED) {
+    if (onstart_flags.runs_on_console && (service_type == ServiceType::SCRIPTED || service_type == ServiceType::BGPROCESS)) {
         tcsetpgrp(0, getpgrp());
         releaseConsole();
+    }
+    
+    if (service_type == ServiceType::BGPROCESS && pid_file.length() != 0) {
+        const char *pid_file_c = pid_file.c_str();
+        int fd = open(pid_file_c, O_CLOEXEC);
+        if (fd != -1) {
+            char pidbuf[10];
+            int r = read(fd, pidbuf, 9);
+            if (r > 0) {
+                pidbuf[r] = 0; // store nul terminator
+                pid = std::atoi(pidbuf);
+                if (kill(pid, 0) == 0) {
+                    ev_child_init(&child_listener, process_child_callback, pid, 0);
+                    child_listener.data = this;
+                    ev_child_start(ev_default_loop(EVFLAG_AUTO), &child_listener);
+                }
+                else {
+                    pid = -1;
+                }
+            }
+            close(fd);
+        }
+        else {
+            log(LogLevel::ERROR, service_name, ": read pid file: ", strerror(errno));
+        }
     }
 
     logServiceStarted(service_name);
@@ -603,7 +639,7 @@ bool ServiceRecord::stopDependents() noexcept
 void ServiceRecord::allDepsStopped()
 {
     waiting_for_deps = false;
-    if (service_type == ServiceType::PROCESS) {
+    if (service_type == ServiceType::PROCESS || service_type == ServiceType::BGPROCESS) {
         if (pid != -1) {
             // The process is still kicking on - must actually kill it.
             if (! onstart_flags.no_sigterm) {

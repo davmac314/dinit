@@ -11,12 +11,14 @@ enum class ServiceState {
 
 /* Service types */
 enum class ServiceType {
-    DUMMY,      // dummy service, used to detect cyclice dependencies
-    PROCESS,    // service runs as a process, and can be stopped by
-                // sending the process a signal (SIGTERM)
-    SCRIPTED,   // service requires an external command to start,
+    DUMMY,      // Dummy service, used to detect cyclice dependencies
+    PROCESS,    // Service runs as a process, and can be stopped by
+                // sending the process a signal (usually SIGTERM)
+    BGPROCESS,  // Service runs as a process which "daemonizes" to run in the
+                // "background".
+    SCRIPTED,   // Service requires an external command to start,
                 // and a second command to stop
-    INTERNAL    // internal service, runs no external process
+    INTERNAL    // Internal service, runs no external process
 };
 
 /* Service events */

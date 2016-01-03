@@ -210,6 +210,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     list<pair<unsigned,unsigned>> command_offsets;
     string stop_command;
     list<pair<unsigned,unsigned>> stop_command_offsets;
+    string pid_file;
 
     ServiceType service_type = ServiceType::PROCESS;
     std::list<ServiceRecord *> depends_on;
@@ -262,6 +263,9 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 else if (setting == "stop-command") {
                     stop_command = read_setting_value(i, end, &stop_command_offsets);
                 }
+                else if (setting == "pid-file") {
+                    pid_file = read_setting_value(i, end);
+                }
                 else if (setting == "depends-on") {
                     string dependency_name = read_setting_value(i, end);
                     depends_on.push_back(loadServiceRecord(dependency_name.c_str()));
@@ -289,12 +293,15 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                     else if (type_str == "process") {
                         service_type = ServiceType::PROCESS;
                     }
+                    else if (type_str == "bgprocess") {
+                        service_type = ServiceType::BGPROCESS;
+                    }
                     else if (type_str == "internal") {
                         service_type = ServiceType::INTERNAL;
                     }
                     else {
-                        throw ServiceDescriptionExc(name, "Service type must be \"scripted\""
-                            " or \"process\" or \"internal\"");
+                        throw ServiceDescriptionExc(name, "Service type must be one of: \"scripted\","
+                            " \"process\", \"bgprocess\" or \"internal\"");
                     }
                 }
                 else if (setting == "onstart") {
@@ -350,6 +357,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 rval->setSmoothRecovery(smooth_recovery);
                 rval->setOnstartFlags(onstart_flags);
                 rval->setExtraTerminationSignal(term_signal);
+                rval->set_pid_file(std::move(pid_file));
                 *iter = rval;
                 break;
             }
