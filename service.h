@@ -197,22 +197,27 @@ class ServiceRecord
     
     // Next service (after this one) in the queue for the console:
     ServiceRecord *next_for_console;
+
+    std::unordered_set<ServiceListener *> listeners;
     
     // Process services:
     bool force_stop; // true if the service must actually stop. This is the
                      // case if for example the process dies; the service,
                      // and all its dependencies, MUST be stopped.
     
-    std::unordered_set<ServiceListener *> listeners;
-
     int term_signal = -1;  // signal to use for process termination
+    
+    string socket_path; // path to the socket for socket-activation service
+    int socket_perms;   // socket permissions ("mode")
 
     // Implementation details
     
-    pid_t pid;  // PID of the process. If state is STARTING or STOPPING,
-                //   this is PID of the service script; otherwise it is the
-                //   PID of the process itself (process service).
-    int exit_status;  // Exit status, if the process has exited (pid == -1).
+    pid_t pid = -1;  // PID of the process. If state is STARTING or STOPPING,
+                     //   this is PID of the service script; otherwise it is the
+                     //   PID of the process itself (process service).
+    int exit_status; // Exit status, if the process has exited (pid == -1).
+    int socket_fd = -1;  // For socket-activation services, this is the file
+                         // descriptor for the socket.
 
     ev_child child_listener;
     ev_io child_status_listener;
@@ -253,6 +258,9 @@ class ServiceRecord
     
     // Read the pid-file, return false on failure
     bool read_pid_file() noexcept;
+    
+    // Open the activation socket, return false on failure
+    bool open_socket() noexcept;
     
     // Check whether dependencies have started, and optionally ask them to start
     bool startCheckDependencies(bool do_start) noexcept;
@@ -387,6 +395,12 @@ class ServiceRecord
     void set_pid_file(string &&pid_file) noexcept
     {
         this->pid_file = pid_file;
+    }
+    
+    void set_socket_details(string &&socket_path, int socket_perms) noexcept
+    {
+        this->socket_path = socket_path;
+        this->socket_perms = socket_perms;
     }
 
     const char *getServiceName() const noexcept { return service_name.c_str(); }

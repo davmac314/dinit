@@ -220,6 +220,8 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     int term_signal = -1;  // additional termination signal
     bool auto_restart = false;
     bool smooth_recovery = false;
+    string socket_path;
+    int socket_perms = 0666;
     
     string line;
     ifstream service_file;
@@ -259,6 +261,22 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 
                 if (setting == "command") {
                     command = read_setting_value(i, end, &command_offsets);
+                }
+                else if (setting == "socket-listen") {
+                    socket_path = read_setting_value(i, end, nullptr);
+                }
+                else if (setting == "socket-permissions") {
+                    string sock_perm_str = read_setting_value(i, end, nullptr);
+                    std::size_t ind = 0;
+                    try {
+                        socket_perms = std::stoi(sock_perm_str, &ind, 8);
+                        if (ind != sock_perm_str.length()) {
+                            throw std::logic_error("");
+                        }
+                    }
+                    catch (std::logic_error &exc) {
+                        throw ServiceDescriptionExc(name, "socket-permissions: Badly-formed or out-of-range numeric value");
+                    }
                 }
                 else if (setting == "stop-command") {
                     stop_command = read_setting_value(i, end, &stop_command_offsets);
@@ -358,6 +376,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 rval->setOnstartFlags(onstart_flags);
                 rval->setExtraTerminationSignal(term_signal);
                 rval->set_pid_file(std::move(pid_file));
+                rval->set_socket_details(std::move(socket_path), socket_perms);
                 *iter = rval;
                 break;
             }

@@ -138,6 +138,18 @@ waits-for = (service name)
    for this service. Starting this service will automatically start
    the named service.
 
+socket-listen = (socket path)
+   Pre-open a socket for the service and pass it to the service using the
+   Systemd activation protocol. This by itself does not give so called
+   "socket activation", but does allow that any process trying to connect
+   to the specified socket will be able to do so, even before the service
+   is properly prepared to accept connections.
+
+socket-permissions = (octal permissions mask)
+   Gives the permissions for the socket specified using socket-listen.
+   Normally this will be 600 (user access only), 660 (user and group
+   access), or 666 (all users).
+
 termsignal = HUP | INT | QUIT | USR1 | USR2
    Specifies an additional signal to send to the process when requesting it
    to terminate (applies to 'process' services only). SIGTERM is always

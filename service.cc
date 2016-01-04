@@ -3,10 +3,13 @@
 #include <sstream>
 #include <iterator>
 #include <memory>
+#include <cstddef>
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/un.h>
+#include <sys/socket.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
@@ -76,6 +79,10 @@ void ServiceRecord::stopped() noexcept
     if (desired_state == ServiceState::STARTED) {
         // Desired state is "started".
         start();
+    }
+    else if (socket_fd != -1) {
+        close(socket_fd);
+        socket_fd = -1;
     }
 }
 
@@ -322,6 +329,60 @@ bool ServiceRecord::startCheckDependencies(bool start_deps) noexcept
     return all_deps_started;
 }
 
+bool ServiceRecord::open_socket() noexcept
+{
+    if (socket_path.empty() || socket_fd != -1) {
+        // No socket, or already open
+        return true;
+    }
+    
+    const char * saddrname = socket_path.c_str();
+    uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + socket_path.length() + 1;
+
+    struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
+    if (name == nullptr) {
+        log(LogLevel::ERROR, service_name, ": Opening activation socket: out of memory");
+        return false;
+    }
+    
+    // Un-link any stale socket. TODO: safety check? should at least confirm the path is a socket.
+    unlink(saddrname);
+
+    name->sun_family = AF_UNIX;
+    strcpy(name->sun_path, saddrname);
+
+    int sockfd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+    if (sockfd == -1) {
+        log(LogLevel::ERROR, service_name, ": Error creating activation socket: ", strerror(errno));
+        free(name);
+        return false;
+    }
+
+    if (bind(sockfd, (struct sockaddr *) name, sockaddr_size) == -1) {
+        log(LogLevel::ERROR, service_name, ": Error binding activation socket: ", strerror(errno));
+        close(sockfd);
+        free(name);
+        return false;
+    }
+    
+    free(name);
+    
+    if (chmod(saddrname, socket_perms) == -1) {
+        log(LogLevel::ERROR, service_name, ": Error setting activation socket permissions: ", strerror(errno));
+        close(sockfd);
+        return false;
+    }
+
+    if (listen(sockfd, 128) == -1) { // 128 "seems reasonable".
+        log(LogLevel::ERROR, ": Error listening on activation socket: ", strerror(errno));
+        close(sockfd);
+        return false;
+    }
+    
+    socket_fd = sockfd;
+    return true;
+}
+
 void ServiceRecord::allDepsStarted(bool has_console) noexcept
 {
     if (onstart_flags.runs_on_console && ! has_console) {
@@ -331,6 +392,10 @@ void ServiceRecord::allDepsStarted(bool has_console) noexcept
     }
     
     waiting_for_deps = false;
+
+    if (! open_socket()) {
+        failed_to_start();
+    }
 
     if (service_type == ServiceType::PROCESS || service_type == ServiceType::BGPROCESS
             || service_type == ServiceType::SCRIPTED) {
@@ -508,6 +573,23 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
         // from here until exit().
         ev_default_destroy(); // won't need that on this side, free up fds.
 
+        constexpr int bufsz = ((CHAR_BIT * sizeof(pid_t) - 1) / 3 + 2) + 11;
+        // "LISTEN_PID=" - 11 characters
+        char nbuf[bufsz];
+
+        if (socket_fd != -1) {
+            dup2(socket_fd, 3);
+            if (socket_fd != 3) {
+                close(socket_fd);
+            }
+            
+            if (putenv(const_cast<char *>("LISTEN_FDS=1"))) goto failure_out;
+            
+            snprintf(nbuf, bufsz, "LISTEN_PID=%jd", static_cast<intmax_t>(getpid()));
+            
+            if (putenv(nbuf)) goto failure_out;
+        }
+
         if (! on_console) {
             // Re-set stdin, stdout, stderr
             close(0); close(1); close(2);
@@ -536,6 +618,7 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
         execvp(exec_arg_parts[0], const_cast<char **>(args));
 
         // If we got here, the exec failed:
+        failure_out:
         int exec_status = errno;
         write(pipefd[1], &exec_status, sizeof(int));
         exit(0);
