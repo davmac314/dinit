@@ -25,6 +25,12 @@ For version 1.0:
 * Allow running services as a different UID
 
 For later:
+* A service can prevent shutdown/reboot by failing to stop. Maybe make
+  multiple CTRL-ALT-DEL presses (or ^C since that's more portable)  commence
+  immediate shutdown.
+* Interruptible scripted services - where it's ok to terminate the start
+  script with a signal (and return the service to the STOPPED state). So a long-
+  running filesystem check, for instance, need not hold up shutdown.
 * When we take down a service or tty session, it would be ideal if we could kill
   the whole process tree, not just the leader process.
 * Investigate using cn_proc netlink connector (cn_proc.h) to receive process
@@ -34,15 +40,13 @@ For later:
 * Allow logging tasks to memory (growing or circular buffer) and later
   switching to disk logging (allows for filesystem mounted readonly on boot)
 * Rate control on process respawn
-* Maybe re-implement "shutdown" ("halt", "reboot") from util-linux to better work
-  with dinit.
 * Allow running services with different resource limits, chroot, cgroups,
   namespaces (pid/fs/uid), etc
 * Make default control socket location build-time configurable
 * Allow specifying a timeout for killing services; if they don't die within
   the timeout (after a TERM) then hit them with a KILL.
 
-Even later:
+Even later / Maybe never:
 * Support recognising /etc/init.d services automatically (as script services, with
   no dependency management - or upstart compatible dependency management)
   Also BSD's rc.d style scripts (PROVIDE, REQUIRE).
