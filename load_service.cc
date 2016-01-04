@@ -1,9 +1,16 @@
-#include "service.h"
 #include <algorithm>
 #include <string>
 #include <fstream>
 #include <locale>
 #include <iostream>
+#include <limits>
+
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <pwd.h>
+#include <grp.h>
+
+#include "service.h"
 
 typedef std::string string;
 typedef std::string::iterator string_iterator;
@@ -172,6 +179,101 @@ static int signalNameToNumber(std::string &signame)
     return -1;
 }
 
+static const char * uid_err_msg = "Specified user id contains invalid numeric characters or is outside allowed range.";
+
+// Parse a userid parameter which may be a numeric user ID or a username. If a name, the
+// userid is looked up via the system user database (getpwnam() function). In this case,
+// the associated group is stored in the location specified by the group_p parameter iff
+// it is not null and iff it contains the value -1.
+static uid_t parse_uid_param(const std::string &param, const std::string &service_name, gid_t *group_p)
+{
+    // Could be a name or a numeric id. But we should assume numeric first, just in case
+    // a user manages to give themselves a username that parses as a number.
+    std::size_t ind = 0;
+    try {
+        // POSIX does not specify whether uid_t is an signed or unsigned, but regardless
+        // is is probably safe to assume that valid values are positive. We'll also assume
+        // that the value range fits with "unsigned long long" since it seems unlikely
+        // that would ever not be the case.
+        //
+        // TODO perhaps write a number parser, since even the unsigned variants of the C/C++
+        //      functions accept a leading minus sign...
+        static_assert((uintmax_t)std::numeric_limits<uid_t>::max() <= (uintmax_t)std::numeric_limits<unsigned long long>::max(), "uid_t is too large");
+        unsigned long long v = std::stoull(param, &ind, 0);
+        if (v > static_cast<unsigned long long>(std::numeric_limits<uid_t>::max()) || ind != param.length()) {
+            throw ServiceDescriptionExc(service_name, uid_err_msg);
+        }
+        return v;
+    }
+    catch (std::out_of_range &exc) {
+        throw ServiceDescriptionExc(service_name, uid_err_msg);
+    }
+    catch (std::invalid_argument &exc) {
+        // Ok, so it doesn't look like a number: proceed...
+    }
+
+    errno = 0;
+    struct passwd * pwent = getpwnam(param.c_str());
+    if (pwent == nullptr) {
+        // Maybe an error, maybe just no entry.
+        if (errno == 0) {
+            throw new ServiceDescriptionExc(service_name, "Specified user \"" + param + "\" does not exist in system database.");
+        }
+        else {
+            throw new ServiceDescriptionExc(service_name, std::string("Error accessing user database: ") + strerror(errno));
+        }
+    }
+    
+    if (group_p && *group_p != (gid_t)-1) {
+        *group_p = pwent->pw_gid;
+    }
+    
+    return pwent->pw_uid;
+}
+
+static const char * gid_err_msg = "Specified group id contains invalid numeric characters or is outside allowed range.";
+
+static gid_t parse_gid_param(const std::string &param, const std::string &service_name)
+{
+    // Could be a name or a numeric id. But we should assume numeric first, just in case
+    // a user manages to give themselves a username that parses as a number.
+    std::size_t ind = 0;
+    try {
+        // POSIX does not specify whether uid_t is an signed or unsigned, but regardless
+        // is is probably safe to assume that valid values are positive. We'll also assume
+        // that the value range fits with "unsigned long long" since it seems unlikely
+        // that would ever not be the case.
+        //
+        // TODO perhaps write a number parser, since even the unsigned variants of the C/C++
+        //      functions accept a leading minus sign...
+        unsigned long long v = std::stoull(param, &ind, 0);
+        if (v > static_cast<unsigned long long>(std::numeric_limits<gid_t>::max()) || ind != param.length()) {
+            throw ServiceDescriptionExc(service_name, gid_err_msg);
+        }
+        return v;
+    }
+    catch (std::out_of_range &exc) {
+        throw ServiceDescriptionExc(service_name, gid_err_msg);
+    }
+    catch (std::invalid_argument &exc) {
+        // Ok, so it doesn't look like a number: proceed...
+    }
+
+    errno = 0;
+    struct group * grent = getgrnam(param.c_str());
+    if (grent == nullptr) {
+        // Maybe an error, maybe just no entry.
+        if (errno == 0) {
+            throw new ServiceDescriptionExc(service_name, "Specified group \"" + param + "\" does not exist in system database.");
+        }
+        else {
+            throw new ServiceDescriptionExc(service_name, std::string("Error accessing group database: ") + strerror(errno));
+        }
+    }
+    
+    return grent->gr_gid;
+}
+
 // Find a service record, or load it from file. If the service has
 // dependencies, load those also.
 //
@@ -222,6 +324,10 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     bool smooth_recovery = false;
     string socket_path;
     int socket_perms = 0666;
+    // Note: Posix allows that uid_t and gid_t may be unsigned types, but eg chown uses -1 as an
+    // invalid value, so it's safe to assume that we can do the same:
+    uid_t socket_uid = -1;
+    gid_t socket_gid = -1;
     
     string line;
     ifstream service_file;
@@ -277,6 +383,14 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                     catch (std::logic_error &exc) {
                         throw ServiceDescriptionExc(name, "socket-permissions: Badly-formed or out-of-range numeric value");
                     }
+                }
+                else if (setting == "socket-uid") {
+                    string sock_uid_s = read_setting_value(i, end, nullptr);
+                    socket_uid = parse_uid_param(sock_uid_s, name, &socket_gid);
+                }
+                else if (setting == "socket-gid") {
+                    string sock_gid_s = read_setting_value(i, end, nullptr);
+                    socket_gid = parse_gid_param(sock_gid_s, name);
                 }
                 else if (setting == "stop-command") {
                     stop_command = read_setting_value(i, end, &stop_command_offsets);
@@ -376,7 +490,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 rval->setOnstartFlags(onstart_flags);
                 rval->setExtraTerminationSignal(term_signal);
                 rval->set_pid_file(std::move(pid_file));
-                rval->set_socket_details(std::move(socket_path), socket_perms);
+                rval->set_socket_details(std::move(socket_path), socket_perms, socket_uid, socket_gid);
                 *iter = rval;
                 break;
             }

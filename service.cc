@@ -367,6 +367,14 @@ bool ServiceRecord::open_socket() noexcept
     
     free(name);
     
+    // POSIX (1003.1, 2013) says that fchown and fchmod don't necesarily work on sockets. We have to
+    // use chown and chmod instead.
+    if (chown(saddrname, socket_uid, socket_gid)) {
+        log(LogLevel::ERROR, service_name, ": Error setting activation socket owner/group: ", strerror(errno));
+        close(sockfd);
+        return false;
+    }
+    
     if (chmod(saddrname, socket_perms) == -1) {
         log(LogLevel::ERROR, service_name, ": Error setting activation socket permissions: ", strerror(errno));
         close(sockfd);

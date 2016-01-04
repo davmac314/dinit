@@ -150,6 +150,17 @@ socket-permissions = (octal permissions mask)
    Normally this will be 600 (user access only), 660 (user and group
    access), or 666 (all users).
 
+socket-uid = (numeric user id or username)
+   Specifies the user that should own the activation socket. If socket-uid
+   is specified without also specifying socket-gid, then the socket group
+   is the primary group of the specified user (as found in the system user
+   database, normally /etc/passwd). If the socket owner is not specified,
+   the socket will be owned by the user id of the Dinit process.
+
+socket-gid = (numeric group id or group name)
+   Specifies the group of the activation socket. See discussion of
+   socket-uid.
+
 termsignal = HUP | INT | QUIT | USR1 | USR2
    Specifies an additional signal to send to the process when requesting it
    to terminate (applies to 'process' services only). SIGTERM is always

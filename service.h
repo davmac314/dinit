@@ -32,7 +32,8 @@
  *
  * A scripted service is in the STARTING/STOPPING states during the script execution.
  * A process service is in the STOPPING state when it has been signalled to stop, and is
- *       in the STARTING state when waiting for dependencies to start.
+ * in the STARTING state when waiting for dependencies to start or for the exec() call in
+ * the forked child to complete and return a status.
  */
 
 struct OnstartFlags {
@@ -168,9 +169,9 @@ class ServiceRecord
     string logfile;           // log file name, empty string specifies /dev/null
     bool auto_restart : 1;    // whether to restart this (process) if it dies unexpectedly
     bool smooth_recovery : 1; // whether the service process can restart without bringing down service
+    
     bool pinned_stopped : 1;
     bool pinned_started : 1;
-    
     bool waiting_for_deps : 1;  // if STARTING, whether we are waiting for dependencies (inc console) to start
     bool waiting_for_execstat : 1;  // if we are waiting for exec status after fork()
     bool doing_recovery : 1;    // if we are currently recovering a BGPROCESS (restarting process, while
@@ -209,6 +210,8 @@ class ServiceRecord
     
     string socket_path; // path to the socket for socket-activation service
     int socket_perms;   // socket permissions ("mode")
+    uid_t socket_uid = -1;  // socket user id or -1
+    gid_t socket_gid = -1;  // sockget group id or -1
 
     // Implementation details
     
@@ -397,10 +400,12 @@ class ServiceRecord
         this->pid_file = pid_file;
     }
     
-    void set_socket_details(string &&socket_path, int socket_perms) noexcept
+    void set_socket_details(string &&socket_path, int socket_perms, uid_t socket_uid, uid_t socket_gid) noexcept
     {
         this->socket_path = socket_path;
         this->socket_perms = socket_perms;
+        this->socket_uid = socket_uid;
+        this->socket_gid = socket_gid;
     }
 
     const char *getServiceName() const noexcept { return service_name.c_str(); }
