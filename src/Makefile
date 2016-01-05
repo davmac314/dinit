@@ -1,4 +1,4 @@
--include mconfig
+-include ../mconfig
 
 objects = dinit.o load_service.o service.o control.o dinit-log.o dinit-start.o shutdown.o dinit-reboot.o
 
