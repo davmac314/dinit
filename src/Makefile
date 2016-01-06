@@ -1,18 +1,18 @@
 -include ../mconfig
 
-objects = dinit.o load_service.o service.o control.o dinit-log.o dinit-start.o shutdown.o dinit-reboot.o
+objects = dinit.o load_service.o service.o control.o dinit-log.o dinitctl.o shutdown.o dinit-reboot.o
 
 dinit_objects = dinit.o load_service.o service.o control.o dinit-log.o
 
-all: dinit dinit-start
+all: dinit dinitctl
 
 shutdown-utils: shutdown
 
 dinit: $(dinit_objects)
 	$(CXX) -o dinit $(dinit_objects) -lev $(EXTRA_LIBS)
 
-dinit-start: dinit-start.o
-	$(CXX) -o dinit-start dinit-start.o $(EXTRA_LIBS)
+dinitctl: dinitctl.o
+	$(CXX) -o dinitctl dinitctl.o $(EXTRA_LIBS)
 	
 shutdown: shutdown.o
 	$(CXX) -o shutdown shutdown.o
