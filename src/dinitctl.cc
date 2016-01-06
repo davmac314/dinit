@@ -15,7 +15,7 @@
 #include "service-constants.h"
 #include "cpbuffer.h"
 
-// dinit-start:  utility to start a dinit service
+// dinitctl:  utility to control the Dinit daemon, including starting and stopping of services.
 
 // This utility communicates with the dinit daemon via a unix socket (/dev/initctl).
 
@@ -40,11 +40,21 @@ static void fillBufferTo(CPBuffer *buf, int fd, int rlength)
     }
 }
 
+static const char * describeState(bool stopped)
+{
+    return stopped ? "stopped" : "started";
+}
+
+static const char * describeVerb(bool stop)
+{
+    return stop ? "stop" : "start";
+}
 
 int main(int argc, char **argv)
 {
     using namespace std;
     
+    bool do_stop = false;
     bool show_help = argc < 2;
     char *service_name = nullptr;
     
@@ -54,6 +64,11 @@ int main(int argc, char **argv)
     bool verbose = true;
     bool sys_dinit = false;  // communicate with system daemon
     bool wait_for_service = true;
+    
+    int command = 0;
+    
+    constexpr int START_SERVICE = 1;
+    constexpr int STOP_SERVICE = 2;
         
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -75,12 +90,28 @@ int main(int argc, char **argv)
                 return 1;
             }
         }
+        else if (command == 0) {
+            if (strcmp(argv[i], "start")) {
+                command = START_SERVICE; 
+            }
+            else if (strcmp(argv[i], "stop")) {
+                command = STOP_SERVICE;
+            }
+            else {
+                show_help = true;
+                break;
+            }
+        }
         else {
             // service name
             service_name = argv[i];
             // TODO support multiple services (or at least give error if multiple
             //      services supplied)
         }
+    }
+    
+    if (service_name == nullptr || command = 0) {
+        show_help = true;
     }
 
     if (show_help) {
@@ -93,6 +124,7 @@ int main(int argc, char **argv)
         return 1;
     }
     
+    do_stop = (command == STOP_SERVICE);
     
     control_socket_path = "/dev/dinitctl";
     
@@ -185,25 +217,40 @@ int main(int argc, char **argv)
             return 1;
         }
         
-        // Need to issue STARTSERVICE:
-        if (target_state != ServiceState::STARTED) {
+        ServiceState wanted_state = do_stop ? ServiceState::STOPPED : ServiceState::STARTED;
+        int command = do_stop ? DINIT_CP_STOPSERVICE : DINIT_CP_STARTSERVICE;
+        
+        // Need to issue STOPSERVICE/STARTSERVICE
+        if (target_state != wanted_state) {
             buf = new char[2 + sizeof(handle)];
-            buf[0] = DINIT_CP_STARTSERVICE;
+            buf[0] = command;
             buf[1] = 0;  // don't pin
             memcpy(buf + 2, &handle, sizeof(handle));
             r = write(socknum, buf, 2 + sizeof(handle));
             delete buf;
         }
         
-        if (state == ServiceState::STARTED) {
+        if (state == wanted_state) {
             if (verbose) {
-                cout << "Service already started." << endl;
+                cout << "Service already " << describeState(do_stop) << "." << endl;
             }
             return 0; // success!
         }
         
         if (! wait_for_service) {
             return 0;
+        }
+        
+        ServiceEvent completionEvent;
+        ServiceEvent cancelledEvent;
+        
+        if (do_stop) {
+            completionEvent = ServiceEvent::STOPPED;
+            cancelledEvent = ServiceEvent::STOPCANCELLED;
+        }
+        else {
+            completionEvent = ServiceEvent::STARTED;
+            cancelledEvent = ServiceEvent::STARTCANCELLED;
         }
         
         // Wait until service started:
@@ -217,11 +264,19 @@ int main(int argc, char **argv)
                     handle_t ev_handle;
                     rbuffer.extract((char *) &ev_handle, 2, sizeof(ev_handle));
                     ServiceEvent event = static_cast<ServiceEvent>(rbuffer[2 + sizeof(ev_handle)]);
-                    if (ev_handle == handle && event == ServiceEvent::STARTED) {
-                        if (verbose) {
-                            cout << "Service started." << endl;
+                    if (ev_handle == handle) {
+                        if (event == completionEvent) {
+                            if (verbose) {
+                                cout << "Service " << describeState(do_stop) << "." << endl;
+                            }
+                            return 0;
                         }
-                        return 0;
+                        else if (event == cancelledEvent) {
+                            if (verbose) {
+                                cout << "Service " << describeVerb(do_stop) << " cancelled." << endl;
+                            }
+                            return 1;
+                        }
                     }
                 }
             }
