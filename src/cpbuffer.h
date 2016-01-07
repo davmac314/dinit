@@ -22,7 +22,7 @@ class CPBuffer
         int pos = cur_idx + length;
         if (pos >= 1024) pos -= 1024;
         int max_count = std::min(1024 - pos, 1024 - length);
-        ssize_t r = read(fd, buf + cur_idx, max_count);
+        ssize_t r = read(fd, buf + pos, max_count);
         if (r >= 0) {
             length += r;
         }

@@ -20,7 +20,7 @@ shutdown: shutdown.o
 dinit-reboot: dinit-reboot.o
 	$(CXX) -o dinit-reboot dinit-reboot.o	
 
-$(objects): %.o: %.cc service.h dinit-log.h control.h control-cmds.h
+$(objects): %.o: %.cc service.h dinit-log.h control.h control-cmds.h cpbuffer.h
 	$(CXX) $(CXXOPTS) -c $< -o $@
 
 #install: all
