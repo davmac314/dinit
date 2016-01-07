@@ -1,12 +1,14 @@
-* License
 * Complete control socket handling and protocol
   - support for pinned-start and pinned-stop
   - support for listing all services
 * Implement a control utility to start/stop services after dinit has started
   - very basic version exists, needs thorough cleanup
+* Clean up tree a little, move source files into "src"
 
 For version 1.0:
 ----------------
+* Log messages need to be duplicated to file (or to a logging process) once the
+  file system comes up read/write.
 * Log messages are completely prevented from going to the console if the console
   is being held by a service, meaning some can get lost. It would be better if
   there was a (limited) buffer.
@@ -20,14 +22,19 @@ For version 1.0:
 * if PID != 1, choose a more sensible service definition directory
   (something like $HOME/dinit.d)
 * Documentation including sample service definitions
-* Better error handling, logging of errors
+* Better error handling, logging of errors (largely done, still some patches
+  of code where it may be missing).
 * Write wtmp entry on startup (see simpleinit)
 * Allow running services as a different UID
+* On linux when running with PID != 1, write PID to /proc/sys/kernel/cad_pid so
+  that we still receive SIGINT from ctrl+alt+del (must be done after /proc is
+  mounted, possibly could be left to a service script)
 
 For later:
+* Internationalisation
 * A service can prevent shutdown/reboot by failing to stop. Maybe make
-  multiple CTRL-ALT-DEL presses (or ^C since that's more portable)  commence
-  immediate shutdown.
+  multiple CTRL-ALT-DEL presses (or ^C since that's more portable) commence
+  immediate shutdown (or launch a simple control interface).
 * Interruptible scripted services - where it's ok to terminate the start
   script with a signal (and return the service to the STOPPED state). So a long-
   running filesystem check, for instance, need not hold up shutdown.
@@ -65,6 +72,8 @@ Even later / Maybe never:
 
 
 Documentation:
+* Design philosophy/rationale document
+* Coding style guidelines
 
 * What's the best TERM setting? gogetty gives me "linux" but I think other variants may be
   better (eg "linux-c").

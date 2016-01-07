@@ -26,7 +26,10 @@ avoiding feature bloat (whilst still handling a variety of use cases).
 
 See doc/COMPARISON for a comparison of Dinit with similar software packages.
 
-The primary author of Dinit is Davin McCall <davmac@davmac.org>.
+Dinit is licensed under the Apache License, version 2.0. A copy of this
+license can be found in the LICENSE file.
+
+Dinit was written by Davin McCall <davmac@davmac.org>.
 
 
 Introduction to services
