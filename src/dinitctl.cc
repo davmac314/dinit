@@ -277,6 +277,12 @@ int main(int argc, char **argv)
                             }
                             return 1;
                         }
+                        else if (! do_stop && event == ServiceEvent::FAILEDSTART) {
+                            if (verbose) {
+                                cout << "Service failed to start." << endl;
+                            }
+                            return 1;
+                        }
                     }
                 }
             }
