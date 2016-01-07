@@ -50,6 +50,25 @@ static const char * describeVerb(bool stop)
     return stop ? "stop" : "start";
 }
 
+// Write *all* the requested buffer and re-try if necessary until
+// the buffer is written or an unrecoverable error occurs.
+static int write_all(int fd, const void *buf, size_t count)
+{
+    const char *cbuf = static_cast<const char *>(buf);
+    int w = 0;
+    while (count > 0) {
+        int r = write(fd, cbuf, count);
+        if (r == -1) {
+            if (errno == EINTR) continue;
+            return r;
+        }
+        w += r;
+        cbuf += r;
+        count -= r;
+    }
+    return w;
+}
+
 int main(int argc, char **argv)
 {
     using namespace std;
@@ -182,8 +201,7 @@ int main(int argc, char **argv)
     memcpy(buf + 1, &sname_len, 2);
     memcpy(buf + 3, service_name, sname_len);
     
-    int r = write(socknum, buf, bufsize);
-    // TODO make sure we write it all
+    int r = write_all(socknum, buf, bufsize);
     delete [] buf;
     if (r == -1) {
         perror("write");
