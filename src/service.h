@@ -235,12 +235,10 @@ class ServiceRecord
     // Service has successfully started
     void started() noexcept;
     
-    // Service failed to start
-    void failed_to_start();
-    
-    // A dependency of this service failed to start.
-    void failed_dependency();
-    
+    // Service failed to start (only called when in STARTING state).
+    //   dep_failed: whether failure is recorded due to a dependency failing
+    void failed_to_start(bool dep_failed = false) noexcept;
+
     // For process services, start the process, return true on success
     bool start_ps_process() noexcept;
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;

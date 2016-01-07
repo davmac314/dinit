@@ -506,9 +506,9 @@ void ServiceRecord::started() noexcept
     }
 }
 
-void ServiceRecord::failed_to_start()
+void ServiceRecord::failed_to_start(bool depfailed) noexcept
 {
-    if (onstart_flags.runs_on_console) {
+    if (!depfailed && onstart_flags.runs_on_console) {
         tcsetpgrp(0, getpgrp());
         releaseConsole();
     }
@@ -519,11 +519,10 @@ void ServiceRecord::failed_to_start()
     service_set->service_inactive(this);
     notifyListeners(ServiceEvent::FAILEDSTART);
     
-    // failure to start
     // Cancel start of dependents:
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
         if ((*i)->service_state == ServiceState::STARTING) {
-            (*i)->failed_dependency();
+            (*i)->failed_to_start(true);
         }
     }    
     for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
@@ -664,30 +663,6 @@ void ServiceRecord::forceStop() noexcept
         
         // We don't want to force stop soft dependencies, however.
     }
-}
-
-// A dependency of this service failed to start.
-// Only called when state == STARTING.
-void ServiceRecord::failed_dependency()
-{
-    desired_state = ServiceState::STOPPED;
-    
-    // Presumably, we were starting. So now we're not.
-    service_state = ServiceState::STOPPED;
-    service_set->service_inactive(this);
-    logServiceFailed(service_name);
-    
-    // Notify dependents of this service also
-    for (auto i = dependents.begin(); i != dependents.end(); i++) {
-        if ((*i)->service_state == ServiceState::STARTING) {
-            (*i)->failed_dependency();
-        }
-    }
-    for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
-        // It's a soft dependency, so send them 'started' rather than
-        // 'failed dep'.
-        (*i)->getFrom()->dependencyStarted();
-    }    
 }
 
 void ServiceRecord::dependentStopped() noexcept
