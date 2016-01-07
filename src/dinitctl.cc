@@ -91,10 +91,10 @@ int main(int argc, char **argv)
             }
         }
         else if (command == 0) {
-            if (strcmp(argv[i], "start")) {
+            if (strcmp(argv[i], "start") == 0) {
                 command = START_SERVICE; 
             }
-            else if (strcmp(argv[i], "stop")) {
+            else if (strcmp(argv[i], "stop") == 0) {
                 command = STOP_SERVICE;
             }
             else {
@@ -110,7 +110,7 @@ int main(int argc, char **argv)
         }
     }
     
-    if (service_name == nullptr || command = 0) {
+    if (service_name == nullptr || command == 0) {
         show_help = true;
     }
 
