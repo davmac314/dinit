@@ -1,6 +1,6 @@
 *.o
 dinit
-dinit-start
+dinitctl
 test
 shutdown
 dinit-reboot
