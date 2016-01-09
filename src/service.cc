@@ -45,7 +45,7 @@ void ServiceSet::startService(const char *name)
     using namespace std;
     ServiceRecord *record = loadServiceRecord(name);
     
-    record->start();
+    record->start(false);
 }
 
 void ServiceSet::stopService(const std::string & name) noexcept
@@ -68,26 +68,32 @@ void ServiceRecord::stopped() noexcept
     service_state = ServiceState::STOPPED;
     force_stop = false;
     
-    // Stop any dependencies whose desired state is STOPPED:
-    for (sr_iter i = depends_on.begin(); i != depends_on.end(); i++) {
-        (*i)->dependentStopped();
-    }
-
-    service_set->service_inactive(this);
     notifyListeners(ServiceEvent::STOPPED);
     
     if (desired_state == ServiceState::STARTED) {
         // Desired state is "started".
-        start();
+        do_start();
     }
-    else if (socket_fd != -1) {
-        close(socket_fd);
-        socket_fd = -1;
+    else {
+        if (socket_fd != -1) {
+            close(socket_fd);
+            socket_fd = -1;
+        }
+        
+        service_set->service_inactive(this);
+        
+        // Stop any dependencies whose desired state is STOPPED:
+        for (auto i = depends_on.begin(); i != depends_on.end(); i++) {
+            (*i)->dependentStopped();
+        }
+        for (auto i = soft_deps.begin(); i != soft_deps.end(); i++) {
+            i->getTo()->dependentStopped();
+        }
     }
 }
 
 void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, int revents) noexcept
-{    
+{
     ServiceRecord *sr = (ServiceRecord *) w->data;
 
     sr->pid = -1;
@@ -117,24 +123,21 @@ void ServiceRecord::handle_exit_status() noexcept
     if (doing_recovery) {
         // (BGPROCESS only)
         doing_recovery = false;
-        bool do_stop = false;
+        bool need_stop = false;
         if (exit_status != 0) {
-            do_stop = true;
+            need_stop = true;
         }
         else {
             // We need to re-read the PID, since it has now changed.
             if (service_type == ServiceType::BGPROCESS && pid_file.length() != 0) {
                 if (! read_pid_file()) {
-                    do_stop = true;
+                    need_stop = true;
                 }
             }
         }
         
-        if (do_stop) {
-            stop();
-            if (auto_restart && service_set->get_auto_restart()) {
-                start();
-            }
+        if (need_stop) {
+            do_stop();
         }
         
         return;
@@ -165,10 +168,6 @@ void ServiceRecord::handle_exit_status() noexcept
         }
         else {
             forceStop();
-        }
-        
-        if (auto_restart && service_set->get_auto_restart()) {
-            start();
         }
     }
     else {  // SCRIPTED
@@ -235,7 +234,7 @@ void ServiceRecord::process_child_status(struct ev_loop *loop, ev_io * stat_io, 
     }
 }
 
-void ServiceRecord::start() noexcept
+void ServiceRecord::start(bool transitive) noexcept
 {
     if ((service_state == ServiceState::STARTING || service_state == ServiceState::STARTED)
             && desired_state == ServiceState::STOPPED) {
@@ -244,10 +243,22 @@ void ServiceRecord::start() noexcept
         notifyListeners(ServiceEvent::STOPCANCELLED);
     }
 
+    if (transitive) {
+        started_deps++;
+    }
+    else {
+        start_explicit = true;
+    }
+    
     if (desired_state == ServiceState::STARTED && service_state != ServiceState::STOPPED) return;
 
     desired_state = ServiceState::STARTED;
-    
+    service_set->service_active(this);
+    do_start();
+}
+
+void ServiceRecord::do_start() noexcept
+{
     if (pinned_stopped) return;
     
     if (service_state != ServiceState::STOPPED) {
@@ -259,10 +270,10 @@ void ServiceRecord::start() noexcept
         // We're STOPPING, and that can be interrupted. Our dependencies might be STOPPING,
         // but if so they are waiting (for us), so they too can be instantly returned to
         // STARTING state.
+        notifyListeners(ServiceEvent::STOPCANCELLED);
     }
     
     service_state = ServiceState::STARTING;
-    service_set->service_active(this);
 
     waiting_for_deps = true;
 
@@ -294,7 +305,7 @@ bool ServiceRecord::startCheckDependencies(bool start_deps) noexcept
         if ((*i)->service_state != ServiceState::STARTED) {
             if (start_deps) {
                 all_deps_started = false;
-                (*i)->start();
+                (*i)->start(true);
             }
             else {
                 return false;
@@ -306,7 +317,7 @@ bool ServiceRecord::startCheckDependencies(bool start_deps) noexcept
         ServiceRecord * to = i->getTo();
         if (start_deps) {
             if (to->service_state != ServiceState::STARTED) {
-                to->start();
+                to->start(true);
                 i->waiting_on = true;
                 all_deps_started = false;
             }
@@ -489,11 +500,7 @@ void ServiceRecord::started() noexcept
 
     if (force_stop || desired_state == ServiceState::STOPPED) {
         // We must now stop.
-        bool do_restart = (desired_state != ServiceState::STOPPED);
-        stop();
-        if (do_restart) {
-            start();
-        }
+        do_stop();
         return;
     }
 
@@ -519,6 +526,14 @@ void ServiceRecord::failed_to_start(bool depfailed) noexcept
     service_set->service_inactive(this);
     notifyListeners(ServiceEvent::FAILEDSTART);
     
+    // Stop any dependencies whose desired state is STOPPED:
+    for (auto i = depends_on.begin(); i != depends_on.end(); i++) {
+        (*i)->dependentStopped();
+    }
+    for (auto i = soft_deps.begin(); i != soft_deps.end(); i++) {
+        i->getTo()->dependentStopped();
+    }
+
     // Cancel start of dependents:
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
         if ((*i)->service_state == ServiceState::STARTING) {
@@ -659,7 +674,10 @@ void ServiceRecord::forceStop() noexcept
         for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
             (*i)->forceStop();
         }
-        stop();
+        
+        if (service_state == ServiceState::STARTED) {
+            do_stop();
+        }
         
         // We don't want to force stop soft dependencies, however.
     }
@@ -667,16 +685,29 @@ void ServiceRecord::forceStop() noexcept
 
 void ServiceRecord::dependentStopped() noexcept
 {
+    started_deps--;
     if (service_state == ServiceState::STOPPING) {
         // Check the other dependents before we stop.
         if (stopCheckDependents()) {
             allDepsStopped();
         }
     }
+    else if (started_deps == 0 && !start_explicit) {
+        desired_state = ServiceState::STOPPED;
+        service_state = ServiceState::STOPPING;
+        allDepsStopped();
+    }
 }
 
 void ServiceRecord::stop() noexcept
 {
+    if (desired_state == ServiceState::STOPPED && service_state != ServiceState::STARTED) return;
+    
+    start_explicit = false;
+    if (started_deps != 0) {
+        return;
+    }
+
     if ((service_state == ServiceState::STOPPING || service_state == ServiceState::STOPPED)
             && desired_state == ServiceState::STARTED) {
         // The service *was* stopped/stopping, but it was going to restart.
@@ -684,10 +715,13 @@ void ServiceRecord::stop() noexcept
         notifyListeners(ServiceEvent::STARTCANCELLED);
     }
     
-    if (desired_state == ServiceState::STOPPED && service_state != ServiceState::STARTED) return;
-    
     desired_state = ServiceState::STOPPED;
     
+    do_stop();
+}
+
+void ServiceRecord::do_stop() noexcept
+{
     if (pinned_started) return;
 
     if (service_state != ServiceState::STARTED) {
@@ -700,11 +734,14 @@ void ServiceRecord::stop() noexcept
                 stopDependents();
                 return;
             }
+
+            // We must have had desired_state == STARTED.
+            notifyListeners(ServiceEvent::STARTCANCELLED);
             
             // Reaching this point, we have can_interrupt_start() == true. So,
             // we can stop. Dependents might be starting, but they must be
             // waiting on us, so they should also be immediately stoppable.
-            // Fall through to below.
+            // Fall through to below,.
         }
         else {
             // If we're starting we need to wait for that to complete.
@@ -717,7 +754,7 @@ void ServiceRecord::stop() noexcept
     waiting_for_deps = true;
     
     // If we get here, we are in STARTED state; stop all dependents.
-    if (stopDependents()) {
+    if (stopCheckDependents()) {
         allDepsStopped();
     }
 }
@@ -785,7 +822,7 @@ void ServiceRecord::allDepsStopped()
 
 void ServiceRecord::pinStart() noexcept
 {
-    start();
+    start(false);
     pinned_started = true;
 }
 
@@ -806,7 +843,7 @@ void ServiceRecord::unpin() noexcept
     if (pinned_stopped) {
         pinned_stopped = false;
         if (desired_state == ServiceState::STARTED) {
-            start();
+            do_start();
         }
     }
 }

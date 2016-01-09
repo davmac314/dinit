@@ -167,6 +167,7 @@ class ServiceRecord
     OnstartFlags onstart_flags;
 
     string logfile;           // log file name, empty string specifies /dev/null
+    
     bool auto_restart : 1;    // whether to restart this (process) if it dies unexpectedly
     bool smooth_recovery : 1; // whether the service process can restart without bringing down service
     
@@ -176,6 +177,8 @@ class ServiceRecord
     bool waiting_for_execstat : 1;  // if we are waiting for exec status after fork()
     bool doing_recovery : 1;    // if we are currently recovering a BGPROCESS (restarting process, while
                                 //   holding STARTED service state)
+    bool start_explicit : 1;    // whether we are are explictly required to be started
+    int started_deps = 0;       // number of dependents that require this service to be started
 
     typedef std::list<ServiceRecord *> sr_list;
     typedef sr_list::iterator sr_iter;
@@ -306,12 +309,18 @@ class ServiceRecord
     // Release console (console must be currently held by this service)
     void releaseConsole() noexcept;
     
+    bool get_start_flag(bool transitive)
+    {
+        return transitive ? started_deps != 0 : start_explicit;
+    }
+    
     public:
 
     ServiceRecord(ServiceSet *set, string name)
         : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), auto_restart(false),
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
-            waiting_for_execstat(false), doing_recovery(false), force_stop(false)
+            waiting_for_execstat(false), doing_recovery(false),
+            start_explicit(false), force_stop(false)
     {
         service_set = set;
         service_name = name;
@@ -409,8 +418,10 @@ class ServiceRecord
     const char *getServiceName() const noexcept { return service_name.c_str(); }
     ServiceState getState() const noexcept { return service_state; }
     
-    void start() noexcept;  // start the service
+    void start(bool transitive = false) noexcept;  // start the service
     void stop() noexcept;   // stop the service
+    void do_start() noexcept;
+    void do_stop() noexcept;
     
     void pinStart() noexcept;  // start the service and pin it
     void pinStop() noexcept;   // stop the service and pin it
