@@ -56,6 +56,21 @@ void ServiceSet::stopService(const std::string & name) noexcept
     }
 }
 
+void ServiceRecord::notify_dependencies_stopped() noexcept
+{
+    if (desired_state == ServiceState::STOPPED) {
+        // Stop any dependencies whose desired state is STOPPED:
+        for (auto i = depends_on.begin(); i != depends_on.end(); i++) {
+            (*i)->dependentStopped();
+        }
+        for (auto i = soft_deps.begin(); i != soft_deps.end(); i++) {
+            i->getTo()->dependentStopped();
+        }
+        
+        service_set->service_inactive(this);
+    }
+}
+
 // Called when a service has actually stopped.
 void ServiceRecord::stopped() noexcept
 {
@@ -80,15 +95,7 @@ void ServiceRecord::stopped() noexcept
             socket_fd = -1;
         }
         
-        service_set->service_inactive(this);
-        
-        // Stop any dependencies whose desired state is STOPPED:
-        for (auto i = depends_on.begin(); i != depends_on.end(); i++) {
-            (*i)->dependentStopped();
-        }
-        for (auto i = soft_deps.begin(); i != soft_deps.end(); i++) {
-            i->getTo()->dependentStopped();
-        }
+        notify_dependencies_stopped();
     }
 }
 
@@ -522,17 +529,9 @@ void ServiceRecord::failed_to_start(bool depfailed) noexcept
     
     logServiceFailed(service_name);
     service_state = ServiceState::STOPPED;
-    desired_state = ServiceState::STOPPED;
-    service_set->service_inactive(this);
     notifyListeners(ServiceEvent::FAILEDSTART);
     
-    // Stop any dependencies whose desired state is STOPPED:
-    for (auto i = depends_on.begin(); i != depends_on.end(); i++) {
-        (*i)->dependentStopped();
-    }
-    for (auto i = soft_deps.begin(); i != soft_deps.end(); i++) {
-        i->getTo()->dependentStopped();
-    }
+    notify_dependencies_stopped();
 
     // Cancel start of dependents:
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
@@ -716,6 +715,11 @@ void ServiceRecord::stop() noexcept
     }
     
     desired_state = ServiceState::STOPPED;
+
+    if (service_state == ServiceState::STOPPED) {
+        notify_dependencies_stopped();
+        return;
+    }
     
     do_stop();
 }

@@ -282,6 +282,10 @@ class ServiceRecord
         return waiting_for_deps && ! force_stop;
     }
 
+    // Notify dependencies that we no longer need them,
+    // (if this is actually the case).
+    void notify_dependencies_stopped() noexcept;
+
     // A dependent has reached STOPPED state
     void dependentStopped() noexcept;
 
