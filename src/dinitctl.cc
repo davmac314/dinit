@@ -60,8 +60,10 @@ static void wait_for_reply(CPBuffer &rbuffer, int fd)
         // Information packet; discard.
         fillBufferTo(&rbuffer, fd, 1);
         int pktlen = (unsigned char) rbuffer[1];
+        
+        rbuffer.consume(1);  // Consume one byte so we'll read one byte of the next packet
         fillBufferTo(&rbuffer, fd, pktlen);
-        rbuffer.consume(pktlen);
+        rbuffer.consume(pktlen - 1);
     }
 }
 
