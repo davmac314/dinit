@@ -45,7 +45,7 @@ void ServiceSet::startService(const char *name)
     using namespace std;
     ServiceRecord *record = loadServiceRecord(name);
     
-    record->start(false);
+    record->start();
 }
 
 void ServiceSet::stopService(const std::string & name) noexcept
@@ -242,6 +242,10 @@ void ServiceRecord::require() noexcept
             ServiceRecord * to = i->getTo();
             to->require();
         }
+        
+        if (service_state != ServiceState::STOPPED) {
+            service_set->service_active(this);
+        }
     }
 }
 
@@ -273,16 +277,9 @@ void ServiceRecord::release_dependencies() noexcept
     service_set->service_inactive(this);
 }
 
-void ServiceRecord::start(bool transitive) noexcept
+void ServiceRecord::start(bool activate) noexcept
 {
-    if ((service_state == ServiceState::STARTING || service_state == ServiceState::STARTED)
-            && desired_state == ServiceState::STOPPED) {
-        // This service was starting, or started, but was set to be stopped.
-        // Cancel the stop (and continue starting/running).
-        notifyListeners(ServiceEvent::STOPCANCELLED);
-    }
-
-    if (!transitive) {
+    if (activate) {
         if (!start_explicit) require();
         start_explicit = true;
     }
@@ -290,7 +287,6 @@ void ServiceRecord::start(bool transitive) noexcept
     if (desired_state == ServiceState::STARTED && service_state != ServiceState::STOPPED) return;
 
     desired_state = ServiceState::STARTED;
-    service_set->service_active(this);
     do_start();
 }
 
@@ -342,7 +338,7 @@ bool ServiceRecord::startCheckDependencies(bool start_deps) noexcept
         if ((*i)->service_state != ServiceState::STARTED) {
             if (start_deps) {
                 all_deps_started = false;
-                (*i)->start(true);
+                (*i)->start(false);
             }
             else {
                 return false;
@@ -354,7 +350,7 @@ bool ServiceRecord::startCheckDependencies(bool start_deps) noexcept
         ServiceRecord * to = i->getTo();
         if (start_deps) {
             if (to->service_state != ServiceState::STARTED) {
-                to->start(true);
+                to->start(false);
                 i->waiting_on = true;
                 all_deps_started = false;
             }
@@ -780,12 +776,12 @@ bool ServiceRecord::stopDependents() noexcept
     for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
         if (! (*i)->is_stopped()) {
             all_deps_stopped = false;
-            if (force_stop) {
-                (*i)->forceStop();
-            }
-            else {
-                (*i)->do_stop();
-            }
+        }
+        if (force_stop) {
+            (*i)->forceStop();
+        }
+        else {
+            (*i)->do_stop();
         }
     }
     
@@ -829,7 +825,7 @@ void ServiceRecord::allDepsStopped()
 
 void ServiceRecord::pinStart() noexcept
 {
-    start(false);
+    start(true);
     pinned_started = true;
 }
 

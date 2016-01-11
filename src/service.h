@@ -429,7 +429,7 @@ class ServiceRecord
     const char *getServiceName() const noexcept { return service_name.c_str(); }
     ServiceState getState() const noexcept { return service_state; }
     
-    void start(bool transitive = false) noexcept;  // start the service
+    void start(bool activate = true) noexcept;  // start the service
     void stop() noexcept;   // stop the service
     
     void forceStop() noexcept; // force-stop this service and all dependents
