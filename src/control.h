@@ -52,8 +52,8 @@ class ControlConn : private ServiceListener
     struct ev_loop *loop;
     ServiceSet *service_set;
     
-    bool bad_conn_close; // close when finished output?
-    bool oom_close;      // send final 'out of memory' indicator
+    bool bad_conn_close = false; // close when finished output?
+    bool oom_close = false;      // send final 'out of memory' indicator
 
     // The packet length before we need to re-check if the packet is complete.
     // processPacket() will not be called until the packet reaches this size.
