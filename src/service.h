@@ -178,7 +178,7 @@ class ServiceRecord
     bool doing_recovery : 1;    // if we are currently recovering a BGPROCESS (restarting process, while
                                 //   holding STARTED service state)
     bool start_explicit : 1;    // whether we are are explictly required to be started
-    int started_deps = 0;       // number of dependents that require this service to be started
+    int required_by = 0;        // number of dependents wanting this service to be started
 
     typedef std::list<ServiceRecord *> sr_list;
     typedef sr_list::iterator sr_iter;
@@ -255,6 +255,9 @@ class ServiceRecord
     
     void handle_exit_status() noexcept;
     
+    void do_start() noexcept;
+    void do_stop() noexcept;
+    
     // A dependency has reached STARTED state
     void dependencyStarted() noexcept;
     
@@ -295,7 +298,16 @@ class ServiceRecord
     // issue a stop to all dependents, return true if they are all already stopped
     bool stopDependents() noexcept;
     
-    void forceStop() noexcept; // force-stop this service and all dependents
+    void require() noexcept;
+    void release() noexcept;
+    void release_dependencies() noexcept;
+    
+    // Check if service is, fundamentally, stopped.
+    bool is_stopped() noexcept
+    {
+        return service_state == ServiceState::STOPPED
+            || (service_state == ServiceState::STARTING && waiting_for_deps);
+    }
     
     void notifyListeners(ServiceEvent event) noexcept
     {
@@ -312,11 +324,6 @@ class ServiceRecord
     
     // Release console (console must be currently held by this service)
     void releaseConsole() noexcept;
-    
-    bool get_start_flag(bool transitive)
-    {
-        return transitive ? started_deps != 0 : start_explicit;
-    }
     
     public:
 
@@ -424,8 +431,8 @@ class ServiceRecord
     
     void start(bool transitive = false) noexcept;  // start the service
     void stop() noexcept;   // stop the service
-    void do_start() noexcept;
-    void do_stop() noexcept;
+    
+    void forceStop() noexcept; // force-stop this service and all dependents
     
     void pinStart() noexcept;  // start the service and pin it
     void pinStop() noexcept;   // stop the service and pin it

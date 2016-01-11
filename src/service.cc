@@ -56,21 +56,6 @@ void ServiceSet::stopService(const std::string & name) noexcept
     }
 }
 
-void ServiceRecord::notify_dependencies_stopped() noexcept
-{
-    if (desired_state == ServiceState::STOPPED) {
-        // Stop any dependencies whose desired state is STOPPED:
-        for (auto i = depends_on.begin(); i != depends_on.end(); i++) {
-            (*i)->dependentStopped();
-        }
-        for (auto i = soft_deps.begin(); i != soft_deps.end(); i++) {
-            i->getTo()->dependentStopped();
-        }
-        
-        service_set->service_inactive(this);
-    }
-}
-
 // Called when a service has actually stopped.
 void ServiceRecord::stopped() noexcept
 {
@@ -85,6 +70,10 @@ void ServiceRecord::stopped() noexcept
     
     notifyListeners(ServiceEvent::STOPPED);
     
+    for (auto dependency : depends_on) {
+        dependency->dependentStopped();
+    }
+    
     if (desired_state == ServiceState::STARTED) {
         // Desired state is "started".
         do_start();
@@ -95,7 +84,7 @@ void ServiceRecord::stopped() noexcept
             socket_fd = -1;
         }
         
-        notify_dependencies_stopped();
+        release_dependencies();
     }
 }
 
@@ -241,6 +230,49 @@ void ServiceRecord::process_child_status(struct ev_loop *loop, ev_io * stat_io, 
     }
 }
 
+void ServiceRecord::require() noexcept
+{
+    if (required_by++ == 0) {
+        // Need to require all our dependencies
+        for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
+            (*i)->require();
+        }
+
+        for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
+            ServiceRecord * to = i->getTo();
+            to->require();
+        }
+    }
+}
+
+void ServiceRecord::release() noexcept
+{
+    if (--required_by == 0) {
+        desired_state = ServiceState::STOPPED;
+        // Can stop, and release dependencies once we're stopped.
+        if (service_state == ServiceState::STOPPED) {
+            release_dependencies();
+        }
+        else {
+            do_stop();
+        }
+    }
+}
+
+void ServiceRecord::release_dependencies() noexcept
+{
+    for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
+        (*i)->release();
+    }
+
+    for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
+        ServiceRecord * to = i->getTo();
+        to->release();
+    }
+    
+    service_set->service_inactive(this);
+}
+
 void ServiceRecord::start(bool transitive) noexcept
 {
     if ((service_state == ServiceState::STARTING || service_state == ServiceState::STARTED)
@@ -250,10 +282,8 @@ void ServiceRecord::start(bool transitive) noexcept
         notifyListeners(ServiceEvent::STOPCANCELLED);
     }
 
-    if (transitive) {
-        started_deps++;
-    }
-    else {
+    if (!transitive) {
+        if (!start_explicit) require();
         start_explicit = true;
     }
     
@@ -531,8 +561,6 @@ void ServiceRecord::failed_to_start(bool depfailed) noexcept
     service_state = ServiceState::STOPPED;
     notifyListeners(ServiceEvent::FAILEDSTART);
     
-    notify_dependencies_stopped();
-
     // Cancel start of dependents:
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
         if ((*i)->service_state == ServiceState::STARTING) {
@@ -670,31 +698,17 @@ void ServiceRecord::forceStop() noexcept
 {
     if (service_state != ServiceState::STOPPED) {
         force_stop = true;
-        for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
-            (*i)->forceStop();
-        }
-        
-        if (service_state == ServiceState::STARTED) {
-            do_stop();
-        }
-        
-        // We don't want to force stop soft dependencies, however.
+        do_stop();
     }
 }
 
 void ServiceRecord::dependentStopped() noexcept
 {
-    started_deps--;
-    if (service_state == ServiceState::STOPPING) {
+    if (service_state == ServiceState::STOPPING && waiting_for_deps) {
         // Check the other dependents before we stop.
         if (stopCheckDependents()) {
             allDepsStopped();
         }
-    }
-    else if (started_deps == 0 && !start_explicit) {
-        desired_state = ServiceState::STOPPED;
-        service_state = ServiceState::STOPPING;
-        allDepsStopped();
     }
 }
 
@@ -702,26 +716,10 @@ void ServiceRecord::stop() noexcept
 {
     if (desired_state == ServiceState::STOPPED && service_state != ServiceState::STARTED) return;
     
-    start_explicit = false;
-    if (started_deps != 0) {
-        return;
+    if (start_explicit) {
+        start_explicit = false;
+        release();
     }
-
-    if ((service_state == ServiceState::STOPPING || service_state == ServiceState::STOPPED)
-            && desired_state == ServiceState::STARTED) {
-        // The service *was* stopped/stopping, but it was going to restart.
-        // Now, we'll cancel the restart.
-        notifyListeners(ServiceEvent::STARTCANCELLED);
-    }
-    
-    desired_state = ServiceState::STOPPED;
-
-    if (service_state == ServiceState::STOPPED) {
-        notify_dependencies_stopped();
-        return;
-    }
-    
-    do_stop();
 }
 
 void ServiceRecord::do_stop() noexcept
@@ -758,7 +756,7 @@ void ServiceRecord::do_stop() noexcept
     waiting_for_deps = true;
     
     // If we get here, we are in STARTED state; stop all dependents.
-    if (stopCheckDependents()) {
+    if (stopDependents()) {
         allDepsStopped();
     }
 }
@@ -767,7 +765,7 @@ bool ServiceRecord::stopCheckDependents() noexcept
 {
     bool all_deps_stopped = true;
     for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
-        if ((*i)->service_state != ServiceState::STOPPED) {
+        if (! (*i)->is_stopped()) {
             all_deps_stopped = false;
             break;
         }
@@ -780,9 +778,14 @@ bool ServiceRecord::stopDependents() noexcept
 {
     bool all_deps_stopped = true;
     for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
-        if ((*i)->service_state != ServiceState::STOPPED) {
+        if (! (*i)->is_stopped()) {
             all_deps_stopped = false;
-            (*i)->stop();
+            if (force_stop) {
+                (*i)->forceStop();
+            }
+            else {
+                (*i)->do_stop();
+            }
         }
     }
     
