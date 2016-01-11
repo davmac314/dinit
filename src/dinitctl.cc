@@ -87,6 +87,7 @@ static int write_all(int fd, const void *buf, size_t count)
     return w;
 }
 
+// Entry point.
 int main(int argc, char **argv)
 {
     using namespace std;
@@ -227,21 +228,20 @@ int main(int argc, char **argv)
     }
     
     // Now we expect a reply:
-    // NOTE: should skip over information packets.
     
     try {
         CPBuffer rbuffer;
         wait_for_reply(rbuffer, socknum);
         
-        ServiceState state;
-        ServiceState target_state;
+        //ServiceState state;
+        //ServiceState target_state;
         handle_t handle;
         
         if (rbuffer[0] == DINIT_RP_SERVICERECORD) {
             fillBufferTo(&rbuffer, socknum, 2 + sizeof(handle));
             rbuffer.extract((char *) &handle, 2, sizeof(handle));
-            state = static_cast<ServiceState>(rbuffer[1]);
-            target_state = static_cast<ServiceState>(rbuffer[2 + sizeof(handle)]);
+            //state = static_cast<ServiceState>(rbuffer[1]);
+            //target_state = static_cast<ServiceState>(rbuffer[2 + sizeof(handle)]);
             rbuffer.consume(3 + sizeof(handle));
         }
         else if (rbuffer[0] == DINIT_RP_NOSERVICE) {
@@ -253,11 +253,14 @@ int main(int argc, char **argv)
             return 1;
         }
         
-        ServiceState wanted_state = do_stop ? ServiceState::STOPPED : ServiceState::STARTED;
+        // ServiceState wanted_state = do_stop ? ServiceState::STOPPED : ServiceState::STARTED;
         int command = do_stop ? DINIT_CP_STOPSERVICE : DINIT_CP_STARTSERVICE;
         
         // Need to issue STOPSERVICE/STARTSERVICE
-        if (target_state != wanted_state) {
+        // We'll do this regardless of the current service state / target state, since issuing
+        // start/stop also sets or clears the "explicitly started" flag on the service.
+        //if (target_state != wanted_state) {
+        {
             buf = new char[2 + sizeof(handle)];
             buf[0] = command;
             buf[1] = 0;  // don't pin
@@ -271,6 +274,12 @@ int main(int argc, char **argv)
             }
             
             wait_for_reply(rbuffer, socknum);
+            if (rbuffer[0] == DINIT_RP_ALREADYSS) {
+                if (verbose) {
+                    cout << "Service already " << describeState(do_stop) << "." << endl;
+                }
+                return 0; // success!
+            }
             if (rbuffer[0] != DINIT_RP_ACK) {
                 cerr << "Protocol error." << endl;
                 return 1;
@@ -278,14 +287,19 @@ int main(int argc, char **argv)
             rbuffer.consume(1);
         }
         
+        /*
         if (state == wanted_state) {
             if (verbose) {
                 cout << "Service already " << describeState(do_stop) << "." << endl;
             }
             return 0; // success!
         }
+        */
         
         if (! wait_for_service) {
+            if (verbose) {
+                cout << "Issued " << describeVerb(do_stop) << " command successfully." << endl;
+            }
             return 0;
         }
         
