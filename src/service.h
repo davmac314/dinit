@@ -325,6 +325,8 @@ class ServiceRecord
     // Release console (console must be currently held by this service)
     void releaseConsole() noexcept;
     
+    bool do_auto_restart() noexcept;
+    
     public:
 
     ServiceRecord(ServiceSet *set, string name)

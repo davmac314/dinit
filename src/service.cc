@@ -84,7 +84,10 @@ void ServiceRecord::stopped() noexcept
             socket_fd = -1;
         }
         
-        release_dependencies();
+        if (required_by == 0) {
+            // Service is now completely inactive.
+            release_dependencies();
+        }
     }
 }
 
@@ -110,6 +113,14 @@ void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, in
     sr->handle_exit_status();
 }
 
+bool ServiceRecord::do_auto_restart() noexcept
+{
+    if (auto_restart) {
+        return service_set->get_auto_restart();
+    }
+    return false;
+}
+
 void ServiceRecord::handle_exit_status() noexcept
 {
     if (exit_status != 0 && service_state != ServiceState::STOPPING) {
@@ -133,6 +144,7 @@ void ServiceRecord::handle_exit_status() noexcept
         }
         
         if (need_stop) {
+            if (! do_auto_restart()) desired_state = ServiceState::STOPPED;
             do_stop();
         }
         
@@ -163,6 +175,7 @@ void ServiceRecord::handle_exit_status() noexcept
             return;
         }
         else {
+            if (! do_auto_restart()) desired_state = ServiceState::STOPPED;
             forceStop();
         }
     }
@@ -243,7 +256,8 @@ void ServiceRecord::require() noexcept
             to->require();
         }
         
-        if (service_state != ServiceState::STOPPED) {
+        if (service_state == ServiceState::STOPPED) {
+            // (In any other state, the service is already considered active.)
             service_set->service_active(this);
         }
     }
@@ -711,6 +725,8 @@ void ServiceRecord::dependentStopped() noexcept
 void ServiceRecord::stop() noexcept
 {
     if (desired_state == ServiceState::STOPPED && service_state != ServiceState::STARTED) return;
+    
+    desired_state = ServiceState::STOPPED;
     
     if (start_explicit) {
         start_explicit = false;
