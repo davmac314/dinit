@@ -722,15 +722,16 @@ void ServiceRecord::dependentStopped() noexcept
     }
 }
 
-void ServiceRecord::stop() noexcept
+void ServiceRecord::stop(bool bring_down) noexcept
 {
-    if (desired_state == ServiceState::STOPPED && service_state != ServiceState::STARTED) return;
-    
-    desired_state = ServiceState::STOPPED;
-    
     if (start_explicit) {
         start_explicit = false;
         release();
+    }
+    
+    if (bring_down) {
+        desired_state = ServiceState::STOPPED;
+        do_stop();
     }
 }
 

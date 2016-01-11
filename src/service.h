@@ -432,7 +432,7 @@ class ServiceRecord
     ServiceState getState() const noexcept { return service_state; }
     
     void start(bool activate = true) noexcept;  // start the service
-    void stop() noexcept;   // stop the service
+    void stop(bool bring_down = true) noexcept;   // stop the service
     
     void forceStop() noexcept; // force-stop this service and all dependents
     
