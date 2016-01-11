@@ -14,9 +14,11 @@ constexpr static int DINIT_CP_LOADSERVICE = 2;
 // Start or stop a service:
 constexpr static int DINIT_CP_STARTSERVICE = 3;
 constexpr static int DINIT_CP_STOPSERVICE  = 4;
+constexpr static int DINIT_CP_WAKESERVICE = 5;
+constexpr static int DINIT_CP_RELEASESERVICE = 6;
 
 // Shutdown:
-constexpr static int DINIT_CP_SHUTDOWN = 5;
+constexpr static int DINIT_CP_SHUTDOWN = 10;
  // followed by 1-byte shutdown type
 
 
@@ -49,6 +51,9 @@ constexpr static int DINIT_RP_SERVICERECORD = 59;
 
 // Couldn't find/load service
 constexpr static int DINIT_RP_NOSERVICE = 60;
+
+// Service is already started/stopped
+constexpr static int DINIT_RP_ALREADYSS = 61;
 
 
 

@@ -22,7 +22,8 @@ void ControlConn::processPacket()
         processFindLoad(pktType);
         return;
     }
-    if (pktType == DINIT_CP_STARTSERVICE || pktType == DINIT_CP_STOPSERVICE) {
+    if (pktType == DINIT_CP_STARTSERVICE || pktType == DINIT_CP_STOPSERVICE
+            || pktType == DINIT_CP_WAKESERVICE || pktType == DINIT_CP_RELEASESERVICE) {
         processStartStop(pktType);
         return;
     }
@@ -154,24 +155,40 @@ void ControlConn::processStartStop(int pktType)
         return;
     }
     else {
-        if (pktType == DINIT_CP_STARTSERVICE) {
+        bool already_there = false;
+        switch (pktType) {
+        case DINIT_CP_STARTSERVICE:
             if (do_pin) {
                 service->pinStart();
             }
             else {
                 service->start();
             }
-        }
-        else {
+            already_there = service->getState() == ServiceState::STARTED;
+            break;
+        case DINIT_CP_STOPSERVICE:
             if (do_pin) {
                 service->pinStop();
             }
             else {
                 service->stop();
             }
+            already_there = service->getState() == ServiceState::STOPPED;
+            break;
+        case DINIT_CP_WAKESERVICE:
+            // re-start a stopped service.
+            // TODO pinning
+            service->start(false);
+            already_there = service->getState() == ServiceState::STARTED;
+            break;
+        default: /* DINIT_CP_RELEASESERVICE */
+            // remove explicit start from a service, without necessarily stopping it.
+            // TODO.
+            break;
         }
         
-        char ack_buf[] = { DINIT_RP_ACK };
+        char ack_buf[] = { (char)(already_there ? DINIT_RP_ALREADYSS : DINIT_RP_ACK) };
+        
         if (! queuePacket(ack_buf, 1)) return;
     }
     
