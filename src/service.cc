@@ -300,6 +300,10 @@ void ServiceRecord::start(bool activate) noexcept
     }
     
     if (desired_state == ServiceState::STARTED && service_state != ServiceState::STOPPED) return;
+    
+    if (required_by == 0) {
+        service_set->service_active(this);
+    }
 
     desired_state = ServiceState::STARTED;
     do_start();
