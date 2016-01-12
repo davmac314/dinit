@@ -75,6 +75,30 @@ describe a set of dependencies. An internal service has no corresponding
 process.
 
 
+Service Hiearchy and states
+=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+Services can depend on other services for operation, and so form a
+dependency hierarchy. Starting a service which depends on another
+causes that other service to start (and the first service waits until
+the latter has started before its process is launched and it is itself
+considered started).
+
+Services are considered _active_ when they are not stopped. Services
+can also be explicitly marked as active (this normally happens when you
+explicitly start a service). Finally, a service with an active dependent
+is also considered active.
+
+If a service stops and becomes inactive (i.e. it is not explicitly marked
+active and has no active dependents) then any services it depends on will
+also be marked inactive and stopped unless they have other active
+dependents (or are explicitly active).
+
+What this means is that, in general, starting an (inactive, stopped)
+service and then stopping it will return the system to its prior state -
+no dependencies which were started automatically will be left running.
+
+
 Service Description files
 =-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -116,6 +140,7 @@ stop-command = (external script or executable, and arguments)
 restart = yes | true | no | false
    Specifies whether the service should automatically restart if it becomes
    stopped (for any reason, including being explicitly requested to stop).
+   Only active services will restart automatically.
 
 smooth-recovery = yes | true | no | false
    For process services only. Specifies that, should the process die, it
