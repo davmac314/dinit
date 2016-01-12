@@ -545,7 +545,7 @@ class ServiceSet
         restart_enabled = false;
         shutdown_type = type;
         for (std::list<ServiceRecord *>::iterator i = records.begin(); i != records.end(); ++i) {
-            (*i)->stop();
+            (*i)->stop(false);
             (*i)->unpin();
         }
     }

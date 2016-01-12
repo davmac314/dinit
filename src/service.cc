@@ -74,7 +74,7 @@ void ServiceRecord::stopped() noexcept
         dependency->dependentStopped();
     }
     
-    if (desired_state == ServiceState::STARTED) {
+    if (desired_state == ServiceState::STARTED && service_set->get_auto_restart()) {
         // Desired state is "started".
         do_start();
     }
@@ -144,7 +144,8 @@ void ServiceRecord::handle_exit_status() noexcept
         }
         
         if (need_stop) {
-            if (! do_auto_restart()) desired_state = ServiceState::STOPPED;
+            // Failed startup: no auto-restart.
+            desired_state = ServiceState::STOPPED;
             do_stop();
         }
         
