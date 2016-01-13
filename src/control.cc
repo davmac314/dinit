@@ -158,26 +158,18 @@ void ControlConn::processStartStop(int pktType)
         bool already_there = false;
         switch (pktType) {
         case DINIT_CP_STARTSERVICE:
-            if (do_pin) {
-                service->pinStart();
-            }
-            else {
-                service->start();
-            }
+            if (do_pin) service->pinStart();
+            service->start();
             already_there = service->getState() == ServiceState::STARTED;
             break;
         case DINIT_CP_STOPSERVICE:
-            if (do_pin) {
-                service->pinStop();
-            }
-            else {
-                service->stop();
-            }
+            if (do_pin) service->pinStop();
+            service->stop();
             already_there = service->getState() == ServiceState::STOPPED;
             break;
         case DINIT_CP_WAKESERVICE:
             // re-start a stopped service.
-            // TODO pinning
+            if (do_pin) service->pinStart();
             service->start(false);
             already_there = service->getState() == ServiceState::STARTED;
             break;

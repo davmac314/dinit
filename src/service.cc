@@ -845,18 +845,6 @@ void ServiceRecord::allDepsStopped()
     }
 }
 
-void ServiceRecord::pinStart() noexcept
-{
-    start(true);
-    pinned_started = true;
-}
-
-void ServiceRecord::pinStop() noexcept
-{
-    stop();
-    pinned_stopped = true;
-}
-
 void ServiceRecord::unpin() noexcept
 {
     if (pinned_started) {

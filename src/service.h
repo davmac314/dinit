@@ -436,9 +436,22 @@ class ServiceRecord
     
     void forceStop() noexcept; // force-stop this service and all dependents
     
-    void pinStart() noexcept;  // start the service and pin it
-    void pinStop() noexcept;   // stop the service and pin it
-    void unpin() noexcept;     // unpin the service
+    // Pin the service in "started" state (when it reaches the state)
+    void pinStart() noexcept
+    {
+        pinned_started = true;
+    }
+    
+    // Pin the service in "stopped" state (when it reaches the state)
+    void pinStop() noexcept
+    {
+        pinned_stopped = true;
+    }
+    
+    // Remove both "started" and "stopped" pins. If the service is currently pinned
+    // in either state but would naturally be in the opposite state, it will immediately
+    // commence starting/stopping.
+    void unpin() noexcept;
     
     bool isDummy() noexcept
     {
