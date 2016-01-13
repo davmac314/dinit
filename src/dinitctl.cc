@@ -102,6 +102,7 @@ int main(int argc, char **argv)
     bool verbose = true;
     bool sys_dinit = false;  // communicate with system daemon
     bool wait_for_service = true;
+    bool do_pin = false;
     
     int command = 0;
     
@@ -122,6 +123,9 @@ int main(int argc, char **argv)
             }
             else if (strcmp(argv[i], "--system") == 0 || strcmp(argv[i], "-s") == 0) {
                 sys_dinit = true;
+            }
+            else if (strcmp(argv[i], "--pin") == 0) {
+                do_pin = true;
             }
             else {
                 cerr << "Unrecognized command-line parameter: " << argv[i] << endl;
@@ -153,12 +157,24 @@ int main(int argc, char **argv)
     }
 
     if (show_help) {
-        cout << "dinit-start:   start a dinit service" << endl;
+        cout << "dinitctl:   control Dinit services" << endl;
+        
+        cout << "\nUsage:" << endl;
+        cout << "    dinitctl [options] start [options] <service-name> : start and activate service" << endl;
+        cout << "    dinitctl [options] stop [options] <service-name>  : stop service and cancel explicit activation" << endl;
+        // TODO:
+        // cout << "    dinitctl [options] wake <service-name>  : start but don't activate service" << endl;
+        
+        cout << "\nNote: An activated service keeps its dependencies running when possible." << endl;
+        
+        cout << "\nGeneral options:" << endl;
+        cout << "  -s, --system     : control system daemon instead of user daemon" << endl;
+        cout << "  --quiet          : suppress output (except errors)" << endl;
+        
+        cout << "\nCommand options:" << endl;
         cout << "  --help           : show this help" << endl;
         cout << "  --no-wait        : don't wait for service startup/shutdown to complete" << endl;
-        cout << "  --quiet          : suppress output (except errors)" << endl;
-        cout << "  -s, --system     : control system daemon instead of user daemon" << endl;
-        cout << "  <service-name>   : start the named service" << endl;
+        cout << "  --pin            : pin the service in the requested (started/stopped) state" << endl;
         return 1;
     }
     
@@ -263,7 +279,7 @@ int main(int argc, char **argv)
         {
             buf = new char[2 + sizeof(handle)];
             buf[0] = command;
-            buf[1] = 0;  // don't pin
+            buf[1] = do_pin ? 1 : 0;
             memcpy(buf + 2, &handle, sizeof(handle));
             r = write_all(socknum, buf, 2 + sizeof(handle));
             delete buf;
