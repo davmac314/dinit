@@ -27,7 +27,11 @@ void ControlConn::processPacket()
         processStartStop(pktType);
         return;
     }
-    else if (pktType == DINIT_CP_SHUTDOWN) {
+    if (pktType == DINIT_CP_UNPINSERVICE) {
+        processUnpinService();
+        return;
+    }
+    if (pktType == DINIT_CP_SHUTDOWN) {
         // Shutdown/reboot
         if (rbuf.get_length() < 2) {
             chklen = 2;
@@ -181,6 +185,44 @@ void ControlConn::processStartStop(int pktType)
         
         char ack_buf[] = { (char)(already_there ? DINIT_RP_ALREADYSS : DINIT_RP_ACK) };
         
+        if (! queuePacket(ack_buf, 1)) return;
+    }
+    
+    // Clear the packet from the buffer
+    rbuf.consume(pkt_size);
+    chklen = 0;
+    return;
+}
+
+void ControlConn::processUnpinService()
+{
+    using std::string;
+    
+    constexpr int pkt_size = 1 + sizeof(handle_t);
+    
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return;
+    }
+    
+    // 1 byte: packet type
+    // 4 bytes: service handle
+    
+    handle_t handle;
+    rbuf.extract((char *) &handle, 1, sizeof(handle));
+    
+    ServiceRecord *service = findServiceForKey(handle);
+    if (service == nullptr) {
+        // Service handle is bad
+        char badreqRep[] = { DINIT_RP_BADREQ };
+        if (! queuePacket(badreqRep, 1)) return;
+        bad_conn_close = true;
+        ev_io_set(&iob, iob.fd, EV_WRITE);
+        return;
+    }
+    else {
+        service->unpin();
+        char ack_buf[] = { (char) DINIT_RP_ACK };
         if (! queuePacket(ack_buf, 1)) return;
     }
     

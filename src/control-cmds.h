@@ -17,6 +17,8 @@ constexpr static int DINIT_CP_STOPSERVICE  = 4;
 constexpr static int DINIT_CP_WAKESERVICE = 5;
 constexpr static int DINIT_CP_RELEASESERVICE = 6;
 
+constexpr static int DINIT_CP_UNPINSERVICE = 7;
+
 // Shutdown:
 constexpr static int DINIT_CP_SHUTDOWN = 10;
  // followed by 1-byte shutdown type

@@ -95,6 +95,9 @@ class ControlConn : private ServiceListener
     // Process a FINDSERVICE/LOADSERVICE packet. May throw std::bad_alloc.
     void processFindLoad(int pktType);
 
+    // Process an UNPINSERVICE packet. May throw std::bad_alloc.
+    void processUnpinService();
+
     // Notify that data is ready to be read from the socket. Returns true in cases where the
     // connection was deleted with potentially pending outgoing packets.
     bool dataReady() noexcept;

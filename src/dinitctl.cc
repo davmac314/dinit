@@ -87,6 +87,9 @@ static int write_all(int fd, const void *buf, size_t count)
     return w;
 }
 
+static int unpinService(int socknum, const char *service_name);
+
+
 // Entry point.
 int main(int argc, char **argv)
 {
@@ -108,6 +111,7 @@ int main(int argc, char **argv)
     
     constexpr int START_SERVICE = 1;
     constexpr int STOP_SERVICE = 2;
+    constexpr int UNPIN_SERVICE = 3;
         
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -138,6 +142,9 @@ int main(int argc, char **argv)
             }
             else if (strcmp(argv[i], "stop") == 0) {
                 command = STOP_SERVICE;
+            }
+            else if (strcmp(argv[i], "unpin") == 0) {
+                command = UNPIN_SERVICE;
             }
             else {
                 show_help = true;
@@ -177,8 +184,6 @@ int main(int argc, char **argv)
         cout << "  --pin            : pin the service in the requested (started/stopped) state" << endl;
         return 1;
     }
-    
-    do_stop = (command == STOP_SERVICE);
     
     control_socket_path = "/dev/dinitctl";
     
@@ -226,6 +231,12 @@ int main(int argc, char **argv)
     }
     
     // TODO should start by querying protocol version
+    
+    if (command == UNPIN_SERVICE) {
+        return unpinService(socknum, service_name);
+    }
+
+    do_stop = (command == STOP_SERVICE);
     
     // Build buffer;
     uint16_t sname_len = strlen(service_name);
@@ -391,5 +402,86 @@ int main(int argc, char **argv)
         return 1;
     }
     
+    return 0;
+}
+
+// TODO refactor shared code with above
+static int unpinService(int socknum, const char *service_name)
+{
+    using namespace std;
+    
+    // Build buffer;
+    uint16_t sname_len = strlen(service_name);
+    int bufsize = 3 + sname_len;
+    char * buf = new char[bufsize];
+    
+    buf[0] = DINIT_CP_LOADSERVICE;
+    memcpy(buf + 1, &sname_len, 2);
+    memcpy(buf + 3, service_name, sname_len);
+    
+    int r = write_all(socknum, buf, bufsize);
+    delete [] buf;
+    if (r == -1) {
+        perror("write");
+        return 1;
+    }
+    
+    // Now we expect a reply:
+    
+    try {
+        CPBuffer rbuffer;
+        wait_for_reply(rbuffer, socknum);
+        
+        //ServiceState state;
+        //ServiceState target_state;
+        handle_t handle;
+        
+        if (rbuffer[0] == DINIT_RP_SERVICERECORD) {
+            fillBufferTo(&rbuffer, socknum, 2 + sizeof(handle));
+            rbuffer.extract((char *) &handle, 2, sizeof(handle));
+            //state = static_cast<ServiceState>(rbuffer[1]);
+            //target_state = static_cast<ServiceState>(rbuffer[2 + sizeof(handle)]);
+            rbuffer.consume(3 + sizeof(handle));
+        }
+        else if (rbuffer[0] == DINIT_RP_NOSERVICE) {
+            cerr << "Failed to find/load service." << endl;
+            return 1;
+        }
+        else {
+            cerr << "Protocol error." << endl;
+            return 1;
+        }
+        
+        // Issue UNPIN command.
+        {
+            buf = new char[1 + sizeof(handle)];
+            buf[0] = DINIT_CP_UNPINSERVICE;
+            memcpy(buf + 1, &handle, sizeof(handle));
+            r = write_all(socknum, buf, 2 + sizeof(handle));
+            delete buf;
+            
+            if (r == -1) {
+                perror("write");
+                return 1;
+            }
+            
+            wait_for_reply(rbuffer, socknum);
+            if (rbuffer[0] != DINIT_RP_ACK) {
+                cerr << "Protocol error." << endl;
+                return 1;
+            }
+            rbuffer.consume(1);
+        }
+    }
+    catch (ReadCPException &exc) {
+        cerr << "control socket read failure or protocol error" << endl;
+        return 1;
+    }
+    catch (std::bad_alloc &exc) {
+        cerr << "out of memory" << endl;
+        return 1;
+    }
+    
+    cout << "Service unpinned." << endl;
     return 0;
 }
