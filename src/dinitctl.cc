@@ -293,7 +293,7 @@ int main(int argc, char **argv)
             buf[1] = do_pin ? 1 : 0;
             memcpy(buf + 2, &handle, sizeof(handle));
             r = write_all(socknum, buf, 2 + sizeof(handle));
-            delete buf;
+            delete [] buf;
             
             if (r == -1) {
                 perror("write");
@@ -458,7 +458,7 @@ static int unpinService(int socknum, const char *service_name)
             buf[0] = DINIT_CP_UNPINSERVICE;
             memcpy(buf + 1, &handle, sizeof(handle));
             r = write_all(socknum, buf, 2 + sizeof(handle));
-            delete buf;
+            delete [] buf;
             
             if (r == -1) {
                 perror("write");
