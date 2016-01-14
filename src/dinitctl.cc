@@ -4,6 +4,7 @@
 #include <string>
 #include <iostream>
 #include <system_error>
+#include <memory>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -241,14 +242,19 @@ int main(int argc, char **argv)
     // Build buffer;
     uint16_t sname_len = strlen(service_name);
     int bufsize = 3 + sname_len;
-    char * buf = new char[bufsize];
+    int r;
     
-    buf[0] = DINIT_CP_LOADSERVICE;
-    memcpy(buf + 1, &sname_len, 2);
-    memcpy(buf + 3, service_name, sname_len);
+    {
+        unique_ptr<char[]> ubuf(new char[bufsize]);
+        auto *buf = ubuf.get();
+        
+        buf[0] = DINIT_CP_LOADSERVICE;
+        memcpy(buf + 1, &sname_len, 2);
+        memcpy(buf + 3, service_name, sname_len);
+        
+        r = write_all(socknum, buf, bufsize);
+    }
     
-    int r = write_all(socknum, buf, bufsize);
-    delete [] buf;
     if (r == -1) {
         perror("write");
         return 1;
@@ -288,12 +294,15 @@ int main(int argc, char **argv)
         // start/stop also sets or clears the "explicitly started" flag on the service.
         //if (target_state != wanted_state) {
         {
-            buf = new char[2 + sizeof(handle)];
-            buf[0] = command;
-            buf[1] = do_pin ? 1 : 0;
-            memcpy(buf + 2, &handle, sizeof(handle));
-            r = write_all(socknum, buf, 2 + sizeof(handle));
-            delete [] buf;
+            {
+                auto buf = new char[2 + sizeof(handle)];
+                unique_ptr<char[]> ubuf(buf);
+                
+                buf[0] = command;
+                buf[1] = do_pin ? 1 : 0;
+                memcpy(buf + 2, &handle, sizeof(handle));
+                r = write_all(socknum, buf, 2 + sizeof(handle));
+            }
             
             if (r == -1) {
                 perror("write");
@@ -413,14 +422,19 @@ static int unpinService(int socknum, const char *service_name)
     // Build buffer;
     uint16_t sname_len = strlen(service_name);
     int bufsize = 3 + sname_len;
-    char * buf = new char[bufsize];
+    int r;
     
-    buf[0] = DINIT_CP_LOADSERVICE;
-    memcpy(buf + 1, &sname_len, 2);
-    memcpy(buf + 3, service_name, sname_len);
+    {
+        char * buf = new char[bufsize];
+        unique_ptr<char[]> ubuf(buf);
+        
+        buf[0] = DINIT_CP_LOADSERVICE;
+        memcpy(buf + 1, &sname_len, 2);
+        memcpy(buf + 3, service_name, sname_len);
+        
+        r = write_all(socknum, buf, bufsize);
+    }
     
-    int r = write_all(socknum, buf, bufsize);
-    delete [] buf;
     if (r == -1) {
         perror("write");
         return 1;
@@ -454,11 +468,13 @@ static int unpinService(int socknum, const char *service_name)
         
         // Issue UNPIN command.
         {
-            buf = new char[1 + sizeof(handle)];
-            buf[0] = DINIT_CP_UNPINSERVICE;
-            memcpy(buf + 1, &handle, sizeof(handle));
-            r = write_all(socknum, buf, 2 + sizeof(handle));
-            delete [] buf;
+            {
+                char *buf = new char[1 + sizeof(handle)];
+                unique_ptr<char[]> ubuf(buf);
+                buf[0] = DINIT_CP_UNPINSERVICE;
+                memcpy(buf + 1, &handle, sizeof(handle));
+                r = write_all(socknum, buf, 2 + sizeof(handle));
+            }
             
             if (r == -1) {
                 perror("write");
