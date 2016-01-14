@@ -90,7 +90,7 @@ void ControlConn::processFindLoad(int pktType)
     
     ServiceRecord * record = nullptr;
     
-    string serviceName = std::move(rbuf.extract_string(3, svcSize));
+    string serviceName = rbuf.extract_string(3, svcSize);
     
     if (pktType == DINIT_CP_LOADSERVICE) {
         // LOADSERVICE
