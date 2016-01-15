@@ -28,5 +28,5 @@ $(objects): %.o: %.cc service.h dinit-log.h control.h control-cmds.h cpbuffer.h
 #install.man:
 
 clean:
-	rm *.o
-	rm dinit
+	rm -f *.o
+	rm -f dinit dinitctl shutdown
