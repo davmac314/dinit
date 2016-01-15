@@ -1,3 +1,6 @@
+* When a PROCESS service process dies, and smooth_recovery is false, probably
+  need to force-stop dependents even if the process itself was stopped
+  deliberately.
 * Complete control socket handling and protocol
   - support for pinned-start and pinned-stop
   - support for listing all services
@@ -16,11 +19,6 @@ For version 1.0:
   (eg there's no need to mount filesystems twice; there might be various other
    system initialisations that can't or shouldn't really be "undone" and so do
    not need to be re-done).
-* Add command line arg to start in "PID 1" mode (even if PID != 1).
-  Basically, allow running as a system service monitor, without
-  requiring that dinit runs as PID 1.
-* if PID != 1, choose a more sensible service definition directory
-  (something like $HOME/dinit.d)
 * Documentation including sample service definitions
 * Better error handling, logging of errors (largely done, still some patches
   of code where it may be missing).
@@ -43,7 +41,8 @@ For later:
 * Investigate using cn_proc netlink connector (cn_proc.h) to receive process
   termination events even when running with PID != 1 (Linux only).
   Also, there is the possibility of having a small, simple PID-1 init which
-  sends terminated process IDs over a pipe to Dinit.
+  sends terminated process IDs over a pipe to Dinit. Finally, it may be possible
+  to run dinit (and subprocesses) in a new PID namespace (again linux-only).
 * Allow logging tasks to memory (growing or circular buffer) and later
   switching to disk logging (allows for filesystem mounted readonly on boot)
 * Rate control on process respawn

@@ -78,8 +78,29 @@ static bool am_system_init = false; // true if we are the system init process
 static bool control_socket_open = false;
 int active_control_conns = 0;
 
+// Control socket path. We maintain a string (control_socket_str) in case we need
+// to allocate storage, but control_socket_path is the authoritative value.
 static const char *control_socket_path = "/dev/dinitctl";
 static std::string control_socket_str;
+
+static const char *user_home_path = nullptr;
+
+
+// Get user home (and set user_home_path). (The return may become invalid after
+// changing the evironment (HOME variable) or using the getpwuid() function).
+const char * get_user_home()
+{
+    if (user_home_path == nullptr) {
+        user_home_path = getenv("HOME");
+        if (user_home_path == nullptr) {
+            struct passwd * pwuid_p = getpwuid(getuid());
+            if (pwuid_p != nullptr) {
+                user_home_path = pwuid_p->pw_dir;
+            }
+        }
+    }
+    return user_home_path;
+}
 
 
 int main(int argc, char **argv)
@@ -87,52 +108,12 @@ int main(int argc, char **argv)
     using namespace std;
     
     am_system_init = (getpid() == 1);
-    
-    if (am_system_init) {
-        // setup STDIN, STDOUT, STDERR so that we can use them
-        int onefd = open("/dev/console", O_RDONLY, 0);
-        dup2(onefd, 0);
-        int twofd = open("/dev/console", O_RDWR, 0);
-        dup2(twofd, 1);
-        dup2(twofd, 2);
-    }
-    
-    /* Set up signal handlers etc */
-    /* SIG_CHILD is ignored by default: good */
-    /* sigemptyset(&sigwait_set); */
-    /* sigaddset(&sigwait_set, SIGCHLD); */
-    /* sigaddset(&sigwait_set, SIGINT); */
-    /* sigaddset(&sigwait_set, SIGTERM); */
-    /* sigprocmask(SIG_BLOCK, &sigwait_set, NULL); */
-    
-    // Terminal access control signals - we block these so that dinit can't be
-    // suspended if it writes to the terminal after some other process has claimed
-    // ownership of it.
-    signal(SIGTSTP, SIG_IGN);
-    signal(SIGTTIN, SIG_IGN);
-    signal(SIGTTOU, SIG_IGN);
-    
-    /* list of services to start */
+    const char * service_dir = nullptr;
+    string service_dir_str; // to hold storage for above if necessary
+    bool control_socket_path_set = false;
+
+    // list of services to start
     list<const char *> services_to_start;
-    
-    if (! am_system_init) {
-        char * userhome = getenv("HOME");
-        if (userhome == nullptr) {
-            struct passwd * pwuid_p = getpwuid(getuid());
-            if (pwuid_p != nullptr) {
-                userhome = pwuid_p->pw_dir;
-            }
-        }
-        
-        if (userhome != nullptr) {
-            control_socket_str = userhome;
-            control_socket_str += "/.dinitctl";
-            control_socket_path = control_socket_str.c_str();
-        }
-    }
-    
-    /* service directory name */
-    const char * service_dir = "/etc/dinit.d";
     
     // Arguments, if given, specify a list of services to start.
     // If we are running as init (PID=1), the kernel gives us any command line
@@ -146,8 +127,7 @@ int main(int argc, char **argv)
             // An option...
             if (strcmp(argv[i], "--services-dir") == 0 ||
                     strcmp(argv[i], "-d") == 0) {
-                ++i;
-                if (i < argc) {
+                if (++i < argc) {
                     service_dir = argv[i];
                 }
                 else {
@@ -155,11 +135,31 @@ int main(int argc, char **argv)
                     return 1;
                 }
             }
+            else if (strcmp(argv[i], "--system") == 0 ||
+                    strcmp(argv[i], "-s") == 0) {
+                am_system_init = true;
+            }
+            else if (strcmp(argv[i], "--socket-path") == 0 ||
+                    strcmp(argv[i], "-p") == 0) {
+                if (++i < argc) {
+                    control_socket_path = argv[i];
+                    control_socket_path_set = true;
+                }
+                else {
+                    cerr << "dinit: '--socket-path' (-p) requires an argument" << endl;
+                    return 1;
+                }
+            }
             else if (strcmp(argv[i], "--help") == 0) {
                 cout << "dinit, an init with dependency management" << endl;
-                cout << " --help                         : display help" << endl;
-                cout << " --services-dir <dir>, -d <dir> : set base directory for service description files (-d <dir>)" << endl;
-                cout << " <service-name>                 : start service with name <service-name>" << endl;
+                cout << " --help                       display help" << endl;
+                cout << " --services-dir <dir>, -d <dir>" << endl;
+                cout << "                              set base directory for service description" << endl;
+                cout << "                              files (-d <dir>)" << endl;
+                cout << " --system, -s                 run as the system init process" << endl;
+                cout << " --socket-path <path>, -p <path>" << endl;
+                cout << "                              path to control socket" << endl;
+                cout << " <service-name>               start service with name <service-name>" << endl;
                 return 0;
             }
             else {
@@ -177,6 +177,56 @@ int main(int argc, char **argv)
             }
         }
       }
+    }
+    
+    if (am_system_init) {
+        // setup STDIN, STDOUT, STDERR so that we can use them
+        int onefd = open("/dev/console", O_RDONLY, 0);
+        dup2(onefd, 0);
+        int twofd = open("/dev/console", O_RDWR, 0);
+        dup2(twofd, 1);
+        dup2(twofd, 2);
+        
+        if (onefd > 2) close(onefd);
+        if (twofd > 2) close(twofd);
+    }
+    
+    /* Set up signal handlers etc */
+    /* SIG_CHILD is ignored by default: good */
+    /* sigemptyset(&sigwait_set); */
+    /* sigaddset(&sigwait_set, SIGCHLD); */
+    /* sigaddset(&sigwait_set, SIGINT); */
+    /* sigaddset(&sigwait_set, SIGTERM); */
+    /* sigprocmask(SIG_BLOCK, &sigwait_set, NULL); */
+    
+    // Terminal access control signals - we block these so that dinit can't be
+    // suspended if it writes to the terminal after some other process has claimed
+    // ownership of it.
+    signal(SIGTSTP, SIG_IGN);
+    signal(SIGTTIN, SIG_IGN);
+    signal(SIGTTOU, SIG_IGN);
+    
+    if (! am_system_init && ! control_socket_path_set) {
+        const char * userhome = get_user_home();
+        if (userhome != nullptr) {
+            control_socket_str = userhome;
+            control_socket_str += "/.dinitctl";
+            control_socket_path = control_socket_str.c_str();
+        }
+    }
+    
+    /* service directory name */
+    if (service_dir == nullptr && ! am_system_init) {
+        const char * userhome = get_user_home();
+        if (userhome != nullptr) {
+            service_dir_str = get_user_home();
+            service_dir_str += "/dinit.d";
+            service_dir = service_dir_str.c_str();
+        }
+    }
+    
+    if (service_dir == nullptr) {
+        service_dir = "/etc/dinit.d";
     }
     
     if (services_to_start.empty()) {
@@ -355,6 +405,8 @@ void open_control_socket(struct ev_loop *loop) noexcept
         name->sun_family = AF_UNIX;
         strcpy(name->sun_path, saddrname);
 
+        // OpenBSD and Linux both allow combining NONBLOCK/CLOEXEC flags with socket type, however
+        // it's not actually POSIX. (TODO).
         int sockfd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
         if (sockfd == -1) {
             log(LogLevel::ERROR, "Error creating control socket: ", strerror(errno));
