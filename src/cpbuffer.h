@@ -4,9 +4,9 @@
 #include <cstring>
 
 // control protocol buffer, a circular buffer with 1024-byte capacity.
-class CPBuffer
+template <int SIZE> class CPBuffer
 {
-    char buf[1024];
+    char buf[SIZE];
     int cur_idx = 0;
     int length = 0;  // number of elements in the buffer
     
@@ -20,8 +20,8 @@ class CPBuffer
     int fill(int fd) noexcept
     {
         int pos = cur_idx + length;
-        if (pos >= 1024) pos -= 1024;
-        int max_count = std::min(1024 - pos, 1024 - length);
+        if (pos >= SIZE) pos -= SIZE;
+        int max_count = std::min(SIZE - pos, SIZE - length);
         ssize_t r = read(fd, buf + pos, max_count);
         if (r >= 0) {
             length += r;
@@ -43,24 +43,24 @@ class CPBuffer
     int operator[](int idx) noexcept
     {
         int dest_idx = cur_idx + idx;
-        if (dest_idx > 1024) dest_idx -= 1024;
+        if (dest_idx > SIZE) dest_idx -= SIZE;
         return buf[dest_idx];
     }
     
     void consume(int amount) noexcept
     {
         cur_idx += amount;
-        if (cur_idx >= 1024) cur_idx -= 1024;
+        if (cur_idx >= SIZE) cur_idx -= SIZE;
         length -= amount;
     }
     
     void extract(char *dest, int index, int length) noexcept
     {
         index += cur_idx;
-        if (index >= 1024) index -= 1024;
-        if (index + length > 1024) {
+        if (index >= SIZE) index -= SIZE;
+        if (index + length > SIZE) {
             // wrap-around copy
-            int half = 1024 - index;
+            int half = SIZE - index;
             std::memcpy(dest, buf + index, half);
             std::memcpy(dest + half, buf, length - half);
         }
@@ -74,10 +74,10 @@ class CPBuffer
     std::string extract_string(int index, int length)
     {
         index += cur_idx;
-        if (index >= 1024) index -= 1024;
-        if (index + length > 1024) {
-            std::string r(buf + index, 1024 - index);
-            r.insert(r.end(), buf, buf + length - (1024 - index));
+        if (index >= SIZE) index -= SIZE;
+        if (index + length > SIZE) {
+            std::string r(buf + index, SIZE - index);
+            r.insert(r.end(), buf, buf + length - (SIZE - index));
             return r;
         }
         else {

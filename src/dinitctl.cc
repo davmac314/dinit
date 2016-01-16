@@ -30,7 +30,7 @@ class ReadCPException
     ReadCPException(int err) : errcode(err) { }
 };
 
-static void fillBufferTo(CPBuffer *buf, int fd, int rlength)
+static void fillBufferTo(CPBuffer<1024> *buf, int fd, int rlength)
 {
     int r = buf->fillTo(fd, rlength);
     if (r == -1) {
@@ -53,7 +53,7 @@ static const char * describeVerb(bool stop)
 
 // Wait for a reply packet, skipping over any information packets
 // that are received in the meantime.
-static void wait_for_reply(CPBuffer &rbuffer, int fd)
+static void wait_for_reply(CPBuffer<1024> &rbuffer, int fd)
 {
     fillBufferTo(&rbuffer, fd, 1);
     
@@ -263,7 +263,7 @@ int main(int argc, char **argv)
     // Now we expect a reply:
     
     try {
-        CPBuffer rbuffer;
+        CPBuffer<1024> rbuffer;
         wait_for_reply(rbuffer, socknum);
         
         //ServiceState state;
@@ -443,7 +443,7 @@ static int unpinService(int socknum, const char *service_name)
     // Now we expect a reply:
     
     try {
-        CPBuffer rbuffer;
+        CPBuffer<1024> rbuffer;
         wait_for_reply(rbuffer, socknum);
         
         //ServiceState state;

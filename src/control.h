@@ -60,7 +60,7 @@ class ControlConn : private ServiceListener
     int chklen;
     
     // Receive buffer
-    CPBuffer rbuf;
+    CPBuffer<1024> rbuf;
     
     template <typename T> using list = std::list<T>;
     template <typename T> using vector = std::vector<T>;
