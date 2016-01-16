@@ -2,8 +2,14 @@
 #include "dinit-log.h"
 
 LogLevel log_level = LogLevel::WARN;
-bool log_to_console = true;    // whether we should output log messages to console
-bool log_current_line;
+static bool log_to_console = true;   // whether we should output log messages to
+                                     // console immediately
+static bool log_current_line;  // Whether the current line is being logged
+
+void enable_console_log(bool enable) noexcept
+{
+    log_to_console = enable;
+}
 
 // Log a message
 void log(LogLevel lvl, const char *msg) noexcept

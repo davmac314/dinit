@@ -488,7 +488,7 @@ void ServiceRecord::acquiredConsole() noexcept
         releaseConsole();
     }
     else if (startCheckDependencies(false)) {
-        log_to_console = false;
+        enable_console_log(false);
         allDepsStarted(true);
     }
     else {
@@ -875,7 +875,7 @@ void ServiceRecord::queueForConsole() noexcept
 
 void ServiceRecord::releaseConsole() noexcept
 {
-    log_to_console = true;
+    enable_console_log(true);
     if (next_for_console != nullptr) {
         next_for_console->acquiredConsole();
     }

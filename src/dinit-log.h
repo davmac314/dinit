@@ -16,7 +16,7 @@ enum class LogLevel {
 };
 
 extern LogLevel log_level;
-extern bool log_to_console;
+void enable_console_log(bool do_enable) noexcept;
 
 void log(LogLevel lvl, const char *msg) noexcept;
 void logMsgBegin(LogLevel lvl, const char *msg) noexcept;
