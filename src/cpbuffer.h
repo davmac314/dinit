@@ -47,6 +47,7 @@ template <int SIZE> class CPBuffer
         return buf[dest_idx];
     }
     
+    // Remove the given number of bytes from the start of the buffer.
     void consume(int amount) noexcept
     {
         cur_idx += amount;
@@ -54,6 +55,7 @@ template <int SIZE> class CPBuffer
         length -= amount;
     }
     
+    // Extract bytes from the buffer. The bytes remain in the buffer.
     void extract(char *dest, int index, int length) noexcept
     {
         index += cur_idx;
@@ -69,7 +71,7 @@ template <int SIZE> class CPBuffer
         }
     }
     
-    // Extract string of give length from given index
+    // Extract string of given length from given index
     // Throws:  std::bad_alloc on allocation failure
     std::string extract_string(int index, int length)
     {
