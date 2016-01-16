@@ -41,7 +41,6 @@ void ControlConn::processPacket()
         auto sd_type = static_cast<ShutdownType>(rbuf[1]);
         
         service_set->stop_all_services(sd_type);
-        enable_console_log(true);
         char ackBuf[] = { DINIT_RP_ACK };
         if (! queuePacket(ackBuf, 1)) return;
         
