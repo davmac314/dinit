@@ -16,6 +16,32 @@ template <int SIZE> class CPBuffer
         return length;
     }
     
+    int get_free() noexcept
+    {
+        return SIZE - length;
+    }
+    
+    char * get_ptr(int index)
+    {
+        int pos = cur_idx + index;
+        if (pos >= SIZE) pos -= SIZE;
+    
+        return &buf[cur_idx];
+    }
+    
+    int get_contiguous_length(char *ptr)
+    {
+        int eidx = cur_idx + length;
+        if (eidx >= SIZE) eidx -= SIZE;
+        
+        if (buf + eidx > ptr) {
+            return (buf + eidx) - ptr;
+        }
+        else {
+            return (buf + SIZE) - ptr;
+        }
+    }
+    
     // fill by reading from the given fd, return positive if some was read or -1 on error.
     int fill(int fd) noexcept
     {
@@ -40,7 +66,7 @@ template <int SIZE> class CPBuffer
         return 1;
     }
     
-    int operator[](int idx) noexcept
+    char operator[](int idx) noexcept
     {
         int dest_idx = cur_idx + idx;
         if (dest_idx > SIZE) dest_idx -= SIZE;
@@ -84,6 +110,25 @@ template <int SIZE> class CPBuffer
         }
         else {
             return std::string(buf + index, length);
+        }
+    }
+    
+    // Append characters to the buffer. Caller must make certain there
+    // is enough space to contain the characters first.
+    void append(const char * s, int len) noexcept
+    {
+        int index = cur_idx + length;
+        if (index >= SIZE) index -= SIZE;
+
+        length += len; // (before we destroy len)
+        
+        int max = SIZE - index;
+        std::memcpy(buf + index, s, std::min(max, len));
+        if (len > max) {
+            // Wrapped around buffer: copy the rest
+            s += max;
+            len -= max;
+            std::memcpy(buf, s, len);
         }
     }
 };

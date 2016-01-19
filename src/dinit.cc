@@ -275,6 +275,9 @@ int main(int argc, char **argv)
     
     /* start requested services */
     service_set = new ServiceSet(service_dir);
+    
+    init_log(service_set);
+    
     for (list<const char *>::iterator i = services_to_start.begin();
             i != services_to_start.end();
             ++i) {

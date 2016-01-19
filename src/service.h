@@ -199,9 +199,6 @@ class ServiceRecord
     
     ServiceSet *service_set; // the set this service belongs to
     
-    // Next service (after this one) in the queue for the console:
-    ServiceRecord *next_for_console;
-
     std::unordered_set<ServiceListener *> listeners;
     
     // Process services:
@@ -319,9 +316,6 @@ class ServiceRecord
     // Queue to run on the console. 'acquiredConsole()' will be called when the console is available.
     void queueForConsole() noexcept;
     
-    // Console is available.
-    void acquiredConsole() noexcept;
-    
     // Release console (console must be currently held by this service)
     void releaseConsole() noexcept;
     
@@ -366,6 +360,12 @@ class ServiceRecord
     }
     
     // TODO write a destructor
+
+    // Next service (after this one) in the queue for the console. Intended to only be used by ServiceSet class.
+    ServiceRecord *next_for_console;
+    
+    // Console is available.
+    void acquiredConsole() noexcept;
     
     // Set the stop command and arguments (may throw std::bad_alloc)
     void setStopCommand(std::string command, std::list<std::pair<unsigned,unsigned>> &stop_command_offsets)
@@ -481,6 +481,7 @@ class ServiceSet
     
     ShutdownType shutdown_type = ShutdownType::CONTINUE;  // Shutdown type, if stopping
     
+    ServiceRecord * console_queue_head = nullptr; // first record in console queue
     ServiceRecord * console_queue_tail = nullptr; // last record in console queue
     
     // Private methods
@@ -535,7 +536,31 @@ class ServiceSet
     {
         auto prev_tail = console_queue_tail;
         console_queue_tail = newTail;
+        if (! prev_tail) {
+            console_queue_head = newTail;
+            enable_console_log(false);
+        }
+        else {
+            prev_tail->next_for_console = newTail;
+        }
         return prev_tail;
+    }
+    
+    // Retrieve the current console queue head and remove it from the queue
+    ServiceRecord * pullConsoleQueue() noexcept
+    {
+        auto prev_head = console_queue_head;
+        if (prev_head) {
+            prev_head->acquiredConsole();
+            console_queue_head = prev_head->next_for_console;
+            if (! console_queue_head) {
+                console_queue_tail = nullptr;
+            }
+        }
+        else {
+            enable_console_log(true);
+        }
+        return prev_head;
     }
     
     // Notification from service that it is active (state != STOPPED)

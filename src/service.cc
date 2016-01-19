@@ -488,7 +488,6 @@ void ServiceRecord::acquiredConsole() noexcept
         releaseConsole();
     }
     else if (startCheckDependencies(false)) {
-        enable_console_log(false);
         allDepsStarted(true);
     }
     else {
@@ -863,25 +862,12 @@ void ServiceRecord::unpin() noexcept
 
 void ServiceRecord::queueForConsole() noexcept
 {
-    next_for_console = nullptr;
-    auto tail = service_set->consoleQueueTail(this);
-    if (tail == nullptr) {
-        acquiredConsole();
-    }
-    else {
-        tail->next_for_console = this;
-    }
+    service_set->consoleQueueTail(this);
 }
 
 void ServiceRecord::releaseConsole() noexcept
 {
-    enable_console_log(true);
-    if (next_for_console != nullptr) {
-        next_for_console->acquiredConsole();
-    }
-    else {
-        service_set->consoleQueueTail(nullptr);
-    }
+    service_set->pullConsoleQueue();
 }
 
 void ServiceSet::service_active(ServiceRecord *sr) noexcept
