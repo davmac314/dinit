@@ -17,39 +17,48 @@ static bool log_current_line;  // Whether the current line is being logged
 
 static ServiceSet *service_set = nullptr;  // Reference to service set
 
-// Buffer for current log line:
-constexpr static int log_linebuf_len = 120; // TODO needed?
-static char * lineBuf = new char[log_linebuf_len];
-static int lineBuf_idx = 0;
 
+static void log_conn_callback(struct ev_loop *loop, struct ev_io *w, int revents) noexcept;
 
-// Buffer of log lines:
+class BufferedLogStream
+{
+    public:
+    CPBuffer<4096> log_buffer;
+    
+    struct ev_io eviocb;
+
+    // Outgoing:
+    bool partway = false;     // if we are partway throught output of a log message
+    bool discarded = false;   // if we have discarded a message
+
+    // Incoming:
+    int current_index = 0;    // current/next incoming message index
+       // ^^ TODO is this always just the length of log_buffer?
+
+    // A "special message" is not stored in the circular buffer; instead
+    // it is delivered from an external buffer not managed by BufferedLogger.
+    bool special = false;      // currently outputting special message?
+    char *special_buf; // buffer containing special message
+    int msg_index;     // index into special message
+
+    void init(int fd)
+    {
+        ev_io_init(&eviocb, log_conn_callback, fd, EV_WRITE);
+        eviocb.data = this;
+    }
+};
+
+// Two log streams:
 // (One for main log, one for console)
-static CPBuffer<4096> log_buffer[2];
-
-// Each line is represented as a string of characters terminated by a
-// newline. (If the newline is missing, the line is not complete).
+static BufferedLogStream log_stream[2];
 
 constexpr static int DLOG_MAIN = 0; // main log facility
 constexpr static int DLOG_CONS = 1; // console
 
-constexpr static char DLOG_MAIN_FLAG = 1 << DLOG_MAIN;
-constexpr static char DLOG_CONS_FLAG = 1 << DLOG_CONS;
-
-static int current_index[2] = { 0, 0 };  // current/next message slot for (main, console)
-
-static bool partway[2] = { false, false }; // part-way through writing log line?
-static int msg_index[2] = { 0, 0 }; // index into the current message
-
-static struct ev_io eviocb[2];
-
-static bool discarded[2] = { false, false }; // have discarded a log line?
-static bool special[2] = { false, false }; // writing from a special buffer?
-static char *special_buf[2] = { nullptr, nullptr }; // special buffer
 
 static void release_console()
 {
-    ev_io_stop(ev_default_loop(EVFLAG_AUTO), &eviocb[DLOG_CONS]);
+    ev_io_stop(ev_default_loop(EVFLAG_AUTO), & log_stream[DLOG_CONS].eviocb);
     if (! log_to_console) {
         int flags = fcntl(1, F_GETFL, 0);
         fcntl(1, F_SETFL, flags & ~O_NONBLOCK);
@@ -59,19 +68,21 @@ static void release_console()
 
 static void log_conn_callback(struct ev_loop * loop, ev_io * w, int revents) noexcept
 {
-    if (special[DLOG_CONS]) {
-        char * start = special_buf[DLOG_CONS] + msg_index[DLOG_CONS];
-        char * end = std::find(special_buf[DLOG_CONS] + msg_index[DLOG_CONS], (char *)nullptr, '\n');
-        int r = write(1, start, end - start + 1);
+    auto &log_stream = *static_cast<BufferedLogStream *>(w->data);
+
+    if (log_stream.special) {
+        char * start = log_stream.special_buf + log_stream.msg_index;
+        char * end = std::find(log_stream.special_buf + log_stream.msg_index, (char *)nullptr, '\n');
+        int r = write(w->fd, start, end - start + 1);
         if (r >= 0) {
             if (start + r > end) {
                 // All written: go on to next message in queue
-                special[DLOG_CONS] = false;
-                partway[DLOG_CONS] = false;
-                msg_index[DLOG_CONS] = 0;
+                log_stream.special = false;
+                log_stream.partway = false;
+                log_stream.msg_index = 0;
             }
             else {
-                msg_index[DLOG_CONS] += r;
+                log_stream.msg_index += r;
                 return;
             }
         }
@@ -87,13 +98,13 @@ static void log_conn_callback(struct ev_loop * loop, ev_io * w, int revents) noe
         
         // TODO issue special message if we have discarded a log message
         
-        if (current_index[DLOG_CONS] == 0) {
+        if (log_stream.current_index == 0) {
             release_console();
             return;
         }
         
-        char *ptr = log_buffer[DLOG_CONS].get_ptr(0);
-        int len = log_buffer[DLOG_CONS].get_contiguous_length(ptr);
+        char *ptr = log_stream.log_buffer.get_ptr(0);
+        int len = log_stream.log_buffer.get_contiguous_length(ptr);
         char *creptr = ptr + len;  // contiguous region end
         char *eptr = std::find(ptr, creptr, '\n');
         
@@ -105,16 +116,15 @@ static void log_conn_callback(struct ev_loop * loop, ev_io * w, int revents) noe
 
         len = eptr - ptr;
         
-        int r = write(1, ptr, len);
+        int r = write(w->fd, ptr, len);
 
         if (r >= 0) {
-            // msg_index[DLOG_CONS] += r;
             bool complete = (r == len) && will_complete;
-            log_buffer[DLOG_CONS].consume(len);
-            partway[DLOG_CONS] = ! complete;
+            log_stream.log_buffer.consume(len);
+            log_stream.partway = ! complete;
             if (complete) {
-                current_index[DLOG_CONS] -= len;
-                if (current_index[DLOG_CONS] == 0 || !log_to_console) {
+                log_stream.current_index -= len;
+                if (log_stream.current_index == 0 || !log_to_console) {
                     // No more messages buffered / stop logging to console:
                     release_console();
                 }
@@ -150,19 +160,20 @@ void enable_console_log(bool enable) noexcept
         int flags = fcntl(1, F_GETFL, 0);
         fcntl(1, F_SETFL, flags | O_NONBLOCK);
         // Activate watcher:
-        ev_io_init(&eviocb[DLOG_CONS], log_conn_callback, 1, EV_WRITE);
-        if (current_index[DLOG_CONS] > 0) {
-            ev_io_start(ev_default_loop(EVFLAG_AUTO), &eviocb[DLOG_CONS]);
+        //ev_io_init(& log_stream[DLOG_CONS].eviocb, log_conn_callback, 1, EV_WRITE);
+        log_stream[DLOG_CONS].init(STDOUT_FILENO);
+        if (log_stream[DLOG_CONS].current_index > 0) {
+            ev_io_start(ev_default_loop(EVFLAG_AUTO), & log_stream[DLOG_CONS].eviocb);
         }
         log_to_console = true;
     }
     else if (! enable && log_to_console) {
         log_to_console = false;
-        if (! partway[DLOG_CONS]) {
-            if (current_index[DLOG_CONS] > 0) {
+        if (! log_stream[DLOG_CONS].partway) {
+            if (log_stream[DLOG_CONS].current_index > 0) {
                 // Try to flush any messages that are currently buffered. (Console is non-blocking
                 // so it will fail gracefully).
-                log_conn_callback(ev_default_loop(EVFLAG_AUTO), &eviocb[DLOG_CONS], EV_WRITE);
+                log_conn_callback(ev_default_loop(EVFLAG_AUTO), & log_stream[DLOG_CONS].eviocb, EV_WRITE);
             }
             else {
                 release_console();
@@ -201,13 +212,13 @@ template <typename U, typename ... T> static void append(CPBuffer<4096> &buf, U 
 template <typename ... T> static void do_log(T ... args) noexcept
 {
     int amount = sum_length(args...);
-    if (log_buffer[DLOG_CONS].get_free() >= amount) {
-        append(log_buffer[DLOG_CONS], args...);
+    if (log_stream[DLOG_CONS].log_buffer.get_free() >= amount) {
+        append(log_stream[DLOG_CONS].log_buffer, args...);
         
-        bool was_first = (current_index[DLOG_CONS] == 0);
-        current_index[DLOG_CONS] += amount;
+        bool was_first = (log_stream[DLOG_CONS].current_index == 0);
+        log_stream[DLOG_CONS].current_index += amount;
         if (was_first && log_to_console) {
-            ev_io_start(ev_default_loop(EVFLAG_AUTO), & eviocb[DLOG_CONS]);
+            ev_io_start(ev_default_loop(EVFLAG_AUTO), & log_stream[DLOG_CONS].eviocb);
         }
     }
     else {
