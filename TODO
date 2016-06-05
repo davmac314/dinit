@@ -1,3 +1,4 @@
+* CPBuffer: cleanup methods a bit (fix API)
 * When a PROCESS service process dies, and smooth_recovery is false, probably
   need to force-stop dependents even if the process itself was stopped
   deliberately.
@@ -6,7 +7,8 @@
   - support for listing all services
 * Implement a control utility to start/stop services after dinit has started
   - very basic version exists, needs thorough cleanup
-* Clean up tree a little, move source files into "src"
+* We've replaced libev, so that we don't abort on failure. But now exceptions
+  can be thrown when we register an event watch - need to handle these.
 
 For version 1.0:
 ----------------
@@ -44,7 +46,8 @@ For later:
   sends terminated process IDs over a pipe to Dinit. Finally, it may be possible
   to run dinit (and subprocesses) in a new PID namespace (again linux-only).
 * Allow logging tasks to memory (growing or circular buffer) and later
-  switching to disk logging (allows for filesystem mounted readonly on boot)
+  switching to disk logging (allows for filesystem mounted readonly on boot).
+  But perhaps this really the responsibility of another daemon.
 * Rate control on process respawn
 * Allow running services with different resource limits, chroot, cgroups,
   namespaces (pid/fs/uid), etc
@@ -62,8 +65,6 @@ Even later / Maybe never:
   factor.
 * Cron-like tasks (if started, they run a sub-task periodically. Stopping the
   task will wait until the sub-task is complete). 
-* Socket activation of services? Not sure if enough non-SystemD derived
-  daemons actually support this to warrant implementing it.
 * Allow to run services attached to virtual tty, allow connection to that tty (ala "screen").
 * SystemD-like handling of filesystem mounts (see autofs documentation in kernel)
   i.e. a mount point gets an autofs attached, and lazily gets mounted when accessed

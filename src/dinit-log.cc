@@ -1,13 +1,16 @@
 #include <iostream>
 #include <algorithm>
 
-#include <ev.h>
 #include <unistd.h>
 #include <fcntl.h>
+
+#include "dasync.h"
 
 #include "service.h"
 #include "dinit-log.h"
 #include "cpbuffer.h"
+
+extern EventLoop_t eventLoop;
 
 LogLevel log_level = LogLevel::WARN;
 LogLevel cons_log_level = LogLevel::WARN;
@@ -18,15 +21,19 @@ static bool log_current_line;  // Whether the current line is being logged
 static ServiceSet *service_set = nullptr;  // Reference to service set
 
 
-static void log_conn_callback(struct ev_loop *loop, struct ev_io *w, int revents) noexcept;
+namespace {
+    class BufferedLogStream;
+}
 
-class BufferedLogStream
+// TODO just make this the callback, directly.
+static Rearm log_conn_callback(EventLoop_t *loop, BufferedLogStream *w, int revents) noexcept;
+
+namespace {
+class BufferedLogStream : public PosixFdWatcher<NullMutex>
 {
     public:
     CPBuffer<4096> log_buffer;
     
-    struct ev_io eviocb;
-
     // Outgoing:
     bool partway = false;     // if we are partway throught output of a log message
     bool discarded = false;   // if we have discarded a message
@@ -40,13 +47,22 @@ class BufferedLogStream
     bool special = false;      // currently outputting special message?
     char *special_buf; // buffer containing special message
     int msg_index;     // index into special message
+    
+    int fd;
 
     void init(int fd)
     {
-        ev_io_init(&eviocb, log_conn_callback, fd, EV_WRITE);
-        eviocb.data = this;
+        //ev_io_init(&eviocb, log_conn_callback, fd, EV_WRITE);
+        //eviocb.data = this;
+        this->fd = fd;
+    }
+    
+    Rearm gotEvent(EventLoop_t *loop, int fd, int flags) noexcept override
+    {
+        return log_conn_callback(loop, this, flags);
     }
 };
+}
 
 // Two log streams:
 // (One for main log, one for console)
@@ -58,7 +74,8 @@ constexpr static int DLOG_CONS = 1; // console
 
 static void release_console()
 {
-    ev_io_stop(ev_default_loop(EVFLAG_AUTO), & log_stream[DLOG_CONS].eviocb);
+    //ev_io_stop(ev_default_loop(EVFLAG_AUTO), & log_stream[DLOG_CONS].eviocb);
+    //log_stream[DLOG_CONS].deregisterWatch(&eventLoop); // now handled elsewhere
     if (! log_to_console) {
         int flags = fcntl(1, F_GETFL, 0);
         fcntl(1, F_SETFL, flags & ~O_NONBLOCK);
@@ -66,9 +83,9 @@ static void release_console()
     }
 }
 
-static void log_conn_callback(struct ev_loop * loop, ev_io * w, int revents) noexcept
+static Rearm log_conn_callback(EventLoop_t * loop, BufferedLogStream * w, int revents) noexcept
 {
-    auto &log_stream = *static_cast<BufferedLogStream *>(w->data);
+    auto &log_stream = *w;
 
     if (log_stream.special) {
         char * start = log_stream.special_buf + log_stream.msg_index;
@@ -83,7 +100,7 @@ static void log_conn_callback(struct ev_loop * loop, ev_io * w, int revents) noe
             }
             else {
                 log_stream.msg_index += r;
-                return;
+                return Rearm::REARM;
             }
         }
         else {
@@ -91,7 +108,7 @@ static void log_conn_callback(struct ev_loop * loop, ev_io * w, int revents) noe
             // other error?
             // TODO
         }
-        return;
+        return Rearm::REARM;
     }
     else {
         // Writing from the regular circular buffer
@@ -100,7 +117,7 @@ static void log_conn_callback(struct ev_loop * loop, ev_io * w, int revents) noe
         
         if (log_stream.current_index == 0) {
             release_console();
-            return;
+            return Rearm::REMOVE;
         }
         
         char *ptr = log_stream.log_buffer.get_ptr(0);
@@ -127,6 +144,7 @@ static void log_conn_callback(struct ev_loop * loop, ev_io * w, int revents) noe
                 if (log_stream.current_index == 0 || !log_to_console) {
                     // No more messages buffered / stop logging to console:
                     release_console();
+                    return Rearm::REMOVE;
                 }
             }
         }
@@ -134,13 +152,13 @@ static void log_conn_callback(struct ev_loop * loop, ev_io * w, int revents) noe
             // TODO
             // EAGAIN / EWOULDBLOCK?
             // error?
-            return;
+            return Rearm::REARM;
         }
     }
     
     // We've written something by the time we get here. We could fall through to below, but
     // let's give other events a chance to be processed by returning now.
-    return;
+    return Rearm::REARM;
 }
 
 void init_log(ServiceSet *sset) noexcept
@@ -163,7 +181,8 @@ void enable_console_log(bool enable) noexcept
         //ev_io_init(& log_stream[DLOG_CONS].eviocb, log_conn_callback, 1, EV_WRITE);
         log_stream[DLOG_CONS].init(STDOUT_FILENO);
         if (log_stream[DLOG_CONS].current_index > 0) {
-            ev_io_start(ev_default_loop(EVFLAG_AUTO), & log_stream[DLOG_CONS].eviocb);
+            //ev_io_start(ev_default_loop(EVFLAG_AUTO), & log_stream[DLOG_CONS].eviocb);
+            log_stream[DLOG_CONS].registerWith(&eventLoop, log_stream[DLOG_CONS].fd, out_events);
         }
         log_to_console = true;
     }
@@ -173,10 +192,11 @@ void enable_console_log(bool enable) noexcept
             if (log_stream[DLOG_CONS].current_index > 0) {
                 // Try to flush any messages that are currently buffered. (Console is non-blocking
                 // so it will fail gracefully).
-                log_conn_callback(ev_default_loop(EVFLAG_AUTO), & log_stream[DLOG_CONS].eviocb, EV_WRITE);
+                log_conn_callback(&eventLoop, &log_stream[DLOG_CONS], out_events);
             }
             else {
                 release_console();
+                log_stream[DLOG_CONS].deregisterWatch(&eventLoop);
             }
         }
         // (if we're partway through logging a message, we release the console when
@@ -218,7 +238,8 @@ template <typename ... T> static void do_log(T ... args) noexcept
         bool was_first = (log_stream[DLOG_CONS].current_index == 0);
         log_stream[DLOG_CONS].current_index += amount;
         if (was_first && log_to_console) {
-            ev_io_start(ev_default_loop(EVFLAG_AUTO), & log_stream[DLOG_CONS].eviocb);
+            //ev_io_start(ev_default_loop(EVFLAG_AUTO), & log_stream[DLOG_CONS].eviocb);
+            log_stream[DLOG_CONS].registerWith(&eventLoop, log_stream[DLOG_CONS].fd, out_events);
         }
     }
     else {

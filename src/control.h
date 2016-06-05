@@ -5,9 +5,11 @@
 #include <vector>
 #include <unordered_map>
 #include <limits>
+#include <cstddef>
 
 #include <unistd.h>
-#include <ev++.h>
+
+#include "dasync.h"
 
 #include "dinit-log.h"
 #include "control-cmds.h"
@@ -16,13 +18,17 @@
 
 // Control connection for dinit
 
+using namespace dasync;
+using EventLoop_t = EventLoop<NullMutex>;
+
 // TODO: Use the input buffer as a circular buffer, instead of chomping data from
 // the front using a data move.
 
-// forward-declaration of callback:
-static void control_conn_cb(struct ev_loop * loop, ev_io * w, int revents);
-
 class ControlConn;
+class ControlConnWatcher;
+
+// forward-declaration of callback:
+static void control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
 
 // Pointer to the control connection that is listening for rollback completion
 extern ControlConn * rollback_handler_conn;
@@ -44,12 +50,32 @@ extern int active_control_conns;
 class ServiceSet;
 class ServiceRecord;
 
+class ControlConnWatcher : public PosixFdWatcher<NullMutex>
+{
+    Rearm gotEvent(EventLoop_t * loop, int fd, int flags) override
+    {
+        control_conn_cb(loop, this, flags);
+        return Rearm::REARM;
+    }
+    
+    public:
+    int fd; // TODO this is already stored, find a better way to access it.
+    
+    using PosixFdWatcher<NullMutex>::setWatchFlags;
+    
+    void registerWith(EventLoop_t *loop, int fd, int flags)
+    {
+        this->fd = fd;
+        PosixFdWatcher<NullMutex>::registerWith(loop, fd, flags);
+    }
+};
+
 class ControlConn : private ServiceListener
 {
-    friend void control_conn_cb(struct ev_loop *, ev_io *, int);
+    friend void control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
     
-    struct ev_io iob;
-    struct ev_loop *loop;
+    ControlConnWatcher iob;
+    EventLoop_t *loop;
     ServiceSet *service_set;
     
     bool bad_conn_close = false; // close when finished output?
@@ -122,7 +148,8 @@ class ControlConn : private ServiceListener
     {
         bad_conn_close = true;
         oom_close = true;
-        ev_io_set(&iob, iob.fd, EV_WRITE);
+        iob.setWatchFlags(out_events);
+        //ev_io_set(&iob, iob.fd, EV_WRITE);
     }
     
     // Process service event broadcast.
@@ -155,11 +182,12 @@ class ControlConn : private ServiceListener
     }
     
     public:
-    ControlConn(struct ev_loop * loop, ServiceSet * service_set, int fd) : loop(loop), service_set(service_set), chklen(0)
+    ControlConn(EventLoop_t * loop, ServiceSet * service_set, int fd) : loop(loop), service_set(service_set), chklen(0)
     {
-        ev_io_init(&iob, control_conn_cb, fd, EV_READ);
-        iob.data = this;
-        ev_io_start(loop, &iob);
+        //ev_io_init(&iob, control_conn_cb, fd, EV_READ);
+        //iob.data = this;
+        //ev_io_start(loop, &iob);
+        iob.registerWith(loop, fd, in_events);
         
         active_control_conns++;
     }
@@ -170,16 +198,17 @@ class ControlConn : private ServiceListener
 };
 
 
-static void control_conn_cb(struct ev_loop * loop, ev_io * w, int revents)
+static void control_conn_cb(EventLoop_t * loop, ControlConnWatcher * watcher, int revents)
 {
-    ControlConn *conn = (ControlConn *) w->data;
-    if (revents & EV_READ) {
+    char * cc_addr = (reinterpret_cast<char *>(watcher)) - offsetof(ControlConn, iob);
+    ControlConn *conn = reinterpret_cast<ControlConn *>(cc_addr);
+    if (revents & in_events) {
         if (conn->dataReady()) {
             // ControlConn was deleted
             return;
         }
     }
-    if (revents & EV_WRITE) {
+    if (revents & out_events) {
         conn->sendData();
     }    
 }

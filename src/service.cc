@@ -18,8 +18,8 @@
 #include "dinit-log.h"
 
 // from dinit.cc:
-void open_control_socket(struct ev_loop *loop) noexcept;
-
+void open_control_socket(EventLoop_t *loop) noexcept;
+extern EventLoop_t eventLoop;
 
 // Find the requested service by name
 static ServiceRecord * findService(const std::list<ServiceRecord *> & records,
@@ -91,13 +91,12 @@ void ServiceRecord::stopped() noexcept
     }
 }
 
-void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, int revents) noexcept
+void ServiceChildWatcher::gotTermStat(EventLoop_t * loop, pid_t child, int status) noexcept
 {
-    ServiceRecord *sr = (ServiceRecord *) w->data;
-
+    ServiceRecord *sr = service;
+    
     sr->pid = -1;
-    sr->exit_status = w->rstatus;
-    ev_child_stop(loop, w);
+    sr->exit_status = status;
     
     // Ok, for a process service, any process death which we didn't rig
     // ourselves is a bit... unexpected. Probably, the child died because
@@ -110,7 +109,7 @@ void ServiceRecord::process_child_callback(struct ev_loop *loop, ev_child *w, in
         return;
     }
     
-    sr->handle_exit_status();
+    sr->handle_exit_status();    
 }
 
 bool ServiceRecord::do_auto_restart() noexcept
@@ -206,15 +205,22 @@ void ServiceRecord::handle_exit_status() noexcept
     }
 }
 
-void ServiceRecord::process_child_status(struct ev_loop *loop, ev_io * stat_io, int revents) noexcept
+Rearm ServiceIoWatcher::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
 {
-    ServiceRecord *sr = (ServiceRecord *) stat_io->data;
+    ServiceRecord::process_child_status(loop, this, flags);
+    return Rearm::NOOP;
+}
+
+// TODO remove unused revents param
+void ServiceRecord::process_child_status(EventLoop_t *loop, ServiceIoWatcher * stat_io, int revents) noexcept
+{
+    ServiceRecord *sr = stat_io->service;
     sr->waiting_for_execstat = false;
     
     int exec_status;
     int r = read(stat_io->fd, &exec_status, sizeof(int));
     close(stat_io->fd);
-    ev_io_stop(loop, stat_io);
+    stat_io->deregisterWatch(loop);
     
     if (r != 0) {
         // We read an errno code; exec() failed, and the service startup failed.
@@ -224,7 +230,7 @@ void ServiceRecord::process_child_status(struct ev_loop *loop, ev_io * stat_io, 
             sr->failed_to_start();
         }
         else if (sr->service_state == ServiceState::STOPPING) {
-            // Must be a scripted servce. We've logged the failure, but it's probably better
+            // Must be a scripted service. We've logged the failure, but it's probably better
             // not to leave the service in STARTED state:
             sr->stopped();
         }
@@ -506,10 +512,11 @@ bool ServiceRecord::read_pid_file() noexcept
         if (r > 0) {
             pidbuf[r] = 0; // store nul terminator
             pid = std::atoi(pidbuf);
-            if (kill(pid, 0) == 0) {
-                ev_child_init(&child_listener, process_child_callback, pid, 0);
-                child_listener.data = this;
-                ev_child_start(ev_default_loop(EVFLAG_AUTO), &child_listener);
+            if (kill(pid, 0) == 0) {                
+                //ev_child_init(&child_listener, process_child_callback, pid, 0);
+                //child_listener.data = this;
+                //ev_child_start(ev_default_loop(EVFLAG_AUTO), &child_listener);
+                child_listener.registerWith(&eventLoop, pid);
             }
             else {
                 log(LogLevel::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
@@ -546,7 +553,7 @@ void ServiceRecord::started() noexcept
     notifyListeners(ServiceEvent::STARTED);
 
     if (onstart_flags.rw_ready) {
-        open_control_socket(ev_default_loop(EVFLAG_AUTO));
+        open_control_socket(&eventLoop);
     }
 
     if (force_stop || desired_state == ServiceState::STOPPED) {
@@ -634,7 +641,16 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
     if (forkpid == 0) {
         // Child process. Must not allocate memory (or otherwise risk throwing any exception)
         // from here until exit().
-        ev_default_destroy(); // won't need that on this side, free up fds.
+        // TODO: we may need an equivalent for the following:
+        //   ev_default_destroy(); // won't need that on this side, free up fds.
+
+        // Unmask signals that we masked on startup:
+        sigset_t sigwait_set;
+        sigemptyset(&sigwait_set);
+        sigaddset(&sigwait_set, SIGCHLD);
+        sigaddset(&sigwait_set, SIGINT);
+        sigaddset(&sigwait_set, SIGTERM);
+        sigprocmask(SIG_UNBLOCK, &sigwait_set, NULL);
 
         constexpr int bufsz = ((CHAR_BIT * sizeof(pid_t) - 1) / 3 + 2) + 11;
         // "LISTEN_PID=" - 11 characters
@@ -693,15 +709,13 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
         pid = forkpid;
 
         // Listen for status
-        ev_io_init(&child_status_listener, process_child_status, pipefd[0], EV_READ);
-        child_status_listener.data = this;
-        ev_io_start(ev_default_loop(EVFLAG_AUTO), &child_status_listener);
+        // TODO should set this up earlier so we can handle failure case (exception)
+        child_status_listener.registerWith(&eventLoop, pipefd[0], in_events);
 
         // Add a process listener so we can detect when the
         // service stops
-        ev_child_init(&child_listener, process_child_callback, pid, 0);
-        child_listener.data = this;
-        ev_child_start(ev_default_loop(EVFLAG_AUTO), &child_listener);
+        // TODO should reserve listener, handle exceptions
+        child_listener.registerWith(&eventLoop, pid);
         waiting_for_execstat = true;
         return true;
     }

@@ -13,8 +13,8 @@
 #include <fcntl.h>
 #include <pwd.h>
 
+#include "dasync.h"
 #include "service.h"
-#include "ev++.h"
 #include "control.h"
 #include "dinit-log.h"
 
@@ -60,13 +60,43 @@
  */
 
 
-static void sigint_reboot_cb(struct ev_loop *loop, ev_signal *w, int revents);
-static void sigquit_cb(struct ev_loop *loop, ev_signal *w, int revents);
-static void sigterm_cb(struct ev_loop *loop, ev_signal *w, int revents);
-void open_control_socket(struct ev_loop *loop) noexcept;
-void close_control_socket(struct ev_loop *loop) noexcept;
+using namespace dasync;
+using EventLoop_t = EventLoop<NullMutex>;
 
-struct ev_io control_socket_io;
+EventLoop_t eventLoop = EventLoop_t();
+
+// TODO remove:
+//static void sigint_reboot_cb(struct ev_loop *loop, ev_signal *w, int revents);
+//static void sigquit_cb(struct ev_loop *loop, ev_signal *w, int revents);
+//static void sigterm_cb(struct ev_loop *loop, ev_signal *w, int revents);
+static void sigint_reboot_cb(EventLoop_t *eloop) noexcept;
+static void sigquit_cb(EventLoop_t *eloop) noexcept;
+static void sigterm_cb(EventLoop_t *eloop) noexcept;
+void open_control_socket(EventLoop_t *loop) noexcept;
+void close_control_socket(EventLoop_t *loop) noexcept;
+
+static void control_socket_cb(EventLoop_t *loop, int fd);
+
+class ControlSocketWatcher : public PosixFdWatcher<NullMutex>
+{
+    Rearm gotEvent(EventLoop_t * loop, int fd, int flags)
+    {
+        control_socket_cb(loop, fd);
+        return Rearm::REARM;
+    }
+    
+    public:
+    // TODO the fd is already stored, must we really store it again...
+    int fd;
+    
+    void registerWith(EventLoop_t * loop, int fd, int flags)
+    {
+        this->fd = fd;
+        PosixFdWatcher<NullMutex>::registerWith(loop, fd, flags);
+    }
+};
+
+ControlSocketWatcher control_socket_io;
 
 
 // Variables
@@ -102,6 +132,41 @@ const char * get_user_home()
     return user_home_path;
 }
 
+
+namespace {
+    class CallbackSignalHandler : public PosixSignalWatcher<NullMutex>
+    {
+        public:
+        typedef void (*cb_func_t)(EventLoop_t *);
+        
+        private:
+        cb_func_t cb_func;
+        
+        public:
+        CallbackSignalHandler() : cb_func(nullptr) { }
+        CallbackSignalHandler(cb_func_t pcb_func) :  cb_func(pcb_func) { }
+        
+        void setCbFunc(cb_func_t cb_func)
+        {
+            this->cb_func = cb_func;
+        }
+        
+        Rearm gotSignal(EventLoop_t * eloop, int signo, SigInfo_p siginfo) override
+        {
+            service_set->stop_all_services(ShutdownType::REBOOT);
+            return Rearm::REARM;
+        }
+    };
+
+    class ControlSocketWatcher : public PosixFdWatcher<NullMutex>
+    {
+        Rearm gotEvent(EventLoop_t * loop, int fd, int flags)
+        {
+            control_socket_cb(loop, fd);
+            return Rearm::REARM;
+        }
+    };
+}
 
 int main(int argc, char **argv)
 {
@@ -193,11 +258,12 @@ int main(int argc, char **argv)
     
     /* Set up signal handlers etc */
     /* SIG_CHILD is ignored by default: good */
-    /* sigemptyset(&sigwait_set); */
-    /* sigaddset(&sigwait_set, SIGCHLD); */
-    /* sigaddset(&sigwait_set, SIGINT); */
-    /* sigaddset(&sigwait_set, SIGTERM); */
-    /* sigprocmask(SIG_BLOCK, &sigwait_set, NULL); */
+    sigset_t sigwait_set;
+    sigemptyset(&sigwait_set);
+    sigaddset(&sigwait_set, SIGCHLD);
+    sigaddset(&sigwait_set, SIGINT);
+    sigaddset(&sigwait_set, SIGTERM);
+    sigprocmask(SIG_BLOCK, &sigwait_set, NULL);
     
     // Terminal access control signals - we block these so that dinit can't be
     // suspended if it writes to the terminal after some other process has claimed
@@ -234,35 +300,45 @@ int main(int argc, char **argv)
     }
 
     // Set up signal handlers
-    ev_signal sigint_ev_signal;
+    //ev_signal sigint_ev_signal;
+    CallbackSignalHandler sigint_watcher;
     if (am_system_init) {
-      ev_signal_init(&sigint_ev_signal, sigint_reboot_cb, SIGINT);
+      //ev_signal_init(&sigint_ev_signal, sigint_reboot_cb, SIGINT);
+      sigint_watcher.setCbFunc(sigint_reboot_cb);
     }
     else {
-      ev_signal_init(&sigint_ev_signal, sigterm_cb, SIGINT);
+      //ev_signal_init(&sigint_ev_signal, sigterm_cb, SIGINT);
+      sigint_watcher.setCbFunc(sigterm_cb);
     }
     
-    ev_signal sigquit_ev_signal;
+    //ev_signal sigquit_ev_signal;
+    CallbackSignalHandler sigquit_watcher;
     if (am_system_init) {
         // PID 1: SIGQUIT exec's shutdown
-        ev_signal_init(&sigquit_ev_signal, sigquit_cb, SIGQUIT);
+        //ev_signal_init(&sigquit_ev_signal, sigquit_cb, SIGQUIT);
+        sigquit_watcher.setCbFunc(sigquit_cb);
     }
     else {
         // Otherwise: SIGQUIT terminates dinit
-        ev_signal_init(&sigquit_ev_signal, sigterm_cb, SIGQUIT);
+        //ev_signal_init(&sigquit_ev_signal, sigterm_cb, SIGQUIT);
+        sigquit_watcher.setCbFunc(sigterm_cb);
     }
     
-    ev_signal sigterm_ev_signal;
-    ev_signal_init(&sigterm_ev_signal, sigterm_cb, SIGTERM);
+    //ev_signal sigterm_ev_signal;
+    //ev_signal_init(&sigterm_ev_signal, sigterm_cb, SIGTERM);
+    auto sigterm_watcher = CallbackSignalHandler(sigterm_cb);
     
     /* Set up libev */
-    struct ev_loop *loop = ev_default_loop(EVFLAG_AUTO /* | EVFLAG_SIGNALFD */);
-    ev_signal_start(loop, &sigint_ev_signal);
-    ev_signal_start(loop, &sigquit_ev_signal);
-    ev_signal_start(loop, &sigterm_ev_signal);
+    //struct ev_loop *loop = ev_default_loop(EVFLAG_AUTO /* | EVFLAG_SIGNALFD */);
+    //ev_signal_start(loop, &sigint_ev_signal);
+    //ev_signal_start(loop, &sigquit_ev_signal);
+    //ev_signal_start(loop, &sigterm_ev_signal);
+    sigint_watcher.registerWatch(&eventLoop, SIGINT);
+    sigquit_watcher.registerWatch(&eventLoop, SIGQUIT);
+    sigterm_watcher.registerWatch(&eventLoop, SIGTERM);
 
     // Try to open control socket (may fail due to readonly filesystem)
-    open_control_socket(loop);
+    open_control_socket(&eventLoop);
     
 #ifdef __linux__
     if (am_system_init) {
@@ -299,7 +375,8 @@ int main(int argc, char **argv)
     
     // Process events until all services have terminated.
     while (service_set->count_active_services() != 0) {
-        ev_loop(loop, EVLOOP_ONESHOT);
+        // ev_loop(loop, EVLOOP_ONESHOT);
+        eventLoop.run();
     }
 
     ShutdownType shutdown_type = service_set->getShutdownType();
@@ -321,7 +398,7 @@ int main(int argc, char **argv)
         }
     }
     
-    close_control_socket(ev_default_loop(EVFLAG_AUTO));
+    close_control_socket(&eventLoop);
     
     if (am_system_init) {
         if (shutdown_type == ShutdownType::CONTINUE) {
@@ -357,7 +434,8 @@ int main(int argc, char **argv)
         
         // PID 1 must not actually exit, although we should never reach this point:
         while (true) {
-            ev_loop(loop, EVLOOP_ONESHOT);
+            // ev_loop(loop, EVLOOP_ONESHOT);
+            eventLoop.run();
         }
     }
     
@@ -365,15 +443,13 @@ int main(int argc, char **argv)
 }
 
 // Callback for control socket
-static void control_socket_cb(struct ev_loop *loop, ev_io *w, int revents)
+static void control_socket_cb(EventLoop_t *loop, int sockfd)
 {
     // TODO limit the number of active connections. Keep a tally, and disable the
     // control connection listening socket watcher if it gets high, and re-enable
     // it once it falls below the maximum.
 
     // Accept a connection
-    int sockfd = w->fd;
-
     int newfd = accept4(sockfd, nullptr, nullptr, SOCK_NONBLOCK | SOCK_CLOEXEC);
 
     if (newfd != -1) {
@@ -387,7 +463,7 @@ static void control_socket_cb(struct ev_loop *loop, ev_io *w, int revents)
     }
 }
 
-void open_control_socket(struct ev_loop *loop) noexcept
+void open_control_socket(EventLoop_t *loop) noexcept
 {
     if (! control_socket_open) {
         const char * saddrname = control_socket_path;
@@ -441,16 +517,18 @@ void open_control_socket(struct ev_loop *loop) noexcept
         }
 
         control_socket_open = true;
-        ev_io_init(&control_socket_io, control_socket_cb, sockfd, EV_READ);
-        ev_io_start(loop, &control_socket_io);
+        //ev_io_init(&control_socket_io, control_socket_cb, sockfd, EV_READ);
+        //ev_io_start(loop, &control_socket_io);
+        control_socket_io.registerWith(&eventLoop, sockfd, in_events);
     }
 }
 
-void close_control_socket(struct ev_loop *loop) noexcept
+void close_control_socket(EventLoop_t *loop) noexcept
 {
     if (control_socket_open) {
         int fd = control_socket_io.fd;
-        ev_io_stop(loop, &control_socket_io);
+        //ev_io_stop(loop, &control_socket_io);
+        control_socket_io.deregisterWatch(&eventLoop);
         close(fd);
         
         // Unlink the socket:
@@ -459,24 +537,24 @@ void close_control_socket(struct ev_loop *loop) noexcept
 }
 
 /* handle SIGINT signal (generated by kernel when ctrl+alt+del pressed) */
-static void sigint_reboot_cb(struct ev_loop *loop, ev_signal *w, int revents)
+static void sigint_reboot_cb(EventLoop_t *eloop) noexcept
 {
     service_set->stop_all_services(ShutdownType::REBOOT);
 }
 
 /* handle SIGQUIT (if we are system init) */
-static void sigquit_cb(struct ev_loop *loop, ev_signal *w, int revents)
+static void sigquit_cb(EventLoop_t *eloop) noexcept
 {
     // This allows remounting the filesystem read-only if the dinit binary has been
     // unlinked. In that case the kernel holds the binary open, so that it can't be
     // properly removed.
-    close_control_socket(ev_default_loop(EVFLAG_AUTO));
+    close_control_socket(eloop);
     execl("/sbin/shutdown", "/sbin/shutdown", (char *) 0);
     log(LogLevel::ERROR, "Error executing /sbin/shutdown: ", strerror(errno));
 }
 
 /* handle SIGTERM/SIGQUIT - stop all services (not used for system daemon) */
-static void sigterm_cb(struct ev_loop *loop, ev_signal *w, int revents)
+static void sigterm_cb(EventLoop_t *eloop) noexcept
 {
     service_set->stop_all_services();
 }

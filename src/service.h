@@ -6,7 +6,9 @@
 #include <vector>
 #include <csignal>
 #include <unordered_set>
-#include "ev.h"
+
+#include "dasync.h"
+
 #include "control.h"
 #include "service-listener.h"
 #include "service-constants.h"
@@ -146,9 +148,38 @@ static std::vector<const char *> separate_args(std::string &s, std::list<std::pa
     return r;
 }
 
+class ServiceChildWatcher : public PosixChildWatcher<NullMutex>
+{
+    public:
+    // TODO resolve clunkiness of storing this field
+    ServiceRecord * service;
+    void gotTermStat(EventLoop_t * eloop, pid_t child, int status) noexcept;
+    
+    ServiceChildWatcher(ServiceRecord * sr) noexcept : service(sr) { }
+};
+
+class ServiceIoWatcher : public PosixFdWatcher<NullMutex>
+{
+    public:
+    // TODO resolve clunkiness of storing these fields
+    int fd;
+    ServiceRecord * service;
+    Rearm gotEvent(EventLoop_t * eloop, int fd, int flags) noexcept;
+    
+    ServiceIoWatcher(ServiceRecord * sr) noexcept : service(sr) { }
+    
+    void registerWith(EventLoop_t *loop, int fd, int flags)
+    {
+        this->fd = fd;
+        PosixFdWatcher<NullMutex>::registerWith(loop, fd, flags);
+    }
+};
 
 class ServiceRecord
 {
+    friend class ServiceChildWatcher;
+    friend class ServiceIoWatcher;
+    
     typedef std::string string;
     
     string service_name;
@@ -222,8 +253,8 @@ class ServiceRecord
     int socket_fd = -1;  // For socket-activation services, this is the file
                          // descriptor for the socket.
 
-    ev_child child_listener;
-    ev_io child_status_listener;
+    ServiceChildWatcher child_listener;
+    ServiceIoWatcher child_status_listener;
     
     // All dependents have stopped.
     void allDepsStopped();
@@ -244,10 +275,10 @@ class ServiceRecord
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
     
     // Callback from libev when a child process dies
-    static void process_child_callback(struct ev_loop *loop, struct ev_child *w,
+    static void process_child_callback(EventLoop_t *loop, ServiceChildWatcher *w,
             int revents) noexcept;
     
-    static void process_child_status(struct ev_loop *loop, ev_io * stat_io,
+    static void process_child_status(EventLoop_t *loop, ServiceIoWatcher * stat_io,
             int revents) noexcept;
     
     void handle_exit_status() noexcept;
@@ -327,7 +358,7 @@ class ServiceRecord
         : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), auto_restart(false),
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
             waiting_for_execstat(false), doing_recovery(false),
-            start_explicit(false), force_stop(false)
+            start_explicit(false), force_stop(false), child_listener(this), child_status_listener(this)
     {
         service_set = set;
         service_name = name;

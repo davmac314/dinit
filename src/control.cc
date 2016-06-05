@@ -54,7 +54,7 @@ void ControlConn::processPacket()
         char outbuf[] = { DINIT_RP_BADREQ };
         if (! queuePacket(outbuf, 1)) return;
         bad_conn_close = true;
-        ev_io_set(&iob, iob.fd, EV_WRITE);
+        iob.setWatchFlags(out_events);
     }
     return;
 }
@@ -78,7 +78,7 @@ void ControlConn::processFindLoad(int pktType)
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queuePacket(badreqRep, 1)) return;
         bad_conn_close = true;
-        ev_io_set(&iob, iob.fd, EV_WRITE);
+        iob.setWatchFlags(out_events);
         return;
     }
     
@@ -154,7 +154,7 @@ void ControlConn::processStartStop(int pktType)
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queuePacket(badreqRep, 1)) return;
         bad_conn_close = true;
-        ev_io_set(&iob, iob.fd, EV_WRITE);
+        iob.setWatchFlags(out_events);
         return;
     }
     else {
@@ -216,7 +216,7 @@ void ControlConn::processUnpinService()
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queuePacket(badreqRep, 1)) return;
         bad_conn_close = true;
-        ev_io_set(&iob, iob.fd, EV_WRITE);
+        iob.setWatchFlags(out_events);
         return;
     }
     else {
@@ -283,7 +283,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
             pkt += wr;
             size -= wr;
         }
-        ev_io_set(&iob, iob.fd, EV_READ | EV_WRITE);
+        iob.setWatchFlags(in_events | out_events);
     }
     
     // Create a vector out of the (remaining part of the) packet:
@@ -302,7 +302,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
             delete this;
         }
         else {
-            ev_io_set(&iob, iob.fd, EV_WRITE);
+            iob.setWatchFlags(out_events);
         }
         return false;    
     }
@@ -337,7 +337,7 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
             }
             outpkt_index = wr;
         }
-        ev_io_set(&iob, iob.fd, EV_READ | EV_WRITE);
+        iob.setWatchFlags(in_events | out_events);
     }
     
     try {
@@ -355,7 +355,7 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
             delete this;
         }
         else {
-            ev_io_set(&iob, iob.fd, EV_WRITE);
+            iob.setWatchFlags(out_events);
         }
         return false;
     }
@@ -403,7 +403,7 @@ bool ControlConn::dataReady() noexcept
         // TODO log error?
         // TODO error response?
         bad_conn_close = true;
-        ev_io_set(&iob, iob.fd, EV_WRITE);
+        iob.setWatchFlags(out_events);
     }
     
     return false;
@@ -446,7 +446,7 @@ void ControlConn::sendData() noexcept
         outpkt_index = 0;
         if (outbuf.empty() && ! oom_close) {
             if (! bad_conn_close) {
-                ev_io_set(&iob, iob.fd, EV_READ);
+                iob.setWatchFlags(in_events);
             }
             else {
                 delete this;
@@ -458,7 +458,7 @@ void ControlConn::sendData() noexcept
 ControlConn::~ControlConn() noexcept
 {
     close(iob.fd);
-    ev_io_stop(loop, &iob);
+    iob.deregisterWatch(loop);
     
     // Clear service listeners
     for (auto p : serviceKeyMap) {
