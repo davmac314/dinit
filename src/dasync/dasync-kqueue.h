@@ -4,6 +4,14 @@
 #include <unordered_map>
 #include <vector>
 
+#ifdef __OpenBSD__
+#include <sys/signal.h> // for __thrsigdivert aka sigtimedwait
+#include <sys/syscall.h>
+extern "C" { 
+    int __thrsigdivert(sigset_t set, siginfo_t *info, const struct timespec * timeout);
+}
+#endif
+
 #include <sys/event.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -67,10 +75,19 @@ class KqueueTraits
     };
 };
 
+#if defined(__OpenBSD__)
+// OpenBSD has no sigtimedwait (or sigwaitinfo) but does have
+// "__thrsigdivert" - WTF.
+static inline int sigtimedwait(const sigset_t *ssp, siginfo_t *info, const struct timespec *timeout)
+{
+    // return __syscall(SYS___thrsigdivert, *ssp, info, timeout);
+    return __thrsigdivert(*ssp, info, timeout);
+}
+#endif
 
 template <class Base> class KqueueLoop : public Base
 {
-    int kqfd; // epoll fd
+    int kqfd; // kqueue fd
 
     // Base contains:
     //   lock - a lock that can be used to protect internal structure.
@@ -87,18 +104,35 @@ template <class Base> class KqueueLoop : public Base
         
         for (int i = 0; i < r; i++) {
             if (events[i].filter = EVFILT_SIGNAL) {
-                siginfo_t siginfo;
+                SigInfo siginfo;
+                //siginfo_t siginfo;
                 sigset_t sset;
                 sigemptyset(&sset);
                 sigaddset(&sset, events[i].ident);
-                //int r = sigwaitinfo(&sset, &siginfo);
-                // OpenBSD doesn't have sigwaitinfo...
-                int r = 0;
-                if (r > 0) {
-                    Base::receiveSignal(siginfo, (void *)events[i].udata);
+                struct timespec timeout;
+                timeout.tv_sec = 0;
+                timeout.tv_nsec = 0;
+                if (sigtimedwait(&sset, &siginfo.info, &timeout) > 0) {
+                    Base::receiveSignal(siginfo, (void *)events[i].udata);                
                 }
+                // OpenBSD doesn't have sigwaitinfo...
+                // TODO we can probably do better by establishing a handler
+                // and letting it run (using eg sigsuspend()) but that requires
+                // a global area for returning the siginfo_t data and that in
+                // turn requires a global mutex. :(
+                //sigset_t sigset;
+                //sigpending(&sigset);
+                //SigInfo siginfo;
+                //if (sigismember(&sigset, events[i].ident)) {
+                    // consume signal
+                //    int rsig;
+                //    sigemptyset(&sigset);
+                //    sigaddset(&sigset, events[i].ident);
+                //    sigwait(&sigset, &rsig);
+                //    siginfo.info.si_signo = events[i].ident;
+                //    Base::receiveSignal(siginfo, (void *)events[i].udata);
+                //}                
             }
-            
             
             //else {
             //    int flags = 0;
@@ -120,19 +154,16 @@ template <class Base> class KqueueLoop : public Base
      */
     KqueueLoop()
     {
-        //epfd = epoll_create1(EPOLL_CLOEXEC);
-        //if (epfd == -1) {
-        //    throw std::system_error(errno, std::system_category());
-        //}
+        kqfd = kqueue();
+        if (kqfd == -1) {
+            throw std::system_error(errno, std::system_category());
+        }
         //sigemptyset(&sigmask);
     }
     
     ~KqueueLoop()
     {
-        //close(epfd);
-        //if (sigfd != -1) {
-        //    close(sigfd);
-        //}
+        close(kqfd);
     }
     
     // flags:  in_events | out_events
