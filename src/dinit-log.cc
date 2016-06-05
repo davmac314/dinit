@@ -182,7 +182,7 @@ void init_log(ServiceSet *sset) noexcept
 
 bool is_log_flushed() noexcept
 {
-    return log_stream[DLOG_CONS].current_index > 0;
+    return log_stream[DLOG_CONS].current_index == 0;
 }
 
 // Enable or disable console logging. If disabled, console logging will be disabled on the
