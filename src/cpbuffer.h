@@ -55,9 +55,9 @@ template <int SIZE> class CPBuffer
         return r;
     }
     
-    // fill by readin from the given fd, until at least the specified number of bytes are in
+    // fill by reading from the given fd, until at least the specified number of bytes are in
     // the buffer. Return 0 if end-of-file reached before fill complete, or -1 on error.
-    int fillTo(int fd, int rlength) noexcept
+    int fill_to(int fd, int rlength) noexcept
     {
         while (length < rlength) {
             int r = fill(fd);

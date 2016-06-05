@@ -32,7 +32,7 @@ class ReadCPException
 
 static void fillBufferTo(CPBuffer<1024> *buf, int fd, int rlength)
 {
-    int r = buf->fillTo(fd, rlength);
+    int r = buf->fill_to(fd, rlength);
     if (r == -1) {
         throw ReadCPException(errno);
     }
@@ -352,7 +352,7 @@ int main(int argc, char **argv)
         }
         
         // Wait until service started:
-        r = rbuffer.fillTo(socknum, 2);
+        r = rbuffer.fill_to(socknum, 2);
         while (r > 0) {
             if (rbuffer[0] >= 100) {
                 int pktlen = (unsigned char) rbuffer[1];
@@ -385,7 +385,7 @@ int main(int argc, char **argv)
                 }
                 
                 rbuffer.consume(pktlen);
-                r = rbuffer.fillTo(socknum, 2);
+                r = rbuffer.fill_to(socknum, 2);
             }
             else {
                 // Not an information packet?
