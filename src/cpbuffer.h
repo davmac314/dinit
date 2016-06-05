@@ -66,6 +66,12 @@ template <int SIZE> class CPBuffer
         return 1;
     }
     
+    // Trim the buffer to the specified length (must be less than current length)
+    void trim_to(int new_length)
+    {
+        length = new_length;
+    }
+    
     char operator[](int idx) noexcept
     {
         int dest_idx = cur_idx + idx;

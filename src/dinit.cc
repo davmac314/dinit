@@ -303,36 +303,24 @@ int main(int argc, char **argv)
     //ev_signal sigint_ev_signal;
     CallbackSignalHandler sigint_watcher;
     if (am_system_init) {
-      //ev_signal_init(&sigint_ev_signal, sigint_reboot_cb, SIGINT);
       sigint_watcher.setCbFunc(sigint_reboot_cb);
     }
     else {
-      //ev_signal_init(&sigint_ev_signal, sigterm_cb, SIGINT);
       sigint_watcher.setCbFunc(sigterm_cb);
     }
     
-    //ev_signal sigquit_ev_signal;
     CallbackSignalHandler sigquit_watcher;
     if (am_system_init) {
         // PID 1: SIGQUIT exec's shutdown
-        //ev_signal_init(&sigquit_ev_signal, sigquit_cb, SIGQUIT);
         sigquit_watcher.setCbFunc(sigquit_cb);
     }
     else {
         // Otherwise: SIGQUIT terminates dinit
-        //ev_signal_init(&sigquit_ev_signal, sigterm_cb, SIGQUIT);
         sigquit_watcher.setCbFunc(sigterm_cb);
     }
     
-    //ev_signal sigterm_ev_signal;
-    //ev_signal_init(&sigterm_ev_signal, sigterm_cb, SIGTERM);
     auto sigterm_watcher = CallbackSignalHandler(sigterm_cb);
     
-    /* Set up libev */
-    //struct ev_loop *loop = ev_default_loop(EVFLAG_AUTO /* | EVFLAG_SIGNALFD */);
-    //ev_signal_start(loop, &sigint_ev_signal);
-    //ev_signal_start(loop, &sigquit_ev_signal);
-    //ev_signal_start(loop, &sigterm_ev_signal);
     sigint_watcher.registerWatch(&eventLoop, SIGINT);
     sigquit_watcher.registerWatch(&eventLoop, SIGQUIT);
     sigterm_watcher.registerWatch(&eventLoop, SIGTERM);
@@ -375,7 +363,6 @@ int main(int argc, char **argv)
     
     // Process events until all services have terminated.
     while (service_set->count_active_services() != 0) {
-        // ev_loop(loop, EVLOOP_ONESHOT);
         eventLoop.run();
     }
 
@@ -396,6 +383,10 @@ int main(int argc, char **argv)
         else {
             logMsgEnd(" Re-initiating boot sequence.");
         }
+    }
+    
+    while (! is_log_flushed()) {
+        eventLoop.run();
     }
     
     close_control_socket(&eventLoop);

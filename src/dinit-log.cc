@@ -17,6 +17,7 @@ extern EventLoop_t eventLoop;
 
 LogLevel log_level = LogLevel::WARN;
 LogLevel cons_log_level = LogLevel::WARN;
+
 static bool log_to_console = false;   // whether we should output log messages to
                                      // console immediately
 static bool log_current_line;  // Whether the current line is being logged
@@ -179,6 +180,11 @@ void init_log(ServiceSet *sset) noexcept
     enable_console_log(true);
 }
 
+bool is_log_flushed() noexcept
+{
+    return log_stream[DLOG_CONS].current_index > 0;
+}
+
 // Enable or disable console logging. If disabled, console logging will be disabled on the
 // completion of output of the current message (if any), at which point the first service record
 // queued in the service set will acquire the console.
@@ -236,7 +242,6 @@ template <typename ... T> static void do_log(T ... args) noexcept
         bool was_first = (log_stream[DLOG_CONS].current_index == 0);
         log_stream[DLOG_CONS].current_index += amount;
         if (was_first && log_to_console) {
-            //ev_io_start(ev_default_loop(EVFLAG_AUTO), & log_stream[DLOG_CONS].eviocb);
             log_stream[DLOG_CONS].registerWith(&eventLoop, log_stream[DLOG_CONS].fd, out_events);
         }
     }
@@ -253,11 +258,37 @@ template <typename ... T> static void do_log(LogLevel lvl, T ... args) noexcept
     }
 }
 
-
 // Log a message. A newline will be appended.
 void log(LogLevel lvl, const char *msg) noexcept
 {
     do_log(lvl, "dinit: ", msg, "\n");
+}
+
+// Log part of a message. A series of calls to do_log_part must be followed by a call to do_log_commit.
+template <typename T> static void do_log_part(T arg) noexcept
+{
+    int amount = sum_length(arg);
+    if (log_stream[DLOG_CONS].log_buffer.get_free() >= amount) {
+        append(log_stream[DLOG_CONS].log_buffer, arg);
+    }
+    else {
+        // reset
+        log_stream[DLOG_CONS].log_buffer.trim_to(log_stream[DLOG_CONS].current_index);
+        log_current_line = false;
+        // TODO mark discarded message
+    }
+}
+
+// Commit a message that was issued as a series of parts (via do_log_part).
+static void do_log_commit() noexcept
+{
+    if (log_current_line) {
+        bool was_first = log_stream[DLOG_CONS].current_index == 0;
+        log_stream[DLOG_CONS].current_index = log_stream[DLOG_CONS].log_buffer.get_length();
+        if (was_first && log_to_console) {
+            log_stream[DLOG_CONS].registerWith(&eventLoop, log_stream[DLOG_CONS].fd, out_events);
+        }
+    }
 }
 
 // Log a multi-part message beginning
@@ -267,7 +298,8 @@ void logMsgBegin(LogLevel lvl, const char *msg) noexcept
     log_current_line = lvl >= log_level;
     if (log_current_line) {
         if (log_to_console) {
-            std::cout << "dinit: " << msg;
+            do_log_part("dinit: ");
+            do_log_part(msg);
         }
     }
 }
@@ -278,7 +310,7 @@ void logMsgPart(const char *msg) noexcept
     // TODO use buffer
     if (log_current_line) {
         if (log_to_console) {
-            std::cout << msg;
+            do_log_part(msg);
         }
     }
 }
@@ -289,7 +321,9 @@ void logMsgEnd(const char *msg) noexcept
     // TODO use buffer
     if (log_current_line) {
         if (log_to_console) {
-            std::cout << msg << std::endl;
+            do_log_part(msg);
+            do_log_part("\n");
+            do_log_commit();
         }
     }
 }
