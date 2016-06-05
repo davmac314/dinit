@@ -1,7 +1,19 @@
 #ifndef DASYNC_H_INCLUDED
 #define DASYNC_H_INCLUDED
 
-#include "dasync-aen.h"
+#if defined(__OpenBSD__)
+#define HAVE_KQUEUE 1
+#endif
+
+#if defined(__linux__)
+#define HAVE_EPOLL 1
+#endif
+
+#if defined(HAVE_KQUEUE)
+#include "dasync-kqueue.h"
+#elif defined(HAVE_EPOLL)
+#include "dasync-epoll.h"
+#endif
 
 #include <atomic>
 #include <condition_variable>
