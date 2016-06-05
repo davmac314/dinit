@@ -11,10 +11,17 @@
 
 #if defined(HAVE_KQUEUE)
 #include "dasync-kqueue.h"
+namespace dasync {
+    template <typename T> using Loop = KqueueLoop<T>;
+    using LoopTraits = KqueueTraits;
+}
 #elif defined(HAVE_EPOLL)
 #include "dasync-epoll.h"
+namespace dasync {
+    template <typename T> using Loop = EpollLoop<T>;
+    using LoopTraits = EpollTraits;
+}
 #endif
-
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
@@ -71,7 +78,7 @@ template <typename T_Mutex> class PosixChildWatcher;
 // Information about a received signal.
 // This is essentially a wrapper for the POSIX siginfo_t; its existence allows for mechanisms that receive
 // equivalent signal information in a different format (eg signalfd on Linux).
-using SigInfo = EpollTraits::SigInfo;
+using SigInfo = LoopTraits::SigInfo;
 
 namespace dprivate {
     // (non-public API)
@@ -409,7 +416,7 @@ template <typename T_Mutex> class EventLoop
     using BaseChildWatcher = dprivate::BaseChildWatcher<T_Mutex>;
     using WatchType = dprivate::WatchType;
     
-    EpollLoop<ChildProcEvents<EventDispatch<T_Mutex, EpollTraits>>> loop_mech;
+    Loop<ChildProcEvents<EventDispatch<T_Mutex, LoopTraits>>> loop_mech;
 
     // There is a complex problem with most asynchronous event notification mechanisms
     // when used in a multi-threaded environment. Generally, a file descriptor or other
@@ -472,7 +479,7 @@ template <typename T_Mutex> class EventLoop
         waitqueue_node<T_Mutex> qnode;
         getAttnLock(qnode);        
         
-        EventDispatch<T_Mutex, EpollTraits> & ed = (EventDispatch<T_Mutex, EpollTraits> &) loop_mech;
+        EventDispatch<T_Mutex, LoopTraits> & ed = (EventDispatch<T_Mutex, LoopTraits> &) loop_mech;
         ed.issueDelete(callBack);
         
         releaseLock(qnode);
@@ -490,7 +497,7 @@ template <typename T_Mutex> class EventLoop
         waitqueue_node<T_Mutex> qnode;
         getAttnLock(qnode);        
         
-        EventDispatch<T_Mutex, EpollTraits> & ed = (EventDispatch<T_Mutex, EpollTraits> &) loop_mech;
+        EventDispatch<T_Mutex, LoopTraits> & ed = (EventDispatch<T_Mutex, LoopTraits> &) loop_mech;
         ed.issueDelete(callback);
         
         releaseLock(qnode);        
@@ -641,7 +648,7 @@ template <typename T_Mutex> class EventLoop
 
     bool processEvents() noexcept
     {
-        EventDispatch<T_Mutex, EpollTraits> & ed = (EventDispatch<T_Mutex, EpollTraits> &) loop_mech;
+        EventDispatch<T_Mutex, LoopTraits> & ed = (EventDispatch<T_Mutex, LoopTraits> &) loop_mech;
         ed.lock.lock();
         
         // So this pulls *all* currently pending events and processes them in the current thread.
