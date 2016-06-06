@@ -35,9 +35,10 @@ class BufferedLogStream : public PosixFdWatcher<NullMutex>
     bool special = false;      // currently outputting special message?
     char *special_buf; // buffer containing special message
     int msg_index;     // index into special message
+
+    CPBuffer<4096> log_buffer;
     
     public:
-    CPBuffer<4096> log_buffer;
     
     // Incoming:
     int current_index = 0;    // current/next incoming message index
@@ -53,6 +54,31 @@ class BufferedLogStream : public PosixFdWatcher<NullMutex>
 
     // Check whether the console can be released.
     void flushForRelease();
+    
+    // Commit a log message
+    void commit_msg()
+    {
+        bool was_first = current_index == 0;
+        current_index = log_buffer.get_length();
+        if (was_first && log_to_console) {
+            setEnabled(&eventLoop, true);
+        }    
+    }
+    
+    void rollback_msg()
+    {
+        log_buffer.trim_to(current_index);    
+    }
+    
+    int get_free()
+    {
+        return log_buffer.get_free();
+    }
+    
+    void append(const char *s, size_t len)
+    {
+        log_buffer.append(s, len);
+    }
 };
 }
 
@@ -194,6 +220,7 @@ void enable_console_log(bool enable) noexcept
         fcntl(1, F_SETFL, flags | O_NONBLOCK);
         // Activate watcher:
         log_stream[DLOG_CONS].init(STDOUT_FILENO);
+        log_stream[DLOG_CONS].setEnabled(&eventLoop, true);
         log_to_console = true;
     }
     else if (! enable && log_to_console) {
@@ -215,12 +242,12 @@ template <typename U, typename ... T> static int sum_length(U first, T ... args)
 }
 
 // Variadic method to append strings to a buffer:
-static void append(CPBuffer<4096> &buf, const char *s)
+static void append(BufferedLogStream &buf, const char *s)
 {
     buf.append(s, std::strlen(s));
 }
 
-template <typename U, typename ... T> static void append(CPBuffer<4096> &buf, U u, T ... t)
+template <typename U, typename ... T> static void append(BufferedLogStream &buf, U u, T ... t)
 {
     append(buf, u);
     append(buf, t...);
@@ -230,8 +257,8 @@ template <typename U, typename ... T> static void append(CPBuffer<4096> &buf, U 
 template <typename ... T> static void do_log(T ... args) noexcept
 {
     int amount = sum_length(args...);
-    if (log_stream[DLOG_CONS].log_buffer.get_free() >= amount) {
-        append(log_stream[DLOG_CONS].log_buffer, args...);
+    if (log_stream[DLOG_CONS].get_free() >= amount) {
+        append(log_stream[DLOG_CONS], args...);
         
         bool was_first = (log_stream[DLOG_CONS].current_index == 0);
         log_stream[DLOG_CONS].current_index += amount;
@@ -262,12 +289,11 @@ void log(LogLevel lvl, const char *msg) noexcept
 template <typename T> static void do_log_part(T arg) noexcept
 {
     int amount = sum_length(arg);
-    if (log_stream[DLOG_CONS].log_buffer.get_free() >= amount) {
-        append(log_stream[DLOG_CONS].log_buffer, arg);
+    if (log_stream[DLOG_CONS].get_free() >= amount) {
+        append(log_stream[DLOG_CONS], arg);
     }
     else {
-        // reset
-        log_stream[DLOG_CONS].log_buffer.trim_to(log_stream[DLOG_CONS].current_index);
+        log_stream[DLOG_CONS].rollback_msg();
         log_current_line = false;
         // TODO mark discarded message
     }
@@ -277,11 +303,7 @@ template <typename T> static void do_log_part(T arg) noexcept
 static void do_log_commit() noexcept
 {
     if (log_current_line) {
-        bool was_first = log_stream[DLOG_CONS].current_index == 0;
-        log_stream[DLOG_CONS].current_index = log_stream[DLOG_CONS].log_buffer.get_length();
-        if (was_first && log_to_console) {
-            log_stream[DLOG_CONS].setEnabled(&eventLoop, true);
-        }
+        log_stream[DLOG_CONS].commit_msg();
     }
 }
 
