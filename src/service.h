@@ -14,8 +14,12 @@
 #include "service-constants.h"
 
 /*
- * Possible service states
+ * This header defines ServiceRecord, a data record maintaining information about a service,
+ * and ServiceSet, a set of interdependent service records. It also defines some associated
+ * types and exceptions.
  *
+ * Service states
+ * --------------
  * Services have both a current state and a desired state. The desired state can be
  * either STARTED or STOPPED. The current state can also be STARTING or STOPPING.
  * A service can be "pinned" in either the STARTED or STOPPED states to prevent it
@@ -36,6 +40,14 @@
  * A process service is in the STOPPING state when it has been signalled to stop, and is
  * in the STARTING state when waiting for dependencies to start or for the exec() call in
  * the forked child to complete and return a status.
+ *
+ * Aquisition/release:
+ * ------------------
+ * Each service has a dependent-count ("required_by"). This starts at 0, adds 1 if the
+ * service has explicitly been started (i.e. "start_explicit" is true), and adds 1 for
+ * each dependent service which is not STOPPED (including depdendents with a soft dependency).
+ * When required_by transitions to 0, the service is stopped (unless it is pinned). When
+ * require_by transitions from 0, the service is started (unless pinned).
  */
 
 struct OnstartFlags {

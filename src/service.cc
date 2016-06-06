@@ -17,6 +17,11 @@
 #include "service.h"
 #include "dinit-log.h"
 
+/*
+ * service.cc - Service management.
+ * See service.h for details.
+ */
+
 // from dinit.cc:
 void open_control_socket(EventLoop_t *loop) noexcept;
 extern EventLoop_t eventLoop;
