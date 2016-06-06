@@ -62,12 +62,12 @@ class BufferedLogStream : public PosixFdWatcher<NullMutex>
         current_index = log_buffer.get_length();
         if (was_first && log_to_console) {
             setEnabled(&eventLoop, true);
-        }    
+        }
     }
     
     void rollback_msg()
     {
-        log_buffer.trim_to(current_index);    
+        log_buffer.trim_to(current_index);
     }
     
     int get_free()
