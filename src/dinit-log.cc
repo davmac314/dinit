@@ -44,7 +44,6 @@ class BufferedLogStream : public PosixFdWatcher<NullMutex>
     
     // Incoming:
     int current_index = 0;    // current/next incoming message index
-       // ^^ TODO is this always just the length of log_buffer?
 
     int fd;
 
@@ -81,9 +80,9 @@ void BufferedLogStream::flushForRelease()
 {
     // Try to flush any messages that are currently buffered. (Console is non-blocking
     // so it will fail gracefully).
-    if (gotEvent(&eventLoop, fd, out_events) == Rearm::REMOVE) {
+    if (gotEvent(&eventLoop, fd, out_events) == Rearm::DISARM) {
         // Console has already been released at this point.
-        deregisterWatch(&eventLoop);
+        setEnabled(&eventLoop, false);
     }
     // gotEvent didn't want to disarm, so must be partway through a message; will
     // release when it's finished.
@@ -108,7 +107,7 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
                 
                 if (!log_to_console) {
                     release_console();
-                    return Rearm::REMOVE;
+                    return Rearm::DISARM;
                 }
             }
             else {
@@ -130,7 +129,7 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
         
         if (log_stream.current_index == 0) {
             release_console();
-            return Rearm::REMOVE;
+            return Rearm::DISARM;
         }
         
         char *ptr = log_stream.log_buffer.get_ptr(0);
@@ -157,7 +156,7 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
                 if (log_stream.current_index == 0 || !log_to_console) {
                     // No more messages buffered / stop logging to console:
                     release_console();
-                    return Rearm::REMOVE;
+                    return Rearm::DISARM;
                 }
             }
         }
@@ -177,6 +176,7 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
 void init_log(ServiceSet *sset) noexcept
 {
     service_set = sset;
+    log_stream[DLOG_CONS].registerWith(&eventLoop, STDOUT_FILENO, out_events); // TODO register in disabled state
     enable_console_log(true);
 }
 
@@ -197,9 +197,6 @@ void enable_console_log(bool enable) noexcept
         fcntl(1, F_SETFL, flags | O_NONBLOCK);
         // Activate watcher:
         log_stream[DLOG_CONS].init(STDOUT_FILENO);
-        if (log_stream[DLOG_CONS].current_index > 0) {
-            log_stream[DLOG_CONS].registerWith(&eventLoop, log_stream[DLOG_CONS].fd, out_events);
-        }
         log_to_console = true;
     }
     else if (! enable && log_to_console) {
@@ -242,7 +239,7 @@ template <typename ... T> static void do_log(T ... args) noexcept
         bool was_first = (log_stream[DLOG_CONS].current_index == 0);
         log_stream[DLOG_CONS].current_index += amount;
         if (was_first && log_to_console) {
-            log_stream[DLOG_CONS].registerWith(&eventLoop, log_stream[DLOG_CONS].fd, out_events);
+            log_stream[DLOG_CONS].setEnabled(&eventLoop, true);
         }
     }
     else {
@@ -286,7 +283,7 @@ static void do_log_commit() noexcept
         bool was_first = log_stream[DLOG_CONS].current_index == 0;
         log_stream[DLOG_CONS].current_index = log_stream[DLOG_CONS].log_buffer.get_length();
         if (was_first && log_to_console) {
-            log_stream[DLOG_CONS].registerWith(&eventLoop, log_stream[DLOG_CONS].fd, out_events);
+            log_stream[DLOG_CONS].setEnabled(&eventLoop, true);
         }
     }
 }
