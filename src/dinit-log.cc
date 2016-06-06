@@ -10,9 +10,6 @@
 #include "dinit-log.h"
 #include "cpbuffer.h"
 
-// TODO should disarm, not remove, the file descriptor watchers when they are not busy
-//      (and likewise re-arm instead of re-add them when new data arrives).
-
 extern EventLoop_t eventLoop;
 
 LogLevel log_level = LogLevel::WARN;
