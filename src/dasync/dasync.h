@@ -66,6 +66,7 @@ enum class Rearm
     /** Leave in current state */
     NOOP
 // TODO: add a REMOVED option, which means, "I removed myself, DON'T TOUCH ME"
+// TODO: add a REQUEUE option, which means, "I didn't complete input/output, run me again soon"
 };
 
 
@@ -490,6 +491,16 @@ template <typename T_Mutex> class EventLoop
         loop_mech.addFdWatch(fd, callback, eventmask);
     }
     
+    void setEnabled(BaseFdWatcher *callback, int fd, int watch_flags, bool enabled)
+    {
+        if (enabled) {
+            loop_mech.enableFdWatch(fd, static_cast<BaseWatcher *>(callback), watch_flags | one_shot);
+        }
+        else {
+            loop_mech.disableFdWatch(fd);
+        }
+    }
+    
     void deregister(BaseFdWatcher *callback, int fd)
     {
         loop_mech.removeFdWatch(fd);
@@ -831,6 +842,18 @@ class PosixFdWatcher : private dprivate::BaseFdWatcher<T_Mutex>
     
     public:
     
+    // Register a file descriptor watcher with an event loop. Flags
+    // can be any combination of dasync::in_events / dasync::out_events.
+    // Exactly one of in_events/out_events must be specified if the event
+    // loop does not support bi-directional fd watchers.
+    //
+    // Mechanisms supporting dual watchers allow for two watchers for a
+    // single file descriptor (one watching read status and the other
+    // write status). Others mechanisms support only a single watcher
+    // per file descriptor. Adding a watcher beyond what is supported
+    // causes undefined behavior.
+    //
+    // Can fail with std::bad_alloc or std::system_error.
     void registerWith(EventLoop<T_Mutex> *eloop, int fd, int flags)
     {
         this->deleteme = false;
@@ -839,9 +862,23 @@ class PosixFdWatcher : private dprivate::BaseFdWatcher<T_Mutex>
         eloop->registerFd(this, fd, flags);
     }
     
+    // Deregister a file descriptor watcher.
+    //
+    // If other threads may be polling the event loop, it is not safe to assume
+    // the watcher is unregistered until the watchRemoved() callback is issued
+    // (which will not occur until the event handler returns, if it is active).
+    // In a single threaded environment, it is safe to delete the watcher after
+    // calling this method as long as the handler (if it is active) accesses no
+    // internal state and returns Rearm::REMOVED.
+    //   TODO: implement REMOVED, or correct above statement.
     void deregisterWatch(EventLoop<T_Mutex> *eloop) noexcept
     {
         eloop->deregister(this, this->watch_fd);
+    }
+    
+    void setEnabled(EventLoop<T_Mutex> *eloop, bool enable) noexcept
+    {
+        eloop->setEnabled(this, this->watch_fd, this->watch_flags, enable);
     }
     
     // virtual Rearm gotEvent(EventLoop<T_Mutex> *, int fd, int flags) = 0;
@@ -852,11 +889,15 @@ template <typename T_Mutex>
 class PosixChildWatcher : private dprivate::BaseChildWatcher<T_Mutex>
 {
     public:
+    // Reserve resources for a child watcher with the given event loop.
+    // Reservation can fail with std::bad_alloc.
     void reserveWith(EventLoop<T_Mutex> *eloop)
     {
         eloop->reserveChildWatch();
     }
     
+    // Register a watcher for the given child process with an event loop.
+    // Registration can fail with std::bad_alloc.
     void registerWith(EventLoop<T_Mutex> *eloop, pid_t child)
     {
         this->deleteme = false;
@@ -864,6 +905,9 @@ class PosixChildWatcher : private dprivate::BaseChildWatcher<T_Mutex>
         eloop->registerChild(this, child);
     }
     
+    // Register a watcher for the given child process with an event loop,
+    // after having reserved resources previously (using reserveWith).
+    // Registration cannot fail.
     void registerReserved(EventLoop<T_Mutex> *eloop, pid_t child) noexcept
     {
         eloop->registerReservedChild(this, child);
