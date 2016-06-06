@@ -9,7 +9,7 @@ all: dinit dinitctl
 shutdown-utils: shutdown
 
 dinit: $(dinit_objects)
-	$(CXX) -o dinit $(dinit_objects) -lev $(EXTRA_LIBS)
+	$(CXX) -o dinit $(dinit_objects) $(EXTRA_LIBS)
 
 dinitctl: dinitctl.o
 	$(CXX) -o dinitctl dinitctl.o $(EXTRA_LIBS)
