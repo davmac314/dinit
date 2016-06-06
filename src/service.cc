@@ -122,7 +122,7 @@ bool ServiceRecord::do_auto_restart() noexcept
 
 void ServiceRecord::handle_exit_status() noexcept
 {
-    if (exit_status != 0 && service_state != ServiceState::STOPPING) {
+    if (service_type != ServiceType::SCRIPTED && exit_status != 0 && service_state != ServiceState::STOPPING) {
         log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ", exit_status);
     }
 
@@ -186,7 +186,7 @@ void ServiceRecord::handle_exit_status() noexcept
             }
             else {
                 // ??? failed to stop! Let's log it as info:
-                log(LogLevel::INFO, "service ", service_name, " stop command failed with exit code ", exit_status);
+                log(LogLevel::INFO, "Service ", service_name, " stop command failed with exit code ", exit_status);
                 // Just assume that we stopped, so that any dependencies
                 // can be stopped:
                 stopped();
@@ -198,7 +198,7 @@ void ServiceRecord::handle_exit_status() noexcept
             }
             else {
                 // failed to start
-                log(LogLevel::ERROR, "service ", service_name, " command failed with exit code ", exit_status);
+                log(LogLevel::ERROR, "Service ", service_name, " command failed with exit code ", exit_status);
                 failed_to_start();
             }
         }
@@ -580,6 +580,7 @@ void ServiceRecord::failed_to_start(bool depfailed) noexcept
     
     logServiceFailed(service_name);
     service_state = ServiceState::STOPPED;
+    stop(); // release dependencies if appropriate
     notifyListeners(ServiceEvent::FAILEDSTART);
     
     // Cancel start of dependents:
