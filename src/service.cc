@@ -829,7 +829,7 @@ bool ServiceRecord::stopDependents() noexcept
     return all_deps_stopped;
 }
 
-// Dependency stopped or is stopping; we must stop too.
+// All dependents have stopped; we can stop now, too.
 void ServiceRecord::allDepsStopped()
 {
     waiting_for_deps = false;
@@ -842,7 +842,22 @@ void ServiceRecord::allDepsStopped()
             if (term_signal != -1) {
                 kill(pid, term_signal);
             }
-            // Now we wait; the rest is done in process_child_callback
+            
+            // In most cases, the rest is done in process_child_callback.
+            // If we are a BGPROCESS and the process is not our immediate child, however, that
+            // won't work - check for this now:
+            if (service_type == ServiceType::BGPROCESS) {
+                int status;
+                pid_t r = waitpid(pid, &status, WNOHANG);
+                if (r == -1 && errno == ECHILD) {
+                    // We can't track this child
+                    stopped();
+                }
+                else if (r == pid) {
+                    // TODO, examine status and log anything unusual.
+                    stopped();
+                }
+            }
         }
         else {
             // The process is already dead.
