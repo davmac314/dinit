@@ -19,7 +19,7 @@ enum class LogLevel {
 
 extern LogLevel log_level[2];
 void enable_console_log(bool do_enable) noexcept;
-void init_log(ServiceSet *sset) noexcept;
+void init_log(ServiceSet *sset);
 void setup_main_log(int fd);
 bool is_log_flushed() noexcept;
 

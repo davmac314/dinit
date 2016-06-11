@@ -188,14 +188,17 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
     return Rearm::REARM;
 }
 
-void init_log(ServiceSet *sset) noexcept
+// Initialise the logging subsystem
+// Potentially throws std::bad_alloc or std::system_error
+void init_log(ServiceSet *sset)
 {
     service_set = sset;
     log_stream[DLOG_CONS].registerWith(&eventLoop, STDOUT_FILENO, out_events); // TODO register in disabled state
     enable_console_log(true);
 }
 
-// Set up the main log to output to the given file descriptor
+// Set up the main log to output to the given file descriptor.
+// Potentially throws std::bad_alloc or std::system_error
 void setup_main_log(int fd)
 {
     log_stream[DLOG_MAIN].init(STDERR_FILENO);
