@@ -11,12 +11,14 @@
 
 #if defined(HAVE_KQUEUE)
 #include "dasync-kqueue.h"
+#include "dasync-childproc.h"
 namespace dasync {
     template <typename T> using Loop = KqueueLoop<T>;
     using LoopTraits = KqueueTraits;
 }
 #elif defined(HAVE_EPOLL)
 #include "dasync-epoll.h"
+#include "dasync-childproc.h"
 namespace dasync {
     template <typename T> using Loop = EpollLoop<T>;
     using LoopTraits = EpollTraits;
@@ -516,13 +518,11 @@ template <typename T_Mutex> class EventLoop
     
     void reserveChildWatch(BaseChildWatcher *callBack)
     {
-        loop_mech.addSignalWatch(SIGCHLD, nullptr); // TODO remove this kludge
         loop_mech.reserveChildWatch();
     }
     
     void registerChild(BaseChildWatcher *callBack, pid_t child)
     {
-        loop_mech.addSignalWatch(SIGCHLD, nullptr); // TODO remove this kludge
         loop_mech.addChildWatch(child, callBack);
     }
     
@@ -672,6 +672,7 @@ template <typename T_Mutex> class EventLoop
         BaseWatcher * prev = nullptr;
         for (BaseWatcher * q = pqueue; q != nullptr; q = q->next) {
             if (q->deleteme) {
+                // TODO should this really be called with lock held?
                 q->watchRemoved();
                 if (prev) {
                     prev->next = q->next;
@@ -683,6 +684,7 @@ template <typename T_Mutex> class EventLoop
             else {
                 q->active = true;
                 active = true;
+                prev = q;
             }
         }
         
