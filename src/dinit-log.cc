@@ -12,10 +12,8 @@
 
 extern EventLoop_t eventLoop;
 
-LogLevel log_level = LogLevel::WARN;
-LogLevel cons_log_level = LogLevel::WARN;
-
-static bool log_current_line;  // Whether the current line is being logged
+static bool log_current_line[2];  // Whether the current line is being logged (for console, main log)
+LogLevel log_level[2] = { LogLevel::WARN, LogLevel::WARN };
 
 static ServiceSet *service_set = nullptr;  // Reference to service set
 
@@ -42,7 +40,7 @@ class BufferedLogStream : public PosixFdWatcher<NullMutex>
     // Incoming:
     int current_index = 0;    // current/next incoming message index
 
-    int fd;
+    int fd = -1;
 
     void init(int fd)
     {
@@ -91,7 +89,6 @@ static BufferedLogStream log_stream[2];
 constexpr static int DLOG_MAIN = 0; // main log facility
 constexpr static int DLOG_CONS = 1; // console
 
-
 void BufferedLogStream::release_console()
 {
     if (release) {
@@ -117,8 +114,6 @@ void BufferedLogStream::flushForRelease()
 
 Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
 {
-    // TODO correct for the case that this is *not* the console log stream.
-    
     auto &log_stream = *this;
 
     if ((! partway) && log_stream.special) {
@@ -143,9 +138,8 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
             }
         }
         else {
-            // spurious readiness - EAGAIN or EWOULDBLOCK?
-            // other error?
-            // TODO
+            // spurious readiness, or EAGAIN/EWOULDBLOCK/EINTR
+            // There's not much we can do for other errors anyway.
         }
         return Rearm::REARM;
     }
@@ -187,12 +181,6 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
                 }
             }
         }
-        else {
-            // TODO
-            // EAGAIN / EWOULDBLOCK?
-            // error?
-            return Rearm::REARM;
-        }
     }
     
     // We've written something by the time we get here. We could fall through to below, but
@@ -205,6 +193,13 @@ void init_log(ServiceSet *sset) noexcept
     service_set = sset;
     log_stream[DLOG_CONS].registerWith(&eventLoop, STDOUT_FILENO, out_events); // TODO register in disabled state
     enable_console_log(true);
+}
+
+// Set up the main log to output to the given file descriptor
+void setup_main_log(int fd)
+{
+    log_stream[DLOG_MAIN].init(STDERR_FILENO);
+    log_stream[DLOG_MAIN].registerWith(&eventLoop, STDERR_FILENO, out_events);
 }
 
 bool is_log_flushed() noexcept
@@ -257,24 +252,41 @@ template <typename U, typename ... T> static void append(BufferedLogStream &buf,
 }
 
 // Variadic method to log a sequence of strings as a single message:
-template <typename ... T> static void do_log_cons(T ... args) noexcept
+template <typename ... T> static void push_to_log(T ... args) noexcept
 {
     int amount = sum_length(args...);
-    if (log_stream[DLOG_CONS].get_free() >= amount) {
-        append(log_stream[DLOG_CONS], args...);
-        log_stream[DLOG_CONS].commit_msg();
-    }
-    else {
-        // TODO mark a discarded message
+    for (int i = 0; i < 2; i++) {
+        if (! log_current_line[i]) continue;
+        if (log_stream[i].get_free() >= amount) {
+            append(log_stream[i], args...);
+            log_stream[i].commit_msg();
+        }
+        else {
+            // TODO mark a discarded message
+        }        
     }
 }
 
 // Variadic method to potentially log a sequence of strings as a single message with the given log level:
 template <typename ... T> static void do_log(LogLevel lvl, T ... args) noexcept
 {
-    if (lvl >= cons_log_level) {
-        do_log_cons(args...);
-    }
+    log_current_line[DLOG_CONS] = lvl >= log_level[DLOG_CONS];
+    log_current_line[DLOG_MAIN] = lvl >= log_level[DLOG_MAIN];
+    push_to_log(args...);
+}
+
+template <typename ... T> static void do_log_cons(T ... args) noexcept
+{
+    log_current_line[DLOG_CONS] = true;
+    log_current_line[DLOG_MAIN] = false;
+    push_to_log(args...);
+}
+
+template <typename ... T> static void do_log_main(T ... args) noexcept
+{
+    log_current_line[DLOG_CONS] = false;
+    log_current_line[DLOG_MAIN] = true;
+    push_to_log(args...);
 }
 
 // Log a message. A newline will be appended.
@@ -284,69 +296,77 @@ void log(LogLevel lvl, const char *msg) noexcept
 }
 
 // Log part of a message. A series of calls to do_log_part must be followed by a call to do_log_commit.
-template <typename T> static void do_log_part(T arg) noexcept
+template <typename T> static void do_log_part(int idx, T arg) noexcept
 {
-    int amount = sum_length(arg);
-    if (log_stream[DLOG_CONS].get_free() >= amount) {
-        append(log_stream[DLOG_CONS], arg);
-    }
-    else {
-        log_stream[DLOG_CONS].rollback_msg();
-        log_current_line = false;
-        // TODO mark discarded message
+    if (log_current_line[idx]) {
+        int amount = sum_length(arg);
+        if (log_stream[idx].get_free() >= amount) {
+            append(log_stream[idx], arg);
+        }
+        else {
+            log_stream[idx].rollback_msg();
+            log_current_line[idx] = false;
+            // TODO mark discarded message
+        }
     }
 }
 
-// Commit a message that was issued as a series of parts (via do_log_part).
-static void do_log_commit() noexcept
+// Log part of a message. A series of calls to do_log_part must be followed by a call to do_log_commit.
+template <typename T> static void do_log_part(T arg) noexcept
 {
-    if (log_current_line) {
-        log_stream[DLOG_CONS].commit_msg();
+    do_log_part(DLOG_CONS, arg);
+}
+
+// Commit a message that was issued as a series of parts (via do_log_part).
+static void do_log_commit(int idx) noexcept
+{
+    if (log_current_line[idx]) {
+        log_stream[idx].commit_msg();
     }
 }
 
 // Log a multi-part message beginning
 void logMsgBegin(LogLevel lvl, const char *msg) noexcept
 {
-    // TODO use buffer
-    log_current_line = lvl >= log_level;
-    if (log_current_line) {
-        do_log_part("dinit: ");
-        do_log_part(msg);
+    log_current_line[DLOG_CONS] = lvl >= log_level[DLOG_CONS];
+    log_current_line[DLOG_MAIN] = lvl >= log_level[DLOG_MAIN];
+    for (int i = 0; i < 2; i++) {
+        do_log_part(i, "dinit: ");
+        do_log_part(i, msg);
     }
 }
 
 // Continue a multi-part log message
 void logMsgPart(const char *msg) noexcept
 {
-    // TODO use buffer
-    if (log_current_line) {
-        do_log_part(msg);
-    }
+    do_log_part(DLOG_CONS, msg);
+    do_log_part(DLOG_MAIN, msg);
 }
 
 // Complete a multi-part log message
 void logMsgEnd(const char *msg) noexcept
 {
-    // TODO use buffer
-    if (log_current_line) {
-        do_log_part(msg);
-        do_log_part("\n");
-        do_log_commit();
+    for (int i = 0; i < 2; i++) {
+        do_log_part(i, msg);
+        do_log_part(i, "\n");
+        do_log_commit(i);
     }
 }
 
 void logServiceStarted(const char *service_name) noexcept
 {
     do_log_cons("[  OK  ] ", service_name, "\n");
+    do_log_main("dinit: service ", service_name, " started.\n");
 }
 
 void logServiceFailed(const char *service_name) noexcept
 {
     do_log_cons("[FAILED] ", service_name, "\n");
+    do_log_main("dinit: service ", service_name, " failed to start.\n");
 }
 
 void logServiceStopped(const char *service_name) noexcept
 {
     do_log_cons("[STOPPD] ", service_name, "\n");
+    do_log_main("dinit: service ", service_name, " stopped.\n");
 }
