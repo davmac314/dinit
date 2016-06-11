@@ -257,19 +257,34 @@ template <typename ... T> static void append(BufferedLogStream &buf, const char 
     append(buf, t...);
 }
 
-// Variadic method to log a sequence of strings as a single message:
-template <typename ... T> static void push_to_log(T ... args) noexcept
+static int log_level_to_syslog_level(LogLevel l)
 {
+    switch (l) {
+    case LogLevel::DEBUG:
+        return LOG_DEBUG;
+    case LogLevel::INFO:
+        return LOG_INFO;
+    case LogLevel::WARN:
+        return LOG_WARNING;
+    case LogLevel::ERROR:
+        return LOG_ERR;
+    default: ;
+    }
+    
+    return LOG_CRIT;
+}
+
+// Variadic method to log a sequence of strings as a single message to a particular facility:
+template <typename ... T> static void push_to_log(int idx, T ... args) noexcept
+{
+    if (! log_current_line[idx]) return;
     int amount = sum_length(args...);
-    for (int i = 0; i < 2; i++) {
-        if (! log_current_line[i]) continue;
-        if (log_stream[i].get_free() >= amount) {
-            append(log_stream[i], args...);
-            log_stream[i].commit_msg();
-        }
-        else {
-            // TODO mark a discarded message
-        }        
+    if (log_stream[idx].get_free() >= amount) {
+        append(log_stream[idx], args...);
+        log_stream[idx].commit_msg();
+    }
+    else {
+        // TODO mark a discarded message
     }
 }
 
@@ -278,25 +293,33 @@ template <typename ... T> static void do_log(LogLevel lvl, T ... args) noexcept
 {
     log_current_line[DLOG_CONS] = lvl >= log_level[DLOG_CONS];
     log_current_line[DLOG_MAIN] = lvl >= log_level[DLOG_MAIN];
-    push_to_log(args...);
+    push_to_log(DLOG_CONS, args...);
+    
+    if (log_current_line[DLOG_MAIN]) {
+        char svcbuf[10];
+        snprintf(svcbuf, 10, "<%d>", LOG_DAEMON | log_level_to_syslog_level(lvl));
+        
+        push_to_log(DLOG_MAIN, svcbuf, args...);
+    }
 }
 
 template <typename ... T> static void do_log_cons(T ... args) noexcept
 {
     log_current_line[DLOG_CONS] = true;
     log_current_line[DLOG_MAIN] = false;
-    push_to_log(args...);
+    push_to_log(DLOG_CONS, args...);
 }
 
+// Log to the main facility at NOTICE level
 template <typename ... T> static void do_log_main(T ... args) noexcept
 {
     log_current_line[DLOG_CONS] = false;
     log_current_line[DLOG_MAIN] = true;
     
     char svcbuf[10];
-    snprintf(svcbuf, 10, "<%d> ", LOG_DAEMON | LOG_NOTICE);
+    snprintf(svcbuf, 10, "<%d>", LOG_DAEMON | LOG_NOTICE);
     
-    push_to_log(svcbuf, args...);
+    push_to_log(DLOG_MAIN, svcbuf, args...);
 }
 
 // Log a message. A newline will be appended.
@@ -334,6 +357,13 @@ void logMsgBegin(LogLevel lvl, const char *msg) noexcept
 {
     log_current_line[DLOG_CONS] = lvl >= log_level[DLOG_CONS];
     log_current_line[DLOG_MAIN] = lvl >= log_level[DLOG_MAIN];
+
+    if (log_current_line[DLOG_MAIN]) {
+        char svcbuf[10];
+        snprintf(svcbuf, 10, "<%d>", LOG_DAEMON | log_level_to_syslog_level(lvl));
+        do_log_part(DLOG_MAIN, svcbuf);
+    }
+
     for (int i = 0; i < 2; i++) {
         do_log_part(i, "dinit: ");
         do_log_part(i, msg);
