@@ -23,7 +23,7 @@
  */
 
 // from dinit.cc:
-void open_control_socket(EventLoop_t *loop) noexcept;
+void system_rw_ready() noexcept;
 extern EventLoop_t eventLoop;
 
 // Find the requested service by name
@@ -558,7 +558,7 @@ void ServiceRecord::started() noexcept
     notifyListeners(ServiceEvent::STARTED);
 
     if (onstart_flags.rw_ready) {
-        open_control_socket(&eventLoop);
+        system_rw_ready();
     }
 
     if (force_stop || desired_state == ServiceState::STOPPED) {

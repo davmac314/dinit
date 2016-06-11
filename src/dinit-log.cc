@@ -3,6 +3,7 @@
 
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/syslog.h>
 
 #include "dasync.h"
 
@@ -115,7 +116,7 @@ void BufferedLogStream::flushForRelease()
 Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
 {
     auto &log_stream = *this;
-
+    
     if ((! partway) && log_stream.special) {
         char * start = log_stream.special_buf + log_stream.msg_index;
         char * end = std::find(log_stream.special_buf + log_stream.msg_index, (char *)nullptr, '\n');
@@ -137,9 +138,8 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
                 return Rearm::REARM;
             }
         }
-        else {
-            // spurious readiness, or EAGAIN/EWOULDBLOCK/EINTR
-            // There's not much we can do for other errors anyway.
+        else if (errno != EAGAIN && errno != EINTR && errno != EWOULDBLOCK) {
+            return Rearm::REMOVE;
         }
         return Rearm::REARM;
     }
@@ -148,7 +148,7 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
         
         // TODO issue special message if we have discarded a log message
         
-        if (log_stream.current_index == 0) {
+        if (current_index == 0) {
             release_console();
             return Rearm::DISARM;
         }
@@ -181,6 +181,9 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
                 }
             }
         }
+        else if (errno != EAGAIN && errno != EINTR && errno != EWOULDBLOCK) {
+            return Rearm::REMOVE;
+        }
     }
     
     // We've written something by the time we get here. We could fall through to below, but
@@ -201,8 +204,8 @@ void init_log(ServiceSet *sset)
 // Potentially throws std::bad_alloc or std::system_error
 void setup_main_log(int fd)
 {
-    log_stream[DLOG_MAIN].init(STDERR_FILENO);
-    log_stream[DLOG_MAIN].registerWith(&eventLoop, STDERR_FILENO, out_events);
+    log_stream[DLOG_MAIN].init(fd);
+    log_stream[DLOG_MAIN].registerWith(&eventLoop, fd, out_events);
 }
 
 bool is_log_flushed() noexcept
@@ -237,7 +240,7 @@ static int sum_length(const char *arg) noexcept
     return std::strlen(arg);
 }
 
-template <typename U, typename ... T> static int sum_length(U first, T ... args) noexcept
+template <typename ... T> static int sum_length(const char * first, T ... args) noexcept
 {
     return sum_length(first) + sum_length(args...);
 }
@@ -248,7 +251,7 @@ static void append(BufferedLogStream &buf, const char *s)
     buf.append(s, std::strlen(s));
 }
 
-template <typename U, typename ... T> static void append(BufferedLogStream &buf, U u, T ... t)
+template <typename ... T> static void append(BufferedLogStream &buf, const char *u, T ... t)
 {
     append(buf, u);
     append(buf, t...);
@@ -289,7 +292,11 @@ template <typename ... T> static void do_log_main(T ... args) noexcept
 {
     log_current_line[DLOG_CONS] = false;
     log_current_line[DLOG_MAIN] = true;
-    push_to_log(args...);
+    
+    char svcbuf[10];
+    snprintf(svcbuf, 10, "<%d> ", LOG_DAEMON | LOG_NOTICE);
+    
+    push_to_log(svcbuf, args...);
 }
 
 // Log a message. A newline will be appended.
@@ -312,12 +319,6 @@ template <typename T> static void do_log_part(int idx, T arg) noexcept
             // TODO mark discarded message
         }
     }
-}
-
-// Log part of a message. A series of calls to do_log_part must be followed by a call to do_log_commit.
-template <typename T> static void do_log_part(T arg) noexcept
-{
-    do_log_part(DLOG_CONS, arg);
 }
 
 // Commit a message that was issued as a series of parts (via do_log_part).
