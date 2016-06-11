@@ -15,8 +15,6 @@ extern EventLoop_t eventLoop;
 LogLevel log_level = LogLevel::WARN;
 LogLevel cons_log_level = LogLevel::WARN;
 
-static bool log_to_console = false;   // whether we should output log messages to
-                                     // console immediately
 static bool log_current_line;  // Whether the current line is being logged
 
 static ServiceSet *service_set = nullptr;  // Reference to service set
@@ -29,6 +27,7 @@ class BufferedLogStream : public PosixFdWatcher<NullMutex>
     // Outgoing:
     bool partway = false;     // if we are partway throught output of a log message
     bool discarded = false;   // if we have discarded a message
+    bool release = true;      // if we should inhibit output and release console
 
     // A "special message" is not stored in the circular buffer; instead
     // it is delivered from an external buffer not managed by BufferedLogger.
@@ -48,19 +47,22 @@ class BufferedLogStream : public PosixFdWatcher<NullMutex>
     void init(int fd)
     {
         this->fd = fd;
+        release = false;
     }
     
     Rearm gotEvent(EventLoop_t *loop, int fd, int flags) noexcept override;
 
     // Check whether the console can be released.
     void flushForRelease();
+    void release_console();
+    bool is_release_set() { return release; }
     
     // Commit a log message
     void commit_msg()
     {
         bool was_first = current_index == 0;
         current_index = log_buffer.get_length();
-        if (was_first && log_to_console) {
+        if (was_first && ! release) {
             setEnabled(&eventLoop, true);
         }
     }
@@ -90,9 +92,9 @@ constexpr static int DLOG_MAIN = 0; // main log facility
 constexpr static int DLOG_CONS = 1; // console
 
 
-static void release_console()
+void BufferedLogStream::release_console()
 {
-    if (! log_to_console) {
+    if (release) {
         int flags = fcntl(1, F_GETFL, 0);
         fcntl(1, F_SETFL, flags & ~O_NONBLOCK);
         service_set->pullConsoleQueue();
@@ -101,6 +103,8 @@ static void release_console()
 
 void BufferedLogStream::flushForRelease()
 {
+    release = true;
+    
     // Try to flush any messages that are currently buffered. (Console is non-blocking
     // so it will fail gracefully).
     if (gotEvent(&eventLoop, fd, out_events) == Rearm::DISARM) {
@@ -128,7 +132,7 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
                 log_stream.partway = false;
                 log_stream.msg_index = 0;
                 
-                if (!log_to_console) {
+                if (release) {
                     release_console();
                     return Rearm::DISARM;
                 }
@@ -176,7 +180,7 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
             log_stream.partway = ! complete;
             if (complete) {
                 log_stream.current_index -= len;
-                if (log_stream.current_index == 0 || !log_to_console) {
+                if (log_stream.current_index == 0 || release) {
                     // No more messages buffered / stop logging to console:
                     release_console();
                     return Rearm::DISARM;
@@ -213,6 +217,7 @@ bool is_log_flushed() noexcept
 // queued in the service set will acquire the console.
 void enable_console_log(bool enable) noexcept
 {
+    bool log_to_console = ! log_stream[DLOG_CONS].is_release_set();
     if (enable && ! log_to_console) {
         // Console is fd 1 - stdout
         // Set non-blocking IO:
@@ -221,10 +226,8 @@ void enable_console_log(bool enable) noexcept
         // Activate watcher:
         log_stream[DLOG_CONS].init(STDOUT_FILENO);
         log_stream[DLOG_CONS].setEnabled(&eventLoop, true);
-        log_to_console = true;
     }
     else if (! enable && log_to_console) {
-        log_to_console = false;
         log_stream[DLOG_CONS].flushForRelease();
     }
 }
@@ -254,7 +257,7 @@ template <typename U, typename ... T> static void append(BufferedLogStream &buf,
 }
 
 // Variadic method to log a sequence of strings as a single message:
-template <typename ... T> static void do_log(T ... args) noexcept
+template <typename ... T> static void do_log_cons(T ... args) noexcept
 {
     int amount = sum_length(args...);
     if (log_stream[DLOG_CONS].get_free() >= amount) {
@@ -270,7 +273,7 @@ template <typename ... T> static void do_log(T ... args) noexcept
 template <typename ... T> static void do_log(LogLevel lvl, T ... args) noexcept
 {
     if (lvl >= cons_log_level) {
-        do_log(args...);
+        do_log_cons(args...);
     }
 }
 
@@ -308,10 +311,8 @@ void logMsgBegin(LogLevel lvl, const char *msg) noexcept
     // TODO use buffer
     log_current_line = lvl >= log_level;
     if (log_current_line) {
-        if (log_to_console) {
-            do_log_part("dinit: ");
-            do_log_part(msg);
-        }
+        do_log_part("dinit: ");
+        do_log_part(msg);
     }
 }
 
@@ -320,9 +321,7 @@ void logMsgPart(const char *msg) noexcept
 {
     // TODO use buffer
     if (log_current_line) {
-        if (log_to_console) {
-            do_log_part(msg);
-        }
+        do_log_part(msg);
     }
 }
 
@@ -331,25 +330,23 @@ void logMsgEnd(const char *msg) noexcept
 {
     // TODO use buffer
     if (log_current_line) {
-        if (log_to_console) {
-            do_log_part(msg);
-            do_log_part("\n");
-            do_log_commit();
-        }
+        do_log_part(msg);
+        do_log_part("\n");
+        do_log_commit();
     }
 }
 
 void logServiceStarted(const char *service_name) noexcept
 {
-    do_log("[  OK  ] ", service_name, "\n");
+    do_log_cons("[  OK  ] ", service_name, "\n");
 }
 
 void logServiceFailed(const char *service_name) noexcept
 {
-    do_log("[FAILED] ", service_name, "\n");
+    do_log_cons("[FAILED] ", service_name, "\n");
 }
 
 void logServiceStopped(const char *service_name) noexcept
 {
-    do_log("[STOPPD] ", service_name, "\n");
+    do_log_cons("[STOPPD] ", service_name, "\n");
 }
