@@ -259,12 +259,7 @@ template <typename ... T> static void do_log(T ... args) noexcept
     int amount = sum_length(args...);
     if (log_stream[DLOG_CONS].get_free() >= amount) {
         append(log_stream[DLOG_CONS], args...);
-        
-        bool was_first = (log_stream[DLOG_CONS].current_index == 0);
-        log_stream[DLOG_CONS].current_index += amount;
-        if (was_first && log_to_console) {
-            log_stream[DLOG_CONS].setEnabled(&eventLoop, true);
-        }
+        log_stream[DLOG_CONS].commit_msg();
     }
     else {
         // TODO mark a discarded message
