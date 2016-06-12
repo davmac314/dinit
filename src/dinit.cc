@@ -444,8 +444,8 @@ static void control_socket_cb(EventLoop_t *loop, int sockfd)
         try {
             new ControlConn(loop, service_set, newfd);  // will delete itself when it's finished
         }
-        catch (std::bad_alloc &bad_alloc_exc) {
-            log(LogLevel::ERROR, "Accepting control connection: Out of memory");
+        catch (std::exception &exc) {
+            log(LogLevel::ERROR, "Accepting control connection: ", exc.what());
             close(newfd);
         }
     }
