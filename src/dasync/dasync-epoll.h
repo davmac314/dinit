@@ -21,6 +21,9 @@ constexpr unsigned int err_events = 4;
 
 constexpr unsigned int one_shot = 8;
 
+// Masks:
+constexpr unsigned int IO_EVENTS = in_events | out_events;
+
 
 template <class Base> class EpollLoop;
 
@@ -68,6 +71,9 @@ class EpollTraits
             return ss.fd;
         }
     };
+    
+    const static bool has_bidi_fd_watch = true;
+    const static bool has_separate_rw_fd_watches = false;
 };
 
 
@@ -172,19 +178,19 @@ template <class Base> class EpollLoop : public Base
         }
     }
     
-    void removeFdWatch(int fd)
+    void removeFdWatch(int fd) noexcept
     {
         epoll_ctl(epfd, EPOLL_CTL_DEL, fd, nullptr);
     }
     
-    void removeFdWatch_nolock(int fd)
+    void removeFdWatch_nolock(int fd) noexcept
     {
         removeFdWatch(fd);
     }
     
     // Note this will *replace* the old flags with the new, that is,
     // it can enable *or disable* read/write events.
-    void enableFdWatch(int fd, void *userdata, int flags)
+    void enableFdWatch(int fd, void *userdata, int flags) noexcept
     {
         struct epoll_event epevent;
         // epevent.data.fd = fd;
@@ -200,9 +206,10 @@ template <class Base> class EpollLoop : public Base
         if (flags & out_events) {
             epevent.events |= EPOLLOUT;
         }
-
+        
         if (epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &epevent) == -1) {
-            throw new std::system_error(errno, std::system_category());        
+            // Shouldn't be able to fail
+            // throw new std::system_error(errno, std::system_category());
         }
     }
     
@@ -211,7 +218,7 @@ template <class Base> class EpollLoop : public Base
         enableFdWatch(fd, userdata, flags);
     }
     
-    void disableFdWatch(int fd)
+    void disableFdWatch(int fd) noexcept
     {
         struct epoll_event epevent;
         // epevent.data.fd = fd;
@@ -222,8 +229,14 @@ template <class Base> class EpollLoop : public Base
         // whether this is really the case. Suspect it is really only the case if
         // EPOLLIN is set.
         if (epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &epevent) == -1) {
-            throw new std::system_error(errno, std::system_category());        
+            // Let's assume that this can't fail.
+            // throw new std::system_error(errno, std::system_category());
         }
+    }
+    
+    void disableFdWatch_nolock(int fd) noexcept
+    {
+        disableFdWatch(fd);
     }
     
     // Note signal should be masked before call.
