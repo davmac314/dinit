@@ -161,24 +161,32 @@ void ControlConn::processStartStop(int pktType)
         bool already_there = false;
         switch (pktType) {
         case DINIT_CP_STARTSERVICE:
+            // start service, mark as required
             if (do_pin) service->pinStart();
             service->start();
             already_there = service->getState() == ServiceState::STARTED;
             break;
         case DINIT_CP_STOPSERVICE:
+            // force service to stop
             if (do_pin) service->pinStop();
-            service->stop();
+            service->stop(true);
+            service->forceStop();
             already_there = service->getState() == ServiceState::STOPPED;
             break;
         case DINIT_CP_WAKESERVICE:
-            // re-start a stopped service.
+            // re-start a stopped service (do not mark as required)
             if (do_pin) service->pinStart();
             service->start(false);
             already_there = service->getState() == ServiceState::STARTED;
             break;
-        default: /* DINIT_CP_RELEASESERVICE */
-            // remove explicit start from a service, without necessarily stopping it.
-            // TODO.
+        case DINIT_CP_RELEASESERVICE:
+            // remove required mark, stop if not required by dependents
+            if (do_pin) service->pinStop();
+            service->stop();
+            already_there = service->getState() == ServiceState::STOPPED;
+            break;
+        default:
+            // TODO return an error
             break;
         }
         
