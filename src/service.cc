@@ -69,17 +69,20 @@ void ServiceRecord::stopped() noexcept
         releaseConsole();
     }
 
-    logServiceStopped(service_name);
     service_state = ServiceState::STOPPED;
     force_stop = false;
     
+    logServiceStopped(service_name);
     notifyListeners(ServiceEvent::STOPPED);
     
+    bool will_restart = (desired_state == ServiceState::STARTED) && service_set->get_auto_restart();
     for (auto dependency : depends_on) {
-        dependency->dependentStopped();
+        if (! will_restart || ! dependency->can_interrupt_stop()) {
+            dependency->dependentStopped();
+        }
     }
     
-    if (desired_state == ServiceState::STARTED && service_set->get_auto_restart()) {
+    if (will_restart) {
         // Desired state is "started".
         do_start();
     }
@@ -150,7 +153,7 @@ void ServiceRecord::handle_exit_status() noexcept
         if (need_stop) {
             // Failed startup: no auto-restart.
             desired_state = ServiceState::STOPPED;
-            do_stop();
+            forceStop();
         }
         
         return;
@@ -305,15 +308,16 @@ void ServiceRecord::release_dependencies() noexcept
 
 void ServiceRecord::start(bool activate) noexcept
 {
-    if (activate) {
-        if (!start_explicit) require();
+    if (activate && ! start_explicit) {
+        require();
         start_explicit = true;
     }
     
     if (desired_state == ServiceState::STARTED && service_state != ServiceState::STOPPED) return;
     
     if (required_by == 0) {
-        service_set->service_active(this);
+        // It really doesn't make any sense to start if there is no dependent or explicit activation.
+        return;
     }
 
     desired_state = ServiceState::STARTED;
@@ -753,7 +757,7 @@ void ServiceRecord::stop(bool bring_down) noexcept
         release();
     }
     
-    if (bring_down) {
+    if (bring_down && desired_state != ServiceState::STOPPED) {
         desired_state = ServiceState::STOPPED;
         do_stop();
     }
@@ -829,7 +833,7 @@ bool ServiceRecord::stopDependents() noexcept
     return all_deps_stopped;
 }
 
-// All dependents have stopped; we can stop now, too.
+// All dependents have stopped; we can stop now, too. Only called when STOPPING.
 void ServiceRecord::allDepsStopped()
 {
     waiting_for_deps = false;
@@ -850,7 +854,7 @@ void ServiceRecord::allDepsStopped()
                 int status;
                 pid_t r = waitpid(pid, &status, WNOHANG);
                 if (r == -1 && errno == ECHILD) {
-                    // We can't track this child
+                    // We can't track this child (or it's terminated already)
                     stopped();
                 }
                 else if (r == pid) {
@@ -884,7 +888,7 @@ void ServiceRecord::unpin() noexcept
     if (pinned_started) {
         pinned_started = false;
         if (desired_state == ServiceState::STOPPED) {
-            stop();
+            do_stop();
         }
     }
     if (pinned_stopped) {

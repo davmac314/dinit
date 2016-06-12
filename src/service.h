@@ -48,6 +48,26 @@
  * each dependent service which is not STOPPED (including depdendents with a soft dependency).
  * When required_by transitions to 0, the service is stopped (unless it is pinned). When
  * require_by transitions from 0, the service is started (unless pinned).
+ *
+ * So, in general, the dependent-count determines the desired state (STARTED if the count
+ * is greater than 0, otherwise STOPPED). However, a service can be issued a stop-and-take
+ * down order (via `stop(true)'); this will first stop dependent services, which may restart
+ * and cancel the stop of the former service. Finally, a service can be force-stopped, which
+ * means that its stop process cannot be cancelled (though it may still be put in a desired
+ * state of STARTED, meaning it will start immediately upon stopping).
+ *
+ * Pinning
+ * -------
+ * A service may be "pinned" in either STARTED or STOPPED states (or even both). Once it
+ * reaches a pinned state, a service will not leave that state, though its desired state
+ * may still be set. (Note that pinning prevents, but never causes, state transition).
+ *
+ * The priority of the different state deciders is:
+ *  - pins
+ *  - force stop flag
+ *  - desired state (which is manipulated by require/release operations)
+ *
+ * So a forced stop cannot occur until the service is not pinned started, for instance.
  */
 
 struct OnstartFlags {
@@ -294,8 +314,11 @@ class ServiceRecord
             int revents) noexcept;
     
     void handle_exit_status() noexcept;
-    
+
+    // Called on transition of desired state from stopped to started (or unpinned stop)
     void do_start() noexcept;
+
+    // Called on transition of desired state from started to stopped (or unpinned start)
     void do_stop() noexcept;
     
     // A dependency has reached STARTED state
