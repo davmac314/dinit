@@ -21,9 +21,6 @@
 using namespace dasync;
 using EventLoop_t = EventLoop<NullMutex>;
 
-// TODO: Use the input buffer as a circular buffer, instead of chomping data from
-// the front using a data move.
-
 class ControlConn;
 class ControlConnWatcher;
 
@@ -50,25 +47,46 @@ extern int active_control_conns;
 class ServiceSet;
 class ServiceRecord;
 
-class ControlConnWatcher : public PosixFdWatcher<NullMutex>
+class ControlConnWatcher : public PosixBidiFdWatcher<NullMutex>
 {
-    Rearm gotEvent(EventLoop_t * loop, int fd, int flags) override
+    inline Rearm receiveEvent(EventLoop_t * loop, int fd, int flags) noexcept;
+
+    Rearm readReady(EventLoop_t * loop, int fd) noexcept override
     {
-        control_conn_cb(loop, this, flags);
-        return Rearm::REARM;
+        return receiveEvent(loop, fd, in_events);
+    }
+    
+    Rearm writeReady(EventLoop_t * loop, int fd) noexcept override
+    {
+        return receiveEvent(loop, fd, out_events);
     }
     
     public:
     int fd; // TODO this is already stored, find a better way to access it.
+    EventLoop_t * eventLoop;
+    int watch_flags;
     
-    using PosixFdWatcher<NullMutex>::setWatchFlags;
+    void setWatchFlags(int flags) noexcept
+    {
+        PosixBidiFdWatcher<NullMutex>::setWatchFlags(eventLoop, flags);
+        watch_flags = flags;
+    }
     
     void registerWith(EventLoop_t *loop, int fd, int flags)
     {
         this->fd = fd;
-        PosixFdWatcher<NullMutex>::registerWith(loop, fd, flags);
+        PosixBidiFdWatcher<NullMutex>::registerWith(loop, fd, flags);
+        watch_flags = flags;
     }
 };
+
+inline Rearm ControlConnWatcher::receiveEvent(EventLoop_t * loop, int fd, int flags) noexcept
+{
+    PosixBidiFdWatcher<NullMutex>::setWatchFlags(loop, watch_flags);
+    control_conn_cb(loop, this, flags);
+    return Rearm::NOOP;
+}
+
 
 class ControlConn : private ServiceListener
 {
@@ -149,7 +167,6 @@ class ControlConn : private ServiceListener
         bad_conn_close = true;
         oom_close = true;
         iob.setWatchFlags(out_events);
-        //ev_io_set(&iob, iob.fd, EV_WRITE);
     }
     
     // Process service event broadcast.
@@ -184,11 +201,7 @@ class ControlConn : private ServiceListener
     public:
     ControlConn(EventLoop_t * loop, ServiceSet * service_set, int fd) : loop(loop), service_set(service_set), chklen(0)
     {
-        //ev_io_init(&iob, control_conn_cb, fd, EV_READ);
-        //iob.data = this;
-        //ev_io_start(loop, &iob);
         iob.registerWith(loop, fd, in_events);
-        
         active_control_conns++;
     }
     
