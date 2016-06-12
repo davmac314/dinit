@@ -230,7 +230,7 @@ void ServiceRecord::process_child_status(EventLoop_t *loop, ServiceIoWatcher * s
     close(stat_io->fd);
     stat_io->deregisterWatch(loop);
     
-    if (r != 0) {
+    if (r > 0) {
         // We read an errno code; exec() failed, and the service startup failed.
         sr->pid = -1;
         log(LogLevel::ERROR, sr->service_name, ": execution failed: ", strerror(exec_status));
