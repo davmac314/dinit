@@ -25,7 +25,7 @@ class ControlConn;
 class ControlConnWatcher;
 
 // forward-declaration of callback:
-static void control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
+static dasync::Rearm control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
 
 // Pointer to the control connection that is listening for rollback completion
 extern ControlConn * rollback_handler_conn;
@@ -64,33 +64,29 @@ class ControlConnWatcher : public PosixBidiFdWatcher<NullMutex>
     public:
     int fd; // TODO this is already stored, find a better way to access it.
     EventLoop_t * eventLoop;
-    int watch_flags;
     
-    void setWatchFlags(int flags) noexcept
+    void setWatchFlags(int flags)
     {
         PosixBidiFdWatcher<NullMutex>::setWatchFlags(eventLoop, flags);
-        watch_flags = flags;
     }
     
     void registerWith(EventLoop_t *loop, int fd, int flags)
     {
         this->fd = fd;
+        this->eventLoop = loop;
         PosixBidiFdWatcher<NullMutex>::registerWith(loop, fd, flags);
-        watch_flags = flags;
     }
 };
 
 inline Rearm ControlConnWatcher::receiveEvent(EventLoop_t * loop, int fd, int flags) noexcept
 {
-    PosixBidiFdWatcher<NullMutex>::setWatchFlags(loop, watch_flags);
-    control_conn_cb(loop, this, flags);
-    return Rearm::NOOP;
+    return control_conn_cb(loop, this, flags);
 }
 
 
 class ControlConn : private ServiceListener
 {
-    friend void control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
+    friend dasync::Rearm control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
     
     ControlConnWatcher iob;
     EventLoop_t *loop;
@@ -121,32 +117,36 @@ class ControlConn : private ServiceListener
     unsigned outpkt_index = 0;
     
     // Queue a packet to be sent
-    //  Returns:  true if the packet was successfully queued, false if otherwise
-    //            (eg if out of memory); in the latter case the connection might
-    //            no longer be valid (iff there are no outgoing packets queued).
+    //  Returns:  false if the packet could not be queued and the connection has been
+    //              destroyed;
+    //            true (with bad_conn_close == false) if the packet was successfully
+    //              queued;
+    //            true (with bad_conn_close == true) if the packet was not successfully
+    //              queued.
+    // The in/out watch enabled state will also be set appropriately.
     bool queuePacket(vector<char> &&v) noexcept;
     bool queuePacket(const char *pkt, unsigned size) noexcept;
 
     // Process a packet. Can cause the ControlConn to be deleted iff there are no
-    // outgoing packets queued.
+    // outgoing packets queued (returns false).
     // Throws:
     //    std::bad_alloc - if an out-of-memory condition prevents processing
-    void processPacket();
+    bool processPacket();
     
     // Process a STARTSERVICE/STOPSERVICE packet. May throw std::bad_alloc.
-    void processStartStop(int pktType);
+    bool processStartStop(int pktType);
     
     // Process a FINDSERVICE/LOADSERVICE packet. May throw std::bad_alloc.
-    void processFindLoad(int pktType);
+    bool processFindLoad(int pktType);
 
     // Process an UNPINSERVICE packet. May throw std::bad_alloc.
-    void processUnpinService();
+    bool processUnpinService();
 
-    // Notify that data is ready to be read from the socket. Returns true in cases where the
-    // connection was deleted with potentially pending outgoing packets.
+    // Notify that data is ready to be read from the socket. Returns true if the connection was
+    // deleted.
     bool dataReady() noexcept;
     
-    void sendData() noexcept;
+    bool sendData() noexcept;
     
     // Allocate a new handle for a service; may throw std::bad_alloc
     handle_t allocateServiceHandle(ServiceRecord *record);
@@ -211,19 +211,25 @@ class ControlConn : private ServiceListener
 };
 
 
-static void control_conn_cb(EventLoop_t * loop, ControlConnWatcher * watcher, int revents)
+static dasync::Rearm control_conn_cb(EventLoop_t * loop, ControlConnWatcher * watcher, int revents)
 {
+    using Rearm = dasync::Rearm;
+
     char * cc_addr = (reinterpret_cast<char *>(watcher)) - offsetof(ControlConn, iob);
     ControlConn *conn = reinterpret_cast<ControlConn *>(cc_addr);
     if (revents & in_events) {
         if (conn->dataReady()) {
             // ControlConn was deleted
-            return;
+            return Rearm::REMOVED;
         }
     }
     if (revents & out_events) {
-        conn->sendData();
-    }    
+        if (conn->sendData()) {
+            return Rearm::REMOVED;
+        }
+    }
+    
+    return Rearm::NOOP;
 }
 
 #endif
