@@ -22,14 +22,6 @@ extern "C" {
 
 namespace dasync {
 
-// Event type bits
-constexpr unsigned int in_events = 1;
-constexpr unsigned int out_events = 2;
-constexpr unsigned int err_events = 4;
-
-constexpr unsigned int one_shot = 8;
-
-
 template <class Base> class KqueueLoop;
 
 class KqueueTraits
@@ -73,14 +65,22 @@ class KqueueTraits
             return fd;
         }
     };
+    
+    const static bool has_separate_rw_fd_watches = true;
 };
 
 #if defined(__OpenBSD__)
-// OpenBSD has no sigtimedwait (or sigwaitinfo) but does have
-// "__thrsigdivert" - WTF.
-static inline int sigtimedwait(const sigset_t *ssp, siginfo_t *info, const struct timespec *timeout)
+// OpenBSD has no sigtimedwait (or sigwaitinfo) but does have "__thrsigdivert", which is
+// essentially an incomplete version of the same thing. Discussion with OpenBSD developer
+// Ted Unangst suggested that the siginfo_t structure returned might not always have all
+// fields set correctly. Furthermore there is a bug such that specifying a zero timeout (or
+// indeed any timeout less than a tick) results in NO timeout.
+static inline int sigtimedwait(const sigset_t *ssp, siginfo_t *info, struct timespec *timeout)
 {
-    // return __syscall(SYS___thrsigdivert, *ssp, info, timeout);
+    // We know that we're only called with a timeout of 0 (which doesn't work properly) and
+    // that we safely overwrite the timeout. So, we set tv_nsec to an invalid value, which
+    // will cause EINVAL to be returned, but will still pick up any pending signals *first*.
+    timeout->tv_nsec = 1000000001;
     return __thrsigdivert(*ssp, info, timeout);
 }
 #endif
@@ -88,7 +88,22 @@ static inline int sigtimedwait(const sigset_t *ssp, siginfo_t *info, const struc
 template <class Base> class KqueueLoop : public Base
 {
     int kqfd; // kqueue fd
+    sigset_t sigmask; // enabled signal watch mask
 
+    // Map of signal number to user data pointer. If kqueue had been better thought-through,
+    // we shouldn't need this. Although we can associate user data with an EVFILT_SIGNAL kqueue
+    // filter, the problem is that the kqueue signal report *coexists* with the regular signal
+    // delivery mechanism without having any connection to it. Whereas regular signals can be
+    // queued (especially "realtime" signals, via sigqueue()), kqueue just maintains a counter
+    // of delivery attempts and clears this when we read the event. What this means is that
+    // kqueue won't necessarily tell us if signals are pending, in the case that:
+    //  1) it already reported the attempted signal delivery and
+    //  2) more than one of the same signal was pending at that time and
+    //  3) no more deliveries of the same signal have been attempted in the meantime.
+    // Of course, if kqueue doesn't report the signal, then it doesn't give us the data associated
+    // with the event, so we need to maintain that separately too:
+    std::unordered_map<int, void *> sigdataMap;
+    
     // Base contains:
     //   lock - a lock that can be used to protect internal structure.
     //          receive*() methods will be called with lock held.
@@ -103,9 +118,8 @@ template <class Base> class KqueueLoop : public Base
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         
         for (int i = 0; i < r; i++) {
-            if (events[i].filter = EVFILT_SIGNAL) {
+            if (events[i].filter == EVFILT_SIGNAL) {
                 SigInfo siginfo;
-                //siginfo_t siginfo;
                 sigset_t sset;
                 sigemptyset(&sset);
                 sigaddset(&sset, events[i].ident);
@@ -113,36 +127,31 @@ template <class Base> class KqueueLoop : public Base
                 timeout.tv_sec = 0;
                 timeout.tv_nsec = 0;
                 if (sigtimedwait(&sset, &siginfo.info, &timeout) > 0) {
-                    Base::receiveSignal(siginfo, (void *)events[i].udata);                
+                    Base::receiveSignal(siginfo, (void *)events[i].udata);
                 }
-                // OpenBSD doesn't have sigwaitinfo...
-                // TODO we can probably do better by establishing a handler
-                // and letting it run (using eg sigsuspend()) but that requires
-                // a global area for returning the siginfo_t data and that in
-                // turn requires a global mutex. :(
-                //sigset_t sigset;
-                //sigpending(&sigset);
-                //SigInfo siginfo;
-                //if (sigismember(&sigset, events[i].ident)) {
-                    // consume signal
-                //    int rsig;
-                //    sigemptyset(&sigset);
-                //    sigaddset(&sigset, events[i].ident);
-                //    sigwait(&sigset, &rsig);
-                //    siginfo.info.si_signo = events[i].ident;
-                //    Base::receiveSignal(siginfo, (void *)events[i].udata);
-                //}                
+                
+                if (events[i].ident != SIGCHLD) {
+                    sigdelset(&sigmask, events[i].ident);
+                    events[i].flags = EV_DISABLE;
+                }
+                else {
+                    // TODO can we remove this SIGCHLD hack?
+                    events[i].flags = EV_ENABLE;
+                }
             }
-            
-            //else {
+            else {
             //    int flags = 0;
             //    (events[i].events & EPOLLIN) && (flags |= in_events);
             //    (events[i].events & EPOLLHUP) && (flags |= in_events);
             //    (events[i].events & EPOLLOUT) && (flags |= out_events);
             //    (events[i].events & EPOLLERR) && (flags |= err_events);
             //    Base::receiveFdEvent(*this, FD_r(), ptr, flags);
-            //}            
+                events[i].flags = EV_DISABLE;
+            }
         }
+        
+        // Now we disable all received events, to simulate EV_DISPATCH:
+        kevent(kqfd, events, r, nullptr, 0, nullptr);
     }
     
     public:
@@ -158,12 +167,20 @@ template <class Base> class KqueueLoop : public Base
         if (kqfd == -1) {
             throw std::system_error(errno, std::system_category());
         }
-        //sigemptyset(&sigmask);
+        sigemptyset(&sigmask);
+        Base::init(this);
     }
     
     ~KqueueLoop()
     {
         close(kqfd);
+    }
+    
+    void disableFilter(short filterType, uintptr_t ident)
+    {
+        struct kevent kev;
+        EV_SET(&kev, ident, filterType, EV_DISABLE, 0, 0, 0);
+        kevent(kqfd, &kev, 1, nullptr, 0, nullptr);
     }
     
     // flags:  in_events | out_events
@@ -243,52 +260,54 @@ template <class Base> class KqueueLoop : public Base
         //}
     }
     
+    void disableFdWatch_nolock(int fd)
+    {
+        // TODO
+    }
+    
     // Note signal should be masked before call.
     void addSignalWatch(int signo, void *userdata)
     {
-        //std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-
-        //sigdataMap[signo] = userdata;
-
-        // Modify the signal fd to watch the new signal
-        //bool was_no_sigfd = (sigfd == -1);
-        //sigaddset(&sigmask, signo);
-        //sigfd = signalfd(sigfd, &sigmask, SFD_NONBLOCK | SFD_CLOEXEC);
-        //if (sigfd == -1) {
-        //    throw new std::system_error(errno, std::system_category());
-        //}
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         
-        //if (was_no_sigfd) {
-            // Add the signalfd to the epoll set.
-        //    struct epoll_event epevent;
-        //    epevent.data.ptr = &sigfd;
-        //    epevent.events = EPOLLIN;
-            // No need for EPOLLONESHOT - we can pull the signals out
-            // as we see them.
-        //    if (epoll_ctl(epfd, EPOLL_CTL_ADD, sigfd, &epevent) == -1) {
-        //        close(sigfd);
-        //        throw new std::system_error(errno, std::system_category());        
-        //    }
-        //}
+        sigdataMap[signo] = userdata;
+        sigaddset(&sigmask, signo);
+        
+        struct kevent evt;
+        EV_SET(&evt, signo, EVFILT_SIGNAL, EV_ADD, 0, 0, userdata);
+        // TODO use EV_DISPATCH if available (not on OpenBSD)
+        
+        if (kevent(kqfd, &evt, 1, nullptr, 0, nullptr) == -1) {
+            throw new std::system_error(errno, std::system_category());
+        }
     }
     
     // Note, called with lock held:
     void rearmSignalWatch_nolock(int signo) noexcept
     {
-        //sigaddset(&sigmask, signo);
-        //signalfd(sigfd, &sigmask, SFD_NONBLOCK | SFD_CLOEXEC);
+        sigaddset(&sigmask, signo);
+        
+        struct kevent evt;
+        EV_SET(&evt, signo, EVFILT_SIGNAL, EV_ENABLE, 0, 0, 0);
+        // TODO use EV_DISPATCH if available (not on OpenBSD)
+        
+        kevent(kqfd, &evt, 1, nullptr, 0, nullptr);
     }
     
     void removeSignalWatch_nolock(int signo) noexcept
     {
-        //sigdelset(&sigmask, signo);
-        //signalfd(sigfd, &sigmask, 0);
+        sigdelset(&sigmask, signo);
+        
+        struct kevent evt;
+        EV_SET(&evt, signo, EVFILT_SIGNAL, EV_DELETE, 0, 0, 0);
+        
+        kevent(kqfd, &evt, 1, nullptr, 0, nullptr);
     }
 
     void removeSignalWatch(int signo) noexcept
     {
-        //std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-        //removeSignalWatch_nolock(signo);
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
+        removeSignalWatch_nolock(signo);
     }
     
     // If events are pending, process an unspecified number of them.
@@ -303,14 +322,47 @@ template <class Base> class KqueueLoop : public Base
     //            pending.
     void pullEvents(bool do_wait)
     {
-        //epoll_event events[16];
-        //int r = epoll_wait(epfd, events, 16, do_wait ? -1 : 0);
-        //if (r == -1 || r == 0) {
+        // We actually need to check pending signals, since
+        // kqueue can count signals as they are delivered but the count is
+        // cleared when we poll the kqueue, meaning that signals might still
+        // be pending if they were queued multiple times at the last poll.
+        
+        // TODO we should only poll for signals that *have* been reported
+        // as being raised more than once prior via kevent, rather than all
+        // signals that have been registered - in many cases that will allow
+        // us to skip the sigtimedwait call altogether.
+        
+        {
+            std::lock_guard<decltype(Base::lock)> guard(Base::lock);
+            struct timespec timeout;
+            timeout.tv_sec = 0;
+            timeout.tv_nsec = 0;
+            SigInfo siginfo;
+            int rsigno = sigtimedwait(&sigmask, &siginfo.info, &timeout);
+            while (rsigno > 0) {
+                // TODO avoid this hack for SIGCHLD somehow
+                if (rsigno != SIGCHLD) {
+                    sigdelset(&sigmask, rsigno);
+                    // TODO accumulate and disable multiple filters with a single kevents call
+                    //      rather than disabling each individually
+                    disableFilter(EVFILT_SIGNAL, rsigno);
+                }
+                Base::receiveSignal(siginfo, sigdataMap[rsigno]);
+                rsigno = sigtimedwait(&sigmask, &siginfo.info, &timeout);
+            }
+        }
+        
+        struct kevent events[16];
+        struct timespec ts;
+        ts.tv_sec = 0;
+        ts.tv_nsec = 0;
+        int r = kevent(kqfd, nullptr, 0, events, 16, do_wait ? nullptr : &ts);
+        if (r == -1 || r == 0) {
             // signal or no events
-        //    return;
-        //}
-    
-        //processEvents(events, r);
+            return;
+        }
+        
+        processEvents(events, r);
     }
 
     // If events are pending, process one of them.
@@ -321,14 +373,18 @@ template <class Base> class KqueueLoop : public Base
     //            pending.    
     void pullOneEvent(bool do_wait)
     {
-        //epoll_event events[1];
-        //int r = epoll_wait(epfd, events, 1, do_wait ? -1 : 0);
-        //if (r == -1 || r == 0) {
+        // TODO must check for pending signals as per pullEvents()
+        struct kevent events[1];
+        struct timespec ts;
+        ts.tv_sec = 0;
+        ts.tv_nsec = 0;
+        int r = kevent(kqfd, nullptr, 0, events, 1, do_wait ? nullptr : &ts);
+        if (r == -1 || r == 0) {
             // signal or no events
-        //    return;
-        //}
+            return;
+        }
     
-        //processEvents(events, r);    
+        processEvents(events, r);
     }
     
     // Interrupt any current poll operation (pullEvents/pullOneEvent), causing
@@ -336,122 +392,6 @@ template <class Base> class KqueueLoop : public Base
     void interruptWait()
     {
         // TODO
-    }
-};
-
-// Map of pid_t to void *, with possibility of reserving entries so that mappings can
-// be later added with no danger of allocator exhaustion (bad_alloc).
-class pid_map
-{
-    using pair = std::pair<pid_t, void *>;
-    std::unordered_map<pid_t, void *> base_map;
-    std::vector<pair> backup_vector;
-    
-    // Number of entries in backup_vector that are actually in use (as opposed
-    // to simply reserved):
-    int backup_size = 0;
-    
-    public:
-    using entry = std::pair<bool, void *>;
-
-    entry get(pid_t key) noexcept
-    {
-        auto it = base_map.find(key);
-        if (it == base_map.end()) {
-            // Not in map; look in vector
-            for (int i = 0; i < backup_size; i++) {
-                if (backup_vector[i].first == key) {
-                    return entry(true, backup_vector[i].second);
-                }
-            }
-        
-            return entry(false, nullptr);
-        }
-        
-        return entry(true, it->second);
-    }
-    
-    entry erase(pid_t key) noexcept
-    {
-        auto iter = base_map.find(key);
-        if (iter != base_map.end()) {
-            entry r(true, iter->second);
-            base_map.erase(iter);
-            return r;
-        }
-        for (int i = 0; i < backup_size; i++) {
-            if (backup_vector[i].first == key) {
-                entry r(true, backup_vector[i].second);
-                backup_vector.erase(backup_vector.begin() + i);
-                return r;
-            }
-        }
-        return entry(false, nullptr);
-    }
-    
-    // Throws bad_alloc on reservation failure
-    void reserve()
-    {
-        backup_vector.resize(backup_vector.size() + 1);
-    }
-    
-    void add(pid_t key, void *val) // throws std::bad_alloc
-    {
-        base_map[key] = val;
-    }
-    
-    void add_from_reserve(pid_t key, void *val) noexcept
-    {
-        try {
-            base_map[key] = val;
-            backup_vector.resize(backup_vector.size() - 1);
-        }
-        catch (std::bad_alloc &) {
-            // We couldn't add into the map, use the reserve:
-            backup_vector[backup_size++] = pair(key, val);
-        }
-    }
-};
-
-template <class Base> class ChildProcEvents : public Base
-{
-    private:
-    pid_map child_waiters;
-
-    using SigInfo = typename Base::SigInfo;
-    
-    protected:
-    void receiveSignal(SigInfo &siginfo, void *userdata)
-    {
-        if (siginfo.get_signo() == SIGCHLD) {
-            int status;
-            pid_t child;
-            while ((child = waitpid(-1, &status, WNOHANG)) > 0) {
-                pid_map::entry ent = child_waiters.erase(child);
-                if (ent.first) {
-                    Base::receiveChildStat(child, status, ent.second);
-                }
-            }
-        }
-        else {
-            Base::receiveSignal(siginfo, userdata);
-        }
-    }
-    
-    public:
-    void reserveChildWatch()
-    {
-        child_waiters.reserve();
-    }
-    
-    void addChildWatch(pid_t child, void *val)
-    {
-        child_waiters.add(child, val);
-    }
-    
-    void addReservedChildWatch(pid_t child, void *val) noexcept
-    {
-        child_waiters.add_from_reserve(child, val);
     }
 };
 

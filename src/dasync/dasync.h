@@ -9,6 +9,8 @@
 #define HAVE_EPOLL 1
 #endif
 
+#include "dasync-flags.h"
+
 #if defined(HAVE_KQUEUE)
 #include "dasync-kqueue.h"
 #include "dasync-childproc.h"
@@ -63,11 +65,12 @@ enum class Rearm
     REARM,
     /** Disarm the event watcher so that it receives no further events, until it is re-armed explicitly */
     DISARM,
+    /** Leave in current armed/disarmed state */
+    NOOP,
     /** Remove the event watcher (and call "removed" callback) */
     REMOVE,
-    /** Leave in current state */
-    NOOP
-// TODO: add a REMOVED option, which means, "I removed myself, DON'T TOUCH ME"
+    /** The watcher has been removed - don't touch it! */
+    REMOVED
 // TODO: add a REQUEUE option, which means, "I didn't complete input/output, run me again soon"
 };
 
@@ -335,6 +338,11 @@ namespace dprivate {
             }
         }
         
+        bool isQueued(BaseWatcher *bwatcher)
+        {
+            return bwatcher->prev != nullptr;
+        }
+
         void dequeueWatcher(BaseWatcher *bwatcher)
         {
             if (bwatcher->prev == bwatcher) {
@@ -351,11 +359,6 @@ namespace dprivate {
             bwatcher->next = nullptr;
         }
         
-        bool isQueued(BaseWatcher *bwatcher)
-        {
-            return bwatcher->prev != nullptr;
-        }
-
         protected:
         T_Mutex lock;
         
@@ -428,10 +431,13 @@ namespace dprivate {
             
             lock.lock();
             
+            // TODO this needs to handle multi-watch (BidiFdWatcher) properly
+            
             if (watcher->active) {
                 // If the watcher is active, set deleteme true; the watcher will be removed
                 // at the end of current processing (i.e. when active is set false).
                 watcher->deleteme = true;
+                lock.unlock();
             }
             else {
                 // Actually do the delete.
@@ -439,11 +445,45 @@ namespace dprivate {
                     dequeueWatcher(watcher);
                 }
                 
-                // TODO call this without lock?
+                lock.unlock();
                 watcher->watchRemoved();
             }
+        }
+        
+        void issueDelete(BaseBidiFdWatcher *watcher) noexcept
+        {
+            lock.lock();
             
-            lock.unlock();
+            if (watcher->active) {
+                watcher->deleteme = true;
+            }
+            else {
+                if (isQueued(watcher)) {
+                    dequeueWatcher(watcher);
+                }
+                
+                watcher->read_removed = true;
+            }
+            
+            BaseWatcher *secondary = &(watcher->outWatcher);
+            if (secondary->active) {
+                secondary->deleteme = true;
+            }
+            else {
+                if (isQueued(secondary)) {
+                    dequeueWatcher(secondary);
+                }
+                
+                watcher->write_removed = true;
+            }
+            
+            if (watcher->read_removed && watcher->write_removed) {
+                lock.unlock();
+                watcher->watchRemoved();
+            }
+            else {
+                lock.unlock();
+            }
         }
     };
 }
@@ -594,15 +634,15 @@ template <typename T_Mutex> class EventLoop
         }
         else {
             loop_mech.removeFdWatch(fd);
-            
-            waitqueue_node<T_Mutex> qnode;
-            getAttnLock(qnode);        
-            
-            EventDispatch<T_Mutex, LoopTraits> & ed = (EventDispatch<T_Mutex, LoopTraits> &) loop_mech;
-            ed.issueDelete(callback);
-            
-            releaseLock(qnode);
         }
+        
+        waitqueue_node<T_Mutex> qnode;
+        getAttnLock(qnode);        
+        
+        EventDispatch<T_Mutex, LoopTraits> & ed = (EventDispatch<T_Mutex, LoopTraits> &) loop_mech;
+        ed.issueDelete(callback);
+        
+        releaseLock(qnode);
     }
     
     void reserveChildWatch(BaseChildWatcher *callBack)
@@ -618,6 +658,13 @@ template <typename T_Mutex> class EventLoop
     void registerReservedChild(BaseChildWatcher *callBack, pid_t child) noexcept
     {
         loop_mech.addReservedChildWatch(child, callBack);
+    }
+    
+    void dequeueWatcher(BaseWatcher *watcher) noexcept
+    {
+        if (loop_mech.isQueued(watcher)) {
+            loop_mech.dequeueWatcher(watcher);
+        }
     }
 
     // Acquire the attention lock (when held, ensures that no thread is polling the AEN
@@ -795,11 +842,32 @@ template <typename T_Mutex> class EventLoop
             pqueue->active = true;
             active = true;
             
-            ed.lock.unlock();
-        
             Rearm rearmType = Rearm::NOOP;
             bool is_multi_watch = false;
             BaseBidiFdWatcher *bbfw = nullptr;
+            
+            // Read/manipulate watch_flags (if necessary) *before* we release the lock:
+            if (pqueue->watchType == WatchType::FD) {
+                BaseFdWatcher *bfw = static_cast<BaseFdWatcher *>(pqueue);
+                bbfw = static_cast<BaseBidiFdWatcher *>(bfw);
+                is_multi_watch = bfw->watch_flags & dprivate::multi_watch;
+                if (! LoopTraits::has_separate_rw_fd_watches && is_multi_watch) {
+                    // Clear the input watch flags to avoid enabling read watcher while active:
+                    bfw->watch_flags &= ~in_events;
+                }
+            }
+            else if (pqueue->watchType == WatchType::SECONDARYFD) {
+                is_multi_watch = true;
+                char * rp = (char *)pqueue;
+                rp -= offsetof(BaseBidiFdWatcher, outWatcher);
+                bbfw = (BaseBidiFdWatcher *)rp;
+                if (! LoopTraits::has_separate_rw_fd_watches) {
+                    bbfw->watch_flags &= ~out_events;
+                }
+            }
+            
+            ed.lock.unlock();
+            
             // (Above variables are initialised only to silence compiler warnings).
             
             // Note that we select actions based on the type of the watch, as determined by the watchType
@@ -816,11 +884,9 @@ template <typename T_Mutex> class EventLoop
             }
             case WatchType::FD: {
                 BaseFdWatcher *bfw = static_cast<BaseFdWatcher *>(pqueue);
-                is_multi_watch = bfw->watch_flags & dprivate::multi_watch;
                 if (is_multi_watch) {
                     // The primary watcher for a multi-watch watcher is queued for
                     // read events.
-                    bbfw = static_cast<BaseBidiFdWatcher *>(bfw);
                     rearmType = bbfw->readReady(this, bfw->watch_fd);
                 }
                 else {
@@ -832,57 +898,54 @@ template <typename T_Mutex> class EventLoop
                 BaseChildWatcher *bcw = static_cast<BaseChildWatcher *>(pqueue);
                 bcw->gotTermStat(this, bcw->watch_pid, bcw->child_status);
                 // Child watches automatically remove:
+                // TODO what if they want to return REMOVED...
                 rearmType = Rearm::REMOVE;
                 break;
             }
             case WatchType::SECONDARYFD: {
                 // first construct a pointer to the main watcher:
-                is_multi_watch = true;
-                char * rp = (char *)pqueue;
-                rp -= offsetof(BaseBidiFdWatcher, outWatcher);
-                bbfw = (BaseBidiFdWatcher *)rp;
                 rearmType = bbfw->writeReady(this, bbfw->watch_fd);
                 break;
             }
             default: ;
             }
-            
+
             ed.lock.lock();
             
-            pqueue->active = false;
-            if (pqueue->deleteme) {
-                // We don't want a watch that is marked "deleteme" to re-arm itself.
-                // NOOP flags that the state is managed externally, so we don't adjust that.
-                if (rearmType != Rearm::NOOP) {
+            // (if REMOVED, we must not touch pqueue at all)
+            if (rearmType != Rearm::REMOVED) {
+                
+                pqueue->active = false;
+                if (pqueue->deleteme) {
+                    // We don't want a watch that is marked "deleteme" to re-arm itself.
                     rearmType = Rearm::REMOVE;
                 }
+                switch (pqueue->watchType) {
+                case WatchType::SIGNAL:
+                    processSignalRearm(static_cast<BaseSignalWatcher *>(pqueue), rearmType);
+                    break;
+                case WatchType::FD:
+                    rearmType = processFdRearm(static_cast<BaseFdWatcher *>(pqueue), rearmType, is_multi_watch);
+                    break;
+                case WatchType::SECONDARYFD:
+                    rearmType = processSecondaryRearm(bbfw, rearmType);
+                    break;
+                default: ;
+                }
+                
+                if (pqueue->deleteme) rearmType = Rearm::REMOVE; // makes the watchRemoved() callback get called.
+                
+                if (rearmType == Rearm::REMOVE) {
+                    ed.lock.unlock();
+                    (is_multi_watch ? bbfw : pqueue)->watchRemoved();
+                    ed.lock.lock();
+                }
             }
-            switch (pqueue->watchType) {
-            case WatchType::SIGNAL:
-                processSignalRearm(static_cast<BaseSignalWatcher *>(pqueue), rearmType);
-                break;
-            case WatchType::FD:
-                rearmType = processFdRearm(static_cast<BaseFdWatcher *>(pqueue), rearmType, is_multi_watch);
-                break;
-            case WatchType::SECONDARYFD:
-                rearmType = processSecondaryRearm(bbfw, rearmType);
-                break;
-            default: ;
-            }
-            
-            if (pqueue->deleteme) rearmType = Rearm::REMOVE; // makes the watchRemoved() callback get called.
-            
-            ed.lock.unlock();
-            
-            if (rearmType == Rearm::REMOVE) {
-                (is_multi_watch ? bbfw : pqueue)->watchRemoved();
-            }
-            
-            ed.lock.lock();
             
             pqueue = ed.pullEvent();
         }
         
+        ed.lock.unlock();
         return active;
     }
 
@@ -995,12 +1058,19 @@ class PosixFdWatcher : private dprivate::BaseFdWatcher<T_Mutex>
     
     void setEnabled(EventLoop<T_Mutex> *eloop, bool enable) noexcept
     {
-        eloop->setFdEnabled(this, this->watch_fd, this->watch_flags, enable);
+        std::lock_guard<T_Mutex> guard(eloop->getBaseLock());
+        eloop->setFdEnabled_nolock(this, this->watch_fd, this->watch_flags, enable);
+        if (! enable) {
+            eloop->dequeueWatcher(this);
+        }
     }
     
     // virtual Rearm gotEvent(EventLoop<T_Mutex> *, int fd, int flags) = 0;
 };
 
+// A Bi-directional file descriptor watcher with independent read- and write- channels.
+// This watcher type has two event notification methods which can both potentially be
+// active at the same time.
 template <typename T_Mutex>
 class PosixBidiFdWatcher : private dprivate::BaseBidiFdWatcher<T_Mutex>
 {
@@ -1019,15 +1089,24 @@ class PosixBidiFdWatcher : private dprivate::BaseBidiFdWatcher<T_Mutex>
         if (LoopTraits::has_separate_rw_fd_watches) {
             dprivate::BaseWatcher * watcher = in ? this : &this->outWatcher;
             eloop->setFdEnabled_nolock(watcher, this->watch_fd, events | one_shot, b);
+            if (! b) {
+                eloop->dequeueWatcher(watcher);
+            }
         }
         else {
             eloop->setFdEnabled_nolock(this, this->watch_fd,
                     (this->watch_flags & (in_events | out_events)) | one_shot,
                     (this->watch_flags & (in_events | out_events)) != 0);
+            if (! b) {
+                dprivate::BaseWatcher * watcher = in ? this : &this->outWatcher;
+                eloop->dequeueWatcher(watcher);
+            }
         }
     }
     
     protected:
+    
+    // TODO if a watch is disabled and currently queued, we should de-queue it.
     
     void setInWatchEnabled(EventLoop<T_Mutex> *eloop, bool b) noexcept
     {
@@ -1044,13 +1123,16 @@ class PosixBidiFdWatcher : private dprivate::BaseBidiFdWatcher<T_Mutex>
     }
     
     // Set the watch flags, which enables/disables both the in-watch and the out-watch accordingly.
-    // This can only be called from the event handler callbacks (readReady/writeReady) and only if
-    // set{In|Out}WatchEnabled will not be called concurrently.
+    //
+    // Concurrency: this method can only be called if
+    //  - it does not enable a watcher that might currently be active
+    ///   - unless the event loop will not be polled while the watcher is active.
+    // (i.e. it is ok to call setWatchFlags from within the readReady/writeReady handlers if no other
+    //  thread will poll the event loop; it is ok to *dis*able a watcher that might be active).
     void setWatchFlags(EventLoop<T_Mutex> * eloop, int newFlags)
     {
+        std::lock_guard<T_Mutex> guard(eloop->getBaseLock());
         if (LoopTraits::has_separate_rw_fd_watches) {
-            // (In this case, this function is fully thread-safe)
-            std::lock_guard<T_Mutex> guard(eloop->getBaseLock());
             setWatchEnabled(eloop, true, (newFlags & in_events) != 0);
             setWatchEnabled(eloop, false, (newFlags & out_events) != 0);
         }
