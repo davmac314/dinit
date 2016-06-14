@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <signal.h>
 #include <pwd.h>
 
 #include "control-cmds.h"
@@ -185,6 +186,8 @@ int main(int argc, char **argv)
         cout << "  --pin            : pin the service in the requested (started/stopped) state" << endl;
         return 1;
     }
+    
+    signal(SIGPIPE, SIG_IGN);
     
     control_socket_path = "/dev/dinitctl";
     
