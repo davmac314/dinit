@@ -213,6 +213,7 @@ void ServiceRecord::handle_exit_status() noexcept
                 log(LogLevel::ERROR, "Service ", service_name, " command failed with exit code ", exit_status);
                 failed_to_start();
             }
+            service_set->processQueues(true);
         }
     }
 }
