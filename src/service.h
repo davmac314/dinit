@@ -284,9 +284,22 @@ class ServiceRecord
     int exit_status; // Exit status, if the process has exited (pid == -1).
     int socket_fd = -1;  // For socket-activation services, this is the file
                          // descriptor for the socket.
-
+    
     ServiceChildWatcher child_listener;
     ServiceIoWatcher child_status_listener;
+    
+    // Data for use by ServiceSet
+    public:
+    
+    // Next service (after this one) in the queue for the console. Intended to only be used by ServiceSet class.
+    ServiceRecord *next_for_console;
+    
+    // Start/stop queues
+    ServiceRecord *next_in_start_queue = nullptr;
+    ServiceRecord *next_in_stop_queue = nullptr;
+    
+    
+    private:
     
     // All dependents have stopped.
     void allDepsStopped();
@@ -315,12 +328,6 @@ class ServiceRecord
     
     void handle_exit_status() noexcept;
 
-    // Called on transition of desired state from stopped to started (or unpinned stop)
-    void do_start() noexcept;
-
-    // Called on transition of desired state from started to stopped (or unpinned start)
-    void do_stop() noexcept;
-    
     // A dependency has reached STARTED state
     void dependencyStarted() noexcept;
     
@@ -427,8 +434,11 @@ class ServiceRecord
     
     // TODO write a destructor
 
-    // Next service (after this one) in the queue for the console. Intended to only be used by ServiceSet class.
-    ServiceRecord *next_for_console;
+    // Called on transition of desired state from stopped to started (or unpinned stop)
+    void do_start() noexcept;
+
+    // Called on transition of desired state from started to stopped (or unpinned start)
+    void do_stop() noexcept;
     
     // Console is available.
     void acquiredConsole() noexcept;
@@ -537,7 +547,25 @@ class ServiceRecord
     }
 };
 
-
+/*
+ * A ServiceSet, as the name suggests, manages a set of services.
+ *
+ * Other than the ability to find services by name, the service set manages various queues.
+ * One is the queue for processes wishing to acquire the console. There is also a set of
+ * processes that want to start, and another set of those that want to stop. These latter
+ * two "queues" (not really queues since their order is not important) are used to prevent too
+ * much recursion and to prevent service states from "bouncing" too rapidly.
+ * 
+ * A service that wishes to stop puts itself on the stop queue; a service that wishes to start
+ * puts itself on the start queue. Any operation that potentially manipulates the queues must
+ * be folloed by a "process queues" order (processQueues method, which can be instructed to
+ * process either the start queue or the stop queue first).
+ *
+ * Note that which queue it does process first, processQueues always repeatedly processes both
+ * queues until they are empty. The process is finite because starting a service can never
+ * cause services to be added to the stop queue, unless they fail to start, which should cause
+ * them to stop semi-permanently.
+ */
 class ServiceSet
 {
     int active_services;
@@ -549,6 +577,10 @@ class ServiceSet
     
     ServiceRecord * console_queue_head = nullptr; // first record in console queue
     ServiceRecord * console_queue_tail = nullptr; // last record in console queue
+
+    // start/stop "queue" - list of services waiting to stop/start
+    ServiceRecord * first_start_queue = nullptr;
+    ServiceRecord * first_stop_queue = nullptr;
     
     // Private methods
         
@@ -596,6 +628,51 @@ class ServiceSet
     // Stop the service with the given name. The named service will begin
     // transition to the 'stopped' state.
     void stopService(const std::string &name) noexcept;
+    
+    // Add a service record to the start queue
+    void addToStartQueue(ServiceRecord *service) noexcept
+    {
+        if (service->next_in_start_queue == nullptr && first_start_queue != service) {
+            service->next_in_start_queue = first_start_queue;
+            first_start_queue = service;
+        }
+    }
+    
+    // Add a service to the stop queue
+    void addToStopQueue(ServiceRecord *service) noexcept
+    {
+        if (service->next_in_stop_queue == nullptr && first_stop_queue != service) {
+            service->next_in_stop_queue = first_stop_queue;
+            first_stop_queue = service;
+        }
+    }
+    
+    void processQueues(bool do_start_first) noexcept
+    {
+        if (! do_start_first) {
+            while (first_stop_queue != nullptr) {
+                auto next = first_stop_queue;
+                first_stop_queue = next->next_in_stop_queue;
+                next->next_in_stop_queue = nullptr;
+                next->do_stop();
+            }
+        }
+        
+        while (first_stop_queue != nullptr || first_start_queue != nullptr) {
+            while (first_start_queue != nullptr) {
+                auto next = first_start_queue;
+                first_start_queue = next->next_in_start_queue;
+                next->next_in_start_queue = nullptr;
+                next->do_start();
+            }
+            while (first_stop_queue != nullptr) {
+                auto next = first_stop_queue;
+                first_stop_queue = next->next_in_stop_queue;
+                next->next_in_stop_queue = nullptr;
+                next->do_stop();
+            }
+        }
+    }
     
     // Set the console queue tail (returns previous tail)
     ServiceRecord * consoleQueueTail(ServiceRecord * newTail) noexcept

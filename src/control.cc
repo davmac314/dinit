@@ -161,6 +161,7 @@ bool ControlConn::processStartStop(int pktType)
             // start service, mark as required
             if (do_pin) service->pinStart();
             service->start();
+            service_set->processQueues(true);
             already_there = service->getState() == ServiceState::STARTED;
             break;
         case DINIT_CP_STOPSERVICE:
@@ -168,18 +169,21 @@ bool ControlConn::processStartStop(int pktType)
             if (do_pin) service->pinStop();
             service->stop(true);
             service->forceStop();
+            service_set->processQueues(false);
             already_there = service->getState() == ServiceState::STOPPED;
             break;
         case DINIT_CP_WAKESERVICE:
             // re-start a stopped service (do not mark as required)
             if (do_pin) service->pinStart();
             service->start(false);
+            service_set->processQueues(true);
             already_there = service->getState() == ServiceState::STARTED;
             break;
         case DINIT_CP_RELEASESERVICE:
             // remove required mark, stop if not required by dependents
             if (do_pin) service->pinStop();
             service->stop();
+            service_set->processQueues(false);
             already_there = service->getState() == ServiceState::STOPPED;
             break;
         default:
@@ -226,6 +230,7 @@ bool ControlConn::processUnpinService()
     }
     else {
         service->unpin();
+        service_set->processQueues(true);
         char ack_buf[] = { (char) DINIT_RP_ACK };
         if (! queuePacket(ack_buf, 1)) return false;
     }

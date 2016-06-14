@@ -58,6 +58,7 @@ void ServiceSet::stopService(const std::string & name) noexcept
     ServiceRecord *record = findService(name);
     if (record != nullptr) {
         record->stop();
+        processQueues(false);
     }
 }
 
@@ -154,6 +155,7 @@ void ServiceRecord::handle_exit_status() noexcept
             // Failed startup: no auto-restart.
             desired_state = ServiceState::STOPPED;
             forceStop();
+            service_set->processQueues(false);
         }
         
         return;
@@ -186,6 +188,7 @@ void ServiceRecord::handle_exit_status() noexcept
             if (! do_auto_restart()) desired_state = ServiceState::STOPPED;
             forceStop();
         }
+        service_set->processQueues(false);
     }
     else {  // SCRIPTED
         if (service_state == ServiceState::STOPPING) {
@@ -199,6 +202,7 @@ void ServiceRecord::handle_exit_status() noexcept
                 // can be stopped:
                 stopped();
             }
+            service_set->processQueues(false);
         }
         else { // STARTING
             if (exit_status == 0) {
@@ -216,7 +220,7 @@ void ServiceRecord::handle_exit_status() noexcept
 Rearm ServiceIoWatcher::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
 {
     ServiceRecord::process_child_status(loop, this, flags);
-    return Rearm::NOOP;
+    return Rearm::REMOVED;
 }
 
 // TODO remove unused revents param
@@ -287,7 +291,7 @@ void ServiceRecord::release() noexcept
             release_dependencies();
         }
         else {
-            do_stop();
+            service_set->addToStopQueue(this);
         }
     }
 }
@@ -522,9 +526,6 @@ bool ServiceRecord::read_pid_file() noexcept
             pidbuf[r] = 0; // store nul terminator
             pid = std::atoi(pidbuf);
             if (kill(pid, 0) == 0) {                
-                //ev_child_init(&child_listener, process_child_callback, pid, 0);
-                //child_listener.data = this;
-                //ev_child_start(ev_default_loop(EVFLAG_AUTO), &child_listener);
                 child_listener.registerWith(&eventLoop, pid);
             }
             else {
@@ -567,7 +568,7 @@ void ServiceRecord::started() noexcept
 
     if (force_stop || desired_state == ServiceState::STOPPED) {
         // We must now stop.
-        do_stop();
+        service_set->addToStopQueue(this);
         return;
     }
 
@@ -589,7 +590,10 @@ void ServiceRecord::failed_to_start(bool depfailed) noexcept
     
     logServiceFailed(service_name);
     service_state = ServiceState::STOPPED;
-    stop(); // release dependencies if appropriate
+    if (start_explicit) {
+        start_explicit = false;
+        release();
+    }
     notifyListeners(ServiceEvent::FAILEDSTART);
     
     // Cancel start of dependents:
@@ -736,7 +740,7 @@ void ServiceRecord::forceStop() noexcept
 {
     if (service_state != ServiceState::STOPPED) {
         force_stop = true;
-        do_stop();
+        service_set->addToStopQueue(this);
     }
 }
 
@@ -759,7 +763,7 @@ void ServiceRecord::stop(bool bring_down) noexcept
     
     if (bring_down && desired_state != ServiceState::STOPPED) {
         desired_state = ServiceState::STOPPED;
-        do_stop();
+        service_set->addToStopQueue(this);
     }
 }
 
@@ -830,7 +834,7 @@ bool ServiceRecord::stopDependents() noexcept
             (*i)->forceStop();
         }
         else {
-            (*i)->do_stop();
+            service_set->addToStopQueue(*i);
         }
     }
     
