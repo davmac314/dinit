@@ -710,7 +710,7 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
         failure_out:
         int exec_status = errno;
         write(pipefd[1], &exec_status, sizeof(int));
-        exit(0);
+        _exit(0);
     }
     else {
         // Parent process
@@ -820,6 +820,10 @@ bool ServiceRecord::stopDependents() noexcept
     bool all_deps_stopped = true;
     for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
         if (! (*i)->is_stopped()) {
+            // Note we check *first* since if the dependent service is not stopped,
+            // 1. We will issue a stop to it shortly and
+            // 2. It will notify us when stopped, at which point the stopCheckDependents()
+            //    check is run anyway.
             all_deps_stopped = false;
         }
         if (force_stop) {
