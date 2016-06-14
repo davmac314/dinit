@@ -117,18 +117,21 @@ class ControlConn : private ServiceListener
     unsigned outpkt_index = 0;
     
     // Queue a packet to be sent
-    //  Returns:  false if the packet could not be queued and the connection has been
-    //              destroyed;
+    //  Returns:  false if the packet could not be queued and a suitable error packet
+    //              could not be sent/queued (the connection should be closed);
     //            true (with bad_conn_close == false) if the packet was successfully
     //              queued;
     //            true (with bad_conn_close == true) if the packet was not successfully
-    //              queued.
+    //              queued (but a suitable error packate has been queued).
     // The in/out watch enabled state will also be set appropriately.
     bool queuePacket(vector<char> &&v) noexcept;
     bool queuePacket(const char *pkt, unsigned size) noexcept;
 
-    // Process a packet. Can cause the ControlConn to be deleted iff there are no
-    // outgoing packets queued (returns false).
+    // Process a packet.
+    //  Returns:  true (with bad_conn_close == false) if successful
+    //            true (with bad_conn_close == true) if an error packet was queued
+    //            false if an error occurred but no error packet could be queued
+    //                (connection should be closed).
     // Throws:
     //    std::bad_alloc - if an out-of-memory condition prevents processing
     bool processPacket();
@@ -142,8 +145,8 @@ class ControlConn : private ServiceListener
     // Process an UNPINSERVICE packet. May throw std::bad_alloc.
     bool processUnpinService();
 
-    // Notify that data is ready to be read from the socket. Returns true if the connection was
-    // deleted.
+    // Notify that data is ready to be read from the socket. Returns true if the connection should
+    // be closed.
     bool dataReady() noexcept;
     
     bool sendData() noexcept;
@@ -170,6 +173,8 @@ class ControlConn : private ServiceListener
     }
     
     // Process service event broadcast.
+    // Note that this can potentially be called during packet processing (upon issuing
+    // service start/stop orders etc).
     void serviceEvent(ServiceRecord * service, ServiceEvent event) noexcept final override
     {
         // For each service handle corresponding to the event, send an information packet.
@@ -219,12 +224,13 @@ static dasync::Rearm control_conn_cb(EventLoop_t * loop, ControlConnWatcher * wa
     ControlConn *conn = reinterpret_cast<ControlConn *>(cc_addr);
     if (revents & in_events) {
         if (conn->dataReady()) {
-            // ControlConn was deleted
+            delete conn;
             return Rearm::REMOVED;
         }
     }
     if (revents & out_events) {
         if (conn->sendData()) {
+            delete conn;
             return Rearm::REMOVED;
         }
     }

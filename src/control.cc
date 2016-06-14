@@ -277,12 +277,10 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
         int wr = write(iob.fd, pkt, size);
         if (wr == -1) {
             if (errno == EPIPE) {
-                delete this;
                 return false;
             }
             if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
                 // TODO log error
-                delete this;
                 return false;
             }
             // EAGAIN etc: fall through to below
@@ -312,7 +310,6 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
             // We can't send out-of-memory response as we already wrote as much as we
             // could above. Neither can we later send the response since we have currently
             // sent an incomplete packet. All we can do is close the connection.
-            delete this;
             return false;
         }
         else {
@@ -335,12 +332,10 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
         int wr = write(iob.fd, pkt.data(), pkt.size());
         if (wr == -1) {
             if (errno == EPIPE) {
-                delete this;
                 return false;
             }
             if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
                 // TODO log error
-                delete this;
                 return false;
             }
             // EAGAIN etc: fall through to below
@@ -368,7 +363,6 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
             // We can't send out-of-memory response as we already wrote as much as we
             // could above. Neither can we later send the response since we have currently
             // sent an incomplete packet. All we can do is close the connection.
-            delete this;
             return false;
         }
         else {
@@ -394,21 +388,19 @@ bool ControlConn::dataReady() noexcept
     if (r == -1) {
         if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
             // TODO log error
-            delete this;
             return true;
         }
         return false;
     }
     
     if (r == 0) {
-        delete this;
         return true;
     }
     
     // complete packet?
     if (rbuf.get_length() >= chklen) {
         try {
-            return processPacket();
+            return !processPacket();
         }
         catch (std::bad_alloc &baexc) {
             doOomClose();
@@ -438,7 +430,6 @@ bool ControlConn::sendData() noexcept
             char oomBuf[] = { DINIT_RP_OOM };
             write(iob.fd, oomBuf, 1);
         }
-        delete this;
         return true;
     }
     
@@ -448,7 +439,6 @@ bool ControlConn::sendData() noexcept
     if (written == -1) {
         if (errno == EPIPE) {
             // read end closed
-            delete this;
             return true;
         }
         else if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
@@ -456,7 +446,6 @@ bool ControlConn::sendData() noexcept
         }
         else {
             log(LogLevel::ERROR, "Error writing to control connection: ", strerror(errno));
-            delete this;
             return true;
         }
         return false;
@@ -472,7 +461,6 @@ bool ControlConn::sendData() noexcept
                 iob.setWatchFlags(in_events);
             }
             else {
-                delete this;
                 return true;
             }
         }
