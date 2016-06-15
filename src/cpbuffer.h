@@ -29,6 +29,11 @@ template <int SIZE> class CPBuffer
         return &buf[cur_idx];
     }
     
+    char * get_buf_base()
+    {
+        return buf;
+    }
+    
     int get_contiguous_length(char *ptr)
     {
         int eidx = cur_idx + length;

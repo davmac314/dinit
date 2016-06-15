@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/syslog.h>
+#include <sys/uio.h>
 
 #include "dasync.h"
 
@@ -153,8 +154,14 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
             return Rearm::DISARM;
         }
         
-        char *ptr = log_stream.log_buffer.get_ptr(0);
-        int len = log_stream.log_buffer.get_contiguous_length(ptr);
+        // We try to find a complete line (terminated by '\n') in the buffer, and write it
+        // out. Since it may span the circular buffer end, it may consist of two distinct spans,
+        // and so we use writev to write them atomically.
+        
+        struct iovec logiov[2];
+        
+        char *ptr = log_buffer.get_ptr(0);
+        int len = log_buffer.get_contiguous_length(ptr);
         char *creptr = ptr + len;  // contiguous region end
         char *eptr = std::find(ptr, creptr, '\n');
         
@@ -166,7 +173,27 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
 
         len = eptr - ptr;
         
-        int r = write(fd, ptr, len);
+        logiov[0].iov_base = ptr;
+        logiov[0].iov_len = len;
+        int iovs_to_write = 1;
+        
+        // Do we need the second span?
+        if (! will_complete && len != log_buffer.get_length()) {
+            ptr = log_buffer.get_buf_base();
+            creptr = static_cast<char *>(logiov[1].iov_base) + log_buffer.get_length() - len;
+            eptr = std::find(ptr, creptr, '\n');
+            if (eptr != creptr) {
+                eptr++; // include '\n'
+                // It should not ever be the case that we do not now have a complete message
+                will_complete = true;
+            }
+            logiov[1].iov_base = ptr;
+            logiov[1].iov_len = eptr - ptr;
+            len += logiov[1].iov_len;
+            iovs_to_write = 2;
+        }
+        
+        ssize_t r = writev(fd, logiov, iovs_to_write);
 
         if (r >= 0) {
             bool complete = (r == len) && will_complete;
