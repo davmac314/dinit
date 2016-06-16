@@ -51,6 +51,7 @@ void ServiceSet::startService(const char *name)
     ServiceRecord *record = loadServiceRecord(name);
     
     record->start();
+    processQueues(true);
 }
 
 void ServiceSet::stopService(const std::string & name) noexcept
@@ -85,7 +86,7 @@ void ServiceRecord::stopped() noexcept
     
     if (will_restart) {
         // Desired state is "started".
-        do_start();
+        service_set->addToStartQueue(this);
     }
     else {
         if (socket_fd != -1) {
@@ -326,7 +327,7 @@ void ServiceRecord::start(bool activate) noexcept
     }
 
     desired_state = ServiceState::STARTED;
-    do_start();
+    service_set->addToStartQueue(this);
 }
 
 void ServiceRecord::do_start() noexcept
@@ -898,12 +899,14 @@ void ServiceRecord::unpin() noexcept
         pinned_started = false;
         if (desired_state == ServiceState::STOPPED) {
             do_stop();
+            service_set->processQueues(false);
         }
     }
     if (pinned_stopped) {
         pinned_stopped = false;
         if (desired_state == ServiceState::STARTED) {
             do_start();
+            service_set->processQueues(true);
         }
     }
 }

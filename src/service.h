@@ -729,6 +729,7 @@ class ServiceSet
             (*i)->stop(false);
             (*i)->unpin();
         }
+        processQueues(false);
     }
     
     void set_auto_restart(bool restart) noexcept
