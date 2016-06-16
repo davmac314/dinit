@@ -20,7 +20,7 @@ LogLevel log_level[2] = { LogLevel::WARN, LogLevel::WARN };
 static ServiceSet *service_set = nullptr;  // Reference to service set
 
 namespace {
-class BufferedLogStream : public FdWatcher<NullMutex>
+class BufferedLogStream : public EventLoop_t::FdWatcher
 {
     private:
 

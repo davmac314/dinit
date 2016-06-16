@@ -73,7 +73,7 @@ static void close_control_socket(EventLoop_t *loop) noexcept;
 
 static void control_socket_cb(EventLoop_t *loop, int fd);
 
-class ControlSocketWatcher : public FdWatcher<NullMutex>
+class ControlSocketWatcher : public EventLoop_t::FdWatcher
 {
     Rearm gotEvent(EventLoop_t * loop, int fd, int flags)
     {
@@ -88,7 +88,7 @@ class ControlSocketWatcher : public FdWatcher<NullMutex>
     void registerWith(EventLoop_t * loop, int fd, int flags)
     {
         this->fd = fd;
-        FdWatcher<NullMutex>::registerWith(loop, fd, flags);
+        EventLoop_t::FdWatcher::registerWith(loop, fd, flags);
     }
 };
 
@@ -133,7 +133,7 @@ const char * get_user_home()
 
 
 namespace {
-    class CallbackSignalHandler : public SignalWatcher<NullMutex>
+    class CallbackSignalHandler : public EventLoop_t::SignalWatcher
     {
         public:
         typedef void (*cb_func_t)(EventLoop_t *);
@@ -157,7 +157,7 @@ namespace {
         }
     };
 
-    class ControlSocketWatcher : public FdWatcher<NullMutex>
+    class ControlSocketWatcher : public EventLoop_t::FdWatcher
     {
         Rearm gotEvent(EventLoop_t * loop, int fd, int flags)
         {

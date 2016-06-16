@@ -47,7 +47,7 @@ extern int active_control_conns;
 class ServiceSet;
 class ServiceRecord;
 
-class ControlConnWatcher : public BidiFdWatcher<NullMutex>
+class ControlConnWatcher : public EventLoop_t::BidiFdWatcher
 {
     inline Rearm receiveEvent(EventLoop_t * loop, int fd, int flags) noexcept;
 
@@ -67,14 +67,14 @@ class ControlConnWatcher : public BidiFdWatcher<NullMutex>
     
     void setWatchFlags(int flags)
     {
-        BidiFdWatcher<NullMutex>::setWatchFlags(eventLoop, flags);
+        EventLoop_t::BidiFdWatcher::setWatchFlags(eventLoop, flags);
     }
     
     void registerWith(EventLoop_t *loop, int fd, int flags)
     {
         this->fd = fd;
         this->eventLoop = loop;
-        BidiFdWatcher<NullMutex>::registerWith(loop, fd, flags);
+        BidiFdWatcher<EventLoop_t>::registerWith(loop, fd, flags);
     }
 };
 

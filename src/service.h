@@ -180,7 +180,7 @@ static std::vector<const char *> separate_args(std::string &s, std::list<std::pa
     return r;
 }
 
-class ServiceChildWatcher : public ChildProcWatcher<NullMutex>
+class ServiceChildWatcher : public EventLoop_t::ChildProcWatcher
 {
     public:
     // TODO resolve clunkiness of storing this field
@@ -190,7 +190,7 @@ class ServiceChildWatcher : public ChildProcWatcher<NullMutex>
     ServiceChildWatcher(ServiceRecord * sr) noexcept : service(sr) { }
 };
 
-class ServiceIoWatcher : public FdWatcher<NullMutex>
+class ServiceIoWatcher : public EventLoop_t::FdWatcher
 {
     public:
     // TODO resolve clunkiness of storing these fields
@@ -203,7 +203,7 @@ class ServiceIoWatcher : public FdWatcher<NullMutex>
     void registerWith(EventLoop_t *loop, int fd, int flags)
     {
         this->fd = fd;
-        FdWatcher<NullMutex>::registerWith(loop, fd, flags);
+        EventLoop_t::FdWatcher::registerWith(loop, fd, flags);
     }
 };
 
