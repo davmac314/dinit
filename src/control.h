@@ -9,7 +9,7 @@
 
 #include <unistd.h>
 
-#include "dasync.h"
+#include "dasynq.h"
 
 #include "dinit-log.h"
 #include "control-cmds.h"
@@ -18,14 +18,14 @@
 
 // Control connection for dinit
 
-using namespace dasync;
+using namespace dasynq;
 using EventLoop_t = EventLoop<NullMutex>;
 
 class ControlConn;
 class ControlConnWatcher;
 
 // forward-declaration of callback:
-static dasync::Rearm control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
+static Rearm control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
 
 // Pointer to the control connection that is listening for rollback completion
 extern ControlConn * rollback_handler_conn;
@@ -47,18 +47,18 @@ extern int active_control_conns;
 class ServiceSet;
 class ServiceRecord;
 
-class ControlConnWatcher : public PosixBidiFdWatcher<NullMutex>
+class ControlConnWatcher : public BidiFdWatcher<NullMutex>
 {
     inline Rearm receiveEvent(EventLoop_t * loop, int fd, int flags) noexcept;
 
     Rearm readReady(EventLoop_t * loop, int fd) noexcept override
     {
-        return receiveEvent(loop, fd, in_events);
+        return receiveEvent(loop, fd, IN_EVENTS);
     }
     
     Rearm writeReady(EventLoop_t * loop, int fd) noexcept override
     {
-        return receiveEvent(loop, fd, out_events);
+        return receiveEvent(loop, fd, OUT_EVENTS);
     }
     
     public:
@@ -67,14 +67,14 @@ class ControlConnWatcher : public PosixBidiFdWatcher<NullMutex>
     
     void setWatchFlags(int flags)
     {
-        PosixBidiFdWatcher<NullMutex>::setWatchFlags(eventLoop, flags);
+        BidiFdWatcher<NullMutex>::setWatchFlags(eventLoop, flags);
     }
     
     void registerWith(EventLoop_t *loop, int fd, int flags)
     {
         this->fd = fd;
         this->eventLoop = loop;
-        PosixBidiFdWatcher<NullMutex>::registerWith(loop, fd, flags);
+        BidiFdWatcher<NullMutex>::registerWith(loop, fd, flags);
     }
 };
 
@@ -86,7 +86,7 @@ inline Rearm ControlConnWatcher::receiveEvent(EventLoop_t * loop, int fd, int fl
 
 class ControlConn : private ServiceListener
 {
-    friend dasync::Rearm control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
+    friend Rearm control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
     
     ControlConnWatcher iob;
     EventLoop_t *loop;
@@ -169,7 +169,7 @@ class ControlConn : private ServiceListener
     {
         bad_conn_close = true;
         oom_close = true;
-        iob.setWatchFlags(out_events);
+        iob.setWatchFlags(OUT_EVENTS);
     }
     
     // Process service event broadcast.
@@ -206,7 +206,7 @@ class ControlConn : private ServiceListener
     public:
     ControlConn(EventLoop_t * loop, ServiceSet * service_set, int fd) : loop(loop), service_set(service_set), chklen(0)
     {
-        iob.registerWith(loop, fd, in_events);
+        iob.registerWith(loop, fd, IN_EVENTS);
         active_control_conns++;
     }
     
@@ -216,19 +216,17 @@ class ControlConn : private ServiceListener
 };
 
 
-static dasync::Rearm control_conn_cb(EventLoop_t * loop, ControlConnWatcher * watcher, int revents)
+static Rearm control_conn_cb(EventLoop_t * loop, ControlConnWatcher * watcher, int revents)
 {
-    using Rearm = dasync::Rearm;
-
     char * cc_addr = (reinterpret_cast<char *>(watcher)) - offsetof(ControlConn, iob);
     ControlConn *conn = reinterpret_cast<ControlConn *>(cc_addr);
-    if (revents & in_events) {
+    if (revents & IN_EVENTS) {
         if (conn->dataReady()) {
             delete conn;
             return Rearm::REMOVED;
         }
     }
-    if (revents & out_events) {
+    if (revents & OUT_EVENTS) {
         if (conn->sendData()) {
             delete conn;
             return Rearm::REMOVED;

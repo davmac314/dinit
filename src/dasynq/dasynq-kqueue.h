@@ -20,7 +20,7 @@ extern "C" {
 #include <unistd.h>
 #include <signal.h>
 
-namespace dasync {
+namespace dasynq {
 
 template <class Base> class KqueueLoop;
 
@@ -69,6 +69,7 @@ class KqueueTraits
         }
     };
     
+    const static bool has_bidi_fd_watch = false;
     const static bool has_separate_rw_fd_watches = true;
 };
 
@@ -143,7 +144,7 @@ template <class Base> class KqueueLoop : public Base
                 }
             }
             else if (events[i].filter == EVFILT_READ || events[i].filter == EVFILT_WRITE) {
-                int flags = events[i].filter == EVFILT_READ ? in_events : out_events;
+                int flags = events[i].filter == EVFILT_READ ? IN_EVENTS : OUT_EVENTS;
                 Base::receiveFdEvent(*this, FD_r(events[i].ident), events[i].udata, flags);
                 events[i].flags = EV_DISABLE | EV_CLEAR;
                 // we use EV_CLEAR to clear the EOF status of fifos/pipes (and wait for
@@ -194,12 +195,12 @@ template <class Base> class KqueueLoop : public Base
         kevent(kqfd, &kev, 1, nullptr, 0, nullptr);    
     }
     
-    // flags:  in_events | out_events
+    // flags:  IN_EVENTS | OUT_EVENTS
     void addFdWatch(int fd, void *userdata, int flags)
     {
         // TODO kqueue doesn't support EVFILE_WRITE on file fd's :/
         
-        short filter = (flags & in_events) ? EVFILT_READ : EVFILT_WRITE;
+        short filter = (flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE;
         
         struct kevent kev;
         EV_SET(&kev, fd, filter, EV_ADD, 0, 0, userdata);
@@ -210,7 +211,7 @@ template <class Base> class KqueueLoop : public Base
     
     void removeFdWatch(int fd, int flags)
     {        
-        removeFilter((flags & in_events) ? EVFILT_READ : EVFILT_WRITE, fd);
+        removeFilter((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd);
     }
     
     void removeFdWatch_nolock(int fd, int flags)
@@ -220,7 +221,7 @@ template <class Base> class KqueueLoop : public Base
     
     void enableFdWatch(int fd, void *userdata, int flags)
     {
-        setFilterEnabled((flags & in_events) ? EVFILT_READ : EVFILT_WRITE, fd, true);
+        setFilterEnabled((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd, true);
     }
     
     void enableFdWatch_nolock(int fd, void *userdata, int flags)
@@ -230,7 +231,7 @@ template <class Base> class KqueueLoop : public Base
     
     void disableFdWatch(int fd, int flags)
     {
-        setFilterEnabled((flags & in_events) ? EVFILT_READ : EVFILT_WRITE, fd, false);
+        setFilterEnabled((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd, false);
     }
     
     void disableFdWatch_nolock(int fd, int flags)

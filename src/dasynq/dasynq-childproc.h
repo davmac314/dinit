@@ -1,4 +1,4 @@
-namespace dasync {
+namespace dasynq {
 
 // Map of pid_t to void *, with possibility of reserving entries so that mappings can
 // be later added with no danger of allocator exhaustion (bad_alloc).

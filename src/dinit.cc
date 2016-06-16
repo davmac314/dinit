@@ -13,7 +13,7 @@
 #include <fcntl.h>
 #include <pwd.h>
 
-#include "dasync.h"
+#include "dasynq.h"
 #include "service.h"
 #include "control.h"
 #include "dinit-log.h"
@@ -60,7 +60,7 @@
  */
 
 
-using namespace dasync;
+using namespace dasynq;
 using EventLoop_t = EventLoop<NullMutex>;
 
 EventLoop_t eventLoop = EventLoop_t();
@@ -73,7 +73,7 @@ static void close_control_socket(EventLoop_t *loop) noexcept;
 
 static void control_socket_cb(EventLoop_t *loop, int fd);
 
-class ControlSocketWatcher : public PosixFdWatcher<NullMutex>
+class ControlSocketWatcher : public FdWatcher<NullMutex>
 {
     Rearm gotEvent(EventLoop_t * loop, int fd, int flags)
     {
@@ -88,7 +88,7 @@ class ControlSocketWatcher : public PosixFdWatcher<NullMutex>
     void registerWith(EventLoop_t * loop, int fd, int flags)
     {
         this->fd = fd;
-        PosixFdWatcher<NullMutex>::registerWith(loop, fd, flags);
+        FdWatcher<NullMutex>::registerWith(loop, fd, flags);
     }
 };
 
@@ -133,7 +133,7 @@ const char * get_user_home()
 
 
 namespace {
-    class CallbackSignalHandler : public PosixSignalWatcher<NullMutex>
+    class CallbackSignalHandler : public SignalWatcher<NullMutex>
     {
         public:
         typedef void (*cb_func_t)(EventLoop_t *);
@@ -157,7 +157,7 @@ namespace {
         }
     };
 
-    class ControlSocketWatcher : public PosixFdWatcher<NullMutex>
+    class ControlSocketWatcher : public FdWatcher<NullMutex>
     {
         Rearm gotEvent(EventLoop_t * loop, int fd, int flags)
         {
@@ -505,7 +505,7 @@ static void open_control_socket(EventLoop_t *loop) noexcept
         }
 
         control_socket_open = true;
-        control_socket_io.registerWith(&eventLoop, sockfd, in_events);
+        control_socket_io.registerWith(&eventLoop, sockfd, IN_EVENTS);
     }
 }
 

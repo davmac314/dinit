@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <signal.h>
 
-namespace dasync {
+namespace dasynq {
 
 template <class Base> class EpollLoop;
 
@@ -110,10 +110,10 @@ template <class Base> class EpollLoop : public Base
             }
             else {
                 int flags = 0;
-                (events[i].events & EPOLLIN) && (flags |= in_events);
-                (events[i].events & EPOLLHUP) && (flags |= in_events);
-                (events[i].events & EPOLLOUT) && (flags |= out_events);
-                (events[i].events & EPOLLERR) && (flags |= err_events);
+                (events[i].events & EPOLLIN) && (flags |= IN_EVENTS);
+                (events[i].events & EPOLLHUP) && (flags |= IN_EVENTS);
+                (events[i].events & EPOLLOUT) && (flags |= OUT_EVENTS);
+                (events[i].events & EPOLLERR) && (flags |= IN_EVENTS | OUT_EVENTS | ERR_EVENTS);
                 Base::receiveFdEvent(*this, FD_r(), ptr, flags);
             }            
         }
@@ -144,7 +144,7 @@ template <class Base> class EpollLoop : public Base
         }
     }
     
-    // flags:  in_events | out_events
+    // flags:  IN_EVENTS | OUT_EVENTS
     void addFdWatch(int fd, void *userdata, int flags)
     {
         struct epoll_event epevent;
@@ -152,13 +152,13 @@ template <class Base> class EpollLoop : public Base
         epevent.data.ptr = userdata;
         epevent.events = 0;
         
-        if (flags & one_shot) {
+        if (flags & ONE_SHOT) {
             epevent.events = EPOLLONESHOT;
         }
-        if (flags & in_events) {
+        if (flags & IN_EVENTS) {
             epevent.events |= EPOLLIN;
         }
-        if (flags & out_events) {
+        if (flags & OUT_EVENTS) {
             epevent.events |= EPOLLOUT;
         }
 
@@ -186,13 +186,13 @@ template <class Base> class EpollLoop : public Base
         epevent.data.ptr = userdata;
         epevent.events = 0;
         
-        if (flags & one_shot) {
+        if (flags & ONE_SHOT) {
             epevent.events = EPOLLONESHOT;
         }
-        if (flags & in_events) {
+        if (flags & IN_EVENTS) {
             epevent.events |= EPOLLIN;
         }
-        if (flags & out_events) {
+        if (flags & OUT_EVENTS) {
             epevent.events |= EPOLLOUT;
         }
         

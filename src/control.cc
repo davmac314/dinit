@@ -51,7 +51,7 @@ bool ControlConn::processPacket()
         char outbuf[] = { DINIT_RP_BADREQ };
         if (! queuePacket(outbuf, 1)) return false;
         bad_conn_close = true;
-        iob.setWatchFlags(out_events);
+        iob.setWatchFlags(OUT_EVENTS);
     }
     return true;
 }
@@ -75,7 +75,7 @@ bool ControlConn::processFindLoad(int pktType)
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queuePacket(badreqRep, 1)) return false;
         bad_conn_close = true;
-        iob.setWatchFlags(out_events);
+        iob.setWatchFlags(OUT_EVENTS);
         return true;
     }
     
@@ -151,7 +151,7 @@ bool ControlConn::processStartStop(int pktType)
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queuePacket(badreqRep, 1)) return false;
         bad_conn_close = true;
-        iob.setWatchFlags(out_events);
+        iob.setWatchFlags(OUT_EVENTS);
         return true;
     }
     else {
@@ -225,7 +225,7 @@ bool ControlConn::processUnpinService()
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queuePacket(badreqRep, 1)) return false;
         bad_conn_close = true;
-        iob.setWatchFlags(out_events);
+        iob.setWatchFlags(OUT_EVENTS);
         return true;
     }
     else {
@@ -268,7 +268,7 @@ ControlConn::handle_t ControlConn::allocateServiceHandle(ServiceRecord *record)
 
 bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
 {
-    int in_flag = bad_conn_close ? 0 : in_events;
+    int in_flag = bad_conn_close ? 0 : IN_EVENTS;
     bool was_empty = outbuf.empty();
 
     // If the queue is empty, we can try to write the packet out now rather than queueing it.
@@ -299,7 +299,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
     // Create a vector out of the (remaining part of the) packet:
     try {
         outbuf.emplace_back(pkt, pkt + size);
-        iob.setWatchFlags(in_flag | out_events);
+        iob.setWatchFlags(in_flag | OUT_EVENTS);
         return true;
     }
     catch (std::bad_alloc &baexc) {
@@ -313,7 +313,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
             return false;
         }
         else {
-            iob.setWatchFlags(out_events);
+            iob.setWatchFlags(OUT_EVENTS);
             return true;
         }
     }
@@ -323,7 +323,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
 // make them extraordinary difficult to combine into a single method.
 bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
 {
-    int in_flag = bad_conn_close ? 0 : in_events;
+    int in_flag = bad_conn_close ? 0 : IN_EVENTS;
     bool was_empty = outbuf.empty();
     
     if (was_empty) {
@@ -352,7 +352,7 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
     
     try {
         outbuf.emplace_back(pkt);
-        iob.setWatchFlags(in_flag | out_events);
+        iob.setWatchFlags(in_flag | OUT_EVENTS);
         return true;
     }
     catch (std::bad_alloc &baexc) {
@@ -366,7 +366,7 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
             return false;
         }
         else {
-            iob.setWatchFlags(out_events);
+            iob.setWatchFlags(OUT_EVENTS);
             return true;
         }
     }
@@ -412,11 +412,11 @@ bool ControlConn::dataReady() noexcept
         // TODO log error?
         // TODO error response?
         bad_conn_close = true;
-        iob.setWatchFlags(out_events);
+        iob.setWatchFlags(OUT_EVENTS);
     }
     else {
-        int out_flags = (bad_conn_close || !outbuf.empty()) ? out_events : 0;
-        iob.setWatchFlags(in_events | out_flags);
+        int out_flags = (bad_conn_close || !outbuf.empty()) ? OUT_EVENTS : 0;
+        iob.setWatchFlags(IN_EVENTS | out_flags);
     }
     
     return false;
@@ -458,7 +458,7 @@ bool ControlConn::sendData() noexcept
         outpkt_index = 0;
         if (outbuf.empty() && ! oom_close) {
             if (! bad_conn_close) {
-                iob.setWatchFlags(in_events);
+                iob.setWatchFlags(IN_EVENTS);
             }
             else {
                 return true;

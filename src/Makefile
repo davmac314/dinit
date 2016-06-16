@@ -21,7 +21,7 @@ dinit-reboot: dinit-reboot.o
 	$(CXX) -o dinit-reboot dinit-reboot.o	
 
 $(objects): %.o: %.cc service.h dinit-log.h control.h control-cmds.h cpbuffer.h
-	$(CXX) $(CXXOPTS) -Idasync -c $< -o $@
+	$(CXX) $(CXXOPTS) -Idasynq -c $< -o $@
 
 #install: all
 

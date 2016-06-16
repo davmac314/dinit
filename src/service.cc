@@ -726,7 +726,7 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
 
         // Listen for status
         // TODO should set this up earlier so we can handle failure case (exception)
-        child_status_listener.registerWith(&eventLoop, pipefd[0], in_events);
+        child_status_listener.registerWith(&eventLoop, pipefd[0], IN_EVENTS);
 
         // Add a process listener so we can detect when the
         // service stops

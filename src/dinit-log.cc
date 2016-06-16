@@ -6,7 +6,7 @@
 #include <sys/syslog.h>
 #include <sys/uio.h>
 
-#include "dasync.h"
+#include "dasynq.h"
 
 #include "service.h"
 #include "dinit-log.h"
@@ -20,7 +20,7 @@ LogLevel log_level[2] = { LogLevel::WARN, LogLevel::WARN };
 static ServiceSet *service_set = nullptr;  // Reference to service set
 
 namespace {
-class BufferedLogStream : public PosixFdWatcher<NullMutex>
+class BufferedLogStream : public FdWatcher<NullMutex>
 {
     private:
 
@@ -106,7 +106,7 @@ void BufferedLogStream::flushForRelease()
     
     // Try to flush any messages that are currently buffered. (Console is non-blocking
     // so it will fail gracefully).
-    if (gotEvent(&eventLoop, fd, out_events) == Rearm::DISARM) {
+    if (gotEvent(&eventLoop, fd, OUT_EVENTS) == Rearm::DISARM) {
         // Console has already been released at this point.
         setEnabled(&eventLoop, false);
     }
@@ -223,7 +223,7 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
 void init_log(ServiceSet *sset)
 {
     service_set = sset;
-    log_stream[DLOG_CONS].registerWith(&eventLoop, STDOUT_FILENO, out_events); // TODO register in disabled state
+    log_stream[DLOG_CONS].registerWith(&eventLoop, STDOUT_FILENO, OUT_EVENTS); // TODO register in disabled state
     enable_console_log(true);
 }
 
@@ -232,7 +232,7 @@ void init_log(ServiceSet *sset)
 void setup_main_log(int fd)
 {
     log_stream[DLOG_MAIN].init(fd);
-    log_stream[DLOG_MAIN].registerWith(&eventLoop, fd, out_events);
+    log_stream[DLOG_MAIN].registerWith(&eventLoop, fd, OUT_EVENTS);
 }
 
 bool is_log_flushed() noexcept

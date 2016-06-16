@@ -7,7 +7,7 @@
 #include <csignal>
 #include <unordered_set>
 
-#include "dasync.h"
+#include "dasynq.h"
 
 #include "control.h"
 #include "service-listener.h"
@@ -180,7 +180,7 @@ static std::vector<const char *> separate_args(std::string &s, std::list<std::pa
     return r;
 }
 
-class ServiceChildWatcher : public PosixChildWatcher<NullMutex>
+class ServiceChildWatcher : public ChildProcWatcher<NullMutex>
 {
     public:
     // TODO resolve clunkiness of storing this field
@@ -190,7 +190,7 @@ class ServiceChildWatcher : public PosixChildWatcher<NullMutex>
     ServiceChildWatcher(ServiceRecord * sr) noexcept : service(sr) { }
 };
 
-class ServiceIoWatcher : public PosixFdWatcher<NullMutex>
+class ServiceIoWatcher : public FdWatcher<NullMutex>
 {
     public:
     // TODO resolve clunkiness of storing these fields
@@ -203,7 +203,7 @@ class ServiceIoWatcher : public PosixFdWatcher<NullMutex>
     void registerWith(EventLoop_t *loop, int fd, int flags)
     {
         this->fd = fd;
-        PosixFdWatcher<NullMutex>::registerWith(loop, fd, flags);
+        FdWatcher<NullMutex>::registerWith(loop, fd, flags);
     }
 };
 

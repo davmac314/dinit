@@ -4,7 +4,7 @@
 //#include <pthread.h>
 #include <mutex>
 
-namespace dasync {
+namespace dasynq {
 
 // Simple non-recursive mutex, with priority inheritance to avoid priority inversion.
 /*
