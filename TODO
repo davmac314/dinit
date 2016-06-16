@@ -1,18 +1,11 @@
 * BGPROCESS services:
   - document security issue if pid file is not correctly protected (via access
     rights/ownership).
-  - consider using ptrace to attach to process (if not a direct child - which we can
-    check with a probe waitpid() call); this allows us to get status of non-child
-    processes. Probably need dasynq changes.
-  - currently we break if the process is not a child; we'll never see it die. Even
-    if we don't attach with ptrace, we should waitpid()-probe it at stop (and then
-    potentially assume it's exited if we can't otherwise check).
 
 * libev replacement:
   - We've replaced libev, so that we don't abort on failure. But now exceptions
     can be thrown when we register an event watch - need to handle these.
-  - Control socket handling needs to be reworked.
-  - Service I/O / child process waits need to be audited.
+    - Service I/O / child process waits need to be audited.
 
 * Long-running "on console" services will back up the circular log buffer.
   The buffer should just be flushed instead.
@@ -20,15 +13,12 @@
   need to force-stop dependents even if the process itself was stopped
   deliberately.
 * Complete control socket handling and protocol
-  - support for pinned-start and pinned-stop
-  - support for listing all services
+  - support for listing all services and their state
 * Implement a control utility to start/stop services after dinit has started
   - very basic version exists, needs thorough cleanup
 
 For version 1.0:
 ----------------
-* Log messages need to be duplicated to file (or to a logging process) once the
-  file system comes up read/write.
 * Perhaps need a way to prevent script services from re-starting.
   (eg there's no need to mount filesystems twice; there might be various other
    system initialisations that can't or shouldn't really be "undone" and so do
@@ -44,6 +34,9 @@ For version 1.0:
 
 For later:
 * Internationalisation
+* More logging options. Can currently log to syslog only (well, with the
+  syslog protocol, to /dev/log). Possibly should be able to log directly
+  to a file, or input stream of another process.
 * A service can prevent shutdown/reboot by failing to stop. Maybe make
   multiple CTRL-ALT-DEL presses (or ^C since that's more portable) commence
   immediate shutdown (or launch a simple control interface).
