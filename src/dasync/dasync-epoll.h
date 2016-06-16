@@ -167,14 +167,14 @@ template <class Base> class EpollLoop : public Base
         }
     }
     
-    void removeFdWatch(int fd) noexcept
+    void removeFdWatch(int fd, int flags) noexcept
     {
         epoll_ctl(epfd, EPOLL_CTL_DEL, fd, nullptr);
     }
     
-    void removeFdWatch_nolock(int fd) noexcept
+    void removeFdWatch_nolock(int fd, int flags) noexcept
     {
-        removeFdWatch(fd);
+        removeFdWatch(fd, flags);
     }
     
     // Note this will *replace* the old flags with the new, that is,
@@ -207,7 +207,7 @@ template <class Base> class EpollLoop : public Base
         enableFdWatch(fd, userdata, flags);
     }
     
-    void disableFdWatch(int fd) noexcept
+    void disableFdWatch(int fd, int flags) noexcept
     {
         struct epoll_event epevent;
         // epevent.data.fd = fd;
@@ -223,9 +223,9 @@ template <class Base> class EpollLoop : public Base
         }
     }
     
-    void disableFdWatch_nolock(int fd) noexcept
+    void disableFdWatch_nolock(int fd, int flags) noexcept
     {
-        disableFdWatch(fd);
+        disableFdWatch(fd, flags);
     }
     
     // Note signal should be masked before call.

@@ -571,7 +571,7 @@ template <typename T_Mutex> class EventLoop
         loop_mech.removeSignalWatch(signo);
         
         waitqueue_node<T_Mutex> qnode;
-        getAttnLock(qnode);        
+        getAttnLock(qnode);
         
         EventDispatch<T_Mutex, LoopTraits> & ed = (EventDispatch<T_Mutex, LoopTraits> &) loop_mech;
         ed.issueDelete(callBack);
@@ -600,7 +600,7 @@ template <typename T_Mutex> class EventLoop
             loop_mech.enableFdWatch(fd, watcher, watch_flags | one_shot);
         }
         else {
-            loop_mech.disableFdWatch(fd);
+            loop_mech.disableFdWatch(fd, watch_flags);
         }
     }
 
@@ -610,16 +610,16 @@ template <typename T_Mutex> class EventLoop
             loop_mech.enableFdWatch_nolock(fd, watcher, watch_flags | one_shot);
         }
         else {
-            loop_mech.disableFdWatch_nolock(fd);
+            loop_mech.disableFdWatch_nolock(fd, watch_flags);
         }
     }
     
     void deregister(BaseFdWatcher *callback, int fd)
     {
-        loop_mech.removeFdWatch(fd);
+        loop_mech.removeFdWatch(fd, callback->watch_flags);
         
         waitqueue_node<T_Mutex> qnode;
-        getAttnLock(qnode);        
+        getAttnLock(qnode);
         
         EventDispatch<T_Mutex, LoopTraits> & ed = (EventDispatch<T_Mutex, LoopTraits> &) loop_mech;
         ed.issueDelete(callback);
@@ -633,11 +633,11 @@ template <typename T_Mutex> class EventLoop
             // TODO
         }
         else {
-            loop_mech.removeFdWatch(fd);
+            loop_mech.removeFdWatch(fd, callback->watch_flags);
         }
         
         waitqueue_node<T_Mutex> qnode;
-        getAttnLock(qnode);        
+        getAttnLock(qnode);
         
         EventDispatch<T_Mutex, LoopTraits> & ed = (EventDispatch<T_Mutex, LoopTraits> &) loop_mech;
         ed.issueDelete(callback);
@@ -743,14 +743,14 @@ template <typename T_Mutex> class EventLoop
                     }
                     else {
                         // both removed: actually remove
-                        loop_mech.removeFdWatch_nolock(bdfw->watch_fd);
+                        loop_mech.removeFdWatch_nolock(bdfw->watch_fd, 0 /* not used */);
                         return Rearm::REMOVE;
                     }
                 }
                 else {
                     // TODO this will need flags for such a loop, since it can't
                     // otherwise distinguish which channel watch to remove
-                    loop_mech.removeFdWatch_nolock(bdfw->watch_fd);
+                    loop_mech.removeFdWatch_nolock(bdfw->watch_fd, bdfw->watch_flags);
                 }
             }
             else if (rearmType == Rearm::DISARM) {
@@ -777,7 +777,7 @@ template <typename T_Mutex> class EventLoop
                         (bfw->watch_flags & (in_events | out_events)) | one_shot);
             }
             else if (rearmType == Rearm::REMOVE) {
-                loop_mech.removeFdWatch_nolock(bfw->watch_fd);
+                loop_mech.removeFdWatch_nolock(bfw->watch_fd, bfw->watch_flags);
             }
             return rearmType;
         }
@@ -793,7 +793,7 @@ template <typename T_Mutex> class EventLoop
             if (LoopTraits::has_separate_rw_fd_watches) {
                 // TODO this will need flags for such a loop, since it can't
                 // otherwise distinguish which channel watch to remove
-                loop_mech.removeFdWatch_nolock(bdfw->watch_fd);
+                loop_mech.removeFdWatch_nolock(bdfw->watch_fd, bdfw->watch_flags);
                 return bdfw->read_removed ? Rearm::REMOVE : Rearm::NOOP;
             }
             else {
@@ -802,7 +802,7 @@ template <typename T_Mutex> class EventLoop
                 }
                 else {
                     // both removed: actually remove
-                    loop_mech.removeFdWatch_nolock(bdfw->watch_fd);
+                    loop_mech.removeFdWatch_nolock(bdfw->watch_fd, 0 /* not used */);
                     return Rearm::REMOVE;
                 }
             }
@@ -846,6 +846,8 @@ template <typename T_Mutex> class EventLoop
             bool is_multi_watch = false;
             BaseBidiFdWatcher *bbfw = nullptr;
             
+            // (Above variables are initialised only to silence compiler warnings).
+            
             // Read/manipulate watch_flags (if necessary) *before* we release the lock:
             if (pqueue->watchType == WatchType::FD) {
                 BaseFdWatcher *bfw = static_cast<BaseFdWatcher *>(pqueue);
@@ -867,8 +869,6 @@ template <typename T_Mutex> class EventLoop
             }
             
             ed.lock.unlock();
-            
-            // (Above variables are initialised only to silence compiler warnings).
             
             // Note that we select actions based on the type of the watch, as determined by the watchType
             // member. In some ways this screams out for polmorphism; a virtual function could be overridden
@@ -933,9 +933,7 @@ template <typename T_Mutex> class EventLoop
                 default: ;
                 }
                 
-                if (pqueue->deleteme) rearmType = Rearm::REMOVE; // makes the watchRemoved() callback get called.
-                
-                if (rearmType == Rearm::REMOVE) {
+                if (pqueue->deleteme || rearmType == Rearm::REMOVE) {
                     ed.lock.unlock();
                     (is_multi_watch ? bbfw : pqueue)->watchRemoved();
                     ed.lock.lock();

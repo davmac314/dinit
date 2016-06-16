@@ -64,6 +64,9 @@ class KqueueTraits
         {
             return fd;
         }
+        FD_r(int nfd) : fd(nfd)
+        {
+        }
     };
     
     const static bool has_separate_rw_fd_watches = true;
@@ -139,13 +142,14 @@ template <class Base> class KqueueLoop : public Base
                     events[i].flags = EV_ENABLE;
                 }
             }
+            else if (events[i].filter == EVFILT_READ || events[i].filter == EVFILT_WRITE) {
+                int flags = events[i].filter == EVFILT_READ ? in_events : out_events;
+                Base::receiveFdEvent(*this, FD_r(events[i].ident), events[i].udata, flags);
+                events[i].flags = EV_DISABLE | EV_CLEAR;
+                // we use EV_CLEAR to clear the EOF status of fifos/pipes (and wait for
+                // another connection).
+            }
             else {
-            //    int flags = 0;
-            //    (events[i].events & EPOLLIN) && (flags |= in_events);
-            //    (events[i].events & EPOLLHUP) && (flags |= in_events);
-            //    (events[i].events & EPOLLOUT) && (flags |= out_events);
-            //    (events[i].events & EPOLLERR) && (flags |= err_events);
-            //    Base::receiveFdEvent(*this, FD_r(), ptr, flags);
                 events[i].flags = EV_DISABLE;
             }
         }
@@ -176,68 +180,47 @@ template <class Base> class KqueueLoop : public Base
         close(kqfd);
     }
     
-    void disableFilter(short filterType, uintptr_t ident)
+    void setFilterEnabled(short filterType, uintptr_t ident, bool enable)
     {
         struct kevent kev;
-        EV_SET(&kev, ident, filterType, EV_DISABLE, 0, 0, 0);
+        EV_SET(&kev, ident, filterType, enable ? EV_ENABLE : EV_DISABLE, 0, 0, 0);
         kevent(kqfd, &kev, 1, nullptr, 0, nullptr);
+    }
+    
+    void removeFilter(short filterType, uintptr_t ident)
+    {
+        struct kevent kev;
+        EV_SET(&kev, ident, filterType, EV_DELETE, 0, 0, 0);
+        kevent(kqfd, &kev, 1, nullptr, 0, nullptr);    
     }
     
     // flags:  in_events | out_events
     void addFdWatch(int fd, void *userdata, int flags)
     {
-        //struct epoll_event epevent;
-        // epevent.data.fd = fd;
-        //epevent.data.ptr = userdata;
-        //epevent.events = 0;
+        // TODO kqueue doesn't support EVFILE_WRITE on file fd's :/
         
-        //if (flags & one_shot) {
-        //    epevent.events = EPOLLONESHOT;
-        //}
-        //if (flags & in_events) {
-        //    epevent.events |= EPOLLIN;
-        //}
-        //if (flags & out_events) {
-        //    epevent.events |= EPOLLOUT;
-        //}
-
-        //if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &epevent) == -1) {
-        //    throw new std::system_error(errno, std::system_category());        
-        //}
+        short filter = (flags & in_events) ? EVFILT_READ : EVFILT_WRITE;
+        
+        struct kevent kev;
+        EV_SET(&kev, fd, filter, EV_ADD, 0, 0, userdata);
+        if (kevent(kqfd, &kev, 1, nullptr, 0, nullptr) == -1) {
+            throw new std::system_error(errno, std::system_category());
+        }
     }
     
-    void removeFdWatch(int fd)
+    void removeFdWatch(int fd, int flags)
+    {        
+        removeFilter((flags & in_events) ? EVFILT_READ : EVFILT_WRITE, fd);
+    }
+    
+    void removeFdWatch_nolock(int fd, int flags)
     {
-        //epoll_ctl(epfd, EPOLL_CTL_DEL, fd, nullptr);
+        removeFdWatch(fd, flags);
     }
     
-    void removeFdWatch_nolock(int fd)
-    {
-        removeFdWatch(fd);
-    }
-    
-    // Note this will *replace* the old flags with the new, that is,
-    // it can enable *or disable* read/write events.
     void enableFdWatch(int fd, void *userdata, int flags)
     {
-        //struct epoll_event epevent;
-        // epevent.data.fd = fd;
-        //epevent.data.ptr = userdata;
-        //epevent.events = 0;
-        
-        //if (flags & one_shot) {
-        //    epevent.events = EPOLLONESHOT;
-        //}
-        //if (flags & in_events) {
-        //    epevent.events |= EPOLLIN;
-        //}
-        //if (flags & out_events) {
-        //    epevent.events |= EPOLLOUT;
-        //}
-
-        //if (epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &epevent) == -1) {
-        //    throw new std::system_error(errno, std::system_category());        
-        //}
+        setFilterEnabled((flags & in_events) ? EVFILT_READ : EVFILT_WRITE, fd, true);
     }
     
     void enableFdWatch_nolock(int fd, void *userdata, int flags)
@@ -245,24 +228,14 @@ template <class Base> class KqueueLoop : public Base
         enableFdWatch(fd, userdata, flags);
     }
     
-    void disableFdWatch(int fd)
+    void disableFdWatch(int fd, int flags)
     {
-        //struct epoll_event epevent;
-        // epevent.data.fd = fd;
-        //epevent.data.ptr = nullptr;
-        //epevent.events = 0;
-        
-        // Epoll documentation says that hangup will still be reported, need to check
-        // whether this is really the case. Suspect it is really only the case if
-        // EPOLLIN is set.
-        //if (epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &epevent) == -1) {
-        //    throw new std::system_error(errno, std::system_category());        
-        //}
+        setFilterEnabled((flags & in_events) ? EVFILT_READ : EVFILT_WRITE, fd, false);
     }
     
-    void disableFdWatch_nolock(int fd)
+    void disableFdWatch_nolock(int fd, int flags)
     {
-        // TODO
+        disableFdWatch(fd, flags);
     }
     
     // Note signal should be masked before call.
@@ -345,7 +318,7 @@ template <class Base> class KqueueLoop : public Base
                     sigdelset(&sigmask, rsigno);
                     // TODO accumulate and disable multiple filters with a single kevents call
                     //      rather than disabling each individually
-                    disableFilter(EVFILT_SIGNAL, rsigno);
+                    setFilterEnabled(EVFILT_SIGNAL, rsigno, false);
                 }
                 Base::receiveSignal(siginfo, sigdataMap[rsigno]);
                 rsigno = sigtimedwait(&sigmask, &siginfo.info, &timeout);
