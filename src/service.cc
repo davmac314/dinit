@@ -23,7 +23,7 @@
  */
 
 // from dinit.cc:
-void open_control_socket() noexcept;
+void open_control_socket(bool report_ro_failure = true) noexcept;
 void setup_external_log() noexcept;
 extern EventLoop_t eventLoop;
 

@@ -72,7 +72,7 @@ static void close_control_socket() noexcept;
 
 static void control_socket_cb(EventLoop_t *loop, int fd);
 
-void open_control_socket() noexcept;
+void open_control_socket(bool report_ro_failure = true) noexcept;
 void setup_external_log() noexcept;
 
 
@@ -327,7 +327,7 @@ int main(int argc, char **argv)
     sigterm_watcher.addWatch(eventLoop, SIGTERM);
 
     // Try to open control socket (may fail due to readonly filesystem)
-    open_control_socket();
+    open_control_socket(false);
     
 #ifdef __linux__
     if (am_system_init) {
@@ -454,7 +454,7 @@ static void control_socket_cb(EventLoop_t *loop, int sockfd)
     }
 }
 
-void open_control_socket() noexcept
+void open_control_socket(bool report_ro_failure) noexcept
 {
     if (! control_socket_open) {
         const char * saddrname = control_socket_path;
@@ -485,7 +485,9 @@ void open_control_socket() noexcept
         }
 
         if (bind(sockfd, (struct sockaddr *) name, sockaddr_size) == -1) {
-            log(LogLevel::ERROR, "Error binding control socket: ", strerror(errno));
+            if (errno != EROFS || report_ro_failure) {
+                log(LogLevel::ERROR, "Error binding control socket: ", strerror(errno));
+            }
             close(sockfd);
             free(name);
             return;
