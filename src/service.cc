@@ -23,7 +23,8 @@
  */
 
 // from dinit.cc:
-void system_rw_ready() noexcept;
+void open_control_socket() noexcept;
+void setup_external_log() noexcept;
 extern EventLoop_t eventLoop;
 
 // Find the requested service by name
@@ -68,6 +69,7 @@ void ServiceRecord::stopped() noexcept
 {
     if (service_type != ServiceType::SCRIPTED && service_type != ServiceType::BGPROCESS && onstart_flags.runs_on_console) {
         tcsetpgrp(0, getpgrp());
+        discard_console_log_buffer();
         releaseConsole();
     }
 
@@ -569,7 +571,10 @@ void ServiceRecord::started() noexcept
     notifyListeners(ServiceEvent::STARTED);
 
     if (onstart_flags.rw_ready) {
-        system_rw_ready();
+        open_control_socket();
+    }
+    if (onstart_flags.log_ready) {
+        setup_external_log();
     }
 
     if (force_stop || desired_state == ServiceState::STOPPED) {
