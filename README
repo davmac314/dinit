@@ -1,6 +1,6 @@
 Dinit
 -----
-v0.1 (pre-release)
+v0.02 (pre-release)
 
 
 What is it?
@@ -20,7 +20,9 @@ first "rolling back" all dependent services (which it will later re-start,
 if configured to do so).
 
 Dinit is designed to work on POSIXy operating systems such as Linux and
-OpenBSD. It is written in C++ and uses the "libev" event handling library.
+OpenBSD. It is written in C++ and uses the "Dasynq" event handling library,
+which was written especially to support Dinit.
+
 Development goals include clean design, robustness, portability, and
 avoiding feature bloat (whilst still handling a variety of use cases).
 
@@ -30,6 +32,8 @@ Dinit is licensed under the Apache License, version 2.0. A copy of this
 license can be found in the LICENSE file.
 
 Dinit was written by Davin McCall <davmac@davmac.org>.
+
+See BUILD for information on how to build Dinit.
 
 
 Introduction to services
@@ -92,7 +96,7 @@ is also considered active.
 If a service stops and becomes inactive (i.e. it is not explicitly marked
 active and has no active dependents) then any services it depends on will
 also be marked inactive and stopped unless they have other active
-dependents (or are explicitly active).
+dependents, or were explicitly started and marked active.
 
 What this means is that, in general, starting an (inactive, stopped)
 service and then stopping it will return the system to its prior state -
