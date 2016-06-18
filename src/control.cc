@@ -51,7 +51,7 @@ bool ControlConn::processPacket()
         char outbuf[] = { DINIT_RP_BADREQ };
         if (! queuePacket(outbuf, 1)) return false;
         bad_conn_close = true;
-        iob.setWatchFlags(OUT_EVENTS);
+        iob.setWatches(OUT_EVENTS);
     }
     return true;
 }
@@ -75,7 +75,7 @@ bool ControlConn::processFindLoad(int pktType)
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queuePacket(badreqRep, 1)) return false;
         bad_conn_close = true;
-        iob.setWatchFlags(OUT_EVENTS);
+        iob.setWatches(OUT_EVENTS);
         return true;
     }
     
@@ -151,7 +151,7 @@ bool ControlConn::processStartStop(int pktType)
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queuePacket(badreqRep, 1)) return false;
         bad_conn_close = true;
-        iob.setWatchFlags(OUT_EVENTS);
+        iob.setWatches(OUT_EVENTS);
         return true;
     }
     else {
@@ -225,7 +225,7 @@ bool ControlConn::processUnpinService()
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queuePacket(badreqRep, 1)) return false;
         bad_conn_close = true;
-        iob.setWatchFlags(OUT_EVENTS);
+        iob.setWatches(OUT_EVENTS);
         return true;
     }
     else {
@@ -288,7 +288,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
         else {
             if ((unsigned)wr == size) {
                 // Ok, all written.
-                iob.setWatchFlags(in_flag);
+                iob.setWatches(in_flag);
                 return true;
             }
             pkt += wr;
@@ -299,7 +299,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
     // Create a vector out of the (remaining part of the) packet:
     try {
         outbuf.emplace_back(pkt, pkt + size);
-        iob.setWatchFlags(in_flag | OUT_EVENTS);
+        iob.setWatches(in_flag | OUT_EVENTS);
         return true;
     }
     catch (std::bad_alloc &baexc) {
@@ -313,7 +313,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
             return false;
         }
         else {
-            iob.setWatchFlags(OUT_EVENTS);
+            iob.setWatches(OUT_EVENTS);
             return true;
         }
     }
@@ -343,7 +343,7 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
         else {
             if ((unsigned)wr == pkt.size()) {
                 // Ok, all written.
-                iob.setWatchFlags(in_flag);
+                iob.setWatches(in_flag);
                 return true;
             }
             outpkt_index = wr;
@@ -352,7 +352,7 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
     
     try {
         outbuf.emplace_back(pkt);
-        iob.setWatchFlags(in_flag | OUT_EVENTS);
+        iob.setWatches(in_flag | OUT_EVENTS);
         return true;
     }
     catch (std::bad_alloc &baexc) {
@@ -366,7 +366,7 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
             return false;
         }
         else {
-            iob.setWatchFlags(OUT_EVENTS);
+            iob.setWatches(OUT_EVENTS);
             return true;
         }
     }
@@ -412,11 +412,11 @@ bool ControlConn::dataReady() noexcept
         // TODO log error?
         // TODO error response?
         bad_conn_close = true;
-        iob.setWatchFlags(OUT_EVENTS);
+        iob.setWatches(OUT_EVENTS);
     }
     else {
         int out_flags = (bad_conn_close || !outbuf.empty()) ? OUT_EVENTS : 0;
-        iob.setWatchFlags(IN_EVENTS | out_flags);
+        iob.setWatches(IN_EVENTS | out_flags);
     }
     
     return false;
@@ -458,7 +458,7 @@ bool ControlConn::sendData() noexcept
         outpkt_index = 0;
         if (outbuf.empty() && ! oom_close) {
             if (! bad_conn_close) {
-                iob.setWatchFlags(IN_EVENTS);
+                iob.setWatches(IN_EVENTS);
             }
             else {
                 return true;
@@ -472,7 +472,7 @@ bool ControlConn::sendData() noexcept
 ControlConn::~ControlConn() noexcept
 {
     close(iob.fd);
-    iob.deregisterWatch(loop);
+    iob.deregister(*loop);
     
     // Clear service listeners
     for (auto p : serviceKeyMap) {

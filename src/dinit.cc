@@ -75,9 +75,9 @@ static void control_socket_cb(EventLoop_t *loop, int fd);
 
 class ControlSocketWatcher : public EventLoop_t::FdWatcher
 {
-    Rearm gotEvent(EventLoop_t * loop, int fd, int flags)
+    Rearm fdEvent(EventLoop_t &loop, int fd, int flags) override
     {
-        control_socket_cb(loop, fd);
+        control_socket_cb(&loop, fd);
         return Rearm::REARM;
     }
     
@@ -85,10 +85,10 @@ class ControlSocketWatcher : public EventLoop_t::FdWatcher
     // TODO the fd is already stored, must we really store it again...
     int fd;
     
-    void registerWith(EventLoop_t * loop, int fd, int flags)
+    void addWatch(EventLoop_t &loop, int fd, int flags)
     {
         this->fd = fd;
-        EventLoop_t::FdWatcher::registerWith(loop, fd, flags);
+        EventLoop_t::FdWatcher::addWatch(loop, fd, flags);
     }
 };
 
@@ -150,7 +150,7 @@ namespace {
             this->cb_func = cb_func;
         }
         
-        Rearm gotSignal(EventLoop_t * eloop, int signo, SigInfo_p siginfo) override
+        Rearm received(EventLoop_t &eloop, int signo, SigInfo_p siginfo) override
         {
             service_set->stop_all_services(ShutdownType::REBOOT);
             return Rearm::REARM;
@@ -159,9 +159,9 @@ namespace {
 
     class ControlSocketWatcher : public EventLoop_t::FdWatcher
     {
-        Rearm gotEvent(EventLoop_t * loop, int fd, int flags)
+        Rearm fdEvent(EventLoop_t &loop, int fd, int flags)
         {
-            control_socket_cb(loop, fd);
+            control_socket_cb(&loop, fd);
             return Rearm::REARM;
         }
     };
@@ -319,9 +319,9 @@ int main(int argc, char **argv)
     
     auto sigterm_watcher = CallbackSignalHandler(sigterm_cb);
     
-    sigint_watcher.registerWatch(&eventLoop, SIGINT);
-    sigquit_watcher.registerWatch(&eventLoop, SIGQUIT);
-    sigterm_watcher.registerWatch(&eventLoop, SIGTERM);
+    sigint_watcher.addWatch(eventLoop, SIGINT);
+    sigquit_watcher.addWatch(eventLoop, SIGQUIT);
+    sigterm_watcher.addWatch(eventLoop, SIGTERM);
 
     // Try to open control socket (may fail due to readonly filesystem)
     open_control_socket(&eventLoop);
@@ -505,7 +505,7 @@ static void open_control_socket(EventLoop_t *loop) noexcept
         }
 
         control_socket_open = true;
-        control_socket_io.registerWith(&eventLoop, sockfd, IN_EVENTS);
+        control_socket_io.addWatch(eventLoop, sockfd, IN_EVENTS);
     }
 }
 
@@ -513,7 +513,7 @@ static void close_control_socket(EventLoop_t *loop) noexcept
 {
     if (control_socket_open) {
         int fd = control_socket_io.fd;
-        control_socket_io.deregisterWatch(&eventLoop);
+        control_socket_io.deregister(*loop);
         close(fd);
         
         // Unlink the socket:

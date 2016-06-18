@@ -71,6 +71,7 @@ class KqueueTraits
     
     const static bool has_bidi_fd_watch = false;
     const static bool has_separate_rw_fd_watches = true;
+    const static bool supports_childwatch_reservation = true;
 };
 
 #if defined(__OpenBSD__)
@@ -199,6 +200,8 @@ template <class Base> class KqueueLoop : public Base
     void addFdWatch(int fd, void *userdata, int flags)
     {
         // TODO kqueue doesn't support EVFILE_WRITE on file fd's :/
+        // Presumably they cause the kevent call to fail. We could maintain
+        // a separate set and use poll() (urgh).
         
         short filter = (flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE;
         
@@ -209,6 +212,17 @@ template <class Base> class KqueueLoop : public Base
         }
     }
     
+    void addBidiFdWatch(int fd, void *userdata, int flags)
+    {
+        struct kevent kev[2];
+        EV_SET(&kev[0], fd, EVFILT_READ, EV_ADD, 0, 0, userdata);
+        EV_SET(&kev[1], fd, EVFILE_WRITE, EV_ADD, 0, 0, userdata);
+        
+        if (kevent(kqfd, kev, 2, nullptr, 0, nullptr) == -1) {
+            throw new std::system_error(errno, std::system_category());
+        }        
+    }
+    
     void removeFdWatch(int fd, int flags)
     {        
         removeFilter((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd);
@@ -217,6 +231,15 @@ template <class Base> class KqueueLoop : public Base
     void removeFdWatch_nolock(int fd, int flags)
     {
         removeFdWatch(fd, flags);
+    }
+
+    void removeBidiFdWatch(int fd) noexcept
+    {
+        struct kevent kev[2];
+        EV_SET(&kev[0], fd, EVFILT_READ, EV_DELETE, 0, 0, userdata);
+        EV_SET(&kev[1], fd, EVFILE_WRITE, EV_DELETE, 0, 0, userdata);
+        
+        kevent(kqfd, kev, 2, nullptr, 0, nullptr);
     }
     
     void enableFdWatch(int fd, void *userdata, int flags)

@@ -49,14 +49,14 @@ class ServiceRecord;
 
 class ControlConnWatcher : public EventLoop_t::BidiFdWatcher
 {
-    inline Rearm receiveEvent(EventLoop_t * loop, int fd, int flags) noexcept;
+    inline Rearm receiveEvent(EventLoop_t &loop, int fd, int flags) noexcept;
 
-    Rearm readReady(EventLoop_t * loop, int fd) noexcept override
+    Rearm readReady(EventLoop_t &loop, int fd) noexcept override
     {
         return receiveEvent(loop, fd, IN_EVENTS);
     }
     
-    Rearm writeReady(EventLoop_t * loop, int fd) noexcept override
+    Rearm writeReady(EventLoop_t &loop, int fd) noexcept override
     {
         return receiveEvent(loop, fd, OUT_EVENTS);
     }
@@ -65,22 +65,22 @@ class ControlConnWatcher : public EventLoop_t::BidiFdWatcher
     int fd; // TODO this is already stored, find a better way to access it.
     EventLoop_t * eventLoop;
     
-    void setWatchFlags(int flags)
+    void setWatches(int flags)
     {
-        EventLoop_t::BidiFdWatcher::setWatchFlags(eventLoop, flags);
+        EventLoop_t::BidiFdWatcher::setWatches(*eventLoop, flags);
     }
     
-    void registerWith(EventLoop_t *loop, int fd, int flags)
+    void registerWith(EventLoop_t &loop, int fd, int flags)
     {
         this->fd = fd;
-        this->eventLoop = loop;
-        BidiFdWatcher<EventLoop_t>::registerWith(loop, fd, flags);
+        this->eventLoop = &loop;
+        BidiFdWatcher<EventLoop_t>::addWatch(loop, fd, flags);
     }
 };
 
-inline Rearm ControlConnWatcher::receiveEvent(EventLoop_t * loop, int fd, int flags) noexcept
+inline Rearm ControlConnWatcher::receiveEvent(EventLoop_t &loop, int fd, int flags) noexcept
 {
-    return control_conn_cb(loop, this, flags);
+    return control_conn_cb(&loop, this, flags);
 }
 
 
@@ -169,7 +169,7 @@ class ControlConn : private ServiceListener
     {
         bad_conn_close = true;
         oom_close = true;
-        iob.setWatchFlags(OUT_EVENTS);
+        iob.setWatches(OUT_EVENTS);
     }
     
     // Process service event broadcast.
@@ -206,7 +206,7 @@ class ControlConn : private ServiceListener
     public:
     ControlConn(EventLoop_t * loop, ServiceSet * service_set, int fd) : loop(loop), service_set(service_set), chklen(0)
     {
-        iob.registerWith(loop, fd, IN_EVENTS);
+        iob.registerWith(*loop, fd, IN_EVENTS);
         active_control_conns++;
     }
     

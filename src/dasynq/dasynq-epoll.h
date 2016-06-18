@@ -63,6 +63,7 @@ class EpollTraits
     
     const static bool has_bidi_fd_watch = true;
     const static bool has_separate_rw_fd_watches = false;
+    const static bool supports_childwatch_reservation = true;
 };
 
 
@@ -167,6 +168,12 @@ template <class Base> class EpollLoop : public Base
         }
     }
     
+    void addBidiFdWatch(int fd, void *userdata, int flags)
+    {
+        // No implementation.
+        throw std::system_error(std::make_error_code(std::errc::not_supported));
+    }
+    
     void removeFdWatch(int fd, int flags) noexcept
     {
         epoll_ctl(epfd, EPOLL_CTL_DEL, fd, nullptr);
@@ -175,6 +182,12 @@ template <class Base> class EpollLoop : public Base
     void removeFdWatch_nolock(int fd, int flags) noexcept
     {
         removeFdWatch(fd, flags);
+    }
+    
+    void removeBidiFdWatch(int fd) noexcept
+    {
+        // Shouldn't be called for epoll.
+        removeFdWatch(fd, IN_EVENTS | OUT_EVENTS);
     }
     
     // Note this will *replace* the old flags with the new, that is,

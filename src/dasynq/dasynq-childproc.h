@@ -56,6 +56,11 @@ class pid_map
         backup_vector.resize(backup_vector.size() + 1);
     }
     
+    void unreserve() noexcept
+    {
+        backup_vector.resize(backup_vector.size() - 1);
+    }
+    
     void add(pid_t key, void *val) // throws std::bad_alloc
     {
         base_map[key] = val;
@@ -113,17 +118,37 @@ template <class Base> class ChildProcEvents : public Base
     public:
     void reserveChildWatch()
     {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         child_waiters.reserve();
+    }
+    
+    void unreserveChildWatch() noexcept
+    {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
+        child_waiters.unreserve();
     }
     
     void addChildWatch(pid_t child, void *val)
     {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         child_waiters.add(child, val);
     }
     
     void addReservedChildWatch(pid_t child, void *val) noexcept
     {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         child_waiters.add_from_reserve(child, val);
+    }
+
+    void addReservedChildWatch_nolock(pid_t child, void *val) noexcept
+    {
+        child_waiters.add_from_reserve(child, val);
+    }
+    
+    void removeChildWatch(pid_t child) noexcept
+    {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
+        child_waiters.erase(child);
     }
     
     template <typename T> void init(T *loop_mech)

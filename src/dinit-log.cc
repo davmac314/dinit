@@ -50,7 +50,7 @@ class BufferedLogStream : public EventLoop_t::FdWatcher
         release = false;
     }
     
-    Rearm gotEvent(EventLoop_t *loop, int fd, int flags) noexcept override;
+    Rearm fdEvent(EventLoop_t &loop, int fd, int flags) noexcept override;
 
     // Check whether the console can be released.
     void flushForRelease();
@@ -63,7 +63,7 @@ class BufferedLogStream : public EventLoop_t::FdWatcher
         bool was_first = current_index == 0;
         current_index = log_buffer.get_length();
         if (was_first && ! release) {
-            setEnabled(&eventLoop, true);
+            setEnabled(eventLoop, true);
         }
     }
     
@@ -106,15 +106,15 @@ void BufferedLogStream::flushForRelease()
     
     // Try to flush any messages that are currently buffered. (Console is non-blocking
     // so it will fail gracefully).
-    if (gotEvent(&eventLoop, fd, OUT_EVENTS) == Rearm::DISARM) {
+    if (fdEvent(eventLoop, fd, OUT_EVENTS) == Rearm::DISARM) {
         // Console has already been released at this point.
-        setEnabled(&eventLoop, false);
+        setEnabled(eventLoop, false);
     }
-    // gotEvent didn't want to disarm, so must be partway through a message; will
+    // fdEvent didn't want to disarm, so must be partway through a message; will
     // release when it's finished.
 }
 
-Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
+Rearm BufferedLogStream::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
 {
     auto &log_stream = *this;
     
@@ -223,7 +223,7 @@ Rearm BufferedLogStream::gotEvent(EventLoop_t *loop, int fd, int flags) noexcept
 void init_log(ServiceSet *sset)
 {
     service_set = sset;
-    log_stream[DLOG_CONS].registerWith(&eventLoop, STDOUT_FILENO, OUT_EVENTS); // TODO register in disabled state
+    log_stream[DLOG_CONS].addWatch(eventLoop, STDOUT_FILENO, OUT_EVENTS); // TODO register in disabled state
     enable_console_log(true);
 }
 
@@ -232,7 +232,7 @@ void init_log(ServiceSet *sset)
 void setup_main_log(int fd)
 {
     log_stream[DLOG_MAIN].init(fd);
-    log_stream[DLOG_MAIN].registerWith(&eventLoop, fd, OUT_EVENTS);
+    log_stream[DLOG_MAIN].addWatch(eventLoop, fd, OUT_EVENTS);
 }
 
 bool is_log_flushed() noexcept
@@ -253,7 +253,7 @@ void enable_console_log(bool enable) noexcept
         fcntl(1, F_SETFL, flags | O_NONBLOCK);
         // Activate watcher:
         log_stream[DLOG_CONS].init(STDOUT_FILENO);
-        log_stream[DLOG_CONS].setEnabled(&eventLoop, true);
+        log_stream[DLOG_CONS].setEnabled(eventLoop, true);
     }
     else if (! enable && log_to_console) {
         log_stream[DLOG_CONS].flushForRelease();

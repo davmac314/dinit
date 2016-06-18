@@ -185,7 +185,7 @@ class ServiceChildWatcher : public EventLoop_t::ChildProcWatcher
     public:
     // TODO resolve clunkiness of storing this field
     ServiceRecord * service;
-    void gotTermStat(EventLoop_t * eloop, pid_t child, int status) noexcept;
+    Rearm childStatus(EventLoop_t &eloop, pid_t child, int status) noexcept;
     
     ServiceChildWatcher(ServiceRecord * sr) noexcept : service(sr) { }
 };
@@ -196,14 +196,14 @@ class ServiceIoWatcher : public EventLoop_t::FdWatcher
     // TODO resolve clunkiness of storing these fields
     int fd;
     ServiceRecord * service;
-    Rearm gotEvent(EventLoop_t * eloop, int fd, int flags) noexcept;
+    Rearm fdEvent(EventLoop_t &eloop, int fd, int flags) noexcept;
     
     ServiceIoWatcher(ServiceRecord * sr) noexcept : service(sr) { }
     
-    void registerWith(EventLoop_t *loop, int fd, int flags)
+    void addWatch(EventLoop_t &loop, int fd, int flags)
     {
         this->fd = fd;
-        EventLoop_t::FdWatcher::registerWith(loop, fd, flags);
+        EventLoop_t::FdWatcher::addWatch(loop, fd, flags);
     }
 };
 
