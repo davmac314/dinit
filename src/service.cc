@@ -138,8 +138,16 @@ bool ServiceRecord::do_auto_restart() noexcept
 
 void ServiceRecord::handle_exit_status() noexcept
 {
+    bool did_exit = WIFEXITED(exit_status);
+    bool was_signalled = WIFSIGNALED(exit_status);
+
     if (service_type != ServiceType::SCRIPTED && exit_status != 0 && service_state != ServiceState::STOPPING) {
-        log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ", exit_status);
+        if (did_exit) {
+            log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ", WEXITSTATUS(exit_status));
+        }
+        else if (was_signalled) {
+            log(LogLevel::ERROR, "Service ", service_name, " terminated due to signal ", WTERMSIG(exit_status));
+        }
     }
 
     if (doing_recovery) {
@@ -204,7 +212,12 @@ void ServiceRecord::handle_exit_status() noexcept
             }
             else {
                 // ??? failed to stop! Let's log it as info:
-                log(LogLevel::INFO, "Service ", service_name, " stop command failed with exit code ", exit_status);
+                if (did_exit) {
+                    log(LogLevel::INFO, "Service ", service_name, " stop command failed with exit code ", WEXITSTATUS(exit_status));
+                }
+                else if (was_signalled) {
+                    log(LogLevel::INFO, "Serivice ", service_name, " stop command terminated due to signal ", WTERMSIG(exit_status));
+                }
                 // Just assume that we stopped, so that any dependencies
                 // can be stopped:
                 stopped();
@@ -217,7 +230,12 @@ void ServiceRecord::handle_exit_status() noexcept
             }
             else {
                 // failed to start
-                log(LogLevel::ERROR, "Service ", service_name, " command failed with exit code ", exit_status);
+                if (did_exit) {
+                    log(LogLevel::ERROR, "Service ", service_name, " command failed with exit code ", WEXITSTATUS(exit_status));
+                }
+                else if (was_signalled) {
+                    log(LogLevel::ERROR, "Service ", service_name, " command terminated due to signal ", WTERMSIG(exit_status));
+                }
                 failed_to_start();
             }
             service_set->processQueues(true);
