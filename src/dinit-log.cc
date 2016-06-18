@@ -81,6 +81,13 @@ class BufferedLogStream : public EventLoop_t::FdWatcher
     {
         log_buffer.append(s, len);
     }
+    
+    // Discard buffer; call only when the stream isn't active.
+    void discard()
+    {
+        current_index = 0;
+        log_buffer.trim_to(0);
+    }
 };
 }
 
@@ -260,6 +267,10 @@ void enable_console_log(bool enable) noexcept
     }
 }
 
+void discard_console_log_buffer() noexcept
+{
+    log_stream[DLOG_CONS].discard();
+}
 
 // Variadic method to calculate the sum of string lengths:
 static int sum_length(const char *arg) noexcept
