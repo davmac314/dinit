@@ -682,8 +682,10 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
         sigaddset(&sigwait_set, SIGTERM);
         sigprocmask(SIG_UNBLOCK, &sigwait_set, NULL);
 
-        constexpr int bufsz = ((CHAR_BIT * sizeof(pid_t) - 1) / 3 + 2) + 11;
-        // "LISTEN_PID=" - 11 characters
+        constexpr int bufsz = ((CHAR_BIT * sizeof(pid_t)) / 3 + 2) + 11;
+        // "LISTEN_PID=" - 11 characters; the expression above gives a conservative estimate
+        // on the maxiumum number of bytes required for LISTEN=xxx, including nul terminator,
+        // where xxx is a pid_t in decimal (i.e. one decimal digit is worth just over 3 bits).
         char nbuf[bufsz];
 
         if (socket_fd != -1) {
