@@ -437,6 +437,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                     }
                 }
                 else if (setting == "onstart") {
+                    // deprecated
                     std::list<std::pair<unsigned,unsigned>> indices;
                     string onstart_cmds = read_setting_value(i, end, &indices);
                     for (auto indexpair : indices) {
@@ -444,10 +445,36 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                         if (onstart_cmd == "rw_ready") {
                             onstart_flags.rw_ready = true;
                         }
+                        else if (onstart_cmd == "log_ready") {
+                            onstart_flags.log_ready = true;
+                        }
                         else {
                             throw new ServiceDescriptionExc(name, "Unknown onstart command: " + onstart_cmd);
                         }
                     }
+                }
+                else if (setting == "options") {
+                    std::list<std::pair<unsigned,unsigned>> indices;
+                    string onstart_cmds = read_setting_value(i, end, &indices);
+                    for (auto indexpair : indices) {
+                        string option_txt = onstart_cmds.substr(indexpair.first, indexpair.second - indexpair.first);
+                        if (option_txt == "starts-rwfs") {
+                            onstart_flags.rw_ready = true;
+                        }
+                        else if (option_txt == "starts-log") {
+                            onstart_flags.log_ready = true;
+                        }
+                        else if (option_txt == "nosigterm") {
+                            onstart_flags.no_sigterm = true;
+                        }
+                        else if (option_txt == "runs-on-console") {
+                            onstart_flags.runs_on_console = true;
+                        }
+                        else {
+                            throw new ServiceDescriptionExc(name, "Unknown option: " + option_txt);
+                        }
+                    }
+                
                 }
                 else if (setting == "termsignal") {
                     string signame = read_setting_value(i, end, nullptr);
@@ -460,10 +487,12 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                     }
                 }
                 else if (setting == "nosigterm") {
+                    // deprecated
                     string sigtermsetting = read_setting_value(i, end);
                     onstart_flags.no_sigterm = (sigtermsetting == "yes" || sigtermsetting == "true");
                 }
                 else if (setting == "runs-on-console") {
+                    // deprecated
                     string runconsolesetting = read_setting_value(i, end);
                     onstart_flags.runs_on_console = (runconsolesetting == "yes" || runconsolesetting == "true");
                 }
