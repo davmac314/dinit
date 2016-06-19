@@ -215,8 +215,10 @@ template <class Base> class KqueueLoop : public Base
     void addBidiFdWatch(int fd, void *userdata, int flags)
     {
         struct kevent kev[2];
-        EV_SET(&kev[0], fd, EVFILT_READ, EV_ADD, 0, 0, userdata);
-        EV_SET(&kev[1], fd, EVFILT_WRITE, EV_ADD, 0, 0, userdata);
+        short rflags = EV_ADD | ((flags & IN_EVENTS) ? 0 : EV_DISABLE);
+        short wflags = EV_ADD | ((flags & OUT_EVENTS) ? 0 : EV_DISABLE);
+        EV_SET(&kev[0], fd, EVFILT_READ, rflags, 0, 0, userdata);
+        EV_SET(&kev[1], fd, EVFILT_WRITE, wflags, 0, 0, userdata);
         
         if (kevent(kqfd, kev, 2, nullptr, 0, nullptr) == -1) {
             throw new std::system_error(errno, std::system_category());
