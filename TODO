@@ -4,6 +4,7 @@
   - very basic version exists, needs thorough cleanup
 * Redundant settings ("onstart" commands etc) should be removed
   (see description of "options" setting).
+* dinitctl / command socket isn't working properly on OpenBSD currently.
 
 For version 1.0:
 ----------------
