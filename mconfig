@@ -1,14 +1,12 @@
-# LLVM/clang++ with libc++ on Linux
-#CXX=clang++
-#CXXOPTS=-stdlib=libc++ -std=gnu++11 -Os -Wall -fno-rtti
-#EXTRA_LIBS=-lc++abi
-
-# GCC. Note with GCC 5,5.1,5.2 the new C++11 ABI is buggy.
+# Linux (GCC). Note with GCC 5,5.1,5.2 the new C++11 ABI is buggy.
 CXX=g++
 CXXOPTS=-D_GLIBCXX_USE_CXX11_ABI=0 -std=gnu++11 -Os -Wall -Wno-invalid-offsetof -fno-rtti
 EXTRA_LIBS=
+BUILD_SHUTDOWN=yes
 
 # OpenBSD, tested with GCC 4.9.3 and gmake:
 #CXX=eg++
 #CXXOPTS=-D_GLIBCXX_USE_CXX11_ABI=0 -std=gnu++11 -Os -Wall -fno-rtti
 #EXTRA_LIBS=
+#BUILD_SHUTDOWN=no
+# (shutdown command not available for OpenBSD yet).
