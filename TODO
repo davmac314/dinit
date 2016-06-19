@@ -4,13 +4,12 @@
   - very basic version exists, needs thorough cleanup
 * Redundant settings ("onstart" commands etc) should be removed
   (see description of "options" setting).
-* dinitctl / command socket isn't working properly on OpenBSD currently.
 
 For version 1.0:
 ----------------
 * Documentation including sample service definitions
 * Better error handling, logging of errors (largely done, still some patches
-  of code where it may be missing).
+  of code where it may be missing - check TODO's in code).
 * Write wtmp entry on startup (see simpleinit)
 * Allow running services as a different UID
 
