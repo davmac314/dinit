@@ -19,7 +19,7 @@
 
 // dinitctl:  utility to control the Dinit daemon, including starting and stopping of services.
 
-// This utility communicates with the dinit daemon via a unix socket (/dev/initctl).
+// This utility communicates with the dinit daemon via a unix stream socket (/dev/initctl, or $HOME/.dinitctl).
 
 using handle_t = uint32_t;
 
@@ -31,15 +31,34 @@ class ReadCPException
     ReadCPException(int err) : errcode(err) { }
 };
 
+static int issueLoadService(int socknum, const char *service_name);
+static int checkLoadReply(int socknum, CPBuffer<1024> &rbuffer, handle_t *handle_p, ServiceState *state_p);
+static int startStopService(int socknum, const char *service_name, int command, bool do_pin, bool wait_for_service, bool verbose);
+static int unpinService(int socknum, const char *service_name, bool verbose);
+
+
+// Fill a circular buffer from a file descriptor, reading at least _rlength_ bytes.
+// Throws ReadException if the requested number of bytes cannot be read, with:
+//     errcode = 0   if end of stream (remote end closed)
+//     errcode = errno   if another error occurred
+// Note that EINTR is ignored (i.e. the read will be re-tried).
 static void fillBufferTo(CPBuffer<1024> *buf, int fd, int rlength)
 {
-    int r = buf->fill_to(fd, rlength);
-    if (r == -1) {
-        throw ReadCPException(errno);
+    do {
+        int r = buf->fill_to(fd, rlength);
+        if (r == -1) {
+            if (errno != EINTR) {
+                throw ReadCPException(errno);
+            }
+        }
+        else if (r == 0) {
+            throw ReadCPException(0);
+        }
+        else {
+            return;
+        }
     }
-    else if (r == 0) {
-        throw ReadCPException(0);
-    }
+    while (true);
 }
 
 static const char * describeState(bool stopped)
@@ -89,7 +108,10 @@ static int write_all(int fd, const void *buf, size_t count)
     return w;
 }
 
-static int unpinService(int socknum, const char *service_name);
+
+static const int START_SERVICE = 1;
+static const int STOP_SERVICE = 2;
+static const int UNPIN_SERVICE = 3;
 
 
 // Entry point.
@@ -97,7 +119,6 @@ int main(int argc, char **argv)
 {
     using namespace std;
     
-    bool do_stop = false;
     bool show_help = argc < 2;
     char *service_name = nullptr;
     
@@ -109,11 +130,7 @@ int main(int argc, char **argv)
     bool wait_for_service = true;
     bool do_pin = false;
     
-    int command = 0;
-    
-    constexpr int START_SERVICE = 1;
-    constexpr int STOP_SERVICE = 2;
-    constexpr int UNPIN_SERVICE = 3;
+    int command = 0;    
         
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -134,7 +151,6 @@ int main(int argc, char **argv)
                 do_pin = true;
             }
             else {
-                cerr << "Unrecognized command-line parameter: " << argv[i] << endl;
                 return 1;
             }
         }
@@ -171,6 +187,7 @@ int main(int argc, char **argv)
         cout << "\nUsage:" << endl;
         cout << "    dinitctl [options] start [options] <service-name> : start and activate service" << endl;
         cout << "    dinitctl [options] stop [options] <service-name>  : stop service and cancel explicit activation" << endl;
+        cout << "    dinitctl [options] unpin <service-name>           : un-pin the service (after a previous pin)" << endl;
         // TODO:
         // cout << "    dinitctl [options] wake <service-name>  : start but don't activate service" << endl;
         
@@ -191,6 +208,7 @@ int main(int argc, char **argv)
     
     control_socket_path = "/dev/dinitctl";
     
+    // Locate control socket
     if (! sys_dinit) {
         char * userhome = getenv("HOME");
         if (userhome == nullptr) {
@@ -213,7 +231,7 @@ int main(int argc, char **argv)
     
     int socknum = socket(AF_UNIX, SOCK_STREAM, 0);
     if (socknum == -1) {
-        perror("socket");
+        perror("dinitctl: socket");
         return 1;
     }
 
@@ -221,7 +239,7 @@ int main(int argc, char **argv)
     uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + strlen(control_socket_path) + 1;
     name = (struct sockaddr_un *) malloc(sockaddr_size);
     if (name == nullptr) {
-        cerr << "dinit-start: out of memory" << endl;
+        cerr << "dinitctl: Out of memory" << endl;
         return 1;
     }
     
@@ -230,66 +248,45 @@ int main(int argc, char **argv)
     
     int connr = connect(socknum, (struct sockaddr *) name, sockaddr_size);
     if (connr == -1) {
-        perror("connect");
+        perror("dinitctl: connect");
         return 1;
     }
     
     // TODO should start by querying protocol version
     
     if (command == UNPIN_SERVICE) {
-        return unpinService(socknum, service_name);
+        return unpinService(socknum, service_name, verbose);
     }
 
-    do_stop = (command == STOP_SERVICE);
+    return startStopService(socknum, service_name, command, do_pin, wait_for_service, verbose);
+}
+
+// Start/stop a service
+static int startStopService(int socknum, const char *service_name, int command, bool do_pin, bool wait_for_service, bool verbose)
+{
+    using namespace std;
+
+    bool do_stop = (command == STOP_SERVICE);
     
-    // Build buffer;
-    uint16_t sname_len = strlen(service_name);
-    int bufsize = 3 + sname_len;
-    int r;
-    
-    {
-        unique_ptr<char[]> ubuf(new char[bufsize]);
-        auto *buf = ubuf.get();
-        
-        buf[0] = DINIT_CP_LOADSERVICE;
-        memcpy(buf + 1, &sname_len, 2);
-        memcpy(buf + 3, service_name, sname_len);
-        
-        r = write_all(socknum, buf, bufsize);
-    }
-    
-    if (r == -1) {
-        perror("write");
+    if (issueLoadService(socknum, service_name)) {
         return 1;
     }
-    
+
     // Now we expect a reply:
     
     try {
         CPBuffer<1024> rbuffer;
         wait_for_reply(rbuffer, socknum);
         
-        //ServiceState state;
+        ServiceState state;
         //ServiceState target_state;
         handle_t handle;
         
-        if (rbuffer[0] == DINIT_RP_SERVICERECORD) {
-            fillBufferTo(&rbuffer, socknum, 2 + sizeof(handle));
-            rbuffer.extract((char *) &handle, 2, sizeof(handle));
-            //state = static_cast<ServiceState>(rbuffer[1]);
-            //target_state = static_cast<ServiceState>(rbuffer[2 + sizeof(handle)]);
-            rbuffer.consume(3 + sizeof(handle));
+        if (checkLoadReply(socknum, rbuffer, &handle, &state) != 0) {
+            return 0;
         }
-        else if (rbuffer[0] == DINIT_RP_NOSERVICE) {
-            cerr << "Failed to find/load service." << endl;
-            return 1;
-        }
-        else {
-            cerr << "Protocol error." << endl;
-            return 1;
-        }
-        
-        // ServiceState wanted_state = do_stop ? ServiceState::STOPPED : ServiceState::STARTED;
+                
+        ServiceState wanted_state = do_stop ? ServiceState::STOPPED : ServiceState::STARTED;
         int command = do_stop ? DINIT_CP_STOPSERVICE : DINIT_CP_STARTSERVICE;
         
         // Need to issue STOPSERVICE/STARTSERVICE
@@ -297,6 +294,8 @@ int main(int argc, char **argv)
         // start/stop also sets or clears the "explicitly started" flag on the service.
         //if (target_state != wanted_state) {
         {
+            int r;
+            
             {
                 auto buf = new char[2 + sizeof(handle)];
                 unique_ptr<char[]> ubuf(buf);
@@ -308,32 +307,24 @@ int main(int argc, char **argv)
             }
             
             if (r == -1) {
-                perror("write");
+                perror("dinitctl: write");
                 return 1;
             }
             
             wait_for_reply(rbuffer, socknum);
             if (rbuffer[0] == DINIT_RP_ALREADYSS) {
+                bool already = (state == wanted_state);
                 if (verbose) {
-                    cout << "Service already " << describeState(do_stop) << "." << endl;
+                    cout << "Service " << (already ? "(already) " : "") << describeState(do_stop) << "." << endl;
                 }
                 return 0; // success!
             }
             if (rbuffer[0] != DINIT_RP_ACK) {
-                cerr << "Protocol error." << endl;
+                cerr << "dinitctl: Protocol error." << endl;
                 return 1;
             }
             rbuffer.consume(1);
         }
-        
-        /*
-        if (state == wanted_state) {
-            if (verbose) {
-                cout << "Service already " << describeState(do_stop) << "." << endl;
-            }
-            return 0; // success!
-        }
-        */
         
         if (! wait_for_service) {
             if (verbose) {
@@ -355,7 +346,7 @@ int main(int argc, char **argv)
         }
         
         // Wait until service started:
-        r = rbuffer.fill_to(socknum, 2);
+        int r = rbuffer.fill_to(socknum, 2);
         while (r > 0) {
             if (rbuffer[0] >= 100) {
                 int pktlen = (unsigned char) rbuffer[1];
@@ -392,13 +383,13 @@ int main(int argc, char **argv)
             }
             else {
                 // Not an information packet?
-                cerr << "protocol error" << endl;
+                cerr << "dinitctl: protocol error" << endl;
                 return 1;
             }
         }
         
         if (r == -1) {
-            perror("read");
+            perror("dinitctl: read");
         }
         else {
             cerr << "protocol error (connection closed by server)" << endl;
@@ -406,19 +397,20 @@ int main(int argc, char **argv)
         return 1;
     }
     catch (ReadCPException &exc) {
-        cerr << "control socket read failure or protocol error" << endl;
+        cerr << "dinitctl: control socket read failure or protocol error" << endl;
         return 1;
     }
     catch (std::bad_alloc &exc) {
-        cerr << "out of memory" << endl;
+        cerr << "dinitctl: out of memory" << endl;
         return 1;
     }
     
     return 0;
 }
 
-// TODO refactor shared code with above
-static int unpinService(int socknum, const char *service_name)
+// Issue a "load service" command (DINIT_CP_LOADSERVICE), without waiting for
+// a response. Returns 1 on failure (with error logged), 0 on success.
+static int issueLoadService(int socknum, const char *service_name)
 {
     using namespace std;
     
@@ -428,8 +420,9 @@ static int unpinService(int socknum, const char *service_name)
     int r;
     
     {
-        char * buf = new char[bufsize];
-        unique_ptr<char[]> ubuf(buf);
+        // TODO: new: catch exception
+        unique_ptr<char[]> ubuf(new char[bufsize]);
+        auto buf = ubuf.get();
         
         buf[0] = DINIT_CP_LOADSERVICE;
         memcpy(buf + 1, &sname_len, 2);
@@ -439,38 +432,61 @@ static int unpinService(int socknum, const char *service_name)
     }
     
     if (r == -1) {
-        perror("write");
+        perror("dinitctl: write");
         return 1;
     }
     
+    return 0;
+}
+
+// Check that a "load service" reply was received, and that the requested service was found.
+static int checkLoadReply(int socknum, CPBuffer<1024> &rbuffer, handle_t *handle_p, ServiceState *state_p)
+{
+    using namespace std;
+    
+    if (rbuffer[0] == DINIT_RP_SERVICERECORD) {
+        fillBufferTo(&rbuffer, socknum, 2 + sizeof(*handle_p));
+        rbuffer.extract((char *) handle_p, 2, sizeof(*handle_p));
+        if (state_p) *state_p = static_cast<ServiceState>(rbuffer[1]);
+        //target_state = static_cast<ServiceState>(rbuffer[2 + sizeof(handle)]);
+        rbuffer.consume(3 + sizeof(*handle_p));
+        return 0;
+    }
+    else if (rbuffer[0] == DINIT_RP_NOSERVICE) {
+        cerr << "dinitctl: Failed to find/load service." << endl;
+        return 1;
+    }
+    else {
+        cerr << "dinitctl: Protocol error." << endl;
+        return 1;
+    }
+}
+
+static int unpinService(int socknum, const char *service_name, bool verbose)
+{
+    using namespace std;
+    
+    // Build buffer;
+    if (issueLoadService(socknum, service_name) == 1) {
+        return 1;
+    }
+
     // Now we expect a reply:
     
     try {
         CPBuffer<1024> rbuffer;
         wait_for_reply(rbuffer, socknum);
         
-        //ServiceState state;
-        //ServiceState target_state;
         handle_t handle;
         
-        if (rbuffer[0] == DINIT_RP_SERVICERECORD) {
-            fillBufferTo(&rbuffer, socknum, 2 + sizeof(handle));
-            rbuffer.extract((char *) &handle, 2, sizeof(handle));
-            //state = static_cast<ServiceState>(rbuffer[1]);
-            //target_state = static_cast<ServiceState>(rbuffer[2 + sizeof(handle)]);
-            rbuffer.consume(3 + sizeof(handle));
-        }
-        else if (rbuffer[0] == DINIT_RP_NOSERVICE) {
-            cerr << "Failed to find/load service." << endl;
-            return 1;
-        }
-        else {
-            cerr << "Protocol error." << endl;
+        if (checkLoadReply(socknum, rbuffer, &handle, nullptr) != 0) {
             return 1;
         }
         
         // Issue UNPIN command.
         {
+            int r;
+            
             {
                 char *buf = new char[1 + sizeof(handle)];
                 unique_ptr<char[]> ubuf(buf);
@@ -480,27 +496,29 @@ static int unpinService(int socknum, const char *service_name)
             }
             
             if (r == -1) {
-                perror("write");
+                perror("dinitctl: write");
                 return 1;
             }
             
             wait_for_reply(rbuffer, socknum);
             if (rbuffer[0] != DINIT_RP_ACK) {
-                cerr << "Protocol error." << endl;
+                cerr << "dinitctl: Protocol error." << endl;
                 return 1;
             }
             rbuffer.consume(1);
         }
     }
     catch (ReadCPException &exc) {
-        cerr << "control socket read failure or protocol error" << endl;
+        cerr << "dinitctl: Control socket read failure or protocol error" << endl;
         return 1;
     }
     catch (std::bad_alloc &exc) {
-        cerr << "out of memory" << endl;
+        cerr << "dinitctl: Out of memory" << endl;
         return 1;
     }
     
-    cout << "Service unpinned." << endl;
+    if (verbose) {
+        cout << "Service unpinned." << endl;
+    }
     return 0;
 }
