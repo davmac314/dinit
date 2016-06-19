@@ -1,4 +1,3 @@
-// #include <netinet/in.h>
 #include <cstddef>
 #include <cstdio>
 #include <csignal>
@@ -15,6 +14,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include "cpbuffer.h"
 #include "control-cmds.h"
 #include "service-constants.h"
 
@@ -24,6 +24,16 @@
 void do_system_shutdown(ShutdownType shutdown_type);
 static void unmount_disks();
 static void swap_off();
+static void wait_for_reply(CPBuffer<1024> &rbuffer, int fd);
+
+
+class ReadCPException
+{
+    public:
+    int errcode;
+    ReadCPException(int err) : errcode(err) { }
+};
+
 
 int main(int argc, char **argv)
 {
@@ -87,6 +97,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    signal(SIGPIPE, SIG_IGN);
+    
     const char *naddr = "/dev/dinitctl";
     
     struct sockaddr_un name;
@@ -108,21 +120,85 @@ int main(int argc, char **argv)
     buf[0] = DINIT_CP_SHUTDOWN;
     buf[1] = static_cast<char>(shutdown_type);
     
-    cout << "Issuing shutdown command..." << endl; // DAV
+    cout << "Issuing shutdown command..." << endl;
     
     // TODO make sure to write the whole buffer
     int r = write(socknum, buf, bufsize);
     if (r == -1) {
         perror("write");
+        return 1;
     }
     
     // Wait for ACK/NACK
-    r = read(socknum, buf, 1);
-    // TODO: check result
+    // r = read(socknum, buf, 1);
+    //if (r > 0) {
+    //    cout << "Received acknowledgement. System should now shut down." << endl;
+    //}
+    
+    CPBuffer<1024> rbuffer;
+    try {
+        wait_for_reply(rbuffer, socknum);
+        
+        if (rbuffer[0] != DINIT_RP_ACK) {
+            cerr << "shutdown: control socket protocol error" << endl;
+            return 1;
+        }
+    }
+    catch (ReadCPException &exc)
+    {
+        cerr << "shutdown: control socket read failure or protocol error" << endl;    
+        return 1;
+    }
+    
+    while (true) {
+        pause();
+    }
     
     return 0;
 }
 
+// Fill a circular buffer from a file descriptor, reading at least _rlength_ bytes.
+// Throws ReadException if the requested number of bytes cannot be read, with:
+//     errcode = 0   if end of stream (remote end closed)
+//     errcode = errno   if another error occurred
+// Note that EINTR is ignored (i.e. the read will be re-tried).
+static void fillBufferTo(CPBuffer<1024> *buf, int fd, int rlength)
+{
+    do {
+        int r = buf->fill_to(fd, rlength);
+        if (r == -1) {
+            if (errno != EINTR) {
+                throw ReadCPException(errno);
+            }
+        }
+        else if (r == 0) {
+            throw ReadCPException(0);
+        }
+        else {
+            return;
+        }
+    }
+    while (true);
+}
+
+// Wait for a reply packet, skipping over any information packets
+// that are received in the meantime.
+static void wait_for_reply(CPBuffer<1024> &rbuffer, int fd)
+{
+    fillBufferTo(&rbuffer, fd, 1);
+    
+    while (rbuffer[0] >= 100) {
+        // Information packet; discard.
+        fillBufferTo(&rbuffer, fd, 1);
+        int pktlen = (unsigned char) rbuffer[1];
+        
+        rbuffer.consume(1);  // Consume one byte so we'll read one byte of the next packet
+        fillBufferTo(&rbuffer, fd, pktlen);
+        rbuffer.consume(pktlen - 1);
+    }
+}
+
+// Actually shut down the system.
 void do_system_shutdown(ShutdownType shutdown_type)
 {
     using namespace std;
@@ -145,17 +221,6 @@ void do_system_shutdown(ShutdownType shutdown_type)
     kill(-1, SIGTERM);
     sleep(1);
     kill(-1, SIGKILL);
-    
-    // cout << "Sending QUIT to init..." << endl; // DAV
-    
-    // Tell init to exec reboot:
-    // TODO what if it's not PID=1? probably should have dinit pass us its PID
-    // kill(1, SIGQUIT);
-    
-    // TODO can we wait somehow for above to work?
-    // maybe have a pipe/socket and we read from our end...
-    
-    // TODO: close all ancillary file descriptors.
     
     // perform shutdown
     cout << "Turning off swap..." << endl;
