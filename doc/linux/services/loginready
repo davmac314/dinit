@@ -1,0 +1,9 @@
+# Virtual service run before login is enabled.
+
+type = internal
+restart = false
+runs-on-console = yes
+
+depends-on = rcboot
+waits-for = dbusd
+waits-for = udevd

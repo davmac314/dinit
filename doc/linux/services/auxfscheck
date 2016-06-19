@@ -1,0 +1,11 @@
+# Check auxillary (non-root) filesystems.
+
+type = scripted
+command = /sbin/fsck -A -R -C -a
+restart = false
+runs-on-console = true
+
+depends-on = early-filesystems
+depends-on = udevd
+depends-on = rootrw
+waits-for = udev-settle

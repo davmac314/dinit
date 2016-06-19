@@ -1,0 +1,11 @@
+# Auxillary (non-root) filesystems
+
+type = scripted
+command = /etc/dinit.d/filesystems.sh start
+restart = false
+logfile = /var/log/dinit-filesystems.log
+
+depends-on = udevd
+depends-on = rootrw
+waits-for = auxfscheck
+waits-for = udev-settle

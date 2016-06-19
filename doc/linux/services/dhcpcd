@@ -1,0 +1,6 @@
+# Example dhcpcd script.
+
+type = process
+command = /usr/sbin/dhcpcd -B -M --logfile /var/log/dhcpcd-service.log enp3s0
+restart = false
+depends-on = rcboot

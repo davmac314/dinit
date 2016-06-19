@@ -1,0 +1,11 @@
+# Re-mount the root filesystem read/write.
+
+type = scripted
+command = /bin/mount -n -o remount,rw /
+restart = false
+onstart = rw_ready
+logfile = /run/rootrw.log
+
+depends-on = early-filesystems
+depends-on = udevd
+waits-for = rootfscheck

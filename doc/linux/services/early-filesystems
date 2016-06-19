@@ -1,0 +1,6 @@
+# Early (virtual) filesystems - /proc, /sys, etc
+
+type = scripted
+command = /etc/dinit.d/early-filesystems.sh start
+restart = false
+onstart = rw_ready

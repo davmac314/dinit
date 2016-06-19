@@ -1,0 +1,5 @@
+type = process
+command = /sbin/agetty tty3 linux-c
+restart = true
+depends-on = loginready
+termsignal = HUP

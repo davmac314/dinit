@@ -1,0 +1,7 @@
+# Various startup operations
+
+type = scripted
+command = /etc/dinit.d/rcboot.sh start
+stop-command = /etc/dinit.d/rcboot.sh stop
+restart = false
+depends-on = filesystems

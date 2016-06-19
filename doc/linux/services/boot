@@ -1,0 +1,14 @@
+# This is the primary service, automatically started when the system comes up.
+
+type = internal
+
+# Each of these services starts a login prompt:
+depends-on = tty1
+depends-on = tty2
+depends-on = tty3
+depends-on = tty4
+depends-on = tty5
+depends-on = tty6
+
+waits-for = late-filesystems
+waits-for = dhcpcd

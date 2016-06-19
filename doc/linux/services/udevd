@@ -1,0 +1,10 @@
+# We use a scripted service for udev since (at least with eudev-3.1.2)
+# there is no other way to get notification when the control socket is
+# ready. (The downside is that we cannot properly supervise the process
+# and restart it if it crashes).
+type = scripted
+command = /sbin/udevd --daemon
+stop-command = /bin/udevadm control -e
+logfile = /run/udevd.log
+restart = false
+depends-on = early-filesystems
