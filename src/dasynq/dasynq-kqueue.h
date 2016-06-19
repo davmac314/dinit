@@ -199,7 +199,7 @@ template <class Base> class KqueueLoop : public Base
     // flags:  IN_EVENTS | OUT_EVENTS
     void addFdWatch(int fd, void *userdata, int flags)
     {
-        // TODO kqueue doesn't support EVFILE_WRITE on file fd's :/
+        // TODO kqueue doesn't support EVFILT_WRITE on file fd's :/
         // Presumably they cause the kevent call to fail. We could maintain
         // a separate set and use poll() (urgh).
         
@@ -216,7 +216,7 @@ template <class Base> class KqueueLoop : public Base
     {
         struct kevent kev[2];
         EV_SET(&kev[0], fd, EVFILT_READ, EV_ADD, 0, 0, userdata);
-        EV_SET(&kev[1], fd, EVFILE_WRITE, EV_ADD, 0, 0, userdata);
+        EV_SET(&kev[1], fd, EVFILT_WRITE, EV_ADD, 0, 0, userdata);
         
         if (kevent(kqfd, kev, 2, nullptr, 0, nullptr) == -1) {
             throw new std::system_error(errno, std::system_category());
@@ -236,8 +236,8 @@ template <class Base> class KqueueLoop : public Base
     void removeBidiFdWatch(int fd) noexcept
     {
         struct kevent kev[2];
-        EV_SET(&kev[0], fd, EVFILT_READ, EV_DELETE, 0, 0, userdata);
-        EV_SET(&kev[1], fd, EVFILE_WRITE, EV_DELETE, 0, 0, userdata);
+        EV_SET(&kev[0], fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+        EV_SET(&kev[1], fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
         
         kevent(kqfd, kev, 2, nullptr, 0, nullptr);
     }
