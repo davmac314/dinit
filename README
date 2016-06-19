@@ -14,10 +14,14 @@ but see notes below) in parallel, with dependency management (i.e. if one
 service's operation depends on another, the latter service will be started
 first).
 
-For "process" services dinit can monitor the process corresponding to the
+For "process" services Dinit can monitor the process corresponding to the
 service, and re-start it if it dies. It does this in an intelligent way,
-first "rolling back" all dependent services (which it will later re-start,
-if configured to do so).
+first "rolling back" all dependent services, and restarting them when their
+dependencies are satisfied.
+
+Dinit includes a tool ("dinitctl") to issue commands to the main Dinit
+process, and a "shutdown" program (with scripts "halt" and "reboot") to
+manage shutting down and restarting the system.
 
 Dinit is designed to work on POSIXy operating systems such as Linux and
 OpenBSD. It is written in C++ and uses the "Dasynq" event handling library,
@@ -71,8 +75,13 @@ process that is registered as a scripted service).
 A _bgprocess_ service is a mix between a process service and a scripted
 service. A command is used to start the service, and once started, the
 process ID is expected to be available in a file which Dinit can then
-read. Many existing daemons can operate in this way. Dinit can only
-supervise the process if it runs as the system "init" (PID 1),
+read. Many existing daemons can operate in this way. Dinit can only supervise
+the process if it runs as the system "init" (PID 1) - otherwise Dinit will
+not know when the process has terminated.
+
+(Note, use of bgprocess services type requires care. The file from which the
+PID is read is trusted; Dinit may send signals to the specified PID. It
+should not be possible for unauthorised users to modify the file contents!)
 
 An _internal_ service is just a placeholder service that can be used to
 describe a set of dependencies. An internal service has no corresponding
@@ -223,3 +232,8 @@ runs-on-console = yes | no | true | false
   Process services and internal services take the console for the entire
   time that they are active (and cannot release it).
 
+options = ( runs-on-console | nosigterm | starts-rwfs | starts-log ) ...
+  This is a newer way of specifying some of the above options
+  (runs-on-console, nosigterm, onstart = rw_ready) and an additional option
+  for specifying that this service is the system logging service, which
+  Dinit can log to once the service has started.

@@ -1,38 +1,26 @@
-* BGPROCESS services:
-  - document security issue if pid file is not correctly protected (via access
-    rights/ownership).
-
-* libev replacement:
-  - We've replaced libev, so that we don't abort on failure. But now exceptions
-    can be thrown when we register an event watch - need to handle these.
-    - Service I/O / child process waits need to be audited.
-
-* Long-running "on console" services will back up the circular log buffer.
-  The buffer should just be flushed instead.
-* When a PROCESS service process dies, and smooth_recovery is false, probably
-  need to force-stop dependents even if the process itself was stopped
-  deliberately.
 * Complete control socket handling and protocol
   - support for listing all services and their state
 * Implement a control utility to start/stop services after dinit has started
   - very basic version exists, needs thorough cleanup
+* Redundant settings ("onstart" commands etc) should be removed
+  (see description of "options" setting).
 
 For version 1.0:
 ----------------
-* Perhaps need a way to prevent script services from re-starting.
-  (eg there's no need to mount filesystems twice; there might be various other
-   system initialisations that can't or shouldn't really be "undone" and so do
-   not need to be re-done).
 * Documentation including sample service definitions
 * Better error handling, logging of errors (largely done, still some patches
   of code where it may be missing).
 * Write wtmp entry on startup (see simpleinit)
 * Allow running services as a different UID
+
+For later:
 * On linux when running with PID != 1, write PID to /proc/sys/kernel/cad_pid so
   that we still receive SIGINT from ctrl+alt+del (must be done after /proc is
   mounted, possibly could be left to a service script)
-
-For later:
+* Perhaps need a way to prevent script services from re-starting.
+  (eg there's no need to mount filesystems twice; there might be various other
+   system initialisations that can't or shouldn't really be "undone" and so do
+   not need to be re-done).
 * Internationalisation
 * More logging options. Can currently log to syslog only (well, with the
   syslog protocol, to /dev/log). Possibly should be able to log directly
