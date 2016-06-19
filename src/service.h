@@ -680,6 +680,7 @@ class ServiceSet
     {
         auto prev_tail = console_queue_tail;
         console_queue_tail = newTail;
+        newTail->next_for_console = nullptr;
         if (! prev_tail) {
             console_queue_head = newTail;
             enable_console_log(false);
