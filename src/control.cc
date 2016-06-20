@@ -156,6 +156,7 @@ bool ControlConn::processStartStop(int pktType)
     }
     else {
         bool already_there = false;
+        
         switch (pktType) {
         case DINIT_CP_STARTSERVICE:
             // start service, mark as required
@@ -185,9 +186,6 @@ bool ControlConn::processStartStop(int pktType)
             service->stop();
             service_set->processQueues(false);
             already_there = service->getState() == ServiceState::STOPPED;
-            break;
-        default:
-            // TODO return an error
             break;
         }
         
