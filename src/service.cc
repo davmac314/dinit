@@ -154,7 +154,7 @@ void ServiceRecord::handle_exit_status() noexcept
         // (BGPROCESS only)
         doing_recovery = false;
         bool need_stop = false;
-        if (exit_status != 0) {
+        if ((did_exit && WEXITSTATUS(exit_status) != 0) || was_signalled) {
             need_stop = true;
         }
         else {
@@ -179,7 +179,7 @@ void ServiceRecord::handle_exit_status() noexcept
     if (service_type == ServiceType::PROCESS || service_type == ServiceType::BGPROCESS) {
         if (service_state == ServiceState::STARTING) {
             // (only applies to BGPROCESS)
-            if (exit_status == 0) {
+            if (did_exit && WEXITSTATUS(exit_status) == 0) {
                 started();
             }
             else {
@@ -207,7 +207,7 @@ void ServiceRecord::handle_exit_status() noexcept
     }
     else {  // SCRIPTED
         if (service_state == ServiceState::STOPPING) {
-            if (exit_status == 0) {
+            if (did_exit && WEXITSTATUS(exit_status) == 0) {
                 stopped();
             }
             else {
