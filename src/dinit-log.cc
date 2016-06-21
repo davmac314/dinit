@@ -32,7 +32,7 @@ class BufferedLogStream : public EventLoop_t::FdWatcher
     // A "special message" is not stored in the circular buffer; instead
     // it is delivered from an external buffer not managed by BufferedLogger.
     bool special = false;      // currently outputting special message?
-    char *special_buf; // buffer containing special message
+    const char *special_buf; // buffer containing special message
     int msg_index;     // index into special message
 
     CPBuffer<4096> log_buffer;
@@ -88,6 +88,12 @@ class BufferedLogStream : public EventLoop_t::FdWatcher
         current_index = 0;
         log_buffer.trim_to(0);
     }
+
+    // Mark that a message was discarded due to full buffer
+    void mark_discarded()
+    {
+        discarded = true;
+    }
 };
 }
 
@@ -123,18 +129,21 @@ void BufferedLogStream::flushForRelease()
 
 Rearm BufferedLogStream::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
 {
-    auto &log_stream = *this;
-    
-    if ((! partway) && log_stream.special) {
-        char * start = log_stream.special_buf + log_stream.msg_index;
-        char * end = std::find(log_stream.special_buf + log_stream.msg_index, (char *)nullptr, '\n');
+    if ((! partway) && (! special) && discarded) {
+        special_buf = "dinit: *** message discarded due to full buffer ****\n";
+        msg_index = 0;
+    }
+
+    if ((! partway) && special) {
+        const char * start = special_buf + msg_index;
+        const char * end = std::find(special_buf + msg_index, (const char *)nullptr, '\n');
         int r = write(fd, start, end - start + 1);
         if (r >= 0) {
             if (start + r > end) {
                 // All written: go on to next message in queue
-                log_stream.special = false;
-                log_stream.partway = false;
-                log_stream.msg_index = 0;
+                special = false;
+                partway = false;
+                msg_index = 0;
                 
                 if (release) {
                     release_console();
@@ -142,7 +151,7 @@ Rearm BufferedLogStream::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
                 }
             }
             else {
-                log_stream.msg_index += r;
+                msg_index += r;
                 return Rearm::REARM;
             }
         }
@@ -153,8 +162,6 @@ Rearm BufferedLogStream::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
     }
     else {
         // Writing from the regular circular buffer
-        
-        // TODO issue special message if we have discarded a log message
         
         if (current_index == 0) {
             release_console();
@@ -204,11 +211,11 @@ Rearm BufferedLogStream::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
 
         if (r >= 0) {
             bool complete = (r == len) && will_complete;
-            log_stream.log_buffer.consume(len);
-            log_stream.partway = ! complete;
+            log_buffer.consume(len);
+            partway = ! complete;
             if (complete) {
-                log_stream.current_index -= len;
-                if (log_stream.current_index == 0 || release) {
+                current_index -= len;
+                if (current_index == 0 || release) {
                     // No more messages buffered / stop logging to console:
                     release_console();
                     return Rearm::DISARM;
@@ -230,7 +237,7 @@ Rearm BufferedLogStream::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
 void init_log(ServiceSet *sset)
 {
     service_set = sset;
-    log_stream[DLOG_CONS].addWatch(eventLoop, STDOUT_FILENO, OUT_EVENTS); // TODO register in disabled state
+    log_stream[DLOG_CONS].addWatch(eventLoop, STDOUT_FILENO, OUT_EVENTS, false);
     enable_console_log(true);
 }
 
@@ -322,7 +329,7 @@ template <typename ... T> static void push_to_log(int idx, T ... args) noexcept
         log_stream[idx].commit_msg();
     }
     else {
-        // TODO mark a discarded message
+        log_stream[idx].mark_discarded();
     }
 }
 
@@ -377,7 +384,7 @@ template <typename T> static void do_log_part(int idx, T arg) noexcept
         else {
             log_stream[idx].rollback_msg();
             log_current_line[idx] = false;
-            // TODO mark discarded message
+            log_stream[idx].mark_discarded();
         }
     }
 }
