@@ -24,35 +24,11 @@
 #endif
 
 /*
- * "simpleinit" from util-linux-ng package handles signals as follows:
- * SIGTSTP - spawn no more gettys (in preparation for shutdown etc).
- *           In dinit terms this should probably mean "no more auto restarts"
- *           (for any service). (Actually the signal acts as a toggle, if
- *           respawn is disabled it will be re-enabled and init will
- *           act as if SIGHUP had also been sent)
- * SIGTERM - kill spawned gettys (which are still alive)
- *           Interestingly, simpleinit just sends a SIGTERM to the gettys,
- *           which will not normall kill shells (eg bash ignores SIGTERM).
- * "/sbin/initctl -r" - rollback services (ran by "shutdown"/halt etc);
- *           shouldn't return until all services have been stopped.
- *           shutdown calls this after sending SIGTERM to processes running
- *           with uid >= 100 ("mortals").
- * SIGQUIT - init will exec() shutdown. shutdown will detect that it is
- *           running as pid 1 and will just loop and reap child processes.
- *           This is used by shutdown so that init will not hang on to its
- *           inode, allowing the filesystem to be re-mounted readonly
- *           (this is only an issue if the init binary has been unlinked,
- *           since it's then holding an inode which can't be maintained
- *           when the filesystem is unmounted).
+ * When running as the system init process, Dinit processes the following signals:
  *
- * Not sent by shutdown:
- * SIGHUP -  re-read inittab and spawn any new getty entries
- * SIGINT - (ctrl+alt+del handler) - fork & exec "reboot"
- * 
- * On the contrary dinit currently uses:
  * SIGTERM - roll back services and then fork/exec /sbin/halt
  * SIGINT - roll back services and then fork/exec /sbin/reboot
- * SIGQUIT - exec() /sbin/shutdown as per above.
+ * SIGQUIT - exec() /sbin/shutdown without rolling back services
  *
  * It's an open question about whether dinit should roll back services *before*
  * running halt/reboot, since those commands should prompt rollback of services
@@ -569,8 +545,7 @@ void setup_external_log() noexcept
         }
         else {
             // Note if connect fails, we haven't warned at all, because the syslog server might not
-            // have started yet. TODO, have a special startup flag to indicate when syslog should
-            // be available.
+            // have started yet.
             close(sockfd);
         }
         
@@ -587,15 +562,13 @@ static void sigint_reboot_cb(EventLoop_t *eloop) noexcept
 /* handle SIGQUIT (if we are system init) */
 static void sigquit_cb(EventLoop_t *eloop) noexcept
 {
-    // This allows remounting the filesystem read-only if the dinit binary has been
-    // unlinked. In that case the kernel holds the binary open, so that it can't be
-    // properly removed.
+    // This performs an immediate shutdown, without service rollback.
     close_control_socket();
-    execl("/sbin/shutdown", "/sbin/shutdown", (char *) 0);
+    execl("/sbin/shutdown", "/sbin/shutdown", "--system", (char *) 0);
     log(LogLevel::ERROR, "Error executing /sbin/shutdown: ", strerror(errno));
 }
 
-/* handle SIGTERM/SIGQUIT - stop all services (not used for system daemon) */
+/* handle SIGTERM/SIGQUIT(non-system-daemon) - stop all services and shut down */
 static void sigterm_cb(EventLoop_t *eloop) noexcept
 {
     service_set->stop_all_services();
