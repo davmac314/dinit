@@ -146,7 +146,7 @@ template <class Base> class EpollLoop : public Base
     }
     
     // flags:  IN_EVENTS | OUT_EVENTS
-    void addFdWatch(int fd, void *userdata, int flags)
+    void addFdWatch(int fd, void *userdata, int flags, bool enabled = true)
     {
         struct epoll_event epevent;
         // epevent.data.fd = fd;
@@ -156,10 +156,10 @@ template <class Base> class EpollLoop : public Base
         if (flags & ONE_SHOT) {
             epevent.events = EPOLLONESHOT;
         }
-        if (flags & IN_EVENTS) {
+        if ((flags & IN_EVENTS) && enabled) {
             epevent.events |= EPOLLIN;
         }
-        if (flags & OUT_EVENTS) {
+        if ((flags & OUT_EVENTS) && enabled) {
             epevent.events |= EPOLLOUT;
         }
 

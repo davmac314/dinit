@@ -585,9 +585,9 @@ template <typename T_Mutex> class EventLoop
         releaseLock(qnode);
     }
 
-    void registerFd(BaseFdWatcher *callback, int fd, int eventmask)
+    void registerFd(BaseFdWatcher *callback, int fd, int eventmask, bool enabled)
     {
-        loop_mech.addFdWatch(fd, callback, eventmask | ONE_SHOT);
+        loop_mech.addFdWatch(fd, callback, eventmask | ONE_SHOT, enabled);
     }
     
     void registerFd(BaseBidiFdWatcher *callback, int fd, int eventmask)
@@ -1072,12 +1072,12 @@ class FdWatcher : private dprivate::BaseFdWatcher<typename EventLoop::mutex_t>
     // causes undefined behavior.
     //
     // Can fail with std::bad_alloc or std::system_error.
-    void addWatch(EventLoop &eloop, int fd, int flags)
+    void addWatch(EventLoop &eloop, int fd, int flags, bool enabled = true)
     {
         BaseWatcher::init();
         this->watch_fd = fd;
         this->watch_flags = flags;
-        eloop.registerFd(this, fd, flags);
+        eloop.registerFd(this, fd, flags, enabled);
     }
     
     // Deregister a file descriptor watcher.

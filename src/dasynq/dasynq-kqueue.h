@@ -197,7 +197,7 @@ template <class Base> class KqueueLoop : public Base
     }
     
     // flags:  IN_EVENTS | OUT_EVENTS
-    void addFdWatch(int fd, void *userdata, int flags)
+    void addFdWatch(int fd, void *userdata, int flags, bool enabled = true)
     {
         // TODO kqueue doesn't support EVFILT_WRITE on file fd's :/
         // Presumably they cause the kevent call to fail. We could maintain
@@ -206,7 +206,7 @@ template <class Base> class KqueueLoop : public Base
         short filter = (flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE;
         
         struct kevent kev;
-        EV_SET(&kev, fd, filter, EV_ADD, 0, 0, userdata);
+        EV_SET(&kev, fd, filter, EV_ADD | (enabled ? 0 : EV_DISABLE), 0, 0, userdata);
         if (kevent(kqfd, &kev, 1, nullptr, 0, nullptr) == -1) {
             throw new std::system_error(errno, std::system_category());
         }
