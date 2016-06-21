@@ -278,7 +278,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
                 return false;
             }
             if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-                // TODO log error
+                log(LogLevel::WARN, "Error writing to control connection: ", strerror(errno));
                 return false;
             }
             // EAGAIN etc: fall through to below
@@ -333,7 +333,7 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
                 return false;
             }
             if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-                // TODO log error
+                log(LogLevel::WARN, "Error writing to control connection: ", strerror(errno));
                 return false;
             }
             // EAGAIN etc: fall through to below
@@ -385,7 +385,7 @@ bool ControlConn::dataReady() noexcept
     // Note file descriptor is non-blocking
     if (r == -1) {
         if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-            // TODO log error
+            log(LogLevel::WARN, "Error writing to control connection: ", strerror(errno));
             return true;
         }
         return false;
@@ -407,8 +407,7 @@ bool ControlConn::dataReady() noexcept
     }
     else if (rbuf.get_length() == 1024) {
         // Too big packet
-        // TODO log error?
-        // TODO error response?
+        log(LogLevel::WARN, "Received too-large control package; dropping connection");
         bad_conn_close = true;
         iob.setWatches(OUT_EVENTS);
     }
