@@ -12,3 +12,4 @@ depends-on = tty6
 
 waits-for = late-filesystems
 waits-for = dhcpcd
+waits-for = sshd

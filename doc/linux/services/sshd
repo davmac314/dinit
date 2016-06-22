@@ -1,0 +1,7 @@
+type = process
+smooth-recovery = true
+command = /usr/sbin/sshd -D
+
+depends-on = loginready
+depends-on = rcboot
+waits-for = syslogd

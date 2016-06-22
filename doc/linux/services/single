@@ -1,4 +1,4 @@
 type = process
 command = /bin/sh
 restart = false
-runs-on-console = true
+options = runs-on-console

@@ -3,19 +3,15 @@ export PATH=/usr/bin:/usr/sbin:/bin:/sbin
 umask 0077
 
 if [ "$1" != "stop" ]; then
-
-  # Get system time from hardware clock
-  /sbin/hwclock --adjust
-  /sbin/hwclock --hctosys
   
   # cleanup
   # (delete /tmp etc)
+  rm -rf /tmp/* /tmp/.[^.]* /tmp/..?*
+  rm -rf /var/lock/* /var/lock/.[^.]* /var/lock/..?*
+  rm -rf /var/run/* /var/run/.[^.]* /var/run/..?*
+  # Create (empty) utmp database
   : > /var/run/utmp
-  rm -f -r /tmp/*
-  rm -f -r /tmp/.[^.]*
-  rm -f -r /tmp/..?*
-  rm -f /var/locks/*
-  rm -f -r /var/run/dbus/*
+  mkdir /var/run/dbus
 
   # Configure random number generator
   cat /var/state/random-seed > /dev/urandom
@@ -26,34 +22,16 @@ if [ "$1" != "stop" ]; then
   # You can put other static configuration here:
   #/sbin/ifconfig eth0 192.168.1.38 netmask 255.255.255.0 broadcast 192.168.1.255
 
-  /bin/hostname myhost
+  echo "myhost" > /proc/sys/kernel/hostname
 
-  # networking daemons
-  /usr/libexec/syslogd
-  /usr/sbin/sshd
-  /usr/libexec/inetd
-  
   # /usr/sbin/alsactl restore
 
-  # Prevent spurious messages from kernel to console
-  # (syslog will still catch them). Default in 2.4.18 is "7 4 1 7".
-  # in particular this prevents "unknown scancode" messages from unrecognized
-  # keys on funky keyboards, and module loading messages.
-  echo "3 4 1 7" > /proc/sys/kernel/printk
-
-  # Printing
-  #/etc/init.d/hplip start
-  /etc/init.d/cups start
-  
 else
 
   # The system is being shut down
-  # kill some stuff
-  #if [ -e /var/run/gpm.pid ]; then kill `cat /var/run/gpm.pid`; fi
-
-  /etc/init.d/cups stop
   
   # echo "Saving random number seed..."
-  dd if=/dev/urandom of=/var/state/random-seed bs=512 count=1 2> /dev/null
+  POOLSIZE=`cat /proc/sys/kernel/random/poolsize`
+  dd if=/dev/urandom of=/var/state/random-seed bs="$POOLSIZE" count=1 2> /dev/null
 
 fi;

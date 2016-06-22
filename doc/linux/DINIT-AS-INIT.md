@@ -5,6 +5,12 @@ in conjunction with other software, to boot your system and replace your current
 init system (which on most main distributions is now Systemd, Sys V init, or
 OpenRC).
 
+Be warned that it is not a trivial task to take a system based on a typical
+Linux distribution and make it instead boot with Dinit. You need to set up
+suitable service description files for your system; at present there are no
+automated conversion tools for converting service descriptions or startup
+scripts from other systems.
+
 The additional software required can be broken into _essential_ and
 _optional_ packages, which are detailed in following sections. For example service
 files, please check the "services" subdirectory.
@@ -39,7 +45,8 @@ days. They include:
   interfaces
 - /dev/shm - tmpfs - used for shared memory
 - /dev/pts - devpts - pseudoterminal devices
-- /run - tmpfs - storage for program state; used by udev
+- /run - tmpfs - storage for program state (replacement for /var/run); used by
+  udev and some other programs
 
 These filesystems (particularly /sys, /proc and /run) need to be mounted
 quite early as they will be used by early-boot processes.
@@ -77,20 +84,66 @@ provide a template for accomplishing the above, but may need some adjustment
 for your particular configuration.
 
 
-# Essential packages
+# Boot performance compared to Systemd
+
+Boot performance using Dinit suffers slightly compared to Systemd due to
+several factors:
+
+- Dinit doesn't handle file system mounts/checks and spawns external
+  processes and/or scripts to manage these
+- In the absence of full udev integration, it is more difficult to start
+  some services as early as possible. For instance, filesystem mounts need
+  to wait for the appropriate device to be recognized by the kernel and
+  exported as a device node; similarly network interfaces need to be
+  recognized before they are configured. With Dinit, the simplest approach
+  is to wait until udev "settles" (via "udevadm settle") before attempting
+  mounts and network configuration etc.
+- Dinit doesn't do socket activation (yet). What it can do is pre-open a
+  socket while it launches a daemon, which probably improves boot times a
+  little but potentially still results in more daemons getting started than
+  is strictly necessary.
+
+In the future Dinit might provide functionality to perform basic mounts
+without spawning an external process, and will almost certainly support full
+socket activation. Some of the more fundamental startup script functionality
+might also be offered via some kind of intrinsic service(s). However, where
+at all possible, the intention is to keep service functionality separate to
+Dinit itself.
+
+
+# Essential packages for building a Dinit-based system
+
+Other than the obvious system C library and C++ library, you'll need a range
+of packages to create a functional Dinit-based system.
 
 First, a device node manager. I recommend "Eudev".
 
 - Eudev - the Gentoo fork of Udev; https://github.com/gentoo/eudev
 - Vdev - "a device file manager and filesystem" and a "work in progress";
   https://github.com/jcnelson/vdev
-- Mdev may also be an option; it is part of the "busybox" utility suite.
+- Mdev may also be an option; it is part of the "busybox" utility suite. I
+  don't personally have any experience with it.
 
 Then, a "getty" and "login" program. Both can be found in the util-linux
 package, at: https://www.kernel.org/pub/linux/utils/util-linux
 
+Also provided in the util-linux package are standard utilities such as fsck
+and mount. You'll probably want e2fsprogs (or the equivalent for your chosen
+filesystem): http://e2fsprogs.sourceforge.net/
 
-# Optional packages
+The syslog daemon from GNU Inetutils is basic, but functional - which makes
+it a good fit for a Dinit-based system. https://www.gnu.org/software/inetutils
+
+You will need a shell script interpreter / command line, for which you have
+a range of options. A common choice is GNU Bash, but many distributions are
+using Dash as the /bin/sh shell because it is significantly faster (affecting
+boot time).
+
+- Bash: https://www.gnu.org/software/bash
+= Dash: http://gondor.apana.org.au/~herbert/dash
+
+
+# Optional packages for building a Dinit-based system
 
 ConsoleKit2, to act as seat/sesion manager (functionality otherwise
 provided by Systemd):
@@ -100,6 +153,9 @@ cgmanager, the control group manager; you probably want this if you use
 ConsoleKit2, and maybe if you want to use containers:
 https://github.com/lxc/cgmanager
 
-However, I believe that cgmanage works with the old (v1) cgroups interface.
+(However, I believe that cgmanage works with the old v1 cgroups interface.
 I expect that v2 cgroups together with cgroup namespaces as found in newer
-kernels will render it obselete.
+kernels will render it obselete).
+
+Both ConsoleKit2 and cgmanager use Dbus:
+https://dbus.freedesktop.org/

@@ -1,0 +1,13 @@
+# Set system time from hardware clock
+
+type = scripted
+logfile = /run/hwclock.log 
+command = /sbin/hwclock --hctosys
+
+# Optional, not necessary, and not recommended:
+#stop-command = /sbin/hwclock --systohc
+
+restart = false
+
+depends-on = udevd
+depends-on = early-filesystems

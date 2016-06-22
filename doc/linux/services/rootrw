@@ -8,4 +8,5 @@ logfile = /run/rootrw.log
 
 depends-on = early-filesystems
 depends-on = udevd
+waits-for = hwclock
 waits-for = rootfscheck

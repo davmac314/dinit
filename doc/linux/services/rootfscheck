@@ -3,7 +3,7 @@
 type = scripted
 command = /etc/dinit.d/rootfscheck.sh start
 restart = false
-runs-on-console = yes
+options = runs-on-console
 
 depends-on = early-filesystems
 depends-on = udevd
