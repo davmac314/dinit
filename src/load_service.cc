@@ -49,6 +49,24 @@ static string read_setting_name(string_iterator & i, string_iterator end)
     return rval;
 }
 
+namespace {
+    class SettingException
+    {
+        std::string info;
+        
+        public:
+        SettingException(const std::string &exc_info) : info(exc_info)
+        {
+        }
+        
+        const std::string &getInfo()
+        {
+            return info;
+        }
+    };
+}
+
+
 // Read a setting value
 //
 // In general a setting value is a single-line string. It may contain multiple parts
@@ -66,6 +84,7 @@ static string read_setting_name(string_iterator & i, string_iterator end)
 // encoding (the "classic" locale).
 //
 // Params:
+//    service_name - the name of the service to which the setting applies
 //    i  -  reference to string iterator through the line
 //    end -   iterator at end of line
 //    part_positions -  list of <int,int> to which the position of each setting value
@@ -95,7 +114,7 @@ static string read_setting_value(string_iterator & i, string_iterator end,
                 c = *i;
                 if (c == '\"') break;
                 if (c == '\n') {
-                    // TODO error here.
+                    throw SettingException("Line end inside quoted string");
                 }
                 else if (c == '\\') {
                     // A backslash escapes the following character.
@@ -103,7 +122,7 @@ static string read_setting_value(string_iterator & i, string_iterator end,
                     if (i != end) {
                         c = *i;
                         if (c == '\n') {
-                            // TODO error here.
+                            throw SettingException("Line end follows backslash escape character (`\\')");
                         }
                         rval += c;
                     }
@@ -115,8 +134,7 @@ static string read_setting_value(string_iterator & i, string_iterator end,
             }
             if (i == end) {
                 // String wasn't terminated
-                // TODO error here
-                break;
+                throw SettingException("Unterminated quoted string");
             }
         }
         else if (c == '\\') {
@@ -130,7 +148,7 @@ static string read_setting_value(string_iterator & i, string_iterator end,
                 rval += *i;
             }
             else {
-                // TODO error here
+                throw SettingException("Backslash escape (`\\') not followed by character");
             }
         }
         else if (isspace(c, locale::classic())) {
@@ -145,11 +163,9 @@ static string read_setting_value(string_iterator & i, string_iterator end,
             continue;
         }
         else if (c == '#') {
-            // hmm... comment? Probably, though they should have put a space
-            // before it really. TODO throw an exception, and document
-            // that '#' for comments must be preceded by space, and in values
-            // must be quoted.
-            break;
+            // Possibly intended a comment; we require leading whitespace to reduce occurrence of accidental
+            // comments in setting values.
+            throw SettingException("hashmark (`#') comment must be separated from setting value by whitespace");
         }
         else {
             if (new_part) {
@@ -475,7 +491,12 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
         }
         
         service_file.close();
-        // TODO check we actually have all the settings - type, command
+        
+        if (service_type == ServiceType::PROCESS || service_type == ServiceType::BGPROCESS || service_type == ServiceType::SCRIPTED) {
+            if (command.length() == 0) {
+                throw ServiceDescriptionExc(name, "Service command not specified");
+            }
+        }
         
         // Now replace the dummy service record with a real record:
         for (auto iter = records.begin(); iter != records.end(); iter++) {
@@ -498,6 +519,13 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
         }
         
         return rval;
+    }
+    catch (SettingException &setting_exc)
+    {
+        // Must remove the dummy service record.
+        std::remove(records.begin(), records.end(), rval);
+        delete rval;
+        throw ServiceDescriptionExc(name, setting_exc.getInfo());
     }
     catch (...) {
         // Must remove the dummy service record.
