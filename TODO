@@ -1,9 +1,9 @@
 * Complete control socket handling and protocol
   - support for listing all services and their state
 * Implement a control utility to start/stop services after dinit has started
-  - very basic version exists, needs thorough cleanup
-* Redundant settings ("onstart" commands etc) should be removed
-  (see description of "options" setting).
+  - basic version exists, needs a little more work to support all
+    start/stop command variants
+* Sort out single-user mode startup
 
 For version 1.0:
 ----------------
@@ -12,6 +12,10 @@ For version 1.0:
   of code where it may be missing - check TODO's in code).
 * Write wtmp entry on startup (see simpleinit)
 * Allow running services as a different UID
+* Must be able to specify kill timeout (after which kill -9!)
+* Must rate-limit restart of services
+* "triggered" service type: external process notifies Dinit when the service
+  has started.
 
 For later:
 * On linux when running with PID != 1, write PID to /proc/sys/kernel/cad_pid so

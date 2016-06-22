@@ -139,7 +139,7 @@ Parameters are:
 type = process | bgprocess | scripted | internal
 command = ...
 logfile = ...
-onstart = ...
+options = ...
 depends-on = (service name)
 waits-for = (service name)
 
@@ -163,9 +163,9 @@ smooth-recovery = yes | true | no | false
    the service does not reach the stopped state when the process terminates
    unexpectedly).
 
-onstart = (internal commands)
-   rw_ready - try again to open any logs, control socket etc that could not
-              be opened previously due to a read-only filesystem.
+pid-file = (path to file)
+   For "bgprocess" type services only; specifies the path of the file where
+   daemon will write its process ID before detaching.
 
 depends-on = (service name)
    This service depends on the named service. Starting this service will
@@ -208,32 +208,29 @@ termsignal = HUP | INT | QUIT | USR1 | USR2
    sent along with the specified signal, unless the 'nosigterm' setting is
    set true.
 
-nosigterm = yes | true | no | false
-   If true, the TERM signal will not be sent to the process to kill it. (If
-   an alternate signal is specified using the "termsignal" setting, that
-   signal will be sent instead; otherwise, no signal will be sent, and the
-   process must be killed by external means).
-
-runs-on-console = yes | no | true | false
-  If true, the service runs on the console; its input and output are
-  directed to the console (actually, to the terminal on which Dinit is
-  running) and Dinit's own output will be suppressed during this time.
-  Control signals (^C) may be used to control a service running on the
-  console.
-
-  This is useful to allow a "login" master service to prevent Dinit output
-  once terminal sessions are spawned, or to make fsck display its progress
-  on the terminal (and be interruptible).
-
-  Only one service can run on the console at a time (services will queue
-  in order to gain access to the console).
-
-  For scripted services, only the start command runs on the console.
-  Process services and internal services take the console for the entire
-  time that they are active (and cannot release it).
-
 options = ( runs-on-console | nosigterm | starts-rwfs | starts-log ) ...
-  This is a newer way of specifying some of the above options
-  (runs-on-console, nosigterm, onstart = rw_ready) and an additional option
-  for specifying that this service is the system logging service, which
-  Dinit can log to once the service has started.
+  Specifies various options for this service:
+
+  no-sigterm : specifies that the TERM signal should not be send to the
+              process to terminate it. (Another signal can be specified using
+              the "termsignal" setting; if no other signal is specified, NO
+              signal will be sent).
+
+  runs-on-console : specifies that this service uses the console; its input
+              and output should be directed to the console. A service running
+              on the console prevents other services from running on the
+              console (they will queue for the console). For scripted services
+              "runs-on-console" applies only during execution of the start
+              script.
+
+              The "interrupt" key (normally control-C) will be active for
+              process / scripted services that run on the console. This is
+              useful to allow filesystem checks to be interrupted/skipped.
+
+  starts-rwfs : this service mounts the root filesystem read/write (or at
+              least mounts the normal writable filesystems for the system).
+              This prompts Dinit to create its control socket, if it has not
+              already managed to do so.
+
+  starts-log : this service starts the system log daemon. Dinit will begin
+              logging via the /dev/log socket.
