@@ -40,14 +40,8 @@ using DMutex = std::mutex;
 // A "null" mutex, for which locking / unlocking actually does nothing.
 class NullMutex
 {
-    #ifdef __GNUC__
-    #ifndef __clang__
-    char empty[0];  // Make class instances take up no space (gcc)    
-    #else
-    char empty[0] __attribute__((unused));  // Make class instances take up no space (clang)
-    #endif
-    #endif
-
+    EMPTY_BODY
+    
     public:
     void lock() { }
     void unlock() { }

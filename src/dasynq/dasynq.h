@@ -35,9 +35,6 @@ namespace dasynq {
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "dasynq-mutex.h"
-
-
 
 // TODO consider using atomic variables instead of explicit locking where appropriate
 
@@ -45,17 +42,15 @@ namespace dasynq {
 // May be included as the last entry for a class which is only
 // _potentially_ empty.
 
-/*
 #ifdef __GNUC__
-#ifdef __clang__
-#define EMPTY_BODY private: char empty_fill[0];
+#ifndef __clang__
+#define EMPTY_BODY    char empty[0];  // Make class instances take up no space (gcc)    
 #else
-#define EMPTY_BODY private: char empty_fill[0];
+#define EMPTY_BODY    char empty[0] __attribute__((unused));  // Make class instances take up no space (clang)
 #endif
-#else
-#define EMPTY_BODY
 #endif
-*/
+
+#include "dasynq-mutex.h"
 
 namespace dasynq {
 
@@ -1080,6 +1075,11 @@ class FdWatcher : private dprivate::BaseFdWatcher<typename EventLoop::mutex_t>
         eloop.registerFd(this, fd, flags, enabled);
     }
     
+    int getWatchedFd()
+    {
+        return this->watch_fd;
+    }
+    
     // Deregister a file descriptor watcher.
     //
     // If other threads may be polling the event loop, it is not safe to assume
@@ -1125,7 +1125,7 @@ class BidiFdWatcher : private dprivate::BaseBidiFdWatcher<typename EventLoop::mu
         else {
             this->watch_flags &= ~events;
         }
-        if (LoopTraits::has_separate_rw_fd_watches) {
+        if (EventLoop::LoopTraits::has_separate_rw_fd_watches) {
             dprivate::BaseWatcher * watcher = in ? this : &this->outWatcher;
             eloop.setFdEnabled_nolock(watcher, this->watch_fd, events | ONE_SHOT, b);
             if (! b) {
@@ -1144,8 +1144,6 @@ class BidiFdWatcher : private dprivate::BaseBidiFdWatcher<typename EventLoop::mu
     }
     
     protected:
-    
-    // TODO if a watch is disabled and currently queued, we should de-queue it.
     
     void setInWatchEnabled(EventLoop &eloop, bool b) noexcept
     {
@@ -1167,7 +1165,8 @@ class BidiFdWatcher : private dprivate::BaseBidiFdWatcher<typename EventLoop::mu
     //  - it does not enable a watcher that might currently be active
     ///   - unless the event loop will not be polled while the watcher is active.
     // (i.e. it is ok to call setWatchFlags from within the readReady/writeReady handlers if no other
-    //  thread will poll the event loop; it is ok to *dis*able a watcher that might be active).
+    //  thread will poll the event loop; it is always ok to *dis*able a watcher that might be active,
+    //  though the re-arm action returned by the callback may undo the effect).
     void setWatches(EventLoop &eloop, int newFlags)
     {
         std::lock_guard<T_Mutex> guard(eloop.getBaseLock());
@@ -1194,6 +1193,11 @@ class BidiFdWatcher : private dprivate::BaseBidiFdWatcher<typename EventLoop::mu
         this->watch_fd = fd;
         this->watch_flags = flags | dprivate::multi_watch;
         eloop.registerFd(this, fd, flags);
+    }
+    
+    int getWatchedFd()
+    {
+        return this->watch_fd;
     }
     
     // Deregister a bi-direction file descriptor watcher.
