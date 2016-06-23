@@ -738,15 +738,17 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
         }
         else {
             // "run on console" - run as a foreground job on the terminal/console device
+            
             if (do_set_ctty) {
+                // Disable suspend (^Z) (and on some systems, delayed suspend / ^Y)
+                signal(SIGTSTP, SIG_IGN);
+                
+                // Become session leader
                 setsid();
                 ioctl(0, TIOCSCTTY, 0);
             }
             setpgid(0,0);
             tcsetpgrp(0, getpgrp());
-            
-            // TODO disable suspend (^Z)? (via tcsetattr)
-            //      (should be done before TIOCSCTTY)
         }
 
         execvp(exec_arg_parts[0], const_cast<char **>(args));
