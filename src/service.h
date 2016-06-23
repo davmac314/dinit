@@ -184,7 +184,6 @@ static std::vector<const char *> separate_args(std::string &s, std::list<std::pa
 class ServiceChildWatcher : public EventLoop_t::ChildProcWatcher
 {
     public:
-    // TODO resolve clunkiness of storing this field
     ServiceRecord * service;
     Rearm childStatus(EventLoop_t &eloop, pid_t child, int status) noexcept;
     
@@ -194,18 +193,10 @@ class ServiceChildWatcher : public EventLoop_t::ChildProcWatcher
 class ServiceIoWatcher : public EventLoop_t::FdWatcher
 {
     public:
-    // TODO resolve clunkiness of storing these fields
-    int fd;
     ServiceRecord * service;
     Rearm fdEvent(EventLoop_t &eloop, int fd, int flags) noexcept;
     
     ServiceIoWatcher(ServiceRecord * sr) noexcept : service(sr) { }
-    
-    void addWatch(EventLoop_t &loop, int fd, int flags)
-    {
-        this->fd = fd;
-        EventLoop_t::FdWatcher::addWatch(loop, fd, flags);
-    }
 };
 
 class ServiceRecord
@@ -322,9 +313,6 @@ class ServiceRecord
     
     // Callback from libev when a child process dies
     static void process_child_callback(EventLoop_t *loop, ServiceChildWatcher *w,
-            int revents) noexcept;
-    
-    static void process_child_status(EventLoop_t *loop, ServiceIoWatcher * stat_io,
             int revents) noexcept;
     
     void handle_exit_status() noexcept;

@@ -245,20 +245,13 @@ void ServiceRecord::handle_exit_status() noexcept
 
 Rearm ServiceIoWatcher::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
 {
-    ServiceRecord::process_child_status(&loop, this, flags);
-    return Rearm::REMOVED;
-}
-
-// TODO remove unused revents param
-void ServiceRecord::process_child_status(EventLoop_t *loop, ServiceIoWatcher * stat_io, int revents) noexcept
-{
-    ServiceRecord *sr = stat_io->service;
+    ServiceRecord *sr = service;
     sr->waiting_for_execstat = false;
     
     int exec_status;
-    int r = read(stat_io->fd, &exec_status, sizeof(int));
-    close(stat_io->fd);
-    stat_io->deregister(*loop);
+    int r = read(getWatchedFd(), &exec_status, sizeof(int));
+    deregister(loop);
+    close(getWatchedFd());
     
     if (r > 0) {
         // We read an errno code; exec() failed, and the service startup failed.
@@ -286,6 +279,10 @@ void ServiceRecord::process_child_status(EventLoop_t *loop, ServiceIoWatcher * s
             sr->handle_exit_status();
         }
     }
+    
+    sr->service_set->processQueues(true);
+    
+    return Rearm::REMOVED;
 }
 
 void ServiceRecord::require() noexcept
@@ -665,9 +662,6 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
         logfile = "/dev/null";
     }
 
-    // TODO make sure pipefd's are not 0/1/2 (STDIN/OUT/ERR) - if they are, dup them
-    // until they are not.
-    
     pid_t forkpid;
     
     bool child_status_registered = false;    
@@ -696,15 +690,17 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
         // from here until exit().
         // TODO: we may need an equivalent for the following:
         //   ev_default_destroy(); // won't need that on this side, free up fds.
-
-        // Unmask signals that we masked on startup:
+        
+        // Copy signal mask, but unmask signals that we masked on startup. For the moment, we'll
+        // also block all signals, since apparently dup() can be interrupted (!!! really, POSIX??).
         sigset_t sigwait_set;
-        sigemptyset(&sigwait_set);
-        sigaddset(&sigwait_set, SIGCHLD);
-        sigaddset(&sigwait_set, SIGINT);
-        sigaddset(&sigwait_set, SIGTERM);
-        sigprocmask(SIG_UNBLOCK, &sigwait_set, NULL);
-
+        sigset_t sigall_set;
+        sigfillset(&sigall_set);
+        sigprocmask(SIG_SETMASK, &sigall_set, &sigwait_set);
+        sigdelset(&sigwait_set, SIGCHLD);
+        sigdelset(&sigwait_set, SIGINT);
+        sigdelset(&sigwait_set, SIGTERM);
+        
         constexpr int bufsz = ((CHAR_BIT * sizeof(pid_t)) / 3 + 2) + 11;
         // "LISTEN_PID=" - 11 characters; the expression above gives a conservative estimate
         // on the maxiumum number of bytes required for LISTEN=xxx, including nul terminator,
@@ -712,6 +708,11 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
         char nbuf[bufsz];
 
         if (socket_fd != -1) {
+        
+            if (pipefd[1] == 3) {
+                dup3(pipefd[1], 4, O_CLOEXEC);
+            }
+        
             dup2(socket_fd, 3);
             if (socket_fd != 3) {
                 close(socket_fd);
@@ -725,16 +726,25 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
         }
 
         if (! on_console) {
+            while (pipefd[1] < 3) {
+                pipefd[1] = dup(pipefd[1]);
+                if (pipefd[1] == -1) goto failure_out;
+            }
+            
             // Re-set stdin, stdout, stderr
             close(0); close(1); close(2);
 
-            // TODO rethink this logic. If we open it at not-0, shouldn't we just dup it to 0?:
             if (open("/dev/null", O_RDONLY) == 0) {
-              // stdin = 0. That's what we should have; proceed with opening
-              // stdout and stderr.
-              open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
-              dup2(1, 2);
+                // stdin = 0. That's what we should have; proceed with opening
+                // stdout and stderr.
+                if (open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR) != 1) {
+                    goto failure_out;
+                }
+                if (dup2(1, 2) != 2) {
+                    goto failure_out;
+                }
             }
+            else goto failure_out;
         }
         else {
             // "run on console" - run as a foreground job on the terminal/console device
@@ -750,6 +760,8 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
             setpgid(0,0);
             tcsetpgrp(0, getpgrp());
         }
+        
+        sigprocmask(SIG_SETMASK, &sigwait_set, nullptr);
 
         execvp(exec_arg_parts[0], const_cast<char **>(args));
 
