@@ -26,7 +26,7 @@ template <int SIZE> class CPBuffer
         int pos = cur_idx + index;
         if (pos >= SIZE) pos -= SIZE;
     
-        return &buf[cur_idx];
+        return &buf[pos];
     }
     
     char * get_buf_base()
