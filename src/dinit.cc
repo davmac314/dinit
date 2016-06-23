@@ -250,6 +250,8 @@ int main(int argc, char **argv)
     signal(SIGTTIN, SIG_IGN);
     signal(SIGTTOU, SIG_IGN);
     
+    signal(SIGPIPE, SIG_IGN);
+    
     if (! am_system_init && ! control_socket_path_set) {
         const char * userhome = get_user_home();
         if (userhome != nullptr) {
