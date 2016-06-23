@@ -46,6 +46,9 @@ bool ControlConn::processPacket()
         chklen = 0;
         return true;
     }
+    if (pktType == DINIT_CP_LISTSERVICES) {
+        return listServices();
+    }
     else {
         // Unrecognized: give error response
         char outbuf[] = { DINIT_RP_BADREQ };
@@ -237,6 +240,49 @@ bool ControlConn::processUnpinService()
     rbuf.consume(pkt_size);
     chklen = 0;
     return true;
+}
+
+bool ControlConn::listServices()
+{
+    rbuf.consume(1); // clear request packet
+    chklen = 0;
+    
+    try {
+        auto slist = service_set->listServices();
+        for (auto sptr : slist) {
+            std::vector<char> pkt_buf;
+            
+            const std::string &name = sptr->getServiceName();
+            int nameLen = std::min((size_t)256, name.length());
+            pkt_buf.resize(8 + nameLen);
+            
+            pkt_buf[0] = DINIT_RP_SVCINFO;
+            pkt_buf[1] = nameLen;
+            pkt_buf[2] = static_cast<char>(sptr->getState());
+            pkt_buf[3] = static_cast<char>(sptr->getTargetState());
+            
+            pkt_buf[4] = 0; // reserved
+            pkt_buf[5] = 0;
+            pkt_buf[6] = 0;
+            pkt_buf[7] = 0;
+            
+            for (int i = 0; i < nameLen; i++) {
+                pkt_buf[8+i] = name[i];
+            }
+            
+            if (! queuePacket(std::move(pkt_buf))) return false;
+        }
+        
+        char ack_buf[] = { (char) DINIT_RP_LISTDONE };
+        if (! queuePacket(ack_buf, 1)) return false;
+        
+        return true;
+    }
+    catch (std::bad_alloc &exc)
+    {
+        doOomClose();
+        return true;
+    }
 }
 
 ControlConn::handle_t ControlConn::allocateServiceHandle(ServiceRecord *record)

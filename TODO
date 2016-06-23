@@ -1,5 +1,3 @@
-* Complete control socket handling and protocol
-  - support for listing all services and their state
 * Implement a control utility to start/stop services after dinit has started
   - basic version exists, needs a little more work to support all
     start/stop command variants
@@ -8,12 +6,14 @@
 For version 1.0:
 ----------------
 * Documentation including sample service definitions
+  - Man pages
 * Better error handling, logging of errors (largely done, still some patches
   of code where it may be missing - check TODO's in code).
 * Write wtmp entry on startup (see simpleinit)
 * Allow running services as a different UID
 * Must be able to specify kill timeout (after which kill -9!)
-* Must rate-limit restart of services
+* Must rate-limit restart of services. Trying to start at a greater rate
+  should trigger failed-to-start notification.
 * "triggered" service type: external process notifies Dinit when the service
   has started.
 

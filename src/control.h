@@ -144,6 +144,8 @@ class ControlConn : private ServiceListener
 
     // Process an UNPINSERVICE packet. May throw std::bad_alloc.
     bool processUnpinService();
+    
+    bool listServices();
 
     // Notify that data is ready to be read from the socket. Returns true if the connection should
     // be closed.

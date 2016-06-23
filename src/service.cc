@@ -34,7 +34,7 @@ static ServiceRecord * findService(const std::list<ServiceRecord *> & records,
     using std::list;
     list<ServiceRecord *>::const_iterator i = records.begin();
     for ( ; i != records.end(); i++ ) {
-        if (strcmp((*i)->getServiceName(), name) == 0) {
+        if (strcmp((*i)->getServiceName().c_str(), name) == 0) {
             return *i;
         }
     }

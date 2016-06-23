@@ -19,6 +19,9 @@ constexpr static int DINIT_CP_RELEASESERVICE = 6;
 
 constexpr static int DINIT_CP_UNPINSERVICE = 7;
 
+// List services:
+constexpr static int DINIT_CP_LISTSERVICES = 8;
+
 // Shutdown:
 constexpr static int DINIT_CP_SHUTDOWN = 10;
  // followed by 1-byte shutdown type
@@ -57,7 +60,9 @@ constexpr static int DINIT_RP_NOSERVICE = 60;
 // Service is already started/stopped
 constexpr static int DINIT_RP_ALREADYSS = 61;
 
-
+// Information on a service / list complete:
+constexpr static int DINIT_RP_SVCINFO = 62;
+constexpr static int DINIT_RP_LISTDONE = 63;
 
 // Information:
 

@@ -35,6 +35,7 @@ static int issueLoadService(int socknum, const char *service_name);
 static int checkLoadReply(int socknum, CPBuffer<1024> &rbuffer, handle_t *handle_p, ServiceState *state_p);
 static int startStopService(int socknum, const char *service_name, int command, bool do_pin, bool wait_for_service, bool verbose);
 static int unpinService(int socknum, const char *service_name, bool verbose);
+static int listServices(int socknum);
 
 
 // Fill a circular buffer from a file descriptor, reading at least _rlength_ bytes.
@@ -112,6 +113,7 @@ static int write_all(int fd, const void *buf, size_t count)
 static const int START_SERVICE = 1;
 static const int STOP_SERVICE = 2;
 static const int UNPIN_SERVICE = 3;
+static const int LIST_SERVICES = 4;
 
 
 // Entry point.
@@ -164,6 +166,9 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "unpin") == 0) {
                 command = UNPIN_SERVICE;
             }
+            else if (strcmp(argv[i], "list") == 0) {
+                command = LIST_SERVICES;
+            }
             else {
                 show_help = true;
                 break;
@@ -177,7 +182,7 @@ int main(int argc, char **argv)
         }
     }
     
-    if (service_name == nullptr || command == 0) {
+    if ((service_name == nullptr && command != LIST_SERVICES) || command == 0) {
         show_help = true;
     }
 
@@ -190,8 +195,9 @@ int main(int argc, char **argv)
         cout << "    dinitctl [options] unpin <service-name>           : un-pin the service (after a previous pin)" << endl;
         // TODO:
         // cout << "    dinitctl [options] wake <service-name>  : start but don't activate service" << endl;
+        cout << "    dinitctl list                                     : list loaded services" << endl;
         
-        cout << "\nNote: An activated service keeps its dependencies running when possible." << endl;
+        cout << "\nNote: An activated service continues running when its dependents stop." << endl;
         
         cout << "\nGeneral options:" << endl;
         cout << "  -s, --system     : control system daemon instead of user daemon" << endl;
@@ -256,6 +262,9 @@ int main(int argc, char **argv)
     
     if (command == UNPIN_SERVICE) {
         return unpinService(socknum, service_name, verbose);
+    }
+    else if (command == LIST_SERVICES) {
+        return listServices(socknum);
     }
 
     return startStopService(socknum, service_name, command, do_pin, wait_for_service, verbose);
@@ -520,5 +529,77 @@ static int unpinService(int socknum, const char *service_name, bool verbose)
     if (verbose) {
         cout << "Service unpinned." << endl;
     }
+    return 0;
+}
+
+static int listServices(int socknum)
+{
+    using namespace std;
+    
+    try {
+        char cmdbuf[] = { (char)DINIT_CP_LISTSERVICES };
+        int r = write_all(socknum, cmdbuf, 1);
+        
+        if (r == -1) {
+            perror("dinitctl: write");
+            return 1;
+        }
+        
+        CPBuffer<1024> rbuffer;
+        wait_for_reply(rbuffer, socknum);
+        while (rbuffer[0] == DINIT_RP_SVCINFO) {
+            fillBufferTo(&rbuffer, socknum, 8);
+            int nameLen = rbuffer[1];
+            ServiceState current = static_cast<ServiceState>(rbuffer[2]);
+            ServiceState target = static_cast<ServiceState>(rbuffer[3]);
+            
+            fillBufferTo(&rbuffer, socknum, nameLen + 8);
+            
+            char *name_ptr = rbuffer.get_ptr(8);
+            int clength = std::min(rbuffer.get_contiguous_length(name_ptr), nameLen);
+            
+            string name = string(name_ptr, clength);
+            name.append(rbuffer.get_buf_base(), nameLen - clength);
+            
+            cout << "[";
+            
+            cout << (target  == ServiceState::STARTED ? "{" : " ");
+            cout << (current == ServiceState::STARTED ? "+" : " ");
+            cout << (target  == ServiceState::STARTED ? "}" : " ");
+            
+            if (current == ServiceState::STARTING) {
+                cout << "<<";
+            }
+            else if (current == ServiceState::STOPPING) {
+                cout << ">>";
+            }
+            else {
+                cout << "  ";
+            }
+            
+            cout << (target  == ServiceState::STOPPED ? "{" : " ");
+            cout << (current == ServiceState::STOPPED ? "-" : " ");
+            cout << (target  == ServiceState::STOPPED ? "}" : " ");
+            
+            cout << "] " << name << endl;
+            
+            rbuffer.consume(8 + nameLen);
+            wait_for_reply(rbuffer, socknum);
+        }
+        
+        if (rbuffer[0] != DINIT_RP_LISTDONE) {
+            cerr << "dinitctl: Control socket protocol error" << endl;
+            return 1;
+        }
+    }
+    catch (ReadCPException &exc) {
+        cerr << "dinitctl: Control socket read failure or protocol error" << endl;
+        return 1;
+    }
+    catch (std::bad_alloc &exc) {
+        cerr << "dinitctl: Out of memory" << endl;
+        return 1;
+    }
+    
     return 0;
 }

@@ -505,7 +505,7 @@ class ServiceRecord
         this->socket_gid = socket_gid;
     }
 
-    const char *getServiceName() const noexcept { return service_name.c_str(); }
+    const std::string &getServiceName() const noexcept { return service_name; }
     ServiceState getState() const noexcept { return service_state; }
     
     void start(bool activate = true) noexcept;  // start the service
@@ -624,6 +624,12 @@ class ServiceSet
             record = loadServiceRecord(name.c_str());
         }
         return record;
+    }
+    
+    // Get the list of all loaded services.
+    const std::list<ServiceRecord *> &listServices()
+    {
+        return records;
     }
     
     // Stop the service with the given name. The named service will begin
