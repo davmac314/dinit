@@ -318,7 +318,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
     // If the queue is empty, we can try to write the packet out now rather than queueing it.
     // If the write is unsuccessful or partial, we queue the remainder.
     if (was_empty) {
-        int wr = write(iob.fd, pkt, size);
+        int wr = write(iob.getWatchedFd(), pkt, size);
         if (wr == -1) {
             if (errno == EPIPE) {
                 return false;
@@ -373,7 +373,7 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
     if (was_empty) {
         outpkt_index = 0;
         // We can try sending the packet immediately:
-        int wr = write(iob.fd, pkt.data(), pkt.size());
+        int wr = write(iob.getWatchedFd(), pkt.data(), pkt.size());
         if (wr == -1) {
             if (errno == EPIPE) {
                 return false;
@@ -424,7 +424,7 @@ bool ControlConn::rollbackComplete() noexcept
 
 bool ControlConn::dataReady() noexcept
 {
-    int fd = iob.fd;
+    int fd = iob.getWatchedFd();
     
     int r = rbuf.fill(fd);
     
@@ -471,14 +471,14 @@ bool ControlConn::sendData() noexcept
         if (oom_close) {
             // Send oom response
             char oomBuf[] = { DINIT_RP_OOM };
-            write(iob.fd, oomBuf, 1);
+            write(iob.getWatchedFd(), oomBuf, 1);
         }
         return true;
     }
     
     vector<char> & pkt = outbuf.front();
     char *data = pkt.data();
-    int written = write(iob.fd, data + outpkt_index, pkt.size() - outpkt_index);
+    int written = write(iob.getWatchedFd(), data + outpkt_index, pkt.size() - outpkt_index);
     if (written == -1) {
         if (errno == EPIPE) {
             // read end closed
@@ -514,7 +514,7 @@ bool ControlConn::sendData() noexcept
 
 ControlConn::~ControlConn() noexcept
 {
-    close(iob.fd);
+    close(iob.getWatchedFd());
     iob.deregister(*loop);
     
     // Clear service listeners

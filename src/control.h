@@ -62,7 +62,6 @@ class ControlConnWatcher : public EventLoop_t::BidiFdWatcher
     }
     
     public:
-    int fd; // TODO this is already stored, find a better way to access it.
     EventLoop_t * eventLoop;
     
     void setWatches(int flags)
@@ -72,7 +71,6 @@ class ControlConnWatcher : public EventLoop_t::BidiFdWatcher
     
     void registerWith(EventLoop_t &loop, int fd, int flags)
     {
-        this->fd = fd;
         this->eventLoop = &loop;
         BidiFdWatcher<EventLoop_t>::addWatch(loop, fd, flags);
     }

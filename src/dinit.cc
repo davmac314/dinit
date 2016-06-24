@@ -59,16 +59,6 @@ class ControlSocketWatcher : public EventLoop_t::FdWatcher
         control_socket_cb(&loop, fd);
         return Rearm::REARM;
     }
-    
-    public:
-    // TODO the fd is already stored, must we really store it again...
-    int fd;
-    
-    void addWatch(EventLoop_t &loop, int fd, int flags)
-    {
-        this->fd = fd;
-        EventLoop_t::FdWatcher::addWatch(loop, fd, flags);
-    }
 };
 
 ControlSocketWatcher control_socket_io;
@@ -502,7 +492,7 @@ void open_control_socket(bool report_ro_failure) noexcept
 static void close_control_socket() noexcept
 {
     if (control_socket_open) {
-        int fd = control_socket_io.fd;
+        int fd = control_socket_io.getWatchedFd();
         control_socket_io.deregister(eventLoop);
         close(fd);
         
