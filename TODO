@@ -1,6 +1,3 @@
-* Implement a control utility to start/stop services after dinit has started
-  - basic version exists, needs a little more work to support all
-    start/stop command variants
 * Sort out single-user mode startup
 
 For version 1.0:

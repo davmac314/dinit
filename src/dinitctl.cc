@@ -31,9 +31,11 @@ class ReadCPException
     ReadCPException(int err) : errcode(err) { }
 };
 
+enum class Command;
+
 static int issueLoadService(int socknum, const char *service_name);
 static int checkLoadReply(int socknum, CPBuffer<1024> &rbuffer, handle_t *handle_p, ServiceState *state_p);
-static int startStopService(int socknum, const char *service_name, int command, bool do_pin, bool wait_for_service, bool verbose);
+static int startStopService(int socknum, const char *service_name, Command command, bool do_pin, bool wait_for_service, bool verbose);
 static int unpinService(int socknum, const char *service_name, bool verbose);
 static int listServices(int socknum);
 
@@ -110,11 +112,15 @@ static int write_all(int fd, const void *buf, size_t count)
 }
 
 
-static const int START_SERVICE = 1;
-static const int STOP_SERVICE = 2;
-static const int UNPIN_SERVICE = 3;
-static const int LIST_SERVICES = 4;
-
+enum class Command {
+    NONE,
+    START_SERVICE,
+    WAKE_SERVICE,
+    STOP_SERVICE,
+    RELEASE_SERVICE,
+    UNPIN_SERVICE,
+    LIST_SERVICES
+};
 
 // Entry point.
 int main(int argc, char **argv)
@@ -132,7 +138,7 @@ int main(int argc, char **argv)
     bool wait_for_service = true;
     bool do_pin = false;
     
-    int command = 0;    
+    Command command = Command::NONE;
         
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -156,18 +162,24 @@ int main(int argc, char **argv)
                 return 1;
             }
         }
-        else if (command == 0) {
+        else if (command == Command::NONE) {
             if (strcmp(argv[i], "start") == 0) {
-                command = START_SERVICE; 
+                command = Command::START_SERVICE; 
+            }
+            else if (strcmp(argv[i], "wake") == 0) {
+                command = Command::WAKE_SERVICE;
             }
             else if (strcmp(argv[i], "stop") == 0) {
-                command = STOP_SERVICE;
+                command = Command::STOP_SERVICE;
+            }
+            else if (strcmp(argv[i], "release") == 0) {
+                command = Command::RELEASE_SERVICE;
             }
             else if (strcmp(argv[i], "unpin") == 0) {
-                command = UNPIN_SERVICE;
+                command = Command::UNPIN_SERVICE;
             }
             else if (strcmp(argv[i], "list") == 0) {
-                command = LIST_SERVICES;
+                command = Command::LIST_SERVICES;
             }
             else {
                 show_help = true;
@@ -176,13 +188,20 @@ int main(int argc, char **argv)
         }
         else {
             // service name
+            if (service_name != nullptr) {
+                show_help = true;
+                break;
+            }
             service_name = argv[i];
-            // TODO support multiple services (or at least give error if multiple
-            //      services supplied)
+            // TODO support multiple services
         }
     }
     
-    if ((service_name == nullptr && command != LIST_SERVICES) || command == 0) {
+    if (service_name != nullptr && command == Command::LIST_SERVICES) {
+        show_help = true;
+    }
+    
+    if ((service_name == nullptr && command != Command::LIST_SERVICES) || command == Command::NONE) {
         show_help = true;
     }
 
@@ -192,9 +211,9 @@ int main(int argc, char **argv)
         cout << "\nUsage:" << endl;
         cout << "    dinitctl [options] start [options] <service-name> : start and activate service" << endl;
         cout << "    dinitctl [options] stop [options] <service-name>  : stop service and cancel explicit activation" << endl;
+        cout << "    dinitctl [options] wake [options] <service-name>  : start but do not mark activated" << endl;
+        cout << "    dinitctl [options] release [options] <service-name> : release activation, stop if no dependents" << endl;
         cout << "    dinitctl [options] unpin <service-name>           : un-pin the service (after a previous pin)" << endl;
-        // TODO:
-        // cout << "    dinitctl [options] wake <service-name>  : start but don't activate service" << endl;
         cout << "    dinitctl list                                     : list loaded services" << endl;
         
         cout << "\nNote: An activated service continues running when its dependents stop." << endl;
@@ -260,10 +279,10 @@ int main(int argc, char **argv)
     
     // TODO should start by querying protocol version
     
-    if (command == UNPIN_SERVICE) {
+    if (command == Command::UNPIN_SERVICE) {
         return unpinService(socknum, service_name, verbose);
     }
-    else if (command == LIST_SERVICES) {
+    else if (command == Command::LIST_SERVICES) {
         return listServices(socknum);
     }
 
@@ -271,11 +290,11 @@ int main(int argc, char **argv)
 }
 
 // Start/stop a service
-static int startStopService(int socknum, const char *service_name, int command, bool do_pin, bool wait_for_service, bool verbose)
+static int startStopService(int socknum, const char *service_name, Command command, bool do_pin, bool wait_for_service, bool verbose)
 {
     using namespace std;
 
-    bool do_stop = (command == STOP_SERVICE);
+    bool do_stop = (command == Command::STOP_SERVICE || command == Command::RELEASE_SERVICE);
     
     if (issueLoadService(socknum, service_name)) {
         return 1;
@@ -296,12 +315,26 @@ static int startStopService(int socknum, const char *service_name, int command, 
         }
                 
         ServiceState wanted_state = do_stop ? ServiceState::STOPPED : ServiceState::STARTED;
-        int command = do_stop ? DINIT_CP_STOPSERVICE : DINIT_CP_STARTSERVICE;
+        int pcommand = 0;
+        switch (command) {
+        case Command::STOP_SERVICE:
+            pcommand = DINIT_CP_STOPSERVICE;
+            break;
+        case Command::RELEASE_SERVICE:
+            pcommand = DINIT_CP_RELEASESERVICE;
+            break;
+        case Command::START_SERVICE:
+            pcommand = DINIT_CP_STARTSERVICE;
+            break;
+        case Command::WAKE_SERVICE:
+            pcommand = DINIT_CP_WAKESERVICE;
+            break;
+        default: ;
+        }
         
         // Need to issue STOPSERVICE/STARTSERVICE
         // We'll do this regardless of the current service state / target state, since issuing
         // start/stop also sets or clears the "explicitly started" flag on the service.
-        //if (target_state != wanted_state) {
         {
             int r;
             
@@ -309,7 +342,7 @@ static int startStopService(int socknum, const char *service_name, int command, 
                 auto buf = new char[2 + sizeof(handle)];
                 unique_ptr<char[]> ubuf(buf);
                 
-                buf[0] = command;
+                buf[0] = pcommand;
                 buf[1] = do_pin ? 1 : 0;
                 memcpy(buf + 2, &handle, sizeof(handle));
                 r = write_all(socknum, buf, 2 + sizeof(handle));

@@ -186,7 +186,7 @@ bool ControlConn::processStartStop(int pktType)
         case DINIT_CP_RELEASESERVICE:
             // remove required mark, stop if not required by dependents
             if (do_pin) service->pinStop();
-            service->stop();
+            service->stop(false);
             service_set->processQueues(false);
             already_there = service->getState() == ServiceState::STOPPED;
             break;

@@ -123,7 +123,8 @@ lazily, as needed by Dinit.
 A service description file consists of a number of parameter settings.
 Settings in the SDF are denoted as a parameter name followed by either an
 equal sign or colon and then the parameter value (all on the same line).
-Comments begin with a hash mark (#) and extend to the end of the line.
+Comments begin with a hash mark (#) and extend to the end of the line (they
+must be separated from setting values by at least one whitespace character).
 
 Parameter values are interpreted literally, except that:
  - whitespace is collapsed to a single space
