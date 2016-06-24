@@ -91,9 +91,16 @@ void ServiceRecord::stopped() noexcept
         service_set->addToStartQueue(this);
     }
     else {
+        desired_state = ServiceState::STOPPED;
+        
         if (socket_fd != -1) {
             close(socket_fd);
             socket_fd = -1;
+        }
+        
+        if (start_explicit) {
+            start_explicit = false;
+            required_by--;
         }
         
         if (required_by == 0) {
