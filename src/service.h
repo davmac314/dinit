@@ -77,9 +77,10 @@ struct OnstartFlags {
     // Not actually "onstart" commands:
     bool no_sigterm : 1;  // do not send SIGTERM
     bool runs_on_console : 1;  // run "in the foreground"
+    bool pass_cs_fd : 1;  // pass this service a control socket connection via fd
     
     OnstartFlags() noexcept : rw_ready(false), log_ready(false),
-            no_sigterm(false), runs_on_console(false)
+            no_sigterm(false), runs_on_console(false), pass_cs_fd(false)
     {
     }
 };
@@ -211,11 +212,11 @@ class ServiceRecord
     ServiceState service_state = ServiceState::STOPPED; /* ServiceState::STOPPED, STARTING, STARTED, STOPPING */
     ServiceState desired_state = ServiceState::STOPPED; /* ServiceState::STOPPED / STARTED */
 
-    string program_name;          /* storage for program/script and arguments */
-    std::vector<const char *> exec_arg_parts; /* pointer to each argument/part of the program_name */
+    string program_name;          // storage for program/script and arguments
+    std::vector<const char *> exec_arg_parts; // pointer to each argument/part of the program_name, and nullptr
     
-    string stop_command;          /* storage for stop program/script and arguments */
-    std::vector<const char *> stop_arg_parts; /* pointer to each argument/part of the stop_command */
+    string stop_command;          // storage for stop program/script and arguments
+    std::vector<const char *> stop_arg_parts; // pointer to each argument/part of the stop_command, and nullptr
     
     string pid_file;
     
@@ -310,6 +311,9 @@ class ServiceRecord
     // For process services, start the process, return true on success
     bool start_ps_process() noexcept;
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
+    
+    void run_child_proc(const char * const *args, const char *logfile, bool on_console, int wpipefd,
+            int csfd) noexcept;
     
     // Callback from libev when a child process dies
     static void process_child_callback(EventLoop_t *loop, ServiceChildWatcher *w,

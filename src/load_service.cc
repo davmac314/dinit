@@ -469,6 +469,9 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                         else if (option_txt == "runs-on-console") {
                             onstart_flags.runs_on_console = true;
                         }
+                        else if (option_txt == "pass-cs-fd") {
+                            onstart_flags.pass_cs_fd = true;
+                        }
                         else {
                             throw new ServiceDescriptionExc(name, "Unknown option: " + option_txt);
                         }

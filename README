@@ -235,3 +235,14 @@ options = ( runs-on-console | nosigterm | starts-rwfs | starts-log ) ...
 
   starts-log : this service starts the system log daemon. Dinit will begin
               logging via the /dev/log socket.
+
+  pass-cs-fd : pass an open Dinit control socket to the process when launching
+              it (the DINIT_CS_FD environment variable will be set to the file
+              descriptor of the socket). This allows the service to issue
+              commands to Dinit even if the regular control socket is not
+              available yet.
+
+              Using this option has security implications! The service which
+              receives the control socket must close it before launching any
+              untrusted processes. You should not use this option unless the
+              service is designed to receive a Dinit control socket.

@@ -656,136 +656,191 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
 
     int pipefd[2];
     if (pipe2(pipefd, O_CLOEXEC)) {
-        // TODO log error
+        log(LogLevel::ERROR, service_name, ": can't create status check pipe: ", strerror(errno));
         return false;
     }
-    
-    // Set up the argument array and other data now (before fork), in case memory allocation fails.
-    
-    auto args = cmd.data();
-    
+
     const char * logfile = this->logfile.c_str();
     if (*logfile == 0) {
         logfile = "/dev/null";
     }
 
+    bool child_status_registered = false;
+    ControlConn *control_conn = nullptr;
+    
+    int control_socket[2] = {-1, -1};
+    if (onstart_flags.pass_cs_fd) {
+        if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, /* protocol */ 0, control_socket)) {
+            log(LogLevel::ERROR, service_name, ": can't create control socket: ", strerror(errno));
+            goto out_p;
+        }
+        
+        // Make the server side socket close-on-exec:
+        int fdflags = fcntl(control_socket[0], F_GETFD);
+        fcntl(control_socket[0], F_SETFD, fdflags | FD_CLOEXEC);
+        
+        try {
+            control_conn = new ControlConn(&eventLoop, service_set, control_socket[0]);
+        }
+        catch (std::exception &exc) {
+            log(LogLevel::ERROR, service_name, ": can't launch process; out of memory");
+            goto out_cs;
+        }
+    }
+    
+    // Set up complete, now fork and exec:
+    
     pid_t forkpid;
     
-    bool child_status_registered = false;    
     try {
         child_status_listener.addWatch(eventLoop, pipefd[0], IN_EVENTS);
         child_status_registered = true;
         
         forkpid = child_listener.fork(eventLoop);
     }
-    catch (...) {
-        if (child_status_registered) {
-            child_status_listener.deregister(eventLoop);
-        }
-        close(pipefd[0]);
-        close(pipefd[1]);
-        return false;
+    catch (std::exception &e) {
+        log(LogLevel::ERROR, service_name, ": Could not fork: ", e.what());
+        goto out_cs_h;
     }
 
-    // If the console already has a session leader, presumably it is us. On the other hand
-    // if it has no session leader, and we don't create one, then control inputs such as
-    // ^C will have no effect.
-    bool do_set_ctty = (tcgetsid(0) == -1);
-
     if (forkpid == 0) {
-        // Child process. Must not allocate memory (or otherwise risk throwing any exception)
-        // from here until exit().
-        // TODO: we may need an equivalent for the following:
-        //   ev_default_destroy(); // won't need that on this side, free up fds.
-        
-        // Copy signal mask, but unmask signals that we masked on startup. For the moment, we'll
-        // also block all signals, since apparently dup() can be interrupted (!!! really, POSIX??).
-        sigset_t sigwait_set;
-        sigset_t sigall_set;
-        sigfillset(&sigall_set);
-        sigprocmask(SIG_SETMASK, &sigall_set, &sigwait_set);
-        sigdelset(&sigwait_set, SIGCHLD);
-        sigdelset(&sigwait_set, SIGINT);
-        sigdelset(&sigwait_set, SIGTERM);
-        
-        constexpr int bufsz = ((CHAR_BIT * sizeof(pid_t)) / 3 + 2) + 11;
-        // "LISTEN_PID=" - 11 characters; the expression above gives a conservative estimate
-        // on the maxiumum number of bytes required for LISTEN=xxx, including nul terminator,
-        // where xxx is a pid_t in decimal (i.e. one decimal digit is worth just over 3 bits).
-        char nbuf[bufsz];
-
-        if (socket_fd != -1) {
-        
-            if (pipefd[1] == 3) {
-                dup3(pipefd[1], 4, O_CLOEXEC);
-            }
-        
-            dup2(socket_fd, 3);
-            if (socket_fd != 3) {
-                close(socket_fd);
-            }
-            
-            if (putenv(const_cast<char *>("LISTEN_FDS=1"))) goto failure_out;
-            
-            snprintf(nbuf, bufsz, "LISTEN_PID=%jd", static_cast<intmax_t>(getpid()));
-            
-            if (putenv(nbuf)) goto failure_out;
-        }
-
-        if (! on_console) {
-            while (pipefd[1] < 3) {
-                pipefd[1] = dup(pipefd[1]);
-                if (pipefd[1] == -1) goto failure_out;
-            }
-            
-            // Re-set stdin, stdout, stderr
-            close(0); close(1); close(2);
-
-            if (open("/dev/null", O_RDONLY) == 0) {
-                // stdin = 0. That's what we should have; proceed with opening
-                // stdout and stderr.
-                if (open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR) != 1) {
-                    goto failure_out;
-                }
-                if (dup2(1, 2) != 2) {
-                    goto failure_out;
-                }
-            }
-            else goto failure_out;
-        }
-        else {
-            // "run on console" - run as a foreground job on the terminal/console device
-            
-            if (do_set_ctty) {
-                // Disable suspend (^Z) (and on some systems, delayed suspend / ^Y)
-                signal(SIGTSTP, SIG_IGN);
-                
-                // Become session leader
-                setsid();
-                ioctl(0, TIOCSCTTY, 0);
-            }
-            setpgid(0,0);
-            tcsetpgrp(0, getpgrp());
-        }
-        
-        sigprocmask(SIG_SETMASK, &sigwait_set, nullptr);
-
-        execvp(exec_arg_parts[0], const_cast<char **>(args));
-
-        // If we got here, the exec failed:
-        failure_out:
-        int exec_status = errno;
-        write(pipefd[1], &exec_status, sizeof(int));
-        _exit(0);
+        run_child_proc(cmd.data(), logfile, on_console, pipefd[1], control_socket[1]);
     }
     else {
         // Parent process
         close(pipefd[1]); // close the 'other end' fd
+        if (control_socket[1] != -1) {
+            close(control_socket[1]);
+        }
         pid = forkpid;
 
         waiting_for_execstat = true;
         return true;
     }
+
+    // Failure exit:
+    
+    out_cs_h:
+    if (child_status_registered) {
+        child_status_listener.deregister(eventLoop);
+    }
+    
+    if (onstart_flags.pass_cs_fd) {
+        delete control_conn;
+    
+        out_cs:
+        close(control_socket[0]);
+        close(control_socket[1]);
+    }
+    
+    out_p:
+    close(pipefd[0]);
+    close(pipefd[1]);
+    
+    return false;
+}
+
+void ServiceRecord::run_child_proc(const char * const *args, const char *logfile, bool on_console,
+        int wpipefd, int csfd) noexcept
+{
+    // Child process. Must not allocate memory (or otherwise risk throwing any exception)
+    // from here until exit().
+
+    // If the console already has a session leader, presumably it is us. On the other hand
+    // if it has no session leader, and we don't create one, then control inputs such as
+    // ^C will have no effect.
+    bool do_set_ctty = (tcgetsid(0) == -1);
+    
+    // Copy signal mask, but unmask signals that we masked on startup. For the moment, we'll
+    // also block all signals, since apparently dup() can be interrupted (!!! really, POSIX??).
+    sigset_t sigwait_set;
+    sigset_t sigall_set;
+    sigfillset(&sigall_set);
+    sigprocmask(SIG_SETMASK, &sigall_set, &sigwait_set);
+    sigdelset(&sigwait_set, SIGCHLD);
+    sigdelset(&sigwait_set, SIGINT);
+    sigdelset(&sigwait_set, SIGTERM);
+    
+    constexpr int bufsz = ((CHAR_BIT * sizeof(pid_t)) / 3 + 2) + 11;
+    // "LISTEN_PID=" - 11 characters; the expression above gives a conservative estimate
+    // on the maxiumum number of bytes required for LISTEN=xxx, including nul terminator,
+    // where xxx is a pid_t in decimal (i.e. one decimal digit is worth just over 3 bits).
+    char nbuf[bufsz];
+    
+    // "DINIT_CS_FD=" - 12 bytes. (we -1 from sizeof(int) in account of sign bit).
+    constexpr int csenvbufsz = ((CHAR_BIT * sizeof(int) - 1) / 3 + 2) + 12;
+    char csenvbuf[csenvbufsz];
+    
+    int minfd = (socket_fd == -1) ? 3 : 4;
+
+    // Move wpipefd/csfd to another fd if necessary
+    if (wpipefd < minfd) {
+        wpipefd = fcntl(wpipefd, F_DUPFD_CLOEXEC, minfd);
+        if (wpipefd == -1) goto failure_out;
+    }
+    
+    if (csfd != -1 && csfd < minfd) {
+        csfd = fcntl(csfd, F_DUPFD, minfd);
+        if (csfd == -1) goto failure_out;
+    }
+    
+    if (socket_fd != -1) {
+        
+        if (dup2(socket_fd, 3) == -1) goto failure_out;
+        if (socket_fd != 3) {
+            close(socket_fd);
+        }
+        
+        if (putenv(const_cast<char *>("LISTEN_FDS=1"))) goto failure_out;
+        snprintf(nbuf, bufsz, "LISTEN_PID=%jd", static_cast<intmax_t>(getpid()));
+        if (putenv(nbuf)) goto failure_out;
+    }
+    
+    if (csfd != -1) {
+        snprintf(csenvbuf, csenvbufsz, "DINIT_CS_FD=%d", csfd);
+        if (putenv(csenvbuf)) goto failure_out;
+    }
+
+    if (! on_console) {
+        // Re-set stdin, stdout, stderr
+        close(0); close(1); close(2);
+
+        if (open("/dev/null", O_RDONLY) == 0) {
+            // stdin = 0. That's what we should have; proceed with opening
+            // stdout and stderr.
+            if (open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR) != 1) {
+                goto failure_out;
+            }
+            if (dup2(1, 2) != 2) {
+                goto failure_out;
+            }
+        }
+        else goto failure_out;
+    }
+    else {
+        // "run on console" - run as a foreground job on the terminal/console device
+        
+        if (do_set_ctty) {
+            // Disable suspend (^Z) (and on some systems, delayed suspend / ^Y)
+            signal(SIGTSTP, SIG_IGN);
+            
+            // Become session leader
+            setsid();
+            ioctl(0, TIOCSCTTY, 0);
+        }
+        setpgid(0,0);
+        tcsetpgrp(0, getpgrp());
+    }
+    
+    sigprocmask(SIG_SETMASK, &sigwait_set, nullptr);
+    
+    execvp(args[0], const_cast<char **>(args));
+    
+    // If we got here, the exec failed:
+    failure_out:
+    int exec_status = errno;
+    write(wpipefd, &exec_status, sizeof(int));
+    _exit(0);
 }
 
 // Mark this and all dependent services as force-stopped.
