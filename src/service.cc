@@ -194,7 +194,8 @@ void ServiceRecord::handle_exit_status() noexcept
             }
         }
         else if (service_state == ServiceState::STOPPING) {
-            // TODO log non-zero rstatus?
+            // We won't log a non-zero exit status or termination due to signal here -
+            // we assume that the process died because we signalled it.
             stopped();
         }
         else if (smooth_recovery && service_state == ServiceState::STARTED) {
