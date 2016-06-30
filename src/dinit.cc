@@ -426,7 +426,8 @@ void open_control_socket(bool report_ro_failure) noexcept
 {
     if (! control_socket_open) {
         const char * saddrname = control_socket_path;
-        uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + strlen(saddrname) + 1;
+        size_t saddrname_len = strlen(saddrname);
+        uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + saddrname_len + 1;
         
         struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
         if (name == nullptr) {
@@ -441,7 +442,7 @@ void open_control_socket(bool report_ro_failure) noexcept
         }
 
         name->sun_family = AF_UNIX;
-        strcpy(name->sun_path, saddrname);
+        memcpy(name->sun_path, saddrname, saddrname_len + 1);
 
         // OpenBSD and Linux both allow combining NONBLOCK/CLOEXEC flags with socket type, however
         // it's not actually POSIX. (TODO).
@@ -506,7 +507,8 @@ void setup_external_log() noexcept
     if (! external_log_open) {
     
         const char * saddrname = log_socket_path;
-        uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + strlen(saddrname) + 1;
+        size_t saddrname_len = strlen(saddrname);
+        uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + saddrname_len + 1;
         
         struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
         if (name == nullptr) {
@@ -515,7 +517,7 @@ void setup_external_log() noexcept
         }
         
         name->sun_family = AF_UNIX;
-        strcpy(name->sun_path, saddrname);
+        memcpy(name->sun_path, saddrname, saddrname_len + 1);
         
         int sockfd = socket(AF_UNIX, SOCK_DGRAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
         if (sockfd == -1) {
