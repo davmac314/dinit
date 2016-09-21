@@ -41,6 +41,7 @@ int main(int argc, char **argv)
     
     bool show_help = false;
     bool sys_shutdown = false;
+    bool use_passed_cfd = false;
     
     auto shutdown_type = ShutdownType::POWEROFF;
         
@@ -63,6 +64,9 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "-p") == 0) {
                 shutdown_type = ShutdownType::POWEROFF;
             }
+            else if (strcmp(argv[i], "--use-passed-cfd") == 0) {
+                use_passed_cfd = true;
+            }
             else {
                 cerr << "Unrecognized command-line parameter: " << argv[i] << endl;
                 return 1;
@@ -80,6 +84,8 @@ int main(int argc, char **argv)
         cout << "  -r               : reboot" << endl;
         cout << "  -h               : halt system" << endl;
         cout << "  -p               : power down (default)" << endl;
+        cout << "  --use-passed-cfd : use the socket file descriptor identified by the DINIT_CS_FD" << endl;
+        cout << "                     environment variable to communicate with the init daemon." << endl;
         cout << "  --system         : perform shutdown immediately, instead of issuing shutdown" << endl;
         cout << "                     command to the init program. Not recommended for use" << endl;
         cout << "                     by users." << endl;
@@ -90,28 +96,49 @@ int main(int argc, char **argv)
         do_system_shutdown(shutdown_type);
         return 0;
     }
-    
-    int socknum = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (socknum == -1) {
-        perror("socket");
-        return 1;
-    }
 
     signal(SIGPIPE, SIG_IGN);
     
-    const char *naddr = "/dev/dinitctl";
+    int socknum = 0;
     
-    struct sockaddr_un name;
-    name.sun_family = AF_UNIX;
-    strcpy(name.sun_path, naddr);
-    int sunlen = offsetof(struct sockaddr_un, sun_path) + strlen(naddr) + 1; // family, (string), nul
-    
-    int connr = connect(socknum, (struct sockaddr *) &name, sunlen);
-    if (connr == -1) {
-        perror("connect");
-        return 1;
+    if (use_passed_cfd) {
+        char * dinit_cs_fd_env = getenv("DINIT_CS_FD");
+        if (dinit_cs_fd_env != nullptr) {
+            char * endptr;
+            long int cfdnum = strtol(dinit_cs_fd_env, &endptr, 10);
+            if (endptr != dinit_cs_fd_env) {
+                socknum = (int) cfdnum;
+            }
+            else {
+                use_passed_cfd = false;
+            }
+        }
+        else {
+            use_passed_cfd = false;
+        }
     }
     
+    if (! use_passed_cfd) {
+        socknum = socket(AF_UNIX, SOCK_STREAM, 0);
+        if (socknum == -1) {
+            perror("socket");
+            return 1;
+        }
+        
+        const char *naddr = "/dev/dinitctl";
+        
+        struct sockaddr_un name;
+        name.sun_family = AF_UNIX;
+        strcpy(name.sun_path, naddr);
+        int sunlen = offsetof(struct sockaddr_un, sun_path) + strlen(naddr) + 1; // family, (string), nul
+        
+        int connr = connect(socknum, (struct sockaddr *) &name, sunlen);
+        if (connr == -1) {
+            perror("connect");
+            return 1;
+        }
+    }
+
     // Build buffer;
     //uint16_t sname_len = strlen(service_name);
     int bufsize = 2;
@@ -202,6 +229,11 @@ static void wait_for_reply(CPBuffer<1024> &rbuffer, int fd)
 void do_system_shutdown(ShutdownType shutdown_type)
 {
     using namespace std;
+    
+    // Mask all signals to prevent death of our parent etc from terminating us
+    sigset_t allsigs;
+    sigfillset(&allsigs);
+    sigprocmask(SIG_SETMASK, &allsigs, nullptr);
     
     int reboot_type = 0;
     if (shutdown_type == ShutdownType::REBOOT) reboot_type = RB_AUTOBOOT;
