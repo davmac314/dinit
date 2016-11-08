@@ -45,7 +45,7 @@
  * ------------------
  * Each service has a dependent-count ("required_by"). This starts at 0, adds 1 if the
  * service has explicitly been started (i.e. "start_explicit" is true), and adds 1 for
- * each dependent service which is not STOPPED (including depdendents with a soft dependency).
+ * each dependent service which is not STOPPED (including dependents with a soft dependency).
  * When required_by transitions to 0, the service is stopped (unless it is pinned). When
  * require_by transitions from 0, the service is started (unless pinned).
  *

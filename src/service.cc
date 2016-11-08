@@ -198,7 +198,7 @@ void ServiceRecord::handle_exit_status() noexcept
             // we assume that the process died because we signalled it.
             stopped();
         }
-        else if (smooth_recovery && service_state == ServiceState::STARTED) {
+        else if (smooth_recovery && service_state == ServiceState::STARTED && desired_state == ServiceState::STARTED) {
             // TODO ensure a minimum time between restarts
             // TODO if we are pinned-started then we should probably check
             //      that dependencies have started before trying to re-start the
