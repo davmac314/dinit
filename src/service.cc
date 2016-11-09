@@ -296,14 +296,11 @@ Rearm ServiceIoWatcher::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
 void ServiceRecord::require() noexcept
 {
     if (required_by++ == 0) {
-        // Need to require all our dependencies
-        for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
-            (*i)->require();
-        }
-
-        for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
-            ServiceRecord * to = i->getTo();
-            to->require();
+        
+        if (! prop_require) {
+            prop_require = true;
+            prop_release = false;
+            service_set->addToPropQueue(this);
         }
         
         if (service_state == ServiceState::STOPPED) {
@@ -319,7 +316,9 @@ void ServiceRecord::release() noexcept
         desired_state = ServiceState::STOPPED;
         // Can stop, and release dependencies once we're stopped.
         if (service_state == ServiceState::STOPPED) {
-            release_dependencies();
+            prop_release = true;
+            prop_require = false;
+            service_set->addToPropQueue(this);
         }
         else {
             service_set->addToStopQueue(this);
@@ -359,6 +358,65 @@ void ServiceRecord::start(bool activate) noexcept
     service_set->addToStartQueue(this);
 }
 
+void ServiceRecord::do_propagation() noexcept
+{
+    if (prop_require) {
+        // Need to require all our dependencies
+        for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
+            (*i)->require();
+        }
+
+        for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
+            ServiceRecord * to = i->getTo();
+            to->require();
+        }
+        
+        prop_require = false;
+    }
+    
+    if (prop_release) {
+        release_dependencies();
+        prop_release = false;
+    }
+    
+    if (prop_failure) {
+        prop_failure = false;
+        failed_to_start(true);
+    }
+    
+    if (waiting_for_deps) {
+        if (service_state == ServiceState::STARTING) {
+            if (startCheckDependencies(false)) {
+                allDepsStarted();
+            }
+        }
+        else if (service_state == ServiceState::STOPPING) {
+            if (stopCheckDependents()) {
+                allDepsStopped();
+            }
+        }
+    }
+}
+
+void ServiceRecord::execute_transition() noexcept
+{
+    bool is_started = (service_state == ServiceState::STARTED)
+            || (service_state == ServiceState::STARTING && can_interrupt_start());
+    bool is_stopped = (service_state == ServiceState::STOPPED)
+            || (service_state == ServiceState::STOPPING && can_interrupt_stop());
+
+    if (is_started && (desired_state == ServiceState::STOPPED || force_stop)) {
+        if (! pinned_started) {
+            do_stop();
+        }
+    }
+    else if (is_stopped && desired_state == ServiceState::STARTED) {
+        if (! pinned_stopped) {
+            do_start();
+        }
+    }
+}
+
 void ServiceRecord::do_start() noexcept
 {
     if (pinned_stopped) return;
@@ -390,12 +448,8 @@ void ServiceRecord::do_start() noexcept
 
 void ServiceRecord::dependencyStarted() noexcept
 {
-    if (service_state != ServiceState::STARTING || ! waiting_for_deps) {
-        return;
-    }
-
-    if (startCheckDependencies(false)) {
-        allDepsStarted();
+    if (service_state == ServiceState::STARTING && waiting_for_deps) {
+        service_set->addToPropQueue(this);
     }
 }
 
@@ -633,7 +687,8 @@ void ServiceRecord::failed_to_start(bool depfailed) noexcept
     // Cancel start of dependents:
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
         if ((*i)->service_state == ServiceState::STARTING) {
-            (*i)->failed_to_start(true);
+            (*i)->prop_failure = true;
+            service_set->addToPropQueue(*i);
         }
     }    
     for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
@@ -856,10 +911,7 @@ void ServiceRecord::forceStop() noexcept
 void ServiceRecord::dependentStopped() noexcept
 {
     if (service_state == ServiceState::STOPPING && waiting_for_deps) {
-        // Check the other dependents before we stop.
-        if (stopCheckDependents()) {
-            allDepsStopped();
-        }
+        service_set->addToPropQueue(this);
     }
 }
 

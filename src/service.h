@@ -234,6 +234,11 @@ class ServiceRecord
     bool doing_recovery : 1;    // if we are currently recovering a BGPROCESS (restarting process, while
                                 //   holding STARTED service state)
     bool start_explicit : 1;    // whether we are are explictly required to be started
+
+    bool prop_require : 1;      // require must be propagated
+    bool prop_release : 1;      // release must be propagated
+    bool prop_failure : 1;      // failure to start must be propagated
+    
     int required_by = 0;        // number of dependents wanting this service to be started
 
     typedef std::list<ServiceRecord *> sr_list;
@@ -287,8 +292,8 @@ class ServiceRecord
     // Next service (after this one) in the queue for the console. Intended to only be used by ServiceSet class.
     ServiceRecord *next_for_console;
     
-    // Start/stop queues
-    ServiceRecord *next_in_start_queue = nullptr;
+    // Propagation and start/stop queues
+    ServiceRecord *next_in_prop_queue = nullptr;
     ServiceRecord *next_in_stop_queue = nullptr;
     
     
@@ -393,7 +398,8 @@ class ServiceRecord
         : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), auto_restart(false),
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
             waiting_for_execstat(false), doing_recovery(false),
-            start_explicit(false), force_stop(false), child_listener(this), child_status_listener(this)
+            start_explicit(false), prop_require(false), prop_release(false), prop_failure(false),
+            force_stop(false), child_listener(this), child_status_listener(this)
     {
         service_set = set;
         service_name = name;
@@ -426,7 +432,12 @@ class ServiceRecord
     }
     
     // TODO write a destructor
-
+    
+    // begin transition from stopped to started state or vice versa depending on current and desired state
+    void execute_transition() noexcept;
+    
+    void do_propagation() noexcept;
+    
     // Called on transition of desired state from stopped to started (or unpinned stop)
     void do_start() noexcept;
 
@@ -549,15 +560,14 @@ class ServiceRecord
  * two "queues" (not really queues since their order is not important) are used to prevent too
  * much recursion and to prevent service states from "bouncing" too rapidly.
  * 
- * A service that wishes to stop puts itself on the stop queue; a service that wishes to start
- * puts itself on the start queue. Any operation that potentially manipulates the queues must
- * be folloed by a "process queues" order (processQueues method, which can be instructed to
- * process either the start queue or the stop queue first).
+ * A service that wishes to start or stop puts itself on the start/stop queue; a service that
+ * needs to propagate changes to dependent services or dependencies puts itself on the
+ * propagation queue. Any operation that potentially manipulates the queues must be followed
+ * by a "process queues" order (processQueues() method).
  *
- * Note that which queue it does process first, processQueues always repeatedly processes both
- * queues until they are empty. The process is finite because starting a service can never
- * cause services to be added to the stop queue, unless they fail to start, which should cause
- * them to stop semi-permanently.
+ * Note that processQueues always repeatedly processes both queues until they are empty. The
+ * process is finite because starting a service can never cause services to stop, unless they
+ * fail to start, which should cause them to stop semi-permanently.
  */
 class ServiceSet
 {
@@ -571,8 +581,8 @@ class ServiceSet
     ServiceRecord * console_queue_head = nullptr; // first record in console queue
     ServiceRecord * console_queue_tail = nullptr; // last record in console queue
 
-    // start/stop "queue" - list of services waiting to stop/start
-    ServiceRecord * first_start_queue = nullptr;
+    // Propagation and start/stop "queues" - list of services waiting for processing
+    ServiceRecord * first_prop_queue = nullptr;
     ServiceRecord * first_stop_queue = nullptr;
     
     // Private methods
@@ -628,16 +638,23 @@ class ServiceSet
     // transition to the 'stopped' state.
     void stopService(const std::string &name) noexcept;
     
-    // Add a service record to the start queue
-    void addToStartQueue(ServiceRecord *service) noexcept
+    // Add a service record to the state propogation queue
+    void addToPropQueue(ServiceRecord *service) noexcept
     {
-        if (service->next_in_start_queue == nullptr && first_start_queue != service) {
-            service->next_in_start_queue = first_start_queue;
-            first_start_queue = service;
+        if (service->next_in_prop_queue == nullptr && first_prop_queue != service) {
+            service->next_in_prop_queue = first_prop_queue;
+            first_prop_queue = service;
         }
     }
     
-    // Add a service to the stop queue
+    // Add a service record to the start queue; called by service record
+    void addToStartQueue(ServiceRecord *service) noexcept
+    {
+        // The start/stop queue is actually one queue:
+        addToStopQueue(service);
+    }
+    
+    // Add a service to the stop queue; called by service record
     void addToStopQueue(ServiceRecord *service) noexcept
     {
         if (service->next_in_stop_queue == nullptr && first_stop_queue != service) {
@@ -646,29 +663,22 @@ class ServiceSet
         }
     }
     
-    void processQueues(bool do_start_first) noexcept
+    // Process state propagation and start/stop queues, until they are empty.
+    // TODO remove the pointless parameter
+    void processQueues(bool ignoredparam = false) noexcept
     {
-        if (! do_start_first) {
-            while (first_stop_queue != nullptr) {
-                auto next = first_stop_queue;
-                first_stop_queue = next->next_in_stop_queue;
-                next->next_in_stop_queue = nullptr;
-                next->do_stop();
-            }
-        }
-        
-        while (first_stop_queue != nullptr || first_start_queue != nullptr) {
-            while (first_start_queue != nullptr) {
-                auto next = first_start_queue;
-                first_start_queue = next->next_in_start_queue;
-                next->next_in_start_queue = nullptr;
-                next->do_start();
+        while (first_stop_queue != nullptr || first_prop_queue != nullptr) {
+            while (first_prop_queue != nullptr) {
+                auto next = first_prop_queue;
+                first_prop_queue = next->next_in_prop_queue;
+                next->next_in_prop_queue = nullptr;
+                next->do_propagation();
             }
             while (first_stop_queue != nullptr) {
                 auto next = first_stop_queue;
                 first_stop_queue = next->next_in_stop_queue;
                 next->next_in_stop_queue = nullptr;
-                next->do_stop();
+                next->execute_transition();
             }
         }
     }
