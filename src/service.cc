@@ -277,7 +277,10 @@ Rearm ServiceIoWatcher::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
     else {
         // exec() succeeded.
         if (sr->service_type == ServiceType::PROCESS) {
-            if (sr->service_state != ServiceState::STARTED) {
+            // This could be a smooth recovery (state already STARTED). Even more, the process
+            // might be stopped (and killed via a signal) during smooth recovery.  We don't to
+            // process startup again in either case, so we check for state STARTING:
+            if (sr->service_state == ServiceState::STARTING) {
                 sr->started();
             }
         }
