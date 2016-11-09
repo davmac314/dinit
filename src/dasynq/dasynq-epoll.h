@@ -174,6 +174,8 @@ template <class Base> class EpollLoop : public Base
         throw std::system_error(std::make_error_code(std::errc::not_supported));
     }
     
+    // flags specifies which watch to remove; ignored if the loop doesn't support
+    // separate read/write watches.
     void removeFdWatch(int fd, int flags) noexcept
     {
         epoll_ctl(epfd, EPOLL_CTL_DEL, fd, nullptr);

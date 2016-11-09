@@ -225,6 +225,8 @@ template <class Base> class KqueueLoop : public Base
         }        
     }
     
+    // flags specifies which watch to remove; ignored if the loop doesn't support
+    // separate read/write watches.
     void removeFdWatch(int fd, int flags)
     {        
         removeFilter((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd);
