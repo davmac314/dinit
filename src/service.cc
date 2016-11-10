@@ -875,9 +875,22 @@ void ServiceRecord::run_child_proc(const char * const *args, const char *logfile
             }
         }
         else goto failure_out;
+        
+        // We have the option of creating a new process group and/or session. If
+        // we just create a new process group, the child process cannot make itself
+        // a session leader if it wants to do that (eg getty/login will generally
+        // want this). If we do neither, and we are running with a controlling
+        // terminal, a ^C or similar will also affect the child process.
+        setsid();
     }
     else {
         // "run on console" - run as a foreground job on the terminal/console device
+        
+        // if do_set_ctty is false, we are the session leader; we are probably running
+        // as a user process. Don't create a new session leader in that case, and run
+        // as part of the parent session. Otherwise, the new session cannot claim the
+        // terminal as a controlling terminal (it is already claimed), meaning that it
+        // will not see control signals from ^C etc.
         
         if (do_set_ctty) {
             // Disable suspend (^Z) (and on some systems, delayed suspend / ^Y)
