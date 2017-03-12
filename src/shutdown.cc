@@ -140,9 +140,8 @@ int main(int argc, char **argv)
     }
 
     // Build buffer;
-    //uint16_t sname_len = strlen(service_name);
-    int bufsize = 2;
-    char * buf = new char[bufsize];
+    constexpr int bufsize = 2;
+    char buf[bufsize];
     
     buf[0] = DINIT_CP_SHUTDOWN;
     buf[1] = static_cast<char>(shutdown_type);
