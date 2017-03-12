@@ -37,7 +37,7 @@
 
 
 using namespace dasynq;
-using EventLoop_t = EventLoop<NullMutex>;
+using EventLoop_t = event_loop<NullMutex>;
 
 EventLoop_t eventLoop = EventLoop_t();
 
@@ -54,10 +54,10 @@ void setup_external_log() noexcept;
 
 class ControlSocketWatcher : public EventLoop_t::FdWatcher
 {
-    Rearm fdEvent(EventLoop_t &loop, int fd, int flags) override
+    rearm fdEvent(EventLoop_t &loop, int fd, int flags) override
     {
         control_socket_cb(&loop, fd);
-        return Rearm::REARM;
+        return rearm::REARM;
     }
 };
 
@@ -119,19 +119,19 @@ namespace {
             this->cb_func = cb_func;
         }
         
-        Rearm received(EventLoop_t &eloop, int signo, SigInfo_p siginfo) override
+        rearm received(EventLoop_t &eloop, int signo, SigInfo_p siginfo) override
         {
             service_set->stop_all_services(ShutdownType::REBOOT);
-            return Rearm::REARM;
+            return rearm::REARM;
         }
     };
 
     class ControlSocketWatcher : public EventLoop_t::FdWatcher
     {
-        Rearm fdEvent(EventLoop_t &loop, int fd, int flags)
+        rearm fdEvent(EventLoop_t &loop, int fd, int flags)
         {
             control_socket_cb(&loop, fd);
-            return Rearm::REARM;
+            return rearm::REARM;
         }
     };
 }

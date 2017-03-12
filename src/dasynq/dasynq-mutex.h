@@ -1,5 +1,5 @@
-#ifndef D_MUTEX_H_INCLUDED
-#define D_MUTEX_H_INCLUDED
+#ifndef DASYNQ_MUTEX_H_INCLUDED
+#define DASYNQ_MUTEX_H_INCLUDED
 
 //#include <pthread.h>
 #include <mutex>
@@ -40,7 +40,7 @@ using DMutex = std::mutex;
 // A "null" mutex, for which locking / unlocking actually does nothing.
 class NullMutex
 {
-    EMPTY_BODY
+    DASYNQ_EMPTY_BODY
     
     public:
     void lock() { }

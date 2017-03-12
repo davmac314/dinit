@@ -50,7 +50,7 @@ class BufferedLogStream : public EventLoop_t::FdWatcher
         release = false;
     }
     
-    Rearm fdEvent(EventLoop_t &loop, int fd, int flags) noexcept override;
+    rearm fdEvent(EventLoop_t &loop, int fd, int flags) noexcept override;
 
     // Check whether the console can be released.
     void flushForRelease();
@@ -119,7 +119,7 @@ void BufferedLogStream::flushForRelease()
     
     // Try to flush any messages that are currently buffered. (Console is non-blocking
     // so it will fail gracefully).
-    if (fdEvent(eventLoop, fd, OUT_EVENTS) == Rearm::DISARM) {
+    if (fdEvent(eventLoop, fd, OUT_EVENTS) == rearm::DISARM) {
         // Console has already been released at this point.
         setEnabled(eventLoop, false);
     }
@@ -127,7 +127,7 @@ void BufferedLogStream::flushForRelease()
     // release when it's finished.
 }
 
-Rearm BufferedLogStream::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
+rearm BufferedLogStream::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
 {
     if ((! partway) && (! special) && discarded) {
         special_buf = "dinit: *** message discarded due to full buffer ****\n";
@@ -147,25 +147,25 @@ Rearm BufferedLogStream::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
                 
                 if (release) {
                     release_console();
-                    return Rearm::DISARM;
+                    return rearm::DISARM;
                 }
             }
             else {
                 msg_index += r;
-                return Rearm::REARM;
+                return rearm::REARM;
             }
         }
         else if (errno != EAGAIN && errno != EINTR && errno != EWOULDBLOCK) {
-            return Rearm::REMOVE;
+            return rearm::REMOVE;
         }
-        return Rearm::REARM;
+        return rearm::REARM;
     }
     else {
         // Writing from the regular circular buffer
         
         if (current_index == 0) {
             release_console();
-            return Rearm::DISARM;
+            return rearm::DISARM;
         }
         
         // We try to find a complete line (terminated by '\n') in the buffer, and write it
@@ -218,18 +218,18 @@ Rearm BufferedLogStream::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
                 if (current_index == 0 || release) {
                     // No more messages buffered / stop logging to console:
                     release_console();
-                    return Rearm::DISARM;
+                    return rearm::DISARM;
                 }
             }
         }
         else if (errno != EAGAIN && errno != EINTR && errno != EWOULDBLOCK) {
-            return Rearm::REMOVE;
+            return rearm::REMOVE;
         }
     }
     
     // We've written something by the time we get here. We could fall through to below, but
     // let's give other events a chance to be processed by returning now.
-    return Rearm::REARM;
+    return rearm::REARM;
 }
 
 // Initialise the logging subsystem

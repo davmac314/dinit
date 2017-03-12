@@ -79,7 +79,7 @@ class pid_map
     }
 };
 
-namespace {
+inline namespace {
     void sigchld_handler(int signum)
     {
         // If SIGCHLD has no handler (is ignored), SIGCHLD signals will
@@ -94,11 +94,12 @@ template <class Base> class ChildProcEvents : public Base
 {
     private:
     pid_map child_waiters;
-
-    using SigInfo = typename Base::SigInfo;
     
     protected:
-    void receiveSignal(SigInfo &siginfo, void *userdata)
+    using SigInfo = typename Base::SigInfo;
+    
+    template <typename T>
+    bool receiveSignal(T & loop_mech, SigInfo &siginfo, void *userdata)
     {
         if (siginfo.get_signo() == SIGCHLD) {
             int status;
@@ -109,9 +110,10 @@ template <class Base> class ChildProcEvents : public Base
                     Base::receiveChildStat(child, status, ent.second);
                 }
             }
+            return false; // leave signal watch enabled
         }
         else {
-            Base::receiveSignal(siginfo, userdata);
+            return Base::receiveSignal(loop_mech, siginfo, userdata);
         }
     }
     

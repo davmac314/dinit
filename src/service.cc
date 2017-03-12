@@ -110,7 +110,7 @@ void ServiceRecord::stopped() noexcept
     }
 }
 
-dasynq::Rearm ServiceChildWatcher::childStatus(EventLoop_t &loop, pid_t child, int status) noexcept
+dasynq::rearm ServiceChildWatcher::childStatus(EventLoop_t &loop, pid_t child, int status) noexcept
 {
     ServiceRecord *sr = service;
     
@@ -125,14 +125,14 @@ dasynq::Rearm ServiceChildWatcher::childStatus(EventLoop_t &loop, pid_t child, i
     if (sr->waiting_for_execstat) {
         // We still don't have an exec() status from the forked child, wait for that
         // before doing any further processing.
-        return Rearm::REMOVE;
+        return rearm::REMOVE;
     }
     
     // Must deregister now since handle_exit_status might result in re-launch:
     deregister(loop, child);
     
     sr->handle_exit_status();
-    return Rearm::REMOVED;
+    return rearm::REMOVED;
 }
 
 bool ServiceRecord::do_auto_restart() noexcept
@@ -251,7 +251,7 @@ void ServiceRecord::handle_exit_status() noexcept
     }
 }
 
-Rearm ServiceIoWatcher::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
+rearm ServiceIoWatcher::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
 {
     ServiceRecord *sr = service;
     sr->waiting_for_execstat = false;
@@ -293,7 +293,7 @@ Rearm ServiceIoWatcher::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
     
     sr->service_set->processQueues(true);
     
-    return Rearm::REMOVED;
+    return rearm::REMOVED;
 }
 
 void ServiceRecord::require() noexcept

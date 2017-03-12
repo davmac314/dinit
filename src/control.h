@@ -19,13 +19,13 @@
 // Control connection for dinit
 
 using namespace dasynq;
-using EventLoop_t = EventLoop<NullMutex>;
+using EventLoop_t = event_loop<NullMutex>;
 
 class ControlConn;
 class ControlConnWatcher;
 
 // forward-declaration of callback:
-static Rearm control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
+static rearm control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
 
 // Pointer to the control connection that is listening for rollback completion
 extern ControlConn * rollback_handler_conn;
@@ -49,14 +49,14 @@ class ServiceRecord;
 
 class ControlConnWatcher : public EventLoop_t::BidiFdWatcher
 {
-    inline Rearm receiveEvent(EventLoop_t &loop, int fd, int flags) noexcept;
+    inline rearm receiveEvent(EventLoop_t &loop, int fd, int flags) noexcept;
 
-    Rearm readReady(EventLoop_t &loop, int fd) noexcept override
+    rearm readReady(EventLoop_t &loop, int fd) noexcept override
     {
         return receiveEvent(loop, fd, IN_EVENTS);
     }
     
-    Rearm writeReady(EventLoop_t &loop, int fd) noexcept override
+    rearm writeReady(EventLoop_t &loop, int fd) noexcept override
     {
         return receiveEvent(loop, fd, OUT_EVENTS);
     }
@@ -76,7 +76,7 @@ class ControlConnWatcher : public EventLoop_t::BidiFdWatcher
     }
 };
 
-inline Rearm ControlConnWatcher::receiveEvent(EventLoop_t &loop, int fd, int flags) noexcept
+inline rearm ControlConnWatcher::receiveEvent(EventLoop_t &loop, int fd, int flags) noexcept
 {
     return control_conn_cb(&loop, this, flags);
 }
@@ -84,7 +84,7 @@ inline Rearm ControlConnWatcher::receiveEvent(EventLoop_t &loop, int fd, int fla
 
 class ControlConn : private ServiceListener
 {
-    friend Rearm control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
+    friend rearm control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
     
     ControlConnWatcher iob;
     EventLoop_t *loop;
@@ -216,24 +216,24 @@ class ControlConn : private ServiceListener
 };
 
 
-static Rearm control_conn_cb(EventLoop_t * loop, ControlConnWatcher * watcher, int revents)
+static rearm control_conn_cb(EventLoop_t * loop, ControlConnWatcher * watcher, int revents)
 {
     char * cc_addr = (reinterpret_cast<char *>(watcher)) - offsetof(ControlConn, iob);
     ControlConn *conn = reinterpret_cast<ControlConn *>(cc_addr);
     if (revents & IN_EVENTS) {
         if (conn->dataReady()) {
             delete conn;
-            return Rearm::REMOVED;
+            return rearm::REMOVED;
         }
     }
     if (revents & OUT_EVENTS) {
         if (conn->sendData()) {
             delete conn;
-            return Rearm::REMOVED;
+            return rearm::REMOVED;
         }
     }
     
-    return Rearm::NOOP;
+    return rearm::NOOP;
 }
 
 #endif

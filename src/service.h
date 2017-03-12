@@ -186,7 +186,7 @@ class ServiceChildWatcher : public EventLoop_t::ChildProcWatcher
 {
     public:
     ServiceRecord * service;
-    Rearm childStatus(EventLoop_t &eloop, pid_t child, int status) noexcept;
+    rearm childStatus(EventLoop_t &eloop, pid_t child, int status) noexcept;
     
     ServiceChildWatcher(ServiceRecord * sr) noexcept : service(sr) { }
 };
@@ -195,7 +195,7 @@ class ServiceIoWatcher : public EventLoop_t::FdWatcher
 {
     public:
     ServiceRecord * service;
-    Rearm fdEvent(EventLoop_t &eloop, int fd, int flags) noexcept;
+    rearm fdEvent(EventLoop_t &eloop, int fd, int flags) noexcept;
     
     ServiceIoWatcher(ServiceRecord * sr) noexcept : service(sr) { }
 };
