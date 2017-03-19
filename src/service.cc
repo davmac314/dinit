@@ -86,6 +86,16 @@ void ServiceRecord::stopped() noexcept
         }
     }
     
+    // If we are a soft dependency of another target, break the acquisition from that target now:
+    if (! will_restart) {
+        for (auto dependency : soft_dpts) {
+            if (dependency->holding_acq) {
+                dependency->holding_acq = false;
+                release();
+            }
+        }
+    }
+    
     if (will_restart) {
         // Desired state is "started".
         service_set->addToStartQueue(this);
@@ -337,7 +347,10 @@ void ServiceRecord::release_dependencies() noexcept
 
     for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
         ServiceRecord * to = i->getTo();
-        to->release();
+        if (i->holding_acq) {
+            to->release();
+            i->holding_acq = false;
+        }
     }
     
     service_set->service_inactive(this);
@@ -352,11 +365,6 @@ void ServiceRecord::start(bool activate) noexcept
     
     if (desired_state == ServiceState::STARTED && service_state != ServiceState::STOPPED) return;
     
-    if (required_by == 0) {
-        // It really doesn't make any sense to start if there is no dependent or explicit activation.
-        return;
-    }
-
     desired_state = ServiceState::STARTED;
     service_set->addToStartQueue(this);
 }
@@ -372,6 +380,7 @@ void ServiceRecord::do_propagation() noexcept
         for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
             ServiceRecord * to = i->getTo();
             to->require();
+            i->holding_acq = true;
         }
         
         prop_require = false;
@@ -697,7 +706,12 @@ void ServiceRecord::failed_to_start(bool depfailed) noexcept
     for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
         // We can send 'start', because this is only a soft dependency.
         // Our startup failure means that they don't have to wait for us.
-        (*i)->getFrom()->dependencyStarted();
+        if ((*i)->waiting_on) {
+            (*i)->holding_acq = false;
+            (*i)->waiting_on = false;
+            (*i)->getFrom()->dependencyStarted();
+            release();
+        }
     }
 }
 

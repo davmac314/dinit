@@ -143,8 +143,10 @@ class ServiceDep
     public:
     /* Whether the 'from' service is waiting for the 'to' service to start */
     bool waiting_on;
+    /* Whether the 'from' service is holding an acquire on the 'to' service */
+    bool holding_acq;
 
-    ServiceDep(ServiceRecord * from, ServiceRecord * to) noexcept : from(from), to(to), waiting_on(false)
+    ServiceDep(ServiceRecord * from, ServiceRecord * to) noexcept : from(from), to(to), waiting_on(false), holding_acq(false)
     {  }
 
     ServiceRecord * getFrom() noexcept
