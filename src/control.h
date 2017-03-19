@@ -47,16 +47,16 @@ extern int active_control_conns;
 class ServiceSet;
 class ServiceRecord;
 
-class ControlConnWatcher : public EventLoop_t::BidiFdWatcher
+class ControlConnWatcher : public EventLoop_t::bidi_fd_watcher
 {
     inline rearm receiveEvent(EventLoop_t &loop, int fd, int flags) noexcept;
 
-    rearm readReady(EventLoop_t &loop, int fd) noexcept override
+    rearm read_ready(EventLoop_t &loop, int fd) noexcept override
     {
         return receiveEvent(loop, fd, IN_EVENTS);
     }
     
-    rearm writeReady(EventLoop_t &loop, int fd) noexcept override
+    rearm write_ready(EventLoop_t &loop, int fd) noexcept override
     {
         return receiveEvent(loop, fd, OUT_EVENTS);
     }
@@ -64,15 +64,15 @@ class ControlConnWatcher : public EventLoop_t::BidiFdWatcher
     public:
     EventLoop_t * eventLoop;
     
-    void setWatches(int flags)
+    void set_watches(int flags)
     {
-        EventLoop_t::BidiFdWatcher::setWatches(*eventLoop, flags);
+        EventLoop_t::bidi_fd_watcher::set_watches(*eventLoop, flags);
     }
     
     void registerWith(EventLoop_t &loop, int fd, int flags)
     {
         this->eventLoop = &loop;
-        BidiFdWatcher<EventLoop_t>::addWatch(loop, fd, flags);
+        bidi_fd_watcher<EventLoop_t>::add_watch(loop, fd, flags);
     }
 };
 
@@ -169,7 +169,7 @@ class ControlConn : private ServiceListener
     {
         bad_conn_close = true;
         oom_close = true;
-        iob.setWatches(OUT_EVENTS);
+        iob.set_watches(OUT_EVENTS);
     }
     
     // Process service event broadcast.

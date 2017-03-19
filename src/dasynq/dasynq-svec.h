@@ -1,8 +1,9 @@
 #ifndef DASYNQ_SVEC_H_INCLUDED
-#define DASYNC_SVEC_H_INCLUDED
+#define DASYNQ_SVEC_H_INCLUDED
 
 #include <cstddef>
 #include <cstdlib>
+#include <utility>
 #include <new>
 
 // Vector with possibility to shrink capacity arbitrarily

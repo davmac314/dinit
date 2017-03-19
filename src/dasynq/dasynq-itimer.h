@@ -1,56 +1,15 @@
 #include <vector>
 #include <utility>
 
-// #include <csignal>
-
 #include <sys/time.h>
 #include <time.h>
 
+#include "dasynq-timerbase.h"
 #include "dasynq-binaryheap.h"
 
 namespace dasynq {
 
 // Timer implementation based on the (basically obselete) POSIX itimer interface.
-
-class TimerData
-{
-    public:
-    // initial time?
-    struct timespec interval_time; // interval (if 0, one-off timer)
-    int expiry_count;  // number of times expired
-    bool enabled;   // whether timer reports events  
-    void *userdata;
-    
-    TimerData(void *udata = nullptr) : interval_time({0,0}), expiry_count(0), enabled(true), userdata(udata)
-    {
-        // constructor
-    }
-};
-
-class CompareTimespec
-{
-    public:
-    bool operator()(const struct timespec &a, const struct timespec &b)
-    {
-        if (a.tv_sec < b.tv_sec) {
-            return true;
-        }
-        
-        if (a.tv_sec == b.tv_sec) {
-            return a.tv_nsec < b.tv_nsec;
-        }
-        
-        return false;
-    }
-};
-
-using timer_handle_t = BinaryHeap<TimerData, struct timespec, CompareTimespec>::handle_t;
-
-static void init_timer_handle(timer_handle_t &hnd) noexcept
-{
-    BinaryHeap<TimerData, struct timespec, CompareTimespec>::init_handle(hnd);
-}
-
 
 template <class Base> class ITimerEvents : public Base
 {
@@ -59,6 +18,9 @@ template <class Base> class ITimerEvents : public Base
 
     BinaryHeap<TimerData, struct timespec, CompareTimespec> timer_queue;
     
+#if defined(__APPLE__)
+#define itimerspec itimerval
+#endif
     
     static int divide_timespec(const struct timespec &num, const struct timespec &den)
     {
@@ -76,24 +38,43 @@ template <class Base> class ITimerEvents : public Base
             newtime.it_interval = {0, 0};
         }
         else {
+#if defined(__APPLE__)
+            auto &rp = timer_queue.get_root_priority();
+            newtime.it_value.tv_sec = rp.tv_sec;
+            newtime.it_value.tv_usec = rp.tv_nsec / 1000;
+#else
             newtime.it_value = timer_queue.get_root_priority();
             newtime.it_interval = {0, 0};
+#endif
         }
-        // timerfd_settime(timerfd_fd, TFD_TIMER_ABSTIME, &newtime, nullptr);
         
-        // TODO
         struct timespec curtime;
+#if defined(__APPLE__)
+        struct timeval curtime_tv;
+        gettimeofday(&curtime_tv, nullptr);
+        curtime.tv_sec = curtime_tv.tv_sec;
+        curtime.tv_nsec = curtime_tv.tv_usec * 1000;
+#else
         clock_gettime(CLOCK_MONOTONIC, &curtime);
+#endif
         struct itimerval newalarm;
         newalarm.it_interval = {0, 0};
         newalarm.it_value.tv_sec = newtime.it_value.tv_sec - curtime.tv_sec;
+#if defined(__APPLE__)
+        newalarm.it_value.tv_usec = newtime.it_value.tv_usec - curtime.tv_nsec / 1000;
+#else
         newalarm.it_value.tv_usec = (newtime.it_value.tv_nsec - curtime.tv_nsec) / 1000;
+#endif
         if (newalarm.it_value.tv_usec < 0) {
             newalarm.it_value.tv_usec += 1000000;
             newalarm.it_value.tv_sec--;
         }
         setitimer(ITIMER_REAL, &newalarm, nullptr);
     }
+
+#if defined(__APPLE__)
+#undef itimerspec
+#endif
     
     protected:
     
@@ -104,8 +85,15 @@ template <class Base> class ITimerEvents : public Base
     {
         if (siginfo.get_signo() == SIGALRM) {
             struct timespec curtime;
+#if defined(__APPLE__)
+            struct timeval curtime_tv;
+            gettimeofday(&curtime_tv, nullptr);
+            curtime.tv_sec = curtime_tv.tv_sec;
+            curtime.tv_nsec = curtime_tv.tv_usec * 1000;
+#else
             clock_gettime(CLOCK_MONOTONIC, &curtime);
             // should we use the REALTIME clock instead? I have no idea :/
+#endif
             
             // Peek timer queue; calculate difference between current time and timeout
             struct timespec * timeout = &timer_queue.get_root_priority();
@@ -170,13 +158,6 @@ template <class Base> class ITimerEvents : public Base
 
     template <typename T> void init(T *loop_mech)
     {
-        /*
-        timerfd_fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC | TFD_NONBLOCK);
-        if (timerfd_fd == -1) {
-            throw std::system_error(errno, std::system_category());
-        }
-        loop_mech->addFdWatch(timerfd_fd, &timerfd_fd, IN_EVENTS);
-        */
         sigset_t sigmask;
         sigprocmask(SIG_UNBLOCK, nullptr, &sigmask);
         sigaddset(&sigmask, SIGALRM);
@@ -185,18 +166,17 @@ template <class Base> class ITimerEvents : public Base
         Base::init(loop_mech);
     }
 
-    // Add timer, return handle (TODO: clock id param?)
-    void addTimer(timer_handle_t &h, void *userdata)
+    void addTimer(timer_handle_t &h, void *userdata, clock_type clock = clock_type::MONOTONIC)
     {
         timer_queue.allocate(h, userdata);
     }
     
-    void removeTimer(timer_handle_t &timer_id) noexcept
+    void removeTimer(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
     {
-        removeTimer_nolock(timer_id);
+        removeTimer_nolock(timer_id, clock);
     }
     
-    void removeTimer_nolock(timer_handle_t &timer_id) noexcept
+    void removeTimer_nolock(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
     {
         if (timer_queue.is_queued(timer_id)) {
             timer_queue.remove(timer_id);
@@ -206,7 +186,8 @@ template <class Base> class ITimerEvents : public Base
     
     // starts (if not started) a timer to timeout at the given time. Resets the expiry count to 0.
     //   enable: specifies whether to enable reporting of timeouts/intervals
-    void setTimer(timer_handle_t &timer_id, struct timespec &timeout, struct timespec &interval, bool enable) noexcept
+    void setTimer(timer_handle_t &timer_id, struct timespec &timeout, struct timespec &interval,
+            bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
         auto &ts = timer_queue.node_data(timer_id);
         ts.interval_time = interval;
@@ -230,11 +211,19 @@ template <class Base> class ITimerEvents : public Base
     }
 
     // Set timer relative to current time:    
-    void setTimerRel(timer_handle_t &timer_id, struct timespec &timeout, struct timespec &interval, bool enable) noexcept
+    void setTimerRel(timer_handle_t &timer_id, struct timespec &timeout, struct timespec &interval,
+            bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
         // TODO consider caching current time somehow; need to decide then when to update cached value.
         struct timespec curtime;
+#if defined(__APPLE__)
+        struct timeval curtime_tv;
+        gettimeofday(&curtime_tv, nullptr);
+        curtime.tv_sec = curtime_tv.tv_sec;
+        curtime.tv_nsec = curtime_tv.tv_usec * 1000;
+#else
         clock_gettime(CLOCK_MONOTONIC, &curtime);
+#endif
         curtime.tv_sec += timeout.tv_sec;
         curtime.tv_nsec += timeout.tv_nsec;
         if (curtime.tv_nsec > 1000000000) {
@@ -245,12 +234,12 @@ template <class Base> class ITimerEvents : public Base
     }
     
     // Enables or disabling report of timeouts (does not stop timer)
-    void enableTimer(timer_handle_t &timer_id, bool enable) noexcept
+    void enableTimer(timer_handle_t &timer_id, bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
-        enableTimer_nolock(timer_id, enable);
+        enableTimer_nolock(timer_id, enable, clock);
     }
     
-    void enableTimer_nolock(timer_handle_t &timer_id, bool enable) noexcept
+    void enableTimer_nolock(timer_handle_t &timer_id, bool enable, clock_type = clock_type::MONOTONIC) noexcept
     {
         timer_queue.node_data(timer_id).enabled = enable;
     }

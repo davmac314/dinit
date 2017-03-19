@@ -120,7 +120,7 @@ void ServiceRecord::stopped() noexcept
     }
 }
 
-dasynq::rearm ServiceChildWatcher::childStatus(EventLoop_t &loop, pid_t child, int status) noexcept
+dasynq::rearm ServiceChildWatcher::child_status(EventLoop_t &loop, pid_t child, int status) noexcept
 {
     ServiceRecord *sr = service;
     
@@ -261,15 +261,15 @@ void ServiceRecord::handle_exit_status() noexcept
     }
 }
 
-rearm ServiceIoWatcher::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
+rearm ServiceIoWatcher::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
 {
     ServiceRecord *sr = service;
     sr->waiting_for_execstat = false;
     
     int exec_status;
-    int r = read(getWatchedFd(), &exec_status, sizeof(int));
+    int r = read(get_watched_fd(), &exec_status, sizeof(int));
     deregister(loop);
-    close(getWatchedFd());
+    close(get_watched_fd());
     
     if (r > 0) {
         // We read an errno code; exec() failed, and the service startup failed.
@@ -623,7 +623,7 @@ bool ServiceRecord::read_pid_file() noexcept
             pidbuf[r] = 0; // store nul terminator
             pid = std::atoi(pidbuf);
             if (kill(pid, 0) == 0) {                
-                child_listener.addWatch(eventLoop, pid);
+                child_listener.add_watch(eventLoop, pid);
             }
             else {
                 log(LogLevel::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
@@ -766,7 +766,7 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
     pid_t forkpid;
     
     try {
-        child_status_listener.addWatch(eventLoop, pipefd[0], IN_EVENTS);
+        child_status_listener.add_watch(eventLoop, pipefd[0], IN_EVENTS);
         child_status_registered = true;
         
         forkpid = child_listener.fork(eventLoop);

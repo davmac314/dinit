@@ -20,7 +20,7 @@ LogLevel log_level[2] = { LogLevel::WARN, LogLevel::WARN };
 static ServiceSet *service_set = nullptr;  // Reference to service set
 
 namespace {
-class BufferedLogStream : public EventLoop_t::FdWatcher
+class BufferedLogStream : public EventLoop_t::fd_watcher
 {
     private:
 
@@ -50,7 +50,7 @@ class BufferedLogStream : public EventLoop_t::FdWatcher
         release = false;
     }
     
-    rearm fdEvent(EventLoop_t &loop, int fd, int flags) noexcept override;
+    rearm fd_event(EventLoop_t &loop, int fd, int flags) noexcept override;
 
     // Check whether the console can be released.
     void flushForRelease();
@@ -63,7 +63,7 @@ class BufferedLogStream : public EventLoop_t::FdWatcher
         bool was_first = current_index == 0;
         current_index = log_buffer.get_length();
         if (was_first && ! release) {
-            setEnabled(eventLoop, true);
+            set_enabled(eventLoop, true);
         }
     }
     
@@ -119,15 +119,15 @@ void BufferedLogStream::flushForRelease()
     
     // Try to flush any messages that are currently buffered. (Console is non-blocking
     // so it will fail gracefully).
-    if (fdEvent(eventLoop, fd, OUT_EVENTS) == rearm::DISARM) {
+    if (fd_event(eventLoop, fd, OUT_EVENTS) == rearm::DISARM) {
         // Console has already been released at this point.
-        setEnabled(eventLoop, false);
+        set_enabled(eventLoop, false);
     }
-    // fdEvent didn't want to disarm, so must be partway through a message; will
+    // fd_event didn't want to disarm, so must be partway through a message; will
     // release when it's finished.
 }
 
-rearm BufferedLogStream::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
+rearm BufferedLogStream::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
 {
     if ((! partway) && (! special) && discarded) {
         special_buf = "dinit: *** message discarded due to full buffer ****\n";
@@ -237,7 +237,7 @@ rearm BufferedLogStream::fdEvent(EventLoop_t &loop, int fd, int flags) noexcept
 void init_log(ServiceSet *sset)
 {
     service_set = sset;
-    log_stream[DLOG_CONS].addWatch(eventLoop, STDOUT_FILENO, OUT_EVENTS, false);
+    log_stream[DLOG_CONS].add_watch(eventLoop, STDOUT_FILENO, OUT_EVENTS, false);
     enable_console_log(true);
 }
 
@@ -246,7 +246,7 @@ void init_log(ServiceSet *sset)
 void setup_main_log(int fd)
 {
     log_stream[DLOG_MAIN].init(fd);
-    log_stream[DLOG_MAIN].addWatch(eventLoop, fd, OUT_EVENTS);
+    log_stream[DLOG_MAIN].add_watch(eventLoop, fd, OUT_EVENTS);
 }
 
 bool is_log_flushed() noexcept
@@ -267,7 +267,7 @@ void enable_console_log(bool enable) noexcept
         fcntl(1, F_SETFL, flags | O_NONBLOCK);
         // Activate watcher:
         log_stream[DLOG_CONS].init(STDOUT_FILENO);
-        log_stream[DLOG_CONS].setEnabled(eventLoop, true);
+        log_stream[DLOG_CONS].set_enabled(eventLoop, true);
     }
     else if (! enable && log_to_console) {
         log_stream[DLOG_CONS].flushForRelease();

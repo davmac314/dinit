@@ -54,7 +54,7 @@ bool ControlConn::processPacket()
         char outbuf[] = { DINIT_RP_BADREQ };
         if (! queuePacket(outbuf, 1)) return false;
         bad_conn_close = true;
-        iob.setWatches(OUT_EVENTS);
+        iob.set_watches(OUT_EVENTS);
     }
     return true;
 }
@@ -78,7 +78,7 @@ bool ControlConn::processFindLoad(int pktType)
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queuePacket(badreqRep, 1)) return false;
         bad_conn_close = true;
-        iob.setWatches(OUT_EVENTS);
+        iob.set_watches(OUT_EVENTS);
         return true;
     }
     
@@ -154,7 +154,7 @@ bool ControlConn::processStartStop(int pktType)
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queuePacket(badreqRep, 1)) return false;
         bad_conn_close = true;
-        iob.setWatches(OUT_EVENTS);
+        iob.set_watches(OUT_EVENTS);
         return true;
     }
     else {
@@ -226,7 +226,7 @@ bool ControlConn::processUnpinService()
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queuePacket(badreqRep, 1)) return false;
         bad_conn_close = true;
-        iob.setWatches(OUT_EVENTS);
+        iob.set_watches(OUT_EVENTS);
         return true;
     }
     else {
@@ -318,7 +318,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
     // If the queue is empty, we can try to write the packet out now rather than queueing it.
     // If the write is unsuccessful or partial, we queue the remainder.
     if (was_empty) {
-        int wr = write(iob.getWatchedFd(), pkt, size);
+        int wr = write(iob.get_watched_fd(), pkt, size);
         if (wr == -1) {
             if (errno == EPIPE) {
                 return false;
@@ -332,7 +332,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
         else {
             if ((unsigned)wr == size) {
                 // Ok, all written.
-                iob.setWatches(in_flag);
+                iob.set_watches(in_flag);
                 return true;
             }
             pkt += wr;
@@ -343,7 +343,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
     // Create a vector out of the (remaining part of the) packet:
     try {
         outbuf.emplace_back(pkt, pkt + size);
-        iob.setWatches(in_flag | OUT_EVENTS);
+        iob.set_watches(in_flag | OUT_EVENTS);
         return true;
     }
     catch (std::bad_alloc &baexc) {
@@ -357,7 +357,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
             return false;
         }
         else {
-            iob.setWatches(OUT_EVENTS);
+            iob.set_watches(OUT_EVENTS);
             return true;
         }
     }
@@ -373,7 +373,7 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
     if (was_empty) {
         outpkt_index = 0;
         // We can try sending the packet immediately:
-        int wr = write(iob.getWatchedFd(), pkt.data(), pkt.size());
+        int wr = write(iob.get_watched_fd(), pkt.data(), pkt.size());
         if (wr == -1) {
             if (errno == EPIPE) {
                 return false;
@@ -387,7 +387,7 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
         else {
             if ((unsigned)wr == pkt.size()) {
                 // Ok, all written.
-                iob.setWatches(in_flag);
+                iob.set_watches(in_flag);
                 return true;
             }
             outpkt_index = wr;
@@ -396,7 +396,7 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
     
     try {
         outbuf.emplace_back(pkt);
-        iob.setWatches(in_flag | OUT_EVENTS);
+        iob.set_watches(in_flag | OUT_EVENTS);
         return true;
     }
     catch (std::bad_alloc &baexc) {
@@ -410,7 +410,7 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
             return false;
         }
         else {
-            iob.setWatches(OUT_EVENTS);
+            iob.set_watches(OUT_EVENTS);
             return true;
         }
     }
@@ -424,7 +424,7 @@ bool ControlConn::rollbackComplete() noexcept
 
 bool ControlConn::dataReady() noexcept
 {
-    int fd = iob.getWatchedFd();
+    int fd = iob.get_watched_fd();
     
     int r = rbuf.fill(fd);
     
@@ -455,11 +455,11 @@ bool ControlConn::dataReady() noexcept
         // Too big packet
         log(LogLevel::WARN, "Received too-large control package; dropping connection");
         bad_conn_close = true;
-        iob.setWatches(OUT_EVENTS);
+        iob.set_watches(OUT_EVENTS);
     }
     else {
         int out_flags = (bad_conn_close || !outbuf.empty()) ? OUT_EVENTS : 0;
-        iob.setWatches(IN_EVENTS | out_flags);
+        iob.set_watches(IN_EVENTS | out_flags);
     }
     
     return false;
@@ -471,14 +471,14 @@ bool ControlConn::sendData() noexcept
         if (oom_close) {
             // Send oom response
             char oomBuf[] = { DINIT_RP_OOM };
-            write(iob.getWatchedFd(), oomBuf, 1);
+            write(iob.get_watched_fd(), oomBuf, 1);
         }
         return true;
     }
     
     vector<char> & pkt = outbuf.front();
     char *data = pkt.data();
-    int written = write(iob.getWatchedFd(), data + outpkt_index, pkt.size() - outpkt_index);
+    int written = write(iob.get_watched_fd(), data + outpkt_index, pkt.size() - outpkt_index);
     if (written == -1) {
         if (errno == EPIPE) {
             // read end closed
@@ -501,7 +501,7 @@ bool ControlConn::sendData() noexcept
         outpkt_index = 0;
         if (outbuf.empty() && ! oom_close) {
             if (! bad_conn_close) {
-                iob.setWatches(IN_EVENTS);
+                iob.set_watches(IN_EVENTS);
             }
             else {
                 return true;
@@ -514,7 +514,7 @@ bool ControlConn::sendData() noexcept
 
 ControlConn::~ControlConn() noexcept
 {
-    close(iob.getWatchedFd());
+    close(iob.get_watched_fd());
     iob.deregister(*loop);
     
     // Clear service listeners

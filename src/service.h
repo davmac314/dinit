@@ -184,20 +184,20 @@ static std::vector<const char *> separate_args(std::string &s, std::list<std::pa
     return r;
 }
 
-class ServiceChildWatcher : public EventLoop_t::ChildProcWatcher
+class ServiceChildWatcher : public EventLoop_t::child_proc_watcher
 {
     public:
     ServiceRecord * service;
-    rearm childStatus(EventLoop_t &eloop, pid_t child, int status) noexcept;
+    rearm child_status(EventLoop_t &eloop, pid_t child, int status) noexcept override;
     
     ServiceChildWatcher(ServiceRecord * sr) noexcept : service(sr) { }
 };
 
-class ServiceIoWatcher : public EventLoop_t::FdWatcher
+class ServiceIoWatcher : public EventLoop_t::fd_watcher
 {
     public:
     ServiceRecord * service;
-    rearm fdEvent(EventLoop_t &eloop, int fd, int flags) noexcept;
+    rearm fd_event(EventLoop_t &eloop, int fd, int flags) noexcept;
     
     ServiceIoWatcher(ServiceRecord * sr) noexcept : service(sr) { }
 };

@@ -328,13 +328,6 @@ template <class Base> class EpollLoop : public Base
     
         processEvents(events, r);    
     }
-    
-    // Interrupt any current poll operation (pullEvents/pullOneEvent), causing
-    // it to to return immediately.
-    void interruptWait()
-    {
-        // TODO
-    }
 };
 
 } // end namespace

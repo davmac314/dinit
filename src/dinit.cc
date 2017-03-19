@@ -52,9 +52,9 @@ void open_control_socket(bool report_ro_failure = true) noexcept;
 void setup_external_log() noexcept;
 
 
-class ControlSocketWatcher : public EventLoop_t::FdWatcher
+class ControlSocketWatcher : public EventLoop_t::fd_watcher
 {
-    rearm fdEvent(EventLoop_t &loop, int fd, int flags) override
+    rearm fd_event(EventLoop_t &loop, int fd, int flags) override
     {
         control_socket_cb(&loop, fd);
         return rearm::REARM;
@@ -102,7 +102,7 @@ const char * get_user_home()
 
 
 namespace {
-    class CallbackSignalHandler : public EventLoop_t::SignalWatcher
+    class CallbackSignalHandler : public EventLoop_t::signal_watcher
     {
         public:
         typedef void (*cb_func_t)(EventLoop_t *);
@@ -126,9 +126,9 @@ namespace {
         }
     };
 
-    class ControlSocketWatcher : public EventLoop_t::FdWatcher
+    class ControlSocketWatcher : public EventLoop_t::fd_watcher
     {
-        rearm fdEvent(EventLoop_t &loop, int fd, int flags)
+        rearm fd_event(EventLoop_t &loop, int fd, int flags) override
         {
             control_socket_cb(&loop, fd);
             return rearm::REARM;
@@ -290,9 +290,9 @@ int main(int argc, char **argv)
     
     auto sigterm_watcher = CallbackSignalHandler(sigterm_cb);
     
-    sigint_watcher.addWatch(eventLoop, SIGINT);
-    sigquit_watcher.addWatch(eventLoop, SIGQUIT);
-    sigterm_watcher.addWatch(eventLoop, SIGTERM);
+    sigint_watcher.add_watch(eventLoop, SIGINT);
+    sigquit_watcher.add_watch(eventLoop, SIGQUIT);
+    sigterm_watcher.add_watch(eventLoop, SIGTERM);
 
     // Try to open control socket (may fail due to readonly filesystem)
     open_control_socket(false);
@@ -479,7 +479,7 @@ void open_control_socket(bool report_ro_failure) noexcept
         }
 
         try {
-            control_socket_io.addWatch(eventLoop, sockfd, IN_EVENTS);
+            control_socket_io.add_watch(eventLoop, sockfd, IN_EVENTS);
             control_socket_open = true;
         }
         catch (std::exception &e)
@@ -493,7 +493,7 @@ void open_control_socket(bool report_ro_failure) noexcept
 static void close_control_socket() noexcept
 {
     if (control_socket_open) {
-        int fd = control_socket_io.getWatchedFd();
+        int fd = control_socket_io.get_watched_fd();
         control_socket_io.deregister(eventLoop);
         close(fd);
         

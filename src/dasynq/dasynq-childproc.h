@@ -1,3 +1,5 @@
+#include <signal.h>
+
 namespace dasynq {
 
 // Map of pid_t to void *, with possibility of reserving entries so that mappings can
@@ -161,6 +163,7 @@ template <class Base> class ChildProcEvents : public Base
         sigemptyset(&chld_action.sa_mask);
         chld_action.sa_flags = 0;
         sigaction(SIGCHLD, &chld_action, nullptr);
+        Base::init(loop_mech);
     }
 };
 
