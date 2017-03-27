@@ -20,7 +20,7 @@ LogLevel log_level[2] = { LogLevel::WARN, LogLevel::WARN };
 static ServiceSet *service_set = nullptr;  // Reference to service set
 
 namespace {
-class BufferedLogStream : public EventLoop_t::fd_watcher
+class BufferedLogStream : public EventLoop_t::fd_watcher_impl<BufferedLogStream>
 {
     private:
 
@@ -50,7 +50,7 @@ class BufferedLogStream : public EventLoop_t::fd_watcher
         release = false;
     }
     
-    rearm fd_event(EventLoop_t &loop, int fd, int flags) noexcept override;
+    rearm fd_event(EventLoop_t &loop, int fd, int flags) noexcept;
 
     // Check whether the console can be released.
     void flushForRelease();

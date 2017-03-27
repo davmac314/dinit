@@ -19,7 +19,7 @@
 // Control connection for dinit
 
 using namespace dasynq;
-using EventLoop_t = event_loop<NullMutex>;
+using EventLoop_t = event_loop<null_mutex>;
 
 class ControlConn;
 class ControlConnWatcher;
@@ -47,21 +47,21 @@ extern int active_control_conns;
 class ServiceSet;
 class ServiceRecord;
 
-class ControlConnWatcher : public EventLoop_t::bidi_fd_watcher
+class ControlConnWatcher : public EventLoop_t::bidi_fd_watcher_impl<ControlConnWatcher>
 {
     inline rearm receiveEvent(EventLoop_t &loop, int fd, int flags) noexcept;
 
-    rearm read_ready(EventLoop_t &loop, int fd) noexcept override
+    public:
+    rearm read_ready(EventLoop_t &loop, int fd) noexcept
     {
         return receiveEvent(loop, fd, IN_EVENTS);
     }
     
-    rearm write_ready(EventLoop_t &loop, int fd) noexcept override
+    rearm write_ready(EventLoop_t &loop, int fd) noexcept
     {
         return receiveEvent(loop, fd, OUT_EVENTS);
     }
     
-    public:
     EventLoop_t * eventLoop;
     
     void set_watches(int flags)

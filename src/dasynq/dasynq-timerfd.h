@@ -5,7 +5,6 @@
 #include <time.h>
 
 #include "dasynq-timerbase.h"
-#include "dasynq-binaryheap.h"
 
 namespace dasynq {
 
@@ -18,21 +17,14 @@ namespace dasynq {
 // we are given a handle; we need to use this to modify the watch. We delegate the
 // process of allocating a handle to a priority heap implementation (BinaryHeap).
 
-template <class Base> class TimerFdEvents : public Base
+template <class Base> class TimerFdEvents : public timer_base<Base>
 {
     private:
     int timerfd_fd = -1;
     int systemtime_fd = -1;
 
-    using timer_queue_t = BinaryHeap<TimerData, struct timespec, CompareTimespec>;
     timer_queue_t timer_queue;
     timer_queue_t wallclock_queue;
-    
-    static int divide_timespec(const struct timespec &num, const struct timespec &den) noexcept
-    {
-        // TODO
-        return 0;
-    }
     
     // Set the timerfd timeout to match the first timer in the queue (disable the timerfd
     // if there are no active timers).
@@ -64,55 +56,8 @@ template <class Base> class TimerFdEvents : public Base
             DASYNQ_UNREACHABLE;
         }
 
-        // Peek timer queue; calculate difference between current time and timeout
-        struct timespec * timeout = &queue.get_root_priority();
-        while (timeout->tv_sec < curtime.tv_sec || (timeout->tv_sec == curtime.tv_sec &&
-                timeout->tv_nsec <= curtime.tv_nsec)) {
-            // Increment expiry count
-            queue.node_data(queue.get_root()).expiry_count++;
-            // (a periodic timer may have overrun; calculated below).
+        timer_base<Base>::process_timer_queue(queue, curtime);
 
-            auto thandle = queue.get_root();
-            TimerData &data = queue.node_data(thandle);
-            timespec &interval = data.interval_time;
-            if (interval.tv_sec == 0 && interval.tv_nsec == 0) {
-                // Non periodic timer
-                queue.pull_root();
-                if (data.enabled) {
-                    int expiry_count = data.expiry_count;
-                    data.expiry_count = 0;
-                    Base::receiveTimerExpiry(thandle, data.userdata, expiry_count);
-                }
-                if (queue.empty()) {
-                    break;
-                }
-            }
-            else {
-                // Periodic timer TODO
-                // First calculate the overrun in time:
-                /*
-                struct timespec diff;
-                diff.tv_sec = curtime.tv_sec - timeout->tv_sec;
-                diff.tv_nsec = curtime.tv_nsec - timeout->tv_nsec;
-                if (diff.tv_nsec < 0) {
-                    diff.tv_nsec += 1000000000;
-                    diff.tv_sec--;
-                }
-                */
-                // Now we have to divide the time overrun by the period to find the
-                // interval overrun. This requires a division of a value not representable
-                // as a long...
-                // TODO use divide_timespec
-                // TODO better not to remove from queue maybe, but instead mark as inactive,
-                // adjust timeout, and bubble into correct position
-                // call Base::receieveTimerEvent
-                // TODO
-            }
-
-            // repeat until all expired timeouts processed
-            // timeout = &timer_queue[0].timeout;
-            //  (shouldn't be necessary; address hasn't changed...)
-        }
         // arm timerfd with timeout from head of queue
         set_timer_from_queue(fd, queue);
     }
@@ -138,6 +83,18 @@ template <class Base> class TimerFdEvents : public Base
         }
 
         // TODO locking (here and everywhere)
+    }
+
+    timer_queue_t & get_queue(clock_type clock)
+    {
+        switch(clock) {
+        case clock_type::SYSTEM:
+            return wallclock_queue;
+        case clock_type::MONOTONIC:
+            return timer_queue;
+        default:
+            DASYNQ_UNREACHABLE;
+        }
     }
 
     public:
@@ -182,16 +139,8 @@ template <class Base> class TimerFdEvents : public Base
     // Add timer, store into given handle
     void addTimer(timer_handle_t &h, void *userdata, clock_type clock = clock_type::MONOTONIC)
     {
-        switch(clock) {
-        case clock_type::SYSTEM:
-            wallclock_queue.allocate(h, userdata);
-            break;
-        case clock_type::MONOTONIC:
-            timer_queue.allocate(h, userdata);
-            break;
-        default:
-            DASYNQ_UNREACHABLE;
-        }
+        timer_queue_t & queue = get_queue(clock);
+        queue.allocate(h, userdata);
     }
     
     void removeTimer(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
@@ -201,24 +150,26 @@ template <class Base> class TimerFdEvents : public Base
     
     void removeTimer_nolock(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
     {
-        switch(clock) {
-        case clock_type::SYSTEM:
-            if (wallclock_queue.is_queued(timer_id)) {
-                wallclock_queue.remove(timer_id);
-            }
-            wallclock_queue.deallocate(timer_id);
-            break;
-        case clock_type::MONOTONIC:
-            if (timer_queue.is_queued(timer_id)) {
-                timer_queue.remove(timer_id);
-            }
-            timer_queue.deallocate(timer_id);
-            break;
-        default:
-            DASYNQ_UNREACHABLE;
+        timer_queue_t & queue = get_queue(clock);
+        if (queue.is_queued(timer_id)) {
+            queue.remove(timer_id);
+        }
+        queue.deallocate(timer_id);
+    }
+
+    void stop_timer(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
+    {
+        stop_timer_nolock(timer_id, clock);
+    }
+
+    void stop_timer_nolock(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
+    {
+        timer_queue_t & queue = get_queue(clock);
+        if (queue.is_queued(timer_id)) {
+            queue.remove(timer_id);
         }
     }
-    
+
     // starts (if not started) a timer to timeout at the given time. Resets the expiry count to 0.
     //   enable: specifies whether to enable reporting of timeouts/intervals
     void setTimer(timer_handle_t & timer_id, struct timespec &timeout, struct timespec &interval,
@@ -273,15 +224,16 @@ template <class Base> class TimerFdEvents : public Base
     
     void enableTimer_nolock(timer_handle_t & timer_id, bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
-        switch (clock) {
-        case clock_type::SYSTEM:
-            wallclock_queue.node_data(timer_id).enabled = enable;
-            break;
-        case clock_type::MONOTONIC:
-            timer_queue.node_data(timer_id).enabled = enable;
-            break;
-        default:
-            DASYNQ_UNREACHABLE;
+        timer_queue_t & queue = get_queue(clock);
+
+        auto &node_data = queue.node_data(timer_id);
+        auto expiry_count = node_data.expiry_count;
+        if (expiry_count != 0) {
+            node_data.expiry_count = 0;
+            Base::receiveTimerExpiry(timer_id, node_data.userdata, expiry_count);
+        }
+        else {
+            queue.node_data(timer_id).enabled = enable;
         }
     }
 

@@ -5,48 +5,43 @@
 #include <time.h>
 
 #include "dasynq-timerbase.h"
-#include "dasynq-binaryheap.h"
 
 namespace dasynq {
 
 // Timer implementation based on the (basically obselete) POSIX itimer interface.
 
-template <class Base> class ITimerEvents : public Base
+template <class Base> class ITimerEvents : public timer_base<Base>
 {
     private:
     int timerfd_fd = -1;
 
-    BinaryHeap<TimerData, struct timespec, CompareTimespec> timer_queue;
+    timer_queue_t timer_queue;
     
 #if defined(__APPLE__)
 #define itimerspec itimerval
 #endif
-    
-    static int divide_timespec(const struct timespec &num, const struct timespec &den)
-    {
-        // TODO
-        return 0;
-    }
     
     // Set the timerfd timeout to match the first timer in the queue (disable the timerfd
     // if there are no active timers).
     void set_timer_from_queue()
     {
         struct itimerspec newtime;
+        struct itimerval newalarm;
         if (timer_queue.empty()) {
-            newtime.it_value = {0, 0};
-            newtime.it_interval = {0, 0};
+            newalarm.it_value = {0, 0};
+            newalarm.it_interval = {0, 0};
+            setitimer(ITIMER_REAL, &newalarm, nullptr);
+            return;
         }
-        else {
+
 #if defined(__APPLE__)
-            auto &rp = timer_queue.get_root_priority();
-            newtime.it_value.tv_sec = rp.tv_sec;
-            newtime.it_value.tv_usec = rp.tv_nsec / 1000;
+        auto &rp = timer_queue.get_root_priority();
+        newtime.it_value.tv_sec = rp.tv_sec;
+        newtime.it_value.tv_usec = rp.tv_nsec / 1000;
 #else
-            newtime.it_value = timer_queue.get_root_priority();
-            newtime.it_interval = {0, 0};
+        newtime.it_value = timer_queue.get_root_priority();
+        newtime.it_interval = {0, 0};
 #endif
-        }
         
         struct timespec curtime;
 #if defined(__APPLE__)
@@ -57,7 +52,6 @@ template <class Base> class ITimerEvents : public Base
 #else
         clock_gettime(CLOCK_MONOTONIC, &curtime);
 #endif
-        struct itimerval newalarm;
         newalarm.it_interval = {0, 0};
         newalarm.it_value.tv_sec = newtime.it_value.tv_sec - curtime.tv_sec;
 #if defined(__APPLE__)
@@ -95,58 +89,11 @@ template <class Base> class ITimerEvents : public Base
             // should we use the REALTIME clock instead? I have no idea :/
 #endif
             
-            // Peek timer queue; calculate difference between current time and timeout
-            struct timespec * timeout = &timer_queue.get_root_priority();
-            while (timeout->tv_sec < curtime.tv_sec || (timeout->tv_sec == curtime.tv_sec &&
-                    timeout->tv_nsec <= curtime.tv_nsec)) {
-                // Increment expiry count
-                timer_queue.node_data(timer_queue.get_root()).expiry_count++;
-                // (a periodic timer may have overrun; calculated below).
-                
-                auto thandle = timer_queue.get_root();
-                TimerData &data = timer_queue.node_data(thandle);
-                timespec &interval = data.interval_time;
-                if (interval.tv_sec == 0 && interval.tv_nsec == 0) {
-                    // Non periodic timer
-                    timer_queue.pull_root();
-                    if (data.enabled) {
-                        int expiry_count = data.expiry_count;
-                        data.expiry_count = 0;
-                        Base::receiveTimerExpiry(thandle, timer_queue.node_data(thandle).userdata, expiry_count);
-                    }
-                    if (timer_queue.empty()) {
-                        break;
-                    }
-                }
-                else {
-                    // Periodic timer TODO
-                    // First calculate the overrun in time:
-                    /*
-                    struct timespec diff;
-                    diff.tv_sec = curtime.tv_sec - timeout->tv_sec;
-                    diff.tv_nsec = curtime.tv_nsec - timeout->tv_nsec;
-                    if (diff.tv_nsec < 0) {
-                        diff.tv_nsec += 1000000000;
-                        diff.tv_sec--;
-                    }
-                    */
-                    // Now we have to divide the time overrun by the period to find the
-                    // interval overrun. This requires a division of a value not representable
-                    // as a long...
-                    // TODO use divide_timespec
-                    // TODO better not to remove from queue maybe, but instead mark as inactive,
-                    // adjust timeout, and bubble into correct position
-                    // call Base::receieveTimerEvent
-                    // TODO
-                }
-                
-                // repeat until all expired timeouts processed
-                // timeout = &timer_queue[0].timeout;
-                //  (shouldn't be necessary; address hasn't changed...)
-            }
+            timer_base<Base>::process_timer_queue(timer_queue, curtime);
+
             // arm timerfd with timeout from head of queue
             set_timer_from_queue();
-            loop_mech.rearmSignalWatch_nolock(SIGALRM);
+            // loop_mech.rearmSignalWatch_nolock(SIGALRM);
             return false; // don't disable signal watch
         }
         else {
@@ -241,7 +188,31 @@ template <class Base> class ITimerEvents : public Base
     
     void enableTimer_nolock(timer_handle_t &timer_id, bool enable, clock_type = clock_type::MONOTONIC) noexcept
     {
-        timer_queue.node_data(timer_id).enabled = enable;
+        auto &node_data = timer_queue.node_data(timer_id);
+        auto expiry_count = node_data.expiry_count;
+        if (expiry_count != 0) {
+            node_data.expiry_count = 0;
+            Base::receiveTimerExpiry(timer_id, node_data.userdata, expiry_count);
+        }
+        else {
+            timer_queue.node_data(timer_id).enabled = enable;
+        }
+    }
+
+    void stop_timer(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
+    {
+        stop_timer_nolock(timer_id, clock);
+    }
+
+    void stop_timer_nolock(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
+    {
+        if (timer_queue.is_queued(timer_id)) {
+            bool was_first = (&timer_queue.get_root()) == &timer_id;
+            timer_queue.remove(timer_id);
+            if (was_first) {
+                set_timer_from_queue();
+            }
+        }
     }
 };
 

@@ -156,6 +156,16 @@ class svector
     {
         return array[size_v - 1];
     }
+
+    T* begin() const
+    {
+        return array;
+    }
+
+    T* end() const
+    {
+        return array + size_v;
+    }
 };
 
 

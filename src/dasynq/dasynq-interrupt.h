@@ -16,7 +16,7 @@ namespace dasynq {
 template <typename Base, typename Mutex = typename Base::mutex_t> class interrupt_channel;
 
 // In the non-multi-thread case, this doesn't need to be supported:
-template <typename Base> class interrupt_channel<Base, NullMutex> : public Base
+template <typename Base> class interrupt_channel<Base, null_mutex> : public Base
 {
     public:
     void interrupt_wait()

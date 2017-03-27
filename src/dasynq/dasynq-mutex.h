@@ -38,7 +38,7 @@ class DMutex
 using DMutex = std::mutex;
 
 // A "null" mutex, for which locking / unlocking actually does nothing.
-class NullMutex
+class null_mutex
 {
     DASYNQ_EMPTY_BODY
     

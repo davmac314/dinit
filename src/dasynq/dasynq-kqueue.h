@@ -224,10 +224,13 @@ template <class Base> class KqueueLoop : public Base
         close(kqfd);
     }
     
-    void setFilterEnabled(short filterType, uintptr_t ident, bool enable)
+    void setFilterEnabled(short filterType, uintptr_t ident, void *udata, bool enable)
     {
+    	// Note, on OpenBSD enabling or disabling filter will not alter the filter parameters (udata etc);
+        // on OS X however, it will. Therefore we set udata here (to the same value as it was originally
+        // set) in order to work correctly on both kernels.
         struct kevent kev;
-        EV_SET(&kev, ident, filterType, enable ? EV_ENABLE : EV_DISABLE, 0, 0, 0);
+        EV_SET(&kev, ident, filterType, enable ? EV_ENABLE : EV_DISABLE, 0, 0, udata);
         kevent(kqfd, &kev, 1, nullptr, 0, nullptr);
     }
     
@@ -290,7 +293,7 @@ template <class Base> class KqueueLoop : public Base
     
     void enableFdWatch(int fd, void *userdata, int flags)
     {
-        setFilterEnabled((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd, true);
+        setFilterEnabled((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd, userdata, true);
     }
     
     void enableFdWatch_nolock(int fd, void *userdata, int flags)
@@ -300,7 +303,7 @@ template <class Base> class KqueueLoop : public Base
     
     void disableFdWatch(int fd, int flags)
     {
-        setFilterEnabled((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd, false);
+        setFilterEnabled((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd, nullptr, false);
     }
     
     void disableFdWatch_nolock(int fd, int flags)

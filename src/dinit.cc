@@ -37,7 +37,7 @@
 
 
 using namespace dasynq;
-using EventLoop_t = event_loop<NullMutex>;
+using EventLoop_t = event_loop<null_mutex>;
 
 EventLoop_t eventLoop = EventLoop_t();
 
@@ -52,9 +52,10 @@ void open_control_socket(bool report_ro_failure = true) noexcept;
 void setup_external_log() noexcept;
 
 
-class ControlSocketWatcher : public EventLoop_t::fd_watcher
+class ControlSocketWatcher : public EventLoop_t::fd_watcher_impl<ControlSocketWatcher>
 {
-    rearm fd_event(EventLoop_t &loop, int fd, int flags) override
+    public:
+    rearm fd_event(EventLoop_t &loop, int fd, int flags) noexcept
     {
         control_socket_cb(&loop, fd);
         return rearm::REARM;
@@ -102,7 +103,7 @@ const char * get_user_home()
 
 
 namespace {
-    class CallbackSignalHandler : public EventLoop_t::signal_watcher
+    class CallbackSignalHandler : public EventLoop_t::signal_watcher_impl<CallbackSignalHandler>
     {
         public:
         typedef void (*cb_func_t)(EventLoop_t *);
@@ -119,16 +120,16 @@ namespace {
             this->cb_func = cb_func;
         }
         
-        rearm received(EventLoop_t &eloop, int signo, SigInfo_p siginfo) override
+        rearm received(EventLoop_t &eloop, int signo, siginfo_p siginfo)
         {
             service_set->stop_all_services(ShutdownType::REBOOT);
             return rearm::REARM;
         }
     };
 
-    class ControlSocketWatcher : public EventLoop_t::fd_watcher
+    class ControlSocketWatcher : public EventLoop_t::fd_watcher_impl<ControlSocketWatcher>
     {
-        rearm fd_event(EventLoop_t &loop, int fd, int flags) override
+        rearm fd_event(EventLoop_t &loop, int fd, int flags)
         {
             control_socket_cb(&loop, fd);
             return rearm::REARM;
@@ -288,7 +289,7 @@ int main(int argc, char **argv)
         sigquit_watcher.setCbFunc(sigterm_cb);
     }
     
-    auto sigterm_watcher = CallbackSignalHandler(sigterm_cb);
+    CallbackSignalHandler sigterm_watcher {sigterm_cb};
     
     sigint_watcher.add_watch(eventLoop, SIGINT);
     sigquit_watcher.add_watch(eventLoop, SIGQUIT);
