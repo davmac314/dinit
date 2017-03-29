@@ -64,7 +64,7 @@ void ServiceSet::stopService(const std::string & name) noexcept
     }
 }
 
-// Called when a service has actually stopped.
+// Called when a service has actually stopped; dependents have stopped already.
 void ServiceRecord::stopped() noexcept
 {
     if (service_type != ServiceType::SCRIPTED && service_type != ServiceType::BGPROCESS && onstart_flags.runs_on_console) {
@@ -73,20 +73,10 @@ void ServiceRecord::stopped() noexcept
         releaseConsole();
     }
 
-    service_state = ServiceState::STOPPED;
     force_stop = false;
-    
-    logServiceStopped(service_name);
-    notifyListeners(ServiceEvent::STOPPED);
-    
-    bool will_restart = (desired_state == ServiceState::STARTED) && service_set->get_auto_restart();
-    for (auto dependency : depends_on) {
-        if (! will_restart || ! dependency->can_interrupt_stop()) {
-            dependency->dependentStopped();
-        }
-    }
-    
+
     // If we are a soft dependency of another target, break the acquisition from that target now:
+    bool will_restart = (desired_state == ServiceState::STARTED) && service_set->get_auto_restart();
     if (! will_restart) {
         for (auto dependency : soft_dpts) {
             if (dependency->holding_acq) {
@@ -95,14 +85,20 @@ void ServiceRecord::stopped() noexcept
             }
         }
     }
-    
+
+    will_restart &= (desired_state == ServiceState::STARTED);
+    for (auto dependency : depends_on) {
+        if (! will_restart || ! dependency->can_interrupt_stop()) {
+            dependency->dependentStopped();
+        }
+    }
+
     if (will_restart) {
         // Desired state is "started".
+        service_state = ServiceState::STOPPED;
         service_set->addToStartQueue(this);
     }
     else {
-        desired_state = ServiceState::STOPPED;
-        
         if (socket_fd != -1) {
             close(socket_fd);
             socket_fd = -1;
@@ -110,14 +106,19 @@ void ServiceRecord::stopped() noexcept
         
         if (start_explicit) {
             start_explicit = false;
-            required_by--;
+            release();
         }
         
+        service_state = ServiceState::STOPPED;
         if (required_by == 0) {
-            // Service is now completely inactive.
-            release_dependencies();
+            // Since state wasn't STOPPED until now, any release performed above won't have marked
+            // the service inactive. We check for that now:
+            service_set->service_inactive(this);
         }
     }
+
+    logServiceStopped(service_name);
+    notifyListeners(ServiceEvent::STOPPED);
 }
 
 dasynq::rearm ServiceChildWatcher::child_status(EventLoop_t &loop, pid_t child, int status) noexcept
@@ -327,14 +328,15 @@ void ServiceRecord::release() noexcept
 {
     if (--required_by == 0) {
         desired_state = ServiceState::STOPPED;
-        // Can stop, and release dependencies once we're stopped.
-        if (service_state == ServiceState::STOPPED) {
-            prop_release = true;
-            prop_require = false;
-            service_set->addToPropQueue(this);
+        // Can stop, and can release dependencies now:
+        prop_release = true;
+        prop_require = false;
+        service_set->addToPropQueue(this);
+        if (service_state != ServiceState::STOPPED) {
+            service_set->addToStopQueue(this);
         }
         else {
-            service_set->addToStopQueue(this);
+            service_set->service_inactive(this);
         }
     }
 }
@@ -352,8 +354,6 @@ void ServiceRecord::release_dependencies() noexcept
             i->holding_acq = false;
         }
     }
-    
-    service_set->service_inactive(this);
 }
 
 void ServiceRecord::start(bool activate) noexcept
@@ -987,10 +987,10 @@ void ServiceRecord::do_stop() noexcept
             return;
         }
     }
-    
+
     service_state = ServiceState::STOPPING;
     waiting_for_deps = true;
-    
+
     // If we get here, we are in STARTED state; stop all dependents.
     if (stopDependents()) {
         allDepsStopped();
@@ -1021,14 +1021,10 @@ bool ServiceRecord::stopDependents() noexcept
             //    check is run anyway.
             all_deps_stopped = false;
         }
-        if (force_stop) {
-            (*i)->forceStop();
-        }
-        else {
-            service_set->addToStopQueue(*i);
-        }
+
+        (*i)->forceStop();
     }
-    
+
     return all_deps_stopped;
 }
 

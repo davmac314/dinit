@@ -68,6 +68,17 @@
  *  - desired state (which is manipulated by require/release operations)
  *
  * So a forced stop cannot occur until the service is not pinned started, for instance.
+ *
+ * Two-phase transition
+ * --------------------
+ * Transition between states occurs in two phases: propagation and execution. In the
+ * propagation phase, acquisition/release messages are processed, and desired state may be
+ * altered accordingly. Desired state of dependencies/dependents should not be examined in
+ * this phase, since it may change during the phase (i.e. its current value at any point
+ * may not reflect the true final value).
+ *
+ * In the execution phase, actions are taken to achieve the desired state. Actual state may
+ * transition according to the current and desired states.
  */
 
 struct OnstartFlags {
@@ -338,10 +349,10 @@ class ServiceRecord
     
     // Open the activation socket, return false on failure
     bool open_socket() noexcept;
-    
+
     // Check whether dependencies have started, and optionally ask them to start
     bool startCheckDependencies(bool do_start) noexcept;
-    
+
     // Whether a STARTING service can immediately transition to STOPPED (as opposed to
     // having to wait for it reach STARTED and then go through STOPPING).
     bool can_interrupt_start() noexcept
@@ -354,10 +365,6 @@ class ServiceRecord
     {
         return waiting_for_deps && ! force_stop;
     }
-
-    // Notify dependencies that we no longer need them,
-    // (if this is actually the case).
-    void notify_dependencies_stopped() noexcept;
 
     // A dependent has reached STOPPED state
     void dependentStopped() noexcept;
