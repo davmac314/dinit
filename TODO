@@ -1,3 +1,26 @@
+* service "active" state is currently a combination of explicit marking and
+  state of dependents. I.e. a service is "active" if it has a running
+  dependent. This means it may restart automatically if it dies for some
+  reason (via normal restart or smooth recovery).
+      However, this is not always ideal. Sometimes the dependent is only
+  running because it is waiting for its own dependents to stop; that is,
+  there is no dependent further down the hierarchy that is explicitly
+  marked active. In that case, we don't really want to restart the service
+  that happened to die (unless and until a dependent becomes active).
+      The key here is to set the desired state to STOPPED earlier. When a
+  service is stopping all its dependencies which aren't otherwise required
+  should also go into STOPPING state (but should not actually start stopping
+  until the dependent is stopped). The means counting the two types of
+  require - require from running service vs require from stopping service -
+  separately.
+
+* shutdown command presently hangs if terminal output blocked (scroll lock
+  via ^S). Should use a buffer as dinit does, and pipe output from subcommands
+  via the buffer too.
+
+* Document utilities (particularly dinitctl) in the README
+
+
 For version 1.0:
 ----------------
 * Documentation including sample service definitions
@@ -11,8 +34,11 @@ For version 1.0:
   should trigger failed-to-start notification.
 * "triggered" service type: external process notifies Dinit when the service
   has started.
+* Ability to reload stopped services (reload service description)
+
 
 For later:
+----------
 * On linux when running with PID != 1, write PID to /proc/sys/kernel/cad_pid so
   that we still receive SIGINT from ctrl+alt+del (must be done after /proc is
   mounted, possibly could be left to a service script)
@@ -40,12 +66,13 @@ For later:
 * Allow logging tasks to memory (growing or circular buffer) and later
   switching to disk logging (allows for filesystem mounted readonly on boot).
   But perhaps this really the responsibility of another daemon.
-* Rate control on process respawn
 * Allow running services with different resource limits, chroot, cgroups,
   namespaces (pid/fs/uid), etc
 * Make default control socket location build-time configurable
 * Allow specifying a timeout for killing services; if they don't die within
   the timeout (after a TERM) then hit them with a KILL.
+* A (perhaps limited) way(s) to modify a service description after it is loaded -
+  eg add/remove dependencies, change properties.
 
 Even later / Maybe never:
 * Support recognising /etc/init.d services automatically (as script services, with
