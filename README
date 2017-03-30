@@ -1,6 +1,6 @@
 Dinit
 -----
-v0.04 (pre-release)
+v0.05 (pre-release)
 
 
 What is it?
@@ -246,3 +246,71 @@ options = ( runs-on-console | nosigterm | starts-rwfs | starts-log ) ...
               receives the control socket must close it before launching any
               untrusted processes. You should not use this option unless the
               service is designed to receive a Dinit control socket.
+
+
+Controlling services
+=-=-=-=-=-=-=-=-=-=-
+
+You can use the "dinitctl" to start and stop services. Typical invocations
+are:
+
+    dinitctl start <service-name>
+    dinitctl stop <service-name>
+    dinitctl release <service-name>
+
+Note that a "start" markes the service active, as well as starting it if it is
+not already started; the opposite of this is actually "release", which clears
+the active mark and stops it if it has no active dependent services. The "stop"
+command by default acts as a "release" which also forces the service to stop
+(although it may then immediately restart, depending on how it and its
+dependents are configured).
+
+Use the "-s" switch to talk the "system" instance of dinit, rather than a
+personal instance, e.g:
+
+    dinitctl -s start mysql   # start system mysql service
+
+For complete details on the command line, use:
+
+    dinitctl --help
+
+You can "pin" a service in either the stopped or started state, which prevents
+it from changing state either due to a dependency/dependent or a direct
+command:
+
+    dinitctl -s start --pin mysql  # start mysql service, pin it as "started"
+    dinitctl -s stop mysql  # issues stop, but doesn't take effect due to pin
+    dinitctl -s unpin mysql # release pin; service will now stop
+
+You can pin a service in the stopped state in order to make sure it doesn't
+get started accidentally (either via a dependency or directly). You can also
+use it to temporarily keep stopped a service that would otherwise restart
+immediately when you stopped it (because it, or a dependent, is configured
+to restart automatically).
+
+Finally, you can list the state of all loaded services:
+
+    dinitctl -s list
+
+This may result in something like the following:
+
+    [{+}     ] boot
+    [{+}     ] tty1
+    [{+}     ] tty2
+    [{+}     ] tty3
+    [{+}     ] tty4
+    [{+}     ] loginready
+    [{+}     ] rcboot
+    [{+}     ] filesystems
+    [{+}     ] udevd
+    [     {-}] mysql
+
+The above represents a number of started services and one stopped service
+(mysql). Services transitioning state (starting or stopping) are displayed
+with an arrow indicating the transition direction:
+
+    [   <<{-}] mysql     # starting
+    [{+}>>   ] mysql     # stopping
+
+Remember that a "starting" service may be waiting for its dependencies to
+start, and a "stopping" service may be waiting for its dependencies to stop.
