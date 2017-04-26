@@ -265,6 +265,7 @@ template <class Base> class EpollLoop : public Base
             // as we see them.
             if (epoll_ctl(epfd, EPOLL_CTL_ADD, sigfd, &epevent) == -1) {
                 close(sigfd);
+                sigfd = -1;
                 throw new std::system_error(errno, std::system_category());        
             }
         }

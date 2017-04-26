@@ -157,14 +157,24 @@ class svector
         return array[size_v - 1];
     }
 
-    T* begin() const
+    T* begin()
     {
         return array;
     }
+    
+    const T *begin() const
+    {
+    	return array;
+    }
 
-    T* end() const
+    T* end()
     {
         return array + size_v;
+    }
+    
+    const T *end() const
+    {
+    	return array + size_v;
     }
 };
 

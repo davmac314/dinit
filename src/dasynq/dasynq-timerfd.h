@@ -65,6 +65,8 @@ template <class Base> class TimerFdEvents : public timer_base<Base>
     void setTimer(timer_handle_t & timer_id, struct timespec &timeout, struct timespec &interval,
             timer_queue_t &queue, int fd, bool enable) noexcept
     {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
+
         auto &ts = queue.node_data(timer_id);
         ts.interval_time = interval;
         ts.expiry_count = 0;
@@ -81,8 +83,6 @@ template <class Base> class TimerFdEvents : public timer_base<Base>
                 set_timer_from_queue(fd, queue);
             }
         }
-
-        // TODO locking (here and everywhere)
     }
 
     timer_queue_t & get_queue(clock_type clock)
@@ -139,12 +139,14 @@ template <class Base> class TimerFdEvents : public timer_base<Base>
     // Add timer, store into given handle
     void addTimer(timer_handle_t &h, void *userdata, clock_type clock = clock_type::MONOTONIC)
     {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         timer_queue_t & queue = get_queue(clock);
         queue.allocate(h, userdata);
     }
     
     void removeTimer(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         removeTimer_nolock(timer_id, clock);
     }
     
@@ -159,6 +161,7 @@ template <class Base> class TimerFdEvents : public timer_base<Base>
 
     void stop_timer(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         stop_timer_nolock(timer_id, clock);
     }
 
@@ -219,6 +222,7 @@ template <class Base> class TimerFdEvents : public timer_base<Base>
     // Enables or disabling report of timeouts (does not stop timer)
     void enableTimer(timer_handle_t & timer_id, bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         enableTimer_nolock(timer_id, enable, clock);
     }
     

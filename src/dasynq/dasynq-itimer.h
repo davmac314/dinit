@@ -17,15 +17,11 @@ template <class Base> class ITimerEvents : public timer_base<Base>
 
     timer_queue_t timer_queue;
     
-#if defined(__APPLE__)
-#define itimerspec itimerval
-#endif
-    
     // Set the timerfd timeout to match the first timer in the queue (disable the timerfd
     // if there are no active timers).
     void set_timer_from_queue()
     {
-        struct itimerspec newtime;
+        struct timespec newtime;
         struct itimerval newalarm;
         if (timer_queue.empty()) {
             newalarm.it_value = {0, 0};
@@ -34,14 +30,7 @@ template <class Base> class ITimerEvents : public timer_base<Base>
             return;
         }
 
-#if defined(__APPLE__)
-        auto &rp = timer_queue.get_root_priority();
-        newtime.it_value.tv_sec = rp.tv_sec;
-        newtime.it_value.tv_usec = rp.tv_nsec / 1000;
-#else
-        newtime.it_value = timer_queue.get_root_priority();
-        newtime.it_interval = {0, 0};
-#endif
+        newtime = timer_queue.get_root_priority();
         
         struct timespec curtime;
 #if defined(__APPLE__)
@@ -53,22 +42,15 @@ template <class Base> class ITimerEvents : public timer_base<Base>
         clock_gettime(CLOCK_MONOTONIC, &curtime);
 #endif
         newalarm.it_interval = {0, 0};
-        newalarm.it_value.tv_sec = newtime.it_value.tv_sec - curtime.tv_sec;
-#if defined(__APPLE__)
-        newalarm.it_value.tv_usec = newtime.it_value.tv_usec - curtime.tv_nsec / 1000;
-#else
-        newalarm.it_value.tv_usec = (newtime.it_value.tv_nsec - curtime.tv_nsec) / 1000;
-#endif
+        newalarm.it_value.tv_sec = newtime.tv_sec - curtime.tv_sec;
+        newalarm.it_value.tv_usec = (newtime.tv_nsec - curtime.tv_nsec) / 1000;
+
         if (newalarm.it_value.tv_usec < 0) {
             newalarm.it_value.tv_usec += 1000000;
             newalarm.it_value.tv_sec--;
         }
         setitimer(ITIMER_REAL, &newalarm, nullptr);
     }
-
-#if defined(__APPLE__)
-#undef itimerspec
-#endif
     
     protected:
     
@@ -115,11 +97,13 @@ template <class Base> class ITimerEvents : public timer_base<Base>
 
     void addTimer(timer_handle_t &h, void *userdata, clock_type clock = clock_type::MONOTONIC)
     {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         timer_queue.allocate(h, userdata);
     }
     
     void removeTimer(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         removeTimer_nolock(timer_id, clock);
     }
     
@@ -136,12 +120,13 @@ template <class Base> class ITimerEvents : public timer_base<Base>
     void setTimer(timer_handle_t &timer_id, struct timespec &timeout, struct timespec &interval,
             bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
+
         auto &ts = timer_queue.node_data(timer_id);
         ts.interval_time = interval;
         ts.expiry_count = 0;
+        ts.enabled = enable;
 
-        // TODO also update interval / enabled
-        
         if (timer_queue.is_queued(timer_id)) {
             // Already queued; alter timeout
             if (timer_queue.set_priority(timer_id, timeout)) {
@@ -153,8 +138,6 @@ template <class Base> class ITimerEvents : public timer_base<Base>
                 set_timer_from_queue();
             }
         }
-        
-        // TODO locking (here and everywhere)
     }
 
     // Set timer relative to current time:    
@@ -183,6 +166,7 @@ template <class Base> class ITimerEvents : public timer_base<Base>
     // Enables or disabling report of timeouts (does not stop timer)
     void enableTimer(timer_handle_t &timer_id, bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         enableTimer_nolock(timer_id, enable, clock);
     }
     
@@ -201,6 +185,7 @@ template <class Base> class ITimerEvents : public timer_base<Base>
 
     void stop_timer(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         stop_timer_nolock(timer_id, clock);
     }
 
