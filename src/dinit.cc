@@ -17,6 +17,7 @@
 #include "service.h"
 #include "control.h"
 #include "dinit-log.h"
+#include "dinit-socket.h"
 
 #ifdef __linux__
 #include <sys/klog.h>
@@ -410,7 +411,7 @@ static void control_socket_cb(EventLoop_t *loop, int sockfd)
     // it once it falls below the maximum.
 
     // Accept a connection
-    int newfd = accept4(sockfd, nullptr, nullptr, SOCK_NONBLOCK | SOCK_CLOEXEC);
+    int newfd = dinit_accept4(sockfd, nullptr, nullptr, SOCK_NONBLOCK | SOCK_CLOEXEC);
 
     if (newfd != -1) {
         try {
@@ -447,7 +448,7 @@ void open_control_socket(bool report_ro_failure) noexcept
 
         // OpenBSD and Linux both allow combining NONBLOCK/CLOEXEC flags with socket type, however
         // it's not actually POSIX. (TODO).
-        int sockfd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+        int sockfd = dinit_socket(AF_UNIX, SOCK_STREAM, 0, SOCK_NONBLOCK | SOCK_CLOEXEC);
         if (sockfd == -1) {
             log(LogLevel::ERROR, "Error creating control socket: ", strerror(errno));
             free(name);
@@ -520,7 +521,7 @@ void setup_external_log() noexcept
         name->sun_family = AF_UNIX;
         memcpy(name->sun_path, saddrname, saddrname_len + 1);
         
-        int sockfd = socket(AF_UNIX, SOCK_DGRAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+        int sockfd = dinit_socket(AF_UNIX, SOCK_DGRAM, 0, SOCK_NONBLOCK | SOCK_CLOEXEC);
         if (sockfd == -1) {
             log(LogLevel::ERROR, "Error creating log socket: ", strerror(errno));
             free(name);

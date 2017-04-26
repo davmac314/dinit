@@ -16,6 +16,7 @@
 
 #include "service.h"
 #include "dinit-log.h"
+#include "dinit-socket.h"
 
 /*
  * service.cc - Service management.
@@ -530,7 +531,7 @@ bool ServiceRecord::open_socket() noexcept
     name->sun_family = AF_UNIX;
     strcpy(name->sun_path, saddrname);
 
-    int sockfd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+    int sockfd = dinit_socket(AF_UNIX, SOCK_STREAM, 0, SOCK_NONBLOCK | SOCK_CLOEXEC);
     if (sockfd == -1) {
         log(LogLevel::ERROR, service_name, ": Error creating activation socket: ", strerror(errno));
         free(name);
@@ -743,7 +744,7 @@ bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool 
     
     int control_socket[2] = {-1, -1};
     if (onstart_flags.pass_cs_fd) {
-        if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, /* protocol */ 0, control_socket)) {
+        if (dinit_socketpair(AF_UNIX, SOCK_STREAM, /* protocol */ 0, control_socket, SOCK_NONBLOCK)) {
             log(LogLevel::ERROR, service_name, ": can't create control socket: ", strerror(errno));
             goto out_p;
         }
