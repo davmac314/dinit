@@ -143,7 +143,7 @@ dasynq::rearm ServiceChildWatcher::child_status(EventLoop_t &loop, pid_t child, 
     // Must deregister now since handle_exit_status might result in re-launch:
     deregister(loop, child);
     
-    sr->handle_exit_status();
+    sr->handle_exit_status(status);
     return rearm::REMOVED;
 }
 
@@ -155,12 +155,105 @@ bool ServiceRecord::do_auto_restart() noexcept
     return false;
 }
 
-void ServiceRecord::handle_exit_status() noexcept
+void ServiceRecord::handle_exit_status(int exit_status) noexcept
 {
     bool did_exit = WIFEXITED(exit_status);
     bool was_signalled = WIFSIGNALED(exit_status);
 
     if (service_type != ServiceType::SCRIPTED && exit_status != 0 && service_state != ServiceState::STOPPING) {
+        if (did_exit) {
+            log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ", WEXITSTATUS(exit_status));
+        }
+        else if (was_signalled) {
+            log(LogLevel::ERROR, "Service ", service_name, " terminated due to signal ", WTERMSIG(exit_status));
+        }
+    }
+    
+    // BGPROCESS and PROCESS override this method; we must be a SCRIPTED service.
+    if (service_state == ServiceState::STOPPING) {
+        if (did_exit && WEXITSTATUS(exit_status) == 0) {
+            stopped();
+        }
+        else {
+            // ??? failed to stop! Let's log it as info:
+            if (did_exit) {
+                log(LogLevel::INFO, "Service ", service_name, " stop command failed with exit code ", WEXITSTATUS(exit_status));
+            }
+            else if (was_signalled) {
+                log(LogLevel::INFO, "Serivice ", service_name, " stop command terminated due to signal ", WTERMSIG(exit_status));
+            }
+            // Just assume that we stopped, so that any dependencies
+            // can be stopped:
+            stopped();
+        }
+        service_set->processQueues(false);
+    }
+    else { // STARTING
+        if (exit_status == 0) {
+            started();
+        }
+        else {
+            // failed to start
+            if (did_exit) {
+                log(LogLevel::ERROR, "Service ", service_name, " command failed with exit code ", WEXITSTATUS(exit_status));
+            }
+            else if (was_signalled) {
+                log(LogLevel::ERROR, "Service ", service_name, " command terminated due to signal ", WTERMSIG(exit_status));
+            }
+            failed_to_start();
+        }
+        service_set->processQueues(true);
+    }
+}
+
+void process_service::handle_exit_status(int exit_status) noexcept
+{
+    bool did_exit = WIFEXITED(exit_status);
+    bool was_signalled = WIFSIGNALED(exit_status);
+
+    if (exit_status != 0 && service_state != ServiceState::STOPPING) {
+        if (did_exit) {
+            log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ", WEXITSTATUS(exit_status));
+        }
+        else if (was_signalled) {
+            log(LogLevel::ERROR, "Service ", service_name, " terminated due to signal ", WTERMSIG(exit_status));
+        }
+    }
+
+    if (service_state == ServiceState::STARTING) {
+        if (did_exit && WEXITSTATUS(exit_status) == 0) {
+            started();
+        }
+        else {
+            failed_to_start();
+        }
+    }
+    else if (service_state == ServiceState::STOPPING) {
+        // We won't log a non-zero exit status or termination due to signal here -
+        // we assume that the process died because we signalled it.
+        stopped();
+    }
+    else if (smooth_recovery && service_state == ServiceState::STARTED && desired_state == ServiceState::STARTED) {
+        // TODO ensure a minimum time between restarts
+        // TODO if we are pinned-started then we should probably check
+        //      that dependencies have started before trying to re-start the
+        //      service process.
+        start_ps_process();
+        return;
+    }
+    else {
+        if (! do_auto_restart()) desired_state = ServiceState::STOPPED;
+        forceStop();
+    }
+    service_set->processQueues(false);
+}
+
+void bgproc_service::handle_exit_status(int exit_status) noexcept
+{
+    bool did_exit = WIFEXITED(exit_status);
+    bool was_signalled = WIFSIGNALED(exit_status);
+
+    if (exit_status != 0 && service_state != ServiceState::STOPPING) {
         if (did_exit) {
             log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ", WEXITSTATUS(exit_status));
         }
@@ -184,83 +277,46 @@ void ServiceRecord::handle_exit_status() noexcept
                 }
             }
         }
-        
+
         if (need_stop) {
             // Failed startup: no auto-restart.
             desired_state = ServiceState::STOPPED;
             forceStop();
             service_set->processQueues(false);
         }
-        
+
         return;
     }
-    
-    if (service_type == ServiceType::PROCESS || service_type == ServiceType::BGPROCESS) {
-        if (service_state == ServiceState::STARTING) {
-            // (only applies to BGPROCESS)
-            if (did_exit && WEXITSTATUS(exit_status) == 0) {
-                started();
-            }
-            else {
-                failed_to_start();
-            }
-        }
-        else if (service_state == ServiceState::STOPPING) {
-            // We won't log a non-zero exit status or termination due to signal here -
-            // we assume that the process died because we signalled it.
-            stopped();
-        }
-        else if (smooth_recovery && service_state == ServiceState::STARTED && desired_state == ServiceState::STARTED) {
-            // TODO ensure a minimum time between restarts
-            // TODO if we are pinned-started then we should probably check
-            //      that dependencies have started before trying to re-start the
-            //      service process.
-            doing_recovery = (service_type == ServiceType::BGPROCESS);
-            start_ps_process();
-            return;
+
+    if (service_state == ServiceState::STARTING) {
+        // POSIX requires that if the process exited clearly with a status code of 0,
+        // the exit status value will be 0:
+        if (exit_status == 0) {
+            started();
         }
         else {
-            if (! do_auto_restart()) desired_state = ServiceState::STOPPED;
-            forceStop();
-        }
-        service_set->processQueues(false);
-    }
-    else {  // SCRIPTED
-        if (service_state == ServiceState::STOPPING) {
-            if (did_exit && WEXITSTATUS(exit_status) == 0) {
-                stopped();
-            }
-            else {
-                // ??? failed to stop! Let's log it as info:
-                if (did_exit) {
-                    log(LogLevel::INFO, "Service ", service_name, " stop command failed with exit code ", WEXITSTATUS(exit_status));
-                }
-                else if (was_signalled) {
-                    log(LogLevel::INFO, "Serivice ", service_name, " stop command terminated due to signal ", WTERMSIG(exit_status));
-                }
-                // Just assume that we stopped, so that any dependencies
-                // can be stopped:
-                stopped();
-            }
-            service_set->processQueues(false);
-        }
-        else { // STARTING
-            if (exit_status == 0) {
-                started();
-            }
-            else {
-                // failed to start
-                if (did_exit) {
-                    log(LogLevel::ERROR, "Service ", service_name, " command failed with exit code ", WEXITSTATUS(exit_status));
-                }
-                else if (was_signalled) {
-                    log(LogLevel::ERROR, "Service ", service_name, " command terminated due to signal ", WTERMSIG(exit_status));
-                }
-                failed_to_start();
-            }
-            service_set->processQueues(true);
+            failed_to_start();
         }
     }
+    else if (service_state == ServiceState::STOPPING) {
+        // We won't log a non-zero exit status or termination due to signal here -
+        // we assume that the process died because we signalled it.
+        stopped();
+    }
+    else if (smooth_recovery && service_state == ServiceState::STARTED && desired_state == ServiceState::STARTED) {
+        // TODO ensure a minimum time between restarts
+        // TODO if we are pinned-started then we should probably check
+        //      that dependencies have started before trying to re-start the
+        //      service process.
+        doing_recovery = true;
+        start_ps_process();
+        return;
+    }
+    else {
+        if (! do_auto_restart()) desired_state = ServiceState::STOPPED;
+        forceStop();
+    }
+    service_set->processQueues(false);
 }
 
 rearm ServiceIoWatcher::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
@@ -299,7 +355,7 @@ rearm ServiceIoWatcher::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
         
         if (sr->pid == -1) {
             // Somehow the process managed to complete before we even saw the status.
-            sr->handle_exit_status();
+            sr->handle_exit_status(sr->exit_status);
         }
     }
     

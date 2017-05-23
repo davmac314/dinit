@@ -506,8 +506,18 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
             if (*iter == rval) {
                 // We've found the dummy record
                 delete rval;
-                rval = new ServiceRecord(this, string(name), service_type, std::move(command), command_offsets,
-                        & depends_on, & depends_soft);
+                if (service_type == ServiceType::PROCESS) {
+                    rval = new process_service(this, string(name), std::move(command),
+                        command_offsets, &depends_on, &depends_soft);
+                }
+                else if (service_type == ServiceType::BGPROCESS) {
+                    rval = new bgproc_service(this, string(name), std::move(command),
+                        command_offsets, &depends_on, &depends_soft);
+                }
+                else {
+                    rval = new ServiceRecord(this, string(name), service_type, std::move(command), command_offsets,
+                            &depends_on, &depends_soft);
+                }
                 rval->setStopCommand(stop_command, stop_command_offsets);
                 rval->setLogfile(logfile);
                 rval->setAutoRestart(auto_restart);

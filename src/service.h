@@ -41,7 +41,7 @@
  * in the STARTING state when waiting for dependencies to start or for the exec() call in
  * the forked child to complete and return a status.
  *
- * Aquisition/release:
+ * Acquisition/release:
  * ------------------
  * Each service has a dependent-count ("required_by"). This starts at 0, adds 1 if the
  * service has explicitly been started (i.e. "start_explicit" is true), and adds 1 for
@@ -213,6 +213,7 @@ class ServiceRecord
     friend class ServiceChildWatcher;
     friend class ServiceIoWatcher;
     
+    protected:
     typedef std::string string;
     
     string service_name;
@@ -239,8 +240,6 @@ class ServiceRecord
     bool pinned_started : 1;
     bool waiting_for_deps : 1;  // if STARTING, whether we are waiting for dependencies (inc console) to start
     bool waiting_for_execstat : 1;  // if we are waiting for exec status after fork()
-    bool doing_recovery : 1;    // if we are currently recovering a BGPROCESS (restarting process, while
-                                //   holding STARTED service state)
     bool start_explicit : 1;    // whether we are are explictly required to be started
 
     bool prop_require : 1;      // require must be propagated
@@ -280,7 +279,7 @@ class ServiceRecord
     string socket_path; // path to the socket for socket-activation service
     int socket_perms;   // socket permissions ("mode")
     uid_t socket_uid = -1;  // socket user id or -1
-    gid_t socket_gid = -1;  // sockget group id or -1
+    gid_t socket_gid = -1;  // socket group id or -1
 
     // Implementation details
     
@@ -305,7 +304,7 @@ class ServiceRecord
     ServiceRecord *next_in_stop_queue = nullptr;
     
     
-    private:
+    protected:
     
     // All dependents have stopped.
     void allDepsStopped();
@@ -332,7 +331,7 @@ class ServiceRecord
     static void process_child_callback(EventLoop_t *loop, ServiceChildWatcher *w,
             int revents) noexcept;
     
-    void handle_exit_status() noexcept;
+    virtual void handle_exit_status(int exit_status) noexcept;
 
     // A dependency has reached STARTED state
     void dependencyStarted() noexcept;
@@ -401,8 +400,8 @@ class ServiceRecord
     ServiceRecord(ServiceSet *set, string name)
         : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), auto_restart(false),
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
-            waiting_for_execstat(false), doing_recovery(false),
-            start_explicit(false), prop_require(false), prop_release(false), prop_failure(false),
+            waiting_for_execstat(false), start_explicit(false),
+            prop_require(false), prop_release(false), prop_failure(false),
             force_stop(false), child_listener(this), child_status_listener(this)
     {
         service_set = set;
@@ -435,7 +434,9 @@ class ServiceRecord
         }
     }
     
-    // TODO write a destructor
+    virtual ~ServiceRecord() noexcept
+    {
+    }
     
     // begin transition from stopped to started state or vice versa depending on current and desired state
     void execute_transition() noexcept;
@@ -552,6 +553,46 @@ class ServiceRecord
     void removeListener(ServiceListener * listener) noexcept
     {
         listeners.erase(listener);
+    }
+};
+
+class process_service : public ServiceRecord
+{
+    virtual void handle_exit_status(int exit_status) noexcept override;
+
+    public:
+    process_service(ServiceSet *sset, string name, string &&command,
+            std::list<std::pair<unsigned,unsigned>> &command_offsets,
+            sr_list * pdepends_on, sr_list * pdepends_soft)
+         : ServiceRecord(sset, name, ServiceType::PROCESS, std::move(command), command_offsets,
+             pdepends_on, pdepends_soft)
+    {
+    }
+
+    ~process_service() noexcept
+    {
+    }
+};
+
+class bgproc_service : public ServiceRecord
+{
+    virtual void handle_exit_status(int exit_status) noexcept override;
+
+    bool doing_recovery : 1;    // if we are currently recovering a BGPROCESS (restarting process, while
+                                //   holding STARTED service state)
+
+    public:
+    bgproc_service(ServiceSet *sset, string name, string &&command,
+            std::list<std::pair<unsigned,unsigned>> &command_offsets,
+            sr_list * pdepends_on, sr_list * pdepends_soft)
+         : ServiceRecord(sset, name, ServiceType::BGPROCESS, std::move(command), command_offsets,
+             pdepends_on, pdepends_soft)
+    {
+        doing_recovery = false;
+    }
+
+    ~bgproc_service() noexcept
+    {
     }
 };
 
