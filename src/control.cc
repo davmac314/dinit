@@ -102,7 +102,7 @@ bool ControlConn::processFindLoad(int pktType)
     }
     else {
         // FINDSERVICE
-        record = service_set->findService(serviceName.c_str());
+        record = service_set->find_service(serviceName.c_str());
     }
     
     if (record != nullptr) {

@@ -29,7 +29,7 @@ void setup_external_log() noexcept;
 extern EventLoop_t eventLoop;
 
 // Find the requested service by name
-static ServiceRecord * findService(const std::list<ServiceRecord *> & records,
+static ServiceRecord * find_service(const std::list<ServiceRecord *> & records,
                                     const char *name) noexcept
 {
     using std::list;
@@ -42,9 +42,9 @@ static ServiceRecord * findService(const std::list<ServiceRecord *> & records,
     return (ServiceRecord *)0;
 }
 
-ServiceRecord * ServiceSet::findService(const std::string &name) noexcept
+ServiceRecord * ServiceSet::find_service(const std::string &name) noexcept
 {
-    return ::findService(records, name.c_str());
+    return ::find_service(records, name.c_str());
 }
 
 void ServiceSet::startService(const char *name)
@@ -58,7 +58,7 @@ void ServiceSet::startService(const char *name)
 
 void ServiceSet::stopService(const std::string & name) noexcept
 {
-    ServiceRecord *record = findService(name);
+    ServiceRecord *record = find_service(name);
     if (record != nullptr) {
         record->stop();
         processQueues(false);
@@ -1099,7 +1099,7 @@ void ServiceRecord::unpin() noexcept
 
 void ServiceRecord::queueForConsole() noexcept
 {
-    service_set->consoleQueueTail(this);
+    service_set->append_console_queue(this);
 }
 
 void ServiceRecord::releaseConsole() noexcept

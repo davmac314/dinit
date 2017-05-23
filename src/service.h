@@ -104,8 +104,8 @@ class ServiceLoadExc
     const char *excDescription;
     
     protected:
-    ServiceLoadExc(std::string serviceName) noexcept
-        : serviceName(serviceName)
+    ServiceLoadExc(std::string serviceName, const char *desc) noexcept
+        : serviceName(serviceName), excDescription(desc)
     {
     }
 };
@@ -114,9 +114,8 @@ class ServiceNotFound : public ServiceLoadExc
 {
     public:
     ServiceNotFound(std::string serviceName) noexcept
-        : ServiceLoadExc(serviceName)
+        : ServiceLoadExc(serviceName, "Service description not found.")
     {
-        excDescription = "Service description not found.";
     }
 };
 
@@ -124,21 +123,17 @@ class ServiceCyclicDependency : public ServiceLoadExc
 {
     public:
     ServiceCyclicDependency(std::string serviceName) noexcept
-        : ServiceLoadExc(serviceName)
+        : ServiceLoadExc(serviceName, "Has cyclic dependency.")
     {
-        excDescription = "Has cyclic dependency.";
     }
 };
 
 class ServiceDescriptionExc : public ServiceLoadExc
 {
     public:
-    std::string extraInfo;
-    
     ServiceDescriptionExc(std::string serviceName, std::string extraInfo) noexcept
-        : ServiceLoadExc(serviceName), extraInfo(extraInfo)
+        : ServiceLoadExc(serviceName, extraInfo.c_str())
     {
-        excDescription = extraInfo.c_str();
     }    
 };
 
@@ -622,7 +617,7 @@ class ServiceSet
     void startService(const char *name);
     
     // Locate an existing service record.
-    ServiceRecord *findService(const std::string &name) noexcept;
+    ServiceRecord *find_service(const std::string &name) noexcept;
     
     // Find a loaded service record, or load it if it is not loaded.
     // Throws:
@@ -630,7 +625,7 @@ class ServiceSet
     //   std::bad_alloc on out-of-memory condition 
     ServiceRecord *loadService(const std::string &name)
     {
-        ServiceRecord *record = findService(name);
+        ServiceRecord *record = find_service(name);
         if (record == nullptr) {
             record = loadServiceRecord(name.c_str());
         }
@@ -693,7 +688,7 @@ class ServiceSet
     }
     
     // Set the console queue tail (returns previous tail)
-    ServiceRecord * consoleQueueTail(ServiceRecord * newTail) noexcept
+    ServiceRecord * append_console_queue(ServiceRecord * newTail) noexcept
     {
         auto prev_tail = console_queue_tail;
         console_queue_tail = newTail;

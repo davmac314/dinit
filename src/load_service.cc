@@ -309,7 +309,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     using std::pair;
     
     // First try and find an existing record...
-    ServiceRecord * rval = findService(string(name));
+    ServiceRecord * rval = find_service(string(name));
     if (rval != 0) {
         if (rval->isDummy()) {
             throw ServiceCyclicDependency(name);
