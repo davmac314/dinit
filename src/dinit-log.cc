@@ -194,7 +194,7 @@ rearm BufferedLogStream::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
         // Do we need the second span?
         if (! will_complete && len != log_buffer.get_length()) {
             ptr = log_buffer.get_buf_base();
-            creptr = static_cast<char *>(logiov[1].iov_base) + log_buffer.get_length() - len;
+            creptr = ptr + log_buffer.get_length() - len;
             eptr = std::find(ptr, creptr, '\n');
             if (eptr != creptr) {
                 eptr++; // include '\n'
