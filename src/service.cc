@@ -695,18 +695,18 @@ bool ServiceRecord::read_pid_file() noexcept
 
 void ServiceRecord::started() noexcept
 {
-    if (onstart_flags.runs_on_console && (service_type == ServiceType::SCRIPTED || service_type == ServiceType::BGPROCESS)) {
-        tcsetpgrp(0, getpgrp());
-        releaseConsole();
-    }
-    
     if (service_type == ServiceType::BGPROCESS && pid_file.length() != 0) {
         if (! read_pid_file()) {
             failed_to_start();
             return;
         }
     }
-    
+
+    if (onstart_flags.runs_on_console && (service_type == ServiceType::SCRIPTED || service_type == ServiceType::BGPROCESS)) {
+        tcsetpgrp(0, getpgrp());
+        releaseConsole();
+    }
+
     logServiceStarted(service_name);
     service_state = ServiceState::STARTED;
     notifyListeners(ServiceEvent::STARTED);
