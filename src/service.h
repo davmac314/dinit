@@ -418,7 +418,7 @@ class ServiceRecord
         this->service_type = service_type;
         this->depends_on = std::move(*pdepends_on);
 
-        program_name = command;
+        program_name = std::move(command);
         exec_arg_parts = separate_args(program_name, command_offsets);
 
         for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
@@ -502,12 +502,12 @@ class ServiceRecord
     
     void set_pid_file(string &&pid_file) noexcept
     {
-        this->pid_file = pid_file;
+        this->pid_file = std::move(pid_file);
     }
     
     void set_socket_details(string &&socket_path, int socket_perms, uid_t socket_uid, uid_t socket_gid) noexcept
     {
-        this->socket_path = socket_path;
+        this->socket_path = std::move(socket_path);
         this->socket_perms = socket_perms;
         this->socket_uid = socket_uid;
         this->socket_gid = socket_gid;
