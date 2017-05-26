@@ -513,6 +513,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 else if (service_type == ServiceType::BGPROCESS) {
                     rval = new bgproc_service(this, string(name), std::move(command),
                         command_offsets, &depends_on, &depends_soft);
+                    rval->set_pid_file(std::move(pid_file));
                 }
                 else if (service_type == ServiceType::SCRIPTED) {
                     rval = new scripted_service(this, string(name), std::move(command),
@@ -528,7 +529,6 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 rval->setSmoothRecovery(smooth_recovery);
                 rval->setOnstartFlags(onstart_flags);
                 rval->setExtraTerminationSignal(term_signal);
-                rval->set_pid_file(std::move(pid_file));
                 rval->set_socket_details(std::move(socket_path), socket_perms, socket_uid, socket_gid);
                 *iter = rval;
                 break;

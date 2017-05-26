@@ -137,8 +137,9 @@ class ServiceDescriptionExc : public ServiceLoadExc
     }    
 };
 
-class ServiceRecord; // forward declaration
-class ServiceSet; // forward declaration
+class ServiceRecord;
+class ServiceSet;
+class base_process_service;
 
 /* Service dependency record */
 class ServiceDep
@@ -193,26 +194,23 @@ static std::vector<const char *> separate_args(std::string &s, std::list<std::pa
 class ServiceChildWatcher : public EventLoop_t::child_proc_watcher_impl<ServiceChildWatcher>
 {
     public:
-    ServiceRecord * service;
+    base_process_service * service;
     rearm child_status(EventLoop_t &eloop, pid_t child, int status) noexcept;
     
-    ServiceChildWatcher(ServiceRecord * sr) noexcept : service(sr) { }
+    ServiceChildWatcher(base_process_service * sr) noexcept : service(sr) { }
 };
 
 class ServiceIoWatcher : public EventLoop_t::fd_watcher_impl<ServiceIoWatcher>
 {
     public:
-    ServiceRecord * service;
+    base_process_service * service;
     rearm fd_event(EventLoop_t &eloop, int fd, int flags) noexcept;
     
-    ServiceIoWatcher(ServiceRecord * sr) noexcept : service(sr) { }
+    ServiceIoWatcher(base_process_service * sr) noexcept : service(sr) { }
 };
 
 class ServiceRecord
 {
-    friend class ServiceChildWatcher;
-    friend class ServiceIoWatcher;
-    
     protected:
     typedef std::string string;
     
@@ -290,8 +288,6 @@ class ServiceRecord
     int socket_fd = -1;  // For socket-activation services, this is the file
                          // descriptor for the socket.
     
-    ServiceChildWatcher child_listener;
-    ServiceIoWatcher child_status_listener;
     
     // Data for use by ServiceSet
     public:
@@ -307,7 +303,7 @@ class ServiceRecord
     protected:
     
     // All dependents have stopped.
-    void allDepsStopped();
+    virtual void all_deps_stopped() noexcept;
     
     // Service has actually stopped (includes having all dependents
     // reaching STOPPED state).
@@ -320,10 +316,6 @@ class ServiceRecord
     //   dep_failed: whether failure is recorded due to a dependency failing
     void failed_to_start(bool dep_failed = false) noexcept;
 
-    // For process services, start the process, return true on success
-    bool start_ps_process() noexcept;
-    bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
-    
     void run_child_proc(const char * const *args, const char *logfile, bool on_console, int wpipefd,
             int csfd) noexcept;
     
@@ -331,16 +323,16 @@ class ServiceRecord
     static void process_child_callback(EventLoop_t *loop, ServiceChildWatcher *w,
             int revents) noexcept;
     
-    virtual void handle_exit_status(int exit_status) noexcept;
+    //virtual void handle_exit_status(int exit_status) noexcept;
 
     // A dependency has reached STARTED state
     void dependencyStarted() noexcept;
     
     void allDepsStarted(bool haveConsole = false) noexcept;
-    
-    // Read the pid-file, return false on failure
-    bool read_pid_file() noexcept;
-    
+
+    // Do any post-dependency startup; return false on failure
+    virtual bool start_ps_process() noexcept;
+
     // Open the activation socket, return false on failure
     bool open_socket() noexcept;
 
@@ -394,7 +386,10 @@ class ServiceRecord
     void releaseConsole() noexcept;
     
     bool do_auto_restart() noexcept;
-    
+
+    // Started state reached
+    bool process_started() noexcept;
+
     public:
 
     ServiceRecord(ServiceSet *set, string name)
@@ -402,7 +397,7 @@ class ServiceRecord
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
             waiting_for_execstat(false), start_explicit(false),
             prop_require(false), prop_release(false), prop_failure(false),
-            force_stop(false), child_listener(this), child_status_listener(this)
+            force_stop(false)
     {
         service_set = set;
         service_name = name;
@@ -556,7 +551,40 @@ class ServiceRecord
     }
 };
 
-class process_service : public ServiceRecord
+class base_process_service : public ServiceRecord
+{
+    friend class ServiceChildWatcher;
+    friend class ServiceIoWatcher;
+
+    protected:
+    ServiceChildWatcher child_listener;
+    ServiceIoWatcher child_status_listener;
+
+    // start the process, return true on success
+    virtual bool start_ps_process() noexcept;
+    bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
+
+    virtual void all_deps_stopped() noexcept;
+    virtual void handle_exit_status(int exit_status) noexcept;
+
+    // Read the pid-file, return false on failure
+    bool read_pid_file() noexcept;
+
+    public:
+    base_process_service(ServiceSet *sset, string name, ServiceType service_type, string &&command,
+            std::list<std::pair<unsigned,unsigned>> &command_offsets,
+            sr_list * pdepends_on, sr_list * pdepends_soft)
+         : ServiceRecord(sset, name, service_type, std::move(command), command_offsets,
+             pdepends_on, pdepends_soft), child_listener(this), child_status_listener(this)
+    {
+    }
+
+    ~base_process_service() noexcept
+    {
+    }
+};
+
+class process_service : public base_process_service
 {
     virtual void handle_exit_status(int exit_status) noexcept override;
 
@@ -564,7 +592,7 @@ class process_service : public ServiceRecord
     process_service(ServiceSet *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             sr_list * pdepends_on, sr_list * pdepends_soft)
-         : ServiceRecord(sset, name, ServiceType::PROCESS, std::move(command), command_offsets,
+         : base_process_service(sset, name, ServiceType::PROCESS, std::move(command), command_offsets,
              pdepends_on, pdepends_soft)
     {
     }
@@ -574,7 +602,7 @@ class process_service : public ServiceRecord
     }
 };
 
-class bgproc_service : public ServiceRecord
+class bgproc_service : public base_process_service
 {
     virtual void handle_exit_status(int exit_status) noexcept override;
 
@@ -585,7 +613,7 @@ class bgproc_service : public ServiceRecord
     bgproc_service(ServiceSet *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             sr_list * pdepends_on, sr_list * pdepends_soft)
-         : ServiceRecord(sset, name, ServiceType::BGPROCESS, std::move(command), command_offsets,
+         : base_process_service(sset, name, ServiceType::BGPROCESS, std::move(command), command_offsets,
              pdepends_on, pdepends_soft)
     {
         doing_recovery = false;
@@ -596,15 +624,16 @@ class bgproc_service : public ServiceRecord
     }
 };
 
-class scripted_service : public ServiceRecord
+class scripted_service : public base_process_service
 {
+    virtual void all_deps_stopped() noexcept override;
     virtual void handle_exit_status(int exit_status) noexcept override;
 
     public:
     scripted_service(ServiceSet *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             sr_list * pdepends_on, sr_list * pdepends_soft)
-         : ServiceRecord(sset, name, ServiceType::SCRIPTED, std::move(command), command_offsets,
+         : base_process_service(sset, name, ServiceType::SCRIPTED, std::move(command), command_offsets,
              pdepends_on, pdepends_soft)
     {
     }

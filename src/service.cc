@@ -124,7 +124,7 @@ void ServiceRecord::stopped() noexcept
 
 dasynq::rearm ServiceChildWatcher::child_status(EventLoop_t &loop, pid_t child, int status) noexcept
 {
-    ServiceRecord *sr = service;
+    base_process_service *sr = service;
     
     sr->pid = -1;
     sr->exit_status = status;
@@ -155,7 +155,7 @@ bool ServiceRecord::do_auto_restart() noexcept
     return false;
 }
 
-void ServiceRecord::handle_exit_status(int exit_status) noexcept
+void base_process_service::handle_exit_status(int exit_status) noexcept
 {
     // TODO make abstract
 }
@@ -225,7 +225,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         }
         else {
             // We need to re-read the PID, since it has now changed.
-            if (service_type == ServiceType::BGPROCESS && pid_file.length() != 0) {
+            if (pid_file.length() != 0) {
                 if (! read_pid_file()) {
                     need_stop = true;
                 }
@@ -246,7 +246,12 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         // POSIX requires that if the process exited clearly with a status code of 0,
         // the exit status value will be 0:
         if (exit_status == 0) {
-            started();
+            if (pid_file.length() != 0 && ! read_pid_file()) {
+                failed_to_start();
+            }
+            else {
+                started();
+            }
         }
         else {
             failed_to_start();
@@ -316,7 +321,7 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
 
 rearm ServiceIoWatcher::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
 {
-    ServiceRecord *sr = service;
+    base_process_service *sr = service;
     sr->waiting_for_execstat = false;
     
     int exec_status;
@@ -456,7 +461,7 @@ void ServiceRecord::do_propagation() noexcept
         }
         else if (service_state == ServiceState::STOPPING) {
             if (stopCheckDependents()) {
-                allDepsStopped();
+                all_deps_stopped();
             }
         }
     }
@@ -664,7 +669,7 @@ void ServiceRecord::acquiredConsole() noexcept
     }
 }
 
-bool ServiceRecord::read_pid_file() noexcept
+bool base_process_service::read_pid_file() noexcept
 {
     const char *pid_file_c = pid_file.c_str();
     int fd = open(pid_file_c, O_CLOEXEC);
@@ -695,13 +700,6 @@ bool ServiceRecord::read_pid_file() noexcept
 
 void ServiceRecord::started() noexcept
 {
-    if (service_type == ServiceType::BGPROCESS && pid_file.length() != 0) {
-        if (! read_pid_file()) {
-            failed_to_start();
-            return;
-        }
-    }
-
     if (onstart_flags.runs_on_console && (service_type == ServiceType::SCRIPTED || service_type == ServiceType::BGPROCESS)) {
         tcsetpgrp(0, getpgrp());
         releaseConsole();
@@ -769,10 +767,15 @@ void ServiceRecord::failed_to_start(bool depfailed) noexcept
 
 bool ServiceRecord::start_ps_process() noexcept
 {
+    return true;
+}
+
+bool base_process_service::start_ps_process() noexcept
+{
     return start_ps_process(exec_arg_parts, onstart_flags.runs_on_console);
 }
 
-bool ServiceRecord::start_ps_process(const std::vector<const char *> &cmd, bool on_console) noexcept
+bool base_process_service::start_ps_process(const std::vector<const char *> &cmd, bool on_console) noexcept
 {
     // In general, you can't tell whether fork/exec is successful. We use a pipe to communicate
     // success/failure from the child to the parent. The pipe is set CLOEXEC so a successful
@@ -1045,7 +1048,7 @@ void ServiceRecord::do_stop() noexcept
 
     // If we get here, we are in STARTED state; stop all dependents.
     if (stopDependents()) {
-        allDepsStopped();
+        all_deps_stopped();
     }
 }
 
@@ -1081,51 +1084,54 @@ bool ServiceRecord::stopDependents() noexcept
 }
 
 // All dependents have stopped; we can stop now, too. Only called when STOPPING.
-void ServiceRecord::allDepsStopped()
+void ServiceRecord::all_deps_stopped() noexcept
 {
     waiting_for_deps = false;
-    if (service_type == ServiceType::PROCESS || service_type == ServiceType::BGPROCESS) {
-        if (pid != -1) {
-            // The process is still kicking on - must actually kill it.
-            if (! onstart_flags.no_sigterm) {
-                kill(pid, SIGTERM);
-            }
-            if (term_signal != -1) {
-                kill(pid, term_signal);
-            }
-            
-            // In most cases, the rest is done in process_child_callback.
-            // If we are a BGPROCESS and the process is not our immediate child, however, that
-            // won't work - check for this now:
-            if (service_type == ServiceType::BGPROCESS) {
-                int status;
-                pid_t r = waitpid(pid, &status, WNOHANG);
-                if (r == -1 && errno == ECHILD) {
-                    // We can't track this child (or it's terminated already)
-                    stopped();
-                }
-                else if (r == pid) {
-                    // TODO, examine status and log anything unusual.
-                    stopped();
-                }
-            }
+    stopped();
+}
+
+void base_process_service::all_deps_stopped() noexcept
+{
+    waiting_for_deps = false;
+    if (pid != -1) {
+        // The process is still kicking on - must actually kill it.
+        if (! onstart_flags.no_sigterm) {
+            kill(pid, SIGTERM);
         }
-        else {
-            // The process is already dead.
-            stopped();
+        if (term_signal != -1) {
+            kill(pid, term_signal);
         }
-    }
-    else if (service_type == ServiceType::SCRIPTED) {
-        // Scripted service.
-        if (stop_command.length() == 0) {
-            stopped();
-        }
-        else if (! start_ps_process(stop_arg_parts, false)) {
-            // Couldn't execute stop script, but there's not much we can do:
-            stopped();
+
+        // In most cases, the rest is done in process_child_callback.
+        // If we are a BGPROCESS and the process is not our immediate child, however, that
+        // won't work - check for this now:
+        if (service_type == ServiceType::BGPROCESS) {
+            int status;
+            pid_t r = waitpid(pid, &status, WNOHANG);
+            if (r == -1 && errno == ECHILD) {
+                // We can't track this child (or it's terminated already)
+                stopped();
+            }
+            else if (r == pid) {
+                // TODO, examine status and log anything unusual.
+                stopped();
+            }
         }
     }
     else {
+        // The process is already dead.
+        stopped();
+    }
+}
+
+void scripted_service::all_deps_stopped() noexcept
+{
+    waiting_for_deps = false;
+    if (stop_command.length() == 0) {
+        stopped();
+    }
+    else if (! start_ps_process(stop_arg_parts, false)) {
+        // Couldn't execute stop script, but there's not much we can do:
         stopped();
     }
 }
