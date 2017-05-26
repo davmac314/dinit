@@ -596,6 +596,25 @@ class bgproc_service : public ServiceRecord
     }
 };
 
+class scripted_service : public ServiceRecord
+{
+    virtual void handle_exit_status(int exit_status) noexcept override;
+
+    public:
+    scripted_service(ServiceSet *sset, string name, string &&command,
+            std::list<std::pair<unsigned,unsigned>> &command_offsets,
+            sr_list * pdepends_on, sr_list * pdepends_soft)
+         : ServiceRecord(sset, name, ServiceType::SCRIPTED, std::move(command), command_offsets,
+             pdepends_on, pdepends_soft)
+    {
+    }
+
+    ~scripted_service() noexcept
+    {
+    }
+};
+
+
 /*
  * A ServiceSet, as the name suggests, manages a set of services.
  *

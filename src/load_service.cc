@@ -514,11 +514,15 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                     rval = new bgproc_service(this, string(name), std::move(command),
                         command_offsets, &depends_on, &depends_soft);
                 }
+                else if (service_type == ServiceType::SCRIPTED) {
+                    rval = new scripted_service(this, string(name), std::move(command),
+                                                command_offsets, &depends_on, &depends_soft);
+                    rval->setStopCommand(stop_command, stop_command_offsets);
+                }
                 else {
                     rval = new ServiceRecord(this, string(name), service_type, std::move(command), command_offsets,
                             &depends_on, &depends_soft);
                 }
-                rval->setStopCommand(stop_command, stop_command_offsets);
                 rval->setLogfile(logfile);
                 rval->setAutoRestart(auto_restart);
                 rval->setSmoothRecovery(smooth_recovery);

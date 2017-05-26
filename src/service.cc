@@ -157,53 +157,7 @@ bool ServiceRecord::do_auto_restart() noexcept
 
 void ServiceRecord::handle_exit_status(int exit_status) noexcept
 {
-    bool did_exit = WIFEXITED(exit_status);
-    bool was_signalled = WIFSIGNALED(exit_status);
-
-    if (service_type != ServiceType::SCRIPTED && exit_status != 0 && service_state != ServiceState::STOPPING) {
-        if (did_exit) {
-            log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ", WEXITSTATUS(exit_status));
-        }
-        else if (was_signalled) {
-            log(LogLevel::ERROR, "Service ", service_name, " terminated due to signal ", WTERMSIG(exit_status));
-        }
-    }
-    
-    // BGPROCESS and PROCESS override this method; we must be a SCRIPTED service.
-    if (service_state == ServiceState::STOPPING) {
-        if (did_exit && WEXITSTATUS(exit_status) == 0) {
-            stopped();
-        }
-        else {
-            // ??? failed to stop! Let's log it as info:
-            if (did_exit) {
-                log(LogLevel::INFO, "Service ", service_name, " stop command failed with exit code ", WEXITSTATUS(exit_status));
-            }
-            else if (was_signalled) {
-                log(LogLevel::INFO, "Serivice ", service_name, " stop command terminated due to signal ", WTERMSIG(exit_status));
-            }
-            // Just assume that we stopped, so that any dependencies
-            // can be stopped:
-            stopped();
-        }
-        service_set->processQueues(false);
-    }
-    else { // STARTING
-        if (exit_status == 0) {
-            started();
-        }
-        else {
-            // failed to start
-            if (did_exit) {
-                log(LogLevel::ERROR, "Service ", service_name, " command failed with exit code ", WEXITSTATUS(exit_status));
-            }
-            else if (was_signalled) {
-                log(LogLevel::ERROR, "Service ", service_name, " command terminated due to signal ", WTERMSIG(exit_status));
-            }
-            failed_to_start();
-        }
-        service_set->processQueues(true);
-    }
+    // TODO make abstract
 }
 
 void process_service::handle_exit_status(int exit_status) noexcept
@@ -317,6 +271,47 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         forceStop();
     }
     service_set->processQueues(false);
+}
+
+void scripted_service::handle_exit_status(int exit_status) noexcept
+{
+    bool did_exit = WIFEXITED(exit_status);
+    bool was_signalled = WIFSIGNALED(exit_status);
+
+    if (service_state == ServiceState::STOPPING) {
+        if (did_exit && WEXITSTATUS(exit_status) == 0) {
+            stopped();
+        }
+        else {
+            // ??? failed to stop! Let's log it as info:
+            if (did_exit) {
+                log(LogLevel::INFO, "Service ", service_name, " stop command failed with exit code ", WEXITSTATUS(exit_status));
+            }
+            else if (was_signalled) {
+                log(LogLevel::INFO, "Serivice ", service_name, " stop command terminated due to signal ", WTERMSIG(exit_status));
+            }
+            // Just assume that we stopped, so that any dependencies
+            // can be stopped:
+            stopped();
+        }
+        service_set->processQueues(false);
+    }
+    else { // STARTING
+        if (exit_status == 0) {
+            started();
+        }
+        else {
+            // failed to start
+            if (did_exit) {
+                log(LogLevel::ERROR, "Service ", service_name, " command failed with exit code ", WEXITSTATUS(exit_status));
+            }
+            else if (was_signalled) {
+                log(LogLevel::ERROR, "Service ", service_name, " command terminated due to signal ", WTERMSIG(exit_status));
+            }
+            failed_to_start();
+        }
+        service_set->processQueues(true);
+    }
 }
 
 rearm ServiceIoWatcher::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
