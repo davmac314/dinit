@@ -567,9 +567,6 @@ class base_process_service : public ServiceRecord
     virtual void all_deps_stopped() noexcept;
     virtual void handle_exit_status(int exit_status) noexcept = 0;
 
-    // Read the pid-file, return false on failure
-    bool read_pid_file() noexcept;
-
     public:
     base_process_service(ServiceSet *sset, string name, ServiceType service_type, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
@@ -608,6 +605,9 @@ class bgproc_service : public base_process_service
 
     bool doing_recovery : 1;    // if we are currently recovering a BGPROCESS (restarting process, while
                                 //   holding STARTED service state)
+
+    // Read the pid-file, return false on failure
+    bool read_pid_file() noexcept;
 
     public:
     bgproc_service(ServiceSet *sset, string name, string &&command,

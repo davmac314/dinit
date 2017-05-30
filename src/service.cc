@@ -664,7 +664,7 @@ void ServiceRecord::acquiredConsole() noexcept
     }
 }
 
-bool base_process_service::read_pid_file() noexcept
+bool bgproc_service::read_pid_file() noexcept
 {
     const char *pid_file_c = pid_file.c_str();
     int fd = open(pid_file_c, O_CLOEXEC);
