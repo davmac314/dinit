@@ -1103,7 +1103,8 @@ void base_process_service::all_deps_stopped() noexcept
                 stopped();
             }
             else if (r == pid) {
-                // TODO, examine status and log anything unusual.
+                // Process may have died due to signal since we explicitly requested it to
+                // stop by signalling it; no need to log any termination status.
                 stopped();
             }
         }
