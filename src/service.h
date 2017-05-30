@@ -583,6 +583,8 @@ class base_process_service : public ServiceRecord
 
 class process_service : public base_process_service
 {
+    // called when the process exits. The exit_status is the status value yielded by
+    // the "wait" system call.
     virtual void handle_exit_status(int exit_status) noexcept override;
 
     public:

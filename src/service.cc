@@ -636,16 +636,9 @@ void ServiceRecord::allDepsStarted(bool has_console) noexcept
         failed_to_start();
     }
 
-    if (service_type == ServiceType::PROCESS || service_type == ServiceType::BGPROCESS
-            || service_type == ServiceType::SCRIPTED) {
-        bool start_success = start_ps_process();
-        if (! start_success) {
-            failed_to_start();
-        }
-    }
-    else {
-        // "internal" service
-        started();
+    bool start_success = start_ps_process();
+    if (! start_success) {
+        failed_to_start();
     }
 }
 
@@ -762,6 +755,8 @@ void ServiceRecord::failed_to_start(bool depfailed) noexcept
 
 bool ServiceRecord::start_ps_process() noexcept
 {
+    // default implementation: there is no process, so we are started.
+    started();
     return true;
 }
 
