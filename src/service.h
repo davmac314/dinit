@@ -565,7 +565,7 @@ class base_process_service : public ServiceRecord
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
 
     virtual void all_deps_stopped() noexcept;
-    virtual void handle_exit_status(int exit_status) noexcept;
+    virtual void handle_exit_status(int exit_status) noexcept = 0;
 
     // Read the pid-file, return false on failure
     bool read_pid_file() noexcept;

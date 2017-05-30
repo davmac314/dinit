@@ -155,11 +155,6 @@ bool ServiceRecord::do_auto_restart() noexcept
     return false;
 }
 
-void base_process_service::handle_exit_status(int exit_status) noexcept
-{
-    // TODO make abstract
-}
-
 void process_service::handle_exit_status(int exit_status) noexcept
 {
     bool did_exit = WIFEXITED(exit_status);
