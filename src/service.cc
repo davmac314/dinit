@@ -183,11 +183,10 @@ void process_service::handle_exit_status(int exit_status) noexcept
         stopped();
     }
     else if (smooth_recovery && service_state == ServiceState::STARTED && desired_state == ServiceState::STARTED) {
-        // TODO ensure a minimum time between restarts
         // TODO if we are pinned-started then we should probably check
         //      that dependencies have started before trying to re-start the
         //      service process.
-        start_ps_process();
+        restart_ps_process();
         return;
     }
     else {
@@ -258,12 +257,11 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         stopped();
     }
     else if (smooth_recovery && service_state == ServiceState::STARTED && desired_state == ServiceState::STARTED) {
-        // TODO ensure a minimum time between restarts
         // TODO if we are pinned-started then we should probably check
         //      that dependencies have started before trying to re-start the
         //      service process.
         doing_recovery = true;
-        start_ps_process();
+        restart_ps_process();
         return;
     }
     else {
@@ -762,6 +760,7 @@ bool ServiceRecord::start_ps_process() noexcept
 
 bool base_process_service::start_ps_process() noexcept
 {
+    eventLoop.get_time(last_start_time, clock_type::MONOTONIC);
     return start_ps_process(exec_arg_parts, onstart_flags.runs_on_console);
 }
 
@@ -881,8 +880,8 @@ void ServiceRecord::run_child_proc(const char * const *args, const char *logfile
     
     constexpr int bufsz = ((CHAR_BIT * sizeof(pid_t)) / 3 + 2) + 11;
     // "LISTEN_PID=" - 11 characters; the expression above gives a conservative estimate
-    // on the maxiumum number of bytes required for LISTEN=xxx, including nul terminator,
-    // where xxx is a pid_t in decimal (i.e. one decimal digit is worth just over 3 bits).
+    // on the maxiumum number of bytes required for LISTEN=nnn, including nul terminator,
+    // where nnn is a pid_t in decimal (i.e. one decimal digit is worth just over 3 bits).
     char nbuf[bufsz];
     
     // "DINIT_CS_FD=" - 12 bytes. (we -1 from sizeof(int) in account of sign bit).
@@ -1163,4 +1162,52 @@ void ServiceSet::service_active(ServiceRecord *sr) noexcept
 void ServiceSet::service_inactive(ServiceRecord *sr) noexcept
 {
     active_services--;
+}
+
+base_process_service::base_process_service(ServiceSet *sset, string name, ServiceType service_type, string &&command,
+        std::list<std::pair<unsigned,unsigned>> &command_offsets,
+        sr_list * pdepends_on, sr_list * pdepends_soft)
+     : ServiceRecord(sset, name, service_type, std::move(command), command_offsets,
+         pdepends_on, pdepends_soft), child_listener(this), child_status_listener(this)
+{
+    restart_timer.service = this;
+    restart_timer.add_timer(eventLoop);
+}
+
+void base_process_service::restart_ps_process() noexcept
+{
+    timespec current_time;
+    eventLoop.get_time(current_time, clock_type::MONOTONIC);
+    auto tdiff_s = current_time.tv_sec - last_start_time.tv_sec;
+    decltype(current_time.tv_nsec) tdiff_ns;
+    if (current_time.tv_nsec >= last_start_time.tv_nsec) {
+        tdiff_ns = current_time.tv_nsec - last_start_time.tv_nsec;
+    }
+    else {
+        tdiff_s -= 1;
+        tdiff_ns = 1000000000 - (last_start_time.tv_nsec - current_time.tv_nsec);
+    }
+
+    if (tdiff_s > 0 || tdiff_ns > 100000000) {
+        // > 100ms
+        start_ps_process();
+    }
+    else {
+        timespec timeout;
+        timeout.tv_sec = tdiff_s;
+        timeout.tv_nsec = tdiff_ns;
+        restart_timer.arm_timer_rel(eventLoop, timeout);
+    }
+}
+
+dasynq::rearm process_restart_timer::timer_expiry(EventLoop_t &, int expiry_count)
+{
+    return service->restart_timer_expired();
+}
+
+dasynq::rearm base_process_service::restart_timer_expired() noexcept
+{
+    // begin starting process:
+    start_ps_process();
+    return dasynq::rearm::DISARM;
 }

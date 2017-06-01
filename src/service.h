@@ -551,30 +551,50 @@ class ServiceRecord
     }
 };
 
+class base_process_service;
+
+// A timer for process restarting. Used to ensure a minimum delay between
+// process restarts.
+class process_restart_timer : public EventLoop_t::timer_impl<process_restart_timer>
+{
+    public:
+    base_process_service * service;
+
+    process_restart_timer()
+    {
+    }
+
+    rearm timer_expiry(EventLoop_t &, int expiry_count);
+};
+
 class base_process_service : public ServiceRecord
 {
     friend class ServiceChildWatcher;
     friend class ServiceIoWatcher;
+    friend class process_restart_timer;
 
     protected:
     ServiceChildWatcher child_listener;
     ServiceIoWatcher child_status_listener;
+    process_restart_timer restart_timer;
+    timespec last_start_time;
 
     // start the process, return true on success
     virtual bool start_ps_process() noexcept;
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
 
+    // restart the process (due to start failure or unexpected termination). Restarts will be
+    // rate-limited.
+    void restart_ps_process() noexcept;
+
     virtual void all_deps_stopped() noexcept;
     virtual void handle_exit_status(int exit_status) noexcept = 0;
+    dasynq::rearm restart_timer_expired() noexcept;
 
     public:
     base_process_service(ServiceSet *sset, string name, ServiceType service_type, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            sr_list * pdepends_on, sr_list * pdepends_soft)
-         : ServiceRecord(sset, name, service_type, std::move(command), command_offsets,
-             pdepends_on, pdepends_soft), child_listener(this), child_status_listener(this)
-    {
-    }
+            sr_list * pdepends_on, sr_list * pdepends_soft);
 
     ~base_process_service() noexcept
     {
