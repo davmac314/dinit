@@ -195,7 +195,7 @@ class ServiceChildWatcher : public EventLoop_t::child_proc_watcher_impl<ServiceC
 {
     public:
     base_process_service * service;
-    rearm child_status(EventLoop_t &eloop, pid_t child, int status) noexcept;
+    rearm status_change(EventLoop_t &eloop, pid_t child, int status) noexcept;
     
     ServiceChildWatcher(base_process_service * sr) noexcept : service(sr) { }
 };

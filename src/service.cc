@@ -122,7 +122,7 @@ void ServiceRecord::stopped() noexcept
     notifyListeners(ServiceEvent::STOPPED);
 }
 
-dasynq::rearm ServiceChildWatcher::child_status(EventLoop_t &loop, pid_t child, int status) noexcept
+dasynq::rearm ServiceChildWatcher::status_change(EventLoop_t &loop, pid_t child, int status) noexcept
 {
     base_process_service *sr = service;
     
