@@ -753,7 +753,8 @@ class ServiceSet
     // transition to the 'stopped' state.
     void stopService(const std::string &name) noexcept;
     
-    // Add a service record to the state propogation queue
+    // Add a service record to the state propagation queue. The service record will have its
+    // do_propagation() method called when the queue is processed.
     void addToPropQueue(ServiceRecord *service) noexcept
     {
         if (service->next_in_prop_queue == nullptr && first_prop_queue != service) {
@@ -762,14 +763,16 @@ class ServiceSet
         }
     }
     
-    // Add a service record to the start queue; called by service record
+    // Add a service record to the start queue. The service record will have its
+    // execute_transition() method called when the queue is processed.
     void addToStartQueue(ServiceRecord *service) noexcept
     {
         // The start/stop queue is actually one queue:
         addToStopQueue(service);
     }
     
-    // Add a service to the stop queue; called by service record
+    // Add a service record to the stop queue. The service record will have its
+    // execute_transition() method called when the queue is processed.
     void addToStopQueue(ServiceRecord *service) noexcept
     {
         if (service->next_in_stop_queue == nullptr && first_stop_queue != service) {

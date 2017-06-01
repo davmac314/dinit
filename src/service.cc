@@ -65,10 +65,12 @@ void ServiceSet::stopService(const std::string & name) noexcept
     }
 }
 
-// Called when a service has actually stopped; dependents have stopped already.
+// Called when a service has actually stopped; dependents have stopped already, unless this stop
+// is due to an unexpected process termination.
 void ServiceRecord::stopped() noexcept
 {
-    if (service_type != ServiceType::SCRIPTED && service_type != ServiceType::BGPROCESS && onstart_flags.runs_on_console) {
+    if (service_type != ServiceType::SCRIPTED && service_type != ServiceType::BGPROCESS
+            && onstart_flags.runs_on_console) {
         tcsetpgrp(0, getpgrp());
         discard_console_log_buffer();
         releaseConsole();
@@ -77,7 +79,9 @@ void ServiceRecord::stopped() noexcept
     force_stop = false;
 
     // If we are a soft dependency of another target, break the acquisition from that target now:
-    bool will_restart = (desired_state == ServiceState::STARTED) && service_set->get_auto_restart();
+    bool will_restart = (desired_state == ServiceState::STARTED)
+            && service_set->get_auto_restart();
+
     if (! will_restart) {
         for (auto dependency : soft_dpts) {
             if (dependency->holding_acq) {
@@ -89,14 +93,17 @@ void ServiceRecord::stopped() noexcept
 
     will_restart &= (desired_state == ServiceState::STARTED);
     for (auto dependency : depends_on) {
+        // we signal dependencies in case they are waiting for us to stop - but only if we won't
+        // restart or if they are stopping uninterruptibly.
         if (! will_restart || ! dependency->can_interrupt_stop()) {
             dependency->dependentStopped();
         }
     }
 
+    service_state = ServiceState::STOPPED;
+
     if (will_restart) {
         // Desired state is "started".
-        service_state = ServiceState::STOPPED;
         service_set->addToStartQueue(this);
     }
     else {
@@ -109,11 +116,7 @@ void ServiceRecord::stopped() noexcept
             start_explicit = false;
             release();
         }
-        
-        service_state = ServiceState::STOPPED;
-        if (required_by == 0) {
-            // Since state wasn't STOPPED until now, any release performed above won't have marked
-            // the service inactive. We check for that now:
+        else if (required_by == 0) {
             service_set->service_inactive(this);
         }
     }
