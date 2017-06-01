@@ -241,6 +241,12 @@ template <class Base> class TimerFdEvents : public timer_base<Base>
         }
     }
 
+    void get_time(timespec &ts, clock_type clock, bool force_update) noexcept
+    {
+        int posix_clock_id = (clock == clock_type::MONOTONIC) ? CLOCK_MONOTONIC : CLOCK_REALTIME;
+        clock_gettime(posix_clock_id, &ts);
+    }
+
     ~TimerFdEvents()
     {
         close(timerfd_fd);

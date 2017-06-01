@@ -78,7 +78,7 @@ template <class Base> class EpollLoop : public Base
     // Base contains:
     //   lock - a lock that can be used to protect internal structure.
     //          receive*() methods will be called with lock held.
-    //   receiveSignal(SigInfo &, user *) noexcept
+    //   receive_signal(SigInfo &, user *) noexcept
     //   receiveFdEvent(FD_r, user *, int flags) noexcept
     
     using SigInfo = EpollTraits::SigInfo;
@@ -100,7 +100,7 @@ template <class Base> class EpollLoop : public Base
                     auto iter = sigdataMap.find(siginfo.get_signo());
                     if (iter != sigdataMap.end()) {
                         void *userdata = (*iter).second;
-                        if (Base::receiveSignal(*this, siginfo, userdata)) {
+                        if (Base::receive_signal(*this, siginfo, userdata)) {
                             sigdelset(&sigmask, siginfo.get_signo());
                         }
                     }
@@ -143,8 +143,14 @@ template <class Base> class EpollLoop : public Base
         }
     }
     
-    // flags:  IN_EVENTS | OUT_EVENTS | ONE_SHOT
-    void addFdWatch(int fd, void *userdata, int flags, bool enabled = true)
+    //        fd:  file descriptor to watch
+    //  userdata:  data to associate with descriptor
+    //     flags:  IN_EVENTS | OUT_EVENTS | ONE_SHOT
+    // soft_fail:  true if unsupported file descriptors should fail by returning false instead
+    //             of throwing an exception
+    // returns: true on success; false if file descriptor type isn't supported and soft_fail == true
+    // throws:  std::system_error or std::bad_alloc on failure
+    bool addFdWatch(int fd, void *userdata, int flags, bool enabled = true, bool soft_fail = false)
     {
         struct epoll_event epevent;
         // epevent.data.fd = fd;
@@ -162,11 +168,15 @@ template <class Base> class EpollLoop : public Base
         }
 
         if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &epevent) == -1) {
+            if (soft_fail && errno == EPERM) {
+                return false;
+            }
             throw new std::system_error(errno, std::system_category());        
         }
+        return true;
     }
     
-    void addBidiFdWatch(int fd, void *userdata, int flags)
+    bool addBidiFdWatch(int fd, void *userdata, int flags, bool emulate)
     {
         // No implementation.
         throw std::system_error(std::make_error_code(std::errc::not_supported));
@@ -309,25 +319,10 @@ template <class Base> class EpollLoop : public Base
             return;
         }
     
-        processEvents(events, r);
-    }
-
-    // If events are pending, process one of them.
-    // If no events are pending, wait until one event is received and
-    // process this event.
-    //
-    //  do_wait - if false, returns immediately if no events are
-    //            pending.    
-    void pullOneEvent(bool do_wait)
-    {
-        epoll_event events[1];
-        int r = epoll_wait(epfd, events, 1, do_wait ? -1 : 0);
-        if (r == -1 || r == 0) {
-            // signal or no events
-            return;
-        }
-    
-        processEvents(events, r);    
+        do {
+            processEvents(events, r);
+            r = epoll_wait(epfd, events, 16, 0);
+        } while (r > 0);
     }
 };
 

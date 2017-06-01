@@ -3,63 +3,45 @@
 
 #include <sys/time.h>
 #include <time.h>
+#include <signal.h>
 
+#include "dasynq-config.h"
 #include "dasynq-timerbase.h"
 
 namespace dasynq {
 
-// Timer implementation based on the (basically obsolete) POSIX itimer interface.
+// Timer implementation based on POSIX create_timer et al.
+// May require linking with -lrt
 
-template <class Base> class ITimerEvents : public timer_base<Base>
+template <class Base> class PosixTimerEvents : public timer_base<Base>
 {
     private:
-    timer_queue_t timer_queue;
+    timer_queue_t real_timer_queue;
+    timer_queue_t mono_timer_queue;
 
-#if defined(CLOCK_MONOTONIC)
-    static inline void get_curtime(struct timespec &curtime)
+    timer_t real_timer;
+    timer_t mono_timer;
+
+    // Set the timeout to match the first timer in the queue (disable the timer if there are no
+    // active timers).
+    void set_timer_from_queue(timer_t &timer, timer_queue_t &timer_queue)
     {
-        clock_gettime(CLOCK_MONOTONIC, &curtime);
-    }
-#else
-    static inline void get_curtime(struct timespec &curtime)
-    {
-        struct timeval curtime_tv;
-        gettimeofday(&curtime_tv, nullptr);
-        curtime.tv_sec = curtime_tv.tv_sec;
-        curtime.tv_nsec = curtime_tv.tv_usec * 1000;
-    }
-#endif
-    
-    // Set the timerfd timeout to match the first timer in the queue (disable the timerfd
-    // if there are no active timers).
-    void set_timer_from_queue()
-    {
-        struct timespec newtime;
-        struct itimerval newalarm;
+        struct itimerspec newalarm;
+
         if (timer_queue.empty()) {
             newalarm.it_value = {0, 0};
             newalarm.it_interval = {0, 0};
-            setitimer(ITIMER_REAL, &newalarm, nullptr);
+            timer_settime(timer, TIMER_ABSTIME, &newalarm, nullptr);
             return;
         }
 
-        newtime = timer_queue.get_root_priority();
-        
-        struct timespec curtime;
-        get_curtime(curtime);
         newalarm.it_interval = {0, 0};
-        newalarm.it_value.tv_sec = newtime.tv_sec - curtime.tv_sec;
-        newalarm.it_value.tv_usec = (newtime.tv_nsec - curtime.tv_nsec) / 1000;
-
-        if (newalarm.it_value.tv_usec < 0) {
-            newalarm.it_value.tv_usec += 1000000;
-            newalarm.it_value.tv_sec--;
-        }
-        setitimer(ITIMER_REAL, &newalarm, nullptr);
+        newalarm.it_value = timer_queue.get_root_priority();
+        timer_settime(timer, TIMER_ABSTIME, &newalarm, nullptr);
     }
-    
+
     protected:
-    
+
     using SigInfo = typename Base::SigInfo;
 
     template <typename T>
@@ -67,12 +49,19 @@ template <class Base> class ITimerEvents : public timer_base<Base>
     {
         if (siginfo.get_signo() == SIGALRM) {
             struct timespec curtime;
-            get_curtime(curtime);
-            
-            timer_base<Base>::process_timer_queue(timer_queue, curtime);
 
-            // arm timerfd with timeout from head of queue
-            set_timer_from_queue();
+            if (! real_timer_queue.empty()) {
+                clock_gettime(CLOCK_REALTIME, &curtime);
+                timer_base<Base>::process_timer_queue(real_timer_queue, curtime);
+                set_timer_from_queue(real_timer, real_timer_queue);
+            }
+
+            if (! mono_timer_queue.empty()) {
+                clock_gettime(CLOCK_MONOTONIC, &curtime);
+                timer_base<Base>::process_timer_queue(mono_timer_queue, curtime);
+                set_timer_from_queue(mono_timer, mono_timer_queue);
+            }
+
             // loop_mech.rearmSignalWatch_nolock(SIGALRM);
             return false; // don't disable signal watch
         }
@@ -80,7 +69,31 @@ template <class Base> class ITimerEvents : public timer_base<Base>
             return Base::receive_signal(loop_mech, siginfo, userdata);
         }
     }
-        
+
+    timer_queue_t &queue_for_clock(clock_type clock)
+    {
+        switch (clock) {
+        case clock_type::MONOTONIC:
+            return mono_timer_queue;
+        case clock_type::SYSTEM:
+            return real_timer_queue;
+        default:
+            DASYNQ_UNREACHABLE;
+        }
+    }
+
+    timer_t &timer_for_clock(clock_type clock)
+    {
+        switch (clock) {
+        case clock_type::MONOTONIC:
+            return mono_timer;
+        case clock_type::SYSTEM:
+            return real_timer;
+        default:
+            DASYNQ_UNREACHABLE;
+        }
+    }
+
     public:
 
     template <typename T> void init(T *loop_mech)
@@ -90,35 +103,57 @@ template <class Base> class ITimerEvents : public timer_base<Base>
         sigaddset(&sigmask, SIGALRM);
         sigprocmask(SIG_SETMASK, &sigmask, nullptr);
         loop_mech->addSignalWatch(SIGALRM, nullptr);
+
+        struct sigevent timer_sigevent;
+        timer_sigevent.sigev_notify = SIGEV_SIGNAL;
+        timer_sigevent.sigev_signo = SIGALRM;
+        timer_sigevent.sigev_value.sival_int = 0;
+
+        // Create the timers; throw std::system_error if we can't.
+        if (timer_create(CLOCK_REALTIME, &timer_sigevent, &real_timer) == 0) {
+            if (timer_create(CLOCK_MONOTONIC, &timer_sigevent, &mono_timer) != 0) {
+                timer_delete(real_timer);
+                throw std::system_error(errno, std::system_category());
+            }
+        }
+        else {
+            throw std::system_error(errno, std::system_category());
+        }
+
         Base::init(loop_mech);
     }
 
     void addTimer(timer_handle_t &h, void *userdata, clock_type clock = clock_type::MONOTONIC)
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-        timer_queue.allocate(h, userdata);
+        queue_for_clock(clock).allocate(h, userdata);
     }
-    
+
     void removeTimer(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         removeTimer_nolock(timer_id, clock);
     }
-    
+
     void removeTimer_nolock(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        timer_queue_t &timer_queue = queue_for_clock(clock);
+
         if (timer_queue.is_queued(timer_id)) {
             timer_queue.remove(timer_id);
         }
         timer_queue.deallocate(timer_id);
     }
-    
+
     // starts (if not started) a timer to timeout at the given time. Resets the expiry count to 0.
     //   enable: specifies whether to enable reporting of timeouts/intervals
     void setTimer(timer_handle_t &timer_id, struct timespec &timeout, struct timespec &interval,
             bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
+
+        timer_queue_t &timer_queue = queue_for_clock(clock);
+        timer_t &timer = timer_for_clock(clock);
 
         auto &ts = timer_queue.node_data(timer_id);
         ts.interval_time = interval;
@@ -128,23 +163,24 @@ template <class Base> class ITimerEvents : public timer_base<Base>
         if (timer_queue.is_queued(timer_id)) {
             // Already queued; alter timeout
             if (timer_queue.set_priority(timer_id, timeout)) {
-                set_timer_from_queue();
+                set_timer_from_queue(timer, timer_queue);
             }
         }
         else {
             if (timer_queue.insert(timer_id, timeout)) {
-                set_timer_from_queue();
+                set_timer_from_queue(timer, timer_queue);
             }
         }
     }
 
-    // Set timer relative to current time:    
+    // Set timer relative to current time:
     void setTimerRel(timer_handle_t &timer_id, struct timespec &timeout, struct timespec &interval,
             bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
         // TODO consider caching current time somehow; need to decide then when to update cached value.
         struct timespec curtime;
-        get_curtime(curtime);
+        int posix_clock_id = (clock == clock_type::MONOTONIC) ? CLOCK_MONOTONIC : CLOCK_REALTIME;
+        clock_gettime(posix_clock_id, &curtime);
         curtime.tv_sec += timeout.tv_sec;
         curtime.tv_nsec += timeout.tv_nsec;
         if (curtime.tv_nsec > 1000000000) {
@@ -153,16 +189,18 @@ template <class Base> class ITimerEvents : public timer_base<Base>
         }
         setTimer(timer_id, curtime, interval, enable, clock);
     }
-    
+
     // Enables or disabling report of timeouts (does not stop timer)
     void enableTimer(timer_handle_t &timer_id, bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         enableTimer_nolock(timer_id, enable, clock);
     }
-    
-    void enableTimer_nolock(timer_handle_t &timer_id, bool enable, clock_type = clock_type::MONOTONIC) noexcept
+
+    void enableTimer_nolock(timer_handle_t &timer_id, bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        timer_queue_t &timer_queue = queue_for_clock(clock);
+
         auto &node_data = timer_queue.node_data(timer_id);
         auto expiry_count = node_data.expiry_count;
         if (expiry_count != 0) {
@@ -182,18 +220,28 @@ template <class Base> class ITimerEvents : public timer_base<Base>
 
     void stop_timer_nolock(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        timer_queue_t &timer_queue = queue_for_clock(clock);
+        timer_t &timer = timer_for_clock(clock);
+
         if (timer_queue.is_queued(timer_id)) {
             bool was_first = (&timer_queue.get_root()) == &timer_id;
             timer_queue.remove(timer_id);
             if (was_first) {
-                set_timer_from_queue();
+                set_timer_from_queue(timer, timer_queue);
             }
         }
     }
 
     void get_time(timespec &ts, clock_type clock, bool force_update) noexcept
     {
-        get_curtime(ts);
+        int posix_clock_id = (clock == clock_type::MONOTONIC) ? CLOCK_MONOTONIC : CLOCK_REALTIME;
+        clock_gettime(posix_clock_id, &ts);
+    }
+
+    ~PosixTimerEvents()
+    {
+        timer_delete(mono_timer);
+        timer_delete(real_timer);
     }
 };
 

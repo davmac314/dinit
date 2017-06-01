@@ -101,7 +101,7 @@ template <class Base> class ChildProcEvents : public Base
     using SigInfo = typename Base::SigInfo;
     
     template <typename T>
-    bool receiveSignal(T & loop_mech, SigInfo &siginfo, void *userdata)
+    bool receive_signal(T & loop_mech, SigInfo &siginfo, void *userdata)
     {
         if (siginfo.get_signo() == SIGCHLD) {
             int status;
@@ -115,7 +115,7 @@ template <class Base> class ChildProcEvents : public Base
             return false; // leave signal watch enabled
         }
         else {
-            return Base::receiveSignal(loop_mech, siginfo, userdata);
+            return Base::receive_signal(loop_mech, siginfo, userdata);
         }
     }
     

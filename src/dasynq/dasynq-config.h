@@ -1,7 +1,7 @@
 #ifndef DASYNQ_CONFIG_H_INCLUDED
 #define DASYNQ_CONFIG_H_INCLUDED
 
-#if defined(__OpenBSD__) || defined(__APPLE__)
+#if defined(__OpenBSD__) || defined(__APPLE__) || defined(__FreeBSD__)
 #define DASYNQ_HAVE_KQUEUE 1
 #endif
 
