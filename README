@@ -75,9 +75,9 @@ process that is registered as a scripted service).
 A _bgprocess_ service is a mix between a process service and a scripted
 service. A command is used to start the service, and once started, the
 process ID is expected to be available in a file which Dinit can then
-read. Many existing daemons can operate in this way. Dinit can only supervise
-the process if it runs as the system "init" (PID 1) - otherwise Dinit will
-not know when the process has terminated.
+read. Many existing daemons can operate in this way. The process can only be
+supervised if Dinit runs as the system "init" (PID 1) - otherwise Dinit can
+not reliably know when the process has terminated.
 
 (Note, use of bgprocess services type requires care. The file from which the
 PID is read is trusted; Dinit may send signals to the specified PID. It
