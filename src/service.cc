@@ -69,8 +69,7 @@ void ServiceSet::stopService(const std::string & name) noexcept
 // is due to an unexpected process termination.
 void ServiceRecord::stopped() noexcept
 {
-    if (service_type != ServiceType::SCRIPTED && service_type != ServiceType::BGPROCESS
-            && onstart_flags.runs_on_console) {
+    if (onstart_flags.runs_on_console) {
         tcsetpgrp(0, getpgrp());
         discard_console_log_buffer();
         releaseConsole();
@@ -625,7 +624,7 @@ bool ServiceRecord::open_socket() noexcept
 
 void ServiceRecord::allDepsStarted(bool has_console) noexcept
 {
-    if (onstart_flags.runs_on_console && ! has_console) {
+    if (onstart_flags.starts_on_console && ! has_console) {
         waiting_for_deps = true;
         queueForConsole();
         return;
@@ -689,7 +688,7 @@ bool bgproc_service::read_pid_file() noexcept
 
 void ServiceRecord::started() noexcept
 {
-    if (onstart_flags.runs_on_console && (service_type == ServiceType::SCRIPTED || service_type == ServiceType::BGPROCESS)) {
+    if (onstart_flags.starts_on_console && ! onstart_flags.runs_on_console) {
         tcsetpgrp(0, getpgrp());
         releaseConsole();
     }
@@ -722,7 +721,7 @@ void ServiceRecord::started() noexcept
 
 void ServiceRecord::failed_to_start(bool depfailed) noexcept
 {
-    if (!depfailed && onstart_flags.runs_on_console) {
+    if (!depfailed && onstart_flags.starts_on_console) {
         tcsetpgrp(0, getpgrp());
         releaseConsole();
     }

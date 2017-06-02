@@ -88,10 +88,11 @@ struct OnstartFlags {
     // Not actually "onstart" commands:
     bool no_sigterm : 1;  // do not send SIGTERM
     bool runs_on_console : 1;  // run "in the foreground"
+    bool starts_on_console : 1; // starts in the foreground
     bool pass_cs_fd : 1;  // pass this service a control socket connection via fd
     
     OnstartFlags() noexcept : rw_ready(false), log_ready(false),
-            no_sigterm(false), runs_on_console(false), pass_cs_fd(false)
+            no_sigterm(false), runs_on_console(false), starts_on_console(false), pass_cs_fd(false)
     {
     }
 };

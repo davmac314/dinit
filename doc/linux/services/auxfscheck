@@ -3,7 +3,7 @@
 type = scripted
 command = /sbin/fsck -A -R -C -a
 restart = false
-options = runs-on-console
+options = starts-on-console
 
 depends-on = early-filesystems
 depends-on = udevd

@@ -220,13 +220,23 @@ options = ( runs-on-console | nosigterm | starts-rwfs | starts-log ) ...
   runs-on-console : specifies that this service uses the console; its input
               and output should be directed to the console. A service running
               on the console prevents other services from running on the
-              console (they will queue for the console). For scripted services
-              "runs-on-console" applies only during execution of the start
-              script.
+              console (they will queue for the console).
 
               The "interrupt" key (normally control-C) will be active for
-              process / scripted services that run on the console. This is
-              useful to allow filesystem checks to be interrupted/skipped.
+              process / scripted services that run on the console. Handling
+              of an interrupt is determined by the service process, but
+              typically will cause it to terminate.
+              
+  starts-on-console : specifies that this service uses the console during
+              service startup. This is implied by runs-on-console, but can
+              be specified separately for services that need the console
+              while they start but not afterwards.
+              
+              This setting is not applicable to regular "process" services,
+              but can be used for "scripted" and "bgprocess" services. It
+              allows for interrupting startup via the "interrupt" key
+              (normally control-C). This is useful to allow filesystem checks
+              to be interrupted/skipped.
 
   starts-rwfs : this service mounts the root filesystem read/write (or at
               least mounts the normal writable filesystems for the system).

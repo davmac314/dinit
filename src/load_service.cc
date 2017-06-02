@@ -468,6 +468,11 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                         }
                         else if (option_txt == "runs-on-console") {
                             onstart_flags.runs_on_console = true;
+                            // A service that runs on the console necessarily starts on console:
+                            onstart_flags.starts_on_console = true;
+                        }
+                        else if (option_txt == "starts-on-console") {
+                            onstart_flags.starts_on_console = true;
                         }
                         else if (option_txt == "pass-cs-fd") {
                             onstart_flags.pass_cs_fd = true;
