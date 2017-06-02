@@ -1191,14 +1191,14 @@ void base_process_service::restart_ps_process() noexcept
         tdiff_ns = 1000000000 - (last_start_time.tv_nsec - current_time.tv_nsec);
     }
 
-    if (tdiff_s > 0 || tdiff_ns > 100000000) {
-        // > 100ms
+    if (tdiff_s > 0 || tdiff_ns > 200000000) {
+        // > 200ms
         start_ps_process();
     }
     else {
         timespec timeout;
-        timeout.tv_sec = tdiff_s;
-        timeout.tv_nsec = tdiff_ns;
+        timeout.tv_sec = 0;
+        timeout.tv_nsec = 200000000 - tdiff_ns;
         restart_timer.arm_timer_rel(eventLoop, timeout);
     }
 }
