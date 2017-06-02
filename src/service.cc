@@ -91,7 +91,6 @@ void ServiceRecord::stopped() noexcept
         }
     }
 
-    will_restart &= (desired_state == ServiceState::STARTED);
     for (auto dependency : depends_on) {
         // we signal dependencies in case they are waiting for us to stop - but only if we won't
         // restart or if they are stopping uninterruptibly.
@@ -104,6 +103,7 @@ void ServiceRecord::stopped() noexcept
 
     if (will_restart) {
         // Desired state is "started".
+        restarting = true;
         service_set->addToStartQueue(this);
     }
     else {
@@ -763,8 +763,13 @@ bool ServiceRecord::start_ps_process() noexcept
 
 bool base_process_service::start_ps_process() noexcept
 {
-    eventLoop.get_time(last_start_time, clock_type::MONOTONIC);
-    return start_ps_process(exec_arg_parts, onstart_flags.runs_on_console);
+    if (restarting) {
+        restart_ps_process();
+        return true;
+    }
+    else {
+        return start_ps_process(exec_arg_parts, onstart_flags.runs_on_console);
+    }
 }
 
 bool base_process_service::start_ps_process(const std::vector<const char *> &cmd, bool on_console) noexcept
@@ -773,6 +778,8 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     // success/failure from the child to the parent. The pipe is set CLOEXEC so a successful
     // exec closes the pipe, and the parent sees EOF. If the exec is unsuccessful, the errno
     // is written to the pipe, and the parent can read it.
+
+    eventLoop.get_time(last_start_time, clock_type::MONOTONIC);
 
     int pipefd[2];
     if (pipe2(pipefd, O_CLOEXEC)) {
@@ -1193,7 +1200,10 @@ void base_process_service::restart_ps_process() noexcept
 
     if (tdiff_s > 0 || tdiff_ns > 200000000) {
         // > 200ms
-        start_ps_process();
+        restarting = false;
+        if (! start_ps_process(exec_arg_parts, onstart_flags.runs_on_console)) {
+            // TODO handle appropriately; mark service stopped.
+        }
     }
     else {
         timespec timeout;
@@ -1211,6 +1221,8 @@ dasynq::rearm process_restart_timer::timer_expiry(EventLoop_t &, int expiry_coun
 dasynq::rearm base_process_service::restart_timer_expired() noexcept
 {
     // begin starting process:
-    start_ps_process();
+    if (! start_ps_process(exec_arg_parts, onstart_flags.runs_on_console)) {
+        // TODO handle appropriately; mark service stopped.
+    }
     return dasynq::rearm::DISARM;
 }

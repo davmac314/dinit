@@ -243,6 +243,7 @@ class ServiceRecord
     bool prop_require : 1;      // require must be propagated
     bool prop_release : 1;      // release must be propagated
     bool prop_failure : 1;      // failure to start must be propagated
+    bool restarting : 1;        // re-starting after unexpected termination
     
     int required_by = 0;        // number of dependents wanting this service to be started
 
@@ -397,7 +398,7 @@ class ServiceRecord
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
             waiting_for_execstat(false), start_explicit(false),
             prop_require(false), prop_release(false), prop_failure(false),
-            force_stop(false)
+            restarting(false), force_stop(false)
     {
         service_set = set;
         service_name = name;
