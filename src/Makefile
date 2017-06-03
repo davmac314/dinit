@@ -4,7 +4,7 @@ ifeq ($(BUILD_SHUTDOWN),yes)
   SHUTDOWN=shutdown
 endif
 
-objects = dinit.o load_service.o service.o control.o dinit-log.o dinitctl.o shutdown.o dinit-reboot.o
+objects = dinit.o load_service.o service.o control.o dinit-log.o dinitctl.o shutdown.o
 
 dinit_objects = dinit.o load_service.o service.o control.o dinit-log.o
 
@@ -19,9 +19,6 @@ dinitctl: dinitctl.o
 shutdown: shutdown.o
 	$(CXX) -o shutdown shutdown.o
 
-dinit-reboot: dinit-reboot.o
-	$(CXX) -o dinit-reboot dinit-reboot.o	
-
 $(objects): %.o: %.cc service.h dinit-log.h control.h control-cmds.h cpbuffer.h
 	$(CXX) $(CXXOPTS) -Idasynq -c $< -o $@
 
@@ -35,3 +32,8 @@ endif
 clean:
 	rm -f *.o
 	rm -f dinit dinitctl shutdown
+
+$(objects:.o=.d): %.d: %.cc
+	$(CXX) -Idasynq -MM -MG -MF $@ $<
+
+include $(objects:.o=.d)
