@@ -767,7 +767,7 @@ bool base_process_service::start_ps_process() noexcept
         return true;
     }
     else {
-        return start_ps_process(exec_arg_parts, onstart_flags.runs_on_console);
+        return start_ps_process(exec_arg_parts, onstart_flags.starts_on_console);
     }
 }
 
@@ -1183,6 +1183,28 @@ base_process_service::base_process_service(ServiceSet *sset, string name, Servic
     restart_timer.add_timer(eventLoop);
 }
 
+void base_process_service::do_restart() noexcept
+{
+    restarting = false;
+
+    // We may be STARTING (regular restart) or STARTED ("smooth recovery"). This affects whether
+    // the process should be granted access to the console:
+    bool on_console = service_state == ServiceState::STARTING
+            ? onstart_flags.starts_on_console : onstart_flags.runs_on_console;
+
+    if (! start_ps_process(exec_arg_parts, on_console)) {
+
+        if (service_state == ServiceState::STARTING) {
+            failed_to_start();
+        }
+        else {
+            desired_state = ServiceState::STOPPED;
+            forceStop();
+        }
+        service_set->processQueues();
+    }
+}
+
 void base_process_service::restart_ps_process() noexcept
 {
     timespec current_time;
@@ -1199,10 +1221,7 @@ void base_process_service::restart_ps_process() noexcept
 
     if (tdiff_s > 0 || tdiff_ns > 200000000) {
         // > 200ms
-        restarting = false;
-        if (! start_ps_process(exec_arg_parts, onstart_flags.runs_on_console)) {
-            // TODO handle appropriately; mark service stopped.
-        }
+        do_restart();
     }
     else {
         timespec timeout;
@@ -1214,14 +1233,6 @@ void base_process_service::restart_ps_process() noexcept
 
 dasynq::rearm process_restart_timer::timer_expiry(EventLoop_t &, int expiry_count)
 {
-    return service->restart_timer_expired();
-}
-
-dasynq::rearm base_process_service::restart_timer_expired() noexcept
-{
-    // begin starting process:
-    if (! start_ps_process(exec_arg_parts, onstart_flags.runs_on_console)) {
-        // TODO handle appropriately; mark service stopped.
-    }
+    service->do_restart();
     return dasynq::rearm::DISARM;
 }

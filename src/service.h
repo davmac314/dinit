@@ -575,23 +575,26 @@ class base_process_service : public ServiceRecord
     friend class ServiceIoWatcher;
     friend class process_restart_timer;
 
+    private:
+    // Re-launch process
+    void do_restart() noexcept;
+
     protected:
     ServiceChildWatcher child_listener;
     ServiceIoWatcher child_status_listener;
     process_restart_timer restart_timer;
     timespec last_start_time;
 
-    // start the process, return true on success
+    // Start the process, return true on success
     virtual bool start_ps_process() noexcept;
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
 
-    // restart the process (due to start failure or unexpected termination). Restarts will be
+    // Restart the process (due to start failure or unexpected termination). Restarts will be
     // rate-limited.
     void restart_ps_process() noexcept;
 
     virtual void all_deps_stopped() noexcept;
     virtual void handle_exit_status(int exit_status) noexcept = 0;
-    dasynq::rearm restart_timer_expired() noexcept;
 
     public:
     base_process_service(ServiceSet *sset, string name, ServiceType service_type, string &&command,
