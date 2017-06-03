@@ -1,4 +1,6 @@
 *.o
+*.d
+.*
 dinit
 dinitctl
 test
