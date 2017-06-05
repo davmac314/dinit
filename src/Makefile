@@ -34,6 +34,6 @@ clean:
 	rm -f dinit dinitctl shutdown
 
 $(objects:.o=.d): %.d: %.cc
-	$(CXX) -Idasynq -MM -MG -MF $@ $<
+	$(CXX) $(CXXOPTS) -Idasynq -MM -MG -MF $@ $<
 
 include $(objects:.o=.d)
