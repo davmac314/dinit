@@ -1190,6 +1190,11 @@ base_process_service::base_process_service(ServiceSet *sset, string name, Servic
     restart_interval_time = {0, 0};
     restart_timer.service = this;
     restart_timer.add_timer(eventLoop);
+
+    // By default, allow a maximum of 3 restarts within 10.0 seconds:
+    restart_interval.tv_sec = 10;
+    restart_interval.tv_nsec = 0;
+    max_restart_interval_count = 3;
 }
 
 void base_process_service::do_restart() noexcept
@@ -1228,6 +1233,13 @@ static timespec diff_time(timespec now, timespec then)
     return r;
 }
 
+static bool operator<(const timespec &a, const timespec &b)
+{
+    if (a.tv_sec < b.tv_sec) return true;
+    if (a.tv_sec == b.tv_sec && a.tv_nsec < b.tv_nsec) return true;
+    return false;
+}
+
 bool base_process_service::restart_ps_process() noexcept
 {
     timespec current_time;
@@ -1235,8 +1247,8 @@ bool base_process_service::restart_ps_process() noexcept
 
     // Check whether we're still in the most recent restart check interval:
     timespec int_diff = diff_time(current_time, restart_interval_time);
-    if (int_diff.tv_sec < 10) {
-        if (++restart_interval_count >= 3) {
+    if (int_diff < restart_interval) {
+        if (++restart_interval_count >= max_restart_interval_count) {
             log(LogLevel::ERROR, "Service ", service_name, " restarting too quickly; stopping.");
             return false;
         }

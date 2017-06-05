@@ -102,11 +102,11 @@ class ServiceLoadExc
 {
     public:
     std::string serviceName;
-    const char *excDescription;
+    std::string excDescription;
     
     protected:
-    ServiceLoadExc(std::string serviceName, const char *desc) noexcept
-        : serviceName(serviceName), excDescription(desc)
+    ServiceLoadExc(std::string serviceName, std::string &&desc) noexcept
+        : serviceName(serviceName), excDescription(std::move(desc))
     {
     }
 };
@@ -132,8 +132,8 @@ class ServiceCyclicDependency : public ServiceLoadExc
 class ServiceDescriptionExc : public ServiceLoadExc
 {
     public:
-    ServiceDescriptionExc(std::string serviceName, std::string extraInfo) noexcept
-        : ServiceLoadExc(serviceName, extraInfo.c_str())
+    ServiceDescriptionExc(std::string serviceName, std::string &&extraInfo) noexcept
+        : ServiceLoadExc(serviceName, std::move(extraInfo))
     {
     }    
 };
@@ -590,6 +590,9 @@ class base_process_service : public ServiceRecord
     timespec restart_interval_time;
     int restart_interval_count;
 
+    timespec restart_interval;
+    int max_restart_interval_count;
+
     // Start the process, return true on success
     virtual bool start_ps_process() noexcept;
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
@@ -608,6 +611,12 @@ class base_process_service : public ServiceRecord
 
     ~base_process_service() noexcept
     {
+    }
+
+    void set_restart_interval(timespec interval, int max_restarts)
+    {
+        restart_interval = interval;
+        max_restart_interval_count = max_restarts;
     }
 };
 

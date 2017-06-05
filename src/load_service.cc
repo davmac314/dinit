@@ -55,11 +55,11 @@ namespace {
         std::string info;
         
         public:
-        SettingException(const std::string &exc_info) : info(exc_info)
+        SettingException(const std::string &&exc_info) : info(std::move(exc_info))
         {
         }
         
-        const std::string &getInfo()
+        std::string &getInfo()
         {
             return info;
         }
@@ -233,10 +233,10 @@ static uid_t parse_uid_param(const std::string &param, const std::string &servic
     if (pwent == nullptr) {
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
-            throw new ServiceDescriptionExc(service_name, "Specified user \"" + param + "\" does not exist in system database.");
+            throw ServiceDescriptionExc(service_name, "Specified user \"" + param + "\" does not exist in system database.");
         }
         else {
-            throw new ServiceDescriptionExc(service_name, std::string("Error accessing user database: ") + strerror(errno));
+            throw ServiceDescriptionExc(service_name, std::string("Error accessing user database: ") + strerror(errno));
         }
     }
     
@@ -280,10 +280,10 @@ static gid_t parse_gid_param(const std::string &param, const std::string &servic
     if (grent == nullptr) {
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
-            throw new ServiceDescriptionExc(service_name, "Specified group \"" + param + "\" does not exist in system database.");
+            throw ServiceDescriptionExc(service_name, "Specified group \"" + param + "\" does not exist in system database.");
         }
         else {
-            throw new ServiceDescriptionExc(service_name, std::string("Error accessing group database: ") + strerror(errno));
+            throw ServiceDescriptionExc(service_name, std::string("Error accessing group database: ") + strerror(errno));
         }
     }
     
@@ -344,6 +344,11 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     // invalid value, so it's safe to assume that we can do the same:
     uid_t socket_uid = -1;
     gid_t socket_gid = -1;
+    // Restart limit interval / count; default is 10 seconds, 3 restarts:
+    timespec restart_interval;
+    restart_interval.tv_sec = 10;
+    restart_interval.tv_nsec = 0;
+    int max_restarts = 3;
     
     string line;
     ifstream service_file;
@@ -478,7 +483,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                             onstart_flags.pass_cs_fd = true;
                         }
                         else {
-                            throw new ServiceDescriptionExc(name, "Unknown option: " + option_txt);
+                            throw ServiceDescriptionExc(name, "Unknown option: " + option_txt);
                         }
                     }
                 }
@@ -486,11 +491,46 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                     string signame = read_setting_value(i, end, nullptr);
                     int signo = signalNameToNumber(signame);
                     if (signo == -1) {
-                        throw new ServiceDescriptionExc(name, "Unknown/unsupported termination signal: " + signame);
+                        throw ServiceDescriptionExc(name, "Unknown/unsupported termination signal: " + signame);
                     }
                     else {
                         term_signal = signo;
                     }
+                }
+                else if (setting == "restart-limit-interval") {
+                    string interval_str = read_setting_value(i, end, nullptr);
+                    decltype(restart_interval.tv_sec) isec = 0;
+                    decltype(restart_interval.tv_nsec) insec = 0;
+                    auto max_secs = std::numeric_limits<decltype(isec)>::max() / 10;
+                    auto len = interval_str.length();
+                    int i;
+                    for (i = 0; i < len; i++) {
+                        char ch = interval_str[i];
+                        if (ch == '.') {
+                            i++;
+                            break;
+                        }
+                        if (ch < '0' || ch > '9') {
+                            throw ServiceDescriptionExc(name, "Bad value for restart-limit-interval");
+                        }
+                        // check for overflow
+                        if (isec >= max_secs) {
+                           throw ServiceDescriptionExc(name, "Too-large value for restart-limit-interval");
+                        }
+                        isec *= 10;
+                        isec += ch - '0';
+                    }
+                    decltype(insec) insec_m = 100000000; // 10^8
+                    for ( ; i < len; i++) {
+                        char ch = interval_str[i];
+                        if (ch < '0' || ch > '9') {
+                            throw ServiceDescriptionExc(name, "Bad value for restart-limit-interval");
+                        }
+                        insec += (ch - '0') * insec_m;
+                        insec_m /= 10;
+                    }
+                    restart_interval.tv_sec = isec;
+                    restart_interval.tv_nsec = insec;
                 }
                 else {
                     throw ServiceDescriptionExc(name, "Unknown setting: " + setting);
@@ -512,13 +552,17 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 // We've found the dummy record
                 delete rval;
                 if (service_type == ServiceType::PROCESS) {
-                    rval = new process_service(this, string(name), std::move(command),
+                    auto rvalps = new process_service(this, string(name), std::move(command),
                         command_offsets, &depends_on, &depends_soft);
+                    rvalps->set_restart_interval(restart_interval, max_restarts);
+                    rval = rvalps;
                 }
                 else if (service_type == ServiceType::BGPROCESS) {
-                    rval = new bgproc_service(this, string(name), std::move(command),
+                    auto rvalps = new bgproc_service(this, string(name), std::move(command),
                         command_offsets, &depends_on, &depends_soft);
-                    rval->set_pid_file(std::move(pid_file));
+                    rvalps->set_pid_file(std::move(pid_file));
+                    rvalps->set_restart_interval(restart_interval, max_restarts);
+                    rval = rvalps;
                 }
                 else if (service_type == ServiceType::SCRIPTED) {
                     rval = new scripted_service(this, string(name), std::move(command),
@@ -547,7 +591,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
         // Must remove the dummy service record.
         std::remove(records.begin(), records.end(), rval);
         delete rval;
-        throw ServiceDescriptionExc(name, setting_exc.getInfo());
+        throw ServiceDescriptionExc(name, std::move(setting_exc.getInfo()));
     }
     catch (...) {
         // Must remove the dummy service record.

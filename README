@@ -164,6 +164,13 @@ smooth-recovery = yes | true | no | false
    the service does not reach the stopped state when the process terminates
    unexpectedly).
 
+restart-limit-interval = XXX.YYYY
+   Specifies the interval, in seconds, over which restarts are limited. If a
+   process automatically restarts more than a certain number of times (default
+   3) in this time interval, it will not restart again. The default value is
+   10 seconds. Use this to prevent broken services from continuously
+   restarting ad infinitum.
+
 pid-file = (path to file)
    For "bgprocess" type services only; specifies the path of the file where
    daemon will write its process ID before detaching.
