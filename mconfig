@@ -1,12 +1,16 @@
-# Linux (GCC). Note with GCC 5,5.1,5.2 the new C++11 ABI is buggy.
+# Linux (GCC). Note with GCC 5.x/6.x you must use the old ABI, with GCC 7.x you must use
+# the new ABI. See BUILD file for more information.
 CXX=g++
-CXXOPTS=-D_GLIBCXX_USE_CXX11_ABI=0 -std=gnu++11 -Os -Wall -Wno-invalid-offsetof -fno-rtti
+CXXOPTS=-D_GLIBCXX_USE_CXX11_ABI=1 -std=gnu++11 -Os -Wall -Wno-invalid-offsetof -fno-rtti
 EXTRA_LIBS=
 BUILD_SHUTDOWN=yes
 
 # OpenBSD, tested with GCC 4.9.3 and gmake:
-#CXX=eg++
-#CXXOPTS=-D_GLIBCXX_USE_CXX11_ABI=0 -std=gnu++11 -Os -Wall -fno-rtti
+#CXX=clang++
+#CXXOPTS=-std=gnu++11 -Os -Wall -fno-rtti
 #EXTRA_LIBS=
 #BUILD_SHUTDOWN=no
 # (shutdown command not available for OpenBSD yet).
+
+# MacOS: use Linux settings, but don't build shutdown:
+#BUILD_SHUTDOWN=no
