@@ -188,7 +188,10 @@ void process_service::handle_exit_status(int exit_status) noexcept
         // TODO if we are pinned-started then we should probably check
         //      that dependencies have started before trying to re-start the
         //      service process.
-        restart_ps_process();
+        if (! restart_ps_process()) {
+            desired_state = ServiceState::STOPPED;
+            forceStop();
+        }
         return;
     }
     else {
@@ -263,7 +266,10 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         //      that dependencies have started before trying to re-start the
         //      service process.
         doing_recovery = true;
-        restart_ps_process();
+        if (! restart_ps_process()) {
+            desired_state = ServiceState::STOPPED;
+            forceStop();
+        }
         return;
     }
     else {
@@ -763,10 +769,11 @@ bool ServiceRecord::start_ps_process() noexcept
 bool base_process_service::start_ps_process() noexcept
 {
     if (restarting) {
-        restart_ps_process();
-        return true;
+        return restart_ps_process();
     }
     else {
+        eventLoop.get_time(restart_interval_time, clock_type::MONOTONIC);
+        restart_interval_count = 0;
         return start_ps_process(exec_arg_parts, onstart_flags.starts_on_console);
     }
 }
@@ -1179,6 +1186,8 @@ base_process_service::base_process_service(ServiceSet *sset, string name, Servic
      : ServiceRecord(sset, name, service_type, std::move(command), command_offsets,
          pdepends_on, pdepends_soft), child_listener(this), child_status_listener(this)
 {
+    restart_interval_count = 0;
+    restart_interval_time = {0, 0};
     restart_timer.service = this;
     restart_timer.add_timer(eventLoop);
 }
@@ -1193,7 +1202,6 @@ void base_process_service::do_restart() noexcept
             ? onstart_flags.starts_on_console : onstart_flags.runs_on_console;
 
     if (! start_ps_process(exec_arg_parts, on_console)) {
-
         if (service_state == ServiceState::STARTING) {
             failed_to_start();
         }
@@ -1205,30 +1213,52 @@ void base_process_service::do_restart() noexcept
     }
 }
 
-void base_process_service::restart_ps_process() noexcept
+// Calculate different between two times (a more recent time, "now", and a previuos time "then").
+static timespec diff_time(timespec now, timespec then)
+{
+    timespec r;
+    r.tv_sec = now.tv_sec - then.tv_sec;
+    if (now.tv_nsec >= then.tv_nsec) {
+        r.tv_nsec = now.tv_nsec - then.tv_nsec;
+    }
+    else {
+        r.tv_sec -= 1;
+        r.tv_nsec = 1000000000 - (then.tv_nsec - now.tv_nsec);
+    }
+    return r;
+}
+
+bool base_process_service::restart_ps_process() noexcept
 {
     timespec current_time;
     eventLoop.get_time(current_time, clock_type::MONOTONIC);
-    auto tdiff_s = current_time.tv_sec - last_start_time.tv_sec;
-    decltype(current_time.tv_nsec) tdiff_ns;
-    if (current_time.tv_nsec >= last_start_time.tv_nsec) {
-        tdiff_ns = current_time.tv_nsec - last_start_time.tv_nsec;
+
+    // Check whether we're still in the most recent restart check interval:
+    timespec int_diff = diff_time(current_time, restart_interval_time);
+    if (int_diff.tv_sec < 10) {
+        if (++restart_interval_count >= 3) {
+            log(LogLevel::ERROR, "Service ", service_name, " restarting too quickly; stopping.");
+            return false;
+        }
     }
     else {
-        tdiff_s -= 1;
-        tdiff_ns = 1000000000 - (last_start_time.tv_nsec - current_time.tv_nsec);
+        restart_interval_time = current_time;
+        restart_interval_count = 0;
     }
 
-    if (tdiff_s > 0 || tdiff_ns > 200000000) {
+    // Check if enough time has lapsed since the prevous restart. If not, start a timer:
+    timespec tdiff = diff_time(current_time, last_start_time);
+    if (tdiff.tv_sec > 0 || tdiff.tv_nsec > 200000000) {
         // > 200ms
         do_restart();
     }
     else {
         timespec timeout;
         timeout.tv_sec = 0;
-        timeout.tv_nsec = 200000000 - tdiff_ns;
+        timeout.tv_nsec = 200000000 - tdiff.tv_nsec;
         restart_timer.arm_timer_rel(eventLoop, timeout);
     }
+    return true;
 }
 
 dasynq::rearm process_restart_timer::timer_expiry(EventLoop_t &, int expiry_count)

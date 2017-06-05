@@ -585,13 +585,18 @@ class base_process_service : public ServiceRecord
     process_restart_timer restart_timer;
     timespec last_start_time;
 
+    // Restart interval time and restart count are used to track the number of automatic restarts
+    // over an interval. Too many restarts over an interval will inhibit further restarts.
+    timespec restart_interval_time;
+    int restart_interval_count;
+
     // Start the process, return true on success
     virtual bool start_ps_process() noexcept;
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
 
     // Restart the process (due to start failure or unexpected termination). Restarts will be
     // rate-limited.
-    void restart_ps_process() noexcept;
+    bool restart_ps_process() noexcept;
 
     virtual void all_deps_stopped() noexcept;
     virtual void handle_exit_status(int exit_status) noexcept = 0;
