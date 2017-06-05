@@ -503,7 +503,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                     decltype(restart_interval.tv_nsec) insec = 0;
                     auto max_secs = std::numeric_limits<decltype(isec)>::max() / 10;
                     auto len = interval_str.length();
-                    int i;
+                    decltype(len) i;
                     for (i = 0; i < len; i++) {
                         char ch = interval_str[i];
                         if (ch == '.') {
