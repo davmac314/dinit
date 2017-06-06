@@ -343,11 +343,16 @@ class ServiceRecord
 
     // Whether a STARTING service can immediately transition to STOPPED (as opposed to
     // having to wait for it reach STARTED and then go through STOPPING).
-    bool can_interrupt_start() noexcept
+    virtual bool can_interrupt_start() noexcept
     {
         return waiting_for_deps;
     }
     
+    virtual void interrupt_start() noexcept
+    {
+        // overridden in subclasses
+    }
+
     // Whether a STOPPING service can immediately transition to STARTED.
     bool can_interrupt_stop() noexcept
     {
@@ -594,16 +599,25 @@ class base_process_service : public ServiceRecord
     int max_restart_interval_count;
     timespec restart_delay;
 
+    bool waiting_restart_timer = false;
+
     // Start the process, return true on success
-    virtual bool start_ps_process() noexcept;
+    virtual bool start_ps_process() noexcept override;
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
 
     // Restart the process (due to start failure or unexpected termination). Restarts will be
     // rate-limited.
     bool restart_ps_process() noexcept;
 
-    virtual void all_deps_stopped() noexcept;
+    virtual void all_deps_stopped() noexcept override;
     virtual void handle_exit_status(int exit_status) noexcept = 0;
+
+    virtual bool can_interrupt_start() noexcept override
+    {
+        return waiting_restart_timer || ServiceRecord::can_interrupt_start();
+    }
+
+    virtual void interrupt_start() noexcept override;
 
     public:
     base_process_service(ServiceSet *sset, string name, ServiceType service_type, string &&command,
@@ -614,13 +628,13 @@ class base_process_service : public ServiceRecord
     {
     }
 
-    void set_restart_interval(timespec interval, int max_restarts)
+    void set_restart_interval(timespec interval, int max_restarts) noexcept
     {
         restart_interval = interval;
         max_restart_interval_count = max_restarts;
     }
 
-    void set_restart_delay(timespec delay)
+    void set_restart_delay(timespec delay) noexcept
     {
         restart_delay = delay;
     }

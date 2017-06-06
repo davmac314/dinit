@@ -1200,6 +1200,7 @@ base_process_service::base_process_service(ServiceSet *sset, string name, Servic
 void base_process_service::do_restart() noexcept
 {
     restarting = false;
+    waiting_restart_timer = false;
 
     // We may be STARTING (regular restart) or STARTED ("smooth recovery"). This affects whether
     // the process should be granted access to the console:
@@ -1269,8 +1270,18 @@ bool base_process_service::restart_ps_process() noexcept
     else {
         timespec timeout = diff_time(restart_delay, tdiff);
         restart_timer.arm_timer_rel(eventLoop, timeout);
+        waiting_restart_timer = true;
     }
     return true;
+}
+
+void base_process_service::interrupt_start() noexcept
+{
+    // overridden in subclasses
+    if (waiting_restart_timer) {
+        restart_timer.stop_timer(eventLoop);
+        waiting_restart_timer = false;
+    }
 }
 
 dasynq::rearm process_restart_timer::timer_expiry(EventLoop_t &, int expiry_count)
