@@ -592,6 +592,7 @@ class base_process_service : public ServiceRecord
 
     timespec restart_interval;
     int max_restart_interval_count;
+    timespec restart_delay;
 
     // Start the process, return true on success
     virtual bool start_ps_process() noexcept;
@@ -617,6 +618,11 @@ class base_process_service : public ServiceRecord
     {
         restart_interval = interval;
         max_restart_interval_count = max_restarts;
+    }
+
+    void set_restart_delay(timespec delay)
+    {
+        restart_delay = delay;
     }
 };
 

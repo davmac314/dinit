@@ -309,6 +309,43 @@ static gid_t parse_gid_param(const std::string &param, const std::string &servic
     return grent->gr_gid;
 }
 
+static void parse_timespec(const std::string &paramval, const std::string &servicename,
+        const char * paramname, timespec &ts)
+{
+    decltype(ts.tv_sec) isec = 0;
+    decltype(ts.tv_nsec) insec = 0;
+    auto max_secs = std::numeric_limits<decltype(isec)>::max() / 10;
+    auto len = paramval.length();
+    decltype(len) i;
+    for (i = 0; i < len; i++) {
+        char ch = paramval[i];
+        if (ch == '.') {
+            i++;
+            break;
+        }
+        if (ch < '0' || ch > '9') {
+            throw ServiceDescriptionExc(servicename, std::string("Bad value for ") + paramname);
+        }
+        // check for overflow
+        if (isec >= max_secs) {
+           throw ServiceDescriptionExc(servicename, std::string("Too-large value for ") + paramname);
+        }
+        isec *= 10;
+        isec += ch - '0';
+    }
+    decltype(insec) insec_m = 100000000; // 10^8
+    for ( ; i < len; i++) {
+        char ch = paramval[i];
+        if (ch < '0' || ch > '9') {
+            throw ServiceDescriptionExc(servicename, std::string("Bad value for ") + paramname);
+        }
+        insec += (ch - '0') * insec_m;
+        insec_m /= 10;
+    }
+    ts.tv_sec = isec;
+    ts.tv_nsec = insec;
+}
+
 // Find a service record, or load it from file. If the service has
 // dependencies, load those also.
 //
@@ -364,10 +401,9 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     uid_t socket_uid = -1;
     gid_t socket_gid = -1;
     // Restart limit interval / count; default is 10 seconds, 3 restarts:
-    timespec restart_interval;
-    restart_interval.tv_sec = 10;
-    restart_interval.tv_nsec = 0;
+    timespec restart_interval = { .tv_sec = 10, .tv_nsec = 0 };
     int max_restarts = 3;
+    timespec restart_delay = { .tv_sec = 0, .tv_nsec = 200000000 };
     
     string line;
     ifstream service_file;
@@ -518,38 +554,11 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                 }
                 else if (setting == "restart-limit-interval") {
                     string interval_str = read_setting_value(i, end, nullptr);
-                    decltype(restart_interval.tv_sec) isec = 0;
-                    decltype(restart_interval.tv_nsec) insec = 0;
-                    auto max_secs = std::numeric_limits<decltype(isec)>::max() / 10;
-                    auto len = interval_str.length();
-                    decltype(len) i;
-                    for (i = 0; i < len; i++) {
-                        char ch = interval_str[i];
-                        if (ch == '.') {
-                            i++;
-                            break;
-                        }
-                        if (ch < '0' || ch > '9') {
-                            throw ServiceDescriptionExc(name, "Bad value for restart-limit-interval");
-                        }
-                        // check for overflow
-                        if (isec >= max_secs) {
-                           throw ServiceDescriptionExc(name, "Too-large value for restart-limit-interval");
-                        }
-                        isec *= 10;
-                        isec += ch - '0';
-                    }
-                    decltype(insec) insec_m = 100000000; // 10^8
-                    for ( ; i < len; i++) {
-                        char ch = interval_str[i];
-                        if (ch < '0' || ch > '9') {
-                            throw ServiceDescriptionExc(name, "Bad value for restart-limit-interval");
-                        }
-                        insec += (ch - '0') * insec_m;
-                        insec_m /= 10;
-                    }
-                    restart_interval.tv_sec = isec;
-                    restart_interval.tv_nsec = insec;
+                    parse_timespec(interval_str, name, "restart-limit-interval", restart_interval);
+                }
+                else if (setting == "restart-delay") {
+                    string rsdelay_str = read_setting_value(i, end, nullptr);
+                    parse_timespec(rsdelay_str, name, "restart-delay", restart_delay);
                 }
                 else if (setting == "restart-limit-count") {
                     string limit_str = read_setting_value(i, end, nullptr);
@@ -578,6 +587,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                     auto rvalps = new process_service(this, string(name), std::move(command),
                         command_offsets, &depends_on, &depends_soft);
                     rvalps->set_restart_interval(restart_interval, max_restarts);
+                    rvalps->set_restart_delay(restart_delay);
                     rval = rvalps;
                 }
                 else if (service_type == ServiceType::BGPROCESS) {
@@ -585,6 +595,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                         command_offsets, &depends_on, &depends_soft);
                     rvalps->set_pid_file(std::move(pid_file));
                     rvalps->set_restart_interval(restart_interval, max_restarts);
+                    rvalps->set_restart_delay(restart_delay);
                     rval = rvalps;
                 }
                 else if (service_type == ServiceType::SCRIPTED) {

@@ -1262,14 +1262,12 @@ bool base_process_service::restart_ps_process() noexcept
 
     // Check if enough time has lapsed since the prevous restart. If not, start a timer:
     timespec tdiff = diff_time(current_time, last_start_time);
-    if (tdiff.tv_sec > 0 || tdiff.tv_nsec > 200000000) {
-        // > 200ms
+    if (restart_delay < tdiff) {
+        // > restart delay (normally 200ms)
         do_restart();
     }
     else {
-        timespec timeout;
-        timeout.tv_sec = 0;
-        timeout.tv_nsec = 200000000 - tdiff.tv_nsec;
+        timespec timeout = diff_time(restart_delay, tdiff);
         restart_timer.arm_timer_rel(eventLoop, timeout);
     }
     return true;
