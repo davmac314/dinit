@@ -1245,17 +1245,19 @@ bool base_process_service::restart_ps_process() noexcept
     timespec current_time;
     eventLoop.get_time(current_time, clock_type::MONOTONIC);
 
-    // Check whether we're still in the most recent restart check interval:
-    timespec int_diff = diff_time(current_time, restart_interval_time);
-    if (int_diff < restart_interval) {
-        if (++restart_interval_count >= max_restart_interval_count) {
-            log(LogLevel::ERROR, "Service ", service_name, " restarting too quickly; stopping.");
-            return false;
+    if (max_restart_interval_count != 0) {
+        // Check whether we're still in the most recent restart check interval:
+        timespec int_diff = diff_time(current_time, restart_interval_time);
+        if (int_diff < restart_interval) {
+            if (++restart_interval_count >= max_restart_interval_count) {
+                log(LogLevel::ERROR, "Service ", service_name, " restarting too quickly; stopping.");
+                return false;
+            }
         }
-    }
-    else {
-        restart_interval_time = current_time;
-        restart_interval_count = 0;
+        else {
+            restart_interval_time = current_time;
+            restart_interval_count = 0;
+        }
     }
 
     // Check if enough time has lapsed since the prevous restart. If not, start a timer:

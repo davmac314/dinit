@@ -208,12 +208,9 @@ static uid_t parse_uid_param(const std::string &param, const std::string &servic
     std::size_t ind = 0;
     try {
         // POSIX does not specify whether uid_t is an signed or unsigned, but regardless
-        // is is probably safe to assume that valid values are positive. We'll also assume
-        // that the value range fits with "unsigned long long" since it seems unlikely
+        // is is probably safe to assume that valid values are positive. We'll also assert
+        // that the value range fits within "unsigned long long" since it seems unlikely
         // that would ever not be the case.
-        //
-        // TODO perhaps write a number parser, since even the unsigned variants of the C/C++
-        //      functions accept a leading minus sign...
         static_assert((uintmax_t)std::numeric_limits<uid_t>::max() <= (uintmax_t)std::numeric_limits<unsigned long long>::max(), "uid_t is too large");
         unsigned long long v = std::stoull(param, &ind, 0);
         if (v > static_cast<unsigned long long>(std::numeric_limits<uid_t>::max()) || ind != param.length()) {
@@ -245,6 +242,28 @@ static uid_t parse_uid_param(const std::string &param, const std::string &servic
     }
     
     return pwent->pw_uid;
+}
+
+static const char * num_err_msg = "Specified value contains invalid numeric characters or is outside allowed range.";
+
+// Parse an unsigned numeric parameter value
+static unsigned long long parse_unum_param(const std::string &param, const std::string &service_name,
+        unsigned long long max = std::numeric_limits<unsigned long long>::max())
+{
+    std::size_t ind = 0;
+    try {
+        unsigned long long v = std::stoull(param, &ind, 0);
+        if (v > max || ind != param.length()) {
+            throw ServiceDescriptionExc(service_name, num_err_msg);
+        }
+        return v;
+    }
+    catch (std::out_of_range &exc) {
+        throw ServiceDescriptionExc(service_name, num_err_msg);
+    }
+    catch (std::invalid_argument &exc) {
+        throw ServiceDescriptionExc(service_name, num_err_msg);
+    }
 }
 
 static const char * gid_err_msg = "Specified group id contains invalid numeric characters or is outside allowed range.";
@@ -531,6 +550,10 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                     }
                     restart_interval.tv_sec = isec;
                     restart_interval.tv_nsec = insec;
+                }
+                else if (setting == "restart-limit-count") {
+                    string limit_str = read_setting_value(i, end, nullptr);
+                    max_restarts = parse_unum_param(limit_str, name, std::numeric_limits<int>::max());
                 }
                 else {
                     throw ServiceDescriptionExc(name, "Unknown setting: " + setting);

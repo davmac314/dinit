@@ -171,6 +171,11 @@ restart-limit-interval = XXX.YYYY
    10 seconds. Use this to prevent broken services from continuously
    restarting ad infinitum.
 
+restart-limit-count = NNN
+	Specifies the maximum number of times that a service can automatically
+	restart over the interval specified by restart-limit-interval (default of
+	10 seconds). Specify a value of 0 to disable the restart limit.
+
 pid-file = (path to file)
    For "bgprocess" type services only; specifies the path of the file where
    daemon will write its process ID before detaching.
