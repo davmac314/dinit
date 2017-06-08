@@ -46,6 +46,7 @@ static void sigint_reboot_cb(EventLoop_t &eloop) noexcept;
 static void sigquit_cb(EventLoop_t &eloop) noexcept;
 static void sigterm_cb(EventLoop_t &eloop) noexcept;
 static void close_control_socket() noexcept;
+static void wait_for_user_input() noexcept;
 
 static void control_socket_cb(EventLoop_t *loop, int fd);
 
@@ -377,8 +378,9 @@ static int dinit_main(int argc, char **argv)
                 goto event_loop; // yes, the "evil" goto
             }
             catch (...) {
-                // Now WTF do we do? try to reboot
-                log(LogLevel::ERROR, "Could not start 'boot' service; rebooting.");
+                // Now what do we do? try to reboot, but wait for user ack to avoid boot loop.
+                log(LogLevel::ERROR, "Could not start 'boot' service. Will attempt reboot.");
+                wait_for_user_input();
                 shutdown_type = ShutdownType::REBOOT;
             }
         }
@@ -425,6 +427,15 @@ int main(int argc, char **argv)
         std::cout << "dinit: unexpected error during initialisation" << std::endl;
         return 1;
     }
+}
+
+// In exception situations we want user confirmation before proceeding (eg on critical boot failure
+// we wait before rebooting to avoid a reboot loop).
+static void wait_for_user_input() noexcept
+{
+    std::cout << "Press Enter to continue." << std::endl;
+    char buf[1];
+    read(STDIN_FILENO, buf, 1);
 }
 
 // Callback for control socket
