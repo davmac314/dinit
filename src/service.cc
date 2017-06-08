@@ -893,6 +893,7 @@ void ServiceRecord::run_child_proc(const char * const *args, const char *logfile
     sigdelset(&sigwait_set, SIGCHLD);
     sigdelset(&sigwait_set, SIGINT);
     sigdelset(&sigwait_set, SIGTERM);
+    sigdelset(&sigwait_set, SIGQUIT);
     
     constexpr int bufsz = ((CHAR_BIT * sizeof(pid_t)) / 3 + 2) + 11;
     // "LISTEN_PID=" - 11 characters; the expression above gives a conservative estimate

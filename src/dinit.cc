@@ -237,6 +237,7 @@ static int dinit_main(int argc, char **argv)
     sigaddset(&sigwait_set, SIGCHLD);
     sigaddset(&sigwait_set, SIGINT);
     sigaddset(&sigwait_set, SIGTERM);
+    if (am_system_init) sigaddset(&sigwait_set, SIGQUIT);
     sigprocmask(SIG_BLOCK, &sigwait_set, NULL);
     
     // Terminal access control signals - we block these so that dinit can't be
