@@ -488,8 +488,6 @@ void open_control_socket(bool report_ro_failure) noexcept
         name->sun_family = AF_UNIX;
         memcpy(name->sun_path, saddrname, saddrname_len + 1);
 
-        // OpenBSD and Linux both allow combining NONBLOCK/CLOEXEC flags with socket type, however
-        // it's not actually POSIX. (TODO).
         int sockfd = dinit_socket(AF_UNIX, SOCK_STREAM, 0, SOCK_NONBLOCK | SOCK_CLOEXEC);
         if (sockfd == -1) {
             log(LogLevel::ERROR, "Error creating control socket: ", strerror(errno));
