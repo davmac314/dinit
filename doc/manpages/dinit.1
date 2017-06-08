@@ -298,5 +298,14 @@ depends-on = device-node-daemon
 
 More examples are provided with the Dinit distribution.
 .\"
+.SH SIGNALS
+.LP
+When run as a system process, SIGINT stops all services and performs a reboot (on Linux, this signal can be
+generated using the control-alt-delete key combination); SIGTERM stops services and halts the system; and
+SIGQUIT performs an immediate shutdown with no service rollback.
+LP
+When run as a user process, SIGINT and SIGTERM both stop services and exit Dinit; SIGQUIT exits Dinit
+immediately.
+.\"
 .SH AUTHOR
 Dinit, and this manual, were written by Davin McCall.

@@ -276,29 +276,26 @@ static int dinit_main(int argc, char **argv)
     }
 
     // Set up signal handlers
+    CallbackSignalHandler sigterm_watcher {sigterm_cb};
     CallbackSignalHandler sigint_watcher;
-    if (am_system_init) {
-      sigint_watcher.setCbFunc(sigint_reboot_cb);
-    }
-    else {
-      sigint_watcher.setCbFunc(sigterm_cb);
-    }
-    
     CallbackSignalHandler sigquit_watcher;
+
     if (am_system_init) {
-        // PID 1: SIGQUIT exec's shutdown
+        sigint_watcher.setCbFunc(sigint_reboot_cb);
         sigquit_watcher.setCbFunc(sigquit_cb);
     }
     else {
-        // Otherwise: SIGQUIT terminates dinit
-        sigquit_watcher.setCbFunc(sigterm_cb);
+        sigint_watcher.setCbFunc(sigterm_cb);
     }
-    
-    CallbackSignalHandler sigterm_watcher {sigterm_cb};
-    
+
     sigint_watcher.add_watch(eventLoop, SIGINT);
-    sigquit_watcher.add_watch(eventLoop, SIGQUIT);
     sigterm_watcher.add_watch(eventLoop, SIGTERM);
+    
+    if (am_system_init) {
+        // PID 1: SIGQUIT exec's shutdown
+        sigquit_watcher.add_watch(eventLoop, SIGQUIT);
+        // As a user process, we instead just let SIGQUIT perform the default action.
+    }
 
     // Try to open control socket (may fail due to readonly filesystem)
     open_control_socket(false);
@@ -406,6 +403,14 @@ static int dinit_main(int argc, char **argv)
         while (true) {
             eventLoop.run();
         }
+    }
+    else if (shutdown_type == ShutdownType::REBOOT) {
+        // Non-system-process. If we got SIGINT, let's die due to it:
+        sigset_t sigwait_set;
+        sigemptyset(&sigwait_set);
+        sigaddset(&sigwait_set, SIGINT);
+        raise(SIGINT);
+        sigprocmask(SIG_UNBLOCK, &sigwait_set, NULL);
     }
     
     return 0;
