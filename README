@@ -164,6 +164,11 @@ smooth-recovery = yes | true | no | false
    the service does not reach the stopped state when the process terminates
    unexpectedly).
 
+restart-delay = XXX.YYYY
+   Specifies the minimum time in seconds between automatic restarts. The
+   default is 0.2 (i.e. 200ms). This prevents Dinit from consuming processor
+   cycles when a process continuously fails immediately after it starts.
+
 restart-limit-interval = XXX.YYYY
    Specifies the interval, in seconds, over which restarts are limited. If a
    process automatically restarts more than a certain number of times (default
@@ -268,6 +273,10 @@ options = ( runs-on-console | nosigterm | starts-rwfs | starts-log ) ...
               receives the control socket must close it before launching any
               untrusted processes. You should not use this option unless the
               service is designed to receive a Dinit control socket.
+
+logfile = (log file path)
+   Specifies the log file for the service. Output from the service process
+   will go this file.
 
 
 Controlling services
