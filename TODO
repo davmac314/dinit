@@ -1,3 +1,5 @@
+* Prevent PROCESS services from being starts-on-console without also being runs-on-console.
+
 * shutdown command presently hangs if terminal output blocked (scroll lock
   via ^S). Should use a buffer as dinit does, and pipe output from subcommands
   via the buffer too.
@@ -7,8 +9,7 @@
 
 For version 1.0:
 ----------------
-* Documentation including sample service definitions
-  - Man pages
+* Man pages for all programs (done for dinit, not for dinitctl/shutdown/etc).
 * Better error handling, logging of errors (largely done, still some patches
   of code where it may be missing - check TODO's in code).
 * Write wtmp entry on startup (see simpleinit)
@@ -57,6 +58,8 @@ For later:
   the timeout (after a TERM) then hit them with a KILL.
 * A (perhaps limited) way(s) to modify a service description after it is loaded -
   eg add/remove dependencies, change properties.
+* Think about detecting runs-on-console dependency conflicts (i.e. if A runs-on-console and
+  B depends on A and runs-on-consle then B can never start).
 
 Even later / Maybe never:
 * Support recognising /etc/init.d services automatically (as script services, with
