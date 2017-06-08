@@ -15,8 +15,6 @@ For version 1.0:
 * Write wtmp entry on startup (see simpleinit)
 * Allow running services as a different UID
 * Must be able to specify kill timeout (after which kill -9!)
-* Must rate-limit restart of services. Trying to start at a greater rate
-  should trigger failed-to-start notification.
 * "triggered" service type: external process notifies Dinit when the service
   has started.
 * Ability to reload stopped services (reload service description)
