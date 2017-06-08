@@ -138,7 +138,7 @@ namespace {
     };
 }
 
-int main(int argc, char **argv)
+static int dinit_main(int argc, char **argv)
 {
     using namespace std;
     
@@ -206,10 +206,12 @@ int main(int argc, char **argv)
             }
         }
         else {
+#ifdef __linux__
             // LILO puts "auto" on the kernel command line for unattended boots; we'll filter it.
             if (! am_system_init || strcmp(argv[i], "auto") != 0) {
                 services_to_start.push_back(argv[i]);
             }
+#endif
         }
       }
     }
@@ -313,11 +315,13 @@ int main(int argc, char **argv)
     
     init_log(service_set);
     
-    for (list<const char *>::iterator i = services_to_start.begin();
-            i != services_to_start.end();
-            ++i) {
+    for (auto svc : services_to_start) {
         try {
-            service_set->startService(*i);
+            service_set->startService(svc);
+            // Note in general if we fail to start a service we don't need any special error handling,
+            // since we either leave other services running or, if it was the only service, then no
+            // services will be running and we will process normally (reboot if system process,
+            // exit if user process).
         }
         catch (ServiceNotFound &snf) {
             log(LogLevel::ERROR, snf.serviceName, ": Could not find service description.");
@@ -326,7 +330,8 @@ int main(int argc, char **argv)
             log(LogLevel::ERROR, sle.serviceName, ": ", sle.excDescription);
         }
         catch (std::bad_alloc &badalloce) {
-            log(LogLevel::ERROR, "Out of memory when trying to start service: ", *i, ".");
+            log(LogLevel::ERROR, "Out of memory when trying to start service: ", svc, ".");
+            break;
         }
     }
     
@@ -401,6 +406,25 @@ int main(int argc, char **argv)
     }
     
     return 0;
+}
+
+int main(int argc, char **argv)
+{
+    try {
+        return dinit_main(argc, argv);
+    }
+    catch (std::bad_alloc &badalloc) {
+        std::cout << "dinit: Out-of-memory during initialisation" << std::endl;
+        return 1;
+    }
+    catch (std::system_error &syserr) {
+        std::cout << "dinit: unexpected system error during initialisation: " << syserr.what() << std::endl;
+        return 1;
+    }
+    catch (...) {
+        std::cout << "dinit: unexpected error during initialisation" << std::endl;
+        return 1;
+    }
 }
 
 // Callback for control socket
