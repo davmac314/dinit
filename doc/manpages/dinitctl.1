@@ -1,0 +1,91 @@
+.TH DINITCTL "1" "June 2017" "Dinit 0.06" "Dinit \- service management system"
+.SH NAME
+dinitctl \- control services supervised by Dinit
+.\"
+.SH SYNOPSIS
+.\"
+.B dinitctl
+[\-s] [\-\-quiet] start [\-\-no\-wait] [\-\-pin] [\fIservice-name\fR]
+.br
+.B dinitctl
+[\-s] [\-\-quiet] stop [\-\-no\-wait] [\-\-pin] [\fIservice-name\fR]
+.br
+.B dinitctl
+[\-s] [\-\-quiet] wake [\-\-no\-wait] [\fIservice-name\fR]
+.br
+.B dinitctl
+[\-s] [\-\-quiet] release [\fIservice-name\fR]
+.br
+.B dinitctl
+[\-s] [\-\-quiet] unpin [\fIservice-name\fR]
+.br
+.B dinitctl
+[\-s] list
+.\"
+.SH DESCRIPTION
+.\"
+\fBdinitctl\fR is a utility to control services being managed by the
+\fBdinit\fR daemon. It allows starting and stopping services, and listing
+service status. 
+.\"
+.SH OPTIONS
+.TP
+\fB\-\-help\fR
+display this help and exit
+.TP
+\fB\-\-no\-wait\fR
+Do not wait for issued command to complete; exit immediately.
+.TP
+\fB\-\-pin\fR
+Pin the service in the requested state. The service will not leave the state until it is unpinned, although
+start/stop commands will be "remembered" while the service is pinned.
+.TP
+\fB\-s\fR, \fB\-\-system\fR
+Control the system init process. The default is to control the user process. This option selects
+the path to the control socket used to communicate with the \fBdinit\fR daemon process.
+.TP
+\fIservice-name\fR
+Specifies the name of the service to which the command applies.
+.TP
+\fBstart\fR
+Start the specified service. The service is marked as explicitly activated and will not be stopped
+automatically when its dependents stop. If the service is currently stopping this may continue until
+the service is stopped before it is then restarted.
+.TP
+\fBstop\fR
+Stop the specified service, and remove explicit activation. The service will stop, but may restart
+immediately if it has active dependents. Any pending \fBstart\fR orders are cancelled.
+.TP
+\fBwake\fR
+Start the specified service, but do not mark it as explicitly activated if it is not already so
+marked.
+.TP
+\fBrelease\fR
+Clear the explicit activation mark from a service (service will then stop if it has no active dependents).
+.TP
+\fBunpin\fR
+Remove start- and stop- pins from a service. If a started service is not explicitly activated and
+has no active dependents, it will stop. If a started service has a dependency service which is stopping,
+it will stop. If a stopped service has a dependent service which is starting, it will start. Otherwise,
+any pending start/stop commands will be carried out.
+.\"
+.SH SERVICE OPERATION
+.\"
+Normally, services are only started if they have been explicitly activated (\fBstart\fR command) or if
+a started service depends on them. Therefore, starting a service also starts all services that the first
+depends on; stopping the same service then also stops the dependency services, unless they are also
+required by another explicitly activated service.
+.LP
+A service can be pinned in either the started or stopped state. This is mainly intended to be used to
+prevent automated stop or start of a service, including via a dependency or dependent service, during
+a manual administrative procedure.
+.LP
+Stopping a service does not in general prevent it from restarting. A service configured to restart
+automatically, or with a dependent service configured to do so, will restart immediately after stopping
+unless pinned.
+.\"
+.SH SEE ALSO
+\fBdinit\fR(1).
+.\"
+.SH AUTHOR
+Dinit, and this manual, were written by Davin McCall.
