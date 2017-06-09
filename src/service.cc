@@ -1083,7 +1083,12 @@ bool ServiceRecord::stopDependents() noexcept
             all_deps_stopped = false;
         }
 
-        (*i)->forceStop();
+        if (force_stop) {
+            // If this service is to be forcefully stopped, dependents must also be.
+            (*i)->forceStop();
+        }
+
+        (*i)->do_stop();
     }
 
     return all_deps_stopped;
