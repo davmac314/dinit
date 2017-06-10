@@ -71,14 +71,33 @@
  *
  * Two-phase transition
  * --------------------
- * Transition between states occurs in two phases: propagation and execution. In the
- * propagation phase, acquisition/release messages are processed, and desired state may be
- * altered accordingly. Desired state of dependencies/dependents should not be examined in
- * this phase, since it may change during the phase (i.e. its current value at any point
- * may not reflect the true final value).
+ * Transition between states occurs in two phases: propagation and execution. In both phases
+ * a linked-list queue is used to keep track of which services need processing; this avoids
+ * recursion (which would be of unknown depth and therefore liable to stack overflow).
+ *
+ * In the propagation phase, acquisition/release messages are processed, and desired state may be
+ * altered accordingly. Start and stop requests are also propagated in this phase. The state may
+ * be set to STARTING or STOPPING to reflect the desired state, but will never be set to STARTED
+ * or STOPPED (that happens in the execution phase).
+ *
+ * Propagation variables:
+ *   prop_acquire:  the service has transitioned to an acquired state and must issue an acquire
+ *                  on its dependencies
+ *   prop_release:  the service has transitioned to a released state and must issue a release on
+ *                  its dependencies.
+ *
+ *   prop_start:    the service should start
+ *   prop_stop:     the service should stop
+ *
+ * Note that "prop_acquire"/"prop_release" form a pair which cannot both be set at the same time
+ * which is enforced via explicit checks. For "prop_start"/"prop_stop" this occurs implicitly.
  *
  * In the execution phase, actions are taken to achieve the desired state. Actual state may
- * transition according to the current and desired states.
+ * transition according to the current and desired states. Processes can be sent signals, etc
+ * in order to stop them. A process can restart if it stops, but it does so by raising prop_start
+ * which needs to be processed in a second transition phase. Seeing as starting never causes
+ * another process to stop, the transition-execute-transition cycle always ends at the 2nd
+ * transition stage, at the latest.
  */
 
 struct OnstartFlags {
@@ -244,6 +263,8 @@ class ServiceRecord
     bool prop_require : 1;      // require must be propagated
     bool prop_release : 1;      // release must be propagated
     bool prop_failure : 1;      // failure to start must be propagated
+    bool prop_start   : 1;
+    bool prop_stop    : 1;
     bool restarting : 1;        // re-starting after unexpected termination
     
     int required_by = 0;        // number of dependents wanting this service to be started
@@ -404,7 +425,7 @@ class ServiceRecord
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
             waiting_for_execstat(false), start_explicit(false),
             prop_require(false), prop_release(false), prop_failure(false),
-            restarting(false), force_stop(false)
+            prop_start(false), prop_stop(false), restarting(false), force_stop(false)
     {
         service_set = set;
         service_name = name;

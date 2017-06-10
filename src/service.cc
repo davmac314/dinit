@@ -78,24 +78,19 @@ void ServiceRecord::stopped() noexcept
     force_stop = false;
 
     // If we are a soft dependency of another target, break the acquisition from that target now:
-    bool will_restart = (desired_state == ServiceState::STARTED)
-            && service_set->get_auto_restart();
-
-    if (! will_restart) {
-        for (auto dependency : soft_dpts) {
-            if (dependency->holding_acq) {
-                dependency->holding_acq = false;
-                release();
-            }
+    for (auto dependent : soft_dpts) {
+        if (dependent->holding_acq) {
+            dependent->holding_acq = false;
+            release();
         }
     }
 
+    bool will_restart = (desired_state == ServiceState::STARTED)
+            && service_set->get_auto_restart();
+
     for (auto dependency : depends_on) {
-        // we signal dependencies in case they are waiting for us to stop - but only if we won't
-        // restart or if they are stopping uninterruptibly.
-        if (! will_restart || ! dependency->can_interrupt_stop()) {
-            dependency->dependentStopped();
-        }
+        // we signal dependencies in case they are waiting for us to stop:
+        dependency->dependentStopped();
     }
 
     service_state = ServiceState::STOPPED;
@@ -103,7 +98,7 @@ void ServiceRecord::stopped() noexcept
     if (will_restart) {
         // Desired state is "started".
         restarting = true;
-        service_set->addToStartQueue(this);
+        start(false);
     }
     else {
         if (socket_fd != -1) {
@@ -368,17 +363,9 @@ rearm ServiceIoWatcher::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
 void ServiceRecord::require() noexcept
 {
     if (required_by++ == 0) {
-        
-        if (! prop_require) {
-            prop_require = true;
-            prop_release = false;
-            service_set->addToPropQueue(this);
-        }
-        
-        if (service_state == ServiceState::STOPPED) {
-            // (In any other state, the service is already considered active.)
-            service_set->service_active(this);
-        }
+        prop_require = !prop_release;
+        prop_release = false;
+        service_set->addToPropQueue(this);
     }
 }
 
@@ -386,15 +373,18 @@ void ServiceRecord::release() noexcept
 {
     if (--required_by == 0) {
         desired_state = ServiceState::STOPPED;
-        // Can stop, and can release dependencies now:
-        prop_release = true;
+
+        // Can stop, and can release dependencies now. We don't need to issue a release if
+        // the require was pending though:
+        prop_release = !prop_require;
         prop_require = false;
         service_set->addToPropQueue(this);
-        if (service_state != ServiceState::STOPPED) {
-            service_set->addToStopQueue(this);
+
+        if (service_state == ServiceState::STOPPED) {
+            service_set->service_inactive(this);
         }
         else {
-            service_set->service_inactive(this);
+            do_stop();
         }
     }
 }
@@ -422,9 +412,31 @@ void ServiceRecord::start(bool activate) noexcept
     }
     
     if (desired_state == ServiceState::STARTED && service_state != ServiceState::STOPPED) return;
-    
+
+    bool was_active = service_state != ServiceState::STOPPED || desired_state != ServiceState::STOPPED;
     desired_state = ServiceState::STARTED;
-    service_set->addToStartQueue(this);
+    
+    if (service_state != ServiceState::STOPPED) {
+        // We're already starting/started, or we are stopping and need to wait for
+        // that the complete.
+        if (service_state != ServiceState::STOPPING || ! can_interrupt_stop()) {
+            return;
+        }
+        // We're STOPPING, and that can be interrupted. Our dependencies might be STOPPING,
+        // but if so they are waiting (for us), so they too can be instantly returned to
+        // STARTING state.
+        notifyListeners(ServiceEvent::STOPCANCELLED);
+    }
+    else if (! was_active) {
+        service_set->service_active(this);
+    }
+
+    service_state = ServiceState::STARTING;
+    waiting_for_deps = true;
+
+    if (startCheckDependencies(true)) {
+        service_set->addToStartQueue(this);
+    }
 }
 
 void ServiceRecord::do_propagation() noexcept
@@ -454,35 +466,27 @@ void ServiceRecord::do_propagation() noexcept
         failed_to_start(true);
     }
     
-    if (waiting_for_deps) {
-        if (service_state == ServiceState::STARTING) {
-            if (startCheckDependencies(false)) {
-                allDepsStarted();
-            }
-        }
-        else if (service_state == ServiceState::STOPPING) {
-            if (stopCheckDependents()) {
-                all_deps_stopped();
-            }
-        }
+    if (prop_start) {
+        prop_start = false;
+        start(false);
+    }
+
+    if (prop_stop) {
+        prop_stop = false;
+        do_stop();
     }
 }
 
 void ServiceRecord::execute_transition() noexcept
 {
-    bool is_started = (service_state == ServiceState::STARTED)
-            || (service_state == ServiceState::STARTING && can_interrupt_start());
-    bool is_stopped = (service_state == ServiceState::STOPPED)
-            || (service_state == ServiceState::STOPPING && can_interrupt_stop());
-
-    if (is_started && (desired_state == ServiceState::STOPPED || force_stop)) {
-        if (! pinned_started) {
-            do_stop();
+    if (service_state == ServiceState::STARTING) {
+        if (startCheckDependencies(false)) {
+            allDepsStarted(false);
         }
     }
-    else if (is_stopped && desired_state == ServiceState::STARTED) {
-        if (! pinned_stopped) {
-            do_start();
+    else if (service_state == ServiceState::STOPPING) {
+        if (stopCheckDependents()) {
+            all_deps_stopped();
         }
     }
 }
@@ -491,16 +495,8 @@ void ServiceRecord::do_start() noexcept
 {
     if (pinned_stopped) return;
     
-    if (service_state != ServiceState::STOPPED) {
-        // We're already starting/started, or we are stopping and need to wait for
-        // that the complete.
-        if (service_state != ServiceState::STOPPING || ! can_interrupt_stop()) {
-            return;
-        }
-        // We're STOPPING, and that can be interrupted. Our dependencies might be STOPPING,
-        // but if so they are waiting (for us), so they too can be instantly returned to
-        // STARTING state.
-        notifyListeners(ServiceEvent::STOPCANCELLED);
+    if (service_state != ServiceState::STARTING) {
+        return;
     }
     
     service_state = ServiceState::STARTING;
@@ -508,18 +504,16 @@ void ServiceRecord::do_start() noexcept
     waiting_for_deps = true;
 
     // Ask dependencies to start, mark them as being waited on.
-    if (! startCheckDependencies(true)) {
-        return;
+    if (startCheckDependencies(false)) {
+        // Once all dependencies are started, we start properly:
+        allDepsStarted();
     }
-
-    // Actually start this service.
-    allDepsStarted();
 }
 
 void ServiceRecord::dependencyStarted() noexcept
 {
     if (service_state == ServiceState::STARTING && waiting_for_deps) {
-        service_set->addToPropQueue(this);
+        service_set->addToStartQueue(this);
     }
 }
 
@@ -531,7 +525,8 @@ bool ServiceRecord::startCheckDependencies(bool start_deps) noexcept
         if ((*i)->service_state != ServiceState::STARTED) {
             if (start_deps) {
                 all_deps_started = false;
-                (*i)->start(false);
+                (*i)->prop_start = true;
+                service_set->addToPropQueue(*i);
             }
             else {
                 return false;
@@ -543,7 +538,8 @@ bool ServiceRecord::startCheckDependencies(bool start_deps) noexcept
         ServiceRecord * to = i->getTo();
         if (start_deps) {
             if (to->service_state != ServiceState::STARTED) {
-                to->start(false);
+                to->prop_start = true;
+                service_set->addToPropQueue(to);
                 i->waiting_on = true;
                 all_deps_started = false;
             }
@@ -712,7 +708,7 @@ void ServiceRecord::started() noexcept
 
     if (force_stop || desired_state == ServiceState::STOPPED) {
         // We must now stop.
-        service_set->addToStopQueue(this);
+        do_stop();
         return;
     }
 
@@ -1002,7 +998,7 @@ void ServiceRecord::forceStop() noexcept
 void ServiceRecord::dependentStopped() noexcept
 {
     if (service_state == ServiceState::STOPPING && waiting_for_deps) {
-        service_set->addToPropQueue(this);
+        service_set->addToStopQueue(this);
     }
 }
 
@@ -1012,10 +1008,9 @@ void ServiceRecord::stop(bool bring_down) noexcept
         start_explicit = false;
         release();
     }
-    
-    if (bring_down && desired_state != ServiceState::STOPPED) {
-        desired_state = ServiceState::STOPPED;
-        service_set->addToStopQueue(this);
+
+    if (bring_down) {
+        do_stop();
     }
 }
 
@@ -1037,10 +1032,8 @@ void ServiceRecord::do_stop() noexcept
             // We must have had desired_state == STARTED.
             notifyListeners(ServiceEvent::STARTCANCELLED);
             
-            // Reaching this point, we have can_interrupt_start() == true. So,
-            // we can stop. Dependents might be starting, but they must be
-            // waiting on us, so they should also be immediately stoppable.
-            // Fall through to below,.
+            // Reaching this point, we are starting interruptibly - so we
+            // stop now (by falling through to below).
         }
         else {
             // If we're starting we need to wait for that to complete.
@@ -1051,10 +1044,8 @@ void ServiceRecord::do_stop() noexcept
 
     service_state = ServiceState::STOPPING;
     waiting_for_deps = true;
-
-    // If we get here, we are in STARTED state; stop all dependents.
     if (stopDependents()) {
-        all_deps_stopped();
+        service_set->addToStopQueue(this);
     }
 }
 
@@ -1088,7 +1079,8 @@ bool ServiceRecord::stopDependents() noexcept
             (*i)->forceStop();
         }
 
-        (*i)->do_stop();
+        (*i)->prop_stop = true;
+        service_set->addToPropQueue(*i);
     }
 
     return all_deps_stopped;
