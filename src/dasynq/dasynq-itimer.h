@@ -115,9 +115,12 @@ template <class Base> class ITimerEvents : public timer_base<Base>
     
     // starts (if not started) a timer to timeout at the given time. Resets the expiry count to 0.
     //   enable: specifies whether to enable reporting of timeouts/intervals
-    void setTimer(timer_handle_t &timer_id, struct timespec &timeout, struct timespec &interval,
+    void setTimer(timer_handle_t &timer_id, const time_val &timeouttv, const time_val &intervaltv,
             bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        timespec timeout = timeouttv;
+        timespec interval = intervaltv;
+
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
 
         auto &ts = timer_queue.node_data(timer_id);
@@ -139,9 +142,12 @@ template <class Base> class ITimerEvents : public timer_base<Base>
     }
 
     // Set timer relative to current time:    
-    void setTimerRel(timer_handle_t &timer_id, struct timespec &timeout, struct timespec &interval,
+    void setTimerRel(timer_handle_t &timer_id, const time_val &timeouttv, const time_val &intervaltv,
             bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        timespec timeout = timeouttv;
+        timespec interval = intervaltv;
+
         // TODO consider caching current time somehow; need to decide then when to update cached value.
         struct timespec curtime;
         get_curtime(curtime);
@@ -189,6 +195,13 @@ template <class Base> class ITimerEvents : public timer_base<Base>
                 set_timer_from_queue();
             }
         }
+    }
+
+    void get_time(time_val &tv, clock_type clock, bool force_update) noexcept
+    {
+        timespec ts;
+        get_time(ts, clock, force_update);
+        tv = ts;
     }
 
     void get_time(timespec &ts, clock_type clock, bool force_update) noexcept

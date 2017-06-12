@@ -81,15 +81,13 @@ class pid_map
     }
 };
 
-inline namespace {
-    void sigchld_handler(int signum)
-    {
-        // If SIGCHLD has no handler (is ignored), SIGCHLD signals will
-        // not be queued for terminated child processes. (On Linux, the
-        // default disposition for SIGCHLD is to be ignored but *not* have
-        // this behavior, which seems inconsistent. Setting a handler doesn't
-        // hurt in any case).
-    }
+inline void sigchld_handler(int signum)
+{
+    // If SIGCHLD has no handler (is ignored), SIGCHLD signals will
+    // not be queued for terminated child processes. (On Linux, the
+    // default disposition for SIGCHLD is to be ignored but *not* have
+    // this behavior, which seems inconsistent. Setting a handler doesn't
+    // hurt in any case).
 }
 
 template <class Base> class ChildProcEvents : public Base
@@ -157,12 +155,12 @@ template <class Base> class ChildProcEvents : public Base
     
     template <typename T> void init(T *loop_mech)
     {
-        loop_mech->addSignalWatch(SIGCHLD, nullptr);
         struct sigaction chld_action;
         chld_action.sa_handler = sigchld_handler;
         sigemptyset(&chld_action.sa_mask);
         chld_action.sa_flags = 0;
         sigaction(SIGCHLD, &chld_action, nullptr);
+        loop_mech->addSignalWatch(SIGCHLD, nullptr);
         Base::init(loop_mech);
     }
 };

@@ -107,7 +107,7 @@ static inline int sigtimedwait(const sigset_t *ssp, siginfo_t *info, struct time
 static inline void prepare_signal(int signo) { }
 static inline void unprep_signal(int signo) { }
 
-static bool get_siginfo(int signo, siginfo_t *siginfo)
+inline bool get_siginfo(int signo, siginfo_t *siginfo)
 {
     struct timespec timeout;
     timeout.tv_sec = 0;
@@ -121,33 +121,43 @@ static bool get_siginfo(int signo, siginfo_t *siginfo)
 #else
 
 // If we have no sigtimedwait implementation, we have to retrieve signal data by establishing a
-// signal handler:
+// signal handler.
 
-static siginfo_t * siginfo_p;
-
-static void signalHandler(int signo, siginfo_t *siginfo, void *v)
+// We need to declare and define a non-static data variable, "siginfo_p", in this header, without
+// violating the "one definition rule". The only way to do that is via a template, even though we
+// don't otherwise need a template here:
+template <typename T = decltype(nullptr)> class sig_capture_templ
 {
-    *siginfo_p = *siginfo;
-}
+    public:
+    static siginfo_t * siginfo_p;
 
-static inline void prepare_signal(int signo)
+    static void signalHandler(int signo, siginfo_t *siginfo, void *v)
+    {
+        *siginfo_p = *siginfo;
+    }
+};
+template <typename T> siginfo_t * sig_capture_templ<T>::siginfo_p = nullptr;
+
+using sig_capture = sig_capture_templ<>;
+
+inline void prepare_signal(int signo)
 {
     struct sigaction the_action;
-    the_action.sa_sigaction = signalHandler;
+    the_action.sa_sigaction = sig_capture::signalHandler;
     the_action.sa_flags = SA_SIGINFO;
     sigfillset(&the_action.sa_mask);
 
     sigaction(signo, &the_action, nullptr);
 }
 
-static inline void unprep_signal(int signo)
+inline void unprep_signal(int signo)
 {
     signal(signo, SIG_DFL);
 }
 
-static inline bool get_siginfo(int signo, siginfo_t *siginfo)
+inline bool get_siginfo(int signo, siginfo_t *siginfo)
 {
-    siginfo_p = siginfo;
+    sig_capture::siginfo_p = siginfo;
 
     sigset_t mask;
     sigfillset(&mask);

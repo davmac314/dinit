@@ -669,6 +669,7 @@ class event_loop
 
     public:
     using loop_traits_t = LoopTraits;
+    using time_val = dasynq::time_val;
     
     private:
     template <typename T, typename U> using EventDispatch = dprivate::EventDispatch<T,U>;
@@ -949,24 +950,26 @@ class event_loop
         }
     }
     
-    void setTimer(BaseTimerWatcher *callBack, struct timespec &timeout, clock_type clock) noexcept
+    void setTimer(BaseTimerWatcher *callBack, const timespec &timeout, clock_type clock) noexcept
     {
         struct timespec interval {0, 0};
         loop_mech.setTimer(callBack->timer_handle, timeout, interval, true, clock);
     }
     
-    void setTimer(BaseTimerWatcher *callBack, struct timespec &timeout, struct timespec &interval, clock_type clock) noexcept
+    void setTimer(BaseTimerWatcher *callBack, const timespec &timeout, const timespec &interval,
+            clock_type clock) noexcept
     {
         loop_mech.setTimer(callBack->timer_handle, timeout, interval, true, clock);
     }
 
-    void setTimerRel(BaseTimerWatcher *callBack, struct timespec &timeout, clock_type clock) noexcept
+    void setTimerRel(BaseTimerWatcher *callBack, const timespec &timeout, clock_type clock) noexcept
     {
         struct timespec interval {0, 0};
         loop_mech.setTimerRel(callBack->timer_handle, timeout, interval, true, clock);
     }
     
-    void setTimerRel(BaseTimerWatcher *callBack, struct timespec &timeout, struct timespec &interval, clock_type clock) noexcept
+    void setTimerRel(BaseTimerWatcher *callBack, const timespec &timeout,
+            const timespec &interval, clock_type clock) noexcept
     {
         loop_mech.setTimerRel(callBack->timer_handle, timeout, interval, true, clock);
     }
@@ -1368,6 +1371,11 @@ class event_loop
     void get_time(timespec &ts, clock_type clock, bool force_update = false) noexcept
     {
         loop_mech.get_time(ts, clock, force_update);
+    }
+
+    void get_time(time_val &tv, clock_type clock, bool force_update = false) noexcept
+    {
+        loop_mech.get_time(tv, clock, force_update);
     }
 };
 
@@ -2029,23 +2037,24 @@ class timer : private base_timer_watcher<typename EventLoop::mutex_t>
         eloop.registerTimer(this, clock);
     }
     
-    void arm_timer(EventLoop &eloop, struct timespec &timeout) noexcept
+    void arm_timer(EventLoop &eloop, const timespec &timeout) noexcept
     {
         eloop.setTimer(this, timeout, base_t::clock);
     }
     
-    void arm_timer(EventLoop &eloop, struct timespec &timeout, struct timespec &interval) noexcept
+    void arm_timer(EventLoop &eloop, const timespec &timeout, const timespec &interval) noexcept
     {
         eloop.setTimer(this, timeout, interval, base_t::clock);
     }
 
     // Arm timer, relative to now:
-    void arm_timer_rel(EventLoop &eloop, struct timespec &timeout) noexcept
+    void arm_timer_rel(EventLoop &eloop, const timespec &timeout) noexcept
     {
         eloop.setTimerRel(this, timeout, base_t::clock);
     }
     
-    void arm_timer_rel(EventLoop &eloop, struct timespec &timeout, struct timespec &interval) noexcept
+    void arm_timer_rel(EventLoop &eloop, const timespec &timeout,
+            const timespec &interval) noexcept
     {
         eloop.setTimerRel(this, timeout, interval, base_t::clock);
     }

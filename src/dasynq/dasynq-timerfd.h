@@ -62,9 +62,12 @@ template <class Base> class TimerFdEvents : public timer_base<Base>
         set_timer_from_queue(fd, queue);
     }
 
-    void setTimer(timer_handle_t & timer_id, struct timespec &timeout, struct timespec &interval,
+    void setTimer(timer_handle_t & timer_id, const time_val &timeouttv, const time_val &intervaltv,
             timer_queue_t &queue, int fd, bool enable) noexcept
     {
+        timespec timeout = timeouttv;
+        timespec interval = intervaltv;
+
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
 
         auto &ts = queue.node_data(timer_id);
@@ -175,9 +178,12 @@ template <class Base> class TimerFdEvents : public timer_base<Base>
 
     // starts (if not started) a timer to timeout at the given time. Resets the expiry count to 0.
     //   enable: specifies whether to enable reporting of timeouts/intervals
-    void setTimer(timer_handle_t & timer_id, struct timespec &timeout, struct timespec &interval,
+    void setTimer(timer_handle_t & timer_id, const time_val &timeouttv, const time_val &intervaltv,
             bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        timespec timeout = timeouttv;
+        timespec interval = intervaltv;
+
         switch (clock) {
         case clock_type::SYSTEM:
             setTimer(timer_id, timeout, interval, wallclock_queue, systemtime_fd, enable);
@@ -191,9 +197,12 @@ template <class Base> class TimerFdEvents : public timer_base<Base>
     }
 
     // Set timer relative to current time:    
-    void setTimerRel(timer_handle_t & timer_id, struct timespec &timeout, struct timespec &interval,
+    void setTimerRel(timer_handle_t & timer_id, const time_val &timeouttv, const time_val &intervaltv,
             bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        timespec timeout = timeouttv;
+        timespec interval = intervaltv;
+
         clockid_t sclock;
         switch (clock) {
         case clock_type::SYSTEM:
@@ -239,6 +248,13 @@ template <class Base> class TimerFdEvents : public timer_base<Base>
         else {
             queue.node_data(timer_id).enabled = enable;
         }
+    }
+
+    void get_time(time_val &tv, clock_type clock, bool force_update) noexcept
+    {
+        timespec ts;
+        get_time(ts, clock, force_update);
+        tv = ts;
     }
 
     void get_time(timespec &ts, clock_type clock, bool force_update) noexcept

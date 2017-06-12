@@ -1,25 +1,125 @@
 #ifndef DASYNQ_TIMERBASE_H_INCLUDED
 #define DASYNQ_TIMERBASE_H_INCLUDED
 
+#include <utility>
+
 #include "dasynq-naryheap.h"
 
 namespace dasynq {
 
-class TimerData
+// time_val provides a wrapper around struct timespec, which overloads operators appropriately.
+class time_val
+{
+    struct timespec time;
+
+    public:
+    using second_t = decltype(time.tv_sec);
+    using nsecond_t = decltype(time.tv_nsec);
+
+    time_val()
+    {
+        // uninitialised!
+    }
+
+    time_val(const struct timespec &t)
+    {
+        time = t;
+    }
+
+    time_val(second_t s, nsecond_t ns)
+    {
+        time.tv_sec = s;
+        time.tv_nsec = ns;
+    }
+
+    second_t seconds() const { return time.tv_sec; }
+    nsecond_t nseconds() const { return time.tv_nsec; }
+
+    second_t & seconds() { return time.tv_sec; }
+    nsecond_t & nseconds() { return time.tv_nsec; }
+
+    //void set_seconds(second_t s) { time.tv_sec = s; }
+    //void set_nseconds(nsecond_t ns) { time.tv_nsec = ns; }
+    //void dec_seconds() { time.tv_sec--; }
+    //void inc_seconds() { time.tv_sec++; }
+
+    operator timespec() const
+    {
+       return time;
+    }
+};
+
+inline time_val operator-(const time_val &t1, const time_val &t2)
+{
+    time_val diff;
+    diff.seconds() = t1.seconds() - t2.seconds();
+    if (t1.nseconds() > t2.nseconds()) {
+        diff.nseconds() = t1.nseconds() - t2.nseconds();
+    }
+    else {
+        diff.nseconds() = 1000000000 - t2.nseconds() + t1.nseconds();
+        diff.seconds()--;
+    }
+    return diff;
+}
+
+inline time_val operator+(const time_val &t1, const time_val &t2)
+{
+    auto ns = t1.nseconds() + t2.nseconds();
+    auto s = t1.seconds() + t2.seconds();
+    static_assert(std::numeric_limits<decltype(ns)>::max() >= 2000000000, "type too small");
+    if (ns >= 1000000000) {
+        ns -= 1000000000;
+        s++;
+    }
+    return time_val(s, ns);
+}
+
+inline time_val &operator+=(time_val &t1, const time_val &t2)
+{
+    auto nsum = t1.nseconds() + t2.nseconds();
+    t1.seconds() = t1.seconds() + t2.seconds();
+    if (nsum >= 1000000000) {
+        nsum -= 1000000000;
+        t1.seconds()++;
+    }
+    t1.nseconds() = nsum;
+    return t1;
+}
+
+inline bool operator<(const time_val &t1, const time_val &t2)
+{
+    if (t1.seconds() < t2.seconds()) return true;
+    if (t1.seconds() == t2.seconds() && t1.nseconds() < t2.nseconds()) return true;
+    return false;
+}
+
+inline bool operator==(const time_val &t1, const time_val &t2)
+{
+    return (t1.seconds() == t2.seconds() && t1.nseconds() == t2.nseconds());
+}
+
+using std::rel_ops::operator !=;
+using std::rel_ops::operator <=;
+using std::rel_ops::operator >;
+using std::rel_ops::operator >=;
+
+// Data corresponding to a single timer
+class timer_data
 {
     public:
-    struct timespec interval_time; // interval (if 0, one-off timer)
+    time_val interval_time; // interval (if 0, one-off timer)
     int expiry_count;  // number of times expired
     bool enabled;   // whether timer reports events
     void *userdata;
 
-    TimerData(void *udata = nullptr) : interval_time({0,0}), expiry_count(0), enabled(true), userdata(udata)
+    timer_data(void *udata = nullptr) : interval_time(0,0), expiry_count(0), enabled(true), userdata(udata)
     {
         // constructor
     }
 };
 
-class CompareTimespec
+class compare_timespec
 {
     public:
     bool operator()(const struct timespec &a, const struct timespec &b)
@@ -36,7 +136,7 @@ class CompareTimespec
     }
 };
 
-using timer_queue_t = NaryHeap<TimerData, struct timespec, CompareTimespec>;
+using timer_queue_t = NaryHeap<timer_data, struct timespec, compare_timespec>;
 using timer_handle_t = timer_queue_t::handle_t;
 
 static inline void init_timer_handle(timer_handle_t &hnd) noexcept
@@ -139,11 +239,11 @@ template <typename Base> class timer_base : public Base
         while (timeout->tv_sec < curtime.tv_sec || (timeout->tv_sec == curtime.tv_sec &&
                 timeout->tv_nsec <= curtime.tv_nsec)) {
             auto & thandle = queue.get_root();
-            TimerData &data = queue.node_data(thandle);
-            timespec &interval = data.interval_time;
+            timer_data &data = queue.node_data(thandle);
+            time_val &interval = data.interval_time;
             data.expiry_count++;
             queue.pull_root();
-            if (interval.tv_sec == 0 && interval.tv_nsec == 0) {
+            if (interval.seconds() == 0 && interval.nseconds() == 0) {
                 // Non periodic timer
                 if (data.enabled) {
                     data.enabled = false;
@@ -157,38 +257,16 @@ template <typename Base> class timer_base : public Base
             }
             else {
                 // First calculate the overrun in time:
-                struct timespec diff;
-                diff.tv_sec = curtime.tv_sec - timeout->tv_sec;
-                if (curtime.tv_nsec > timeout->tv_nsec) {
-                    diff.tv_nsec = curtime.tv_nsec - timeout->tv_nsec;
-                }
-                else {
-                    diff.tv_nsec = 1000000000 - timeout->tv_nsec + curtime.tv_nsec;
-                    diff.tv_sec--;
-                }
+                time_val overrun = time_val(curtime) - time_val(*timeout);
 
                 // Now we have to divide the time overrun by the period to find the
                 // interval overrun. This requires a division of a value not representable
                 // as a long...
                 struct timespec rem;
-                data.expiry_count += divide_timespec(diff, interval, rem);
+                data.expiry_count += divide_timespec(overrun, interval, rem);
 
                 // new time is current time + interval - remainder:
-                struct timespec newtime = curtime;
-                newtime.tv_sec += interval.tv_sec;
-                newtime.tv_nsec += interval.tv_nsec;
-                if (newtime.tv_nsec > 1000000000) {
-                    newtime.tv_nsec -= 1000000000;
-                    newtime.tv_sec++;
-                }
-                newtime.tv_sec -= rem.tv_sec;
-                if (rem.tv_nsec > newtime.tv_nsec) {
-                    newtime.tv_nsec += 1000000000 - rem.tv_nsec;
-                    newtime.tv_sec--;
-                }
-                else {
-                    newtime.tv_nsec -= rem.tv_nsec;
-                }
+                time_val newtime = curtime + interval - rem;
 
                 queue.insert(thandle, newtime);
                 if (data.enabled) {
