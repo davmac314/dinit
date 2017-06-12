@@ -1,9 +1,9 @@
 #ifndef DINIT_LL_INCLUDED
 #define DINIT_LL_INCLUDED 1
 
-// Simple doubly-linked list implementation, where the contained element includes the
-// list node. This allows a single item to be a member of several different kinds of
-// list, without requiring dynamicall allocation of nodes.
+// Simple single- and doubly-linked list implementation, where the contained element includes the
+// list node. This allows a single item to be a member of several different kinds of list, without
+// requiring dynamic allocation of nodes.
 
 template <typename T>
 struct lld_node
@@ -87,6 +87,22 @@ class dlist
             first_node.prev = nullptr;
         }
         return r;
+    }
+
+    void unlink(T *record) noexcept
+    {
+        auto &node = E(record);
+        if (first == record) {
+            first = node.next;
+            if (first == record) {
+                // unlinking the only node in the list:
+                first = nullptr;
+            }
+        }
+        E(node.next).prev = node.prev;
+        E(node.prev).next = node.next;
+        node.next = nullptr;
+        node.prev = nullptr;
     }
 };
 

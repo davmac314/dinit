@@ -1032,6 +1032,8 @@ void ServiceRecord::do_stop() noexcept
             // We must have had desired_state == STARTED.
             notifyListeners(ServiceEvent::STARTCANCELLED);
             
+            interrupt_start();
+
             // Reaching this point, we are starting interruptibly - so we
             // stop now (by falling through to below).
         }
@@ -1165,7 +1167,12 @@ void ServiceRecord::queue_for_console() noexcept
 
 void ServiceRecord::release_console() noexcept
 {
-    service_set->pullConsoleQueue();
+    service_set->pull_console_queue();
+}
+
+void ServiceRecord::interrupt_start() noexcept
+{
+    service_set->unqueue_console(this);
 }
 
 void ServiceSet::service_active(ServiceRecord *sr) noexcept
@@ -1280,6 +1287,7 @@ void base_process_service::interrupt_start() noexcept
         restart_timer.stop_timer(eventLoop);
         waiting_restart_timer = false;
     }
+    ServiceRecord::interrupt_start();
 }
 
 dasynq::rearm process_restart_timer::timer_expiry(EventLoop_t &, int expiry_count)

@@ -109,7 +109,7 @@ void BufferedLogStream::release_console()
     if (release) {
         int flags = fcntl(1, F_GETFL, 0);
         fcntl(1, F_SETFL, flags & ~O_NONBLOCK);
-        service_set->pullConsoleQueue();
+        service_set->pull_console_queue();
     }
 }
 

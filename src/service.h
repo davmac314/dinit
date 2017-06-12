@@ -369,10 +369,7 @@ class ServiceRecord
         return waiting_for_deps;
     }
     
-    virtual void interrupt_start() noexcept
-    {
-        // overridden in subclasses
-    }
+    virtual void interrupt_start() noexcept;
 
     // Whether a STOPPING service can immediately transition to STARTED.
     bool can_interrupt_stop() noexcept
@@ -422,7 +419,8 @@ class ServiceRecord
     public:
 
     ServiceRecord(ServiceSet *set, string name)
-        : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED), auto_restart(false),
+        : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED),
+            auto_restart(false), smooth_recovery(false),
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
             waiting_for_execstat(false), start_explicit(false),
             prop_require(false), prop_release(false), prop_failure(false),
@@ -879,11 +877,18 @@ class ServiceSet
     }
     
     // Retrieve the current console queue head and remove it from the queue
-    ServiceRecord * pullConsoleQueue() noexcept
+    ServiceRecord * pull_console_queue() noexcept
     {
         return console_queue.pop_front();
     }
     
+    void unqueue_console(ServiceRecord * service) noexcept
+    {
+        if (console_queue.is_queued(service)) {
+            console_queue.unlink(service);
+        }
+    }
+
     // Notification from service that it is active (state != STOPPED)
     // Only to be called on the transition from inactive to active.
     void service_active(ServiceRecord *) noexcept;
