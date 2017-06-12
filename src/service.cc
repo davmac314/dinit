@@ -72,7 +72,7 @@ void ServiceRecord::stopped() noexcept
     if (onstart_flags.runs_on_console) {
         tcsetpgrp(0, getpgrp());
         discard_console_log_buffer();
-        releaseConsole();
+        release_console();
     }
 
     force_stop = false;
@@ -628,7 +628,7 @@ void ServiceRecord::allDepsStarted(bool has_console) noexcept
 {
     if (onstart_flags.starts_on_console && ! has_console) {
         waiting_for_deps = true;
-        queueForConsole();
+        queue_for_console();
         return;
     }
     
@@ -648,14 +648,14 @@ void ServiceRecord::acquiredConsole() noexcept
 {
     if (service_state != ServiceState::STARTING) {
         // We got the console but no longer want it.
-        releaseConsole();
+        release_console();
     }
     else if (startCheckDependencies(false)) {
         allDepsStarted(true);
     }
     else {
         // We got the console but can't use it yet.
-        releaseConsole();
+        release_console();
     }
 }
 
@@ -692,7 +692,7 @@ void ServiceRecord::started() noexcept
 {
     if (onstart_flags.starts_on_console && ! onstart_flags.runs_on_console) {
         tcsetpgrp(0, getpgrp());
-        releaseConsole();
+        release_console();
     }
 
     logServiceStarted(service_name);
@@ -725,7 +725,7 @@ void ServiceRecord::failed_to_start(bool depfailed) noexcept
 {
     if (!depfailed && onstart_flags.starts_on_console) {
         tcsetpgrp(0, getpgrp());
-        releaseConsole();
+        release_console();
     }
     
     logServiceFailed(service_name);
@@ -1158,12 +1158,12 @@ void ServiceRecord::unpin() noexcept
     }
 }
 
-void ServiceRecord::queueForConsole() noexcept
+void ServiceRecord::queue_for_console() noexcept
 {
     service_set->append_console_queue(this);
 }
 
-void ServiceRecord::releaseConsole() noexcept
+void ServiceRecord::release_console() noexcept
 {
     service_set->pullConsoleQueue();
 }

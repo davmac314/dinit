@@ -408,10 +408,11 @@ class ServiceRecord
     }
     
     // Queue to run on the console. 'acquiredConsole()' will be called when the console is available.
-    void queueForConsole() noexcept;
+    // Has no effect if the service has already queued for console.
+    void queue_for_console() noexcept;
     
     // Release console (console must be currently held by this service)
-    void releaseConsole() noexcept;
+    void release_console() noexcept;
     
     bool do_auto_restart() noexcept;
 
@@ -870,11 +871,11 @@ class ServiceSet
     }
     
     // Set the console queue tail (returns previous tail)
-    ServiceRecord * append_console_queue(ServiceRecord * newTail) noexcept
+    void append_console_queue(ServiceRecord * newTail) noexcept
     {
-        auto prev_tail = console_queue.tail();
-        console_queue.append(newTail);
-        return prev_tail;
+        if (! console_queue.is_queued(newTail)) {
+            console_queue.append(newTail);
+        }
     }
     
     // Retrieve the current console queue head and remove it from the queue
