@@ -12,6 +12,7 @@
 #include "control.h"
 #include "service-listener.h"
 #include "service-constants.h"
+#include "dinit-ll.h"
 
 /*
  * This header defines ServiceRecord, a data record maintaining information about a service,
@@ -315,13 +316,12 @@ class ServiceRecord
     // Data for use by ServiceSet
     public:
     
-    // Next service (after this one) in the queue for the console. Intended to only be used by ServiceSet class.
-    ServiceRecord *next_for_console;
+    // Console queue.
+    lld_node<ServiceRecord> console_queue_node;
     
     // Propagation and start/stop queues
-    ServiceRecord *next_in_prop_queue = nullptr;
-    ServiceRecord *next_in_stop_queue = nullptr;
-    
+    lls_node<ServiceRecord> prop_queue_node;
+    lls_node<ServiceRecord> stop_queue_node;
     
     protected:
     
@@ -725,6 +725,20 @@ class scripted_service : public base_process_service
     }
 };
 
+inline auto extract_prop_queue(ServiceRecord *sr) -> decltype(sr->prop_queue_node) &
+{
+    return sr->prop_queue_node;
+}
+
+inline auto extract_stop_queue(ServiceRecord *sr) -> decltype(sr->stop_queue_node) &
+{
+    return sr->stop_queue_node;
+}
+
+inline auto extract_console_queue(ServiceRecord *sr) -> decltype(sr->console_queue_node) &
+{
+    return sr->console_queue_node;
+}
 
 /*
  * A ServiceSet, as the name suggests, manages a set of services.
@@ -753,12 +767,12 @@ class ServiceSet
     
     ShutdownType shutdown_type = ShutdownType::CONTINUE;  // Shutdown type, if stopping
     
-    ServiceRecord * console_queue_head = nullptr; // first record in console queue
-    ServiceRecord * console_queue_tail = nullptr; // last record in console queue
+    // Services waiting for exclusive access to the console
+    dlist<ServiceRecord, extract_console_queue> console_queue;
 
     // Propagation and start/stop "queues" - list of services waiting for processing
-    ServiceRecord * first_prop_queue = nullptr;
-    ServiceRecord * first_stop_queue = nullptr;
+    slist<ServiceRecord, extract_prop_queue> prop_queue;
+    slist<ServiceRecord, extract_stop_queue> stop_queue;
     
     // Private methods
         
@@ -817,9 +831,8 @@ class ServiceSet
     // do_propagation() method called when the queue is processed.
     void addToPropQueue(ServiceRecord *service) noexcept
     {
-        if (service->next_in_prop_queue == nullptr && first_prop_queue != service) {
-            service->next_in_prop_queue = first_prop_queue;
-            first_prop_queue = service;
+        if (! prop_queue.is_queued(service)) {
+            prop_queue.insert(service);
         }
     }
     
@@ -835,9 +848,8 @@ class ServiceSet
     // execute_transition() method called when the queue is processed.
     void addToStopQueue(ServiceRecord *service) noexcept
     {
-        if (service->next_in_stop_queue == nullptr && first_stop_queue != service) {
-            service->next_in_stop_queue = first_stop_queue;
-            first_stop_queue = service;
+        if (! stop_queue.is_queued(service)) {
+            stop_queue.insert(service);
         }
     }
     
@@ -845,17 +857,13 @@ class ServiceSet
     // TODO remove the pointless parameter
     void processQueues(bool ignoredparam = false) noexcept
     {
-        while (first_stop_queue != nullptr || first_prop_queue != nullptr) {
-            while (first_prop_queue != nullptr) {
-                auto next = first_prop_queue;
-                first_prop_queue = next->next_in_prop_queue;
-                next->next_in_prop_queue = nullptr;
+        while (! stop_queue.is_empty() || ! prop_queue.is_empty()) {
+            while (! prop_queue.is_empty()) {
+                auto next = prop_queue.pop_front();
                 next->do_propagation();
             }
-            while (first_stop_queue != nullptr) {
-                auto next = first_stop_queue;
-                first_stop_queue = next->next_in_stop_queue;
-                next->next_in_stop_queue = nullptr;
+            while (! stop_queue.is_empty()) {
+                auto next = stop_queue.pop_front();
                 next->execute_transition();
             }
         }
@@ -864,34 +872,15 @@ class ServiceSet
     // Set the console queue tail (returns previous tail)
     ServiceRecord * append_console_queue(ServiceRecord * newTail) noexcept
     {
-        auto prev_tail = console_queue_tail;
-        console_queue_tail = newTail;
-        newTail->next_for_console = nullptr;
-        if (! prev_tail) {
-            console_queue_head = newTail;
-            enable_console_log(false);
-        }
-        else {
-            prev_tail->next_for_console = newTail;
-        }
+        auto prev_tail = console_queue.tail();
+        console_queue.append(newTail);
         return prev_tail;
     }
     
     // Retrieve the current console queue head and remove it from the queue
     ServiceRecord * pullConsoleQueue() noexcept
     {
-        auto prev_head = console_queue_head;
-        if (prev_head) {
-            prev_head->acquiredConsole();
-            console_queue_head = prev_head->next_for_console;
-            if (! console_queue_head) {
-                console_queue_tail = nullptr;
-            }
-        }
-        else {
-            enable_console_log(true);
-        }
-        return prev_head;
+        return console_queue.pop_front();
     }
     
     // Notification from service that it is active (state != STOPPED)
