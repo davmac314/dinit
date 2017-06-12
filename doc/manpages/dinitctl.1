@@ -49,12 +49,13 @@ Specifies the name of the service to which the command applies.
 .TP
 \fBstart\fR
 Start the specified service. The service is marked as explicitly activated and will not be stopped
-automatically when its dependents stop. If the service is currently stopping this may continue until
-the service is stopped before it is then restarted.
+automatically if its dependents stop. If the service is currently stopping it will generally continue
+to stop before it is then restarted.
 .TP
 \fBstop\fR
 Stop the specified service, and remove explicit activation. The service will stop, but may restart
-immediately if it has active dependents. Any pending \fBstart\fR orders are cancelled.
+immediately if it or any dependents are configured to restart.  Any pending \fBstart\fR orders are cancelled,
+though a service which is starting might continue its startup before then stopping.
 .TP
 \fBwake\fR
 Start the specified service, but do not mark it as explicitly activated if it is not already so
