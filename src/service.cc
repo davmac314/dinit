@@ -152,6 +152,17 @@ bool ServiceRecord::do_auto_restart() noexcept
     return false;
 }
 
+void ServiceRecord::emergency_stop() noexcept
+{
+    if (! do_auto_restart() && start_explicit) {
+        start_explicit = false;
+        release();
+    }
+    forceStop();
+    stopDependents();
+    stopped();
+}
+
 void process_service::handle_exit_status(int exit_status) noexcept
 {
     bool did_exit = WIFEXITED(exit_status);
@@ -184,14 +195,13 @@ void process_service::handle_exit_status(int exit_status) noexcept
         //      that dependencies have started before trying to re-start the
         //      service process.
         if (! restart_ps_process()) {
-            desired_state = ServiceState::STOPPED;
-            forceStop();
+            emergency_stop();
+            service_set->processQueues(false);
         }
         return;
     }
     else {
-        if (! do_auto_restart()) desired_state = ServiceState::STOPPED;
-        forceStop();
+        emergency_stop();
     }
     service_set->processQueues(false);
 }
@@ -228,8 +238,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
 
         if (need_stop) {
             // Failed startup: no auto-restart.
-            desired_state = ServiceState::STOPPED;
-            forceStop();
+            emergency_stop();
             service_set->processQueues(false);
         }
 
@@ -262,14 +271,20 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         //      service process.
         doing_recovery = true;
         if (! restart_ps_process()) {
-            desired_state = ServiceState::STOPPED;
-            forceStop();
+            emergency_stop();
+            service_set->processQueues();
         }
         return;
     }
     else {
-        if (! do_auto_restart()) desired_state = ServiceState::STOPPED;
+        // we must be STARTED
+        if (! do_auto_restart() && start_explicit) {
+            start_explicit = false;
+            release();
+        }
         forceStop();
+        stopDependents();
+        stopped();
     }
     service_set->processQueues(false);
 }
@@ -327,6 +342,9 @@ rearm ServiceIoWatcher::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
     
     if (r > 0) {
         // We read an errno code; exec() failed, and the service startup failed.
+        if (sr->pid != -1) {
+            sr->child_listener.deregister(eventLoop, sr->pid);
+        }
         sr->pid = -1;
         log(LogLevel::ERROR, sr->service_name, ": execution failed: ", strerror(exec_status));
         if (sr->service_state == ServiceState::STARTING) {
@@ -633,6 +651,13 @@ void ServiceRecord::allDepsStarted(bool has_console) noexcept
     }
     
     waiting_for_deps = false;
+
+    // We overload can_interrupt_start to check whether there is any other
+    // process (eg restart timer) that needs to finish before starting.
+    if (can_interrupt_start()) {
+        waiting_for_deps = true;
+        return;
+    }
 
     if (! open_socket()) {
         failed_to_start();
@@ -1107,7 +1132,7 @@ void base_process_service::all_deps_stopped() noexcept
             kill(pid, term_signal);
         }
 
-        // In most cases, the rest is done in process_child_callback.
+        // In most cases, the rest is done in handle_exit_status.
         // If we are a BGPROCESS and the process is not our immediate child, however, that
         // won't work - check for this now:
         if (service_type == ServiceType::BGPROCESS) {
@@ -1206,6 +1231,7 @@ void base_process_service::do_restart() noexcept
 {
     restarting = false;
     waiting_restart_timer = false;
+    restart_interval_count++;
 
     // We may be STARTING (regular restart) or STARTED ("smooth recovery"). This affects whether
     // the process should be granted access to the console:
@@ -1255,7 +1281,7 @@ bool base_process_service::restart_ps_process() noexcept
         // Check whether we're still in the most recent restart check interval:
         timespec int_diff = diff_time(current_time, restart_interval_time);
         if (int_diff < restart_interval) {
-            if (++restart_interval_count >= max_restart_interval_count) {
+            if (restart_interval_count >= max_restart_interval_count) {
                 log(LogLevel::ERROR, "Service ", service_name, " restarting too quickly; stopping.");
                 return false;
             }

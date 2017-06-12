@@ -325,6 +325,9 @@ class ServiceRecord
     
     protected:
     
+    // stop immediately
+    void emergency_stop() noexcept;
+
     // All dependents have stopped.
     virtual void all_deps_stopped() noexcept;
     
@@ -342,12 +345,6 @@ class ServiceRecord
     void run_child_proc(const char * const *args, const char *logfile, bool on_console, int wpipefd,
             int csfd) noexcept;
     
-    // Callback from libev when a child process dies
-    static void process_child_callback(EventLoop_t *loop, ServiceChildWatcher *w,
-            int revents) noexcept;
-    
-    //virtual void handle_exit_status(int exit_status) noexcept;
-
     // A dependency has reached STARTED state
     void dependencyStarted() noexcept;
     
