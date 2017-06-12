@@ -871,15 +871,23 @@ class ServiceSet
     // Set the console queue tail (returns previous tail)
     void append_console_queue(ServiceRecord * newTail) noexcept
     {
-        if (! console_queue.is_queued(newTail)) {
-            console_queue.append(newTail);
+        bool was_empty = console_queue.is_empty();
+        console_queue.append(newTail);
+        if (was_empty) {
+            enable_console_log(false);
         }
     }
     
-    // Retrieve the current console queue head and remove it from the queue
-    ServiceRecord * pull_console_queue() noexcept
+    // Pull and dispatch a waiter from the console queue
+    void pull_console_queue() noexcept
     {
-        return console_queue.pop_front();
+        if (console_queue.is_empty()) {
+            enable_console_log(true);
+        }
+        else {
+            ServiceRecord * front = console_queue.pop_front();
+            front->acquiredConsole();
+        }
     }
     
     void unqueue_console(ServiceRecord * service) noexcept
