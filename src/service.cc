@@ -1250,36 +1250,16 @@ void base_process_service::do_restart() noexcept
     }
 }
 
-// Calculate different between two times (a more recent time, "now", and a previuos time "then").
-static timespec diff_time(timespec now, timespec then)
-{
-    timespec r;
-    r.tv_sec = now.tv_sec - then.tv_sec;
-    if (now.tv_nsec >= then.tv_nsec) {
-        r.tv_nsec = now.tv_nsec - then.tv_nsec;
-    }
-    else {
-        r.tv_sec -= 1;
-        r.tv_nsec = 1000000000 - (then.tv_nsec - now.tv_nsec);
-    }
-    return r;
-}
-
-static bool operator<(const timespec &a, const timespec &b)
-{
-    if (a.tv_sec < b.tv_sec) return true;
-    if (a.tv_sec == b.tv_sec && a.tv_nsec < b.tv_nsec) return true;
-    return false;
-}
-
 bool base_process_service::restart_ps_process() noexcept
 {
-    timespec current_time;
+	using time_val = EventLoop_t::time_val;
+
+    time_val current_time;
     eventLoop.get_time(current_time, clock_type::MONOTONIC);
 
     if (max_restart_interval_count != 0) {
         // Check whether we're still in the most recent restart check interval:
-        timespec int_diff = diff_time(current_time, restart_interval_time);
+        time_val int_diff = current_time - restart_interval_time;
         if (int_diff < restart_interval) {
             if (restart_interval_count >= max_restart_interval_count) {
                 log(LogLevel::ERROR, "Service ", service_name, " restarting too quickly; stopping.");
@@ -1293,13 +1273,13 @@ bool base_process_service::restart_ps_process() noexcept
     }
 
     // Check if enough time has lapsed since the prevous restart. If not, start a timer:
-    timespec tdiff = diff_time(current_time, last_start_time);
+    time_val tdiff = current_time - last_start_time;
     if (restart_delay < tdiff) {
         // > restart delay (normally 200ms)
         do_restart();
     }
     else {
-        timespec timeout = diff_time(restart_delay, tdiff);
+        time_val timeout = restart_delay - tdiff;
         restart_timer.arm_timer_rel(eventLoop, timeout);
         waiting_restart_timer = true;
     }
