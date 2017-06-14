@@ -1,4 +1,4 @@
-.TH DINIT "1" "June 2017" "Dinit 0.06" "Dinit \- service management system"
+.TH DINIT "8" "June 2017" "Dinit 0.06" "Dinit \- service management system"
 .SH NAME
 dinit \- supervise processes and manage services
 .\"
@@ -263,7 +263,8 @@ expected to have set up the system to a level suitable for basic operation.
 
 .RS
 .nf
-.gcolor yellow
+.gcolor blue
+.ft CR
 # mysqld service
 type = process
 command = /usr/bin/mysqld --user=mysql
@@ -271,6 +272,7 @@ logfile = /var/log/mysqld.log
 smooth-recovery = true
 restart = false
 depends-on = rcboot # Basic system services must be ready
+.ft
 .gcolor
 .RE
 .fi
@@ -284,7 +286,8 @@ the process can be interrupted using control-C.
 
 .RS
 .nf
-.gcolor yellow
+.gcolor blue
+.ft CR
 # rootfscheck service
 type = scripted
 command = /etc/dinit.d/rootfscheck.sh
@@ -292,6 +295,7 @@ restart = false
 options = starts-on-console pass-cs-fd
 depends-on = early-filesystems  # /proc and /dev
 depends-on = device-node-daemon
+.ft
 .gcolor
 .fi
 .RE
@@ -309,7 +313,7 @@ immediately.
 .\"
 .SH SEE ALSO
 .\"
-\fBdinitctl\fR(1).
+\fBdinitctl\fR(8).
 .\"
 .SH AUTHOR
 Dinit, and this manual, were written by Davin McCall.

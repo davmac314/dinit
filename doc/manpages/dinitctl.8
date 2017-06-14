@@ -1,4 +1,4 @@
-.TH DINITCTL "1" "June 2017" "Dinit 0.06" "Dinit \- service management system"
+.TH DINITCTL "8" "June 2017" "Dinit 0.06" "Dinit \- service management system"
 .SH NAME
 dinitctl \- control services supervised by Dinit
 .\"
@@ -69,6 +69,24 @@ Remove start- and stop- pins from a service. If a started service is not explici
 has no active dependents, it will stop. If a started service has a dependency service which is stopping,
 it will stop. If a stopped service has a dependent service which is starting, it will start. Otherwise,
 any pending start/stop commands will be carried out.
+.TP
+\fBlist\fR
+List loaded services and their state. Before each service, one of the following state indicators is
+displayed:
+
+.RS
+.nf
+\f[CR]\m[blue][{+}     ]\m[]\fR service has started.
+\f[CR]\m[blue][{ }<<   ]\m[]\fR service is starting.
+\f[CR]\m[blue][   <<{ }]\m[]\fR service is starting, will stop once started.
+\f[CR]\m[blue][{ }>>   ]\m[]\fR service is stopping, will start once stopped.
+\f[CR]\m[blue][   >>{ }]\m[]\fR service is stopping.
+\f[CR]\m[blue][     {-}]\m[]\fR service has stopped.
+.fi
+
+The << and >> symbols represent a transition state (starting and stopping respectively); curly braces
+indicate the desired state (left: started, right: stopped).
+.RE
 .\"
 .SH SERVICE OPERATION
 .\"
@@ -86,7 +104,7 @@ automatically, or with a dependent service configured to do so, will restart imm
 unless pinned.
 .\"
 .SH SEE ALSO
-\fBdinit\fR(1).
+\fBdinit\fR(8).
 .\"
 .SH AUTHOR
 Dinit, and this manual, were written by Davin McCall.
