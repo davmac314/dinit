@@ -972,11 +972,14 @@ void service_record::run_child_proc(const char * const *args, const char *logfil
         }
         else goto failure_out;
         
-        // We have the option of creating a new process group and/or session. If
-        // we just create a new process group, the child process cannot make itself
-        // a session leader if it wants to do that (eg getty/login will generally
-        // want this). If we do neither, and we are running with a controlling
-        // terminal, a ^C or similar will also affect the child process.
+        // We have the option of creating a session and process group, or just a new process
+        // group. If we just create a new process group, the child process cannot make itself
+        // a session leader if it wants to do that (eg getty/login will generally want this).
+        // If we do neither, and we are running with a controlling terminal, a ^C or similar
+        // will also affect the child process (which probably isn't so bad, though since we
+        // will handle the shutdown ourselves it's not necessary). Creating a new session
+        // (and a new process group as part of that) seems like a safe bet, and has the
+        // advantage of letting us signal the process as part of a process group.
         setsid();
     }
     else {
@@ -1124,12 +1127,14 @@ void base_process_service::all_deps_stopped() noexcept
 {
     waiting_for_deps = false;
     if (pid != -1) {
-        // The process is still kicking on - must actually kill it.
+        // The process is still kicking on - must actually kill it. We signal the process
+        // group (-pid) rather than just the process as there's less risk then of creating
+        // an orphaned process group:
         if (! onstart_flags.no_sigterm) {
-            kill(pid, SIGTERM);
+            kill(-pid, SIGTERM);
         }
         if (term_signal != -1) {
-            kill(pid, term_signal);
+            kill(-pid, term_signal);
         }
 
         // In most cases, the rest is done in handle_exit_status.
