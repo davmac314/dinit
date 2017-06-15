@@ -847,7 +847,11 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     pid_t forkpid;
     
     try {
-        child_status_listener.add_watch(eventLoop, pipefd[0], IN_EVENTS);
+        // We add the status listener with a high priority (i.e. low priority value) so that process
+        // termination is handled early. This means we have always recorded that the process is
+        // terminated by the time that we handle events that might otherwise cause us to signal the
+        // process, so we avoid sending a signal to an invalid (and possibly recycled) process ID.
+        child_status_listener.add_watch(eventLoop, pipefd[0], IN_EVENTS, true, DEFAULT_PRIORITY - 10);
         child_status_registered = true;
         
         forkpid = child_listener.fork(eventLoop);
