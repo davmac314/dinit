@@ -246,7 +246,7 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
         dup2(consfd, STDOUT_FILENO);
     }
     
-    cout << "Sending TERM/KILL to all processes..." << endl; // DAV
+    cout << "Sending TERM/KILL to all processes..." << endl;
     
     // Send TERM/KILL to all (remaining) processes
     kill(-1, SIGTERM);
