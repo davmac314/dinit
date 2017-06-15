@@ -352,7 +352,7 @@ static void parse_timespec(const std::string &paramval, const std::string &servi
 // Might throw a ServiceLoadExc exception if a dependency cycle is found or if another
 // problem occurs (I/O error, service description not found etc). Throws std::bad_alloc
 // if a memory allocation failure occurs.
-ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
+service_record * ServiceSet::loadServiceRecord(const char * name)
 {
     using std::string;
     using std::ifstream;
@@ -365,7 +365,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     using std::pair;
     
     // First try and find an existing record...
-    ServiceRecord * rval = find_service(string(name));
+    service_record * rval = find_service(string(name));
     if (rval != 0) {
         if (rval->isDummy()) {
             throw ServiceCyclicDependency(name);
@@ -387,8 +387,8 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     string pid_file;
 
     ServiceType service_type = ServiceType::PROCESS;
-    std::list<ServiceRecord *> depends_on;
-    std::list<ServiceRecord *> depends_soft;
+    std::list<service_record *> depends_on;
+    std::list<service_record *> depends_soft;
     string logfile;
     OnstartFlags onstart_flags;
     int term_signal = -1;  // additional termination signal
@@ -417,7 +417,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
     }
     
     // Add a dummy service record now to prevent infinite recursion in case of cyclic dependency
-    rval = new ServiceRecord(this, string(name));
+    rval = new service_record(this, string(name));
     records.push_back(rval);
     
     try {
@@ -604,7 +604,7 @@ ServiceRecord * ServiceSet::loadServiceRecord(const char * name)
                     rval->setStopCommand(stop_command, stop_command_offsets);
                 }
                 else {
-                    rval = new ServiceRecord(this, string(name), service_type, std::move(command), command_offsets,
+                    rval = new service_record(this, string(name), service_type, std::move(command), command_offsets,
                             &depends_on, &depends_soft);
                 }
                 rval->setLogfile(logfile);

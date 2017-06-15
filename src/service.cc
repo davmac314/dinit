@@ -29,20 +29,20 @@ void setup_external_log() noexcept;
 extern EventLoop_t eventLoop;
 
 // Find the requested service by name
-static ServiceRecord * find_service(const std::list<ServiceRecord *> & records,
+static service_record * find_service(const std::list<service_record *> & records,
                                     const char *name) noexcept
 {
     using std::list;
-    list<ServiceRecord *>::const_iterator i = records.begin();
+    list<service_record *>::const_iterator i = records.begin();
     for ( ; i != records.end(); i++ ) {
         if (strcmp((*i)->getServiceName().c_str(), name) == 0) {
             return *i;
         }
     }
-    return (ServiceRecord *)0;
+    return (service_record *)0;
 }
 
-ServiceRecord * ServiceSet::find_service(const std::string &name) noexcept
+service_record * ServiceSet::find_service(const std::string &name) noexcept
 {
     return ::find_service(records, name.c_str());
 }
@@ -50,7 +50,7 @@ ServiceRecord * ServiceSet::find_service(const std::string &name) noexcept
 void ServiceSet::startService(const char *name)
 {
     using namespace std;
-    ServiceRecord *record = loadServiceRecord(name);
+    service_record *record = loadServiceRecord(name);
     
     record->start();
     processQueues(true);
@@ -58,7 +58,7 @@ void ServiceSet::startService(const char *name)
 
 void ServiceSet::stopService(const std::string & name) noexcept
 {
-    ServiceRecord *record = find_service(name);
+    service_record *record = find_service(name);
     if (record != nullptr) {
         record->stop();
         processQueues(false);
@@ -67,7 +67,7 @@ void ServiceSet::stopService(const std::string & name) noexcept
 
 // Called when a service has actually stopped; dependents have stopped already, unless this stop
 // is due to an unexpected process termination.
-void ServiceRecord::stopped() noexcept
+void service_record::stopped() noexcept
 {
     if (onstart_flags.runs_on_console) {
         tcsetpgrp(0, getpgrp());
@@ -144,7 +144,7 @@ dasynq::rearm ServiceChildWatcher::status_change(EventLoop_t &loop, pid_t child,
     return rearm::REMOVED;
 }
 
-bool ServiceRecord::do_auto_restart() noexcept
+bool service_record::do_auto_restart() noexcept
 {
     if (auto_restart) {
         return service_set->get_auto_restart();
@@ -152,7 +152,7 @@ bool ServiceRecord::do_auto_restart() noexcept
     return false;
 }
 
-void ServiceRecord::emergency_stop() noexcept
+void service_record::emergency_stop() noexcept
 {
     if (! do_auto_restart() && start_explicit) {
         start_explicit = false;
@@ -378,7 +378,7 @@ rearm ServiceIoWatcher::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
     return rearm::REMOVED;
 }
 
-void ServiceRecord::require() noexcept
+void service_record::require() noexcept
 {
     if (required_by++ == 0) {
         prop_require = !prop_release;
@@ -387,7 +387,7 @@ void ServiceRecord::require() noexcept
     }
 }
 
-void ServiceRecord::release() noexcept
+void service_record::release() noexcept
 {
     if (--required_by == 0) {
         desired_state = ServiceState::STOPPED;
@@ -407,14 +407,14 @@ void ServiceRecord::release() noexcept
     }
 }
 
-void ServiceRecord::release_dependencies() noexcept
+void service_record::release_dependencies() noexcept
 {
     for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
         (*i)->release();
     }
 
     for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
-        ServiceRecord * to = i->getTo();
+        service_record * to = i->getTo();
         if (i->holding_acq) {
             to->release();
             i->holding_acq = false;
@@ -422,7 +422,7 @@ void ServiceRecord::release_dependencies() noexcept
     }
 }
 
-void ServiceRecord::start(bool activate) noexcept
+void service_record::start(bool activate) noexcept
 {
     if (activate && ! start_explicit) {
         require();
@@ -457,7 +457,7 @@ void ServiceRecord::start(bool activate) noexcept
     }
 }
 
-void ServiceRecord::do_propagation() noexcept
+void service_record::do_propagation() noexcept
 {
     if (prop_require) {
         // Need to require all our dependencies
@@ -466,7 +466,7 @@ void ServiceRecord::do_propagation() noexcept
         }
 
         for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
-            ServiceRecord * to = i->getTo();
+            service_record * to = i->getTo();
             to->require();
             i->holding_acq = true;
         }
@@ -495,7 +495,7 @@ void ServiceRecord::do_propagation() noexcept
     }
 }
 
-void ServiceRecord::execute_transition() noexcept
+void service_record::execute_transition() noexcept
 {
     if (service_state == ServiceState::STARTING) {
         if (startCheckDependencies(false)) {
@@ -509,7 +509,7 @@ void ServiceRecord::execute_transition() noexcept
     }
 }
 
-void ServiceRecord::do_start() noexcept
+void service_record::do_start() noexcept
 {
     if (pinned_stopped) return;
     
@@ -528,14 +528,14 @@ void ServiceRecord::do_start() noexcept
     }
 }
 
-void ServiceRecord::dependencyStarted() noexcept
+void service_record::dependencyStarted() noexcept
 {
     if (service_state == ServiceState::STARTING && waiting_for_deps) {
         service_set->addToStartQueue(this);
     }
 }
 
-bool ServiceRecord::startCheckDependencies(bool start_deps) noexcept
+bool service_record::startCheckDependencies(bool start_deps) noexcept
 {
     bool all_deps_started = true;
 
@@ -553,7 +553,7 @@ bool ServiceRecord::startCheckDependencies(bool start_deps) noexcept
     }
 
     for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
-        ServiceRecord * to = i->getTo();
+        service_record * to = i->getTo();
         if (start_deps) {
             if (to->service_state != ServiceState::STARTED) {
                 to->prop_start = true;
@@ -580,7 +580,7 @@ bool ServiceRecord::startCheckDependencies(bool start_deps) noexcept
     return all_deps_started;
 }
 
-bool ServiceRecord::open_socket() noexcept
+bool service_record::open_socket() noexcept
 {
     if (socket_path.empty() || socket_fd != -1) {
         // No socket, or already open
@@ -642,7 +642,7 @@ bool ServiceRecord::open_socket() noexcept
     return true;
 }
 
-void ServiceRecord::allDepsStarted(bool has_console) noexcept
+void service_record::allDepsStarted(bool has_console) noexcept
 {
     if (onstart_flags.starts_on_console && ! has_console) {
         waiting_for_deps = true;
@@ -669,7 +669,7 @@ void ServiceRecord::allDepsStarted(bool has_console) noexcept
     }
 }
 
-void ServiceRecord::acquiredConsole() noexcept
+void service_record::acquiredConsole() noexcept
 {
     if (service_state != ServiceState::STARTING) {
         // We got the console but no longer want it.
@@ -713,7 +713,7 @@ bool bgproc_service::read_pid_file() noexcept
     }
 }
 
-void ServiceRecord::started() noexcept
+void service_record::started() noexcept
 {
     if (onstart_flags.starts_on_console && ! onstart_flags.runs_on_console) {
         tcsetpgrp(0, getpgrp());
@@ -746,7 +746,7 @@ void ServiceRecord::started() noexcept
     }
 }
 
-void ServiceRecord::failed_to_start(bool depfailed) noexcept
+void service_record::failed_to_start(bool depfailed) noexcept
 {
     if (!depfailed && onstart_flags.starts_on_console) {
         tcsetpgrp(0, getpgrp());
@@ -780,7 +780,7 @@ void ServiceRecord::failed_to_start(bool depfailed) noexcept
     }
 }
 
-bool ServiceRecord::start_ps_process() noexcept
+bool service_record::start_ps_process() noexcept
 {
     // default implementation: there is no process, so we are started.
     started();
@@ -894,7 +894,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     return false;
 }
 
-void ServiceRecord::run_child_proc(const char * const *args, const char *logfile, bool on_console,
+void service_record::run_child_proc(const char * const *args, const char *logfile, bool on_console,
         int wpipefd, int csfd) noexcept
 {
     // Child process. Must not allocate memory (or otherwise risk throwing any exception)
@@ -1012,7 +1012,7 @@ void ServiceRecord::run_child_proc(const char * const *args, const char *logfile
 }
 
 // Mark this and all dependent services as force-stopped.
-void ServiceRecord::forceStop() noexcept
+void service_record::forceStop() noexcept
 {
     if (service_state != ServiceState::STOPPED) {
         force_stop = true;
@@ -1020,14 +1020,14 @@ void ServiceRecord::forceStop() noexcept
     }
 }
 
-void ServiceRecord::dependentStopped() noexcept
+void service_record::dependentStopped() noexcept
 {
     if (service_state == ServiceState::STOPPING && waiting_for_deps) {
         service_set->addToStopQueue(this);
     }
 }
 
-void ServiceRecord::stop(bool bring_down) noexcept
+void service_record::stop(bool bring_down) noexcept
 {
     if (start_explicit) {
         start_explicit = false;
@@ -1039,7 +1039,7 @@ void ServiceRecord::stop(bool bring_down) noexcept
     }
 }
 
-void ServiceRecord::do_stop() noexcept
+void service_record::do_stop() noexcept
 {
     if (pinned_started) return;
 
@@ -1076,7 +1076,7 @@ void ServiceRecord::do_stop() noexcept
     }
 }
 
-bool ServiceRecord::stopCheckDependents() noexcept
+bool service_record::stopCheckDependents() noexcept
 {
     bool all_deps_stopped = true;
     for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
@@ -1089,7 +1089,7 @@ bool ServiceRecord::stopCheckDependents() noexcept
     return all_deps_stopped;
 }
 
-bool ServiceRecord::stopDependents() noexcept
+bool service_record::stopDependents() noexcept
 {
     bool all_deps_stopped = true;
     for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
@@ -1114,7 +1114,7 @@ bool ServiceRecord::stopDependents() noexcept
 }
 
 // All dependents have stopped; we can stop now, too. Only called when STOPPING.
-void ServiceRecord::all_deps_stopped() noexcept
+void service_record::all_deps_stopped() noexcept
 {
     waiting_for_deps = false;
     stopped();
@@ -1167,7 +1167,7 @@ void scripted_service::all_deps_stopped() noexcept
     }
 }
 
-void ServiceRecord::unpin() noexcept
+void service_record::unpin() noexcept
 {
     if (pinned_started) {
         pinned_started = false;
@@ -1185,27 +1185,27 @@ void ServiceRecord::unpin() noexcept
     }
 }
 
-void ServiceRecord::queue_for_console() noexcept
+void service_record::queue_for_console() noexcept
 {
     service_set->append_console_queue(this);
 }
 
-void ServiceRecord::release_console() noexcept
+void service_record::release_console() noexcept
 {
     service_set->pull_console_queue();
 }
 
-void ServiceRecord::interrupt_start() noexcept
+void service_record::interrupt_start() noexcept
 {
     service_set->unqueue_console(this);
 }
 
-void ServiceSet::service_active(ServiceRecord *sr) noexcept
+void ServiceSet::service_active(service_record *sr) noexcept
 {
     active_services++;
 }
 
-void ServiceSet::service_inactive(ServiceRecord *sr) noexcept
+void ServiceSet::service_inactive(service_record *sr) noexcept
 {
     active_services--;
 }
@@ -1213,7 +1213,7 @@ void ServiceSet::service_inactive(ServiceRecord *sr) noexcept
 base_process_service::base_process_service(ServiceSet *sset, string name, ServiceType service_type, string &&command,
         std::list<std::pair<unsigned,unsigned>> &command_offsets,
         sr_list * pdepends_on, sr_list * pdepends_soft)
-     : ServiceRecord(sset, name, service_type, std::move(command), command_offsets,
+     : service_record(sset, name, service_type, std::move(command), command_offsets,
          pdepends_on, pdepends_soft), child_listener(this), child_status_listener(this)
 {
     restart_interval_count = 0;
@@ -1293,7 +1293,7 @@ void base_process_service::interrupt_start() noexcept
         restart_timer.stop_timer(eventLoop);
         waiting_restart_timer = false;
     }
-    ServiceRecord::interrupt_start();
+    service_record::interrupt_start();
 }
 
 dasynq::rearm process_restart_timer::timer_expiry(EventLoop_t &, int expiry_count)

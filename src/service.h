@@ -158,15 +158,15 @@ class ServiceDescriptionExc : public ServiceLoadExc
     }    
 };
 
-class ServiceRecord;
+class service_record;
 class ServiceSet;
 class base_process_service;
 
 /* Service dependency record */
 class ServiceDep
 {
-    ServiceRecord * from;
-    ServiceRecord * to;
+    service_record * from;
+    service_record * to;
 
     public:
     /* Whether the 'from' service is waiting for the 'to' service to start */
@@ -174,15 +174,15 @@ class ServiceDep
     /* Whether the 'from' service is holding an acquire on the 'to' service */
     bool holding_acq;
 
-    ServiceDep(ServiceRecord * from, ServiceRecord * to) noexcept : from(from), to(to), waiting_on(false), holding_acq(false)
+    ServiceDep(service_record * from, service_record * to) noexcept : from(from), to(to), waiting_on(false), holding_acq(false)
     {  }
 
-    ServiceRecord * getFrom() noexcept
+    service_record * getFrom() noexcept
     {
         return from;
     }
 
-    ServiceRecord * getTo() noexcept
+    service_record * getTo() noexcept
     {
         return to;
     }
@@ -230,7 +230,7 @@ class ServiceIoWatcher : public EventLoop_t::fd_watcher_impl<ServiceIoWatcher>
     ServiceIoWatcher(base_process_service * sr) noexcept : service(sr) { }
 };
 
-class ServiceRecord
+class service_record
 {
     protected:
     typedef std::string string;
@@ -270,7 +270,7 @@ class ServiceRecord
     
     int required_by = 0;        // number of dependents wanting this service to be started
 
-    typedef std::list<ServiceRecord *> sr_list;
+    typedef std::list<service_record *> sr_list;
     typedef sr_list::iterator sr_iter;
     
     // list of soft dependencies
@@ -317,11 +317,11 @@ class ServiceRecord
     public:
     
     // Console queue.
-    lld_node<ServiceRecord> console_queue_node;
+    lld_node<service_record> console_queue_node;
     
     // Propagation and start/stop queues
-    lls_node<ServiceRecord> prop_queue_node;
-    lls_node<ServiceRecord> stop_queue_node;
+    lls_node<service_record> prop_queue_node;
+    lls_node<service_record> stop_queue_node;
     
     protected:
     
@@ -415,7 +415,7 @@ class ServiceRecord
 
     public:
 
-    ServiceRecord(ServiceSet *set, string name)
+    service_record(ServiceSet *set, string name)
         : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED),
             auto_restart(false), smooth_recovery(false),
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
@@ -428,9 +428,9 @@ class ServiceRecord
         service_type = ServiceType::DUMMY;
     }
     
-    ServiceRecord(ServiceSet *set, string name, ServiceType service_type, string &&command, std::list<std::pair<unsigned,unsigned>> &command_offsets,
+    service_record(ServiceSet *set, string name, ServiceType service_type, string &&command, std::list<std::pair<unsigned,unsigned>> &command_offsets,
             sr_list * pdepends_on, sr_list * pdepends_soft)
-        : ServiceRecord(set, name)
+        : service_record(set, name)
     {
         service_set = set;
         service_name = name;
@@ -453,7 +453,7 @@ class ServiceRecord
         }
     }
     
-    virtual ~ServiceRecord() noexcept
+    virtual ~service_record() noexcept
     {
     }
     
@@ -591,7 +591,7 @@ class process_restart_timer : public EventLoop_t::timer_impl<process_restart_tim
     rearm timer_expiry(EventLoop_t &, int expiry_count);
 };
 
-class base_process_service : public ServiceRecord
+class base_process_service : public service_record
 {
     friend class ServiceChildWatcher;
     friend class ServiceIoWatcher;
@@ -631,7 +631,7 @@ class base_process_service : public ServiceRecord
 
     virtual bool can_interrupt_start() noexcept override
     {
-        return waiting_restart_timer || ServiceRecord::can_interrupt_start();
+        return waiting_restart_timer || service_record::can_interrupt_start();
     }
 
     virtual void interrupt_start() noexcept override;
@@ -721,17 +721,17 @@ class scripted_service : public base_process_service
     }
 };
 
-inline auto extract_prop_queue(ServiceRecord *sr) -> decltype(sr->prop_queue_node) &
+inline auto extract_prop_queue(service_record *sr) -> decltype(sr->prop_queue_node) &
 {
     return sr->prop_queue_node;
 }
 
-inline auto extract_stop_queue(ServiceRecord *sr) -> decltype(sr->stop_queue_node) &
+inline auto extract_stop_queue(service_record *sr) -> decltype(sr->stop_queue_node) &
 {
     return sr->stop_queue_node;
 }
 
-inline auto extract_console_queue(ServiceRecord *sr) -> decltype(sr->console_queue_node) &
+inline auto extract_console_queue(service_record *sr) -> decltype(sr->console_queue_node) &
 {
     return sr->console_queue_node;
 }
@@ -757,18 +757,18 @@ inline auto extract_console_queue(ServiceRecord *sr) -> decltype(sr->console_que
 class ServiceSet
 {
     int active_services;
-    std::list<ServiceRecord *> records;
+    std::list<service_record *> records;
     const char *service_dir;  // directory containing service descriptions
     bool restart_enabled; // whether automatic restart is enabled (allowed)
     
     ShutdownType shutdown_type = ShutdownType::CONTINUE;  // Shutdown type, if stopping
     
     // Services waiting for exclusive access to the console
-    dlist<ServiceRecord, extract_console_queue> console_queue;
+    dlist<service_record, extract_console_queue> console_queue;
 
     // Propagation and start/stop "queues" - list of services waiting for processing
-    slist<ServiceRecord, extract_prop_queue> prop_queue;
-    slist<ServiceRecord, extract_stop_queue> stop_queue;
+    slist<service_record, extract_prop_queue> prop_queue;
+    slist<service_record, extract_stop_queue> stop_queue;
     
     // Private methods
         
@@ -777,7 +777,7 @@ class ServiceSet
     // Throws:
     //   ServiceLoadException (or subclass) on problem with service description
     //   std::bad_alloc on out-of-memory condition
-    ServiceRecord *loadServiceRecord(const char *name);
+    service_record *loadServiceRecord(const char *name);
 
     // Public
     
@@ -798,15 +798,15 @@ class ServiceSet
     void startService(const char *name);
     
     // Locate an existing service record.
-    ServiceRecord *find_service(const std::string &name) noexcept;
+    service_record *find_service(const std::string &name) noexcept;
     
     // Find a loaded service record, or load it if it is not loaded.
     // Throws:
     //   ServiceLoadException (or subclass) on problem with service description
     //   std::bad_alloc on out-of-memory condition 
-    ServiceRecord *loadService(const std::string &name)
+    service_record *loadService(const std::string &name)
     {
-        ServiceRecord *record = find_service(name);
+        service_record *record = find_service(name);
         if (record == nullptr) {
             record = loadServiceRecord(name.c_str());
         }
@@ -814,7 +814,7 @@ class ServiceSet
     }
     
     // Get the list of all loaded services.
-    const std::list<ServiceRecord *> &listServices()
+    const std::list<service_record *> &listServices()
     {
         return records;
     }
@@ -825,7 +825,7 @@ class ServiceSet
     
     // Add a service record to the state propagation queue. The service record will have its
     // do_propagation() method called when the queue is processed.
-    void addToPropQueue(ServiceRecord *service) noexcept
+    void addToPropQueue(service_record *service) noexcept
     {
         if (! prop_queue.is_queued(service)) {
             prop_queue.insert(service);
@@ -834,7 +834,7 @@ class ServiceSet
     
     // Add a service record to the start queue. The service record will have its
     // execute_transition() method called when the queue is processed.
-    void addToStartQueue(ServiceRecord *service) noexcept
+    void addToStartQueue(service_record *service) noexcept
     {
         // The start/stop queue is actually one queue:
         addToStopQueue(service);
@@ -842,7 +842,7 @@ class ServiceSet
     
     // Add a service record to the stop queue. The service record will have its
     // execute_transition() method called when the queue is processed.
-    void addToStopQueue(ServiceRecord *service) noexcept
+    void addToStopQueue(service_record *service) noexcept
     {
         if (! stop_queue.is_queued(service)) {
             stop_queue.insert(service);
@@ -866,7 +866,7 @@ class ServiceSet
     }
     
     // Set the console queue tail (returns previous tail)
-    void append_console_queue(ServiceRecord * newTail) noexcept
+    void append_console_queue(service_record * newTail) noexcept
     {
         bool was_empty = console_queue.is_empty();
         console_queue.append(newTail);
@@ -882,12 +882,12 @@ class ServiceSet
             enable_console_log(true);
         }
         else {
-            ServiceRecord * front = console_queue.pop_front();
+            service_record * front = console_queue.pop_front();
             front->acquiredConsole();
         }
     }
     
-    void unqueue_console(ServiceRecord * service) noexcept
+    void unqueue_console(service_record * service) noexcept
     {
         if (console_queue.is_queued(service)) {
             console_queue.unlink(service);
@@ -896,11 +896,11 @@ class ServiceSet
 
     // Notification from service that it is active (state != STOPPED)
     // Only to be called on the transition from inactive to active.
-    void service_active(ServiceRecord *) noexcept;
+    void service_active(service_record *) noexcept;
     
     // Notification from service that it is inactive (STOPPED)
     // Only to be called on the transition from active to inactive.
-    void service_inactive(ServiceRecord *) noexcept;
+    void service_inactive(service_record *) noexcept;
     
     // Find out how many services are active (starting, running or stopping,
     // but not stopped).
@@ -913,7 +913,7 @@ class ServiceSet
     {
         restart_enabled = false;
         shutdown_type = type;
-        for (std::list<ServiceRecord *>::iterator i = records.begin(); i != records.end(); ++i) {
+        for (std::list<service_record *>::iterator i = records.begin(); i != records.end(); ++i) {
             (*i)->stop(false);
             (*i)->unpin();
         }

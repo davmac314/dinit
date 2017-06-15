@@ -87,7 +87,7 @@ bool ControlConn::processFindLoad(int pktType)
         return true;
     }
     
-    ServiceRecord * record = nullptr;
+    service_record * record = nullptr;
     
     string serviceName = rbuf.extract_string(3, svcSize);
     
@@ -148,7 +148,7 @@ bool ControlConn::processStartStop(int pktType)
     handle_t handle;
     rbuf.extract((char *) &handle, 2, sizeof(handle));
     
-    ServiceRecord *service = findServiceForKey(handle);
+    service_record *service = findServiceForKey(handle);
     if (service == nullptr) {
         // Service handle is bad
         char badreqRep[] = { DINIT_RP_BADREQ };
@@ -220,7 +220,7 @@ bool ControlConn::processUnpinService()
     handle_t handle;
     rbuf.extract((char *) &handle, 1, sizeof(handle));
     
-    ServiceRecord *service = findServiceForKey(handle);
+    service_record *service = findServiceForKey(handle);
     if (service == nullptr) {
         // Service handle is bad
         char badreqRep[] = { DINIT_RP_BADREQ };
@@ -285,7 +285,7 @@ bool ControlConn::listServices()
     }
 }
 
-ControlConn::handle_t ControlConn::allocateServiceHandle(ServiceRecord *record)
+ControlConn::handle_t ControlConn::allocateServiceHandle(service_record *record)
 {
     bool is_unique = true;
     handle_t largest_seen = 0;

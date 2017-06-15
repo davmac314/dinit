@@ -45,7 +45,7 @@ extern int active_control_conns;
 //       N bytes: packet data (N = (length - 2))
 
 class ServiceSet;
-class ServiceRecord;
+class service_record;
 
 class ControlConnWatcher : public EventLoop_t::bidi_fd_watcher_impl<ControlConnWatcher>
 {
@@ -106,8 +106,8 @@ class ControlConn : private ServiceListener
     // A mapping between service records and their associated numerical identifier used
     // in communction
     using handle_t = uint32_t;
-    std::unordered_multimap<ServiceRecord *, handle_t> serviceKeyMap;
-    std::unordered_map<handle_t, ServiceRecord *> keyServiceMap;
+    std::unordered_multimap<service_record *, handle_t> serviceKeyMap;
+    std::unordered_map<handle_t, service_record *> keyServiceMap;
     
     // Buffer for outgoing packets. Each outgoing back is represented as a vector<char>.
     list<vector<char>> outbuf;
@@ -152,9 +152,9 @@ class ControlConn : private ServiceListener
     bool sendData() noexcept;
     
     // Allocate a new handle for a service; may throw std::bad_alloc
-    handle_t allocateServiceHandle(ServiceRecord *record);
+    handle_t allocateServiceHandle(service_record *record);
     
-    ServiceRecord *findServiceForKey(uint32_t key)
+    service_record *findServiceForKey(uint32_t key)
     {
         try {
             return keyServiceMap.at(key);
@@ -175,7 +175,7 @@ class ControlConn : private ServiceListener
     // Process service event broadcast.
     // Note that this can potentially be called during packet processing (upon issuing
     // service start/stop orders etc).
-    void serviceEvent(ServiceRecord * service, ServiceEvent event) noexcept final override
+    void serviceEvent(service_record * service, ServiceEvent event) noexcept final override
     {
         // For each service handle corresponding to the event, send an information packet.
         auto range = serviceKeyMap.equal_range(service);

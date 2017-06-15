@@ -3,7 +3,7 @@
 
 #include "service-constants.h"
 
-class ServiceRecord;
+class service_record;
 
 // Interface for listening to services
 class ServiceListener
@@ -12,7 +12,7 @@ class ServiceListener
     
     // An event occurred on the service being observed.
     // Listeners must not be added or removed during event notification.
-    virtual void serviceEvent(ServiceRecord * service, ServiceEvent event) noexcept = 0;
+    virtual void serviceEvent(service_record * service, ServiceEvent event) noexcept = 0;
 };
 
 #endif
