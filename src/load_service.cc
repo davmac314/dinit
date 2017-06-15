@@ -214,12 +214,12 @@ static uid_t parse_uid_param(const std::string &param, const std::string &servic
         static_assert((uintmax_t)std::numeric_limits<uid_t>::max() <= (uintmax_t)std::numeric_limits<unsigned long long>::max(), "uid_t is too large");
         unsigned long long v = std::stoull(param, &ind, 0);
         if (v > static_cast<unsigned long long>(std::numeric_limits<uid_t>::max()) || ind != param.length()) {
-            throw ServiceDescriptionExc(service_name, uid_err_msg);
+            throw service_description_exc(service_name, uid_err_msg);
         }
         return v;
     }
     catch (std::out_of_range &exc) {
-        throw ServiceDescriptionExc(service_name, uid_err_msg);
+        throw service_description_exc(service_name, uid_err_msg);
     }
     catch (std::invalid_argument &exc) {
         // Ok, so it doesn't look like a number: proceed...
@@ -230,10 +230,10 @@ static uid_t parse_uid_param(const std::string &param, const std::string &servic
     if (pwent == nullptr) {
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
-            throw ServiceDescriptionExc(service_name, "Specified user \"" + param + "\" does not exist in system database.");
+            throw service_description_exc(service_name, "Specified user \"" + param + "\" does not exist in system database.");
         }
         else {
-            throw ServiceDescriptionExc(service_name, std::string("Error accessing user database: ") + strerror(errno));
+            throw service_description_exc(service_name, std::string("Error accessing user database: ") + strerror(errno));
         }
     }
     
@@ -254,15 +254,15 @@ static unsigned long long parse_unum_param(const std::string &param, const std::
     try {
         unsigned long long v = std::stoull(param, &ind, 0);
         if (v > max || ind != param.length()) {
-            throw ServiceDescriptionExc(service_name, num_err_msg);
+            throw service_description_exc(service_name, num_err_msg);
         }
         return v;
     }
     catch (std::out_of_range &exc) {
-        throw ServiceDescriptionExc(service_name, num_err_msg);
+        throw service_description_exc(service_name, num_err_msg);
     }
     catch (std::invalid_argument &exc) {
-        throw ServiceDescriptionExc(service_name, num_err_msg);
+        throw service_description_exc(service_name, num_err_msg);
     }
 }
 
@@ -283,12 +283,12 @@ static gid_t parse_gid_param(const std::string &param, const std::string &servic
         //      functions accept a leading minus sign...
         unsigned long long v = std::stoull(param, &ind, 0);
         if (v > static_cast<unsigned long long>(std::numeric_limits<gid_t>::max()) || ind != param.length()) {
-            throw ServiceDescriptionExc(service_name, gid_err_msg);
+            throw service_description_exc(service_name, gid_err_msg);
         }
         return v;
     }
     catch (std::out_of_range &exc) {
-        throw ServiceDescriptionExc(service_name, gid_err_msg);
+        throw service_description_exc(service_name, gid_err_msg);
     }
     catch (std::invalid_argument &exc) {
         // Ok, so it doesn't look like a number: proceed...
@@ -299,10 +299,10 @@ static gid_t parse_gid_param(const std::string &param, const std::string &servic
     if (grent == nullptr) {
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
-            throw ServiceDescriptionExc(service_name, "Specified group \"" + param + "\" does not exist in system database.");
+            throw service_description_exc(service_name, "Specified group \"" + param + "\" does not exist in system database.");
         }
         else {
-            throw ServiceDescriptionExc(service_name, std::string("Error accessing group database: ") + strerror(errno));
+            throw service_description_exc(service_name, std::string("Error accessing group database: ") + strerror(errno));
         }
     }
     
@@ -324,11 +324,11 @@ static void parse_timespec(const std::string &paramval, const std::string &servi
             break;
         }
         if (ch < '0' || ch > '9') {
-            throw ServiceDescriptionExc(servicename, std::string("Bad value for ") + paramname);
+            throw service_description_exc(servicename, std::string("Bad value for ") + paramname);
         }
         // check for overflow
         if (isec >= max_secs) {
-           throw ServiceDescriptionExc(servicename, std::string("Too-large value for ") + paramname);
+           throw service_description_exc(servicename, std::string("Too-large value for ") + paramname);
         }
         isec *= 10;
         isec += ch - '0';
@@ -337,7 +337,7 @@ static void parse_timespec(const std::string &paramval, const std::string &servi
     for ( ; i < len; i++) {
         char ch = paramval[i];
         if (ch < '0' || ch > '9') {
-            throw ServiceDescriptionExc(servicename, std::string("Bad value for ") + paramname);
+            throw service_description_exc(servicename, std::string("Bad value for ") + paramname);
         }
         insec += (ch - '0') * insec_m;
         insec_m /= 10;
@@ -352,7 +352,7 @@ static void parse_timespec(const std::string &paramval, const std::string &servi
 // Might throw a ServiceLoadExc exception if a dependency cycle is found or if another
 // problem occurs (I/O error, service description not found etc). Throws std::bad_alloc
 // if a memory allocation failure occurs.
-service_record * ServiceSet::loadServiceRecord(const char * name)
+service_record * service_set::loadServiceRecord(const char * name)
 {
     using std::string;
     using std::ifstream;
@@ -368,7 +368,7 @@ service_record * ServiceSet::loadServiceRecord(const char * name)
     service_record * rval = find_service(string(name));
     if (rval != 0) {
         if (rval->isDummy()) {
-            throw ServiceCyclicDependency(name);
+            throw service_cyclic_dependency(name);
         }
         return rval;
     }
@@ -386,11 +386,11 @@ service_record * ServiceSet::loadServiceRecord(const char * name)
     list<pair<unsigned,unsigned>> stop_command_offsets;
     string pid_file;
 
-    ServiceType service_type = ServiceType::PROCESS;
+    service_type service_type = service_type::PROCESS;
     std::list<service_record *> depends_on;
     std::list<service_record *> depends_soft;
     string logfile;
-    OnstartFlags onstart_flags;
+    onstart_flags_t onstart_flags;
     int term_signal = -1;  // additional termination signal
     bool auto_restart = false;
     bool smooth_recovery = false;
@@ -413,7 +413,7 @@ service_record * ServiceSet::loadServiceRecord(const char * name)
         service_file.open(service_filename.c_str(), ios::in);
     }
     catch (std::ios_base::failure &exc) {
-        throw ServiceNotFound(name);
+        throw service_not_found(name);
     }
     
     // Add a dummy service record now to prevent infinite recursion in case of cyclic dependency
@@ -437,7 +437,7 @@ service_record * ServiceSet::loadServiceRecord(const char * name)
                 string setting = read_setting_name(i, end);
                 i = skipws(i, end);
                 if (i == end || (*i != '=' && *i != ':')) {
-                    throw ServiceDescriptionExc(name, "Badly formed line.");
+                    throw service_description_exc(name, "Badly formed line.");
                 }
                 i = skipws(++i, end);
                 
@@ -457,7 +457,7 @@ service_record * ServiceSet::loadServiceRecord(const char * name)
                         }
                     }
                     catch (std::logic_error &exc) {
-                        throw ServiceDescriptionExc(name, "socket-permissions: Badly-formed or out-of-range numeric value");
+                        throw service_description_exc(name, "socket-permissions: Badly-formed or out-of-range numeric value");
                     }
                 }
                 else if (setting == "socket-uid") {
@@ -496,19 +496,19 @@ service_record * ServiceSet::loadServiceRecord(const char * name)
                 else if (setting == "type") {
                     string type_str = read_setting_value(i, end);
                     if (type_str == "scripted") {
-                        service_type = ServiceType::SCRIPTED;
+                        service_type = service_type::SCRIPTED;
                     }
                     else if (type_str == "process") {
-                        service_type = ServiceType::PROCESS;
+                        service_type = service_type::PROCESS;
                     }
                     else if (type_str == "bgprocess") {
-                        service_type = ServiceType::BGPROCESS;
+                        service_type = service_type::BGPROCESS;
                     }
                     else if (type_str == "internal") {
-                        service_type = ServiceType::INTERNAL;
+                        service_type = service_type::INTERNAL;
                     }
                     else {
-                        throw ServiceDescriptionExc(name, "Service type must be one of: \"scripted\","
+                        throw service_description_exc(name, "Service type must be one of: \"scripted\","
                             " \"process\", \"bgprocess\" or \"internal\"");
                     }
                 }
@@ -538,7 +538,7 @@ service_record * ServiceSet::loadServiceRecord(const char * name)
                             onstart_flags.pass_cs_fd = true;
                         }
                         else {
-                            throw ServiceDescriptionExc(name, "Unknown option: " + option_txt);
+                            throw service_description_exc(name, "Unknown option: " + option_txt);
                         }
                     }
                 }
@@ -546,7 +546,7 @@ service_record * ServiceSet::loadServiceRecord(const char * name)
                     string signame = read_setting_value(i, end, nullptr);
                     int signo = signalNameToNumber(signame);
                     if (signo == -1) {
-                        throw ServiceDescriptionExc(name, "Unknown/unsupported termination signal: " + signame);
+                        throw service_description_exc(name, "Unknown/unsupported termination signal: " + signame);
                     }
                     else {
                         term_signal = signo;
@@ -565,16 +565,16 @@ service_record * ServiceSet::loadServiceRecord(const char * name)
                     max_restarts = parse_unum_param(limit_str, name, std::numeric_limits<int>::max());
                 }
                 else {
-                    throw ServiceDescriptionExc(name, "Unknown setting: " + setting);
+                    throw service_description_exc(name, "Unknown setting: " + setting);
                 }
             }
         }
         
         service_file.close();
         
-        if (service_type == ServiceType::PROCESS || service_type == ServiceType::BGPROCESS || service_type == ServiceType::SCRIPTED) {
+        if (service_type == service_type::PROCESS || service_type == service_type::BGPROCESS || service_type == service_type::SCRIPTED) {
             if (command.length() == 0) {
-                throw ServiceDescriptionExc(name, "Service command not specified");
+                throw service_description_exc(name, "Service command not specified");
             }
         }
         
@@ -583,14 +583,14 @@ service_record * ServiceSet::loadServiceRecord(const char * name)
             if (*iter == rval) {
                 // We've found the dummy record
                 delete rval;
-                if (service_type == ServiceType::PROCESS) {
+                if (service_type == service_type::PROCESS) {
                     auto rvalps = new process_service(this, string(name), std::move(command),
                         command_offsets, &depends_on, &depends_soft);
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
                     rval = rvalps;
                 }
-                else if (service_type == ServiceType::BGPROCESS) {
+                else if (service_type == service_type::BGPROCESS) {
                     auto rvalps = new bgproc_service(this, string(name), std::move(command),
                         command_offsets, &depends_on, &depends_soft);
                     rvalps->set_pid_file(std::move(pid_file));
@@ -598,7 +598,7 @@ service_record * ServiceSet::loadServiceRecord(const char * name)
                     rvalps->set_restart_delay(restart_delay);
                     rval = rvalps;
                 }
-                else if (service_type == ServiceType::SCRIPTED) {
+                else if (service_type == service_type::SCRIPTED) {
                     rval = new scripted_service(this, string(name), std::move(command),
                                                 command_offsets, &depends_on, &depends_soft);
                     rval->setStopCommand(stop_command, stop_command_offsets);
@@ -625,7 +625,7 @@ service_record * ServiceSet::loadServiceRecord(const char * name)
         // Must remove the dummy service record.
         std::remove(records.begin(), records.end(), rval);
         delete rval;
-        throw ServiceDescriptionExc(name, std::move(setting_exc.getInfo()));
+        throw service_description_exc(name, std::move(setting_exc.getInfo()));
     }
     catch (...) {
         // Must remove the dummy service record.

@@ -21,10 +21,10 @@
 // shutdown:  shut down the system
 // This utility communicates with the dinit daemon via a unix socket (/dev/initctl).
 
-void do_system_shutdown(ShutdownType shutdown_type);
+void do_system_shutdown(shutdown_type_t shutdown_type);
 static void unmount_disks();
 static void swap_off();
-static void wait_for_reply(CPBuffer<1024> &rbuffer, int fd);
+static void wait_for_reply(cpbuffer<1024> &rbuffer, int fd);
 
 
 class ReadCPException
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     bool sys_shutdown = false;
     bool use_passed_cfd = false;
     
-    auto shutdown_type = ShutdownType::POWEROFF;
+    auto shutdown_type = shutdown_type_t::POWEROFF;
         
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -56,13 +56,13 @@ int main(int argc, char **argv)
                 sys_shutdown = true;
             }
             else if (strcmp(argv[i], "-r") == 0) {
-                shutdown_type = ShutdownType::REBOOT;
+                shutdown_type = shutdown_type_t::REBOOT;
             }
             else if (strcmp(argv[i], "-h") == 0) {
-                shutdown_type = ShutdownType::HALT;
+                shutdown_type = shutdown_type_t::HALT;
             }
             else if (strcmp(argv[i], "-p") == 0) {
-                shutdown_type = ShutdownType::POWEROFF;
+                shutdown_type = shutdown_type_t::POWEROFF;
             }
             else if (strcmp(argv[i], "--use-passed-cfd") == 0) {
                 use_passed_cfd = true;
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
     //    cout << "Received acknowledgement. System should now shut down." << endl;
     //}
     
-    CPBuffer<1024> rbuffer;
+    cpbuffer<1024> rbuffer;
     try {
         wait_for_reply(rbuffer, socknum);
         
@@ -188,7 +188,7 @@ int main(int argc, char **argv)
 //     errcode = 0   if end of stream (remote end closed)
 //     errcode = errno   if another error occurred
 // Note that EINTR is ignored (i.e. the read will be re-tried).
-static void fillBufferTo(CPBuffer<1024> *buf, int fd, int rlength)
+static void fillBufferTo(cpbuffer<1024> *buf, int fd, int rlength)
 {
     do {
         int r = buf->fill_to(fd, rlength);
@@ -209,7 +209,7 @@ static void fillBufferTo(CPBuffer<1024> *buf, int fd, int rlength)
 
 // Wait for a reply packet, skipping over any information packets
 // that are received in the meantime.
-static void wait_for_reply(CPBuffer<1024> &rbuffer, int fd)
+static void wait_for_reply(cpbuffer<1024> &rbuffer, int fd)
 {
     fillBufferTo(&rbuffer, fd, 1);
     
@@ -225,7 +225,7 @@ static void wait_for_reply(CPBuffer<1024> &rbuffer, int fd)
 }
 
 // Actually shut down the system.
-void do_system_shutdown(ShutdownType shutdown_type)
+void do_system_shutdown(shutdown_type_t shutdown_type)
 {
     using namespace std;
     
@@ -235,8 +235,8 @@ void do_system_shutdown(ShutdownType shutdown_type)
     sigprocmask(SIG_SETMASK, &allsigs, nullptr);
     
     int reboot_type = 0;
-    if (shutdown_type == ShutdownType::REBOOT) reboot_type = RB_AUTOBOOT;
-    else if (shutdown_type == ShutdownType::POWEROFF) reboot_type = RB_POWER_OFF;
+    if (shutdown_type == shutdown_type_t::REBOOT) reboot_type = RB_AUTOBOOT;
+    else if (shutdown_type == shutdown_type_t::POWEROFF) reboot_type = RB_POWER_OFF;
     else reboot_type = RB_HALT_SYSTEM;
     
     // Write to console rather than any terminal, since we lose the terminal it seems:

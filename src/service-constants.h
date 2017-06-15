@@ -10,7 +10,7 @@ enum class ServiceState {
 };
 
 /* Service types */
-enum class ServiceType {
+enum class service_type {
     DUMMY,      // Dummy service, used to detect cyclice dependencies
     PROCESS,    // Service runs as a process, and can be stopped by
                 // sending the process a signal (usually SIGTERM)
@@ -22,7 +22,7 @@ enum class ServiceType {
 };
 
 /* Service events */
-enum class ServiceEvent {
+enum class service_event {
     STARTED,           // Service was started (reached STARTED state)
     STOPPED,           // Service was stopped (reached STOPPED state)
     FAILEDSTART,       // Service failed to start (possibly due to dependency failing)
@@ -31,7 +31,7 @@ enum class ServiceEvent {
 };
 
 /* Shutdown types */
-enum class ShutdownType {
+enum class shutdown_type_t {
     CONTINUE,          // Continue normal boot sequence (used after single-user shell)
     HALT,              // Halt system without powering down
     POWEROFF,          // Power off system

@@ -26,7 +26,7 @@
 // from dinit.cc:
 void open_control_socket(bool report_ro_failure = true) noexcept;
 void setup_external_log() noexcept;
-extern EventLoop_t eventLoop;
+extern eventloop_t eventLoop;
 
 // Find the requested service by name
 static service_record * find_service(const std::list<service_record *> & records,
@@ -42,12 +42,12 @@ static service_record * find_service(const std::list<service_record *> & records
     return (service_record *)0;
 }
 
-service_record * ServiceSet::find_service(const std::string &name) noexcept
+service_record * service_set::find_service(const std::string &name) noexcept
 {
     return ::find_service(records, name.c_str());
 }
 
-void ServiceSet::startService(const char *name)
+void service_set::startService(const char *name)
 {
     using namespace std;
     service_record *record = loadServiceRecord(name);
@@ -56,7 +56,7 @@ void ServiceSet::startService(const char *name)
     processQueues(true);
 }
 
-void ServiceSet::stopService(const std::string & name) noexcept
+void service_set::stopService(const std::string & name) noexcept
 {
     service_record *record = find_service(name);
     if (record != nullptr) {
@@ -86,7 +86,7 @@ void service_record::stopped() noexcept
     }
 
     bool will_restart = (desired_state == ServiceState::STARTED)
-            && service_set->get_auto_restart();
+            && services->get_auto_restart();
 
     for (auto dependency : depends_on) {
         // we signal dependencies in case they are waiting for us to stop:
@@ -111,15 +111,15 @@ void service_record::stopped() noexcept
             release();
         }
         else if (required_by == 0) {
-            service_set->service_inactive(this);
+            services->service_inactive(this);
         }
     }
 
     logServiceStopped(service_name);
-    notifyListeners(ServiceEvent::STOPPED);
+    notifyListeners(service_event::STOPPED);
 }
 
-dasynq::rearm ServiceChildWatcher::status_change(EventLoop_t &loop, pid_t child, int status) noexcept
+dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t child, int status) noexcept
 {
     base_process_service *sr = service;
     
@@ -147,7 +147,7 @@ dasynq::rearm ServiceChildWatcher::status_change(EventLoop_t &loop, pid_t child,
 bool service_record::do_auto_restart() noexcept
 {
     if (auto_restart) {
-        return service_set->get_auto_restart();
+        return services->get_auto_restart();
     }
     return false;
 }
@@ -196,14 +196,14 @@ void process_service::handle_exit_status(int exit_status) noexcept
         //      service process.
         if (! restart_ps_process()) {
             emergency_stop();
-            service_set->processQueues(false);
+            services->processQueues(false);
         }
         return;
     }
     else {
         emergency_stop();
     }
-    service_set->processQueues(false);
+    services->processQueues(false);
 }
 
 void bgproc_service::handle_exit_status(int exit_status) noexcept
@@ -239,7 +239,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         if (need_stop) {
             // Failed startup: no auto-restart.
             emergency_stop();
-            service_set->processQueues(false);
+            services->processQueues(false);
         }
 
         return;
@@ -272,7 +272,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         doing_recovery = true;
         if (! restart_ps_process()) {
             emergency_stop();
-            service_set->processQueues();
+            services->processQueues();
         }
         return;
     }
@@ -286,7 +286,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         stopDependents();
         stopped();
     }
-    service_set->processQueues(false);
+    services->processQueues(false);
 }
 
 void scripted_service::handle_exit_status(int exit_status) noexcept
@@ -310,7 +310,7 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
             // can be stopped:
             stopped();
         }
-        service_set->processQueues(false);
+        services->processQueues(false);
     }
     else { // STARTING
         if (exit_status == 0) {
@@ -326,11 +326,11 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
             }
             failed_to_start();
         }
-        service_set->processQueues(true);
+        services->processQueues(true);
     }
 }
 
-rearm ServiceIoWatcher::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
+rearm ServiceIoWatcher::fd_event(eventloop_t &loop, int fd, int flags) noexcept
 {
     base_process_service *sr = service;
     sr->waiting_for_execstat = false;
@@ -358,7 +358,7 @@ rearm ServiceIoWatcher::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
     }
     else {
         // exec() succeeded.
-        if (sr->service_type == ServiceType::PROCESS) {
+        if (sr->record_type == service_type::PROCESS) {
             // This could be a smooth recovery (state already STARTED). Even more, the process
             // might be stopped (and killed via a signal) during smooth recovery.  We don't to
             // process startup again in either case, so we check for state STARTING:
@@ -373,7 +373,7 @@ rearm ServiceIoWatcher::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
         }
     }
     
-    sr->service_set->processQueues(true);
+    sr->services->processQueues(true);
     
     return rearm::REMOVED;
 }
@@ -383,7 +383,7 @@ void service_record::require() noexcept
     if (required_by++ == 0) {
         prop_require = !prop_release;
         prop_release = false;
-        service_set->addToPropQueue(this);
+        services->addToPropQueue(this);
     }
 }
 
@@ -396,10 +396,10 @@ void service_record::release() noexcept
         // the require was pending though:
         prop_release = !prop_require;
         prop_require = false;
-        service_set->addToPropQueue(this);
+        services->addToPropQueue(this);
 
         if (service_state == ServiceState::STOPPED) {
-            service_set->service_inactive(this);
+            services->service_inactive(this);
         }
         else {
             do_stop();
@@ -443,17 +443,17 @@ void service_record::start(bool activate) noexcept
         // We're STOPPING, and that can be interrupted. Our dependencies might be STOPPING,
         // but if so they are waiting (for us), so they too can be instantly returned to
         // STARTING state.
-        notifyListeners(ServiceEvent::STOPCANCELLED);
+        notifyListeners(service_event::STOPCANCELLED);
     }
     else if (! was_active) {
-        service_set->service_active(this);
+        services->service_active(this);
     }
 
     service_state = ServiceState::STARTING;
     waiting_for_deps = true;
 
     if (startCheckDependencies(true)) {
-        service_set->addToStartQueue(this);
+        services->addToStartQueue(this);
     }
 }
 
@@ -531,7 +531,7 @@ void service_record::do_start() noexcept
 void service_record::dependencyStarted() noexcept
 {
     if (service_state == ServiceState::STARTING && waiting_for_deps) {
-        service_set->addToStartQueue(this);
+        services->addToStartQueue(this);
     }
 }
 
@@ -544,7 +544,7 @@ bool service_record::startCheckDependencies(bool start_deps) noexcept
             if (start_deps) {
                 all_deps_started = false;
                 (*i)->prop_start = true;
-                service_set->addToPropQueue(*i);
+                services->addToPropQueue(*i);
             }
             else {
                 return false;
@@ -557,7 +557,7 @@ bool service_record::startCheckDependencies(bool start_deps) noexcept
         if (start_deps) {
             if (to->service_state != ServiceState::STARTED) {
                 to->prop_start = true;
-                service_set->addToPropQueue(to);
+                services->addToPropQueue(to);
                 i->waiting_on = true;
                 all_deps_started = false;
             }
@@ -722,7 +722,7 @@ void service_record::started() noexcept
 
     logServiceStarted(service_name);
     service_state = ServiceState::STARTED;
-    notifyListeners(ServiceEvent::STARTED);
+    notifyListeners(service_event::STARTED);
 
     if (onstart_flags.rw_ready) {
         open_control_socket();
@@ -759,13 +759,13 @@ void service_record::failed_to_start(bool depfailed) noexcept
         start_explicit = false;
         release();
     }
-    notifyListeners(ServiceEvent::FAILEDSTART);
+    notifyListeners(service_event::FAILEDSTART);
     
     // Cancel start of dependents:
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
         if ((*i)->service_state == ServiceState::STARTING) {
             (*i)->prop_failure = true;
-            service_set->addToPropQueue(*i);
+            services->addToPropQueue(*i);
         }
     }    
     for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
@@ -820,7 +820,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     }
 
     bool child_status_registered = false;
-    ControlConn *control_conn = nullptr;
+    control_conn_t *control_conn = nullptr;
     
     int control_socket[2] = {-1, -1};
     if (onstart_flags.pass_cs_fd) {
@@ -834,7 +834,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         fcntl(control_socket[0], F_SETFD, fdflags | FD_CLOEXEC);
         
         try {
-            control_conn = new ControlConn(&eventLoop, service_set, control_socket[0]);
+            control_conn = new control_conn_t(&eventLoop, services, control_socket[0]);
         }
         catch (std::exception &exc) {
             log(LogLevel::ERROR, service_name, ": can't launch process; out of memory");
@@ -1016,14 +1016,14 @@ void service_record::forceStop() noexcept
 {
     if (service_state != ServiceState::STOPPED) {
         force_stop = true;
-        service_set->addToStopQueue(this);
+        services->addToStopQueue(this);
     }
 }
 
 void service_record::dependentStopped() noexcept
 {
     if (service_state == ServiceState::STOPPING && waiting_for_deps) {
-        service_set->addToStopQueue(this);
+        services->addToStopQueue(this);
     }
 }
 
@@ -1055,7 +1055,7 @@ void service_record::do_stop() noexcept
             }
 
             // We must have had desired_state == STARTED.
-            notifyListeners(ServiceEvent::STARTCANCELLED);
+            notifyListeners(service_event::STARTCANCELLED);
             
             interrupt_start();
 
@@ -1072,7 +1072,7 @@ void service_record::do_stop() noexcept
     service_state = ServiceState::STOPPING;
     waiting_for_deps = true;
     if (stopDependents()) {
-        service_set->addToStopQueue(this);
+        services->addToStopQueue(this);
     }
 }
 
@@ -1107,7 +1107,7 @@ bool service_record::stopDependents() noexcept
         }
 
         (*i)->prop_stop = true;
-        service_set->addToPropQueue(*i);
+        services->addToPropQueue(*i);
     }
 
     return all_deps_stopped;
@@ -1135,7 +1135,7 @@ void base_process_service::all_deps_stopped() noexcept
         // In most cases, the rest is done in handle_exit_status.
         // If we are a BGPROCESS and the process is not our immediate child, however, that
         // won't work - check for this now:
-        if (service_type == ServiceType::BGPROCESS) {
+        if (record_type == service_type::BGPROCESS) {
             int status;
             pid_t r = waitpid(pid, &status, WNOHANG);
             if (r == -1 && errno == ECHILD) {
@@ -1173,47 +1173,47 @@ void service_record::unpin() noexcept
         pinned_started = false;
         if (desired_state == ServiceState::STOPPED) {
             do_stop();
-            service_set->processQueues(false);
+            services->processQueues(false);
         }
     }
     if (pinned_stopped) {
         pinned_stopped = false;
         if (desired_state == ServiceState::STARTED) {
             do_start();
-            service_set->processQueues(true);
+            services->processQueues(true);
         }
     }
 }
 
 void service_record::queue_for_console() noexcept
 {
-    service_set->append_console_queue(this);
+    services->append_console_queue(this);
 }
 
 void service_record::release_console() noexcept
 {
-    service_set->pull_console_queue();
+    services->pull_console_queue();
 }
 
 void service_record::interrupt_start() noexcept
 {
-    service_set->unqueue_console(this);
+    services->unqueue_console(this);
 }
 
-void ServiceSet::service_active(service_record *sr) noexcept
+void service_set::service_active(service_record *sr) noexcept
 {
     active_services++;
 }
 
-void ServiceSet::service_inactive(service_record *sr) noexcept
+void service_set::service_inactive(service_record *sr) noexcept
 {
     active_services--;
 }
 
-base_process_service::base_process_service(ServiceSet *sset, string name, ServiceType service_type, string &&command,
+base_process_service::base_process_service(service_set *sset, string name, service_type service_type_p, string &&command,
         std::list<std::pair<unsigned,unsigned>> &command_offsets,
         sr_list * pdepends_on, sr_list * pdepends_soft)
-     : service_record(sset, name, service_type, std::move(command), command_offsets,
+     : service_record(sset, name, service_type_p, std::move(command), command_offsets,
          pdepends_on, pdepends_soft), child_listener(this), child_status_listener(this)
 {
     restart_interval_count = 0;
@@ -1246,13 +1246,13 @@ void base_process_service::do_restart() noexcept
             desired_state = ServiceState::STOPPED;
             forceStop();
         }
-        service_set->processQueues();
+        services->processQueues();
     }
 }
 
 bool base_process_service::restart_ps_process() noexcept
 {
-	using time_val = EventLoop_t::time_val;
+	using time_val = eventloop_t::time_val;
 
     time_val current_time;
     eventLoop.get_time(current_time, clock_type::MONOTONIC);
@@ -1296,7 +1296,7 @@ void base_process_service::interrupt_start() noexcept
     service_record::interrupt_start();
 }
 
-dasynq::rearm process_restart_timer::timer_expiry(EventLoop_t &, int expiry_count)
+dasynq::rearm process_restart_timer::timer_expiry(eventloop_t &, int expiry_count)
 {
     service->do_restart();
     return dasynq::rearm::DISARM;

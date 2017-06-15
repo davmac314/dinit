@@ -19,16 +19,16 @@
 // Control connection for dinit
 
 using namespace dasynq;
-using EventLoop_t = event_loop<null_mutex>;
+using eventloop_t = event_loop<null_mutex>;
 
-class ControlConn;
-class ControlConnWatcher;
+class control_conn_t;
+class control_conn_watcher;
 
 // forward-declaration of callback:
-static rearm control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
+static rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents);
 
 // Pointer to the control connection that is listening for rollback completion
-extern ControlConn * rollback_handler_conn;
+extern control_conn_t * rollback_handler_conn;
 
 extern int active_control_conns;
 
@@ -44,51 +44,51 @@ extern int active_control_conns;
 // (1 byte) packet length (including all fields)
 //       N bytes: packet data (N = (length - 2))
 
-class ServiceSet;
+class service_set;
 class service_record;
 
-class ControlConnWatcher : public EventLoop_t::bidi_fd_watcher_impl<ControlConnWatcher>
+class control_conn_watcher : public eventloop_t::bidi_fd_watcher_impl<control_conn_watcher>
 {
-    inline rearm receiveEvent(EventLoop_t &loop, int fd, int flags) noexcept;
+    inline rearm receiveEvent(eventloop_t &loop, int fd, int flags) noexcept;
 
     public:
-    rearm read_ready(EventLoop_t &loop, int fd) noexcept
+    rearm read_ready(eventloop_t &loop, int fd) noexcept
     {
         return receiveEvent(loop, fd, IN_EVENTS);
     }
     
-    rearm write_ready(EventLoop_t &loop, int fd) noexcept
+    rearm write_ready(eventloop_t &loop, int fd) noexcept
     {
         return receiveEvent(loop, fd, OUT_EVENTS);
     }
     
-    EventLoop_t * eventLoop;
+    eventloop_t * eventLoop;
     
     void set_watches(int flags)
     {
-        EventLoop_t::bidi_fd_watcher::set_watches(*eventLoop, flags);
+        eventloop_t::bidi_fd_watcher::set_watches(*eventLoop, flags);
     }
     
-    void registerWith(EventLoop_t &loop, int fd, int flags)
+    void registerWith(eventloop_t &loop, int fd, int flags)
     {
         this->eventLoop = &loop;
-        bidi_fd_watcher<EventLoop_t>::add_watch(loop, fd, flags);
+        bidi_fd_watcher<eventloop_t>::add_watch(loop, fd, flags);
     }
 };
 
-inline rearm ControlConnWatcher::receiveEvent(EventLoop_t &loop, int fd, int flags) noexcept
+inline rearm control_conn_watcher::receiveEvent(eventloop_t &loop, int fd, int flags) noexcept
 {
     return control_conn_cb(&loop, this, flags);
 }
 
 
-class ControlConn : private ServiceListener
+class control_conn_t : private service_listener
 {
-    friend rearm control_conn_cb(EventLoop_t *loop, ControlConnWatcher *watcher, int revents);
+    friend rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents);
     
-    ControlConnWatcher iob;
-    EventLoop_t *loop;
-    ServiceSet *service_set;
+    control_conn_watcher iob;
+    eventloop_t *loop;
+    service_set *services;
     
     bool bad_conn_close = false; // close when finished output?
     bool oom_close = false;      // send final 'out of memory' indicator
@@ -98,7 +98,7 @@ class ControlConn : private ServiceListener
     int chklen;
     
     // Receive buffer
-    CPBuffer<1024> rbuf;
+    cpbuffer<1024> rbuf;
     
     template <typename T> using list = std::list<T>;
     template <typename T> using vector = std::vector<T>;
@@ -175,7 +175,7 @@ class ControlConn : private ServiceListener
     // Process service event broadcast.
     // Note that this can potentially be called during packet processing (upon issuing
     // service start/stop orders etc).
-    void serviceEvent(service_record * service, ServiceEvent event) noexcept final override
+    void serviceEvent(service_record * service, service_event event) noexcept final override
     {
         // For each service handle corresponding to the event, send an information packet.
         auto range = serviceKeyMap.equal_range(service);
@@ -204,7 +204,7 @@ class ControlConn : private ServiceListener
     }
     
     public:
-    ControlConn(EventLoop_t * loop, ServiceSet * service_set, int fd) : loop(loop), service_set(service_set), chklen(0)
+    control_conn_t(eventloop_t * loop, service_set * services_p, int fd) : loop(loop), services(services_p), chklen(0)
     {
         iob.registerWith(*loop, fd, IN_EVENTS);
         active_control_conns++;
@@ -212,14 +212,14 @@ class ControlConn : private ServiceListener
     
     bool rollbackComplete() noexcept;
         
-    virtual ~ControlConn() noexcept;
+    virtual ~control_conn_t() noexcept;
 };
 
 
-static rearm control_conn_cb(EventLoop_t * loop, ControlConnWatcher * watcher, int revents)
+static rearm control_conn_cb(eventloop_t * loop, control_conn_watcher * watcher, int revents)
 {
-    char * cc_addr = (reinterpret_cast<char *>(watcher)) - offsetof(ControlConn, iob);
-    ControlConn *conn = reinterpret_cast<ControlConn *>(cc_addr);
+    char * cc_addr = (reinterpret_cast<char *>(watcher)) - offsetof(control_conn_t, iob);
+    control_conn_t *conn = reinterpret_cast<control_conn_t *>(cc_addr);
     if (revents & IN_EVENTS) {
         if (conn->dataReady()) {
             delete conn;

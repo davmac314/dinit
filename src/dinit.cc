@@ -39,38 +39,25 @@
 
 
 using namespace dasynq;
-using EventLoop_t = event_loop<null_mutex>;
+using eventloop_t = event_loop<null_mutex>;
 
-EventLoop_t eventLoop = EventLoop_t();
+eventloop_t eventLoop = eventloop_t();
 
-static void sigint_reboot_cb(EventLoop_t &eloop) noexcept;
-static void sigquit_cb(EventLoop_t &eloop) noexcept;
-static void sigterm_cb(EventLoop_t &eloop) noexcept;
+static void sigint_reboot_cb(eventloop_t &eloop) noexcept;
+static void sigquit_cb(eventloop_t &eloop) noexcept;
+static void sigterm_cb(eventloop_t &eloop) noexcept;
 static void close_control_socket() noexcept;
 static void wait_for_user_input() noexcept;
 
-static void control_socket_cb(EventLoop_t *loop, int fd);
+static void control_socket_cb(eventloop_t *loop, int fd);
 
 void open_control_socket(bool report_ro_failure = true) noexcept;
 void setup_external_log() noexcept;
 
 
-class ControlSocketWatcher : public EventLoop_t::fd_watcher_impl<ControlSocketWatcher>
-{
-    public:
-    rearm fd_event(EventLoop_t &loop, int fd, int flags) noexcept
-    {
-        control_socket_cb(&loop, fd);
-        return rearm::REARM;
-    }
-};
-
-ControlSocketWatcher control_socket_io;
-
-
 // Variables
 
-static ServiceSet *service_set;
+static service_set *services;
 
 static bool am_system_init = false; // true if we are the system init process
 
@@ -106,38 +93,41 @@ const char * get_user_home()
 
 
 namespace {
-    class CallbackSignalHandler : public EventLoop_t::signal_watcher_impl<CallbackSignalHandler>
+    class callback_signal_handler : public eventloop_t::signal_watcher_impl<callback_signal_handler>
     {
         public:
-        typedef void (*cb_func_t)(EventLoop_t &);
+        typedef void (*cb_func_t)(eventloop_t &);
         
         private:
         cb_func_t cb_func;
         
         public:
-        CallbackSignalHandler() : cb_func(nullptr) { }
-        CallbackSignalHandler(cb_func_t pcb_func) :  cb_func(pcb_func) { }
+        callback_signal_handler() : cb_func(nullptr) { }
+        callback_signal_handler(cb_func_t pcb_func) :  cb_func(pcb_func) { }
         
         void setCbFunc(cb_func_t cb_func)
         {
             this->cb_func = cb_func;
         }
         
-        rearm received(EventLoop_t &eloop, int signo, siginfo_p siginfo)
+        rearm received(eventloop_t &eloop, int signo, siginfo_p siginfo)
         {
             cb_func(eloop);
             return rearm::REARM;
         }
     };
 
-    class ControlSocketWatcher : public EventLoop_t::fd_watcher_impl<ControlSocketWatcher>
+    class control_socket_watcher : public eventloop_t::fd_watcher_impl<control_socket_watcher>
     {
-        rearm fd_event(EventLoop_t &loop, int fd, int flags)
+        public:
+        rearm fd_event(eventloop_t &loop, int fd, int flags) noexcept
         {
             control_socket_cb(&loop, fd);
             return rearm::REARM;
         }
     };
+
+    control_socket_watcher control_socket_io;
 }
 
 static int dinit_main(int argc, char **argv)
@@ -277,9 +267,9 @@ static int dinit_main(int argc, char **argv)
     }
 
     // Set up signal handlers
-    CallbackSignalHandler sigterm_watcher {sigterm_cb};
-    CallbackSignalHandler sigint_watcher;
-    CallbackSignalHandler sigquit_watcher;
+    callback_signal_handler sigterm_watcher {sigterm_cb};
+    callback_signal_handler sigint_watcher;
+    callback_signal_handler sigquit_watcher;
 
     if (am_system_init) {
         sigint_watcher.setCbFunc(sigint_reboot_cb);
@@ -311,22 +301,22 @@ static int dinit_main(int argc, char **argv)
 #endif
     
     /* start requested services */
-    service_set = new ServiceSet(service_dir);
+    services = new service_set(service_dir);
     
-    init_log(service_set);
+    init_log(services);
     
     for (auto svc : services_to_start) {
         try {
-            service_set->startService(svc);
+            services->startService(svc);
             // Note in general if we fail to start a service we don't need any special error handling,
             // since we either leave other services running or, if it was the only service, then no
             // services will be running and we will process normally (reboot if system process,
             // exit if user process).
         }
-        catch (ServiceNotFound &snf) {
+        catch (service_not_found &snf) {
             log(LogLevel::ERROR, snf.serviceName, ": Could not find service description.");
         }
-        catch (ServiceLoadExc &sle) {
+        catch (service_load_exc &sle) {
             log(LogLevel::ERROR, sle.serviceName, ": ", sle.excDescription);
         }
         catch (std::bad_alloc &badalloce) {
@@ -338,22 +328,22 @@ static int dinit_main(int argc, char **argv)
     event_loop:
     
     // Process events until all services have terminated.
-    while (service_set->count_active_services() != 0) {
+    while (services->count_active_services() != 0) {
         eventLoop.run();
     }
 
-    ShutdownType shutdown_type = service_set->getShutdownType();
+    shutdown_type_t shutdown_type = services->getShutdownType();
     
     if (am_system_init) {
         logMsgBegin(LogLevel::INFO, "No more active services.");
         
-        if (shutdown_type == ShutdownType::REBOOT) {
+        if (shutdown_type == shutdown_type_t::REBOOT) {
             logMsgEnd(" Will reboot.");
         }
-        else if (shutdown_type == ShutdownType::HALT) {
+        else if (shutdown_type == shutdown_type_t::HALT) {
             logMsgEnd(" Will halt.");
         }
-        else if (shutdown_type == ShutdownType::POWEROFF) {
+        else if (shutdown_type == shutdown_type_t::POWEROFF) {
             logMsgEnd(" Will power down.");
         }
         else {
@@ -368,27 +358,27 @@ static int dinit_main(int argc, char **argv)
     close_control_socket();
     
     if (am_system_init) {
-        if (shutdown_type == ShutdownType::CONTINUE) {
+        if (shutdown_type == shutdown_type_t::CONTINUE) {
             // It could be that we started in single user mode, and the
             // user has now exited the shell. We'll try and re-start the
             // boot process...
             try {
-                service_set->startService("boot");
+                services->startService("boot");
                 goto event_loop; // yes, the "evil" goto
             }
             catch (...) {
                 // Now what do we do? try to reboot, but wait for user ack to avoid boot loop.
                 log(LogLevel::ERROR, "Could not start 'boot' service. Will attempt reboot.");
                 wait_for_user_input();
-                shutdown_type = ShutdownType::REBOOT;
+                shutdown_type = shutdown_type_t::REBOOT;
             }
         }
         
         const char * cmd_arg;
-        if (shutdown_type == ShutdownType::HALT) {
+        if (shutdown_type == shutdown_type_t::HALT) {
             cmd_arg = "-h";
         }
-        else if (shutdown_type == ShutdownType::REBOOT) {
+        else if (shutdown_type == shutdown_type_t::REBOOT) {
             cmd_arg = "-r";
         }
         else {
@@ -405,7 +395,7 @@ static int dinit_main(int argc, char **argv)
             eventLoop.run();
         }
     }
-    else if (shutdown_type == ShutdownType::REBOOT) {
+    else if (shutdown_type == shutdown_type_t::REBOOT) {
         // Non-system-process. If we got SIGINT, let's die due to it:
         sigset_t sigwait_set;
         sigemptyset(&sigwait_set);
@@ -446,7 +436,7 @@ static void wait_for_user_input() noexcept
 }
 
 // Callback for control socket
-static void control_socket_cb(EventLoop_t *loop, int sockfd)
+static void control_socket_cb(eventloop_t *loop, int sockfd)
 {
     // TODO limit the number of active connections. Keep a tally, and disable the
     // control connection listening socket watcher if it gets high, and re-enable
@@ -457,7 +447,7 @@ static void control_socket_cb(EventLoop_t *loop, int sockfd)
 
     if (newfd != -1) {
         try {
-            new ControlConn(loop, service_set, newfd);  // will delete itself when it's finished
+            new control_conn_t(loop, services, newfd);  // will delete itself when it's finished
         }
         catch (std::exception &exc) {
             log(LogLevel::ERROR, "Accepting control connection: ", exc.what());
@@ -590,13 +580,13 @@ void setup_external_log() noexcept
 }
 
 /* handle SIGINT signal (generated by Linux kernel when ctrl+alt+del pressed) */
-static void sigint_reboot_cb(EventLoop_t &eloop) noexcept
+static void sigint_reboot_cb(eventloop_t &eloop) noexcept
 {
-    service_set->stop_all_services(ShutdownType::REBOOT);
+    services->stop_all_services(shutdown_type_t::REBOOT);
 }
 
 /* handle SIGQUIT (if we are system init) */
-static void sigquit_cb(EventLoop_t &eloop) noexcept
+static void sigquit_cb(eventloop_t &eloop) noexcept
 {
     // This performs an immediate shutdown, without service rollback.
     close_control_socket();
@@ -606,7 +596,7 @@ static void sigquit_cb(EventLoop_t &eloop) noexcept
 }
 
 /* handle SIGTERM/SIGQUIT(non-system-daemon) - stop all services and shut down */
-static void sigterm_cb(EventLoop_t &eloop) noexcept
+static void sigterm_cb(eventloop_t &eloop) noexcept
 {
-    service_set->stop_all_services();
+    services->stop_all_services();
 }

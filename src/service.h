@@ -15,8 +15,8 @@
 #include "dinit-ll.h"
 
 /*
- * This header defines ServiceRecord, a data record maintaining information about a service,
- * and ServiceSet, a set of interdependent service records. It also defines some associated
+ * This header defines service_record, a data record maintaining information about a service,
+ * and service_set, a set of interdependent service records. It also defines some associated
  * types and exceptions.
  *
  * Service states
@@ -101,7 +101,7 @@
  * transition stage, at the latest.
  */
 
-struct OnstartFlags {
+struct onstart_flags_t {
     bool rw_ready : 1;
     bool log_ready : 1;
     
@@ -111,59 +111,59 @@ struct OnstartFlags {
     bool starts_on_console : 1; // starts in the foreground
     bool pass_cs_fd : 1;  // pass this service a control socket connection via fd
     
-    OnstartFlags() noexcept : rw_ready(false), log_ready(false),
+    onstart_flags_t() noexcept : rw_ready(false), log_ready(false),
             no_sigterm(false), runs_on_console(false), starts_on_console(false), pass_cs_fd(false)
     {
     }
 };
 
 // Exception while loading a service
-class ServiceLoadExc
+class service_load_exc
 {
     public:
     std::string serviceName;
     std::string excDescription;
     
     protected:
-    ServiceLoadExc(std::string serviceName, std::string &&desc) noexcept
+    service_load_exc(std::string serviceName, std::string &&desc) noexcept
         : serviceName(serviceName), excDescription(std::move(desc))
     {
     }
 };
 
-class ServiceNotFound : public ServiceLoadExc
+class service_not_found : public service_load_exc
 {
     public:
-    ServiceNotFound(std::string serviceName) noexcept
-        : ServiceLoadExc(serviceName, "Service description not found.")
+    service_not_found(std::string serviceName) noexcept
+        : service_load_exc(serviceName, "Service description not found.")
     {
     }
 };
 
-class ServiceCyclicDependency : public ServiceLoadExc
+class service_cyclic_dependency : public service_load_exc
 {
     public:
-    ServiceCyclicDependency(std::string serviceName) noexcept
-        : ServiceLoadExc(serviceName, "Has cyclic dependency.")
+    service_cyclic_dependency(std::string serviceName) noexcept
+        : service_load_exc(serviceName, "Has cyclic dependency.")
     {
     }
 };
 
-class ServiceDescriptionExc : public ServiceLoadExc
+class service_description_exc : public service_load_exc
 {
     public:
-    ServiceDescriptionExc(std::string serviceName, std::string &&extraInfo) noexcept
-        : ServiceLoadExc(serviceName, std::move(extraInfo))
+    service_description_exc(std::string serviceName, std::string &&extraInfo) noexcept
+        : service_load_exc(serviceName, std::move(extraInfo))
     {
     }    
 };
 
 class service_record;
-class ServiceSet;
+class service_set;
 class base_process_service;
 
 /* Service dependency record */
-class ServiceDep
+class service_dep
 {
     service_record * from;
     service_record * to;
@@ -174,7 +174,7 @@ class ServiceDep
     /* Whether the 'from' service is holding an acquire on the 'to' service */
     bool holding_acq;
 
-    ServiceDep(service_record * from, service_record * to) noexcept : from(from), to(to), waiting_on(false), holding_acq(false)
+    service_dep(service_record * from, service_record * to) noexcept : from(from), to(to), waiting_on(false), holding_acq(false)
     {  }
 
     service_record * getFrom() noexcept
@@ -212,20 +212,20 @@ static std::vector<const char *> separate_args(std::string &s, std::list<std::pa
     return r;
 }
 
-class ServiceChildWatcher : public EventLoop_t::child_proc_watcher_impl<ServiceChildWatcher>
+class service_child_watcher : public eventloop_t::child_proc_watcher_impl<service_child_watcher>
 {
     public:
     base_process_service * service;
-    rearm status_change(EventLoop_t &eloop, pid_t child, int status) noexcept;
+    rearm status_change(eventloop_t &eloop, pid_t child, int status) noexcept;
     
-    ServiceChildWatcher(base_process_service * sr) noexcept : service(sr) { }
+    service_child_watcher(base_process_service * sr) noexcept : service(sr) { }
 };
 
-class ServiceIoWatcher : public EventLoop_t::fd_watcher_impl<ServiceIoWatcher>
+class ServiceIoWatcher : public eventloop_t::fd_watcher_impl<ServiceIoWatcher>
 {
     public:
     base_process_service * service;
-    rearm fd_event(EventLoop_t &eloop, int fd, int flags) noexcept;
+    rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
     
     ServiceIoWatcher(base_process_service * sr) noexcept : service(sr) { }
 };
@@ -236,7 +236,7 @@ class service_record
     typedef std::string string;
     
     string service_name;
-    ServiceType service_type;  /* ServiceType::DUMMY, PROCESS, SCRIPTED, INTERNAL */
+    service_type record_type;  /* ServiceType::DUMMY, PROCESS, SCRIPTED, INTERNAL */
     ServiceState service_state = ServiceState::STOPPED; /* ServiceState::STOPPED, STARTING, STARTED, STOPPING */
     ServiceState desired_state = ServiceState::STOPPED; /* ServiceState::STOPPED / STARTED */
 
@@ -248,7 +248,7 @@ class service_record
     
     string pid_file;
     
-    OnstartFlags onstart_flags;
+    onstart_flags_t onstart_flags;
 
     string logfile;           // log file name, empty string specifies /dev/null
     
@@ -274,10 +274,10 @@ class service_record
     typedef sr_list::iterator sr_iter;
     
     // list of soft dependencies
-    typedef std::list<ServiceDep> softdep_list;
+    typedef std::list<service_dep> softdep_list;
     
     // list of soft dependents
-    typedef std::list<ServiceDep *> softdpt_list;
+    typedef std::list<service_dep *> softdpt_list;
     
     sr_list depends_on; // services this one depends on
     sr_list dependents; // services depending on this one
@@ -287,9 +287,9 @@ class service_record
     // unsigned wait_count;  /* if we are waiting for dependents/dependencies to
     //                         start/stop, this is how many we're waiting for */
     
-    ServiceSet *service_set; // the set this service belongs to
+    service_set *services; // the set this service belongs to
     
-    std::unordered_set<ServiceListener *> listeners;
+    std::unordered_set<service_listener *> listeners;
     
     // Process services:
     bool force_stop; // true if the service must actually stop. This is the
@@ -313,7 +313,7 @@ class service_record
                          // descriptor for the socket.
     
     
-    // Data for use by ServiceSet
+    // Data for use by service_set
     public:
     
     // Console queue.
@@ -394,7 +394,7 @@ class service_record
             || (service_state == ServiceState::STARTING && waiting_for_deps);
     }
     
-    void notifyListeners(ServiceEvent event) noexcept
+    void notifyListeners(service_event event) noexcept
     {
         for (auto l : listeners) {
             l->serviceEvent(this, event);
@@ -415,7 +415,7 @@ class service_record
 
     public:
 
-    service_record(ServiceSet *set, string name)
+    service_record(service_set *set, string name)
         : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED),
             auto_restart(false), smooth_recovery(false),
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
@@ -423,18 +423,18 @@ class service_record
             prop_require(false), prop_release(false), prop_failure(false),
             prop_start(false), prop_stop(false), restarting(false), force_stop(false)
     {
-        service_set = set;
+        services = set;
         service_name = name;
-        service_type = ServiceType::DUMMY;
+        record_type = service_type::DUMMY;
     }
     
-    service_record(ServiceSet *set, string name, ServiceType service_type, string &&command, std::list<std::pair<unsigned,unsigned>> &command_offsets,
+    service_record(service_set *set, string name, service_type record_type_p, string &&command, std::list<std::pair<unsigned,unsigned>> &command_offsets,
             sr_list * pdepends_on, sr_list * pdepends_soft)
         : service_record(set, name)
     {
-        service_set = set;
+        services = set;
         service_name = name;
-        this->service_type = service_type;
+        this->record_type = record_type_p;
         this->depends_on = std::move(*pdepends_on);
 
         program_name = std::move(command);
@@ -508,7 +508,7 @@ class service_record
     }
     
     // Set "on start" flags (commands)
-    void setOnstartFlags(OnstartFlags flags) noexcept
+    void setOnstartFlags(onstart_flags_t flags) noexcept
     {
         this->onstart_flags = flags;
     }
@@ -559,17 +559,17 @@ class service_record
     
     bool isDummy() noexcept
     {
-        return service_type == ServiceType::DUMMY;
+        return record_type == service_type::DUMMY;
     }
     
     // Add a listener. A listener must only be added once. May throw std::bad_alloc.
-    void addListener(ServiceListener * listener)
+    void addListener(service_listener * listener)
     {
         listeners.insert(listener);
     }
     
     // Remove a listener.    
-    void removeListener(ServiceListener * listener) noexcept
+    void removeListener(service_listener * listener) noexcept
     {
         listeners.erase(listener);
     }
@@ -579,7 +579,7 @@ class base_process_service;
 
 // A timer for process restarting. Used to ensure a minimum delay between
 // process restarts.
-class process_restart_timer : public EventLoop_t::timer_impl<process_restart_timer>
+class process_restart_timer : public eventloop_t::timer_impl<process_restart_timer>
 {
     public:
     base_process_service * service;
@@ -588,12 +588,12 @@ class process_restart_timer : public EventLoop_t::timer_impl<process_restart_tim
     {
     }
 
-    rearm timer_expiry(EventLoop_t &, int expiry_count);
+    rearm timer_expiry(eventloop_t &, int expiry_count);
 };
 
 class base_process_service : public service_record
 {
-    friend class ServiceChildWatcher;
+    friend class service_child_watcher;
     friend class ServiceIoWatcher;
     friend class process_restart_timer;
 
@@ -602,7 +602,7 @@ class base_process_service : public service_record
     void do_restart() noexcept;
 
     protected:
-    ServiceChildWatcher child_listener;
+    service_child_watcher child_listener;
     ServiceIoWatcher child_status_listener;
     process_restart_timer restart_timer;
     timespec last_start_time;
@@ -637,7 +637,7 @@ class base_process_service : public service_record
     virtual void interrupt_start() noexcept override;
 
     public:
-    base_process_service(ServiceSet *sset, string name, ServiceType service_type, string &&command,
+    base_process_service(service_set *sset, string name, service_type record_type_p, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             sr_list * pdepends_on, sr_list * pdepends_soft);
 
@@ -664,10 +664,10 @@ class process_service : public base_process_service
     virtual void handle_exit_status(int exit_status) noexcept override;
 
     public:
-    process_service(ServiceSet *sset, string name, string &&command,
+    process_service(service_set *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             sr_list * pdepends_on, sr_list * pdepends_soft)
-         : base_process_service(sset, name, ServiceType::PROCESS, std::move(command), command_offsets,
+         : base_process_service(sset, name, service_type::PROCESS, std::move(command), command_offsets,
              pdepends_on, pdepends_soft)
     {
     }
@@ -688,10 +688,10 @@ class bgproc_service : public base_process_service
     bool read_pid_file() noexcept;
 
     public:
-    bgproc_service(ServiceSet *sset, string name, string &&command,
+    bgproc_service(service_set *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             sr_list * pdepends_on, sr_list * pdepends_soft)
-         : base_process_service(sset, name, ServiceType::BGPROCESS, std::move(command), command_offsets,
+         : base_process_service(sset, name, service_type::BGPROCESS, std::move(command), command_offsets,
              pdepends_on, pdepends_soft)
     {
         doing_recovery = false;
@@ -708,10 +708,10 @@ class scripted_service : public base_process_service
     virtual void handle_exit_status(int exit_status) noexcept override;
 
     public:
-    scripted_service(ServiceSet *sset, string name, string &&command,
+    scripted_service(service_set *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             sr_list * pdepends_on, sr_list * pdepends_soft)
-         : base_process_service(sset, name, ServiceType::SCRIPTED, std::move(command), command_offsets,
+         : base_process_service(sset, name, service_type::SCRIPTED, std::move(command), command_offsets,
              pdepends_on, pdepends_soft)
     {
     }
@@ -737,7 +737,7 @@ inline auto extract_console_queue(service_record *sr) -> decltype(sr->console_qu
 }
 
 /*
- * A ServiceSet, as the name suggests, manages a set of services.
+ * A service_set, as the name suggests, manages a set of services.
  *
  * Other than the ability to find services by name, the service set manages various queues.
  * One is the queue for processes wishing to acquire the console. There is also a set of
@@ -754,14 +754,14 @@ inline auto extract_console_queue(service_record *sr) -> decltype(sr->console_qu
  * process is finite because starting a service can never cause services to stop, unless they
  * fail to start, which should cause them to stop semi-permanently.
  */
-class ServiceSet
+class service_set
 {
     int active_services;
     std::list<service_record *> records;
     const char *service_dir;  // directory containing service descriptions
     bool restart_enabled; // whether automatic restart is enabled (allowed)
     
-    ShutdownType shutdown_type = ShutdownType::CONTINUE;  // Shutdown type, if stopping
+    shutdown_type_t shutdown_type = shutdown_type_t::CONTINUE;  // Shutdown type, if stopping
     
     // Services waiting for exclusive access to the console
     dlist<service_record, extract_console_queue> console_queue;
@@ -782,7 +782,7 @@ class ServiceSet
     // Public
     
     public:
-    ServiceSet(const char *service_dir)
+    service_set(const char *service_dir)
     {
         this->service_dir = service_dir;
         active_services = 0;
@@ -909,7 +909,7 @@ class ServiceSet
         return active_services;
     }
     
-    void stop_all_services(ShutdownType type = ShutdownType::HALT) noexcept
+    void stop_all_services(shutdown_type_t type = shutdown_type_t::HALT) noexcept
     {
         restart_enabled = false;
         shutdown_type = type;
@@ -930,7 +930,7 @@ class ServiceSet
         return restart_enabled;
     }
     
-    ShutdownType getShutdownType() noexcept
+    shutdown_type_t getShutdownType() noexcept
     {
         return shutdown_type;
     }

@@ -34,7 +34,7 @@ class ReadCPException
 enum class Command;
 
 static int issueLoadService(int socknum, const char *service_name);
-static int checkLoadReply(int socknum, CPBuffer<1024> &rbuffer, handle_t *handle_p, ServiceState *state_p);
+static int checkLoadReply(int socknum, cpbuffer<1024> &rbuffer, handle_t *handle_p, ServiceState *state_p);
 static int startStopService(int socknum, const char *service_name, Command command, bool do_pin, bool wait_for_service, bool verbose);
 static int unpinService(int socknum, const char *service_name, bool verbose);
 static int listServices(int socknum);
@@ -45,7 +45,7 @@ static int listServices(int socknum);
 //     errcode = 0   if end of stream (remote end closed)
 //     errcode = errno   if another error occurred
 // Note that EINTR is ignored (i.e. the read will be re-tried).
-static void fillBufferTo(CPBuffer<1024> *buf, int fd, int rlength)
+static void fillBufferTo(cpbuffer<1024> *buf, int fd, int rlength)
 {
     do {
         int r = buf->fill_to(fd, rlength);
@@ -76,7 +76,7 @@ static const char * describeVerb(bool stop)
 
 // Wait for a reply packet, skipping over any information packets
 // that are received in the meantime.
-static void wait_for_reply(CPBuffer<1024> &rbuffer, int fd)
+static void wait_for_reply(cpbuffer<1024> &rbuffer, int fd)
 {
     fillBufferTo(&rbuffer, fd, 1);
     
@@ -303,7 +303,7 @@ static int startStopService(int socknum, const char *service_name, Command comma
     // Now we expect a reply:
     
     try {
-        CPBuffer<1024> rbuffer;
+        cpbuffer<1024> rbuffer;
         wait_for_reply(rbuffer, socknum);
         
         ServiceState state;
@@ -375,16 +375,16 @@ static int startStopService(int socknum, const char *service_name, Command comma
             return 0;
         }
         
-        ServiceEvent completionEvent;
-        ServiceEvent cancelledEvent;
+        service_event completionEvent;
+        service_event cancelledEvent;
         
         if (do_stop) {
-            completionEvent = ServiceEvent::STOPPED;
-            cancelledEvent = ServiceEvent::STOPCANCELLED;
+            completionEvent = service_event::STOPPED;
+            cancelledEvent = service_event::STOPCANCELLED;
         }
         else {
-            completionEvent = ServiceEvent::STARTED;
-            cancelledEvent = ServiceEvent::STARTCANCELLED;
+            completionEvent = service_event::STARTED;
+            cancelledEvent = service_event::STARTCANCELLED;
         }
         
         // Wait until service started:
@@ -397,7 +397,7 @@ static int startStopService(int socknum, const char *service_name, Command comma
                 if (rbuffer[0] == DINIT_IP_SERVICEEVENT) {
                     handle_t ev_handle;
                     rbuffer.extract((char *) &ev_handle, 2, sizeof(ev_handle));
-                    ServiceEvent event = static_cast<ServiceEvent>(rbuffer[2 + sizeof(ev_handle)]);
+                    service_event event = static_cast<service_event>(rbuffer[2 + sizeof(ev_handle)]);
                     if (ev_handle == handle) {
                         if (event == completionEvent) {
                             if (verbose) {
@@ -411,7 +411,7 @@ static int startStopService(int socknum, const char *service_name, Command comma
                             }
                             return 1;
                         }
-                        else if (! do_stop && event == ServiceEvent::FAILEDSTART) {
+                        else if (! do_stop && event == service_event::FAILEDSTART) {
                             if (verbose) {
                                 cout << "Service failed to start." << endl;
                             }
@@ -482,7 +482,7 @@ static int issueLoadService(int socknum, const char *service_name)
 }
 
 // Check that a "load service" reply was received, and that the requested service was found.
-static int checkLoadReply(int socknum, CPBuffer<1024> &rbuffer, handle_t *handle_p, ServiceState *state_p)
+static int checkLoadReply(int socknum, cpbuffer<1024> &rbuffer, handle_t *handle_p, ServiceState *state_p)
 {
     using namespace std;
     
@@ -516,7 +516,7 @@ static int unpinService(int socknum, const char *service_name, bool verbose)
     // Now we expect a reply:
     
     try {
-        CPBuffer<1024> rbuffer;
+        cpbuffer<1024> rbuffer;
         wait_for_reply(rbuffer, socknum);
         
         handle_t handle;
@@ -578,7 +578,7 @@ static int listServices(int socknum)
             return 1;
         }
         
-        CPBuffer<1024> rbuffer;
+        cpbuffer<1024> rbuffer;
         wait_for_reply(rbuffer, socknum);
         while (rbuffer[0] == DINIT_RP_SVCINFO) {
             fillBufferTo(&rbuffer, socknum, 8);

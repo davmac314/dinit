@@ -1,7 +1,7 @@
 #include "control.h"
 #include "service.h"
 
-bool ControlConn::processPacket()
+bool control_conn_t::processPacket()
 {
     using std::string;
     
@@ -35,9 +35,9 @@ bool ControlConn::processPacket()
             return true;
         }
         
-        auto sd_type = static_cast<ShutdownType>(rbuf[1]);
+        auto sd_type = static_cast<shutdown_type_t>(rbuf[1]);
         
-        service_set->stop_all_services(sd_type);
+        services->stop_all_services(sd_type);
         char ackBuf[] = { DINIT_RP_ACK };
         if (! queuePacket(ackBuf, 1)) return false;
         
@@ -59,7 +59,7 @@ bool ControlConn::processPacket()
     return true;
 }
 
-bool ControlConn::processFindLoad(int pktType)
+bool control_conn_t::processFindLoad(int pktType)
 {
     using std::string;
     
@@ -94,15 +94,15 @@ bool ControlConn::processFindLoad(int pktType)
     if (pktType == DINIT_CP_LOADSERVICE) {
         // LOADSERVICE
         try {
-            record = service_set->loadService(serviceName);
+            record = services->loadService(serviceName);
         }
-        catch (ServiceLoadExc &slexc) {
+        catch (service_load_exc &slexc) {
             log(LogLevel::ERROR, "Could not load service ", slexc.serviceName, ": ", slexc.excDescription);
         }
     }
     else {
         // FINDSERVICE
-        record = service_set->find_service(serviceName.c_str());
+        record = services->find_service(serviceName.c_str());
     }
     
     if (record != nullptr) {
@@ -129,7 +129,7 @@ bool ControlConn::processFindLoad(int pktType)
     return true;
 }
 
-bool ControlConn::processStartStop(int pktType)
+bool control_conn_t::processStartStop(int pktType)
 {
     using std::string;
     
@@ -165,7 +165,7 @@ bool ControlConn::processStartStop(int pktType)
             // start service, mark as required
             if (do_pin) service->pinStart();
             service->start();
-            service_set->processQueues(true);
+            services->processQueues(true);
             already_there = service->getState() == ServiceState::STARTED;
             break;
         case DINIT_CP_STOPSERVICE:
@@ -173,21 +173,21 @@ bool ControlConn::processStartStop(int pktType)
             if (do_pin) service->pinStop();
             service->stop(true);
             service->forceStop();
-            service_set->processQueues(false);
+            services->processQueues(false);
             already_there = service->getState() == ServiceState::STOPPED;
             break;
         case DINIT_CP_WAKESERVICE:
             // re-start a stopped service (do not mark as required)
             if (do_pin) service->pinStart();
             service->start(false);
-            service_set->processQueues(true);
+            services->processQueues(true);
             already_there = service->getState() == ServiceState::STARTED;
             break;
         case DINIT_CP_RELEASESERVICE:
             // remove required mark, stop if not required by dependents
             if (do_pin) service->pinStop();
             service->stop(false);
-            service_set->processQueues(false);
+            services->processQueues(false);
             already_there = service->getState() == ServiceState::STOPPED;
             break;
         }
@@ -203,7 +203,7 @@ bool ControlConn::processStartStop(int pktType)
     return true;
 }
 
-bool ControlConn::processUnpinService()
+bool control_conn_t::processUnpinService()
 {
     using std::string;
     
@@ -231,7 +231,7 @@ bool ControlConn::processUnpinService()
     }
     else {
         service->unpin();
-        service_set->processQueues(true);
+        services->processQueues(true);
         char ack_buf[] = { (char) DINIT_RP_ACK };
         if (! queuePacket(ack_buf, 1)) return false;
     }
@@ -242,13 +242,13 @@ bool ControlConn::processUnpinService()
     return true;
 }
 
-bool ControlConn::listServices()
+bool control_conn_t::listServices()
 {
     rbuf.consume(1); // clear request packet
     chklen = 0;
     
     try {
-        auto slist = service_set->listServices();
+        auto slist = services->listServices();
         for (auto sptr : slist) {
             std::vector<char> pkt_buf;
             
@@ -285,7 +285,7 @@ bool ControlConn::listServices()
     }
 }
 
-ControlConn::handle_t ControlConn::allocateServiceHandle(service_record *record)
+control_conn_t::handle_t control_conn_t::allocateServiceHandle(service_record *record)
 {
     bool is_unique = true;
     handle_t largest_seen = 0;
@@ -310,7 +310,7 @@ ControlConn::handle_t ControlConn::allocateServiceHandle(service_record *record)
 }
 
 
-bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
+bool control_conn_t::queuePacket(const char *pkt, unsigned size) noexcept
 {
     int in_flag = bad_conn_close ? 0 : IN_EVENTS;
     bool was_empty = outbuf.empty();
@@ -365,7 +365,7 @@ bool ControlConn::queuePacket(const char *pkt, unsigned size) noexcept
 
 // This queuePacket method is frustratingly similar to the one above, but the subtle differences
 // make them extraordinary difficult to combine into a single method.
-bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
+bool control_conn_t::queuePacket(std::vector<char> &&pkt) noexcept
 {
     int in_flag = bad_conn_close ? 0 : IN_EVENTS;
     bool was_empty = outbuf.empty();
@@ -416,13 +416,13 @@ bool ControlConn::queuePacket(std::vector<char> &&pkt) noexcept
     }
 }
 
-bool ControlConn::rollbackComplete() noexcept
+bool control_conn_t::rollbackComplete() noexcept
 {
     char ackBuf[2] = { DINIT_ROLLBACK_COMPLETED, 2 };
     return queuePacket(ackBuf, 2);
 }
 
-bool ControlConn::dataReady() noexcept
+bool control_conn_t::dataReady() noexcept
 {
     int fd = iob.get_watched_fd();
     
@@ -465,7 +465,7 @@ bool ControlConn::dataReady() noexcept
     return false;
 }
 
-bool ControlConn::sendData() noexcept
+bool control_conn_t::sendData() noexcept
 {
     if (outbuf.empty() && bad_conn_close) {
         if (oom_close) {
@@ -512,7 +512,7 @@ bool ControlConn::sendData() noexcept
     return false;
 }
 
-ControlConn::~ControlConn() noexcept
+control_conn_t::~control_conn_t() noexcept
 {
     close(iob.get_watched_fd());
     iob.deregister(*loop);

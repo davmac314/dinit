@@ -12,15 +12,15 @@
 #include "dinit-log.h"
 #include "cpbuffer.h"
 
-extern EventLoop_t eventLoop;
+extern eventloop_t eventLoop;
 
 static bool log_current_line[2];  // Whether the current line is being logged (for console, main log)
 LogLevel log_level[2] = { LogLevel::WARN, LogLevel::WARN };
 
-static ServiceSet *service_set = nullptr;  // Reference to service set
+static service_set *services = nullptr;  // Reference to service set
 
 namespace {
-class BufferedLogStream : public EventLoop_t::fd_watcher_impl<BufferedLogStream>
+class BufferedLogStream : public eventloop_t::fd_watcher_impl<BufferedLogStream>
 {
     private:
 
@@ -35,7 +35,7 @@ class BufferedLogStream : public EventLoop_t::fd_watcher_impl<BufferedLogStream>
     const char *special_buf; // buffer containing special message
     int msg_index;     // index into special message
 
-    CPBuffer<4096> log_buffer;
+    cpbuffer<4096> log_buffer;
     
     public:
     
@@ -50,7 +50,7 @@ class BufferedLogStream : public EventLoop_t::fd_watcher_impl<BufferedLogStream>
         release = false;
     }
     
-    rearm fd_event(EventLoop_t &loop, int fd, int flags) noexcept;
+    rearm fd_event(eventloop_t &loop, int fd, int flags) noexcept;
 
     // Check whether the console can be released.
     void flushForRelease();
@@ -109,7 +109,7 @@ void BufferedLogStream::release_console()
     if (release) {
         int flags = fcntl(1, F_GETFL, 0);
         fcntl(1, F_SETFL, flags & ~O_NONBLOCK);
-        service_set->pull_console_queue();
+        services->pull_console_queue();
     }
 }
 
@@ -127,7 +127,7 @@ void BufferedLogStream::flushForRelease()
     // release when it's finished.
 }
 
-rearm BufferedLogStream::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
+rearm BufferedLogStream::fd_event(eventloop_t &loop, int fd, int flags) noexcept
 {
     if ((! partway) && (! special) && discarded) {
         special_buf = "dinit: *** message discarded due to full buffer ****\n";
@@ -234,9 +234,9 @@ rearm BufferedLogStream::fd_event(EventLoop_t &loop, int fd, int flags) noexcept
 
 // Initialise the logging subsystem
 // Potentially throws std::bad_alloc or std::system_error
-void init_log(ServiceSet *sset)
+void init_log(service_set *sset)
 {
-    service_set = sset;
+    services = sset;
     log_stream[DLOG_CONS].add_watch(eventLoop, STDOUT_FILENO, OUT_EVENTS, false);
     enable_console_log(true);
 }

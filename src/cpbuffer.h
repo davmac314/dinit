@@ -4,7 +4,7 @@
 #include <cstring>
 
 // control protocol buffer, a circular buffer with 1024-byte capacity.
-template <int SIZE> class CPBuffer
+template <int SIZE> class cpbuffer
 {
     char buf[SIZE];
     int cur_idx = 0;
