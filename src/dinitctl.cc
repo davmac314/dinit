@@ -34,7 +34,7 @@ class ReadCPException
 enum class Command;
 
 static int issueLoadService(int socknum, const char *service_name);
-static int checkLoadReply(int socknum, cpbuffer<1024> &rbuffer, handle_t *handle_p, ServiceState *state_p);
+static int checkLoadReply(int socknum, cpbuffer<1024> &rbuffer, handle_t *handle_p, service_state_t *state_p);
 static int startStopService(int socknum, const char *service_name, Command command, bool do_pin, bool wait_for_service, bool verbose);
 static int unpinService(int socknum, const char *service_name, bool verbose);
 static int listServices(int socknum);
@@ -306,15 +306,15 @@ static int startStopService(int socknum, const char *service_name, Command comma
         cpbuffer<1024> rbuffer;
         wait_for_reply(rbuffer, socknum);
         
-        ServiceState state;
-        //ServiceState target_state;
+        service_state_t state;
+        //service_state_t target_state;
         handle_t handle;
         
         if (checkLoadReply(socknum, rbuffer, &handle, &state) != 0) {
             return 0;
         }
                 
-        ServiceState wanted_state = do_stop ? ServiceState::STOPPED : ServiceState::STARTED;
+        service_state_t wanted_state = do_stop ? service_state_t::STOPPED : service_state_t::STARTED;
         int pcommand = 0;
         switch (command) {
         case Command::STOP_SERVICE:
@@ -482,15 +482,15 @@ static int issueLoadService(int socknum, const char *service_name)
 }
 
 // Check that a "load service" reply was received, and that the requested service was found.
-static int checkLoadReply(int socknum, cpbuffer<1024> &rbuffer, handle_t *handle_p, ServiceState *state_p)
+static int checkLoadReply(int socknum, cpbuffer<1024> &rbuffer, handle_t *handle_p, service_state_t *state_p)
 {
     using namespace std;
     
     if (rbuffer[0] == DINIT_RP_SERVICERECORD) {
         fillBufferTo(&rbuffer, socknum, 2 + sizeof(*handle_p));
         rbuffer.extract((char *) handle_p, 2, sizeof(*handle_p));
-        if (state_p) *state_p = static_cast<ServiceState>(rbuffer[1]);
-        //target_state = static_cast<ServiceState>(rbuffer[2 + sizeof(handle)]);
+        if (state_p) *state_p = static_cast<service_state_t>(rbuffer[1]);
+        //target_state = static_cast<service_state_t>(rbuffer[2 + sizeof(handle)]);
         rbuffer.consume(3 + sizeof(*handle_p));
         return 0;
     }
@@ -583,8 +583,8 @@ static int listServices(int socknum)
         while (rbuffer[0] == DINIT_RP_SVCINFO) {
             fillBufferTo(&rbuffer, socknum, 8);
             int nameLen = rbuffer[1];
-            ServiceState current = static_cast<ServiceState>(rbuffer[2]);
-            ServiceState target = static_cast<ServiceState>(rbuffer[3]);
+            service_state_t current = static_cast<service_state_t>(rbuffer[2]);
+            service_state_t target = static_cast<service_state_t>(rbuffer[3]);
             
             fillBufferTo(&rbuffer, socknum, nameLen + 8);
             
@@ -596,23 +596,23 @@ static int listServices(int socknum)
             
             cout << "[";
             
-            cout << (target  == ServiceState::STARTED ? "{" : " ");
-            cout << (current == ServiceState::STARTED ? "+" : " ");
-            cout << (target  == ServiceState::STARTED ? "}" : " ");
+            cout << (target  == service_state_t::STARTED ? "{" : " ");
+            cout << (current == service_state_t::STARTED ? "+" : " ");
+            cout << (target  == service_state_t::STARTED ? "}" : " ");
             
-            if (current == ServiceState::STARTING) {
+            if (current == service_state_t::STARTING) {
                 cout << "<<";
             }
-            else if (current == ServiceState::STOPPING) {
+            else if (current == service_state_t::STOPPING) {
                 cout << ">>";
             }
             else {
                 cout << "  ";
             }
             
-            cout << (target  == ServiceState::STOPPED ? "{" : " ");
-            cout << (current == ServiceState::STOPPED ? "-" : " ");
-            cout << (target  == ServiceState::STOPPED ? "}" : " ");
+            cout << (target  == service_state_t::STOPPED ? "{" : " ");
+            cout << (current == service_state_t::STOPPED ? "-" : " ");
+            cout << (target  == service_state_t::STOPPED ? "}" : " ");
             
             cout << "] " << name << endl;
             

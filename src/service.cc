@@ -85,7 +85,7 @@ void service_record::stopped() noexcept
         }
     }
 
-    bool will_restart = (desired_state == ServiceState::STARTED)
+    bool will_restart = (desired_state == service_state_t::STARTED)
             && services->get_auto_restart();
 
     for (auto dependency : depends_on) {
@@ -93,7 +93,7 @@ void service_record::stopped() noexcept
         dependency->dependentStopped();
     }
 
-    service_state = ServiceState::STOPPED;
+    service_state = service_state_t::STOPPED;
 
     if (will_restart) {
         // Desired state is "started".
@@ -168,7 +168,7 @@ void process_service::handle_exit_status(int exit_status) noexcept
     bool did_exit = WIFEXITED(exit_status);
     bool was_signalled = WIFSIGNALED(exit_status);
 
-    if (exit_status != 0 && service_state != ServiceState::STOPPING) {
+    if (exit_status != 0 && service_state != service_state_t::STOPPING) {
         if (did_exit) {
             log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ", WEXITSTATUS(exit_status));
         }
@@ -177,7 +177,7 @@ void process_service::handle_exit_status(int exit_status) noexcept
         }
     }
 
-    if (service_state == ServiceState::STARTING) {
+    if (service_state == service_state_t::STARTING) {
         if (did_exit && WEXITSTATUS(exit_status) == 0) {
             started();
         }
@@ -185,12 +185,12 @@ void process_service::handle_exit_status(int exit_status) noexcept
             failed_to_start();
         }
     }
-    else if (service_state == ServiceState::STOPPING) {
+    else if (service_state == service_state_t::STOPPING) {
         // We won't log a non-zero exit status or termination due to signal here -
         // we assume that the process died because we signalled it.
         stopped();
     }
-    else if (smooth_recovery && service_state == ServiceState::STARTED && desired_state == ServiceState::STARTED) {
+    else if (smooth_recovery && service_state == service_state_t::STARTED && desired_state == service_state_t::STARTED) {
         // TODO if we are pinned-started then we should probably check
         //      that dependencies have started before trying to re-start the
         //      service process.
@@ -211,7 +211,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
     bool did_exit = WIFEXITED(exit_status);
     bool was_signalled = WIFSIGNALED(exit_status);
 
-    if (exit_status != 0 && service_state != ServiceState::STOPPING) {
+    if (exit_status != 0 && service_state != service_state_t::STOPPING) {
         if (did_exit) {
             log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ", WEXITSTATUS(exit_status));
         }
@@ -245,7 +245,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         return;
     }
 
-    if (service_state == ServiceState::STARTING) {
+    if (service_state == service_state_t::STARTING) {
         // POSIX requires that if the process exited clearly with a status code of 0,
         // the exit status value will be 0:
         if (exit_status == 0) {
@@ -260,12 +260,12 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
             failed_to_start();
         }
     }
-    else if (service_state == ServiceState::STOPPING) {
+    else if (service_state == service_state_t::STOPPING) {
         // We won't log a non-zero exit status or termination due to signal here -
         // we assume that the process died because we signalled it.
         stopped();
     }
-    else if (smooth_recovery && service_state == ServiceState::STARTED && desired_state == ServiceState::STARTED) {
+    else if (smooth_recovery && service_state == service_state_t::STARTED && desired_state == service_state_t::STARTED) {
         // TODO if we are pinned-started then we should probably check
         //      that dependencies have started before trying to re-start the
         //      service process.
@@ -294,7 +294,7 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
     bool did_exit = WIFEXITED(exit_status);
     bool was_signalled = WIFSIGNALED(exit_status);
 
-    if (service_state == ServiceState::STOPPING) {
+    if (service_state == service_state_t::STOPPING) {
         if (did_exit && WEXITSTATUS(exit_status) == 0) {
             stopped();
         }
@@ -347,10 +347,10 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
         }
         sr->pid = -1;
         log(LogLevel::ERROR, sr->service_name, ": execution failed: ", strerror(exec_status));
-        if (sr->service_state == ServiceState::STARTING) {
+        if (sr->service_state == service_state_t::STARTING) {
             sr->failed_to_start();
         }
-        else if (sr->service_state == ServiceState::STOPPING) {
+        else if (sr->service_state == service_state_t::STOPPING) {
             // Must be a scripted service. We've logged the failure, but it's probably better
             // not to leave the service in STARTED state:
             sr->stopped();
@@ -362,7 +362,7 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
             // This could be a smooth recovery (state already STARTED). Even more, the process
             // might be stopped (and killed via a signal) during smooth recovery.  We don't to
             // process startup again in either case, so we check for state STARTING:
-            if (sr->service_state == ServiceState::STARTING) {
+            if (sr->service_state == service_state_t::STARTING) {
                 sr->started();
             }
         }
@@ -390,7 +390,7 @@ void service_record::require() noexcept
 void service_record::release() noexcept
 {
     if (--required_by == 0) {
-        desired_state = ServiceState::STOPPED;
+        desired_state = service_state_t::STOPPED;
 
         // Can stop, and can release dependencies now. We don't need to issue a release if
         // the require was pending though:
@@ -398,7 +398,7 @@ void service_record::release() noexcept
         prop_require = false;
         services->addToPropQueue(this);
 
-        if (service_state == ServiceState::STOPPED) {
+        if (service_state == service_state_t::STOPPED) {
             services->service_inactive(this);
         }
         else {
@@ -429,15 +429,15 @@ void service_record::start(bool activate) noexcept
         start_explicit = true;
     }
     
-    if (desired_state == ServiceState::STARTED && service_state != ServiceState::STOPPED) return;
+    if (desired_state == service_state_t::STARTED && service_state != service_state_t::STOPPED) return;
 
-    bool was_active = service_state != ServiceState::STOPPED || desired_state != ServiceState::STOPPED;
-    desired_state = ServiceState::STARTED;
+    bool was_active = service_state != service_state_t::STOPPED || desired_state != service_state_t::STOPPED;
+    desired_state = service_state_t::STARTED;
     
-    if (service_state != ServiceState::STOPPED) {
+    if (service_state != service_state_t::STOPPED) {
         // We're already starting/started, or we are stopping and need to wait for
         // that the complete.
-        if (service_state != ServiceState::STOPPING || ! can_interrupt_stop()) {
+        if (service_state != service_state_t::STOPPING || ! can_interrupt_stop()) {
             return;
         }
         // We're STOPPING, and that can be interrupted. Our dependencies might be STOPPING,
@@ -449,7 +449,7 @@ void service_record::start(bool activate) noexcept
         services->service_active(this);
     }
 
-    service_state = ServiceState::STARTING;
+    service_state = service_state_t::STARTING;
     waiting_for_deps = true;
 
     if (startCheckDependencies(true)) {
@@ -497,12 +497,12 @@ void service_record::do_propagation() noexcept
 
 void service_record::execute_transition() noexcept
 {
-    if (service_state == ServiceState::STARTING) {
+    if (service_state == service_state_t::STARTING) {
         if (startCheckDependencies(false)) {
             allDepsStarted(false);
         }
     }
-    else if (service_state == ServiceState::STOPPING) {
+    else if (service_state == service_state_t::STOPPING) {
         if (stopCheckDependents()) {
             all_deps_stopped();
         }
@@ -513,11 +513,11 @@ void service_record::do_start() noexcept
 {
     if (pinned_stopped) return;
     
-    if (service_state != ServiceState::STARTING) {
+    if (service_state != service_state_t::STARTING) {
         return;
     }
     
-    service_state = ServiceState::STARTING;
+    service_state = service_state_t::STARTING;
 
     waiting_for_deps = true;
 
@@ -530,7 +530,7 @@ void service_record::do_start() noexcept
 
 void service_record::dependencyStarted() noexcept
 {
-    if (service_state == ServiceState::STARTING && waiting_for_deps) {
+    if (service_state == service_state_t::STARTING && waiting_for_deps) {
         services->addToStartQueue(this);
     }
 }
@@ -540,7 +540,7 @@ bool service_record::startCheckDependencies(bool start_deps) noexcept
     bool all_deps_started = true;
 
     for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
-        if ((*i)->service_state != ServiceState::STARTED) {
+        if ((*i)->service_state != service_state_t::STARTED) {
             if (start_deps) {
                 all_deps_started = false;
                 (*i)->prop_start = true;
@@ -555,7 +555,7 @@ bool service_record::startCheckDependencies(bool start_deps) noexcept
     for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
         service_record * to = i->getTo();
         if (start_deps) {
-            if (to->service_state != ServiceState::STARTED) {
+            if (to->service_state != service_state_t::STARTED) {
                 to->prop_start = true;
                 services->addToPropQueue(to);
                 i->waiting_on = true;
@@ -566,7 +566,7 @@ bool service_record::startCheckDependencies(bool start_deps) noexcept
             }
         }
         else if (i->waiting_on) {
-            if (to->service_state != ServiceState::STARTING) {
+            if (to->service_state != service_state_t::STARTING) {
                 // Service has either started or is no longer starting
                 i->waiting_on = false;
             }
@@ -671,7 +671,7 @@ void service_record::allDepsStarted(bool has_console) noexcept
 
 void service_record::acquiredConsole() noexcept
 {
-    if (service_state != ServiceState::STARTING) {
+    if (service_state != service_state_t::STARTING) {
         // We got the console but no longer want it.
         release_console();
     }
@@ -721,7 +721,7 @@ void service_record::started() noexcept
     }
 
     logServiceStarted(service_name);
-    service_state = ServiceState::STARTED;
+    service_state = service_state_t::STARTED;
     notifyListeners(service_event::STARTED);
 
     if (onstart_flags.rw_ready) {
@@ -731,7 +731,7 @@ void service_record::started() noexcept
         setup_external_log();
     }
 
-    if (force_stop || desired_state == ServiceState::STOPPED) {
+    if (force_stop || desired_state == service_state_t::STOPPED) {
         // We must now stop.
         do_stop();
         return;
@@ -754,7 +754,7 @@ void service_record::failed_to_start(bool depfailed) noexcept
     }
     
     logServiceFailed(service_name);
-    service_state = ServiceState::STOPPED;
+    service_state = service_state_t::STOPPED;
     if (start_explicit) {
         start_explicit = false;
         release();
@@ -763,7 +763,7 @@ void service_record::failed_to_start(bool depfailed) noexcept
     
     // Cancel start of dependents:
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
-        if ((*i)->service_state == ServiceState::STARTING) {
+        if ((*i)->service_state == service_state_t::STARTING) {
             (*i)->prop_failure = true;
             services->addToPropQueue(*i);
         }
@@ -1021,7 +1021,7 @@ void service_record::run_child_proc(const char * const *args, const char *logfil
 // Mark this and all dependent services as force-stopped.
 void service_record::forceStop() noexcept
 {
-    if (service_state != ServiceState::STOPPED) {
+    if (service_state != service_state_t::STOPPED) {
         force_stop = true;
         services->addToStopQueue(this);
     }
@@ -1029,7 +1029,7 @@ void service_record::forceStop() noexcept
 
 void service_record::dependentStopped() noexcept
 {
-    if (service_state == ServiceState::STOPPING && waiting_for_deps) {
+    if (service_state == service_state_t::STOPPING && waiting_for_deps) {
         services->addToStopQueue(this);
     }
 }
@@ -1050,8 +1050,8 @@ void service_record::do_stop() noexcept
 {
     if (pinned_started) return;
 
-    if (service_state != ServiceState::STARTED) {
-        if (service_state == ServiceState::STARTING) {
+    if (service_state != service_state_t::STARTED) {
+        if (service_state == service_state_t::STARTING) {
             if (! can_interrupt_start()) {
                 // Well this is awkward: we're going to have to continue
                 // starting, but we don't want any dependents to think that
@@ -1076,7 +1076,7 @@ void service_record::do_stop() noexcept
         }
     }
 
-    service_state = ServiceState::STOPPING;
+    service_state = service_state_t::STOPPING;
     waiting_for_deps = true;
     if (stopDependents()) {
         services->addToStopQueue(this);
@@ -1180,14 +1180,14 @@ void service_record::unpin() noexcept
 {
     if (pinned_started) {
         pinned_started = false;
-        if (desired_state == ServiceState::STOPPED) {
+        if (desired_state == service_state_t::STOPPED) {
             do_stop();
             services->processQueues(false);
         }
     }
     if (pinned_stopped) {
         pinned_stopped = false;
-        if (desired_state == ServiceState::STARTED) {
+        if (desired_state == service_state_t::STARTED) {
             do_start();
             services->processQueues(true);
         }
@@ -1244,15 +1244,15 @@ void base_process_service::do_restart() noexcept
 
     // We may be STARTING (regular restart) or STARTED ("smooth recovery"). This affects whether
     // the process should be granted access to the console:
-    bool on_console = service_state == ServiceState::STARTING
+    bool on_console = service_state == service_state_t::STARTING
             ? onstart_flags.starts_on_console : onstart_flags.runs_on_console;
 
     if (! start_ps_process(exec_arg_parts, on_console)) {
-        if (service_state == ServiceState::STARTING) {
+        if (service_state == service_state_t::STARTING) {
             failed_to_start();
         }
         else {
-            desired_state = ServiceState::STOPPED;
+            desired_state = service_state_t::STOPPED;
             forceStop();
         }
         services->processQueues();

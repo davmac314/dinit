@@ -238,8 +238,8 @@ class service_record
     
     string service_name;
     service_type record_type;  /* ServiceType::DUMMY, PROCESS, SCRIPTED, INTERNAL */
-    ServiceState service_state = ServiceState::STOPPED; /* ServiceState::STOPPED, STARTING, STARTED, STOPPING */
-    ServiceState desired_state = ServiceState::STOPPED; /* ServiceState::STOPPED / STARTED */
+    service_state_t service_state = service_state_t::STOPPED; /* service_state_t::STOPPED, STARTING, STARTED, STOPPING */
+    service_state_t desired_state = service_state_t::STOPPED; /* service_state_t::STOPPED / STARTED */
 
     string program_name;          // storage for program/script and arguments
     std::vector<const char *> exec_arg_parts; // pointer to each argument/part of the program_name, and nullptr
@@ -391,8 +391,8 @@ class service_record
     // Check if service is, fundamentally, stopped.
     bool is_stopped() noexcept
     {
-        return service_state == ServiceState::STOPPED
-            || (service_state == ServiceState::STARTING && waiting_for_deps);
+        return service_state == service_state_t::STOPPED
+            || (service_state == service_state_t::STARTING && waiting_for_deps);
     }
     
     void notifyListeners(service_event event) noexcept
@@ -417,7 +417,7 @@ class service_record
     public:
 
     service_record(service_set *set, string name)
-        : service_state(ServiceState::STOPPED), desired_state(ServiceState::STOPPED),
+        : service_state(service_state_t::STOPPED), desired_state(service_state_t::STOPPED),
             auto_restart(false), smooth_recovery(false),
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
             waiting_for_execstat(false), start_explicit(false),
@@ -480,13 +480,13 @@ class service_record
     }
     
     // Get the current service state.
-    ServiceState getState() noexcept
+    service_state_t getState() noexcept
     {
         return service_state;
     }
     
     // Get the target (aka desired) state.
-    ServiceState getTargetState() noexcept
+    service_state_t getTargetState() noexcept
     {
         return desired_state;
     }
@@ -534,7 +534,7 @@ class service_record
     }
 
     const std::string &getServiceName() const noexcept { return service_name; }
-    ServiceState getState() const noexcept { return service_state; }
+    service_state_t getState() const noexcept { return service_state; }
     
     void start(bool activate = true) noexcept;  // start the service
     void stop(bool bring_down = true) noexcept;   // stop the service

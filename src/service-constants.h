@@ -2,7 +2,7 @@
 #define SERVICE_CONSTANTS_H
 
 /* Service states */
-enum class ServiceState {
+enum class service_state_t {
     STOPPED,    // service is not running.
     STARTING,   // service is starting, and will start (or fail to start) in time.
     STARTED,    // service is running,
