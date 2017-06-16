@@ -330,7 +330,7 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
     }
 }
 
-rearm ServiceIoWatcher::fd_event(eventloop_t &loop, int fd, int flags) noexcept
+rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) noexcept
 {
     base_process_service *sr = service;
     sr->waiting_for_execstat = false;

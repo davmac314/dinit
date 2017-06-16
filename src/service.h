@@ -221,13 +221,14 @@ class service_child_watcher : public eventloop_t::child_proc_watcher_impl<servic
     service_child_watcher(base_process_service * sr) noexcept : service(sr) { }
 };
 
-class ServiceIoWatcher : public eventloop_t::fd_watcher_impl<ServiceIoWatcher>
+// Watcher for the pipe used to receive exec() failure status errno
+class exec_status_pipe_watcher : public eventloop_t::fd_watcher_impl<exec_status_pipe_watcher>
 {
     public:
     base_process_service * service;
     rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
     
-    ServiceIoWatcher(base_process_service * sr) noexcept : service(sr) { }
+    exec_status_pipe_watcher(base_process_service * sr) noexcept : service(sr) { }
 };
 
 class service_record
@@ -594,7 +595,7 @@ class process_restart_timer : public eventloop_t::timer_impl<process_restart_tim
 class base_process_service : public service_record
 {
     friend class service_child_watcher;
-    friend class ServiceIoWatcher;
+    friend class exec_status_pipe_watcher;
     friend class process_restart_timer;
 
     private:
@@ -603,7 +604,7 @@ class base_process_service : public service_record
 
     protected:
     service_child_watcher child_listener;
-    ServiceIoWatcher child_status_listener;
+    exec_status_pipe_watcher child_status_listener;
     process_restart_timer restart_timer;
     timespec last_start_time;
 
