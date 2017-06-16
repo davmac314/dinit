@@ -19,7 +19,7 @@ dinitctl: dinitctl.o
 shutdown: shutdown.o
 	$(CXX) -o shutdown shutdown.o
 
-$(objects): %.o: %.cc service.h dinit-log.h control.h control-cmds.h cpbuffer.h
+$(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) -Idasynq -c $< -o $@
 
 install: all
