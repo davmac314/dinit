@@ -6,6 +6,7 @@
 #include <vector>
 #include <csignal>
 #include <unordered_set>
+#include <algorithm>
 
 #include "dasynq.h"
 
