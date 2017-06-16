@@ -4,9 +4,9 @@ ifeq ($(BUILD_SHUTDOWN),yes)
   SHUTDOWN=shutdown
 endif
 
-objects = dinit.o load_service.o service.o control.o dinit-log.o dinitctl.o shutdown.o
+objects = dinit.o load_service.o service.o control.o dinit-log.o dinit-main.o dinitctl.o shutdown.o
 
-dinit_objects = dinit.o load_service.o service.o control.o dinit-log.o
+dinit_objects = dinit.o load_service.o service.o control.o dinit-log.o dinit-main.o
 
 all: dinit dinitctl $(SHUTDOWN)
 

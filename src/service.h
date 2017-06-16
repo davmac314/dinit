@@ -783,10 +783,17 @@ class service_set
         restart_enabled = true;
     }
     
-    // Start the specified service
+    // Start the specified service. The service will be marked active.
     void start_service(service_record *svc)
     {
         svc->start();
+        processQueues();
+    }
+
+    // Stop the specified service. Its active mark will be cleared.
+    void stop_service(service_record *svc)
+    {
+        svc->stop();
         processQueues();
     }
 
