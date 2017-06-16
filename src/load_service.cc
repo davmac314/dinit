@@ -585,14 +585,14 @@ service_record * dirload_service_set::load_service(const char * name)
                 delete rval;
                 if (service_type == service_type::PROCESS) {
                     auto rvalps = new process_service(this, string(name), std::move(command),
-                        command_offsets, &depends_on, &depends_soft);
+                            command_offsets, std::move(depends_on), depends_soft);
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
                     rval = rvalps;
                 }
                 else if (service_type == service_type::BGPROCESS) {
                     auto rvalps = new bgproc_service(this, string(name), std::move(command),
-                        command_offsets, &depends_on, &depends_soft);
+                            command_offsets, std::move(depends_on), depends_soft);
                     rvalps->set_pid_file(std::move(pid_file));
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
@@ -600,12 +600,13 @@ service_record * dirload_service_set::load_service(const char * name)
                 }
                 else if (service_type == service_type::SCRIPTED) {
                     rval = new scripted_service(this, string(name), std::move(command),
-                                                command_offsets, &depends_on, &depends_soft);
+                            command_offsets, std::move(depends_on), depends_soft);
                     rval->setStopCommand(stop_command, stop_command_offsets);
                 }
                 else {
-                    rval = new service_record(this, string(name), service_type, std::move(command), command_offsets,
-                            &depends_on, &depends_soft);
+                    rval = new service_record(this, string(name), service_type,
+                            std::move(command), command_offsets,
+                            std::move(depends_on), depends_soft);
                 }
                 rval->setLogfile(logfile);
                 rval->setAutoRestart(auto_restart);

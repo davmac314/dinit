@@ -430,13 +430,13 @@ class service_record
     }
 
     service_record(service_set *set, string name, service_type record_type_p,
-            sr_list * pdepends_on, sr_list * pdepends_soft)
+            sr_list &&pdepends_on, const sr_list &pdepends_soft)
         : service_record(set, name)
     {
         services = set;
         service_name = name;
         this->record_type = record_type_p;
-        this->depends_on = std::move(*pdepends_on);
+        this->depends_on = std::move(pdepends_on);
 
         for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
             (*i)->dependents.push_back(this);
@@ -444,7 +444,7 @@ class service_record
 
         // Soft dependencies
         auto b_iter = soft_deps.end();
-        for (sr_iter i = pdepends_soft->begin(); i != pdepends_soft->end(); ++i) {
+        for (auto i = pdepends_soft.begin(); i != pdepends_soft.end(); ++i) {
             b_iter = soft_deps.emplace(b_iter, this, *i);
             (*i)->soft_dpts.push_back(&(*b_iter));
             ++b_iter;
@@ -452,8 +452,8 @@ class service_record
     }
     
     service_record(service_set *set, string name, service_type record_type_p, string &&command, std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            sr_list * pdepends_on, sr_list * pdepends_soft)
-        : service_record(set, name, record_type_p, pdepends_on, pdepends_soft)
+            sr_list &&pdepends_on, const sr_list &pdepends_soft)
+        : service_record(set, name, record_type_p, std::move(pdepends_on), pdepends_soft)
     {
         program_name = std::move(command);
         exec_arg_parts = separate_args(program_name, command_offsets);
@@ -645,7 +645,7 @@ class base_process_service : public service_record
     public:
     base_process_service(service_set *sset, string name, service_type record_type_p, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            sr_list * pdepends_on, sr_list * pdepends_soft);
+            sr_list &&pdepends_on, const sr_list &pdepends_soft);
 
     ~base_process_service() noexcept
     {
@@ -672,9 +672,9 @@ class process_service : public base_process_service
     public:
     process_service(service_set *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            sr_list * pdepends_on, sr_list * pdepends_soft)
+            sr_list &&pdepends_on, const sr_list &pdepends_soft)
          : base_process_service(sset, name, service_type::PROCESS, std::move(command), command_offsets,
-             pdepends_on, pdepends_soft)
+             std::move(pdepends_on), pdepends_soft)
     {
     }
 
@@ -696,9 +696,9 @@ class bgproc_service : public base_process_service
     public:
     bgproc_service(service_set *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            sr_list * pdepends_on, sr_list * pdepends_soft)
+            sr_list &&pdepends_on, const sr_list &pdepends_soft)
          : base_process_service(sset, name, service_type::BGPROCESS, std::move(command), command_offsets,
-             pdepends_on, pdepends_soft)
+             std::move(pdepends_on), pdepends_soft)
     {
         doing_recovery = false;
     }
@@ -716,9 +716,9 @@ class scripted_service : public base_process_service
     public:
     scripted_service(service_set *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            sr_list * pdepends_on, sr_list * pdepends_soft)
+            sr_list &&pdepends_on, const sr_list &pdepends_soft)
          : base_process_service(sset, name, service_type::SCRIPTED, std::move(command), command_offsets,
-             pdepends_on, pdepends_soft)
+             std::move(pdepends_on), pdepends_soft)
     {
     }
 

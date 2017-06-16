@@ -1212,9 +1212,9 @@ void service_set::service_inactive(service_record *sr) noexcept
 
 base_process_service::base_process_service(service_set *sset, string name, service_type service_type_p, string &&command,
         std::list<std::pair<unsigned,unsigned>> &command_offsets,
-        sr_list * pdepends_on, sr_list * pdepends_soft)
+        sr_list &&pdepends_on, const sr_list &pdepends_soft)
      : service_record(sset, name, service_type_p, std::move(command), command_offsets,
-         pdepends_on, pdepends_soft), child_listener(this), child_status_listener(this)
+         std::move(pdepends_on), pdepends_soft), child_listener(this), child_status_listener(this)
 {
     restart_interval_count = 0;
     restart_interval_time = {0, 0};
