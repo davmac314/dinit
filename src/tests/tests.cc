@@ -1,4 +1,6 @@
 #include <cassert>
+#include <iostream>
+
 #include "service.h"
 
 void test1()
@@ -73,6 +75,11 @@ void test2()
 
 int main(int argc, char **argv)
 {
+    std::cout << "test1... ";
     test1();
+    std::cout << "PASSED" << std::endl;
+
+    std::cout << "test2... ";
     test2();
+    std::cout << "PASSED" << std::endl;
 }

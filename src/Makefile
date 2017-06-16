@@ -22,6 +22,9 @@ shutdown: shutdown.o
 $(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) -Idasynq -c $< -o $@
 
+check: $(objects)
+	$(MAKE) -C tests check
+
 install: all
 	install -d $(DESTDIR)/sbin
 	install -s dinit dinitctl $(SHUTDOWN) $(DESTDIR)/sbin
@@ -30,8 +33,9 @@ ifeq ($(BUILD_SHUTDOWN),yes)
 endif
 
 clean:
-	rm -f *.o
+	rm -f *.o *.d
 	rm -f dinit dinitctl shutdown
+	$(MAKE) -C tests clean
 
 $(objects:.o=.d): %.d: %.cc
 	$(CXX) $(CXXOPTS) -Idasynq -MM -MG -MF $@ $<
