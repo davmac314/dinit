@@ -204,7 +204,8 @@ class control_conn_t : private service_listener
     }
     
     public:
-    control_conn_t(eventloop_t * loop, service_set * services_p, int fd) : loop(loop), services(services_p), chklen(0)
+    control_conn_t(eventloop_t * loop, service_set * services_p, int fd)
+            : loop(loop), services(services_p), chklen(0)
     {
         iob.registerWith(*loop, fd, IN_EVENTS);
         active_control_conns++;

@@ -57,7 +57,7 @@ void setup_external_log() noexcept;
 
 // Variables
 
-static service_set *services;
+static dirload_service_set *services;
 
 static bool am_system_init = false; // true if we are the system init process
 
@@ -301,13 +301,13 @@ static int dinit_main(int argc, char **argv)
 #endif
     
     /* start requested services */
-    services = new service_set(service_dir);
+    services = new dirload_service_set(service_dir);
     
     init_log(services);
     
     for (auto svc : services_to_start) {
         try {
-            services->startService(svc);
+            services->start_service(svc);
             // Note in general if we fail to start a service we don't need any special error handling,
             // since we either leave other services running or, if it was the only service, then no
             // services will be running and we will process normally (reboot if system process,
@@ -363,7 +363,7 @@ static int dinit_main(int argc, char **argv)
             // user has now exited the shell. We'll try and re-start the
             // boot process...
             try {
-                services->startService("boot");
+                services->start_service("boot");
                 goto event_loop; // yes, the "evil" goto
             }
             catch (...) {

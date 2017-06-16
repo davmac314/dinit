@@ -352,7 +352,7 @@ static void parse_timespec(const std::string &paramval, const std::string &servi
 // Might throw a ServiceLoadExc exception if a dependency cycle is found or if another
 // problem occurs (I/O error, service description not found etc). Throws std::bad_alloc
 // if a memory allocation failure occurs.
-service_record * service_set::loadServiceRecord(const char * name)
+service_record * dirload_service_set::load_service(const char * name)
 {
     using std::string;
     using std::ifstream;
@@ -418,7 +418,7 @@ service_record * service_set::loadServiceRecord(const char * name)
     
     // Add a dummy service record now to prevent infinite recursion in case of cyclic dependency
     rval = new service_record(this, string(name));
-    records.push_back(rval);
+    add_service(rval);
     
     try {
         // getline can set failbit if it reaches end-of-file, we don't want an exception in that case:
@@ -476,11 +476,11 @@ service_record * service_set::loadServiceRecord(const char * name)
                 }
                 else if (setting == "depends-on") {
                     string dependency_name = read_setting_value(i, end);
-                    depends_on.push_back(loadServiceRecord(dependency_name.c_str()));
+                    depends_on.push_back(load_service(dependency_name.c_str()));
                 }
                 else if (setting == "waits-for") {
                     string dependency_name = read_setting_value(i, end);
-                    depends_soft.push_back(loadServiceRecord(dependency_name.c_str()));
+                    depends_soft.push_back(load_service(dependency_name.c_str()));
                 }
                 else if (setting == "logfile") {
                     logfile = read_setting_value(i, end);

@@ -94,7 +94,7 @@ bool control_conn_t::processFindLoad(int pktType)
     if (pktType == DINIT_CP_LOADSERVICE) {
         // LOADSERVICE
         try {
-            record = services->loadService(serviceName);
+            record = services->load_service(serviceName.c_str());
         }
         catch (service_load_exc &slexc) {
             log(LogLevel::ERROR, "Could not load service ", slexc.serviceName, ": ", slexc.excDescription);

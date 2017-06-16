@@ -428,8 +428,8 @@ class service_record
         service_name = name;
         record_type = service_type::DUMMY;
     }
-    
-    service_record(service_set *set, string name, service_type record_type_p, string &&command, std::list<std::pair<unsigned,unsigned>> &command_offsets,
+
+    service_record(service_set *set, string name, service_type record_type_p,
             sr_list * pdepends_on, sr_list * pdepends_soft)
         : service_record(set, name)
     {
@@ -437,9 +437,6 @@ class service_record
         service_name = name;
         this->record_type = record_type_p;
         this->depends_on = std::move(*pdepends_on);
-
-        program_name = std::move(command);
-        exec_arg_parts = separate_args(program_name, command_offsets);
 
         for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
             (*i)->dependents.push_back(this);
@@ -452,6 +449,14 @@ class service_record
             (*i)->soft_dpts.push_back(&(*b_iter));
             ++b_iter;
         }
+    }
+    
+    service_record(service_set *set, string name, service_type record_type_p, string &&command, std::list<std::pair<unsigned,unsigned>> &command_offsets,
+            sr_list * pdepends_on, sr_list * pdepends_soft)
+        : service_record(set, name, record_type_p, pdepends_on, pdepends_soft)
+    {
+        program_name = std::move(command);
+        exec_arg_parts = separate_args(program_name, command_offsets);
     }
     
     virtual ~service_record() noexcept
@@ -757,9 +762,9 @@ inline auto extract_console_queue(service_record *sr) -> decltype(sr->console_qu
  */
 class service_set
 {
+    protected:
     int active_services;
     std::list<service_record *> records;
-    const char *service_dir;  // directory containing service descriptions
     bool restart_enabled; // whether automatic restart is enabled (allowed)
     
     shutdown_type_t shutdown_type = shutdown_type_t::CONTINUE;  // Shutdown type, if stopping
@@ -771,49 +776,60 @@ class service_set
     slist<service_record, extract_prop_queue> prop_queue;
     slist<service_record, extract_stop_queue> stop_queue;
     
-    // Private methods
-        
+    public:
+    service_set()
+    {
+        active_services = 0;
+        restart_enabled = true;
+    }
+    
+    // Start the specified service
+    void start_service(service_record *svc)
+    {
+        svc->start();
+        processQueues();
+    }
+
+    // Locate an existing service record.
+    service_record *find_service(const std::string &name) noexcept;
+
     // Load a service description, and dependencies, if there is no existing
     // record for the given name.
     // Throws:
     //   ServiceLoadException (or subclass) on problem with service description
     //   std::bad_alloc on out-of-memory condition
-    service_record *loadServiceRecord(const char *name);
-
-    // Public
-    
-    public:
-    service_set(const char *service_dir)
+    virtual service_record *load_service(const char *name)
     {
-        this->service_dir = service_dir;
-        active_services = 0;
-        restart_enabled = true;
+        auto r = find_service(name);
+        if (r == nullptr) {
+            throw service_not_found(name);
+        }
+        return r;
     }
-    
+
     // Start the service with the given name. The named service will begin
     // transition to the 'started' state.
     //
     // Throws a ServiceLoadException (or subclass) if the service description
     // cannot be loaded or is invalid;
     // Throws std::bad_alloc if out of memory.
-    void startService(const char *name);
-    
-    // Locate an existing service record.
-    service_record *find_service(const std::string &name) noexcept;
-    
-    // Find a loaded service record, or load it if it is not loaded.
-    // Throws:
-    //   ServiceLoadException (or subclass) on problem with service description
-    //   std::bad_alloc on out-of-memory condition 
-    service_record *loadService(const std::string &name)
+    void start_service(const char *name)
     {
-        service_record *record = find_service(name);
-        if (record == nullptr) {
-            record = loadServiceRecord(name.c_str());
-        }
-        return record;
+        using namespace std;
+        service_record *record = load_service(name);
+        service_set::start_service(record);
     }
     
+    void add_service(service_record *svc)
+    {
+        records.push_back(svc);
+    }
+    
+    void remove_service(service_record *svc)
+    {
+        std::remove(records.begin(), records.end(), svc);
+    }
+
     // Get the list of all loaded services.
     const std::list<service_record *> &listServices()
     {
@@ -935,6 +951,18 @@ class service_set
     {
         return shutdown_type;
     }
+};
+
+class dirload_service_set : public service_set
+{
+    const char *service_dir;  // directory containing service descriptions
+
+    public:
+    dirload_service_set(const char *service_dir_p) : service_set(), service_dir(service_dir_p)
+    {
+    }
+
+    service_record *load_service(const char *name) override;
 };
 
 #endif

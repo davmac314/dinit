@@ -47,15 +47,6 @@ service_record * service_set::find_service(const std::string &name) noexcept
     return ::find_service(records, name.c_str());
 }
 
-void service_set::startService(const char *name)
-{
-    using namespace std;
-    service_record *record = loadServiceRecord(name);
-    
-    record->start();
-    processQueues(true);
-}
-
 void service_set::stopService(const std::string & name) noexcept
 {
     service_record *record = find_service(name);
