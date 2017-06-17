@@ -8,7 +8,7 @@ check: build-tests
 
 build-tests: tests
 
-tests: $(objects)
+tests: $(objects) $(parent_objs)
 	$(CXX) -o tests tests.o $(parent_objs) $(EXTRA_LIBS)
 
 $(objects): %.o: %.cc
