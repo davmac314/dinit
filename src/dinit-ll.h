@@ -118,7 +118,7 @@ class slist
     bool is_queued(T *e) noexcept
     {
         auto &node = E(e);
-        return node.next != nullptr && first != e;
+        return node.next != nullptr || first == e;
     }
 
     void insert(T *e) noexcept
