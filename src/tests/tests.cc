@@ -3,6 +3,8 @@
 
 #include "service.h"
 
+// Test 1: starting a service starts dependencies; stopping the service releases and
+// stops dependencies.
 void test1()
 {
     service_set sset;
@@ -33,6 +35,8 @@ void test1()
     assert(s1->getState() == service_state_t::STOPPED);
 }
 
+// Test 2: Multiple dependents will hold a dependency active if one of the dependents is
+// stopped/released.
 void test2()
 {
     service_set sset;
@@ -73,6 +77,66 @@ void test2()
     assert(s1->getState() == service_state_t::STOPPED);
 }
 
+// Test 3: stopping a dependency causes its dependents to stop.
+void test3()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type::INTERNAL, {}, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type::INTERNAL, {s1}, {});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type::INTERNAL, {s2}, {});
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+    assert(sset.find_service("test-service-3") == s3);
+
+    // Start all three services:
+    sset.start_service(s3);
+
+    // Now stop s1, which should also force s2 and s3 to stop:
+    sset.stop_service(s1);
+
+    assert(s3->getState() == service_state_t::STOPPED);
+    assert(s2->getState() == service_state_t::STOPPED);
+    assert(s1->getState() == service_state_t::STOPPED);
+}
+
+// Test 4: an explicitly activated service with automatic restart will restart if it
+// stops due to a dependency stopping, therefore also causing the dependency to restart.
+void test4()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type::INTERNAL, {}, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type::INTERNAL, {s1}, {});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type::INTERNAL, {s2}, {});
+    s2->setAutoRestart(true);
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+    assert(sset.find_service("test-service-3") == s3);
+
+    // Start all three services:
+    sset.start_service(s3);
+
+    // Also explicitly activate s2:
+    sset.start_service(s2);
+
+    // Now stop s1, which should also force s2 and s3 to stop.
+    // s2 (and therefore s1) should restart:
+    sset.stop_service(s1);
+
+    assert(s3->getState() == service_state_t::STOPPED);
+    assert(s2->getState() == service_state_t::STARTED);
+    assert(s1->getState() == service_state_t::STARTED);
+}
+
 int main(int argc, char **argv)
 {
     std::cout << "test1... ";
@@ -81,5 +145,13 @@ int main(int argc, char **argv)
 
     std::cout << "test2... ";
     test2();
+    std::cout << "PASSED" << std::endl;
+
+    std::cout << "test3... ";
+    test3();
+    std::cout << "PASSED" << std::endl;
+
+    std::cout << "test4... ";
+    test4();
     std::cout << "PASSED" << std::endl;
 }

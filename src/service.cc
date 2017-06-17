@@ -1041,6 +1041,12 @@ void service_record::do_stop() noexcept
 {
     if (pinned_started) return;
 
+    if (start_explicit && ! do_auto_restart()) {
+        start_explicit = false;
+        release();
+        if (required_by == 0) return; // release will re-call us anyway
+    }
+
     if (service_state != service_state_t::STARTED) {
         if (service_state == service_state_t::STARTING) {
             if (! can_interrupt_start()) {

@@ -794,7 +794,7 @@ class service_set
     // Stop the specified service. Its active mark will be cleared.
     void stop_service(service_record *svc)
     {
-        svc->stop();
+        svc->stop(true);
         processQueues();
     }
 
