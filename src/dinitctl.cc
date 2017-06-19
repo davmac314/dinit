@@ -454,16 +454,13 @@ static int startStopService(int socknum, const char *service_name, Command comma
 // a response. Returns 1 on failure (with error logged), 0 on success.
 static int issueLoadService(int socknum, const char *service_name)
 {
-    using namespace std;
-    
     // Build buffer;
     uint16_t sname_len = strlen(service_name);
     int bufsize = 3 + sname_len;
     int r;
     
-    {
-        // TODO: new: catch exception
-        unique_ptr<char[]> ubuf(new char[bufsize]);
+    try {
+        std::unique_ptr<char[]> ubuf(new char[bufsize]);
         auto buf = ubuf.get();
         
         buf[0] = DINIT_CP_LOADSERVICE;
@@ -471,6 +468,10 @@ static int issueLoadService(int socknum, const char *service_name)
         memcpy(buf + 3, service_name, sname_len);
         
         r = write_all(socknum, buf, bufsize);
+    }
+    catch (std::bad_alloc &badalloc) {
+        std::cerr << "dinitctl: " << badalloc.what() << std::endl;
+        return 1;
     }
     
     if (r == -1) {
