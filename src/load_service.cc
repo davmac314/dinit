@@ -278,9 +278,7 @@ static gid_t parse_gid_param(const std::string &param, const std::string &servic
         // is is probably safe to assume that valid values are positive. We'll also assume
         // that the value range fits with "unsigned long long" since it seems unlikely
         // that would ever not be the case.
-        //
-        // TODO perhaps write a number parser, since even the unsigned variants of the C/C++
-        //      functions accept a leading minus sign...
+        static_assert((uintmax_t)std::numeric_limits<gid_t>::max() <= (uintmax_t)std::numeric_limits<unsigned long long>::max(), "gid_t is too large");
         unsigned long long v = std::stoull(param, &ind, 0);
         if (v > static_cast<unsigned long long>(std::numeric_limits<gid_t>::max()) || ind != param.length()) {
             throw service_description_exc(service_name, gid_err_msg);
