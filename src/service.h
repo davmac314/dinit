@@ -788,14 +788,14 @@ class service_set
     void start_service(service_record *svc)
     {
         svc->start();
-        processQueues();
+        process_queues();
     }
 
     // Stop the specified service. Its active mark will be cleared.
     void stop_service(service_record *svc)
     {
         svc->stop(true);
-        processQueues();
+        process_queues();
     }
 
     // Locate an existing service record.
@@ -875,8 +875,7 @@ class service_set
     }
     
     // Process state propagation and start/stop queues, until they are empty.
-    // TODO remove the pointless parameter
-    void processQueues(bool ignoredparam = false) noexcept
+    void process_queues() noexcept
     {
         while (! stop_queue.is_empty() || ! prop_queue.is_empty()) {
             while (! prop_queue.is_empty()) {
@@ -942,7 +941,7 @@ class service_set
             (*i)->stop(false);
             (*i)->unpin();
         }
-        processQueues(false);
+        process_queues();
     }
     
     void set_auto_restart(bool restart) noexcept

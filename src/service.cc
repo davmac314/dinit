@@ -52,7 +52,7 @@ void service_set::stopService(const std::string & name) noexcept
     service_record *record = find_service(name);
     if (record != nullptr) {
         record->stop();
-        processQueues(false);
+        process_queues();
     }
 }
 
@@ -187,14 +187,14 @@ void process_service::handle_exit_status(int exit_status) noexcept
         //      service process.
         if (! restart_ps_process()) {
             emergency_stop();
-            services->processQueues(false);
+            services->process_queues();
         }
         return;
     }
     else {
         emergency_stop();
     }
-    services->processQueues(false);
+    services->process_queues();
 }
 
 void bgproc_service::handle_exit_status(int exit_status) noexcept
@@ -230,7 +230,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         if (need_stop) {
             // Failed startup: no auto-restart.
             emergency_stop();
-            services->processQueues(false);
+            services->process_queues();
         }
 
         return;
@@ -263,7 +263,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         doing_recovery = true;
         if (! restart_ps_process()) {
             emergency_stop();
-            services->processQueues();
+            services->process_queues();
         }
         return;
     }
@@ -277,7 +277,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         stopDependents();
         stopped();
     }
-    services->processQueues(false);
+    services->process_queues();
 }
 
 void scripted_service::handle_exit_status(int exit_status) noexcept
@@ -301,7 +301,7 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
             // can be stopped:
             stopped();
         }
-        services->processQueues(false);
+        services->process_queues();
     }
     else { // STARTING
         if (exit_status == 0) {
@@ -317,7 +317,7 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
             }
             failed_to_start();
         }
-        services->processQueues(true);
+        services->process_queues();
     }
 }
 
@@ -364,7 +364,7 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
         }
     }
     
-    sr->services->processQueues(true);
+    sr->services->process_queues();
     
     return rearm::REMOVED;
 }
@@ -1179,14 +1179,14 @@ void service_record::unpin() noexcept
         pinned_started = false;
         if (desired_state == service_state_t::STOPPED) {
             do_stop();
-            services->processQueues(false);
+            services->process_queues();
         }
     }
     if (pinned_stopped) {
         pinned_stopped = false;
         if (desired_state == service_state_t::STARTED) {
             do_start();
-            services->processQueues(true);
+            services->process_queues();
         }
     }
 }
@@ -1252,7 +1252,7 @@ void base_process_service::do_restart() noexcept
             desired_state = service_state_t::STOPPED;
             forceStop();
         }
-        services->processQueues();
+        services->process_queues();
     }
 }
 
