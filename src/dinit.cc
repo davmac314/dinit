@@ -419,9 +419,10 @@ static void wait_for_user_input() noexcept
 // Callback for control socket
 static void control_socket_cb(eventloop_t *loop, int sockfd)
 {
-    // TODO limit the number of active connections. Keep a tally, and disable the
-    // control connection listening socket watcher if it gets high, and re-enable
-    // it once it falls below the maximum.
+    // Considered keeping a limit the number of active connections, however, there doesn't
+    // seem much to be gained from that. Only root can create connections and not being
+    // able to establish a control connection is as much a denial-of-service as is not being
+    // able to start a service due to lack of fd's.
 
     // Accept a connection
     int newfd = dinit_accept4(sockfd, nullptr, nullptr, SOCK_NONBLOCK | SOCK_CLOEXEC);
@@ -540,8 +541,9 @@ void setup_external_log() noexcept
         }
         
         if (connect(sockfd, (struct sockaddr *) name, sockaddr_size) == 0 || errno == EINPROGRESS) {
-            // TODO for EINPROGRESS, set up a watcher so we can properly wait until
-            // connection is established (or fails) before we pass it to the logging subsystem.
+            // For EINPROGRESS, connection is still being established; however, we can select on
+            // the file descriptor so we will be notified when it's ready. In other words we can
+            // basically use it anyway.
             try {
                 setup_main_log(sockfd);
             }
