@@ -690,9 +690,16 @@ class bgproc_service : public base_process_service
 
     bool doing_recovery : 1;    // if we are currently recovering a BGPROCESS (restarting process, while
                                 //   holding STARTED service state)
+    bool tracking_child : 1;
+
+    enum class pid_result_t {
+        OK,
+        FAILED,      // failed to read pid or read invalid pid
+        TERMINATED   // read pid successfully, but the process already terminated
+    };
 
     // Read the pid-file, return false on failure
-    bool read_pid_file() noexcept;
+    pid_result_t read_pid_file(int *exit_status) noexcept;
 
     public:
     bgproc_service(service_set *sset, string name, string &&command,
@@ -702,6 +709,7 @@ class bgproc_service : public base_process_service
              std::move(pdepends_on), pdepends_soft)
     {
         doing_recovery = false;
+        tracking_child = false;
     }
 
     ~bgproc_service() noexcept

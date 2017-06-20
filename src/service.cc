@@ -199,6 +199,7 @@ void process_service::handle_exit_status(int exit_status) noexcept
 
 void bgproc_service::handle_exit_status(int exit_status) noexcept
 {
+    begin:
     bool did_exit = WIFEXITED(exit_status);
     bool was_signalled = WIFSIGNALED(exit_status);
 
@@ -212,7 +213,6 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
     }
 
     if (doing_recovery) {
-        // (BGPROCESS only)
         doing_recovery = false;
         bool need_stop = false;
         if ((did_exit && WEXITSTATUS(exit_status) != 0) || was_signalled) {
@@ -221,8 +221,16 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         else {
             // We need to re-read the PID, since it has now changed.
             if (pid_file.length() != 0) {
-                if (! read_pid_file()) {
-                    need_stop = true;
+                auto pid_result = read_pid_file(&exit_status);
+                switch (pid_result) {
+                    case pid_result_t::FAILED:
+                        // Failed startup: no auto-restart.
+                        need_stop = true;
+                        break;
+                    case pid_result_t::TERMINATED:
+                        goto begin;
+                    case pid_result_t::OK:
+                        break;
                 }
             }
         }
@@ -240,11 +248,19 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         // POSIX requires that if the process exited clearly with a status code of 0,
         // the exit status value will be 0:
         if (exit_status == 0) {
-            if (pid_file.length() != 0 && ! read_pid_file()) {
-                failed_to_start();
-            }
-            else {
-                started();
+            auto pid_result = read_pid_file(&exit_status);
+            switch (pid_result) {
+                case pid_result_t::FAILED:
+                    // Failed startup: no auto-restart.
+                    failed_to_start();
+                    break;
+                case pid_result_t::TERMINATED:
+                    // started, but immediately terminated
+                    started();
+                    goto begin;
+                case pid_result_t::OK:
+                    started();
+                    break;
             }
         }
         else {
@@ -675,32 +691,57 @@ void service_record::acquiredConsole() noexcept
     }
 }
 
-bool bgproc_service::read_pid_file() noexcept
+bgproc_service::pid_result_t
+bgproc_service::read_pid_file(int *exit_status) noexcept
 {
     const char *pid_file_c = pid_file.c_str();
     int fd = open(pid_file_c, O_CLOEXEC);
-    if (fd != -1) {
-        char pidbuf[21]; // just enought to hold any 64-bit integer
-        int r = read(fd, pidbuf, 20);
-        if (r > 0) {
-            pidbuf[r] = 0; // store nul terminator
-            pid = std::atoi(pidbuf);
-            if (kill(pid, 0) == 0) {                
-                child_listener.add_watch(eventLoop, pid);
-            }
-            else {
-                log(LogLevel::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
-                pid = -1;
-                close(fd);
-                return false;
-            }
-        }
+    if (fd == -1) {
+        log(LogLevel::ERROR, service_name, ": read pid file: ", strerror(errno));
+        return pid_result_t::FAILED;
+    }
+
+    char pidbuf[21]; // just enough to hold any 64-bit integer
+    int r = read(fd, pidbuf, 20); // TODO signal-safe read
+    if (r < 0) {
+        // Could not read from PID file
+        log(LogLevel::ERROR, service_name, ": could not read from pidfile; ", strerror(errno));
         close(fd);
-        return true;
+        return pid_result_t::FAILED;
+    }
+
+    close(fd);
+    pidbuf[r] = 0; // store nul terminator
+    // TODO may need stoull; what if int isn't big enough...
+    pid = std::atoi(pidbuf);
+    pid_t wait_r = waitpid(pid, exit_status, WNOHANG);
+    if (wait_r == -1 && errno == ECHILD) {
+        // We can't track this child - check process exists:
+        if (kill(pid, 0) == 0) {
+            tracking_child = false;
+            return pid_result_t::OK;
+        }
+        else {
+            log(LogLevel::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
+            pid = -1;
+            return pid_result_t::FAILED;
+        }
+    }
+    else if (wait_r == pid) {
+        pid = -1;
+        return pid_result_t::TERMINATED;
+    }
+    else if (wait_r == 0) {
+        // We can track the child
+        // TODO we must use a preallocated watch!!
+        child_listener.add_watch(eventLoop, pid);
+        tracking_child = true;
+        return pid_result_t::OK;
     }
     else {
-        log(LogLevel::ERROR, service_name, ": read pid file: ", strerror(errno));
-        return false;
+        log(LogLevel::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
+        pid = -1;
+        return pid_result_t::FAILED;
     }
 }
 
@@ -1142,6 +1183,7 @@ void base_process_service::all_deps_stopped() noexcept
         // If we are a BGPROCESS and the process is not our immediate child, however, that
         // won't work - check for this now:
         if (record_type == service_type::BGPROCESS) {
+            // TODO use 'tracking_child' instead
             int status;
             pid_t r = waitpid(pid, &status, WNOHANG);
             if (r == -1 && errno == ECHILD) {
@@ -1258,7 +1300,7 @@ void base_process_service::do_restart() noexcept
 
 bool base_process_service::restart_ps_process() noexcept
 {
-	using time_val = eventloop_t::time_val;
+    using time_val = eventloop_t::time_val;
 
     time_val current_time;
     eventLoop.get_time(current_time, clock_type::MONOTONIC);
