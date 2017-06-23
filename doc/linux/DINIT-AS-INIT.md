@@ -140,7 +140,7 @@ using Dash as the /bin/sh shell because it is significantly faster (affecting
 boot time).
 
 - Bash: https://www.gnu.org/software/bash
-= Dash: http://gondor.apana.org.au/~herbert/dash
+- Dash: http://gondor.apana.org.au/~herbert/dash
 
 
 # Optional packages for building a Dinit-based system
@@ -153,7 +153,7 @@ cgmanager, the control group manager; you probably want this if you use
 ConsoleKit2, and maybe if you want to use containers:
 https://github.com/lxc/cgmanager
 
-(However, I believe that cgmanage works with the old v1 cgroups interface.
+(However, I believe that cgmanager works with the old v1 cgroups interface.
 I expect that v2 cgroups together with cgroup namespaces as found in newer
 kernels will render it obselete).
 
