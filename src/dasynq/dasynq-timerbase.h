@@ -99,10 +99,16 @@ inline bool operator==(const time_val &t1, const time_val &t2)
     return (t1.seconds() == t2.seconds() && t1.nseconds() == t2.nseconds());
 }
 
-using std::rel_ops::operator !=;
-using std::rel_ops::operator <=;
-using std::rel_ops::operator >;
-using std::rel_ops::operator >=;
+inline bool operator<=(const time_val &t1, const time_val &t2)
+{
+    if (t1.seconds() < t2.seconds()) return true;
+    if (t1.seconds() == t2.seconds() && t1.nseconds() <= t2.nseconds()) return true;
+    return false;
+}
+
+inline bool operator!=(const time_val &t1, const time_val &t2) { return !(t1 == t2); }
+inline bool operator>(const time_val &t1, const time_val &t2) { return t2 < t1; }
+inline bool operator>=(const time_val &t1, const time_val &t2) { return t2 <= t1; }
 
 // Data corresponding to a single timer
 class timer_data

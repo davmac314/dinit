@@ -1,4 +1,5 @@
 #include <signal.h>
+#include "dasynq-btree_set.h"
 
 namespace dasynq {
 
@@ -6,78 +7,63 @@ namespace dasynq {
 // be later added with no danger of allocator exhaustion (bad_alloc).
 class pid_map
 {
-    using pair = std::pair<pid_t, void *>;
-    std::unordered_map<pid_t, void *> base_map;
-    std::vector<pair> backup_vector;
-    
-    // Number of entries in backup_vector that are actually in use (as opposed
-    // to simply reserved):
-    int backup_size = 0;
+    using bmap_t = btree_set<void *, pid_t>;
+    bmap_t b_map;
     
     public:
+    using pid_handle_t = bmap_t::handle_t;
+    
+    // Map entry: present (bool), data (void *)
     using entry = std::pair<bool, void *>;
 
     entry get(pid_t key) noexcept
     {
-        auto it = base_map.find(key);
-        if (it == base_map.end()) {
-            // Not in map; look in vector
-            for (int i = 0; i < backup_size; i++) {
-                if (backup_vector[i].first == key) {
-                    return entry(true, backup_vector[i].second);
-                }
-            }
-        
+        auto it = b_map.find(key);
+        if (it == nullptr) {
             return entry(false, nullptr);
         }
-        
-        return entry(true, it->second);
+        return entry(true, b_map.node_data(*it));
     }
     
-    entry erase(pid_t key) noexcept
+    entry remove(pid_t key) noexcept
     {
-        auto iter = base_map.find(key);
-        if (iter != base_map.end()) {
-            entry r(true, iter->second);
-            base_map.erase(iter);
-            return r;
+        auto it = b_map.find(key);
+        if (it == nullptr) {
+            return entry(false, nullptr);
         }
-        for (int i = 0; i < backup_size; i++) {
-            if (backup_vector[i].first == key) {
-                entry r(true, backup_vector[i].second);
-                backup_vector.erase(backup_vector.begin() + i);
-                return r;
-            }
-        }
-        return entry(false, nullptr);
+        b_map.remove(*it);
+        return entry(true, b_map.node_data(*it));
     }
     
+    void remove(pid_handle_t &hndl)
+    {
+        if (b_map.is_queued(hndl)) {
+            b_map.remove(hndl);
+        }
+    }
+
     // Throws bad_alloc on reservation failure
-    void reserve()
+    void reserve(pid_handle_t &hndl)
     {
-        backup_vector.resize(backup_vector.size() + 1);
+        b_map.allocate(hndl);
     }
     
-    void unreserve() noexcept
+    void unreserve(pid_handle_t &hndl) noexcept
     {
-        backup_vector.resize(backup_vector.size() - 1);
+        b_map.deallocate(hndl);
     }
     
-    void add(pid_t key, void *val) // throws std::bad_alloc
+    void add(pid_handle_t &hndl, pid_t key, void *val) // throws std::bad_alloc
     {
-        base_map[key] = val;
+        reserve(hndl);
+        b_map.node_data(hndl) = val;
+        b_map.insert(hndl, key);
     }
     
-    void add_from_reserve(pid_t key, void *val) noexcept
+    void add_from_reserve(pid_handle_t &hndl, pid_t key, void *val) noexcept
     {
-        try {
-            base_map[key] = val;
-            backup_vector.resize(backup_vector.size() - 1);
-        }
-        catch (std::bad_alloc &) {
-            // We couldn't add into the map, use the reserve:
-            backup_vector[backup_size++] = pair(key, val);
-        }
+        b_map.node_data(hndl) = val;
+        b_map.insert(hndl, key);
     }
 };
 
@@ -89,6 +75,8 @@ inline void sigchld_handler(int signum)
     // this behavior, which seems inconsistent. Setting a handler doesn't
     // hurt in any case).
 }
+
+using pid_watch_handle_t = pid_map::pid_handle_t;
 
 template <class Base> class ChildProcEvents : public Base
 {
@@ -105,7 +93,7 @@ template <class Base> class ChildProcEvents : public Base
             int status;
             pid_t child;
             while ((child = waitpid(-1, &status, WNOHANG)) > 0) {
-                pid_map::entry ent = child_waiters.erase(child);
+                pid_map::entry ent = child_waiters.remove(child);
                 if (ent.first) {
                     Base::receiveChildStat(child, status, ent.second);
                 }
@@ -118,39 +106,57 @@ template <class Base> class ChildProcEvents : public Base
     }
     
     public:
-    void reserveChildWatch()
+    void reserveChildWatch(pid_watch_handle_t &handle)
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-        child_waiters.reserve();
+        child_waiters.reserve(handle);
     }
     
-    void unreserveChildWatch() noexcept
+    void unreserveChildWatch(pid_watch_handle_t &handle) noexcept
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-        child_waiters.unreserve();
+        unreserveChildWatch_nolock(handle);
     }
     
-    void addChildWatch(pid_t child, void *val)
+    void unreserveChildWatch_nolock(pid_watch_handle_t &handle) noexcept
     {
-        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-        child_waiters.add(child, val);
-    }
-    
-    void addReservedChildWatch(pid_t child, void *val) noexcept
-    {
-        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-        child_waiters.add_from_reserve(child, val);
+        child_waiters.unreserve(handle);
     }
 
-    void addReservedChildWatch_nolock(pid_t child, void *val) noexcept
-    {
-        child_waiters.add_from_reserve(child, val);
-    }
-    
-    void removeChildWatch(pid_t child) noexcept
+    void addChildWatch(pid_watch_handle_t &handle, pid_t child, void *val)
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-        child_waiters.erase(child);
+        child_waiters.add(handle, child, val);
+    }
+    
+    void addReservedChildWatch(pid_watch_handle_t &handle, pid_t child, void *val) noexcept
+    {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
+        child_waiters.add_from_reserve(handle, child, val);
+    }
+
+    void addReservedChildWatch_nolock(pid_watch_handle_t &handle, pid_t child, void *val) noexcept
+    {
+        child_waiters.add_from_reserve(handle, child, val);
+    }
+    
+    // Stop watching a child, but retain watch reservation
+    void stop_child_watch(pid_watch_handle_t &handle) noexcept
+    {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
+        child_waiters.remove(handle);
+    }
+
+    void removeChildWatch(pid_watch_handle_t &handle) noexcept
+    {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
+        removeChildWatch_nolock(handle);
+    }
+
+    void removeChildWatch_nolock(pid_watch_handle_t &handle) noexcept
+    {
+        child_waiters.remove(handle);
+        child_waiters.unreserve(handle);
     }
     
     template <typename T> void init(T *loop_mech)

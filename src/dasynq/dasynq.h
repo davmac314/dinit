@@ -294,6 +294,7 @@ namespace dprivate {
         template <typename, template <typename> class, typename> friend class dasynq::event_loop;
         
         protected:
+        pid_watch_handle_t watch_handle;
         pid_t watch_pid;
         int child_status;
         
@@ -890,7 +891,7 @@ class event_loop
     {
         loop_mech.prepare_watcher(callback);
         try {
-            loop_mech.reserveChildWatch();
+            loop_mech.reserveChildWatch(callback->watch_handle);
         }
         catch (...) {
             loop_mech.release_watcher(callback);
@@ -900,7 +901,7 @@ class event_loop
     
     void unreserve(BaseChildWatcher *callback) noexcept
     {
-        loop_mech.unreserveChildWatch();
+        loop_mech.unreserveChildWatch(callback->watch_handle);
         loop_mech.release_watcher(callback);
     }
     
@@ -908,7 +909,7 @@ class event_loop
     {
         loop_mech.prepare_watcher(callback);
         try {
-            loop_mech.addChildWatch(child, callback);
+            loop_mech.addChildWatch(callback->watch_handle, child, callback);
         }
         catch (...) {
             loop_mech.release_watcher(callback);
@@ -916,19 +917,19 @@ class event_loop
         }
     }
     
-    void registerReservedChild(BaseChildWatcher *callBack, pid_t child) noexcept
+    void registerReservedChild(BaseChildWatcher *callback, pid_t child) noexcept
     {
-        loop_mech.addReservedChildWatch(child, callBack);
+        loop_mech.addReservedChildWatch(callback->watch_handle, child, callback);
     }
 
-    void registerReservedChild_nolock(BaseChildWatcher *callBack, pid_t child) noexcept
+    void registerReservedChild_nolock(BaseChildWatcher *callback, pid_t child) noexcept
     {
-        loop_mech.addReservedChildWatch_nolock(child, callBack);
+        loop_mech.addReservedChildWatch_nolock(callback->watch_handle, child, callback);
     }
     
     void deregister(BaseChildWatcher *callback, pid_t child) noexcept
     {
-        loop_mech.removeChildWatch(child);
+        loop_mech.removeChildWatch(callback->watch_handle);
 
         waitqueue_node<T_Mutex> qnode;
         get_attn_lock(qnode);
@@ -939,6 +940,13 @@ class event_loop
         release_lock(qnode);
     }
     
+    // Stop watching a child process, but retain watch reservation so that another child can be
+    // watched without running into resource allocation issues.
+    void stop_watch(BaseChildWatcher *callback) noexcept
+    {
+        loop_mech.stop_child_watch(callback->watch_handle);
+    }
+
     void registerTimer(BaseTimerWatcher *callback, clock_type clock)
     {
         loop_mech.prepare_watcher(callback);
@@ -1260,6 +1268,13 @@ class event_loop
         return rearmType;
     }
     
+    void process_child_watch_rearm(BaseChildWatcher *bcw, rearm rearm_type) noexcept
+    {
+        if (rearm_type == rearm::REMOVE || rearm_type == rearm::DISARM) {
+            loop_mech.unreserveChildWatch_nolock(bcw->watch_handle);
+        }
+    }
+
     void processTimerRearm(BaseTimerWatcher *btw, rearm rearmType) noexcept
     {
         // Called with lock held
@@ -1902,6 +1917,12 @@ class child_proc_watcher : private dprivate::base_child_watcher<typename EventLo
         eloop.deregister(this, child);
     }
     
+    // Stop watching the currently watched child, but retain watch reservation.
+    void stop_watch(EventLoop &eloop) noexcept
+    {
+        eloop.stop_watch(this);
+    }
+
     // Fork and watch the child with this watcher on the given event loop.
     // If resource limitations prevent the child process from being watched, it is
     // terminated immediately (or if the implementation allows, never started),
@@ -2014,6 +2035,8 @@ class child_proc_watcher_impl : public child_proc_watcher<EventLoop>
                 // We don't want a watch that is marked "deleteme" to re-arm itself.
                 rearmType = rearm::REMOVE;
             }
+
+            loop.process_child_watch_rearm(this, rearmType);
 
             // rearmType = loop.process??;
             post_dispatch(loop, this, rearmType);
