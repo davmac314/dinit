@@ -351,6 +351,7 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
         // We read an errno code; exec() failed, and the service startup failed.
         if (sr->pid != -1) {
             sr->child_listener.deregister(eventLoop, sr->pid);
+            sr->reserved_child_watch = false;
         }
         sr->pid = -1;
         log(LogLevel::ERROR, sr->service_name, ": execution failed: ", strerror(exec_status));
@@ -733,9 +734,9 @@ bgproc_service::read_pid_file(int *exit_status) noexcept
     }
     else if (wait_r == 0) {
         // We can track the child
-        // TODO we must use a preallocated watch!!
-        child_listener.add_watch(eventLoop, pid);
+        child_listener.add_reserved(eventLoop, pid, DEFAULT_PRIORITY - 10);
         tracking_child = true;
+        reserved_child_watch = true;
         return pid_result_t::OK;
     }
     else {
@@ -879,14 +880,15 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     pid_t forkpid;
     
     try {
-        // We add the status listener with a high priority (i.e. low priority value) so that process
-        // termination is handled early. This means we have always recorded that the process is
-        // terminated by the time that we handle events that might otherwise cause us to signal the
-        // process, so we avoid sending a signal to an invalid (and possibly recycled) process ID.
-        child_status_listener.add_watch(eventLoop, pipefd[0], IN_EVENTS, true, DEFAULT_PRIORITY - 10);
+        child_status_listener.add_watch(eventLoop, pipefd[0], IN_EVENTS);
         child_status_registered = true;
         
-        forkpid = child_listener.fork(eventLoop);
+        // We specify a high priority (i.e. low priority value) so that process termination is
+        // handled early. This means we have always recorded that the process is terminated by the
+        // time that we handle events that might otherwise cause us to signal the process, so we
+        // avoid sending a signal to an invalid (and possibly recycled) process ID.
+        forkpid = child_listener.fork(eventLoop, reserved_child_watch, DEFAULT_PRIORITY - 10);
+        reserved_child_watch = true;
     }
     catch (std::exception &e) {
         log(LogLevel::ERROR, service_name, ": Could not fork: ", e.what());
@@ -1273,6 +1275,9 @@ base_process_service::base_process_service(service_set *sset, string name, servi
     restart_interval.tv_sec = 10;
     restart_interval.tv_nsec = 0;
     max_restart_interval_count = 3;
+
+    waiting_restart_timer = false;
+    reserved_child_watch = false;
 }
 
 void base_process_service::do_restart() noexcept

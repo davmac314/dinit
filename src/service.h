@@ -623,7 +623,8 @@ class base_process_service : public service_record
     int max_restart_interval_count;
     timespec restart_delay;
 
-    bool waiting_restart_timer = false;
+    bool waiting_restart_timer : 1;
+    bool reserved_child_watch : 1;
 
     // Start the process, return true on success
     virtual bool start_ps_process() noexcept override;
@@ -710,6 +711,7 @@ class bgproc_service : public base_process_service
     {
         doing_recovery = false;
         tracking_child = false;
+        reserved_child_watch = false;
     }
 
     ~bgproc_service() noexcept
