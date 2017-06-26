@@ -1,4 +1,4 @@
--include ../mconfig
+include ../mconfig
 
 ifeq ($(BUILD_SHUTDOWN),yes)
   SHUTDOWN=shutdown
@@ -40,4 +40,4 @@ clean:
 $(objects:.o=.d): %.d: %.cc
 	$(CXX) $(CXXOPTS) -Idasynq -MM -MG -MF $@ $<
 
-include $(objects:.o=.d)
+-include $(objects:.o=.d)
