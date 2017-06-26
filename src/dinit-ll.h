@@ -3,8 +3,12 @@
 
 // Simple single- and doubly-linked list implementation, where the contained element includes the
 // list node. This allows a single item to be a member of several different kinds of list, without
-// requiring dynamic allocation of nodes.
+// requiring dynamic allocation of nodes for the different lists.
+//
+// To accomplish this without abstraction penalty, the function to retrieve the list node from the
+// element is specified as the second template parameter.
 
+// Doubly-linked list node:
 template <typename T>
 struct lld_node
 {
@@ -12,14 +16,17 @@ struct lld_node
     T * prev = nullptr;
 };
 
+// Singly-linked list node:
 template <typename T>
 struct lls_node
 {
     T * next = nullptr;
 };
 
-// list is circular, so first->prev = tail.
-
+// Doubly-linked list implementation. The list is circular, so 'first->prev' yields the tail of
+// the list, though we still need to special-case the empty list (where first == nullptr).
+// next/prev pointers in a node are set to nullptr when the node is not linked into a list
+// (and are never equal to nullptr when the node is linked into a list).
 template <typename T, lld_node<T> &(*E)(T *)>
 class dlist
 {
@@ -106,11 +113,11 @@ class dlist
     }
 };
 
+// Singly-linked list implementation.
 template <typename T, lls_node<T> &(*E)(T *)>
 class slist
 {
     T * first;
-    // E extractor;
 
     public:
     slist() noexcept : first(nullptr) { }
