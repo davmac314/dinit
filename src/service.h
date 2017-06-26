@@ -350,7 +350,7 @@ class service_record
     // A dependency has reached STARTED state
     void dependencyStarted() noexcept;
     
-    void allDepsStarted(bool haveConsole = false) noexcept;
+    void all_deps_started(bool haveConsole = false) noexcept;
 
     // Do any post-dependency startup; return false on failure
     virtual bool start_ps_process() noexcept;
@@ -359,7 +359,7 @@ class service_record
     bool open_socket() noexcept;
 
     // Check whether dependencies have started, and optionally ask them to start
-    bool startCheckDependencies(bool do_start) noexcept;
+    bool start_check_dependencies(bool do_start) noexcept;
 
     // Whether a STARTING service can immediately transition to STOPPED (as opposed to
     // having to wait for it reach STARTED and then go through STOPPING).
@@ -377,13 +377,13 @@ class service_record
     }
 
     // A dependent has reached STOPPED state
-    void dependentStopped() noexcept;
+    void dependent_stopped() noexcept;
 
     // check if all dependents have stopped
-    bool stopCheckDependents() noexcept;
+    bool stop_check_dependents() noexcept;
     
     // issue a stop to all dependents, return true if they are all already stopped
-    bool stopDependents() noexcept;
+    bool stop_dependents() noexcept;
     
     void require() noexcept;
     void release() noexcept;
@@ -396,7 +396,7 @@ class service_record
             || (service_state == service_state_t::STARTING && waiting_for_deps);
     }
     
-    void notifyListeners(service_event event) noexcept
+    void notify_listeners(service_event event) noexcept
     {
         for (auto l : listeners) {
             l->serviceEvent(this, event);

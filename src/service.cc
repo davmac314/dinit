@@ -81,7 +81,7 @@ void service_record::stopped() noexcept
 
     for (auto dependency : depends_on) {
         // we signal dependencies in case they are waiting for us to stop:
-        dependency->dependentStopped();
+        dependency->dependent_stopped();
     }
 
     service_state = service_state_t::STOPPED;
@@ -107,7 +107,7 @@ void service_record::stopped() noexcept
     }
 
     logServiceStopped(service_name);
-    notifyListeners(service_event::STOPPED);
+    notify_listeners(service_event::STOPPED);
 }
 
 dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t child, int status) noexcept
@@ -150,7 +150,7 @@ void service_record::emergency_stop() noexcept
         release();
     }
     forceStop();
-    stopDependents();
+    stop_dependents();
     stopped();
 }
 
@@ -290,7 +290,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
             release();
         }
         forceStop();
-        stopDependents();
+        stop_dependents();
         stopped();
     }
     services->process_queues();
@@ -451,7 +451,7 @@ void service_record::start(bool activate) noexcept
         // We're STOPPING, and that can be interrupted. Our dependencies might be STOPPING,
         // but if so they are waiting (for us), so they too can be instantly returned to
         // STARTING state.
-        notifyListeners(service_event::STOPCANCELLED);
+        notify_listeners(service_event::STOPCANCELLED);
     }
     else if (! was_active) {
         services->service_active(this);
@@ -460,7 +460,7 @@ void service_record::start(bool activate) noexcept
     service_state = service_state_t::STARTING;
     waiting_for_deps = true;
 
-    if (startCheckDependencies(true)) {
+    if (start_check_dependencies(true)) {
         services->addToStartQueue(this);
     }
 }
@@ -506,12 +506,12 @@ void service_record::do_propagation() noexcept
 void service_record::execute_transition() noexcept
 {
     if (service_state == service_state_t::STARTING) {
-        if (startCheckDependencies(false)) {
-            allDepsStarted(false);
+        if (start_check_dependencies(false)) {
+            all_deps_started(false);
         }
     }
     else if (service_state == service_state_t::STOPPING) {
-        if (stopCheckDependents()) {
+        if (stop_check_dependents()) {
             all_deps_stopped();
         }
     }
@@ -530,9 +530,9 @@ void service_record::do_start() noexcept
     waiting_for_deps = true;
 
     // Ask dependencies to start, mark them as being waited on.
-    if (startCheckDependencies(false)) {
+    if (start_check_dependencies(false)) {
         // Once all dependencies are started, we start properly:
-        allDepsStarted();
+        all_deps_started();
     }
 }
 
@@ -543,7 +543,7 @@ void service_record::dependencyStarted() noexcept
     }
 }
 
-bool service_record::startCheckDependencies(bool start_deps) noexcept
+bool service_record::start_check_dependencies(bool start_deps) noexcept
 {
     bool all_deps_started = true;
 
@@ -650,7 +650,7 @@ bool service_record::open_socket() noexcept
     return true;
 }
 
-void service_record::allDepsStarted(bool has_console) noexcept
+void service_record::all_deps_started(bool has_console) noexcept
 {
     if (onstart_flags.starts_on_console && ! has_console) {
         waiting_for_deps = true;
@@ -683,8 +683,8 @@ void service_record::acquiredConsole() noexcept
         // We got the console but no longer want it.
         release_console();
     }
-    else if (startCheckDependencies(false)) {
-        allDepsStarted(true);
+    else if (start_check_dependencies(false)) {
+        all_deps_started(true);
     }
     else {
         // We got the console but can't use it yet.
@@ -755,7 +755,7 @@ void service_record::started() noexcept
 
     logServiceStarted(service_name);
     service_state = service_state_t::STARTED;
-    notifyListeners(service_event::STARTED);
+    notify_listeners(service_event::STARTED);
 
     if (onstart_flags.rw_ready) {
         open_control_socket();
@@ -792,7 +792,7 @@ void service_record::failed_to_start(bool depfailed) noexcept
         start_explicit = false;
         release();
     }
-    notifyListeners(service_event::FAILEDSTART);
+    notify_listeners(service_event::FAILEDSTART);
     
     // Cancel start of dependents:
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
@@ -1061,7 +1061,7 @@ void service_record::forceStop() noexcept
     }
 }
 
-void service_record::dependentStopped() noexcept
+void service_record::dependent_stopped() noexcept
 {
     if (service_state == service_state_t::STOPPING && waiting_for_deps) {
         services->addToStopQueue(this);
@@ -1097,12 +1097,12 @@ void service_record::do_stop() noexcept
                 // starting, but we don't want any dependents to think that
                 // they are still waiting to start.
                 // Make sure they remain stopped:
-                stopDependents();
+                stop_dependents();
                 return;
             }
 
             // We must have had desired_state == STARTED.
-            notifyListeners(service_event::STARTCANCELLED);
+            notify_listeners(service_event::STARTCANCELLED);
             
             interrupt_start();
 
@@ -1118,12 +1118,12 @@ void service_record::do_stop() noexcept
 
     service_state = service_state_t::STOPPING;
     waiting_for_deps = true;
-    if (stopDependents()) {
+    if (stop_dependents()) {
         services->addToStopQueue(this);
     }
 }
 
-bool service_record::stopCheckDependents() noexcept
+bool service_record::stop_check_dependents() noexcept
 {
     bool all_deps_stopped = true;
     for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
@@ -1136,14 +1136,14 @@ bool service_record::stopCheckDependents() noexcept
     return all_deps_stopped;
 }
 
-bool service_record::stopDependents() noexcept
+bool service_record::stop_dependents() noexcept
 {
     bool all_deps_stopped = true;
     for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
         if (! (*i)->is_stopped()) {
             // Note we check *first* since if the dependent service is not stopped,
             // 1. We will issue a stop to it shortly and
-            // 2. It will notify us when stopped, at which point the stopCheckDependents()
+            // 2. It will notify us when stopped, at which point the stop_check_dependents()
             //    check is run anyway.
             all_deps_stopped = false;
         }
