@@ -17,6 +17,7 @@
 #include "service.h"
 #include "dinit-log.h"
 #include "dinit-socket.h"
+#include "dinit-util.h"
 
 /*
  * service.cc - Service management.
@@ -704,7 +705,7 @@ bgproc_service::read_pid_file(int *exit_status) noexcept
     }
 
     char pidbuf[21]; // just enough to hold any 64-bit integer
-    int r = read(fd, pidbuf, 20); // TODO signal-safe read
+    int r = ss_read(fd, pidbuf, 20);
     if (r < 0) {
         // Could not read from PID file
         log(LogLevel::ERROR, service_name, ": could not read from pidfile; ", strerror(errno));
@@ -714,37 +715,52 @@ bgproc_service::read_pid_file(int *exit_status) noexcept
 
     close(fd);
     pidbuf[r] = 0; // store nul terminator
-    // TODO may need stoull; what if int isn't big enough...
-    pid = std::atoi(pidbuf);
-    pid_t wait_r = waitpid(pid, exit_status, WNOHANG);
-    if (wait_r == -1 && errno == ECHILD) {
-        // We can't track this child - check process exists:
-        if (kill(pid, 0) == 0) {
-            tracking_child = false;
+
+    bool valid_pid = false;
+    try {
+        unsigned long long v = std::stoull(pidbuf, nullptr, 0);
+        if (v <= std::numeric_limits<pid_t>::max()) {
+            pid = (pid_t) v;
+            valid_pid = true;
+        }
+    }
+    catch (std::out_of_range &exc) {
+        // Too large?
+    }
+    catch (std::invalid_argument &exc) {
+        // Ok, so it doesn't look like a number: proceed...
+    }
+
+    if (valid_pid) {
+        pid_t wait_r = waitpid(pid, exit_status, WNOHANG);
+        if (wait_r == -1 && errno == ECHILD) {
+            // We can't track this child - check process exists:
+            if (kill(pid, 0) == 0) {
+                tracking_child = false;
+                return pid_result_t::OK;
+            }
+            else {
+                log(LogLevel::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
+                pid = -1;
+                return pid_result_t::FAILED;
+            }
+        }
+        else if (wait_r == pid) {
+            pid = -1;
+            return pid_result_t::TERMINATED;
+        }
+        else if (wait_r == 0) {
+            // We can track the child
+            child_listener.add_reserved(eventLoop, pid, DEFAULT_PRIORITY - 10);
+            tracking_child = true;
+            reserved_child_watch = true;
             return pid_result_t::OK;
         }
-        else {
-            log(LogLevel::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
-            pid = -1;
-            return pid_result_t::FAILED;
-        }
     }
-    else if (wait_r == pid) {
-        pid = -1;
-        return pid_result_t::TERMINATED;
-    }
-    else if (wait_r == 0) {
-        // We can track the child
-        child_listener.add_reserved(eventLoop, pid, DEFAULT_PRIORITY - 10);
-        tracking_child = true;
-        reserved_child_watch = true;
-        return pid_result_t::OK;
-    }
-    else {
-        log(LogLevel::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
-        pid = -1;
-        return pid_result_t::FAILED;
-    }
+
+    log(LogLevel::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
+    pid = -1;
+    return pid_result_t::FAILED;
 }
 
 void service_record::started() noexcept
