@@ -125,14 +125,15 @@ dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t chil
     if (sr->waiting_for_execstat) {
         // We still don't have an exec() status from the forked child, wait for that
         // before doing any further processing.
-        return rearm::REMOVE;
+        return rearm::NOOP; // hold watch reservation
     }
     
-    // Must deregister now since handle_exit_status might result in re-launch:
-    deregister(loop, child);
+    // Must stop watch now since handle_exit_status might result in re-launch:
+    // (stop_watch instead of deregister, so that we hold watch reservation).
+    stop_watch(loop);
     
     sr->handle_exit_status(status);
-    return rearm::REMOVED;
+    return rearm::NOOP;
 }
 
 bool service_record::do_auto_restart() noexcept
