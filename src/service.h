@@ -612,11 +612,11 @@ class base_process_service : public service_record
     service_child_watcher child_listener;
     exec_status_pipe_watcher child_status_listener;
     process_restart_timer restart_timer;
-    timespec last_start_time;
+    time_val last_start_time;
 
     // Restart interval time and restart count are used to track the number of automatic restarts
     // over an interval. Too many restarts over an interval will inhibit further restarts.
-    timespec restart_interval_time;
+    time_val restart_interval_time;
     int restart_interval_count;
 
     timespec restart_interval;
@@ -625,6 +625,7 @@ class base_process_service : public service_record
 
     bool waiting_restart_timer : 1;
     bool reserved_child_watch : 1;
+    bool tracking_child : 1;
 
     // Start the process, return true on success
     virtual bool start_ps_process() noexcept override;
@@ -691,7 +692,6 @@ class bgproc_service : public base_process_service
 
     bool doing_recovery : 1;    // if we are currently recovering a BGPROCESS (restarting process, while
                                 //   holding STARTED service state)
-    bool tracking_child : 1;
 
     enum class pid_result_t {
         OK,

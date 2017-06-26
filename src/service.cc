@@ -1185,19 +1185,8 @@ void base_process_service::all_deps_stopped() noexcept
         // In most cases, the rest is done in handle_exit_status.
         // If we are a BGPROCESS and the process is not our immediate child, however, that
         // won't work - check for this now:
-        if (record_type == service_type::BGPROCESS) {
-            // TODO use 'tracking_child' instead
-            int status;
-            pid_t r = waitpid(pid, &status, WNOHANG);
-            if (r == -1 && errno == ECHILD) {
-                // We can't track this child (or it's terminated already)
-                stopped();
-            }
-            else if (r == pid) {
-                // Process may have died due to signal since we explicitly requested it to
-                // stop by signalling it; no need to log any termination status.
-                stopped();
-            }
+        if (record_type == service_type::BGPROCESS && ! tracking_child) {
+            stopped();
         }
     }
     else {
@@ -1279,6 +1268,7 @@ base_process_service::base_process_service(service_set *sset, string name, servi
 
     waiting_restart_timer = false;
     reserved_child_watch = false;
+    tracking_child = false;
 }
 
 void base_process_service::do_restart() noexcept
