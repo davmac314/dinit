@@ -598,16 +598,33 @@ bool service_record::open_socket() noexcept
     }
     
     const char * saddrname = socket_path.c_str();
-    uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + socket_path.length() + 1;
+    
+    // Check the specified socket path
+    struct stat stat_buf;
+    if (stat(saddrname, &stat_buf) == 0) {
+        if ((stat_buf.st_mode & S_IFSOCK) == 0) {
+            // Not a socket
+            log(LogLevel::ERROR, service_name, ": Activation socket file exists (and is not a socket)");
+            return false;
+        }
+    }
+    else if (errno != ENOENT) {
+        // Other error
+        log(LogLevel::ERROR, service_name, ": Error checking activation socket: ", strerror(errno));
+        return false;
+    }
 
+    // Remove stale socket file (if it exists).
+    // We won't test the return from unlink - if it fails other than due to ENOENT, we should get an
+    // error when we try to create the socket anyway.
+    unlink(saddrname);
+
+    uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + socket_path.length() + 1;
     struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
     if (name == nullptr) {
         log(LogLevel::ERROR, service_name, ": Opening activation socket: out of memory");
         return false;
     }
-    
-    // Un-link any stale socket. TODO: safety check? should at least confirm the path is a socket.
-    unlink(saddrname);
 
     name->sun_family = AF_UNIX;
     strcpy(name->sun_path, saddrname);
@@ -628,7 +645,7 @@ bool service_record::open_socket() noexcept
     
     free(name);
     
-    // POSIX (1003.1, 2013) says that fchown and fchmod don't necesarily work on sockets. We have to
+    // POSIX (1003.1, 2013) says that fchown and fchmod don't necessarily work on sockets. We have to
     // use chown and chmod instead.
     if (chown(saddrname, socket_uid, socket_gid)) {
         log(LogLevel::ERROR, service_name, ": Error setting activation socket owner/group: ", strerror(errno));
