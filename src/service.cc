@@ -752,7 +752,7 @@ bgproc_service::read_pid_file(int *exit_status) noexcept
         pid_t wait_r = waitpid(pid, exit_status, WNOHANG);
         if (wait_r == -1 && errno == ECHILD) {
             // We can't track this child - check process exists:
-            if (kill(pid, 0) == 0) {
+            if (kill(pid, 0) == 0 || errno != ESRCH) {
                 tracking_child = false;
                 return pid_result_t::OK;
             }
