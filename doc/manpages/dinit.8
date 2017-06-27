@@ -146,6 +146,13 @@ Specifies the maximum number of times that a service can automatically restart
 over the interval specified by \fBrestart-limit-interval\fR. Specify a value
 of 0 to disable the restart limit.
 .TP
+\fBstop-timeout\fR = \fIXXX.YYY\fR
+Specifies the time in seconds allowed for the service to stop. If the
+service takes longer than this, its process group is sent a SIGKILL signal
+which should cause it to terminate immediately. The timeout period begins
+only when all dependent services have already stopped. The default
+timeout is 10 seconds. Specify a value of 0 to allow unlimited stop time.
+.TP
 \fBpid-file\fR = \fIpath-to-file\fR
 For \fBbgprocess\fR type services only; specifies the path of the file where
 daemon will write its process ID before detaching. Dinit will read the

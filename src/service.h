@@ -585,8 +585,8 @@ class service_record
 
 class base_process_service;
 
-// A timer for process restarting. Used to ensure a minimum delay between
-// process restarts.
+// A timer for process restarting. Used to ensure a minimum delay between process restarts (and
+// also for timing service stop before the SIGKILL hammer is used).
 class process_restart_timer : public eventloop_t::timer_impl<process_restart_timer>
 {
     public:
@@ -671,6 +671,11 @@ class base_process_service : public service_record
     void set_restart_delay(timespec delay) noexcept
     {
         restart_delay = delay;
+    }
+
+    void set_stop_timeout(timespec timeout) noexcept
+    {
+        stop_timeout = timeout;
     }
 };
 

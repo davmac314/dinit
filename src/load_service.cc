@@ -402,6 +402,7 @@ service_record * dirload_service_set::load_service(const char * name)
     timespec restart_interval = { .tv_sec = 10, .tv_nsec = 0 };
     int max_restarts = 3;
     timespec restart_delay = { .tv_sec = 0, .tv_nsec = 200000000 };
+    timespec stop_timeout = { .tv_sec = 10, .tv_nsec = 0 };
     
     string line;
     ifstream service_file;
@@ -562,6 +563,10 @@ service_record * dirload_service_set::load_service(const char * name)
                     string limit_str = read_setting_value(i, end, nullptr);
                     max_restarts = parse_unum_param(limit_str, name, std::numeric_limits<int>::max());
                 }
+                else if (setting == "stop-timeout") {
+                    string stoptimeout_str = read_setting_value(i, end, nullptr);
+                    parse_timespec(stoptimeout_str, name, "stop-timeout", stop_timeout);
+                }
                 else {
                     throw service_description_exc(name, "Unknown setting: " + setting);
                 }
@@ -586,6 +591,7 @@ service_record * dirload_service_set::load_service(const char * name)
                             command_offsets, std::move(depends_on), depends_soft);
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
+                    rvalps->set_stop_timeout(stop_timeout);
                     rval = rvalps;
                 }
                 else if (service_type == service_type::BGPROCESS) {
@@ -594,12 +600,15 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_pid_file(std::move(pid_file));
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
+                    rvalps->set_stop_timeout(stop_timeout);
                     rval = rvalps;
                 }
                 else if (service_type == service_type::SCRIPTED) {
-                    rval = new scripted_service(this, string(name), std::move(command),
+                    auto rvalps = new scripted_service(this, string(name), std::move(command),
                             command_offsets, std::move(depends_on), depends_soft);
-                    rval->setStopCommand(stop_command, stop_command_offsets);
+                    rvalps->setStopCommand(stop_command, stop_command_offsets);
+                    rvalps->set_stop_timeout(stop_timeout);
+                    rval = rvalps;
                 }
                 else {
                     rval = new service_record(this, string(name), service_type,
