@@ -452,7 +452,8 @@ class service_record
         }
     }
     
-    service_record(service_set *set, string name, service_type record_type_p, string &&command, std::list<std::pair<unsigned,unsigned>> &command_offsets,
+    service_record(service_set *set, string name, service_type record_type_p, string &&command,
+            std::list<std::pair<unsigned,unsigned>> &command_offsets,
             sr_list &&pdepends_on, const sr_list &pdepends_soft)
         : service_record(set, name, record_type_p, std::move(pdepends_on), pdepends_soft)
     {
@@ -619,11 +620,15 @@ class base_process_service : public service_record
     time_val restart_interval_time;
     int restart_interval_count;
 
-    timespec restart_interval;
+    time_val restart_interval;
     int max_restart_interval_count;
-    timespec restart_delay;
+    time_val restart_delay;
+
+    // Time allowed for service stop, after which SIGKILL is sent. 0 to disable.
+    time_val stop_timeout = {10, 0}; // default of 10 seconds
 
     bool waiting_restart_timer : 1;
+    bool stop_timer_armed : 1;
     bool reserved_child_watch : 1;
     bool tracking_child : 1;
 
@@ -644,6 +649,9 @@ class base_process_service : public service_record
     }
 
     virtual void interrupt_start() noexcept override;
+
+    // Kill with SIGKILL
+    void kill_with_fire() noexcept;
 
     public:
     base_process_service(service_set *sset, string name, service_type record_type_p, string &&command,

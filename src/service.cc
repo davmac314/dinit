@@ -133,6 +133,11 @@ dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t chil
     // (stop_watch instead of deregister, so that we hold watch reservation).
     stop_watch(loop);
     
+    if (sr->stop_timer_armed) {
+        sr->restart_timer.stop_timer(loop);
+        sr->stop_timer_armed = false;
+    }
+
     sr->handle_exit_status(status);
     return rearm::NOOP;
 }
@@ -163,10 +168,12 @@ void process_service::handle_exit_status(int exit_status) noexcept
 
     if (exit_status != 0 && service_state != service_state_t::STOPPING) {
         if (did_exit) {
-            log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ", WEXITSTATUS(exit_status));
+            log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ",
+                    WEXITSTATUS(exit_status));
         }
         else if (was_signalled) {
-            log(LogLevel::ERROR, "Service ", service_name, " terminated due to signal ", WTERMSIG(exit_status));
+            log(LogLevel::ERROR, "Service ", service_name, " terminated due to signal ",
+                    WTERMSIG(exit_status));
         }
     }
 
@@ -310,10 +317,12 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
         else {
             // ??? failed to stop! Let's log it as info:
             if (did_exit) {
-                log(LogLevel::INFO, "Service ", service_name, " stop command failed with exit code ", WEXITSTATUS(exit_status));
+                log(LogLevel::INFO, "Service ", service_name, " stop command failed with exit code ",
+                        WEXITSTATUS(exit_status));
             }
             else if (was_signalled) {
-                log(LogLevel::INFO, "Serivice ", service_name, " stop command terminated due to signal ", WTERMSIG(exit_status));
+                log(LogLevel::INFO, "Serivice ", service_name, " stop command terminated due to signal ",
+                        WTERMSIG(exit_status));
             }
             // Just assume that we stopped, so that any dependencies
             // can be stopped:
@@ -328,10 +337,12 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
         else {
             // failed to start
             if (did_exit) {
-                log(LogLevel::ERROR, "Service ", service_name, " command failed with exit code ", WEXITSTATUS(exit_status));
+                log(LogLevel::ERROR, "Service ", service_name, " command failed with exit code ",
+                        WEXITSTATUS(exit_status));
             }
             else if (was_signalled) {
-                log(LogLevel::ERROR, "Service ", service_name, " command terminated due to signal ", WTERMSIG(exit_status));
+                log(LogLevel::ERROR, "Service ", service_name, " command terminated due to signal ",
+                        WTERMSIG(exit_status));
             }
             failed_to_start();
         }
@@ -354,6 +365,10 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
         if (sr->pid != -1) {
             sr->child_listener.deregister(eventLoop, sr->pid);
             sr->reserved_child_watch = false;
+            if (sr->stop_timer_armed) {
+                sr->restart_timer.stop_timer(loop);
+                sr->stop_timer_armed = false;
+            }
         }
         sr->pid = -1;
         log(LogLevel::ERROR, sr->service_name, ": execution failed: ", strerror(exec_status));
@@ -1221,6 +1236,10 @@ void base_process_service::all_deps_stopped() noexcept
         if (record_type == service_type::BGPROCESS && ! tracking_child) {
             stopped();
         }
+        else if (stop_timeout != time_val(0,0)) {
+            restart_timer.arm_timer_rel(eventLoop, stop_timeout);
+            stop_timer_armed = true;
+        }
     }
     else {
         // The process is already dead.
@@ -1237,6 +1256,13 @@ void scripted_service::all_deps_stopped() noexcept
     else if (! start_ps_process(stop_arg_parts, false)) {
         // Couldn't execute stop script, but there's not much we can do:
         stopped();
+    }
+    else {
+        // successfully started stop script: start kill timer:
+        if (stop_timeout != time_val(0,0)) {
+            restart_timer.arm_timer_rel(eventLoop, stop_timeout);
+            stop_timer_armed = true;
+        }
     }
 }
 
@@ -1283,7 +1309,8 @@ void service_set::service_inactive(service_record *sr) noexcept
     active_services--;
 }
 
-base_process_service::base_process_service(service_set *sset, string name, service_type service_type_p, string &&command,
+base_process_service::base_process_service(service_set *sset, string name,
+        service_type service_type_p, string &&command,
         std::list<std::pair<unsigned,unsigned>> &command_offsets,
         sr_list &&pdepends_on, const sr_list &pdepends_soft)
      : service_record(sset, name, service_type_p, std::move(command), command_offsets,
@@ -1295,13 +1322,14 @@ base_process_service::base_process_service(service_set *sset, string name, servi
     restart_timer.add_timer(eventLoop);
 
     // By default, allow a maximum of 3 restarts within 10.0 seconds:
-    restart_interval.tv_sec = 10;
-    restart_interval.tv_nsec = 0;
+    restart_interval.seconds() = 10;
+    restart_interval.nseconds() = 0;
     max_restart_interval_count = 3;
 
     waiting_restart_timer = false;
     reserved_child_watch = false;
     tracking_child = false;
+    stop_timer_armed = false;
 }
 
 void base_process_service::do_restart() noexcept
@@ -1373,8 +1401,23 @@ void base_process_service::interrupt_start() noexcept
     service_record::interrupt_start();
 }
 
+void base_process_service::kill_with_fire() noexcept
+{
+    if (pid != -1) {
+        log(LogLevel::WARN, "Service ", service_name, " exceeded allowed stop time; killing.");
+        kill(-pid, SIGKILL);
+    }
+}
+
 dasynq::rearm process_restart_timer::timer_expiry(eventloop_t &, int expiry_count)
 {
-    service->do_restart();
+    if (service->service_state == service_state_t::STOPPING) {
+        service->kill_with_fire();
+        service->stop_timer_armed = false;
+    }
+    else {
+        // STARTING / STARTED:
+        service->do_restart();
+    }
     return dasynq::rearm::DISARM;
 }
