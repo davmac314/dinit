@@ -640,6 +640,9 @@ class base_process_service : public service_record
     // rate-limited.
     bool restart_ps_process() noexcept;
 
+    // Perform smooth recovery process
+    void do_smooth_recovery() noexcept;
+
     virtual void all_deps_stopped() noexcept override;
     virtual void handle_exit_status(int exit_status) noexcept = 0;
 
@@ -703,9 +706,6 @@ class bgproc_service : public base_process_service
 {
     virtual void handle_exit_status(int exit_status) noexcept override;
 
-    bool doing_recovery : 1;    // if we are currently recovering a BGPROCESS (restarting process, while
-                                //   holding STARTED service state)
-
     enum class pid_result_t {
         OK,
         FAILED,      // failed to read pid or read invalid pid
@@ -722,7 +722,6 @@ class bgproc_service : public base_process_service
          : base_process_service(sset, name, service_type::BGPROCESS, std::move(command), command_offsets,
              std::move(pdepends_on), pdepends_soft)
     {
-        doing_recovery = false;
         tracking_child = false;
         reserved_child_watch = false;
     }

@@ -165,6 +165,7 @@ void process_service::handle_exit_status(int exit_status) noexcept
 {
     bool did_exit = WIFEXITED(exit_status);
     bool was_signalled = WIFSIGNALED(exit_status);
+    restarting = false;
 
     if (exit_status != 0 && service_state != service_state_t::STOPPING) {
         if (did_exit) {
@@ -190,20 +191,26 @@ void process_service::handle_exit_status(int exit_status) noexcept
         // we assume that the process died because we signalled it.
         stopped();
     }
-    else if (smooth_recovery && service_state == service_state_t::STARTED && desired_state == service_state_t::STARTED) {
-        // TODO if we are pinned-started then we should probably check
-        //      that dependencies have started before trying to re-start the
-        //      service process.
-        if (! restart_ps_process()) {
-            emergency_stop();
-            services->process_queues();
-        }
+    else if (smooth_recovery && service_state == service_state_t::STARTED
+            && desired_state == service_state_t::STARTED) {
+        do_smooth_recovery();
         return;
     }
     else {
         emergency_stop();
     }
     services->process_queues();
+}
+
+void base_process_service::do_smooth_recovery() noexcept
+{
+    // TODO if we are pinned-started then we should probably check
+    //      that dependencies have started before trying to re-start the
+    //      service process.
+    if (! restart_ps_process()) {
+        emergency_stop();
+        services->process_queues();
+    }
 }
 
 void bgproc_service::handle_exit_status(int exit_status) noexcept
@@ -214,15 +221,19 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
 
     if (exit_status != 0 && service_state != service_state_t::STOPPING) {
         if (did_exit) {
-            log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ", WEXITSTATUS(exit_status));
+            log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ",
+                    WEXITSTATUS(exit_status));
         }
         else if (was_signalled) {
-            log(LogLevel::ERROR, "Service ", service_name, " terminated due to signal ", WTERMSIG(exit_status));
+            log(LogLevel::ERROR, "Service ", service_name, " terminated due to signal ",
+                    WTERMSIG(exit_status));
         }
     }
 
-    if (doing_recovery) {
-        doing_recovery = false;
+    // This may be a "smooth recovery" where we are restarting the process while leaving the
+    // service in the STARTED state.
+    if (restarting && service_state == service_state_t::STARTED) {
+        restarting = false;
         bool need_stop = false;
         if ((did_exit && WEXITSTATUS(exit_status) != 0) || was_signalled) {
             need_stop = true;
@@ -253,6 +264,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         return;
     }
 
+    restarting = false;
     if (service_state == service_state_t::STARTING) {
         // POSIX requires that if the process exited clearly with a status code of 0,
         // the exit status value will be 0:
@@ -282,14 +294,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         stopped();
     }
     else if (smooth_recovery && service_state == service_state_t::STARTED && desired_state == service_state_t::STARTED) {
-        // TODO if we are pinned-started then we should probably check
-        //      that dependencies have started before trying to re-start the
-        //      service process.
-        doing_recovery = true;
-        if (! restart_ps_process()) {
-            emergency_stop();
-            services->process_queues();
-        }
+        do_smooth_recovery();
         return;
     }
     else {
@@ -1334,7 +1339,6 @@ base_process_service::base_process_service(service_set *sset, string name,
 
 void base_process_service::do_restart() noexcept
 {
-    restarting = false;
     waiting_restart_timer = false;
     restart_interval_count++;
 
@@ -1344,6 +1348,7 @@ void base_process_service::do_restart() noexcept
             ? onstart_flags.starts_on_console : onstart_flags.runs_on_console;
 
     if (! start_ps_process(exec_arg_parts, on_console)) {
+        restarting = false;
         if (service_state == service_state_t::STARTING) {
             failed_to_start();
         }
