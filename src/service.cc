@@ -204,9 +204,6 @@ void process_service::handle_exit_status(int exit_status) noexcept
 
 void base_process_service::do_smooth_recovery() noexcept
 {
-    // TODO if we are pinned-started then we should probably check
-    //      that dependencies have started before trying to re-start the
-    //      service process.
     if (! restart_ps_process()) {
         emergency_stop();
         services->process_queues();
@@ -527,9 +524,12 @@ void service_record::do_propagation() noexcept
 
 void service_record::execute_transition() noexcept
 {
-    if (service_state == service_state_t::STARTING) {
+    // state is STARTED with restarting set true if we are running a smooth recovery.
+    if (service_state == service_state_t::STARTING || (service_state == service_state_t::STARTED
+            && restarting)) {
         if (start_check_dependencies(false)) {
-            all_deps_started(false);
+            bool have_console = service_state == service_state_t::STARTED && onstart_flags.runs_on_console;
+            all_deps_started(have_console);
         }
     }
     else if (service_state == service_state_t::STOPPING) {
@@ -560,7 +560,8 @@ void service_record::do_start() noexcept
 
 void service_record::dependencyStarted() noexcept
 {
-    if (service_state == service_state_t::STARTING && waiting_for_deps) {
+    if ((service_state == service_state_t::STARTING || service_state == service_state_t::STARTED)
+            && waiting_for_deps) {
         services->addToStartQueue(this);
     }
 }
@@ -1346,6 +1347,15 @@ void base_process_service::do_restart() noexcept
     // the process should be granted access to the console:
     bool on_console = service_state == service_state_t::STARTING
             ? onstart_flags.starts_on_console : onstart_flags.runs_on_console;
+
+    if (service_state == service_state_t::STARTING) {
+        // for a smooth recovery, we want to check dependencies are available before actually
+        // starting:
+        if (! start_check_dependencies(false)) {
+            waiting_for_deps = true;
+            return;
+        }
+    }
 
     if (! start_ps_process(exec_arg_parts, on_console)) {
         restarting = false;
