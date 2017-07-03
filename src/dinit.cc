@@ -12,6 +12,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <pwd.h>
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
 
 #include "dasynq.h"
 #include "service.h"
@@ -219,7 +222,11 @@ int dinit_main(int argc, char **argv)
         if (onefd > 2) close(onefd);
         if (twofd > 2) close(twofd);
     }
-    
+
+#ifdef __linux__
+    prctl(PR_SET_CHILD_SUBREAPER, 1);
+#endif
+
     /* Set up signal handlers etc */
     /* SIG_CHILD is ignored by default: good */
     sigset_t sigwait_set;
@@ -229,7 +236,7 @@ int dinit_main(int argc, char **argv)
     sigaddset(&sigwait_set, SIGTERM);
     if (am_system_init) sigaddset(&sigwait_set, SIGQUIT);
     sigprocmask(SIG_BLOCK, &sigwait_set, NULL);
-    
+
     // Terminal access control signals - we block these so that dinit can't be
     // suspended if it writes to the terminal after some other process has claimed
     // ownership of it.
