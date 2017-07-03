@@ -1222,6 +1222,17 @@ void service_record::all_deps_stopped() noexcept
     stopped();
 }
 
+void base_process_service::kill_pg(int signo) noexcept
+{
+    pid_t pgid = getpgid(pid);
+    if (pgid == -1) {
+        // only should happen if pid is invalid, which should never happen...
+        log(LogLevel::ERROR, service_name, ": can't signal process: ", strerror(errno));
+        return;
+    }
+    kill(-pgid, signo);
+}
+
 void base_process_service::all_deps_stopped() noexcept
 {
     waiting_for_deps = false;
@@ -1230,10 +1241,10 @@ void base_process_service::all_deps_stopped() noexcept
         // group (-pid) rather than just the process as there's less risk then of creating
         // an orphaned process group:
         if (! onstart_flags.no_sigterm) {
-            kill(-pid, SIGTERM);
+            kill_pg(SIGTERM);
         }
         if (term_signal != -1) {
-            kill(-pid, term_signal);
+            kill_pg(term_signal);
         }
 
         // In most cases, the rest is done in handle_exit_status.
@@ -1419,8 +1430,8 @@ void base_process_service::interrupt_start() noexcept
 void base_process_service::kill_with_fire() noexcept
 {
     if (pid != -1) {
-        log(LogLevel::WARN, "Service ", service_name, " exceeded allowed stop time; killing.");
-        kill(-pid, SIGKILL);
+        log(LogLevel::WARN, "Service ", service_name, "with pid ", pid, " exceeded allowed stop time; killing.");
+        kill_pg(SIGKILL);
     }
 }
 

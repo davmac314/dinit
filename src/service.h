@@ -656,6 +656,9 @@ class base_process_service : public service_record
     // Kill with SIGKILL
     void kill_with_fire() noexcept;
 
+    // Signal the process group of the service process
+    void kill_pg(int signo) noexcept;
+
     public:
     base_process_service(service_set *sset, string name, service_type record_type_p, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
