@@ -342,19 +342,19 @@ int dinit_main(int argc, char **argv)
     shutdown_type_t shutdown_type = services->getShutdownType();
     
     if (am_system_init) {
-        logMsgBegin(LogLevel::INFO, "No more active services.");
+        log_msg_begin(LogLevel::INFO, "No more active services.");
         
         if (shutdown_type == shutdown_type_t::REBOOT) {
-            logMsgEnd(" Will reboot.");
+            log_msg_end(" Will reboot.");
         }
         else if (shutdown_type == shutdown_type_t::HALT) {
-            logMsgEnd(" Will halt.");
+            log_msg_end(" Will halt.");
         }
         else if (shutdown_type == shutdown_type_t::POWEROFF) {
-            logMsgEnd(" Will power down.");
+            log_msg_end(" Will power down.");
         }
         else {
-            logMsgEnd(" Re-initiating boot sequence.");
+            log_msg_end(" Re-initiating boot sequence.");
         }
     }
     

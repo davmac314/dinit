@@ -111,7 +111,7 @@ bool control_conn_t::processFindLoad(int pktType)
         std::vector<char> rp_buf;
         rp_buf.reserve(7);
         rp_buf.push_back(DINIT_RP_SERVICERECORD);
-        rp_buf.push_back(static_cast<char>(record->getState()));
+        rp_buf.push_back(static_cast<char>(record->get_state()));
         for (int i = 0; i < (int) sizeof(handle); i++) {
             rp_buf.push_back(*(((char *) &handle) + i));
         }
@@ -166,29 +166,29 @@ bool control_conn_t::processStartStop(int pktType)
             if (do_pin) service->pinStart();
             service->start();
             services->process_queues();
-            already_there = service->getState() == service_state_t::STARTED;
+            already_there = service->get_state() == service_state_t::STARTED;
             break;
         case DINIT_CP_STOPSERVICE:
             // force service to stop
             if (do_pin) service->pinStop();
             service->stop(true);
-            service->forceStop();
+            service->forced_stop();
             services->process_queues();
-            already_there = service->getState() == service_state_t::STOPPED;
+            already_there = service->get_state() == service_state_t::STOPPED;
             break;
         case DINIT_CP_WAKESERVICE:
             // re-start a stopped service (do not mark as required)
             if (do_pin) service->pinStart();
             service->start(false);
             services->process_queues();
-            already_there = service->getState() == service_state_t::STARTED;
+            already_there = service->get_state() == service_state_t::STARTED;
             break;
         case DINIT_CP_RELEASESERVICE:
             // remove required mark, stop if not required by dependents
             if (do_pin) service->pinStop();
             service->stop(false);
             services->process_queues();
-            already_there = service->getState() == service_state_t::STOPPED;
+            already_there = service->get_state() == service_state_t::STOPPED;
             break;
         }
         
@@ -258,7 +258,7 @@ bool control_conn_t::listServices()
             
             pkt_buf[0] = DINIT_RP_SVCINFO;
             pkt_buf[1] = nameLen;
-            pkt_buf[2] = static_cast<char>(sptr->getState());
+            pkt_buf[2] = static_cast<char>(sptr->get_state());
             pkt_buf[3] = static_cast<char>(sptr->getTargetState());
             
             pkt_buf[4] = 0; // reserved

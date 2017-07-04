@@ -48,7 +48,7 @@ service_record * service_set::find_service(const std::string &name) noexcept
     return ::find_service(records, name.c_str());
 }
 
-void service_set::stopService(const std::string & name) noexcept
+void service_set::stop_service(const std::string & name) noexcept
 {
     service_record *record = find_service(name);
     if (record != nullptr) {
@@ -107,7 +107,7 @@ void service_record::stopped() noexcept
         }
     }
 
-    logServiceStopped(service_name);
+    log_service_stopped(service_name);
     notify_listeners(service_event::STOPPED);
 }
 
@@ -156,7 +156,7 @@ void service_record::emergency_stop() noexcept
         start_explicit = false;
         release();
     }
-    forceStop();
+    forced_stop();
     stop_dependents();
     stopped();
 }
@@ -300,7 +300,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
             start_explicit = false;
             release();
         }
-        forceStop();
+        forced_stop();
         stop_dependents();
         stopped();
     }
@@ -410,7 +410,7 @@ void service_record::require() noexcept
     if (required_by++ == 0) {
         prop_require = !prop_release;
         prop_release = false;
-        services->addToPropQueue(this);
+        services->add_prop_queue(this);
     }
 }
 
@@ -423,7 +423,7 @@ void service_record::release() noexcept
         // the require was pending though:
         prop_release = !prop_require;
         prop_require = false;
-        services->addToPropQueue(this);
+        services->add_prop_queue(this);
 
         if (service_state == service_state_t::STOPPED) {
             services->service_inactive(this);
@@ -480,7 +480,7 @@ void service_record::start(bool activate) noexcept
     waiting_for_deps = true;
 
     if (start_check_dependencies(true)) {
-        services->addToStartQueue(this);
+        services->add_transition_queue(this);
     }
 }
 
@@ -562,7 +562,7 @@ void service_record::dependencyStarted() noexcept
 {
     if ((service_state == service_state_t::STARTING || service_state == service_state_t::STARTED)
             && waiting_for_deps) {
-        services->addToStartQueue(this);
+        services->add_transition_queue(this);
     }
 }
 
@@ -575,7 +575,7 @@ bool service_record::start_check_dependencies(bool start_deps) noexcept
             if (start_deps) {
                 all_deps_started = false;
                 (*i)->prop_start = true;
-                services->addToPropQueue(*i);
+                services->add_prop_queue(*i);
             }
             else {
                 return false;
@@ -588,7 +588,7 @@ bool service_record::start_check_dependencies(bool start_deps) noexcept
         if (start_deps) {
             if (to->service_state != service_state_t::STARTED) {
                 to->prop_start = true;
-                services->addToPropQueue(to);
+                services->add_prop_queue(to);
                 i->waiting_on = true;
                 all_deps_started = false;
             }
@@ -717,7 +717,7 @@ void service_record::all_deps_started(bool has_console) noexcept
     }
 }
 
-void service_record::acquiredConsole() noexcept
+void service_record::acquired_console() noexcept
 {
     if (service_state != service_state_t::STARTING) {
         // We got the console but no longer want it.
@@ -808,7 +808,7 @@ void service_record::started() noexcept
         release_console();
     }
 
-    logServiceStarted(service_name);
+    log_service_started(service_name);
     service_state = service_state_t::STARTED;
     notify_listeners(service_event::STARTED);
 
@@ -841,7 +841,7 @@ void service_record::failed_to_start(bool depfailed) noexcept
         release_console();
     }
     
-    logServiceFailed(service_name);
+    log_service_failed(service_name);
     service_state = service_state_t::STOPPED;
     if (start_explicit) {
         start_explicit = false;
@@ -853,7 +853,7 @@ void service_record::failed_to_start(bool depfailed) noexcept
     for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
         if ((*i)->service_state == service_state_t::STARTING) {
             (*i)->prop_failure = true;
-            services->addToPropQueue(*i);
+            services->add_prop_queue(*i);
         }
     }    
     for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
@@ -1108,18 +1108,18 @@ void service_record::run_child_proc(const char * const *args, const char *logfil
 }
 
 // Mark this and all dependent services as force-stopped.
-void service_record::forceStop() noexcept
+void service_record::forced_stop() noexcept
 {
     if (service_state != service_state_t::STOPPED) {
         force_stop = true;
-        services->addToStopQueue(this);
+        services->add_transition_queue(this);
     }
 }
 
 void service_record::dependent_stopped() noexcept
 {
     if (service_state == service_state_t::STOPPING && waiting_for_deps) {
-        services->addToStopQueue(this);
+        services->add_transition_queue(this);
     }
 }
 
@@ -1174,7 +1174,7 @@ void service_record::do_stop() noexcept
     service_state = service_state_t::STOPPING;
     waiting_for_deps = true;
     if (stop_dependents()) {
-        services->addToStopQueue(this);
+        services->add_transition_queue(this);
     }
 }
 
@@ -1205,11 +1205,11 @@ bool service_record::stop_dependents() noexcept
 
         if (force_stop) {
             // If this service is to be forcefully stopped, dependents must also be.
-            (*i)->forceStop();
+            (*i)->forced_stop();
         }
 
         (*i)->prop_stop = true;
-        services->addToPropQueue(*i);
+        services->add_prop_queue(*i);
     }
 
     return all_deps_stopped;
@@ -1375,7 +1375,7 @@ void base_process_service::do_restart() noexcept
         }
         else {
             desired_state = service_state_t::STOPPED;
-            forceStop();
+            forced_stop();
         }
         services->process_queues();
     }

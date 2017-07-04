@@ -403,7 +403,7 @@ class service_record
         }
     }
     
-    // Queue to run on the console. 'acquiredConsole()' will be called when the console is available.
+    // Queue to run on the console. 'acquired_console()' will be called when the console is available.
     // Has no effect if the service has already queued for console.
     void queue_for_console() noexcept;
     
@@ -428,6 +428,8 @@ class service_record
         services = set;
         service_name = name;
         record_type = service_type::DUMMY;
+        socket_perms = 0;
+        exit_status = 0;
     }
 
     service_record(service_set *set, string name, service_type record_type_p,
@@ -477,19 +479,13 @@ class service_record
     void do_stop() noexcept;
     
     // Console is available.
-    void acquiredConsole() noexcept;
+    void acquired_console() noexcept;
     
     // Set the stop command and arguments (may throw std::bad_alloc)
     void setStopCommand(std::string command, std::list<std::pair<unsigned,unsigned>> &stop_command_offsets)
     {
         stop_command = command;
         stop_arg_parts = separate_args(stop_command, stop_command_offsets);
-    }
-    
-    // Get the current service state.
-    service_state_t getState() noexcept
-    {
-        return service_state;
     }
     
     // Get the target (aka desired) state.
@@ -541,12 +537,12 @@ class service_record
     }
 
     const std::string &getServiceName() const noexcept { return service_name; }
-    service_state_t getState() const noexcept { return service_state; }
+    service_state_t get_state() const noexcept { return service_state; }
     
     void start(bool activate = true) noexcept;  // start the service
     void stop(bool bring_down = true) noexcept;   // stop the service
     
-    void forceStop() noexcept; // force-stop this service and all dependents
+    void forced_stop() noexcept; // force-stop this service and all dependents
     
     // Pin the service in "started" state (when it reaches the state)
     void pinStart() noexcept
@@ -871,28 +867,20 @@ class service_set
     
     // Stop the service with the given name. The named service will begin
     // transition to the 'stopped' state.
-    void stopService(const std::string &name) noexcept;
+    void stop_service(const std::string &name) noexcept;
     
     // Add a service record to the state propagation queue. The service record will have its
     // do_propagation() method called when the queue is processed.
-    void addToPropQueue(service_record *service) noexcept
+    void add_prop_queue(service_record *service) noexcept
     {
         if (! prop_queue.is_queued(service)) {
             prop_queue.insert(service);
         }
     }
     
-    // Add a service record to the start queue. The service record will have its
-    // execute_transition() method called when the queue is processed.
-    void addToStartQueue(service_record *service) noexcept
-    {
-        // The start/stop queue is actually one queue:
-        addToStopQueue(service);
-    }
-    
     // Add a service record to the stop queue. The service record will have its
     // execute_transition() method called when the queue is processed.
-    void addToStopQueue(service_record *service) noexcept
+    void add_transition_queue(service_record *service) noexcept
     {
         if (! stop_queue.is_queued(service)) {
             stop_queue.insert(service);
@@ -932,7 +920,7 @@ class service_set
         }
         else {
             service_record * front = console_queue.pop_front();
-            front->acquiredConsole();
+            front->acquired_console();
         }
     }
     

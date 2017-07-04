@@ -398,7 +398,7 @@ static void do_log_commit(int idx) noexcept
 }
 
 // Log a multi-part message beginning
-void logMsgBegin(LogLevel lvl, const char *msg) noexcept
+void log_msg_begin(LogLevel lvl, const char *msg) noexcept
 {
     log_current_line[DLOG_CONS] = lvl >= log_level[DLOG_CONS];
     log_current_line[DLOG_MAIN] = lvl >= log_level[DLOG_MAIN];
@@ -416,14 +416,14 @@ void logMsgBegin(LogLevel lvl, const char *msg) noexcept
 }
 
 // Continue a multi-part log message
-void logMsgPart(const char *msg) noexcept
+void log_msg_part(const char *msg) noexcept
 {
     do_log_part(DLOG_CONS, msg);
     do_log_part(DLOG_MAIN, msg);
 }
 
 // Complete a multi-part log message
-void logMsgEnd(const char *msg) noexcept
+void log_msg_end(const char *msg) noexcept
 {
     for (int i = 0; i < 2; i++) {
         do_log_part(i, msg);
@@ -432,19 +432,19 @@ void logMsgEnd(const char *msg) noexcept
     }
 }
 
-void logServiceStarted(const char *service_name) noexcept
+void log_service_started(const char *service_name) noexcept
 {
     do_log_cons("[  OK  ] ", service_name, "\n");
     do_log_main("dinit: service ", service_name, " started.\n");
 }
 
-void logServiceFailed(const char *service_name) noexcept
+void log_service_failed(const char *service_name) noexcept
 {
     do_log_cons("[FAILED] ", service_name, "\n");
     do_log_main("dinit: service ", service_name, " failed to start.\n");
 }
 
-void logServiceStopped(const char *service_name) noexcept
+void log_service_stopped(const char *service_name) noexcept
 {
     do_log_cons("[STOPPD] ", service_name, "\n");
     do_log_main("dinit: service ", service_name, " stopped.\n");
