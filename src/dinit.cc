@@ -14,6 +14,8 @@
 #include <pwd.h>
 #ifdef __linux__
 #include <sys/prctl.h>
+#include <sys/klog.h>
+#include <sys/reboot.h>
 #endif
 
 #include "dasynq.h"
@@ -21,11 +23,6 @@
 #include "control.h"
 #include "dinit-log.h"
 #include "dinit-socket.h"
-
-#ifdef __linux__
-#include <sys/klog.h>
-#include <sys/reboot.h>
-#endif
 
 /*
  * When running as the system init process, Dinit processes the following signals:
@@ -39,7 +36,6 @@
  * anyway. But it seems safe to do so, and it means the user can at least stop
  * services even if the halt/reboot commands are unavailable for some reason.
  */
-
 
 using namespace dasynq;
 using eventloop_t = event_loop<null_mutex>;
@@ -223,10 +219,6 @@ int dinit_main(int argc, char **argv)
         if (twofd > 2) close(twofd);
     }
 
-#ifdef __linux__
-    prctl(PR_SET_CHILD_SUBREAPER, 1);
-#endif
-
     /* Set up signal handlers etc */
     /* SIG_CHILD is ignored by default: good */
     sigset_t sigwait_set;
@@ -305,6 +297,10 @@ int dinit_main(int argc, char **argv)
         // Make ctrl+alt+del combination send SIGINT to PID 1 (this process)
         reboot(RB_DISABLE_CAD);
     }
+
+    // Mark ourselves as a subreaper. This means that if a process we start double-forks, the
+    // orphaned child will re-parent to us rather than to PID 1 (although that could be us too).
+    prctl(PR_SET_CHILD_SUBREAPER, 1);
 #endif
     
     /* start requested services */
