@@ -15,7 +15,7 @@
 extern eventloop_t eventLoop;
 
 static bool log_current_line[2];  // Whether the current line is being logged (for console, main log)
-LogLevel log_level[2] = { LogLevel::WARN, LogLevel::WARN };
+loglevel_t log_level[2] = { loglevel_t::WARN, loglevel_t::WARN };
 
 static service_set *services = nullptr;  // Reference to service set
 
@@ -302,16 +302,16 @@ template <typename ... T> static void append(BufferedLogStream &buf, const char 
     append(buf, t...);
 }
 
-static int log_level_to_syslog_level(LogLevel l)
+static int log_level_to_syslog_level(loglevel_t l)
 {
     switch (l) {
-    case LogLevel::DEBUG:
+    case loglevel_t::DEBUG:
         return LOG_DEBUG;
-    case LogLevel::INFO:
+    case loglevel_t::INFO:
         return LOG_INFO;
-    case LogLevel::WARN:
+    case loglevel_t::WARN:
         return LOG_WARNING;
-    case LogLevel::ERROR:
+    case loglevel_t::ERROR:
         return LOG_ERR;
     default: ;
     }
@@ -334,7 +334,7 @@ template <typename ... T> static void push_to_log(int idx, T ... args) noexcept
 }
 
 // Variadic method to potentially log a sequence of strings as a single message with the given log level:
-template <typename ... T> static void do_log(LogLevel lvl, T ... args) noexcept
+template <typename ... T> static void do_log(loglevel_t lvl, T ... args) noexcept
 {
     log_current_line[DLOG_CONS] = lvl >= log_level[DLOG_CONS];
     log_current_line[DLOG_MAIN] = lvl >= log_level[DLOG_MAIN];
@@ -368,7 +368,7 @@ template <typename ... T> static void do_log_main(T ... args) noexcept
 }
 
 // Log a message. A newline will be appended.
-void log(LogLevel lvl, const char *msg) noexcept
+void log(loglevel_t lvl, const char *msg) noexcept
 {
     do_log(lvl, "dinit: ", msg, "\n");
 }
@@ -398,7 +398,7 @@ static void do_log_commit(int idx) noexcept
 }
 
 // Log a multi-part message beginning
-void log_msg_begin(LogLevel lvl, const char *msg) noexcept
+void log_msg_begin(loglevel_t lvl, const char *msg) noexcept
 {
     log_current_line[DLOG_CONS] = lvl >= log_level[DLOG_CONS];
     log_current_line[DLOG_MAIN] = lvl >= log_level[DLOG_MAIN];

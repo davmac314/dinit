@@ -97,7 +97,7 @@ bool control_conn_t::processFindLoad(int pktType)
             record = services->load_service(serviceName.c_str());
         }
         catch (service_load_exc &slexc) {
-            log(LogLevel::ERROR, "Could not load service ", slexc.serviceName, ": ", slexc.excDescription);
+            log(loglevel_t::ERROR, "Could not load service ", slexc.serviceName, ": ", slexc.excDescription);
         }
     }
     else {
@@ -115,7 +115,7 @@ bool control_conn_t::processFindLoad(int pktType)
         for (int i = 0; i < (int) sizeof(handle); i++) {
             rp_buf.push_back(*(((char *) &handle) + i));
         }
-        rp_buf.push_back(static_cast<char>(record->getTargetState()));
+        rp_buf.push_back(static_cast<char>(record->get_target_state()));
         if (! queuePacket(std::move(rp_buf))) return false;
     }
     else {
@@ -163,14 +163,14 @@ bool control_conn_t::processStartStop(int pktType)
         switch (pktType) {
         case DINIT_CP_STARTSERVICE:
             // start service, mark as required
-            if (do_pin) service->pinStart();
+            if (do_pin) service->pin_start();
             service->start();
             services->process_queues();
             already_there = service->get_state() == service_state_t::STARTED;
             break;
         case DINIT_CP_STOPSERVICE:
             // force service to stop
-            if (do_pin) service->pinStop();
+            if (do_pin) service->pin_stop();
             service->stop(true);
             service->forced_stop();
             services->process_queues();
@@ -178,14 +178,14 @@ bool control_conn_t::processStartStop(int pktType)
             break;
         case DINIT_CP_WAKESERVICE:
             // re-start a stopped service (do not mark as required)
-            if (do_pin) service->pinStart();
+            if (do_pin) service->pin_start();
             service->start(false);
             services->process_queues();
             already_there = service->get_state() == service_state_t::STARTED;
             break;
         case DINIT_CP_RELEASESERVICE:
             // remove required mark, stop if not required by dependents
-            if (do_pin) service->pinStop();
+            if (do_pin) service->pin_stop();
             service->stop(false);
             services->process_queues();
             already_there = service->get_state() == service_state_t::STOPPED;
@@ -252,14 +252,14 @@ bool control_conn_t::listServices()
         for (auto sptr : slist) {
             std::vector<char> pkt_buf;
             
-            const std::string &name = sptr->getServiceName();
+            const std::string &name = sptr->get_service_name();
             int nameLen = std::min((size_t)256, name.length());
             pkt_buf.resize(8 + nameLen);
             
             pkt_buf[0] = DINIT_RP_SVCINFO;
             pkt_buf[1] = nameLen;
             pkt_buf[2] = static_cast<char>(sptr->get_state());
-            pkt_buf[3] = static_cast<char>(sptr->getTargetState());
+            pkt_buf[3] = static_cast<char>(sptr->get_target_state());
             
             pkt_buf[4] = 0; // reserved
             pkt_buf[5] = 0;
@@ -324,7 +324,7 @@ bool control_conn_t::queuePacket(const char *pkt, unsigned size) noexcept
                 return false;
             }
             if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-                log(LogLevel::WARN, "Error writing to control connection: ", strerror(errno));
+                log(loglevel_t::WARN, "Error writing to control connection: ", strerror(errno));
                 return false;
             }
             // EAGAIN etc: fall through to below
@@ -379,7 +379,7 @@ bool control_conn_t::queuePacket(std::vector<char> &&pkt) noexcept
                 return false;
             }
             if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-                log(LogLevel::WARN, "Error writing to control connection: ", strerror(errno));
+                log(loglevel_t::WARN, "Error writing to control connection: ", strerror(errno));
                 return false;
             }
             // EAGAIN etc: fall through to below
@@ -431,7 +431,7 @@ bool control_conn_t::dataReady() noexcept
     // Note file descriptor is non-blocking
     if (r == -1) {
         if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-            log(LogLevel::WARN, "Error writing to control connection: ", strerror(errno));
+            log(loglevel_t::WARN, "Error writing to control connection: ", strerror(errno));
             return true;
         }
         return false;
@@ -453,7 +453,7 @@ bool control_conn_t::dataReady() noexcept
     }
     else if (rbuf.get_length() == 1024) {
         // Too big packet
-        log(LogLevel::WARN, "Received too-large control package; dropping connection");
+        log(loglevel_t::WARN, "Received too-large control package; dropping connection");
         bad_conn_close = true;
         iob.set_watches(OUT_EVENTS);
     }
@@ -488,7 +488,7 @@ bool control_conn_t::sendData() noexcept
             // spurious readiness notification?
         }
         else {
-            log(LogLevel::ERROR, "Error writing to control connection: ", strerror(errno));
+            log(loglevel_t::ERROR, "Error writing to control connection: ", strerror(errno));
             return true;
         }
         return false;

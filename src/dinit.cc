@@ -317,13 +317,13 @@ int dinit_main(int argc, char **argv)
             // exit if user process).
         }
         catch (service_not_found &snf) {
-            log(LogLevel::ERROR, snf.serviceName, ": Could not find service description.");
+            log(loglevel_t::ERROR, snf.serviceName, ": Could not find service description.");
         }
         catch (service_load_exc &sle) {
-            log(LogLevel::ERROR, sle.serviceName, ": ", sle.excDescription);
+            log(loglevel_t::ERROR, sle.serviceName, ": ", sle.excDescription);
         }
         catch (std::bad_alloc &badalloce) {
-            log(LogLevel::ERROR, "Out of memory when trying to start service: ", svc, ".");
+            log(loglevel_t::ERROR, "Out of memory when trying to start service: ", svc, ".");
             break;
         }
     }
@@ -338,7 +338,7 @@ int dinit_main(int argc, char **argv)
     shutdown_type_t shutdown_type = services->getShutdownType();
     
     if (am_system_init) {
-        log_msg_begin(LogLevel::INFO, "No more active services.");
+        log_msg_begin(loglevel_t::INFO, "No more active services.");
         
         if (shutdown_type == shutdown_type_t::REBOOT) {
             log_msg_end(" Will reboot.");
@@ -371,7 +371,7 @@ int dinit_main(int argc, char **argv)
             }
             catch (...) {
                 // Now what do we do? try to reboot, but wait for user ack to avoid boot loop.
-                log(LogLevel::ERROR, "Could not start 'boot' service. Will attempt reboot.");
+                log(loglevel_t::ERROR, "Could not start 'boot' service. Will attempt reboot.");
                 wait_for_user_input();
                 shutdown_type = shutdown_type_t::REBOOT;
             }
@@ -391,7 +391,7 @@ int dinit_main(int argc, char **argv)
         
         // Fork and execute dinit-reboot.
         execl("/sbin/shutdown", "/sbin/shutdown", "--system", cmd_arg, nullptr);
-        log(LogLevel::ERROR, "Could not execute /sbin/shutdown: ", strerror(errno));
+        log(loglevel_t::ERROR, "Could not execute /sbin/shutdown: ", strerror(errno));
         
         // PID 1 must not actually exit, although we should never reach this point:
         while (true) {
@@ -435,7 +435,7 @@ static void control_socket_cb(eventloop_t *loop, int sockfd)
             new control_conn_t(loop, services, newfd);  // will delete itself when it's finished
         }
         catch (std::exception &exc) {
-            log(LogLevel::ERROR, "Accepting control connection: ", exc.what());
+            log(loglevel_t::ERROR, "Accepting control connection: ", exc.what());
             close(newfd);
         }
     }
@@ -450,7 +450,7 @@ void open_control_socket(bool report_ro_failure) noexcept
         
         struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
         if (name == nullptr) {
-            log(LogLevel::ERROR, "Opening control socket: out of memory");
+            log(loglevel_t::ERROR, "Opening control socket: out of memory");
             return;
         }
 
@@ -465,14 +465,14 @@ void open_control_socket(bool report_ro_failure) noexcept
 
         int sockfd = dinit_socket(AF_UNIX, SOCK_STREAM, 0, SOCK_NONBLOCK | SOCK_CLOEXEC);
         if (sockfd == -1) {
-            log(LogLevel::ERROR, "Error creating control socket: ", strerror(errno));
+            log(loglevel_t::ERROR, "Error creating control socket: ", strerror(errno));
             free(name);
             return;
         }
 
         if (bind(sockfd, (struct sockaddr *) name, sockaddr_size) == -1) {
             if (errno != EROFS || report_ro_failure) {
-                log(LogLevel::ERROR, "Error binding control socket: ", strerror(errno));
+                log(loglevel_t::ERROR, "Error binding control socket: ", strerror(errno));
             }
             close(sockfd);
             free(name);
@@ -484,13 +484,13 @@ void open_control_socket(bool report_ro_failure) noexcept
         // No connections can be made until we listen, so it is fine to change the permissions now
         // (and anyway there is no way to atomically create the socket and set permissions):
         if (chmod(saddrname, S_IRUSR | S_IWUSR) == -1) {
-            log(LogLevel::ERROR, "Error setting control socket permissions: ", strerror(errno));
+            log(loglevel_t::ERROR, "Error setting control socket permissions: ", strerror(errno));
             close(sockfd);
             return;
         }
 
         if (listen(sockfd, 10) == -1) {
-            log(LogLevel::ERROR, "Error listening on control socket: ", strerror(errno));
+            log(loglevel_t::ERROR, "Error listening on control socket: ", strerror(errno));
             close(sockfd);
             return;
         }
@@ -501,7 +501,7 @@ void open_control_socket(bool report_ro_failure) noexcept
         }
         catch (std::exception &e)
         {
-            log(LogLevel::ERROR, "Could not setup I/O on control socket: ", e.what());
+            log(loglevel_t::ERROR, "Could not setup I/O on control socket: ", e.what());
             close(sockfd);
         }
     }
@@ -529,7 +529,7 @@ void setup_external_log() noexcept
         
         struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
         if (name == nullptr) {
-            log(LogLevel::ERROR, "Connecting to log socket: out of memory");
+            log(loglevel_t::ERROR, "Connecting to log socket: out of memory");
             return;
         }
         
@@ -538,7 +538,7 @@ void setup_external_log() noexcept
         
         int sockfd = dinit_socket(AF_UNIX, SOCK_DGRAM, 0, SOCK_NONBLOCK | SOCK_CLOEXEC);
         if (sockfd == -1) {
-            log(LogLevel::ERROR, "Error creating log socket: ", strerror(errno));
+            log(loglevel_t::ERROR, "Error creating log socket: ", strerror(errno));
             free(name);
             return;
         }
@@ -551,7 +551,7 @@ void setup_external_log() noexcept
                 setup_main_log(sockfd);
             }
             catch (std::exception &e) {
-                log(LogLevel::ERROR, "Setting up log failed: ", e.what());
+                log(loglevel_t::ERROR, "Setting up log failed: ", e.what());
                 close(sockfd);
             }
         }
@@ -577,7 +577,7 @@ static void sigquit_cb(eventloop_t &eloop) noexcept
     // This performs an immediate shutdown, without service rollback.
     close_control_socket();
     execl("/sbin/shutdown", "/sbin/shutdown", "--system", (char *) 0);
-    log(LogLevel::ERROR, "Error executing /sbin/shutdown: ", strerror(errno));
+    log(loglevel_t::ERROR, "Error executing /sbin/shutdown: ", strerror(errno));
     sync(); // since a hard poweroff might be required at this point...
 }
 

@@ -50,12 +50,12 @@ static string read_setting_name(string_iterator & i, string_iterator end)
 }
 
 namespace {
-    class SettingException
+    class setting_exception
     {
         std::string info;
         
         public:
-        SettingException(const std::string &&exc_info) : info(std::move(exc_info))
+        setting_exception(const std::string &&exc_info) : info(std::move(exc_info))
         {
         }
         
@@ -114,7 +114,7 @@ static string read_setting_value(string_iterator & i, string_iterator end,
                 c = *i;
                 if (c == '\"') break;
                 if (c == '\n') {
-                    throw SettingException("Line end inside quoted string");
+                    throw setting_exception("Line end inside quoted string");
                 }
                 else if (c == '\\') {
                     // A backslash escapes the following character.
@@ -122,7 +122,7 @@ static string read_setting_value(string_iterator & i, string_iterator end,
                     if (i != end) {
                         c = *i;
                         if (c == '\n') {
-                            throw SettingException("Line end follows backslash escape character (`\\')");
+                            throw setting_exception("Line end follows backslash escape character (`\\')");
                         }
                         rval += c;
                     }
@@ -134,7 +134,7 @@ static string read_setting_value(string_iterator & i, string_iterator end,
             }
             if (i == end) {
                 // String wasn't terminated
-                throw SettingException("Unterminated quoted string");
+                throw setting_exception("Unterminated quoted string");
             }
         }
         else if (c == '\\') {
@@ -148,7 +148,7 @@ static string read_setting_value(string_iterator & i, string_iterator end,
                 rval += *i;
             }
             else {
-                throw SettingException("Backslash escape (`\\') not followed by character");
+                throw setting_exception("Backslash escape (`\\') not followed by character");
             }
         }
         else if (isspace(c, locale::classic())) {
@@ -165,7 +165,7 @@ static string read_setting_value(string_iterator & i, string_iterator end,
         else if (c == '#') {
             // Possibly intended a comment; we require leading whitespace to reduce occurrence of accidental
             // comments in setting values.
-            throw SettingException("hashmark (`#') comment must be separated from setting value by whitespace");
+            throw setting_exception("hashmark (`#') comment must be separated from setting value by whitespace");
         }
         else {
             if (new_part) {
@@ -606,7 +606,7 @@ service_record * dirload_service_set::load_service(const char * name)
                 else if (service_type == service_type::SCRIPTED) {
                     auto rvalps = new scripted_service(this, string(name), std::move(command),
                             command_offsets, std::move(depends_on), depends_soft);
-                    rvalps->setStopCommand(stop_command, stop_command_offsets);
+                    rvalps->set_stop_command(stop_command, stop_command_offsets);
                     rvalps->set_stop_timeout(stop_timeout);
                     rval = rvalps;
                 }
@@ -615,11 +615,11 @@ service_record * dirload_service_set::load_service(const char * name)
                             std::move(command), command_offsets,
                             std::move(depends_on), depends_soft);
                 }
-                rval->setLogfile(logfile);
-                rval->setAutoRestart(auto_restart);
-                rval->setSmoothRecovery(smooth_recovery);
-                rval->setOnstartFlags(onstart_flags);
-                rval->setExtraTerminationSignal(term_signal);
+                rval->set_log_file(logfile);
+                rval->set_auto_restart(auto_restart);
+                rval->set_smooth_recovery(smooth_recovery);
+                rval->set_flags(onstart_flags);
+                rval->set_extra_termination_signal(term_signal);
                 rval->set_socket_details(std::move(socket_path), socket_perms, socket_uid, socket_gid);
                 *iter = rval;
                 break;
@@ -628,7 +628,7 @@ service_record * dirload_service_set::load_service(const char * name)
         
         return rval;
     }
-    catch (SettingException &setting_exc)
+    catch (setting_exception &setting_exc)
     {
         // Must remove the dummy service record.
         std::remove(records.begin(), records.end(), rval);

@@ -9,7 +9,7 @@
 
 class service_set;
 
-enum class LogLevel {
+enum class loglevel_t {
     DEBUG,
     INFO,
     WARN,
@@ -17,15 +17,15 @@ enum class LogLevel {
     ZERO    // log absolutely nothing
 };
 
-extern LogLevel log_level[2];
+extern loglevel_t log_level[2];
 void enable_console_log(bool do_enable) noexcept;
 void init_log(service_set *sset);
 void setup_main_log(int fd);
 bool is_log_flushed() noexcept;
 void discard_console_log_buffer() noexcept;
 
-void log(LogLevel lvl, const char *msg) noexcept;
-void log_msg_begin(LogLevel lvl, const char *msg) noexcept;
+void log(loglevel_t lvl, const char *msg) noexcept;
+void log_msg_begin(loglevel_t lvl, const char *msg) noexcept;
 void log_msg_part(const char *msg) noexcept;
 void log_msg_end(const char *msg) noexcept;
 void log_service_started(const char *service_name) noexcept;
@@ -35,17 +35,17 @@ void log_service_stopped(const char *service_name) noexcept;
 // Convenience methods which perform type conversion of the argument.
 // There is some duplication here that could possibly be avoided, but
 // it doesn't seem like a big deal.
-static inline void log(LogLevel lvl, const std::string &str) noexcept
+static inline void log(loglevel_t lvl, const std::string &str) noexcept
 {
     log(lvl, str.c_str());
 }
 
-static inline void log_msg_begin(LogLevel lvl, const std::string &str) noexcept
+static inline void log_msg_begin(loglevel_t lvl, const std::string &str) noexcept
 {
     log_msg_begin(lvl, str.c_str());
 }
 
-static inline void log_msg_begin(LogLevel lvl, int a) noexcept
+static inline void log_msg_begin(loglevel_t lvl, int a) noexcept
 {
     constexpr int bufsz = (CHAR_BIT * sizeof(int) - 1) / 3 + 2;
     char nbuf[bufsz];
@@ -109,7 +109,7 @@ namespace dinit_log {
 }
 
 // Variadic 'log' method.
-template <typename A, typename ...B> static inline void log(LogLevel lvl, A a, B ...b) noexcept
+template <typename A, typename ...B> static inline void log(loglevel_t lvl, A a, B ...b) noexcept
 {
     log_msg_begin(lvl, a);
     dinit_log::log_parts(b...);

@@ -178,12 +178,12 @@ class service_dep
     service_dep(service_record * from, service_record * to) noexcept : from(from), to(to), waiting_on(false), holding_acq(false)
     {  }
 
-    service_record * getFrom() noexcept
+    service_record * get_from() noexcept
     {
         return from;
     }
 
-    service_record * getTo() noexcept
+    service_record * get_to() noexcept
     {
         return to;
     }
@@ -482,43 +482,43 @@ class service_record
     void acquired_console() noexcept;
     
     // Set the stop command and arguments (may throw std::bad_alloc)
-    void setStopCommand(std::string command, std::list<std::pair<unsigned,unsigned>> &stop_command_offsets)
+    void set_stop_command(std::string command, std::list<std::pair<unsigned,unsigned>> &stop_command_offsets)
     {
         stop_command = command;
         stop_arg_parts = separate_args(stop_command, stop_command_offsets);
     }
     
     // Get the target (aka desired) state.
-    service_state_t getTargetState() noexcept
+    service_state_t get_target_state() noexcept
     {
         return desired_state;
     }
 
     // Set logfile, should be done before service is started
-    void setLogfile(string logfile)
+    void set_log_file(string logfile)
     {
         this->logfile = logfile;
     }
     
     // Set whether this service should automatically restart when it dies
-    void setAutoRestart(bool auto_restart) noexcept
+    void set_auto_restart(bool auto_restart) noexcept
     {
         this->auto_restart = auto_restart;
     }
     
-    void setSmoothRecovery(bool smooth_recovery) noexcept
+    void set_smooth_recovery(bool smooth_recovery) noexcept
     {
         this->smooth_recovery = smooth_recovery;
     }
     
     // Set "on start" flags (commands)
-    void setOnstartFlags(onstart_flags_t flags) noexcept
+    void set_flags(onstart_flags_t flags) noexcept
     {
         this->onstart_flags = flags;
     }
     
     // Set an additional signal (other than SIGTERM) to be used to terminate the process
-    void setExtraTerminationSignal(int signo) noexcept
+    void set_extra_termination_signal(int signo) noexcept
     {
         this->term_signal = signo;
     }
@@ -536,7 +536,7 @@ class service_record
         this->socket_gid = socket_gid;
     }
 
-    const std::string &getServiceName() const noexcept { return service_name; }
+    const std::string &get_service_name() const noexcept { return service_name; }
     service_state_t get_state() const noexcept { return service_state; }
     
     void start(bool activate = true) noexcept;  // start the service
@@ -545,13 +545,13 @@ class service_record
     void forced_stop() noexcept; // force-stop this service and all dependents
     
     // Pin the service in "started" state (when it reaches the state)
-    void pinStart() noexcept
+    void pin_start() noexcept
     {
         pinned_started = true;
     }
     
     // Pin the service in "stopped" state (when it reaches the state)
-    void pinStop() noexcept
+    void pin_stop() noexcept
     {
         pinned_stopped = true;
     }

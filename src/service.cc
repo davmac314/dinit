@@ -36,7 +36,7 @@ static service_record * find_service(const std::list<service_record *> & records
     using std::list;
     list<service_record *>::const_iterator i = records.begin();
     for ( ; i != records.end(); i++ ) {
-        if (strcmp((*i)->getServiceName().c_str(), name) == 0) {
+        if (strcmp((*i)->get_service_name().c_str(), name) == 0) {
             return *i;
         }
     }
@@ -169,11 +169,11 @@ void process_service::handle_exit_status(int exit_status) noexcept
 
     if (exit_status != 0 && service_state != service_state_t::STOPPING) {
         if (did_exit) {
-            log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ",
+            log(loglevel_t::ERROR, "Service ", service_name, " process terminated with exit code ",
                     WEXITSTATUS(exit_status));
         }
         else if (was_signalled) {
-            log(LogLevel::ERROR, "Service ", service_name, " terminated due to signal ",
+            log(loglevel_t::ERROR, "Service ", service_name, " terminated due to signal ",
                     WTERMSIG(exit_status));
         }
     }
@@ -218,11 +218,11 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
 
     if (exit_status != 0 && service_state != service_state_t::STOPPING) {
         if (did_exit) {
-            log(LogLevel::ERROR, "Service ", service_name, " process terminated with exit code ",
+            log(loglevel_t::ERROR, "Service ", service_name, " process terminated with exit code ",
                     WEXITSTATUS(exit_status));
         }
         else if (was_signalled) {
-            log(LogLevel::ERROR, "Service ", service_name, " terminated due to signal ",
+            log(loglevel_t::ERROR, "Service ", service_name, " terminated due to signal ",
                     WTERMSIG(exit_status));
         }
     }
@@ -319,11 +319,11 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
         else {
             // ??? failed to stop! Let's log it as info:
             if (did_exit) {
-                log(LogLevel::INFO, "Service ", service_name, " stop command failed with exit code ",
+                log(loglevel_t::INFO, "Service ", service_name, " stop command failed with exit code ",
                         WEXITSTATUS(exit_status));
             }
             else if (was_signalled) {
-                log(LogLevel::INFO, "Serivice ", service_name, " stop command terminated due to signal ",
+                log(loglevel_t::INFO, "Serivice ", service_name, " stop command terminated due to signal ",
                         WTERMSIG(exit_status));
             }
             // Just assume that we stopped, so that any dependencies
@@ -339,11 +339,11 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
         else {
             // failed to start
             if (did_exit) {
-                log(LogLevel::ERROR, "Service ", service_name, " command failed with exit code ",
+                log(loglevel_t::ERROR, "Service ", service_name, " command failed with exit code ",
                         WEXITSTATUS(exit_status));
             }
             else if (was_signalled) {
-                log(LogLevel::ERROR, "Service ", service_name, " command terminated due to signal ",
+                log(loglevel_t::ERROR, "Service ", service_name, " command terminated due to signal ",
                         WTERMSIG(exit_status));
             }
             failed_to_start();
@@ -373,7 +373,7 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
             }
         }
         sr->pid = -1;
-        log(LogLevel::ERROR, sr->service_name, ": execution failed: ", strerror(exec_status));
+        log(loglevel_t::ERROR, sr->service_name, ": execution failed: ", strerror(exec_status));
         if (sr->service_state == service_state_t::STARTING) {
             sr->failed_to_start();
         }
@@ -441,7 +441,7 @@ void service_record::release_dependencies() noexcept
     }
 
     for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
-        service_record * to = i->getTo();
+        service_record * to = i->get_to();
         if (i->holding_acq) {
             to->release();
             i->holding_acq = false;
@@ -493,7 +493,7 @@ void service_record::do_propagation() noexcept
         }
 
         for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
-            service_record * to = i->getTo();
+            service_record * to = i->get_to();
             to->require();
             i->holding_acq = true;
         }
@@ -584,7 +584,7 @@ bool service_record::start_check_dependencies(bool start_deps) noexcept
     }
 
     for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
-        service_record * to = i->getTo();
+        service_record * to = i->get_to();
         if (start_deps) {
             if (to->service_state != service_state_t::STARTED) {
                 to->prop_start = true;
@@ -625,13 +625,13 @@ bool service_record::open_socket() noexcept
     if (stat(saddrname, &stat_buf) == 0) {
         if ((stat_buf.st_mode & S_IFSOCK) == 0) {
             // Not a socket
-            log(LogLevel::ERROR, service_name, ": Activation socket file exists (and is not a socket)");
+            log(loglevel_t::ERROR, service_name, ": Activation socket file exists (and is not a socket)");
             return false;
         }
     }
     else if (errno != ENOENT) {
         // Other error
-        log(LogLevel::ERROR, service_name, ": Error checking activation socket: ", strerror(errno));
+        log(loglevel_t::ERROR, service_name, ": Error checking activation socket: ", strerror(errno));
         return false;
     }
 
@@ -643,7 +643,7 @@ bool service_record::open_socket() noexcept
     uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + socket_path.length() + 1;
     struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
     if (name == nullptr) {
-        log(LogLevel::ERROR, service_name, ": Opening activation socket: out of memory");
+        log(loglevel_t::ERROR, service_name, ": Opening activation socket: out of memory");
         return false;
     }
 
@@ -652,13 +652,13 @@ bool service_record::open_socket() noexcept
 
     int sockfd = dinit_socket(AF_UNIX, SOCK_STREAM, 0, SOCK_NONBLOCK | SOCK_CLOEXEC);
     if (sockfd == -1) {
-        log(LogLevel::ERROR, service_name, ": Error creating activation socket: ", strerror(errno));
+        log(loglevel_t::ERROR, service_name, ": Error creating activation socket: ", strerror(errno));
         free(name);
         return false;
     }
 
     if (bind(sockfd, (struct sockaddr *) name, sockaddr_size) == -1) {
-        log(LogLevel::ERROR, service_name, ": Error binding activation socket: ", strerror(errno));
+        log(loglevel_t::ERROR, service_name, ": Error binding activation socket: ", strerror(errno));
         close(sockfd);
         free(name);
         return false;
@@ -669,19 +669,19 @@ bool service_record::open_socket() noexcept
     // POSIX (1003.1, 2013) says that fchown and fchmod don't necessarily work on sockets. We have to
     // use chown and chmod instead.
     if (chown(saddrname, socket_uid, socket_gid)) {
-        log(LogLevel::ERROR, service_name, ": Error setting activation socket owner/group: ", strerror(errno));
+        log(loglevel_t::ERROR, service_name, ": Error setting activation socket owner/group: ", strerror(errno));
         close(sockfd);
         return false;
     }
     
     if (chmod(saddrname, socket_perms) == -1) {
-        log(LogLevel::ERROR, service_name, ": Error setting activation socket permissions: ", strerror(errno));
+        log(loglevel_t::ERROR, service_name, ": Error setting activation socket permissions: ", strerror(errno));
         close(sockfd);
         return false;
     }
 
     if (listen(sockfd, 128) == -1) { // 128 "seems reasonable".
-        log(LogLevel::ERROR, ": Error listening on activation socket: ", strerror(errno));
+        log(loglevel_t::ERROR, ": Error listening on activation socket: ", strerror(errno));
         close(sockfd);
         return false;
     }
@@ -738,7 +738,7 @@ bgproc_service::read_pid_file(int *exit_status) noexcept
     const char *pid_file_c = pid_file.c_str();
     int fd = open(pid_file_c, O_CLOEXEC);
     if (fd == -1) {
-        log(LogLevel::ERROR, service_name, ": read pid file: ", strerror(errno));
+        log(loglevel_t::ERROR, service_name, ": read pid file: ", strerror(errno));
         return pid_result_t::FAILED;
     }
 
@@ -746,7 +746,7 @@ bgproc_service::read_pid_file(int *exit_status) noexcept
     int r = ss_read(fd, pidbuf, 20);
     if (r < 0) {
         // Could not read from PID file
-        log(LogLevel::ERROR, service_name, ": could not read from pidfile; ", strerror(errno));
+        log(loglevel_t::ERROR, service_name, ": could not read from pidfile; ", strerror(errno));
         close(fd);
         return pid_result_t::FAILED;
     }
@@ -778,7 +778,7 @@ bgproc_service::read_pid_file(int *exit_status) noexcept
                 return pid_result_t::OK;
             }
             else {
-                log(LogLevel::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
+                log(loglevel_t::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
                 pid = -1;
                 return pid_result_t::FAILED;
             }
@@ -796,7 +796,7 @@ bgproc_service::read_pid_file(int *exit_status) noexcept
         }
     }
 
-    log(LogLevel::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
+    log(loglevel_t::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
     pid = -1;
     return pid_result_t::FAILED;
 }
@@ -830,7 +830,7 @@ void service_record::started() noexcept
         (*i)->dependencyStarted();
     }
     for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
-        (*i)->getFrom()->dependencyStarted();
+        (*i)->get_from()->dependencyStarted();
     }
 }
 
@@ -862,7 +862,7 @@ void service_record::failed_to_start(bool depfailed) noexcept
         if ((*i)->waiting_on) {
             (*i)->holding_acq = false;
             (*i)->waiting_on = false;
-            (*i)->getFrom()->dependencyStarted();
+            (*i)->get_from()->dependencyStarted();
             release();
         }
     }
@@ -898,7 +898,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
 
     int pipefd[2];
     if (pipe2(pipefd, O_CLOEXEC)) {
-        log(LogLevel::ERROR, service_name, ": can't create status check pipe: ", strerror(errno));
+        log(loglevel_t::ERROR, service_name, ": can't create status check pipe: ", strerror(errno));
         return false;
     }
 
@@ -913,7 +913,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     int control_socket[2] = {-1, -1};
     if (onstart_flags.pass_cs_fd) {
         if (dinit_socketpair(AF_UNIX, SOCK_STREAM, /* protocol */ 0, control_socket, SOCK_NONBLOCK)) {
-            log(LogLevel::ERROR, service_name, ": can't create control socket: ", strerror(errno));
+            log(loglevel_t::ERROR, service_name, ": can't create control socket: ", strerror(errno));
             goto out_p;
         }
         
@@ -925,7 +925,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
             control_conn = new control_conn_t(&eventLoop, services, control_socket[0]);
         }
         catch (std::exception &exc) {
-            log(LogLevel::ERROR, service_name, ": can't launch process; out of memory");
+            log(loglevel_t::ERROR, service_name, ": can't launch process; out of memory");
             goto out_cs;
         }
     }
@@ -946,7 +946,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         reserved_child_watch = true;
     }
     catch (std::exception &e) {
-        log(LogLevel::ERROR, service_name, ": Could not fork: ", e.what());
+        log(loglevel_t::ERROR, service_name, ": Could not fork: ", e.what());
         goto out_cs_h;
     }
 
@@ -1227,7 +1227,7 @@ void base_process_service::kill_pg(int signo) noexcept
     pid_t pgid = getpgid(pid);
     if (pgid == -1) {
         // only should happen if pid is invalid, which should never happen...
-        log(LogLevel::ERROR, service_name, ": can't signal process: ", strerror(errno));
+        log(loglevel_t::ERROR, service_name, ": can't signal process: ", strerror(errno));
         return;
     }
     kill(-pgid, signo);
@@ -1393,7 +1393,7 @@ bool base_process_service::restart_ps_process() noexcept
         time_val int_diff = current_time - restart_interval_time;
         if (int_diff < restart_interval) {
             if (restart_interval_count >= max_restart_interval_count) {
-                log(LogLevel::ERROR, "Service ", service_name, " restarting too quickly; stopping.");
+                log(loglevel_t::ERROR, "Service ", service_name, " restarting too quickly; stopping.");
                 return false;
             }
         }
@@ -1430,7 +1430,7 @@ void base_process_service::interrupt_start() noexcept
 void base_process_service::kill_with_fire() noexcept
 {
     if (pid != -1) {
-        log(LogLevel::WARN, "Service ", service_name, "with pid ", pid, " exceeded allowed stop time; killing.");
+        log(loglevel_t::WARN, "Service ", service_name, "with pid ", pid, " exceeded allowed stop time; killing.");
         kill_pg(SIGKILL);
     }
 }
