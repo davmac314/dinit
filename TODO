@@ -10,8 +10,6 @@
 For version 1.0:
 ----------------
 * Man pages for all programs (done for dinit, not for dinitctl/shutdown/etc).
-* Better error handling, logging of errors (largely done, still some patches
-  of code where it may be missing - check TODO's in code).
 * Write wtmp entry on startup (see simpleinit)
 * Allow running services as a different UID
 * "triggered" service type: external process notifies Dinit when the service
@@ -22,7 +20,6 @@ For version 1.0:
 * Load services from several different directories, with an order of precedence,
   to allow for packaged service descriptions and user-modified service
   descriptions.
-* Linux: use prctl with PR_SET_CHILD_SUBREAPER
 
 For later:
 ----------
