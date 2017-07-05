@@ -34,7 +34,7 @@ template <class Base> class ITimerEvents : public timer_base<Base>
     // if there are no active timers).
     void set_timer_from_queue()
     {
-        struct timespec newtime;
+        time_val newtime;
         struct itimerval newalarm;
         if (timer_queue.empty()) {
             newalarm.it_value = {0, 0};
@@ -47,14 +47,30 @@ template <class Base> class ITimerEvents : public timer_base<Base>
         
         struct timespec curtime;
         get_curtime(curtime);
-        newalarm.it_interval = {0, 0};
-        newalarm.it_value.tv_sec = newtime.tv_sec - curtime.tv_sec;
-        newalarm.it_value.tv_usec = (newtime.tv_nsec - curtime.tv_nsec) / 1000;
+        time_val curtimev = curtime;
 
-        if (newalarm.it_value.tv_usec < 0) {
-            newalarm.it_value.tv_usec += 1000000;
-            newalarm.it_value.tv_sec--;
+        newalarm.it_interval = {0, 0};
+        if (curtimev < newtime) {
+            newalarm.it_value.tv_sec = newtime.seconds() - curtime.tv_sec;
+            if (curtimev.nseconds() > newtime.nseconds()) {
+                newalarm.it_value.tv_usec = (1000000000 - curtimev.nseconds()
+                        + newtime.nseconds()) / 1000;
+                newalarm.it_value.tv_sec--;
+            }
+            else {
+                newalarm.it_value.tv_usec = (newtime.nseconds() - curtime.tv_nsec) / 1000;
+            }
         }
+        else {
+            // We passed the timeout: set alarm to expire immediately (we must use {0,1} as
+            // {0,0} disables the timer).
+            // TODO: it would be better if we just processed the appropriate timers here,
+            //       but that is complicated to get right especially if the event loop
+            //       is multi-threaded.
+            newalarm.it_value.tv_sec = 0;
+            newalarm.it_value.tv_usec = 1;
+        }
+
         setitimer(ITIMER_REAL, &newalarm, nullptr);
     }
     
@@ -73,7 +89,6 @@ template <class Base> class ITimerEvents : public timer_base<Base>
 
             // arm timerfd with timeout from head of queue
             set_timer_from_queue();
-            // loop_mech.rearmSignalWatch_nolock(SIGALRM);
             return false; // don't disable signal watch
         }
         else {

@@ -155,10 +155,8 @@ template <class Base> class TimerFdEvents : public timer_base<Base>
     
     void removeTimer_nolock(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
     {
+        stop_timer_nolock(timer_id, clock);
         timer_queue_t & queue = get_queue(clock);
-        if (queue.is_queued(timer_id)) {
-            queue.remove(timer_id);
-        }
         queue.deallocate(timer_id);
     }
 
@@ -171,8 +169,13 @@ template <class Base> class TimerFdEvents : public timer_base<Base>
     void stop_timer_nolock(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
     {
         timer_queue_t & queue = get_queue(clock);
+        int fd = (clock == clock_type::MONOTONIC) ? timerfd_fd : systemtime_fd;
         if (queue.is_queued(timer_id)) {
+            bool was_first = (&timer_queue.get_root()) == &timer_id;
             queue.remove(timer_id);
+            if (was_first) {
+                set_timer_from_queue(fd, queue);
+            }
         }
     }
 
