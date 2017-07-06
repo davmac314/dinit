@@ -22,7 +22,7 @@ shutdown: shutdown.o
 $(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) -Idasynq -c $< -o $@
 
-check: $(objects)
+check: $(dinit_objects)
 	$(MAKE) -C tests check
 
 install: all
