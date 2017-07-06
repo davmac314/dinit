@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "service.h"
+#include "test_service.h"
 
 // Test 1: starting a service starts dependencies; stopping the service releases and
 // stops dependencies.
@@ -137,6 +138,46 @@ void test4()
     assert(s1->get_state() == service_state_t::STARTED);
 }
 
+// Test 5: test that services which do not start immediately correctly chain start of
+// dependent services.
+void test5()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type::INTERNAL, {}, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type::INTERNAL, {s1}, {});
+    test_service *s3 = new test_service(&sset, "test-service-3", service_type::INTERNAL, {s2}, {});
+
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    sset.start_service(s3);
+
+    // All three should transition to STARTING state:
+    assert(s3->get_state() == service_state_t::STARTING);
+    assert(s2->get_state() == service_state_t::STARTING);
+    assert(s1->get_state() == service_state_t::STARTING);
+
+    s1->started();
+    sset.process_queues();
+    assert(s3->get_state() == service_state_t::STARTING);
+    assert(s2->get_state() == service_state_t::STARTING);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    s2->started();
+    sset.process_queues();
+    assert(s3->get_state() == service_state_t::STARTING);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    s3->started();
+    sset.process_queues();
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+}
+
 int main(int argc, char **argv)
 {
     std::cout << "test1... ";
@@ -153,5 +194,9 @@ int main(int argc, char **argv)
 
     std::cout << "test4... ";
     test4();
+    std::cout << "PASSED" << std::endl;
+
+    std::cout << "test5... ";
+    test5();
     std::cout << "PASSED" << std::endl;
 }
