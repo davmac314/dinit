@@ -23,16 +23,16 @@ void test1()
     // s3 depends on s2, which depends on s1. So starting s3 should start all three services:
     sset.start_service(s3);
 
-    assert(s1->getState() == service_state_t::STARTED);
-    assert(s2->getState() == service_state_t::STARTED);
-    assert(s3->getState() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s3->get_state() == service_state_t::STARTED);
 
     // stopping s3 should release the other two services:
     sset.stop_service(s3);
 
-    assert(s3->getState() == service_state_t::STOPPED);
-    assert(s2->getState() == service_state_t::STOPPED);
-    assert(s1->getState() == service_state_t::STOPPED);
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s1->get_state() == service_state_t::STOPPED);
 }
 
 // Test 2: Multiple dependents will hold a dependency active if one of the dependents is
@@ -55,26 +55,26 @@ void test2()
     sset.start_service(s3);
     sset.start_service(s4);
 
-    assert(s1->getState() == service_state_t::STARTED);
-    assert(s2->getState() == service_state_t::STARTED);
-    assert(s3->getState() == service_state_t::STARTED);
-    assert(s4->getState() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s4->get_state() == service_state_t::STARTED);
 
     // after stopping s3, s4 should hold the other two services:
     sset.stop_service(s3);
 
-    assert(s4->getState() == service_state_t::STARTED);
-    assert(s3->getState() == service_state_t::STOPPED);
-    assert(s2->getState() == service_state_t::STARTED);
-    assert(s1->getState() == service_state_t::STARTED);
+    assert(s4->get_state() == service_state_t::STARTED);
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
 
     // Now if we stop s4, s2 and s1 should also be released:
     sset.stop_service(s4);
 
-    assert(s4->getState() == service_state_t::STOPPED);
-    assert(s3->getState() == service_state_t::STOPPED);
-    assert(s2->getState() == service_state_t::STOPPED);
-    assert(s1->getState() == service_state_t::STOPPED);
+    assert(s4->get_state() == service_state_t::STOPPED);
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s1->get_state() == service_state_t::STOPPED);
 }
 
 // Test 3: stopping a dependency causes its dependents to stop.
@@ -99,9 +99,9 @@ void test3()
     // Now stop s1, which should also force s2 and s3 to stop:
     sset.stop_service(s1);
 
-    assert(s3->getState() == service_state_t::STOPPED);
-    assert(s2->getState() == service_state_t::STOPPED);
-    assert(s1->getState() == service_state_t::STOPPED);
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s1->get_state() == service_state_t::STOPPED);
 }
 
 // Test 4: an explicitly activated service with automatic restart will restart if it
@@ -113,7 +113,7 @@ void test4()
     service_record *s1 = new service_record(&sset, "test-service-1", service_type::INTERNAL, {}, {});
     service_record *s2 = new service_record(&sset, "test-service-2", service_type::INTERNAL, {s1}, {});
     service_record *s3 = new service_record(&sset, "test-service-3", service_type::INTERNAL, {s2}, {});
-    s2->setAutoRestart(true);
+    s2->set_auto_restart(true);
     sset.add_service(s1);
     sset.add_service(s2);
     sset.add_service(s3);
@@ -132,9 +132,9 @@ void test4()
     // s2 (and therefore s1) should restart:
     sset.stop_service(s1);
 
-    assert(s3->getState() == service_state_t::STOPPED);
-    assert(s2->getState() == service_state_t::STARTED);
-    assert(s1->getState() == service_state_t::STARTED);
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
 }
 
 int main(int argc, char **argv)
