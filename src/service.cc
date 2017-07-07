@@ -878,7 +878,10 @@ bool service_record::start_ps_process() noexcept
 bool base_process_service::start_ps_process() noexcept
 {
     if (restarting) {
-        return restart_ps_process();
+        if (pid == -1) {
+            return restart_ps_process();
+        }
+        return true;
     }
     else {
         eventLoop.get_time(restart_interval_time, clock_type::MONOTONIC);
