@@ -178,6 +178,40 @@ void test5()
     assert(s1->get_state() == service_state_t::STARTED);
 }
 
+// Test 6: service pinned in start state is not stopped when its dependency stops.
+void test6()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type::INTERNAL, {}, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type::INTERNAL, {s1}, {});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type::INTERNAL, {s2}, {});
+    s2->set_auto_restart(true);
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    // Pin s3:
+    s3->pin_start();
+
+    // Start all three services:
+    sset.start_service(s3);
+
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    // Stop s2:
+    s2->forced_stop();
+    s2->stop(true);
+    sset.process_queues();
+
+    // s2 should re-start due to s3:
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+}
+
 int main(int argc, char **argv)
 {
     std::cout << "test1... ";
@@ -197,6 +231,10 @@ int main(int argc, char **argv)
     std::cout << "PASSED" << std::endl;
 
     std::cout << "test5... ";
+    test5();
+    std::cout << "PASSED" << std::endl;
+
+    std::cout << "test6... ";
     test5();
     std::cout << "PASSED" << std::endl;
 }
