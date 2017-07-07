@@ -5,12 +5,12 @@
 
 // Signal-safe read. Read and re-try if interrupted by signal (EINTR).
 // *May* affect errno even on a successful read (when the return is less than n).
-inline int ss_read(int fd, void * buf, size_t n)
+inline ssize_t ss_read(int fd, void * buf, size_t n)
 {
     char * cbuf = static_cast<char *>(buf);
-    int r = 0;
-    while (r < n) {
-        int res = read(fd, cbuf + r, n - r);
+    ssize_t r = 0;
+    while ((size_t)r < n) {
+        ssize_t res = read(fd, cbuf + r, n - r);
         if (res == 0) {
             return r;
         }
