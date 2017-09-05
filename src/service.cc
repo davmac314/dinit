@@ -70,10 +70,12 @@ void service_record::stopped() noexcept
     force_stop = false;
 
     // If we are a soft dependency of another target, break the acquisition from that target now:
-    for (auto dependent : soft_dpts) {
-        if (dependent->holding_acq) {
-            dependent->holding_acq = false;
-            release();
+    for (auto & dependent : dependents) {
+        if (dependent->dep_type == dependency_type::SOFT) {
+            if (dependent->holding_acq) {
+                dependent->holding_acq = false;
+                release();
+            }
         }
     }
 
@@ -82,7 +84,7 @@ void service_record::stopped() noexcept
 
     for (auto dependency : depends_on) {
         // we signal dependencies in case they are waiting for us to stop:
-        dependency->dependent_stopped();
+        dependency.get_to()->dependent_stopped();
     }
 
     service_state = service_state_t::STOPPED;
@@ -436,15 +438,11 @@ void service_record::release() noexcept
 
 void service_record::release_dependencies() noexcept
 {
-    for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
-        (*i)->release();
-    }
-
-    for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
-        service_record * to = i->get_to();
-        if (i->holding_acq) {
-            to->release();
-            i->holding_acq = false;
+    for (auto & dependency : depends_on) {
+        service_record * dep_to = dependency.get_to();
+        if (dependency.holding_acq) {
+            dep_to->release();
+            dependency.holding_acq = false;
         }
     }
 }
@@ -488,16 +486,10 @@ void service_record::do_propagation() noexcept
 {
     if (prop_require) {
         // Need to require all our dependencies
-        for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
-            (*i)->require();
+        for (auto & dep : depends_on) {
+            dep.get_to()->require();
+            dep.holding_acq = true;
         }
-
-        for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
-            service_record * to = i->get_to();
-            to->require();
-            i->holding_acq = true;
-        }
-        
         prop_require = false;
     }
     
@@ -570,40 +562,41 @@ bool service_record::start_check_dependencies(bool start_deps) noexcept
 {
     bool all_deps_started = true;
 
-    for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
-        if ((*i)->service_state != service_state_t::STARTED) {
+    for (auto dep : depends_on) {
+        if (dep.dep_type == dependency_type::REGULAR) {
+            if (dep.get_to()->service_state != service_state_t::STARTED) {
+                if (start_deps) {
+                    all_deps_started = false;
+                    dep.get_to()->prop_start = true;
+                    services->add_prop_queue(dep.get_to());
+                }
+                else {
+                    return false;
+                }
+            }
+        }
+        else if (dep.dep_type == dependency_type::SOFT) {
+            service_record * to = dep.get_to();
             if (start_deps) {
-                all_deps_started = false;
-                (*i)->prop_start = true;
-                services->add_prop_queue(*i);
+                if (to->service_state != service_state_t::STARTED) {
+                    to->prop_start = true;
+                    services->add_prop_queue(to);
+                    dep.waiting_on = true;
+                    all_deps_started = false;
+                }
+                else {
+                    dep.waiting_on = false;
+                }
             }
-            else {
-                return false;
-            }
-        }
-    }
-
-    for (auto i = soft_deps.begin(); i != soft_deps.end(); ++i) {
-        service_record * to = i->get_to();
-        if (start_deps) {
-            if (to->service_state != service_state_t::STARTED) {
-                to->prop_start = true;
-                services->add_prop_queue(to);
-                i->waiting_on = true;
-                all_deps_started = false;
-            }
-            else {
-                i->waiting_on = false;
-            }
-        }
-        else if (i->waiting_on) {
-            if (to->service_state != service_state_t::STARTING) {
-                // Service has either started or is no longer starting
-                i->waiting_on = false;
-            }
-            else {
-                // We are still waiting on this service
-                return false;
+            else if (dep.waiting_on) {
+                if (to->service_state != service_state_t::STARTING) {
+                    // Service has either started or is no longer starting
+                    dep.waiting_on = false;
+                }
+                else {
+                    // We are still waiting on this service
+                    return false;
+                }
             }
         }
     }
@@ -826,11 +819,8 @@ void service_record::started() noexcept
     }
 
     // Notify any dependents whose desired state is STARTED:
-    for (auto i = dependents.begin(); i != dependents.end(); i++) {
-        (*i)->dependencyStarted();
-    }
-    for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
-        (*i)->get_from()->dependencyStarted();
+    for (auto dept : dependents) {
+        dept->get_from()->dependencyStarted();
     }
 }
 
@@ -850,20 +840,22 @@ void service_record::failed_to_start(bool depfailed) noexcept
     notify_listeners(service_event::FAILEDSTART);
     
     // Cancel start of dependents:
-    for (sr_iter i = dependents.begin(); i != dependents.end(); i++) {
-        if ((*i)->service_state == service_state_t::STARTING) {
-            (*i)->prop_failure = true;
-            services->add_prop_queue(*i);
+    for (auto & dept : dependents) {
+        if (dept->dep_type == dependency_type::REGULAR) {
+            if (dept->get_from()->service_state == service_state_t::STARTING) {
+                dept->get_from()->prop_failure = true;
+                services->add_prop_queue(dept->get_from());
+            }
         }
-    }    
-    for (auto i = soft_dpts.begin(); i != soft_dpts.end(); i++) {
-        // We can send 'start', because this is only a soft dependency.
-        // Our startup failure means that they don't have to wait for us.
-        if ((*i)->waiting_on) {
-            (*i)->holding_acq = false;
-            (*i)->waiting_on = false;
-            (*i)->get_from()->dependencyStarted();
-            release();
+        else if (dept->dep_type == dependency_type::SOFT) {
+            if (dept->waiting_on) {
+                dept->waiting_on = false;
+                dept->get_from()->dependencyStarted();
+            }
+            if (dept->holding_acq) {
+                dept->holding_acq = false;
+                release();
+            }
         }
     }
 }
@@ -1184,8 +1176,8 @@ void service_record::do_stop() noexcept
 bool service_record::stop_check_dependents() noexcept
 {
     bool all_deps_stopped = true;
-    for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
-        if (! (*i)->is_stopped()) {
+    for (auto dept : dependents) {
+        if (dept->dep_type == dependency_type::REGULAR && ! dept->get_from()->is_stopped()) {
             all_deps_stopped = false;
             break;
         }
@@ -1197,22 +1189,24 @@ bool service_record::stop_check_dependents() noexcept
 bool service_record::stop_dependents() noexcept
 {
     bool all_deps_stopped = true;
-    for (sr_iter i = dependents.begin(); i != dependents.end(); ++i) {
-        if (! (*i)->is_stopped()) {
-            // Note we check *first* since if the dependent service is not stopped,
-            // 1. We will issue a stop to it shortly and
-            // 2. It will notify us when stopped, at which point the stop_check_dependents()
-            //    check is run anyway.
-            all_deps_stopped = false;
-        }
+    for (auto dept : dependents) {
+        if (dept->dep_type == dependency_type::REGULAR) {
+            if (! dept->get_from()->is_stopped()) {
+                // Note we check *first* since if the dependent service is not stopped,
+                // 1. We will issue a stop to it shortly and
+                // 2. It will notify us when stopped, at which point the stop_check_dependents()
+                //    check is run anyway.
+                all_deps_stopped = false;
+            }
 
-        if (force_stop) {
-            // If this service is to be forcefully stopped, dependents must also be.
-            (*i)->forced_stop();
-        }
+            if (force_stop) {
+                // If this service is to be forcefully stopped, dependents must also be.
+                dept->get_from()->forced_stop();
+            }
 
-        (*i)->prop_stop = true;
-        services->add_prop_queue(*i);
+            dept->get_from()->prop_stop = true;
+            services->add_prop_queue(dept->get_from());
+        }
     }
 
     return all_deps_stopped;

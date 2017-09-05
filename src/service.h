@@ -163,6 +163,14 @@ class service_record;
 class service_set;
 class base_process_service;
 
+enum class dependency_type
+{
+    REGULAR,
+    SOFT,       // dependency starts in parallel, failure/stop does not affect dependent
+    WAITS_FOR,  // as for SOFT, but dependent waits until dependency starts/fails before starting
+    MILESTONE   // dependency must start successfully, but once started the dependency becomes soft
+};
+
 /* Service dependency record */
 class service_dep
 {
@@ -175,7 +183,10 @@ class service_dep
     /* Whether the 'from' service is holding an acquire on the 'to' service */
     bool holding_acq;
 
-    service_dep(service_record * from, service_record * to) noexcept : from(from), to(to), waiting_on(false), holding_acq(false)
+    const dependency_type dep_type;
+
+    service_dep(service_record * from, service_record * to, dependency_type dep_type_p) noexcept
+            : from(from), to(to), waiting_on(false), holding_acq(false), dep_type(dep_type_p)
     {  }
 
     service_record * get_from() noexcept
@@ -276,15 +287,15 @@ class service_record
     typedef sr_list::iterator sr_iter;
     
     // list of soft dependencies
-    typedef std::list<service_dep> softdep_list;
+    typedef std::list<service_dep> dep_list;
     
     // list of soft dependents
-    typedef std::list<service_dep *> softdpt_list;
+    typedef std::list<service_dep *> dpt_list;
     
-    sr_list depends_on; // services this one depends on
-    sr_list dependents; // services depending on this one
-    softdep_list soft_deps;  // services this one depends on via a soft dependency
-    softdpt_list soft_dpts;  // services depending on this one via a soft dependency
+    //sr_list depends_on; // services this one depends on
+    //sr_list dependents; // services depending on this one
+    dep_list depends_on;  // services this one depends on via a soft dependency
+    dpt_list dependents;  // services depending on this one via a soft dependency
     
     // unsigned wait_count;  /* if we are waiting for dependents/dependencies to
     //                         start/stop, this is how many we're waiting for */
@@ -439,17 +450,17 @@ class service_record
         services = set;
         service_name = name;
         this->record_type = record_type_p;
-        this->depends_on = std::move(pdepends_on);
 
-        for (sr_iter i = depends_on.begin(); i != depends_on.end(); ++i) {
-            (*i)->dependents.push_back(this);
+        for (auto pdep : pdepends_on) {
+            auto b = depends_on.emplace(depends_on.end(), this, pdep, dependency_type::REGULAR);
+            pdep->dependents.push_back(&(*b));
         }
 
         // Soft dependencies
-        auto b_iter = soft_deps.end();
+        auto b_iter = depends_on.end();
         for (auto i = pdepends_soft.begin(); i != pdepends_soft.end(); ++i) {
-            b_iter = soft_deps.emplace(b_iter, this, *i);
-            (*i)->soft_dpts.push_back(&(*b_iter));
+            b_iter = depends_on.emplace(b_iter, this, *i, dependency_type::SOFT);
+            (*i)->dependents.push_back(&(*b_iter));
             ++b_iter;
         }
     }
