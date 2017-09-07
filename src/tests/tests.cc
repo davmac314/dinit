@@ -210,6 +210,14 @@ void test6()
     assert(s3->get_state() == service_state_t::STARTED);
     assert(s2->get_state() == service_state_t::STOPPING);
     assert(s1->get_state() == service_state_t::STARTED);
+
+    // If we now unpin, s3 should stop:
+    s3->unpin();
+    sset.process_queues();
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    // s1 will stop because it is no longer required:
+    assert(s1->get_state() == service_state_t::STOPPED);
 }
 
 // Test 7: stopping a soft dependency doesn't cause the dependent to stop.

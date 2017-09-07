@@ -1284,7 +1284,7 @@ void service_record::unpin() noexcept
 {
     if (pinned_started) {
         pinned_started = false;
-        if (desired_state == service_state_t::STOPPED) {
+        if (desired_state == service_state_t::STOPPED || force_stop) {
             do_stop();
             services->process_queues();
         }
