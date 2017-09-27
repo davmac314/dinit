@@ -200,6 +200,19 @@ class service_dep
     }
 };
 
+/* preliminary service dependency information */
+class prelim_dep
+{
+    public:
+    service_record * const to;
+    dependency_type const dep_type;
+
+    prelim_dep(service_record *to_p, dependency_type dep_type_p) : to(to_p), dep_type(dep_type_p)
+    {
+        //
+    }
+};
+
 // Given a string and a list of pairs of (start,end) indices for each argument in that string,
 // store a null terminator for the argument. Return a `char *` vector containing the beginning
 // of each argument and a trailing nullptr. (The returned array is invalidated if the string is later modified).
@@ -243,6 +256,8 @@ class exec_status_pipe_watcher : public eventloop_t::fd_watcher_impl<exec_status
     exec_status_pipe_watcher(base_process_service * sr) noexcept : service(sr) { }
 };
 
+// service_record: base class for service record containing static information
+// and current state of each service.
 class service_record
 {
     protected:
@@ -279,7 +294,7 @@ class service_record
     bool prop_failure : 1;      // failure to start must be propagated
     bool prop_start   : 1;
     bool prop_stop    : 1;
-    bool restarting : 1;        // re-starting after unexpected termination
+    bool restarting   : 1;      // re-starting after unexpected termination
     
     int required_by = 0;        // number of dependents wanting this service to be started
 
@@ -292,13 +307,8 @@ class service_record
     // list of soft dependents
     typedef std::list<service_dep *> dpt_list;
     
-    //sr_list depends_on; // services this one depends on
-    //sr_list dependents; // services depending on this one
-    dep_list depends_on;  // services this one depends on via a soft dependency
-    dpt_list dependents;  // services depending on this one via a soft dependency
-    
-    // unsigned wait_count;  /* if we are waiting for dependents/dependencies to
-    //                         start/stop, this is how many we're waiting for */
+    dep_list depends_on;  // services this one depends on
+    dpt_list dependents;  // services depending on this one
     
     service_set *services; // the set this service belongs to
     
@@ -324,7 +334,6 @@ class service_record
     int exit_status; // Exit status, if the process has exited (pid == -1).
     int socket_fd = -1;  // For socket-activation services, this is the file
                          // descriptor for the socket.
-    
     
     // Data for use by service_set
     public:
@@ -444,31 +453,23 @@ class service_record
     }
 
     service_record(service_set *set, string name, service_type record_type_p,
-            sr_list &&pdepends_on, const sr_list &pdepends_soft)
+            const std::list<prelim_dep> &deplist_p)
         : service_record(set, name)
     {
         services = set;
         service_name = name;
         this->record_type = record_type_p;
 
-        for (auto pdep : pdepends_on) {
-            auto b = depends_on.emplace(depends_on.end(), this, pdep, dependency_type::REGULAR);
-            pdep->dependents.push_back(&(*b));
-        }
-
-        // Soft dependencies
-        auto b_iter = depends_on.end();
-        for (auto i = pdepends_soft.begin(); i != pdepends_soft.end(); ++i) {
-            b_iter = depends_on.emplace(b_iter, this, *i, dependency_type::SOFT);
-            (*i)->dependents.push_back(&(*b_iter));
-            ++b_iter;
+        for (auto & pdep : deplist_p) {
+            auto b = depends_on.emplace(depends_on.end(), this, pdep.to, pdep.dep_type);
+            pdep.to->dependents.push_back(&(*b));
         }
     }
     
     service_record(service_set *set, string name, service_type record_type_p, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            sr_list &&pdepends_on, const sr_list &pdepends_soft)
-        : service_record(set, name, record_type_p, std::move(pdepends_on), pdepends_soft)
+            const std::list<prelim_dep> &deplist_p)
+        : service_record(set, name, record_type_p, deplist_p)
     {
         program_name = std::move(command);
         exec_arg_parts = separate_args(program_name, command_offsets);
@@ -669,7 +670,7 @@ class base_process_service : public service_record
     public:
     base_process_service(service_set *sset, string name, service_type record_type_p, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            sr_list &&pdepends_on, const sr_list &pdepends_soft);
+            const std::list<prelim_dep> &deplist_p);
 
     ~base_process_service() noexcept
     {
@@ -701,9 +702,9 @@ class process_service : public base_process_service
     public:
     process_service(service_set *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            sr_list &&pdepends_on, const sr_list &pdepends_soft)
+            std::list<prelim_dep> depends_p)
          : base_process_service(sset, name, service_type::PROCESS, std::move(command), command_offsets,
-             std::move(pdepends_on), pdepends_soft)
+             depends_p)
     {
     }
 
@@ -728,9 +729,9 @@ class bgproc_service : public base_process_service
     public:
     bgproc_service(service_set *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            sr_list &&pdepends_on, const sr_list &pdepends_soft)
+            std::list<prelim_dep> depends_p)
          : base_process_service(sset, name, service_type::BGPROCESS, std::move(command), command_offsets,
-             std::move(pdepends_on), pdepends_soft)
+             depends_p)
     {
         tracking_child = false;
         reserved_child_watch = false;
@@ -749,9 +750,9 @@ class scripted_service : public base_process_service
     public:
     scripted_service(service_set *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            sr_list &&pdepends_on, const sr_list &pdepends_soft)
+            std::list<prelim_dep> depends_p)
          : base_process_service(sset, name, service_type::SCRIPTED, std::move(command), command_offsets,
-             std::move(pdepends_on), pdepends_soft)
+             depends_p)
     {
     }
 

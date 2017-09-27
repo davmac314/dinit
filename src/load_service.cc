@@ -385,8 +385,7 @@ service_record * dirload_service_set::load_service(const char * name)
     string pid_file;
 
     service_type service_type = service_type::PROCESS;
-    std::list<service_record *> depends_on;
-    std::list<service_record *> depends_soft;
+    std::list<prelim_dep> depends;
     string logfile;
     onstart_flags_t onstart_flags;
     int term_signal = -1;  // additional termination signal
@@ -475,11 +474,11 @@ service_record * dirload_service_set::load_service(const char * name)
                 }
                 else if (setting == "depends-on") {
                     string dependency_name = read_setting_value(i, end);
-                    depends_on.push_back(load_service(dependency_name.c_str()));
+                    depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::REGULAR);
                 }
                 else if (setting == "waits-for") {
                     string dependency_name = read_setting_value(i, end);
-                    depends_soft.push_back(load_service(dependency_name.c_str()));
+                    depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::SOFT);
                 }
                 else if (setting == "logfile") {
                     logfile = read_setting_value(i, end);
@@ -588,7 +587,7 @@ service_record * dirload_service_set::load_service(const char * name)
                 delete rval;
                 if (service_type == service_type::PROCESS) {
                     auto rvalps = new process_service(this, string(name), std::move(command),
-                            command_offsets, std::move(depends_on), depends_soft);
+                            command_offsets, depends);
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
                     rvalps->set_stop_timeout(stop_timeout);
@@ -596,7 +595,7 @@ service_record * dirload_service_set::load_service(const char * name)
                 }
                 else if (service_type == service_type::BGPROCESS) {
                     auto rvalps = new bgproc_service(this, string(name), std::move(command),
-                            command_offsets, std::move(depends_on), depends_soft);
+                            command_offsets, depends);
                     rvalps->set_pid_file(std::move(pid_file));
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
@@ -605,7 +604,7 @@ service_record * dirload_service_set::load_service(const char * name)
                 }
                 else if (service_type == service_type::SCRIPTED) {
                     auto rvalps = new scripted_service(this, string(name), std::move(command),
-                            command_offsets, std::move(depends_on), depends_soft);
+                            command_offsets, depends);
                     rvalps->set_stop_command(stop_command, stop_command_offsets);
                     rvalps->set_stop_timeout(stop_timeout);
                     rval = rvalps;
@@ -613,7 +612,7 @@ service_record * dirload_service_set::load_service(const char * name)
                 else {
                     rval = new service_record(this, string(name), service_type,
                             std::move(command), command_offsets,
-                            std::move(depends_on), depends_soft);
+                            depends);
                 }
                 rval->set_log_file(logfile);
                 rval->set_auto_restart(auto_restart);

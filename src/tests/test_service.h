@@ -3,9 +3,9 @@
 class test_service : public service_record
 {
     public:
-    test_service(service_set *set, std::string name, service_type type_p, sr_list &&pdepends_on,
-                 const sr_list &pdepends_soft)
-            : service_record(set, name, type_p, std::move(pdepends_on), pdepends_soft)
+    test_service(service_set *set, std::string name, service_type type_p,
+            const std::list<prelim_dep> &deplist_p)
+            : service_record(set, name, type_p, deplist_p)
     {
 
     }
