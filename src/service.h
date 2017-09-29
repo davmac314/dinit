@@ -817,6 +817,13 @@ class service_set
         restart_enabled = true;
     }
     
+    virtual ~service_set()
+    {
+        for (auto * s : records) {
+            delete s;
+        }
+    }
+
     // Start the specified service. The service will be marked active.
     void start_service(service_record *svc)
     {
