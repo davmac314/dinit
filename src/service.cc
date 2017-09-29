@@ -40,7 +40,7 @@ static service_record * find_service(const std::list<service_record *> & records
             return *i;
         }
     }
-    return (service_record *)0;
+    return nullptr;
 }
 
 service_record * service_set::find_service(const std::string &name) noexcept
@@ -477,7 +477,7 @@ void service_record::start(bool activate) noexcept
     service_state = service_state_t::STARTING;
     waiting_for_deps = true;
 
-    if (start_check_dependencies(true)) {
+    if (start_check_dependencies()) {
         services->add_transition_queue(this);
     }
 }
@@ -519,7 +519,7 @@ void service_record::execute_transition() noexcept
     // state is STARTED with restarting set true if we are running a smooth recovery.
     if (service_state == service_state_t::STARTING || (service_state == service_state_t::STARTED
             && restarting)) {
-        if (start_check_dependencies(false)) {
+        if (check_deps_started()) {
             bool have_console = service_state == service_state_t::STARTED && onstart_flags.runs_on_console;
             all_deps_started(have_console);
         }
@@ -544,7 +544,7 @@ void service_record::do_start() noexcept
     waiting_for_deps = true;
 
     // Ask dependencies to start, mark them as being waited on.
-    if (start_check_dependencies(false)) {
+    if (check_deps_started()) {
         // Once all dependencies are started, we start properly:
         all_deps_started();
     }
@@ -558,50 +558,34 @@ void service_record::dependencyStarted() noexcept
     }
 }
 
-bool service_record::start_check_dependencies(bool start_deps) noexcept
+bool service_record::start_check_dependencies() noexcept
 {
     bool all_deps_started = true;
 
-    for (auto dep : depends_on) {
-        if (dep.dep_type == dependency_type::REGULAR) {
-            if (dep.get_to()->service_state != service_state_t::STARTED) {
-                if (start_deps) {
-                    all_deps_started = false;
-                    dep.get_to()->prop_start = true;
-                    services->add_prop_queue(dep.get_to());
-                }
-                else {
-                    return false;
-                }
+    for (auto & dep : depends_on) {
+        service_record * to = dep.get_to();
+        if (to->service_state != service_state_t::STARTED) {
+            if (to->service_state != service_state_t::STARTING) {
+                to->prop_start = true;
+                services->add_prop_queue(to);
             }
-        }
-        else if (dep.dep_type == dependency_type::SOFT) {
-            service_record * to = dep.get_to();
-            if (start_deps) {
-                if (to->service_state != service_state_t::STARTED) {
-                    to->prop_start = true;
-                    services->add_prop_queue(to);
-                    dep.waiting_on = true;
-                    all_deps_started = false;
-                }
-                else {
-                    dep.waiting_on = false;
-                }
-            }
-            else if (dep.waiting_on) {
-                if (to->service_state != service_state_t::STARTING) {
-                    // Service has either started or is no longer starting
-                    dep.waiting_on = false;
-                }
-                else {
-                    // We are still waiting on this service
-                    return false;
-                }
-            }
+            dep.waiting_on = true;
+            all_deps_started = false;
         }
     }
     
     return all_deps_started;
+}
+
+bool service_record::check_deps_started() noexcept
+{
+    for (auto & dep : depends_on) {
+        if (dep.waiting_on) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool service_record::open_socket() noexcept
@@ -716,7 +700,7 @@ void service_record::acquired_console() noexcept
         // We got the console but no longer want it.
         release_console();
     }
-    else if (start_check_dependencies(false)) {
+    else if (check_deps_started()) {
         all_deps_started(true);
     }
     else {
@@ -821,6 +805,7 @@ void service_record::started() noexcept
     // Notify any dependents whose desired state is STARTED:
     for (auto dept : dependents) {
         dept->get_from()->dependencyStarted();
+        dept->waiting_on = false;
     }
 }
 
@@ -1359,7 +1344,7 @@ void base_process_service::do_restart() noexcept
     if (service_state == service_state_t::STARTING) {
         // for a smooth recovery, we want to check dependencies are available before actually
         // starting:
-        if (! start_check_dependencies(false)) {
+        if (! check_deps_started()) {
             waiting_for_deps = true;
             return;
         }

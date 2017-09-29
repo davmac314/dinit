@@ -378,8 +378,11 @@ class service_record
     // Open the activation socket, return false on failure
     bool open_socket() noexcept;
 
-    // Check whether dependencies have started, and optionally ask them to start
-    bool start_check_dependencies(bool do_start) noexcept;
+    // Start all dependencies, return true if all have started
+    bool start_check_dependencies() noexcept;
+
+    // Check whether all dependencies have started (i.e. whether we can start now)
+    bool check_deps_started() noexcept;
 
     // Whether a STARTING service can immediately transition to STOPPED (as opposed to
     // having to wait for it reach STARTED and then go through STOPPING).
