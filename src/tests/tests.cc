@@ -5,7 +5,7 @@
 #include "test_service.h"
 
 constexpr static auto REG = dependency_type::REGULAR;
-constexpr static auto SFT = dependency_type::SOFT;
+constexpr static auto WAITS = dependency_type::WAITS_FOR;
 
 // Test 1: starting a service starts dependencies; stopping the service releases and
 // stops dependencies.
@@ -230,7 +230,7 @@ void test7()
 
     service_record *s1 = new service_record(&sset, "test-service-1", service_type::INTERNAL, {});
     service_record *s2 = new service_record(&sset, "test-service-2", service_type::INTERNAL, {{s1, REG}});
-    service_record *s3 = new service_record(&sset, "test-service-3", service_type::INTERNAL, {{s2, SFT}});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type::INTERNAL, {{s2, WAITS}});
     sset.add_service(s1);
     sset.add_service(s2);
     sset.add_service(s3);

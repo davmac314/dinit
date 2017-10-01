@@ -71,7 +71,7 @@ void service_record::stopped() noexcept
 
     // If we are a soft dependency of another target, break the acquisition from that target now:
     for (auto & dependent : dependents) {
-        if (dependent->dep_type == dependency_type::SOFT) {
+        if (dependent->dep_type != dependency_type::REGULAR) {
             if (dependent->holding_acq) {
                 dependent->holding_acq = false;
                 release();
@@ -826,13 +826,16 @@ void service_record::failed_to_start(bool depfailed) noexcept
     
     // Cancel start of dependents:
     for (auto & dept : dependents) {
-        if (dept->dep_type == dependency_type::REGULAR) {
+        switch (dept->dep_type) {
+        case dependency_type::REGULAR:
+        case dependency_type::MILESTONE:
             if (dept->get_from()->service_state == service_state_t::STARTING) {
                 dept->get_from()->prop_failure = true;
                 services->add_prop_queue(dept->get_from());
             }
-        }
-        else if (dept->dep_type == dependency_type::SOFT) {
+            break;
+        case dependency_type::WAITS_FOR:
+        case dependency_type::SOFT:
             if (dept->waiting_on) {
                 dept->waiting_on = false;
                 dept->get_from()->dependencyStarted();

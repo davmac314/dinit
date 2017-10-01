@@ -478,7 +478,7 @@ service_record * dirload_service_set::load_service(const char * name)
                 }
                 else if (setting == "waits-for") {
                     string dependency_name = read_setting_value(i, end);
-                    depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::SOFT);
+                    depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::WAITS_FOR);
                 }
                 else if (setting == "logfile") {
                     logfile = read_setting_value(i, end);
