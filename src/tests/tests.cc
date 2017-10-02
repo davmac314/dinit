@@ -250,34 +250,18 @@ void test7()
     assert(s1->get_state() == service_state_t::STOPPED);
 }
 
+#define RUN_TEST(name) \
+    std::cout << #name "... "; \
+    name(); \
+    std::cout << "PASSED" << std::endl;
 
 int main(int argc, char **argv)
 {
-    std::cout << "test1... ";
-    test1();
-    std::cout << "PASSED" << std::endl;
-
-    std::cout << "test2... ";
-    test2();
-    std::cout << "PASSED" << std::endl;
-
-    std::cout << "test3... ";
-    test3();
-    std::cout << "PASSED" << std::endl;
-
-    std::cout << "test4... ";
-    test4();
-    std::cout << "PASSED" << std::endl;
-
-    std::cout << "test5... ";
-    test5();
-    std::cout << "PASSED" << std::endl;
-
-    std::cout << "test6... ";
-    test6();
-    std::cout << "PASSED" << std::endl;
-
-    std::cout << "test7... ";
-    test7();
-    std::cout << "PASSED" << std::endl;
+    RUN_TEST(test1);
+    RUN_TEST(test2);
+    RUN_TEST(test3);
+    RUN_TEST(test4);
+    RUN_TEST(test5);
+    RUN_TEST(test6);
+    RUN_TEST(test7);
 }
