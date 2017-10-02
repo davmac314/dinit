@@ -476,6 +476,10 @@ service_record * dirload_service_set::load_service(const char * name)
                     string dependency_name = read_setting_value(i, end);
                     depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::REGULAR);
                 }
+                else if (setting == "depends-ms") {
+                    string dependency_name = read_setting_value(i, end);
+                    depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::MILESTONE);
+                }
                 else if (setting == "waits-for") {
                     string dependency_name = read_setting_value(i, end);
                     depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::WAITS_FOR);

@@ -142,6 +142,7 @@ command = ...
 logfile = ...
 options = ...
 depends-on = (service name)
+depends-ms = (service name)
 waits-for = (service name)
 
 command = (external script or executable, and arguments)
@@ -197,6 +198,13 @@ depends-on = (service name)
    start the named service; the command to start this service will not be
    executed until the named service has started. If the named service is
    stopped then this service will also be stopped.
+
+depends-ms = (service name)
+   Indicates a "milestone dependency" on the named service. This service
+   requires the named service to start before it starts itself. Once the
+   named service has started, it remains active due to the dependency, but if
+   it stops for any reason then the dependency link is broken until the next
+   time this service is started.
 
 waits-for = (service name)
    When this service is started, wait for the named service to finish
