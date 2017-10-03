@@ -39,4 +39,9 @@ class test_service : public service_record
     {
         service_record::started();
     }
+
+    void failed_to_start() noexcept
+    {
+        service_record::failed_to_start();
+    }
 };

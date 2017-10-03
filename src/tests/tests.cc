@@ -6,6 +6,7 @@
 
 constexpr static auto REG = dependency_type::REGULAR;
 constexpr static auto WAITS = dependency_type::WAITS_FOR;
+constexpr static auto MS = dependency_type::MILESTONE;
 
 // Test 1: starting a service starts dependencies; stopping the service releases and
 // stops dependencies.
@@ -250,6 +251,55 @@ void test7()
     assert(s1->get_state() == service_state_t::STOPPED);
 }
 
+// Test 8: stopping a milestone dependency doesn't cause the dependent to stop
+void test8()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type::INTERNAL, {{s1, MS}});
+    sset.add_service(s1);
+    sset.add_service(s2);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+
+    // Start the services:
+    sset.start_service(s2);
+
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    // Now stop s1, which should not stop s2:
+    sset.stop_service(s1);
+
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STOPPED);
+}
+
+// Test 9: a failing milestone dependency causes the dependent to fail
+void test9()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type::INTERNAL, {{s1, MS}});
+    sset.add_service(s1);
+    sset.add_service(s2);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+
+    // Start the services, but fail s1:
+    sset.start_service(s2);
+
+    assert(s1->get_state() == service_state_t::STARTING);
+    s1->failed_to_start();
+    sset.process_queues();
+
+    assert(s2->get_state() == service_state_t::STOPPED);
+}
+
 #define RUN_TEST(name) \
     std::cout << #name "... "; \
     name(); \
@@ -264,4 +314,6 @@ int main(int argc, char **argv)
     RUN_TEST(test5);
     RUN_TEST(test6);
     RUN_TEST(test7);
+    RUN_TEST(test8);
+    RUN_TEST(test9);
 }
