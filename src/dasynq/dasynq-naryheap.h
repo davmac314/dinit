@@ -1,7 +1,7 @@
 #ifndef DASYNC_NARYHEAP_H_INCLUDED
 #define DASYNC_NARYHEAP_H_INCLUDED
 
-#include "dasynq-svec.h"
+#include <vector>
 #include <type_traits>
 #include <functional>
 #include <limits>
@@ -51,7 +51,7 @@ class NaryHeap
         HeapNode() { }
     };
 
-    svector<HeapNode> hvec;
+    std::vector<HeapNode> hvec;
 
     using hindex_t = typename decltype(hvec)::size_type;
 
@@ -259,8 +259,7 @@ class NaryHeap
     {
         new (& hnd.hd) T(u...);
         hnd.heap_index = -1;
-        constexpr hindex_t max_allowed = std::numeric_limits<hindex_t>::is_signed ?
-                std::numeric_limits<hindex_t>::max() : ((hindex_t) - 2);
+        hindex_t max_allowed = hvec.max_size();
 
         if (num_nodes == max_allowed) {
             throw std::bad_alloc();
@@ -289,10 +288,14 @@ class NaryHeap
     {
         num_nodes--;
 
-        // shrink the capacity of hvec if num_nodes is sufficiently less than
-        // its current capacity:
+        // shrink the capacity of hvec if num_nodes is sufficiently less than its current capacity. Why
+        // capacity/4? Because in general, capacity must be at least doubled when it is exceeded to get
+        // O(N) amortised insertion cost. If we shrink-to-fit every time num_nodes < capacity/2, this
+        // means we might potentially get pathological "bouncing" as num_nodes crosses the threshold
+        // repeatedly as nodes get added and removed.
+
         if (num_nodes < hvec.capacity() / 4) {
-            hvec.shrink_to(num_nodes * 2);
+            hvec.shrink_to_fit();
         }
     }
 

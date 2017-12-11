@@ -6,6 +6,7 @@
 
 #include "dasynq-config.h"
 #include "dasynq-mutex.h"
+#include "dasynq-util.h"
 
 /*
  * Mechanism for interrupting an event loop wait.
@@ -27,24 +28,10 @@ template <typename Base> class interrupt_channel<Base, null_mutex> : public Base
 
 template <typename Base, typename Mutex> class interrupt_channel : public Base
 {
-#ifdef HAVE_PIPE2
-    int create_pipe(int filedes[2])
+    static inline int create_pipe(int filedes[2])
     {
         return pipe2(filedes, O_CLOEXEC | O_NONBLOCK);
     }
-#else
-    int create_pipe(int filedes[2])
-    {
-        int r = pipe(filedes);
-        if (r != -1) {
-            fcntl(filedes[0], F_SETFD, O_CLOEXEC);
-            fcntl(filedes[1], F_SETFD, O_CLOEXEC);
-            fcntl(filedes[0], F_SETFL, O_NONBLOCK);
-            fcntl(filedes[1], F_SETFL, O_NONBLOCK);
-        }
-        return r;
-    }
-#endif
 
     int pipe_r_fd;
     int pipe_w_fd;
@@ -62,7 +49,7 @@ template <typename Base, typename Mutex> class interrupt_channel : public Base
         pipe_w_fd = pipedes[1];
 
         try {
-            loop_mech->addFdWatch(pipe_r_fd, &pipe_r_fd, IN_EVENTS);
+            loop_mech->add_fd_watch(pipe_r_fd, &pipe_r_fd, IN_EVENTS);
         }
         catch (...) {
             close (pipe_r_fd);
@@ -74,7 +61,7 @@ template <typename Base, typename Mutex> class interrupt_channel : public Base
     }
 
     template <typename T>
-    void receiveFdEvent(T &loop_mech, typename Base::FD_r fd_r, void * userdata, int flags)
+    void receive_fd_event(T &loop_mech, typename Base::traits_t::fd_r fd_r_a, void * userdata, int flags)
     {
         if (userdata == &pipe_r_fd) {
             // try to clear the pipe
@@ -82,7 +69,7 @@ template <typename Base, typename Mutex> class interrupt_channel : public Base
             read(pipe_r_fd, buf, 64);
         }
         else {
-            Base::receiveFdEvent(loop_mech, fd_r, userdata, flags);
+            Base::receive_fd_event(loop_mech, fd_r_a, userdata, flags);
         }
     }
 

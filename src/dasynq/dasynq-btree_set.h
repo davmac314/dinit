@@ -1,7 +1,6 @@
 #ifndef DASYNQ_BTREE_SET_H
 #define DASYNQ_BTREE_SET_H
 
-#include <vector>
 #include <functional>
 
 namespace dasynq {
@@ -577,6 +576,10 @@ class btree_set
 
     ~btree_set()
     {
+        while (left_sept != nullptr) {
+            remove(*(left_sept->hn_p[0]));
+        }
+
         while (sn_reserve != nullptr) {
             auto *next = sn_reserve->parent;
             delete sn_reserve;

@@ -2,6 +2,7 @@
 #define DASYNQ_TIMERBASE_H_INCLUDED
 
 #include <utility>
+#include <mutex>
 
 #include "dasynq-naryheap.h"
 
@@ -16,40 +17,45 @@ class time_val
     using second_t = decltype(time.tv_sec);
     using nsecond_t = decltype(time.tv_nsec);
 
-    time_val()
+    time_val() noexcept
     {
         // uninitialised!
     }
 
-    time_val(const struct timespec &t)
+    time_val(const struct timespec &t) noexcept
     {
         time = t;
     }
 
-    time_val(second_t s, nsecond_t ns)
+    time_val(second_t s, nsecond_t ns) noexcept
     {
         time.tv_sec = s;
         time.tv_nsec = ns;
     }
 
-    second_t seconds() const { return time.tv_sec; }
-    nsecond_t nseconds() const { return time.tv_nsec; }
+    second_t seconds() const noexcept{ return time.tv_sec; }
+    nsecond_t nseconds() const noexcept { return time.tv_nsec; }
 
-    second_t & seconds() { return time.tv_sec; }
-    nsecond_t & nseconds() { return time.tv_nsec; }
+    second_t & seconds() noexcept { return time.tv_sec; }
+    nsecond_t & nseconds() noexcept { return time.tv_nsec; }
 
-    //void set_seconds(second_t s) { time.tv_sec = s; }
-    //void set_nseconds(nsecond_t ns) { time.tv_nsec = ns; }
-    //void dec_seconds() { time.tv_sec--; }
-    //void inc_seconds() { time.tv_sec++; }
+    timespec & get_timespec() noexcept
+    {
+        return time;
+    }
 
-    operator timespec() const
+    const timespec & get_timespec() const noexcept
+    {
+        return time;
+    }
+
+    operator timespec() const noexcept
     {
        return time;
     }
 };
 
-inline time_val operator-(const time_val &t1, const time_val &t2)
+inline time_val operator-(const time_val &t1, const time_val &t2) noexcept
 {
     time_val diff;
     diff.seconds() = t1.seconds() - t2.seconds();
@@ -63,7 +69,7 @@ inline time_val operator-(const time_val &t1, const time_val &t2)
     return diff;
 }
 
-inline time_val operator+(const time_val &t1, const time_val &t2)
+inline time_val operator+(const time_val &t1, const time_val &t2) noexcept
 {
     auto ns = t1.nseconds() + t2.nseconds();
     auto s = t1.seconds() + t2.seconds();
@@ -75,7 +81,7 @@ inline time_val operator+(const time_val &t1, const time_val &t2)
     return time_val(s, ns);
 }
 
-inline time_val &operator+=(time_val &t1, const time_val &t2)
+inline time_val &operator+=(time_val &t1, const time_val &t2) noexcept
 {
     auto nsum = t1.nseconds() + t2.nseconds();
     t1.seconds() = t1.seconds() + t2.seconds();
@@ -87,28 +93,88 @@ inline time_val &operator+=(time_val &t1, const time_val &t2)
     return t1;
 }
 
-inline bool operator<(const time_val &t1, const time_val &t2)
+inline time_val &operator-=(time_val &t1, const time_val &t2) noexcept
+{
+    time_val diff;
+    t1.seconds() = t1.seconds() - t2.seconds();
+    if (t1.nseconds() >= t2.nseconds()) {
+        t1.nseconds() = t1.nseconds() - t2.nseconds();
+    }
+    else {
+        t1.nseconds() = 1000000000 - t2.nseconds() + t1.nseconds();
+        t1.seconds()--;
+    }
+    return t1;
+}
+
+inline bool operator<(const time_val &t1, const time_val &t2) noexcept
 {
     if (t1.seconds() < t2.seconds()) return true;
     if (t1.seconds() == t2.seconds() && t1.nseconds() < t2.nseconds()) return true;
     return false;
 }
 
-inline bool operator==(const time_val &t1, const time_val &t2)
+inline bool operator==(const time_val &t1, const time_val &t2) noexcept
 {
     return (t1.seconds() == t2.seconds() && t1.nseconds() == t2.nseconds());
 }
 
-inline bool operator<=(const time_val &t1, const time_val &t2)
+inline bool operator<=(const time_val &t1, const time_val &t2) noexcept
 {
     if (t1.seconds() < t2.seconds()) return true;
     if (t1.seconds() == t2.seconds() && t1.nseconds() <= t2.nseconds()) return true;
     return false;
 }
 
-inline bool operator!=(const time_val &t1, const time_val &t2) { return !(t1 == t2); }
-inline bool operator>(const time_val &t1, const time_val &t2) { return t2 < t1; }
-inline bool operator>=(const time_val &t1, const time_val &t2) { return t2 <= t1; }
+inline bool operator!=(const time_val &t1, const time_val &t2) noexcept { return !(t1 == t2); }
+inline bool operator>(const time_val &t1, const time_val &t2) noexcept { return t2 < t1; }
+inline bool operator>=(const time_val &t1, const time_val &t2) noexcept { return t2 <= t1; }
+
+static inline int divide_timespec(const struct timespec &num, const struct timespec &den, struct timespec &rem) noexcept;
+
+inline int operator/(const time_val &t1, const time_val &t2) noexcept
+{
+    struct timespec remainder;
+    return divide_timespec(t1.get_timespec(), t2.get_timespec(), remainder);
+}
+
+inline time_val & operator<<=(time_val &t, int n) noexcept
+{
+    for (int i = 0; i < n; i++) {
+        t.seconds() *= 2;
+        t.nseconds() *= 2;
+        if (t.nseconds() >= 1000000000) {
+            t.nseconds() -= 1000000000;
+            t.seconds()++;
+        }
+    }
+    return t;
+}
+
+inline time_val operator<<(time_val &t, int n) noexcept
+{
+    auto r = t;
+    r <<= n;
+    return r;
+}
+
+inline time_val & operator>>=(time_val &t, int n) noexcept
+{
+    for (int i = 0; i < n; i++) {
+        bool low = t.seconds() & 1;
+        t.nseconds() /= 2;
+        t.nseconds() += low ? 500000000ULL : 0;
+        t.seconds() /= 2;
+    }
+    return t;
+}
+
+inline time_val operator>>(time_val &t, int n) noexcept
+{
+    auto r = t;
+    r >>= n;
+    return r;
+}
 
 // Data corresponding to a single timer
 class timer_data
@@ -119,7 +185,7 @@ class timer_data
     bool enabled;   // whether timer reports events
     void *userdata;
 
-    timer_data(void *udata = nullptr) : interval_time(0,0), expiry_count(0), enabled(true), userdata(udata)
+    timer_data(void *udata = nullptr) noexcept : interval_time(0,0), expiry_count(0), enabled(true), userdata(udata)
     {
         // constructor
     }
@@ -128,7 +194,7 @@ class timer_data
 class compare_timespec
 {
     public:
-    bool operator()(const struct timespec &a, const struct timespec &b)
+    bool operator()(const struct timespec &a, const struct timespec &b) noexcept
     {
         if (a.tv_sec < b.tv_sec) {
             return true;
@@ -142,7 +208,7 @@ class compare_timespec
     }
 };
 
-using timer_queue_t = NaryHeap<timer_data, struct timespec, compare_timespec>;
+using timer_queue_t = NaryHeap<timer_data, time_val, compare_timespec>;
 using timer_handle_t = timer_queue_t::handle_t;
 
 static inline void init_timer_handle(timer_handle_t &hnd) noexcept
@@ -150,7 +216,7 @@ static inline void init_timer_handle(timer_handle_t &hnd) noexcept
     timer_queue_t::init_handle(hnd);
 }
 
-static inline int divide_timespec(const struct timespec &num, const struct timespec &den, struct timespec &rem)
+static inline int divide_timespec(const struct timespec &num, const struct timespec &den, struct timespec &rem) noexcept
 {
     if (num.tv_sec < den.tv_sec) {
         rem = num;
@@ -176,74 +242,86 @@ static inline int divide_timespec(const struct timespec &num, const struct times
 
     // At this point, num.tv_sec >= 1.
 
-    auto &r_sec = rem.tv_sec;
-    auto &r_nsec = rem.tv_nsec;
-    r_sec = num.tv_sec;
-    r_nsec = num.tv_nsec;
-    auto d_sec = den.tv_sec;
-    auto d_nsec = den.tv_nsec;
+    time_val n = { num.tv_sec, num.tv_nsec };
+    time_val d = { den.tv_sec, den.tv_nsec };
+    time_val r = n;
 
-    r_sec -= d_sec;
-    if (r_nsec >= d_nsec) {
-        r_nsec -= d_nsec;
-    }
-    else {
-        r_nsec += (1000000000ULL - d_nsec);
-        r_sec -= 1;
-    }
+    // starting with numerator, subtract 1*denominator
+    r -= d;
 
     // Check now for common case: one timer expiry with no overrun
-    if (r_sec < d_sec || (r_sec == d_sec && r_nsec < d_nsec)) {
+    if (r < d) {
+        rem = r;
         return 1;
     }
 
     int nval = 1;
     int rval = 1; // we have subtracted 1*D already
 
-    // shift denominator until it is greater than/equal to numerator:
-    while (d_sec < r_sec) {
-        d_sec *= 2;
-        d_nsec *= 2;
-        if (d_nsec >= 1000000000) {
-            d_nsec -= 1000000000;
-            d_sec++;
-        }
+    // shift denominator until it is greater than / roughly equal to numerator:
+    while (d.seconds() < r.seconds()) {
+        d <<= 1;
         nval *= 2;
     }
 
     while (nval > 0) {
-        if (d_sec < r_sec || (d_sec == r_sec && d_nsec <= r_nsec)) {
-            // subtract:
-            r_sec -= d_sec;
-            if (d_nsec > r_nsec) {
-                r_nsec += 1000000000;
-                r_sec--;
-            }
-            r_nsec -= d_nsec;
-
+        if (d <= r) {
+            r -= d;
             rval += nval;
         }
 
-        bool low = d_sec & 1;
-        d_nsec /= 2;
-        d_nsec += low ? 500000000ULL : 0;
-        d_sec /= 2;
+        d >>= 1;
         nval /= 2;
     }
 
+    rem = r;
     return rval;
 }
 
 template <typename Base> class timer_base : public Base
 {
-    protected:
+    private:
+    timer_queue_t timer_queue;
 
-    void process_timer_queue(timer_queue_t &queue, const struct timespec &curtime)
+#if defined(CLOCK_MONOTONIC)
+    timer_queue_t mono_timer_queue;
+
+    protected:
+    inline timer_queue_t &queue_for_clock(clock_type clock)
+    {
+        if (clock == clock_type::MONOTONIC) {
+            return mono_timer_queue;
+        }
+        else {
+            return timer_queue;
+        }
+    }
+
+    inline bool timer_queues_empty()
+    {
+        return timer_queue.empty() && mono_timer_queue.empty();
+    }
+#else
+    protected:
+    inline timer_queue_t &queue_for_clock(clock_type clock)
+    {
+        return timer_queue;
+    }
+
+    inline bool timer_queues_empty()
+    {
+        return timer_queue.empty();
+    }
+#endif
+
+    // For the specified timer queue, issue expirations for all timers set to expire on or before the given
+    // time (curtime). The timer queue must not be empty.
+    void process_timer_queue(timer_queue_t &queue, const struct timespec &curtime) noexcept
     {
         // Peek timer queue; calculate difference between current time and timeout
-        const struct timespec * timeout = &queue.get_root_priority();
-        while (timeout->tv_sec < curtime.tv_sec || (timeout->tv_sec == curtime.tv_sec &&
-                timeout->tv_nsec <= curtime.tv_nsec)) {
+        const time_val * timeout = &queue.get_root_priority();
+        time_val curtime_tv = curtime;
+        while (*timeout <= curtime_tv) {
             auto & thandle = queue.get_root();
             timer_data &data = queue.node_data(thandle);
             time_val &interval = data.interval_time;
@@ -255,7 +333,7 @@ template <typename Base> class timer_base : public Base
                     data.enabled = false;
                     int expiry_count = data.expiry_count;
                     data.expiry_count = 0;
-                    Base::receiveTimerExpiry(thandle, data.userdata, expiry_count);
+                    Base::receive_timer_expiry(thandle, data.userdata, expiry_count);
                 }
                 if (queue.empty()) {
                     break;
@@ -279,12 +357,77 @@ template <typename Base> class timer_base : public Base
                     data.enabled = false;
                     int expiry_count = data.expiry_count;
                     data.expiry_count = 0;
-                    Base::receiveTimerExpiry(thandle, data.userdata, expiry_count);
+                    Base::receive_timer_expiry(thandle, data.userdata, expiry_count);
                 }
             }
 
             // repeat until all expired timeouts processed
             timeout = &queue.get_root_priority();
+        }
+    }
+
+    public:
+
+    void get_time(time_val &tv, clock_type clock, bool force_update) noexcept
+    {
+        get_time(tv.get_timespec(), clock, force_update);
+    }
+
+#ifdef CLOCK_MONOTONIC
+    void get_time(timespec &ts, clock_type clock, bool force_update) noexcept
+    {
+        clockid_t posix_clock_id = (clock == clock_type::MONOTONIC) ? CLOCK_MONOTONIC : CLOCK_REALTIME;
+        clock_gettime(posix_clock_id, &ts);
+    }
+#else
+    // If CLOCK_MONOTONIC is not defined, assume we only have gettimeofday():
+    void get_time(timespec &ts, clock_type clock, bool force_update) noexcept
+    {
+        struct timeval curtime_tv;
+        gettimeofday(&curtime_tv, nullptr);
+        ts.tv_sec = curtime_tv.tv_sec;
+        ts.tv_nsec = curtime_tv.tv_usec * 1000;
+    }
+#endif
+
+    void add_timer_nolock(timer_handle_t &h, void *userdata, clock_type clock = clock_type::MONOTONIC)
+    {
+        this->queue_for_clock(clock).allocate(h, userdata);
+    }
+
+    void remove_timer(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
+    {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
+        remove_timer_nolock(timer_id, clock);
+    }
+
+    void remove_timer_nolock(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
+    {
+        auto &timer_queue = this->queue_for_clock(clock);
+        if (timer_queue.is_queued(timer_id)) {
+            timer_queue.remove(timer_id);
+        }
+        timer_queue.deallocate(timer_id);
+    }
+
+    // Enables or disabling report of timeouts (does not stop timer)
+    void enable_timer(timer_handle_t &timer_id, bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
+    {
+        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
+        enable_timer_nolock(timer_id, enable, clock);
+    }
+
+    void enable_timer_nolock(timer_handle_t &timer_id, bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
+    {
+        auto &timer_queue = this->queue_for_clock(clock);
+        auto &node_data = timer_queue.node_data(timer_id);
+        auto expiry_count = node_data.expiry_count;
+        if (expiry_count != 0 && enable) {
+            node_data.expiry_count = 0;
+            Base::receive_timer_expiry(timer_id, node_data.userdata, expiry_count);
+        }
+        else {
+            timer_queue.node_data(timer_id).enabled = enable;
         }
     }
 };

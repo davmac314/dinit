@@ -4,18 +4,11 @@
 #include <unordered_map>
 #include <vector>
 
-#ifdef __OpenBSD__
-#include <sys/signal.h> // for __thrsigdivert aka sigtimedwait
-#include <sys/syscall.h>
-extern "C" { 
-    int __thrsigdivert(sigset_t set, siginfo_t *info, const struct timespec * timeout);
-}
-#endif
-
 #include <sys/event.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 
 #include <unistd.h>
 #include <signal.h>
@@ -36,74 +29,72 @@ extern "C" {
 
 namespace dasynq {
 
-template <class Base> class KqueueLoop;
+template <class Base> class kqueue_loop;
 
-class KqueueTraits
+class kqueue_traits
 {
-    template <class Base> friend class KqueueLoop;
+    template <class Base> friend class kqueue_loop;
 
     public:
 
-    class SigInfo
+    class sigdata_t
     {
-        template <class Base> friend class KqueueLoop;
+        template <class Base> friend class kqueue_loop;
         
         siginfo_t info;
         
         public:
+        // mandatory:
         int get_signo() { return info.si_signo; }
         int get_sicode() { return info.si_code; }
-        void * get_ssiaddr() { return info.si_addr; }
+        pid_t get_sipid() { return info.si_pid; }
+        uid_t get_siuid() { return info.si_uid; }
+        void * get_siaddr() { return info.si_addr; }
+        int get_sistatus() { return info.si_status; }
+        int get_sival_int() { return info.si_value.sival_int; }
+        void * get_sival_ptr() { return info.si_value.sival_ptr; }
         
+        // XSI
+        int get_sierrno() { return info.si_errno; }
+
+        // XSR (streams) OB (obselete)
+#if !defined(__OpenBSD__)
+        // Note: OpenBSD doesn't have this; most other systems do. Technically it is part of the STREAMS
+        // interface.
+        int get_siband() { return info.si_band; }
+#endif
+
         void set_signo(int signo) { info.si_signo = signo; }
     };    
 
-    class FD_r;
+    class fd_r;
 
     // File descriptor optional storage. If the mechanism can return the file descriptor, this
     // class will be empty, otherwise it can hold a file descriptor.
-    class FD_s {
+    class fd_s {
         DASYNQ_EMPTY_BODY
     };
 
     // File descriptor reference (passed to event callback). If the mechanism can return the
     // file descriptor, this class holds the file descriptor. Otherwise, the file descriptor
-    // must be stored in an FD_s instance.
-    class FD_r {
+    // must be stored in an fd_s instance.
+    class fd_r {
         int fd;
         public:
-        int getFd(FD_s ss)
+        int getFd(fd_s ss)
         {
             return fd;
         }
-        FD_r(int nfd) : fd(nfd)
+        fd_r(int nfd) : fd(nfd)
         {
         }
     };
     
     const static bool has_bidi_fd_watch = false;
     const static bool has_separate_rw_fd_watches = true;
-    const static bool supports_childwatch_reservation = true;
 };
 
-#if defined(__OpenBSD__) && _POSIX_REALTIME_SIGNALS <= 0
-// OpenBSD has no sigtimedwait (or sigwaitinfo) but does have "__thrsigdivert", which is
-// essentially an incomplete version of the same thing. Discussion with OpenBSD developer
-// Ted Unangst suggested that the siginfo_t structure returned might not always have all fields
-// set correctly. Furthermore there is a bug (at least in 5.9)  such that specifying a zero
-// timeout (or indeed any timeout less than a tick) results in NO timeout. We get around this by
-// instead specifying an *invalid* timeout, which won't error out if a signal is pending.
-static inline int sigtimedwait(const sigset_t *ssp, siginfo_t *info, struct timespec *timeout)
-{
-    // We know that we're only called with a timeout of 0 (which doesn't work properly) and
-    // that we safely overwrite the timeout. So, we set tv_nsec to an invalid value, which
-    // will cause EINVAL to be returned, but will still pick up any pending signals *first*.
-    timeout->tv_nsec = 1000000001;
-    return __thrsigdivert(*ssp, info, timeout);
-}
-#endif
-
-#if defined(__OpenBSD__) || _POSIX_REALTIME_SIGNALS > 0
+#if _POSIX_REALTIME_SIGNALS > 0
 static inline void prepare_signal(int signo) { }
 static inline void unprep_signal(int signo) { }
 
@@ -168,53 +159,61 @@ inline bool get_siginfo(int signo, siginfo_t *siginfo)
 
 #endif
 
-template <class Base> class KqueueLoop : public Base
+template <class Base> class kqueue_loop : public Base
 {
     int kqfd; // kqueue fd
-    sigset_t sigmask; // enabled signal watch mask
 
-    // Map of signal number to user data pointer. If kqueue had been better thought-through,
-    // we shouldn't need this. Although we can associate user data with an EVFILT_SIGNAL kqueue
-    // filter, the problem is that the kqueue signal report *coexists* with the regular signal
+    // The kqueue signal reporting mechanism *coexists* with the regular signal
     // delivery mechanism without having any connection to it. Whereas regular signals can be
     // queued (especially "realtime" signals, via sigqueue()), kqueue just maintains a counter
     // of delivery attempts and clears this when we read the event. What this means is that
     // kqueue won't necessarily tell us if signals are pending, in the case that:
     //  1) it already reported the attempted signal delivery and
-    //  2) more than one of the same signal was pending at that time and
+    //  2) more than instance one of the same signal was pending at that time and
     //  3) no more deliveries of the same signal have been attempted in the meantime.
-    // Of course, if kqueue doesn't report the signal, then it doesn't give us the data associated
-    // with the event, so we need to maintain that separately too:
-    std::unordered_map<int, void *> sigdataMap;
-    
+    // Also, kqueue won't tell us about signals that were pending at the time the signal filter
+    // was added. Finally, because pending signals can be merged, the count of delivery attempts
+    // provided by kqueue does not necessarily match the number of signals actually pending.
+    //
+    // Note that POSIX allows for multiple instances of a signal to be pending even on systems
+    // that don't support queueing of signals.
+    //
+    // Ultimately, this means we need to check for pending signals independently of what kqueue
+    // tells us.
+
     // Base contains:
     //   lock - a lock that can be used to protect internal structure.
     //          receive*() methods will be called with lock held.
-    //   receiveSignal(SigInfo &, user *) noexcept
-    //   receiveFdEvent(FD_r, user *, int flags) noexcept
+    //   receive_signal(sigdata_t &, user *) noexcept
+    //   receive_fd_event(fd_r, user *, int flags) noexcept
     
-    using SigInfo = KqueueTraits::SigInfo;
-    using FD_r = typename KqueueTraits::FD_r;
+    using sigdata_t = kqueue_traits::sigdata_t;
+    using fd_r = typename kqueue_traits::fd_r;
     
-    void processEvents(struct kevent *events, int r)
+    // The flag to specify poll() semantics for regular file readiness: that is, we want
+    // ready-for-read to be returned even at end of file:
+#if defined(NOTE_FILE_POLL)
+    // FreeBSD:
+    constexpr static int POLL_SEMANTICS = NOTE_FILE_POLL;
+#else
+    // Note that macOS has an "EV_POLL" defined that looks like it should give poll semantics
+    // when passed as a flag. However, it is filtered at the syscall entry so we cannot use it in
+    // kqueue. (The kernel uses it internally to implement poll()).
+    constexpr static int POLL_SEMANTICS = 0;
+#endif
+
+    void process_events(struct kevent *events, int r)
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         
         for (int i = 0; i < r; i++) {
             if (events[i].filter == EVFILT_SIGNAL) {
-                SigInfo siginfo;
-                if (get_siginfo(events[i].ident, &siginfo.info)
-                        && Base::receive_signal(*this, siginfo, (void *)events[i].udata)) {
-                    sigdelset(&sigmask, events[i].ident);
-                    events[i].flags = EV_DISABLE;
-                }
-                else {
-                    events[i].flags = EV_ENABLE;
-                }
+                bool reenable = pull_signal(events[i].ident, events[i].udata);
+                events[i].flags = reenable ? EV_ENABLE : EV_DISABLE;
             }
             else if (events[i].filter == EVFILT_READ || events[i].filter == EVFILT_WRITE) {
                 int flags = events[i].filter == EVFILT_READ ? IN_EVENTS : OUT_EVENTS;
-                Base::receiveFdEvent(*this, FD_r(events[i].ident), events[i].udata, flags);
+                Base::receive_fd_event(*this, fd_r(events[i].ident), events[i].udata, flags);
                 events[i].flags = EV_DISABLE | EV_CLEAR;
                 // we use EV_CLEAR to clear the EOF status of fifos/pipes (and wait for
                 // another connection).
@@ -228,39 +227,76 @@ template <class Base> class KqueueLoop : public Base
         kevent(kqfd, events, r, nullptr, 0, nullptr);
     }
     
+    // Pull a signal from pending, and report it, until it is no longer pending or the watch
+    // should be disabled. Call with lock held.
+    // Returns:  true if watcher should be enabled, false if disabled.
+    bool pull_signal(int signo, void *userdata)
+    {
+        bool enable_filt = true;
+        sigdata_t siginfo;
+
+#if _POSIX_REALTIME_SIGNALS > 0
+        struct timespec timeout = {0, 0};
+        sigset_t sigw_mask;
+        sigemptyset(&sigw_mask);
+        sigaddset(&sigw_mask, signo);
+        int rsigno = sigtimedwait(&sigw_mask, &siginfo.info, &timeout);
+        while (rsigno > 0) {
+            if (Base::receive_signal(*this, siginfo, userdata)) {
+                enable_filt = false;
+                break;
+            }
+            rsigno = sigtimedwait(&sigw_mask, &siginfo.info, &timeout);
+        }
+#else
+        // we have no sigtimedwait.
+        sigset_t pending_sigs;
+        sigpending(&pending_sigs);
+        while (sigismember(&pending_sigs, signo)) {
+            get_siginfo(signo, &siginfo.info);
+            if (Base::receive_signal(*this, siginfo, userdata)) {
+                enable_filt = false;
+                break;
+            }
+            sigpending(&pending_sigs);
+        }
+#endif
+        return enable_filt;
+    }
+
     public:
     
     /**
-     * KqueueLoop constructor.
+     * kqueue_loop constructor.
      *
      * Throws std::system_error or std::bad_alloc if the event loop cannot be initialised.
      */
-    KqueueLoop()
+    kqueue_loop()
     {
         kqfd = kqueue();
         if (kqfd == -1) {
             throw std::system_error(errno, std::system_category());
         }
-        sigemptyset(&sigmask);
         Base::init(this);
     }
     
-    ~KqueueLoop()
+    ~kqueue_loop()
     {
         close(kqfd);
     }
     
-    void setFilterEnabled(short filterType, uintptr_t ident, void *udata, bool enable)
+    void set_filter_enabled(short filterType, uintptr_t ident, void *udata, bool enable)
     {
-    	// Note, on OpenBSD enabling or disabling filter will not alter the filter parameters (udata etc);
+        // Note, on OpenBSD enabling or disabling filter will not alter the filter parameters (udata etc);
         // on OS X however, it will. Therefore we set udata here (to the same value as it was originally
         // set) in order to work correctly on both kernels.
         struct kevent kev;
-        EV_SET(&kev, ident, filterType, enable ? EV_ENABLE : EV_DISABLE, 0, 0, udata);
+        int fflags = (filterType == EVFILT_READ) ? POLL_SEMANTICS : 0;
+        EV_SET(&kev, ident, filterType, enable ? EV_ENABLE : EV_DISABLE, fflags, 0, udata);
         kevent(kqfd, &kev, 1, nullptr, 0, nullptr);
     }
     
-    void removeFilter(short filterType, uintptr_t ident)
+    void remove_filter(short filterType, uintptr_t ident)
     {
         struct kevent kev;
         EV_SET(&kev, ident, filterType, EV_DELETE, 0, 0, 0);
@@ -273,17 +309,31 @@ template <class Base> class KqueueLoop : public Base
     //             (only one of IN_EVENTS/OUT_EVENTS can be specified)
     // soft_fail:  true if unsupported file descriptors should fail by returning false instead
     //             of throwing an exception
-    // returns: true on success; false if file descriptor type isn't supported and soft_fail == true
+    // returns: true on success; false if file descriptor type isn't supported and emulate == true
     // throws:  std::system_error or std::bad_alloc on failure
-    bool addFdWatch(int fd, void *userdata, int flags, bool enabled = true, bool emulate = false)
+    bool add_fd_watch(int fd, void *userdata, int flags, bool enabled = true, bool emulate = false)
     {
         short filter = (flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE;
 
+        if (filter == EVFILT_READ && POLL_SEMANTICS == 0 && emulate) {
+            // We can't request poll semantics, so check for regular file:
+            struct stat statbuf;
+            if (fstat(fd, &statbuf) == -1) {
+                throw new std::system_error(errno, std::system_category());
+            }
+            if ((statbuf.st_mode & S_IFMT) == S_IFREG) {
+                // Regular file: emulation required
+                return false;
+            }
+        }
+
+        int fflags = (filter == EVFILT_READ) ? POLL_SEMANTICS : 0;
+
         struct kevent kev;
-        EV_SET(&kev, fd, filter, EV_ADD | (enabled ? 0 : EV_DISABLE), 0, 0, userdata);
+        EV_SET(&kev, fd, filter, EV_ADD | (enabled ? 0 : EV_DISABLE), fflags, 0, userdata);
         if (kevent(kqfd, &kev, 1, nullptr, 0, nullptr) == -1) {
-            // Note that kqueue supports EVFILT_READ on regular file fd's, but not EVFIL_WRITE.
-            if (filter == EVFILT_WRITE && errno == EINVAL) {
+            // Note that kqueue supports EVFILT_READ on regular file fd's, but not EVFILT_WRITE.
+            if (filter == EVFILT_WRITE && errno == EINVAL && emulate) {
                 return false; // emulate
             }
             throw new std::system_error(errno, std::system_category());
@@ -294,14 +344,14 @@ template <class Base> class KqueueLoop : public Base
     // returns: 0 on success
     //          IN_EVENTS  if in watch requires emulation
     //          OUT_EVENTS if out watch requires emulation
-    int addBidiFdWatch(int fd, void *userdata, int flags, bool emulate = false)
+    int add_bidi_fd_watch(int fd, void *userdata, int flags, bool emulate = false)
     {
 #ifdef EV_RECEIPT
         struct kevent kev[2];
         struct kevent kev_r[2];
         short rflags = EV_ADD | ((flags & IN_EVENTS) ? 0 : EV_DISABLE) | EV_RECEIPT;
         short wflags = EV_ADD | ((flags & OUT_EVENTS) ? 0 : EV_DISABLE) | EV_RECEIPT;
-        EV_SET(&kev[0], fd, EVFILT_READ, rflags, 0, 0, userdata);
+        EV_SET(&kev[0], fd, EVFILT_READ, rflags, POLL_SEMANTICS, 0, userdata);
         EV_SET(&kev[1], fd, EVFILT_WRITE, wflags, 0, 0, userdata);
 
         int r = kevent(kqfd, kev, 2, kev_r, 2, nullptr);
@@ -323,7 +373,16 @@ template <class Base> class KqueueLoop : public Base
 
         if (kev_r[1].data != 0) {
             if (emulate) {
-                return OUT_EVENTS;
+                // We can emulate, but, do we have correct semantics?
+                if (POLL_SEMANTICS != 0) {
+                    return OUT_EVENTS;
+                }
+
+                // if we can't get poll semantics, emulate for read as well:
+                // first remove read watch:
+                EV_SET(&kev[0], fd, EVFILT_READ, EV_DELETE, 0, 0, userdata);
+                kevent(kqfd, kev, 1, nullptr, 0, nullptr);
+                return IN_EVENTS | OUT_EVENTS;
             }
             // remove read watch
             EV_SET(&kev[0], fd, EVFILT_READ, EV_DELETE, 0, 0, userdata);
@@ -368,17 +427,17 @@ template <class Base> class KqueueLoop : public Base
     
     // flags specifies which watch to remove; ignored if the loop doesn't support
     // separate read/write watches.
-    void removeFdWatch(int fd, int flags)
+    void remove_fd_watch(int fd, int flags)
     {        
-        removeFilter((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd);
+        remove_filter((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd);
     }
     
-    void removeFdWatch_nolock(int fd, int flags)
+    void remove_fd_watch_nolock(int fd, int flags)
     {
-        removeFdWatch(fd, flags);
+        remove_fd_watch(fd, flags);
     }
 
-    void removeBidiFdWatch(int fd) noexcept
+    void remove_bidi_fd_watch(int fd) noexcept
     {
         struct kevent kev[2];
         EV_SET(&kev[0], fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
@@ -387,61 +446,76 @@ template <class Base> class KqueueLoop : public Base
         kevent(kqfd, kev, 2, nullptr, 0, nullptr);
     }
     
-    void enableFdWatch(int fd, void *userdata, int flags)
+    void enable_fd_watch(int fd, void *userdata, int flags)
     {
-        setFilterEnabled((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd, userdata, true);
+        set_filter_enabled((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd, userdata, true);
     }
     
-    void enableFdWatch_nolock(int fd, void *userdata, int flags)
+    void enable_fd_watch_nolock(int fd, void *userdata, int flags)
     {
-        enableFdWatch(fd, userdata, flags);
+        enable_fd_watch(fd, userdata, flags);
     }
     
-    void disableFdWatch(int fd, int flags)
+    void disable_fd_watch(int fd, int flags)
     {
-        setFilterEnabled((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd, nullptr, false);
+        set_filter_enabled((flags & IN_EVENTS) ? EVFILT_READ : EVFILT_WRITE, fd, nullptr, false);
     }
     
-    void disableFdWatch_nolock(int fd, int flags)
+    void disable_fd_watch_nolock(int fd, int flags)
     {
-        disableFdWatch(fd, flags);
+        disable_fd_watch(fd, flags);
     }
-    
+
     // Note signal should be masked before call.
-    void addSignalWatch(int signo, void *userdata)
+    void add_signal_watch(int signo, void *userdata)
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-        
-        sigdataMap[signo] = userdata;
-        sigaddset(&sigmask, signo);
-        
+        add_signal_watch_nolock(signo, userdata);
+    }
+
+    // Note signal should be masked before call.
+    void add_signal_watch_nolock(int signo, void *userdata)
+    {
         prepare_signal(signo);
 
+        // We need to register the filter with the kqueue early, to avoid a race where we miss
+        // signals:
         struct kevent evt;
-        EV_SET(&evt, signo, EVFILT_SIGNAL, EV_ADD, 0, 0, userdata);
-        // TODO use EV_DISPATCH if available (not on OpenBSD/OS X)
-        
+        EV_SET(&evt, signo, EVFILT_SIGNAL, EV_ADD | EV_DISABLE, 0, 0, userdata);
         if (kevent(kqfd, &evt, 1, nullptr, 0, nullptr) == -1) {
             throw new std::system_error(errno, std::system_category());
+        }
+        // TODO use EV_DISPATCH if available (not on OpenBSD/OS X)
+        
+        // The signal might be pending already but won't be reported by kqueue in that case. We can queue
+        // it immediately (note that it might be pending multiple times, so we need to re-check once signal
+        // processing finishes if it is re-armed).
+
+        bool enable_filt = pull_signal(signo, userdata);
+
+        if (enable_filt) {
+            evt.flags = EV_ENABLE;
+            if (kevent(kqfd, &evt, 1, nullptr, 0, nullptr) == -1) {
+                throw new std::system_error(errno, std::system_category());
+            }
         }
     }
     
     // Note, called with lock held:
-    void rearmSignalWatch_nolock(int signo) noexcept
+    void rearm_signal_watch_nolock(int signo, void *userdata) noexcept
     {
-        sigaddset(&sigmask, signo);
-        
-        struct kevent evt;
-        EV_SET(&evt, signo, EVFILT_SIGNAL, EV_ENABLE, 0, 0, 0);
-        // TODO use EV_DISPATCH if available (not on OpenBSD)
-        
-        kevent(kqfd, &evt, 1, nullptr, 0, nullptr);
+        if (pull_signal(signo, userdata)) {
+            struct kevent evt;
+            EV_SET(&evt, signo, EVFILT_SIGNAL, EV_ENABLE, 0, 0, userdata);
+            // TODO use EV_DISPATCH if available (not on OpenBSD)
+
+            kevent(kqfd, &evt, 1, nullptr, 0, nullptr);
+        }
     }
     
-    void removeSignalWatch_nolock(int signo) noexcept
+    void remove_signal_watch_nolock(int signo) noexcept
     {
         unprep_signal(signo);
-        sigdelset(&sigmask, signo);
         
         struct kevent evt;
         EV_SET(&evt, signo, EVFILT_SIGNAL, EV_DELETE, 0, 0, 0);
@@ -449,47 +523,10 @@ template <class Base> class KqueueLoop : public Base
         kevent(kqfd, &evt, 1, nullptr, 0, nullptr);
     }
 
-    void removeSignalWatch(int signo) noexcept
+    void remove_signal_watch(int signo) noexcept
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-        removeSignalWatch_nolock(signo);
-    }
-    
-    private:
-
-    // We actually need to check pending signals before polling the kqueue, since kqueue can
-    // count signals as they are delivered but the count is cleared when we poll the kqueue,
-    // meaning that signals might still be pending if they were queued multiple times at the
-    // last poll (since we report only one signal delivery at a time and the watch is
-    // automatically disabled each time).
-    //
-    // The check is not necessary on systems that don't queue signals.
-void pull_signals()
-    {
-#if _POSIX_REALTIME_SIGNALS > 0
-        // TODO we should only poll for signals that *have* been reported
-        // as being raised more than once prior via kevent, rather than all
-        // signals that have been registered - in many cases that may allow
-        // us to skip the sigtimedwait call altogether.
-        {
-            std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-
-            struct timespec timeout;
-            timeout.tv_sec = 0;
-            timeout.tv_nsec = 0;
-            SigInfo siginfo;
-            int rsigno = sigtimedwait(&sigmask, &siginfo.info, &timeout);
-            while (rsigno > 0) {
-                if (Base::receiveSignal(*this, siginfo, sigdataMap[rsigno])) {
-                    sigdelset(&sigmask, rsigno);
-                    // TODO accumulate and disable multiple filters with a single kevents call
-                    //      rather than disabling each individually
-                    setFilterEnabled(EVFILT_SIGNAL, rsigno, sigdataMap[rsigno], false);
-                }
-                rsigno = sigtimedwait(&sigmask, &siginfo.info, &timeout);
-            }
-        }
-#endif
+        remove_signal_watch_nolock(signo);
     }
 
     public:
@@ -500,16 +537,15 @@ void pull_signals()
     // simultaneously).
     // If processing an event removes a watch, there is a possibility
     // that the watched event will still be reported (if it has
-    // occurred) before pullEvents() returns.
+    // occurred) before pull_events() returns.
     //
     //  do_wait - if false, returns immediately if no events are
     //            pending.
-    void pullEvents(bool do_wait)
+    void pull_events(bool do_wait)
     {
-        pull_signals();
-        
         struct kevent events[16];
         struct timespec ts;
+
         ts.tv_sec = 0;
         ts.tv_nsec = 0;
         int r = kevent(kqfd, nullptr, 0, events, 16, do_wait ? nullptr : &ts);
@@ -519,7 +555,7 @@ void pull_signals()
         }
         
         do {
-            processEvents(events, r);
+            process_events(events, r);
             r = kevent(kqfd, nullptr, 0, events, 16, &ts);
         } while (r > 0);
     }

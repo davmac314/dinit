@@ -1368,7 +1368,7 @@ void base_process_service::do_restart() noexcept
 
 bool base_process_service::restart_ps_process() noexcept
 {
-    using time_val = eventloop_t::time_val;
+    using time_val = dasynq::time_val;
 
     time_val current_time;
     eventLoop.get_time(current_time, clock_type::MONOTONIC);

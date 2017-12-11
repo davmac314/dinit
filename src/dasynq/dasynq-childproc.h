@@ -3,6 +3,8 @@
 
 namespace dasynq {
 
+namespace dprivate {
+
 // Map of pid_t to void *, with possibility of reserving entries so that mappings can
 // be later added with no danger of allocator exhaustion (bad_alloc).
 class pid_map
@@ -76,28 +78,42 @@ inline void sigchld_handler(int signum)
     // hurt in any case).
 }
 
-using pid_watch_handle_t = pid_map::pid_handle_t;
+} // dprivate namespace
 
-template <class Base> class ChildProcEvents : public Base
+using pid_watch_handle_t = dprivate::pid_map::pid_handle_t;
+
+template <class Base> class child_proc_events : public Base
 {
+    public:
+    using reaper_mutex_t = typename Base::mutex_t;
+
+    class traits_t : public Base::traits_t
+    {
+        public:
+        constexpr static bool supports_childwatch_reservation = true;
+    };
+
     private:
-    pid_map child_waiters;
+    dprivate::pid_map child_waiters;
+    reaper_mutex_t reaper_lock; // used to prevent reaping while trying to signal a process
     
     protected:
-    using SigInfo = typename Base::SigInfo;
+    using sigdata_t = typename traits_t::sigdata_t;
     
     template <typename T>
-    bool receive_signal(T & loop_mech, SigInfo &siginfo, void *userdata)
+    bool receive_signal(T & loop_mech, sigdata_t &siginfo, void *userdata)
     {
         if (siginfo.get_signo() == SIGCHLD) {
             int status;
             pid_t child;
+            reaper_lock.lock();
             while ((child = waitpid(-1, &status, WNOHANG)) > 0) {
-                pid_map::entry ent = child_waiters.remove(child);
+                auto ent = child_waiters.remove(child);
                 if (ent.first) {
-                    Base::receiveChildStat(child, status, ent.second);
+                    Base::receive_child_stat(child, status, ent.second);
                 }
             }
+            reaper_lock.unlock();
             return false; // leave signal watch enabled
         }
         else {
@@ -106,36 +122,34 @@ template <class Base> class ChildProcEvents : public Base
     }
     
     public:
-    void reserveChildWatch(pid_watch_handle_t &handle)
+    void reserve_child_watch_nolock(pid_watch_handle_t &handle)
     {
-        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         child_waiters.reserve(handle);
     }
     
-    void unreserveChildWatch(pid_watch_handle_t &handle) noexcept
+    void unreserve_child_watch(pid_watch_handle_t &handle) noexcept
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-        unreserveChildWatch_nolock(handle);
+        unreserve_child_watch_nolock(handle);
     }
     
-    void unreserveChildWatch_nolock(pid_watch_handle_t &handle) noexcept
+    void unreserve_child_watch_nolock(pid_watch_handle_t &handle) noexcept
     {
         child_waiters.unreserve(handle);
     }
 
-    void addChildWatch(pid_watch_handle_t &handle, pid_t child, void *val)
+    void add_child_watch_nolock(pid_watch_handle_t &handle, pid_t child, void *val)
     {
-        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         child_waiters.add(handle, child, val);
     }
     
-    void addReservedChildWatch(pid_watch_handle_t &handle, pid_t child, void *val) noexcept
+    void add_reserved_child_watch(pid_watch_handle_t &handle, pid_t child, void *val) noexcept
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         child_waiters.add_from_reserve(handle, child, val);
     }
 
-    void addReservedChildWatch_nolock(pid_watch_handle_t &handle, pid_t child, void *val) noexcept
+    void add_reserved_child_watch_nolock(pid_watch_handle_t &handle, pid_t child, void *val) noexcept
     {
         child_waiters.add_from_reserve(handle, child, val);
     }
@@ -147,26 +161,41 @@ template <class Base> class ChildProcEvents : public Base
         child_waiters.remove(handle);
     }
 
-    void removeChildWatch(pid_watch_handle_t &handle) noexcept
+    void remove_child_watch(pid_watch_handle_t &handle) noexcept
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-        removeChildWatch_nolock(handle);
+        remove_child_watch_nolock(handle);
     }
 
-    void removeChildWatch_nolock(pid_watch_handle_t &handle) noexcept
+    void remove_child_watch_nolock(pid_watch_handle_t &handle) noexcept
     {
         child_waiters.remove(handle);
         child_waiters.unreserve(handle);
     }
     
+    // Get the reaper lock, which can be used to ensure that a process is not reaped while attempting to
+    // signal it.
+    reaper_mutex_t &get_reaper_lock() noexcept
+    {
+        return reaper_lock;
+    }
+
     template <typename T> void init(T *loop_mech)
     {
+        // Mask SIGCHLD:
+        sigset_t sigmask;
+        this->sigmaskf(SIG_UNBLOCK, nullptr, &sigmask);
+        sigaddset(&sigmask, SIGCHLD);
+        this->sigmaskf(SIG_SETMASK, &sigmask, nullptr);
+
+        // On some systems a SIGCHLD handler must be established, or SIGCHLD will not be
+        // generated:
         struct sigaction chld_action;
-        chld_action.sa_handler = sigchld_handler;
+        chld_action.sa_handler = dprivate::sigchld_handler;
         sigemptyset(&chld_action.sa_mask);
         chld_action.sa_flags = 0;
         sigaction(SIGCHLD, &chld_action, nullptr);
-        loop_mech->addSignalWatch(SIGCHLD, nullptr);
+        loop_mech->add_signal_watch(SIGCHLD, nullptr);
         Base::init(loop_mech);
     }
 };
