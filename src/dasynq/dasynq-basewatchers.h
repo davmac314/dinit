@@ -14,12 +14,12 @@ namespace dprivate {
     // specialised to call one or the other depending on the mutex type:
     template <typename T_Mutex> void sigmaskf(int how, const sigset_t *set, sigset_t *oset)
     {
-        sigprocmask(how, set, oset);
+        pthread_sigmask(how, set, oset);
     }
 
     template <> inline void sigmaskf<null_mutex>(int how, const sigset_t *set, sigset_t *oset)
     {
-        pthread_sigmask(how, set, oset);
+        sigprocmask(how, set, oset);
     }
 }
 
@@ -51,7 +51,8 @@ namespace dprivate {
     // (non-public API)
 
     class base_watcher;
-    using prio_queue = NaryHeap<dprivate::base_watcher *, int>;
+    template <typename A, typename B, typename C> using nary_heap_def = nary_heap<A,B,C>;
+    using prio_queue = stable_heap<nary_heap_def, dprivate::base_watcher *, int>;
 
     template <typename T_Loop> class fd_watcher;
     template <typename T_Loop> class bidi_fd_watcher;

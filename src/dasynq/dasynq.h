@@ -5,6 +5,7 @@
 
 #include "dasynq-flags.h"
 #include "dasynq-naryheap.h"
+#include "dasynq-stableheap.h"
 #include "dasynq-interrupt.h"
 #include "dasynq-util.h"
 
@@ -450,6 +451,9 @@ namespace dprivate {
                 lock.unlock();
             }
         }
+
+        event_dispatch() {  }
+        event_dispatch(const event_dispatch &) = delete;
     };
 }
 
@@ -1158,13 +1162,14 @@ class event_loop
         auto & ed = (event_dispatch<T_Mutex, backend_traits_t> &) loop_mech;
         ed.lock.lock();
         
-        // So this pulls *all* currently pending events and processes them in the current thread.
-        // That's probably good for throughput, but maybe the behaviour should be configurable.
+        if (limit == 0) {
+            return false;
+        }
         
         base_watcher * pqueue = ed.pull_event();
         bool active = false;
         
-        while (pqueue != nullptr && limit != 0) {
+        while (pqueue != nullptr) {
         
             pqueue->active = true;
             active = true;
@@ -1193,8 +1198,11 @@ class event_loop
             }
 
             pqueue->dispatch(this);
+            if (limit > 0) {
+                limit--;
+                if (limit == 0) break;
+            }
             pqueue = ed.pull_event();
-            if (limit > 0) limit--;
         }
         
         ed.lock.unlock();
@@ -1259,6 +1267,9 @@ class event_loop
     {
         loop_mech.get_time(tv, clock, force_update);
     }
+
+    event_loop() { }
+    event_loop(const event_loop &other) = delete;
 };
 
 typedef event_loop<null_mutex> event_loop_n;

@@ -1,7 +1,7 @@
 #ifndef DASYNC_NARYHEAP_H_INCLUDED
 #define DASYNC_NARYHEAP_H_INCLUDED
 
-#include <vector>
+#include "dasynq-svec.h"
 #include <type_traits>
 #include <functional>
 #include <limits>
@@ -28,7 +28,7 @@ namespace dasynq {
  * Compare : functional object type to compare priorities
  */
 template <typename T, typename P, typename Compare = std::less<P>, int N = 16>
-class NaryHeap
+class nary_heap
 {
     public:
     struct handle_t;
@@ -51,7 +51,7 @@ class NaryHeap
         HeapNode() { }
     };
 
-    std::vector<HeapNode> hvec;
+    svector<HeapNode> hvec;
 
     using hindex_t = typename decltype(hvec)::size_type;
 
@@ -65,7 +65,14 @@ class NaryHeap
     // separate container, and have the handle be an index into that container).
     struct handle_t
     {
-        T hd;
+        union hd_u_t {
+            // The data member is kept in a union so it doesn't get constructed/destructed
+            // automatically, and we can construct it lazily.
+            public:
+            hd_u_t() { }
+            ~hd_u_t() { }
+            T hd;
+        } hd_u;
         hindex_t heap_index;
     };
 
@@ -225,21 +232,15 @@ class NaryHeap
 
     void remove_h(hindex_t hidx)
     {
-        // bvec[hvec[hidx].data_index].heap_index = -1;
         hvec[hidx].hnd_p->heap_index = -1;
         if (hvec.size() != hidx + 1) {
-            // replace the first element with the last:
-            // bvec[hvec.back().data_index].heap_index = hidx;
-
-            //hvec.back().hnd_p->heap_index = hidx;
-            //hvec[hidx] = hvec.back();
-            //hvec.pop_back();
+            // replace the removed element with the last:
+            hvec[hidx] = hvec.back();
+            hvec[hidx].hnd_p->heap_index = hidx;
+            hvec.pop_back();
 
             // Now bubble up:
-            //bubble_up(hidx);
-
-            bubble_up(hidx, hvec.size() - 2, *(hvec.back().hnd_p), hvec.back().data);
-            hvec.pop_back();
+            bubble_up(hidx);
         }
         else {
             hvec.pop_back();
@@ -250,14 +251,14 @@ class NaryHeap
 
     T & node_data(handle_t & index) noexcept
     {
-        return index.hd;
+        return index.hd_u.hd;
     }
 
     // Allocate a slot, but do not incorporate into the heap:
     //  u... : parameters for data constructor T::T(...)
     template <typename ...U> void allocate(handle_t & hnd, U... u)
     {
-        new (& hnd.hd) T(u...);
+        new (& hnd.hd_u.hd) T(u...);
         hnd.heap_index = -1;
         hindex_t max_allowed = hvec.max_size();
 
@@ -287,6 +288,7 @@ class NaryHeap
     void deallocate(handle_t & index) noexcept
     {
         num_nodes--;
+        index.hd_u.~hd_u_t();
 
         // shrink the capacity of hvec if num_nodes is sufficiently less than its current capacity. Why
         // capacity/4? Because in general, capacity must be at least doubled when it is exceeded to get
@@ -295,7 +297,7 @@ class NaryHeap
         // repeatedly as nodes get added and removed.
 
         if (num_nodes < hvec.capacity() / 4) {
-            hvec.shrink_to_fit();
+            hvec.shrink_to(num_nodes * 2);
         }
     }
 
@@ -337,7 +339,7 @@ class NaryHeap
         return hvec.empty();
     }
 
-    bool is_queued(handle_t hnd)
+    bool is_queued(handle_t & hnd)
     {
         return hnd.heap_index != (hindex_t) -1;
     }
@@ -360,6 +362,13 @@ class NaryHeap
             return bubble_down(heap_index);
         }
     }
+
+    nary_heap()
+    {
+        // Nothing required
+    }
+
+    nary_heap(const nary_heap &) = delete;
 };
 
 }

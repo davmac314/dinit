@@ -40,7 +40,7 @@
 using namespace dasynq;
 using eventloop_t = event_loop<null_mutex>;
 
-eventloop_t eventLoop = eventloop_t();
+eventloop_t eventLoop;
 
 static void sigint_reboot_cb(eventloop_t &eloop) noexcept;
 static void sigquit_cb(eventloop_t &eloop) noexcept;

@@ -208,7 +208,7 @@ class compare_timespec
     }
 };
 
-using timer_queue_t = NaryHeap<timer_data, time_val, compare_timespec>;
+using timer_queue_t = nary_heap<timer_data, time_val, compare_timespec>;
 using timer_handle_t = timer_queue_t::handle_t;
 
 static inline void init_timer_handle(timer_handle_t &hnd) noexcept

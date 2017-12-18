@@ -141,7 +141,7 @@ template <class Base> class timer_fd_events : public timer_base<Base>
 
     void stop_timer_nolock(timer_handle_t &timer_id, clock_type clock = clock_type::MONOTONIC) noexcept
     {
-        timer_queue_t & queue = this->queue_for_clock(clock);
+        timer_queue_t &queue = this->queue_for_clock(clock);
         int fd = (clock == clock_type::MONOTONIC) ? timerfd_fd : systemtime_fd;
         if (queue.is_queued(timer_id)) {
             bool was_first = (&queue.get_root()) == &timer_id;
@@ -159,7 +159,7 @@ template <class Base> class timer_fd_events : public timer_base<Base>
     {
         timespec timeout = timeouttv;
         timespec interval = intervaltv;
-        timer_queue_t queue = this->queue_for_clock(clock);
+        timer_queue_t &queue = this->queue_for_clock(clock);
 
         switch (clock) {
         case clock_type::SYSTEM:
