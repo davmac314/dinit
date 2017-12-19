@@ -4,12 +4,14 @@ CXX=g++
 CXXOPTS=-D_GLIBCXX_USE_CXX11_ABI=1 -std=gnu++11 -Os -Wall -Wno-invalid-offsetof -fno-rtti
 EXTRA_LIBS=
 BUILD_SHUTDOWN=yes
+SANITIZEOPTS=-fsanitize=address,undefined
 
 # OpenBSD, tested with GCC 4.9.3 and gmake:
 #CXX=clang++
 #CXXOPTS=-std=gnu++11 -Os -Wall -fno-rtti
 #EXTRA_LIBS=
 #BUILD_SHUTDOWN=no
+#SANITIZEOPTS=
 # (shutdown command not available for OpenBSD yet).
 
 # MacOS: use Linux settings, but don't build shutdown:
