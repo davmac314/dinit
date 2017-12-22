@@ -4,7 +4,7 @@
 #include <utility>
 #include <mutex>
 
-#include "dasynq-naryheap.h"
+#include "dasynq-daryheap.h"
 
 namespace dasynq {
 
@@ -208,7 +208,7 @@ class compare_timespec
     }
 };
 
-using timer_queue_t = nary_heap<timer_data, time_val, compare_timespec>;
+using timer_queue_t = dary_heap<timer_data, time_val, compare_timespec>;
 using timer_handle_t = timer_queue_t::handle_t;
 
 static inline void init_timer_handle(timer_handle_t &hnd) noexcept

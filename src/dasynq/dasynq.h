@@ -4,7 +4,6 @@
 #include "dasynq-config.h"
 
 #include "dasynq-flags.h"
-#include "dasynq-naryheap.h"
 #include "dasynq-stableheap.h"
 #include "dasynq-interrupt.h"
 #include "dasynq-util.h"
