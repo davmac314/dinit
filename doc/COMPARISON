@@ -12,7 +12,7 @@ Systems without dependency management
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 A variety of init/supervision packages do not perform proper dependency management
-of supervisions. By this I mean that:
+of supervisions. By this I mean that, broadly speaking:
  - starting a service should automatically start any services that the former
    requires (and wait, if appropriate, until they have started)
  - likewise, stopping a service should automatically stop any dependent services.
@@ -31,58 +31,76 @@ packages do not:
 Cinit (http://www.nico.schottelius.org/software/cinit)
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 An obscure init system which apparently offers portability and dependency
-management, just as Dinit does.
+management, just as Dinit does. Development appears to have ceased some
+time ago, unfortunately.
 
 
 InitNG (http://initng.org/trac)
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 A highly modular init system which apparently offers dependency management
 (as Dinit does). Portability status is unclear; may be Linux-only (Dinit
-strives for portability).
+strives for portability). Development may have ceased (website is now showing
+Japanese text which I am unable to read) although there are what looks like
+maintennance commits in the Github repository at https://github.com/initng/initng.
 
 
 Nosh (http://homepage.ntlworld.com/jonathan.deboynepollard/Softwares/nosh.html)
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-Another seeminly modular init system offering dependency management and socket
+Another seemingly modular init system offering dependency management and socket
 activation, with BSD licensing. Service configuration is expressed through
 directory structure (symbolic links represent service dependencies, etc). It
-provides a simple shell-like scripting language with a fast interpreter, avoiding
-the need for standard shell scripts. It was originally designed for BSD systems but
-works on Linux too (i.e. is portable). It does not provide a D-Bus interface.
-Seemingly, this package addresses most of the various complaints that have been
-levelled against SystemD. Compared to Dinit, it favors chain-loading of smaller
-utilities to provide even more basic functionality. By comparison Dinit tends to
-avoid starting additional processes by design, expresses configuration in files
-and tracks state internally.
+provides a simple shell-like scripting language which can be used to describe
+how to start services (and to control resource limits etc).
+
+It was originally designed for BSD systems but works on Linux too (i.e. is
+portable). It does not provide a D-Bus interface. Seemingly, this package addresses
+most of the various complaints that have been levelled against SystemD. Compared to
+Dinit, it favors chain-loading of smaller utilities to provide even more basic
+functionality. By comparison Dinit tends to avoid starting additional processes by
+design, expresses configuration in files and tracks state internally.
+
+Nosh seems to be a quite mature system with a range of features that makes it
+appear competitive, feature-wise, with Systemd, though without a lot of the
+feature-creep extras that can easily be implemented separately.
 
 
 OpenRC (Gentoo)
 -=-=-=-=-=-=-=-
 The OpenRC system used in Gentoo Linux is a dependency-managing service supervision
-system with funcionality similar in some respects to Dinit. It provides parallel
-startup of services (like Dinit). Compared to Dinit:
- - OpenRC is configured using, and relies largely on, shell scripts
- - OpenRC cannot be used as a direct replacement for /sbin/init; instead it is
-   intended that OpenRC be started by init.
- - Although the build system seems to have some support for BSD OSes, it did not
-   build successfully on OpenBSD when tested (revision 33d3f33).
+system with functionality that may similar in some respects to Dinit. According to
+Wikipedia, it provides parallel startup of services (like Dinit).
+
+It is difficult to find high-level documentation regarding the operation of OpenRC.
+It seems that services must be specified via a shell script, and service
+configuration is also specified as part of the script.
+
+Although the build system seems to have some support for BSD OSes, it did not
+build successfully on OpenBSD when tested (revision 33d3f33).
 
 
 S6-RC (http://skarnet.org/software/s6-rc/s6-rc.html)
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 S6-RC provides a dependency-management system over the top of the S6 supervision
 system. Apparently it maintains most state on disk. S6-RC requires compiling the
-complete set of service descriptions into a database. New services apparently
-cannot be added once the system is in operation.
+complete set of service descriptions into a database. New services cannot be added
+once the system is in operation, and service definitions cannot be changed in
+general, except by re-compiling the database; S6-RC will then start any new
+services as required (and stop any processes no longer considered part of an
+active service).
 
-S6 in general follows a philosophy of breaking up functionality into smaller
+S6 in general seems to follow the philosophy of breaking up functionality into smaller
 parts and implementing these smaller parts as separate programs, wherever
 practical. Thus, process supervision, log file management, and service management
 are all separate programs.
 
 In contrast, Dinit does not requires compiling service definitions, and allows
-new services to be added after the system starts. Also, Dinit houses a much larger
-body of functionality in a single executable program.
+new services to be added after the system starts. Also, Dinit incorporates
+service supervision and management into a single process.
+
+It appears that S6 supports only hard dependencies: that is if, a service depends
+on another then that service must start, and stay running. Dinit supports a number
+of dependency types including "soft" dependencies which allow the dependency to
+stop or fail without necessarily stopping the dependent.
 
 
 Systemd
