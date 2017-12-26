@@ -736,8 +736,6 @@ class bgproc_service : public base_process_service
          : base_process_service(sset, name, service_type::BGPROCESS, std::move(command), command_offsets,
              depends_p)
     {
-        tracking_child = false;
-        reserved_child_watch = false;
     }
 
     ~bgproc_service() noexcept
