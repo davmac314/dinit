@@ -17,7 +17,7 @@ dinitctl: dinitctl.o
 	$(CXX) -o dinitctl dinitctl.o $(EXTRA_LIBS)
 	
 shutdown: shutdown.o
-	$(CXX) -o shutdown shutdown.o
+	$(CXX) -o shutdown shutdown.o $(EXTRA_LIBS)
 
 $(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) -Idasynq -c $< -o $@
