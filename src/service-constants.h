@@ -22,7 +22,7 @@ enum class service_type {
 };
 
 /* Service events */
-enum class service_event {
+enum class service_event_t {
     STARTED,           // Service was started (reached STARTED state)
     STOPPED,           // Service was stopped (reached STOPPED state)
     FAILEDSTART,       // Service failed to start (possibly due to dependency failing)

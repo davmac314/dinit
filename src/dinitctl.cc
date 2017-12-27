@@ -375,16 +375,16 @@ static int startStopService(int socknum, const char *service_name, Command comma
             return 0;
         }
         
-        service_event completionEvent;
-        service_event cancelledEvent;
+        service_event_t completionEvent;
+        service_event_t cancelledEvent;
         
         if (do_stop) {
-            completionEvent = service_event::STOPPED;
-            cancelledEvent = service_event::STOPCANCELLED;
+            completionEvent = service_event_t::STOPPED;
+            cancelledEvent = service_event_t::STOPCANCELLED;
         }
         else {
-            completionEvent = service_event::STARTED;
-            cancelledEvent = service_event::STARTCANCELLED;
+            completionEvent = service_event_t::STARTED;
+            cancelledEvent = service_event_t::STARTCANCELLED;
         }
         
         // Wait until service started:
@@ -397,7 +397,7 @@ static int startStopService(int socknum, const char *service_name, Command comma
                 if (rbuffer[0] == DINIT_IP_SERVICEEVENT) {
                     handle_t ev_handle;
                     rbuffer.extract((char *) &ev_handle, 2, sizeof(ev_handle));
-                    service_event event = static_cast<service_event>(rbuffer[2 + sizeof(ev_handle)]);
+                    service_event_t event = static_cast<service_event_t>(rbuffer[2 + sizeof(ev_handle)]);
                     if (ev_handle == handle) {
                         if (event == completionEvent) {
                             if (verbose) {
@@ -411,7 +411,7 @@ static int startStopService(int socknum, const char *service_name, Command comma
                             }
                             return 1;
                         }
-                        else if (! do_stop && event == service_event::FAILEDSTART) {
+                        else if (! do_stop && event == service_event_t::FAILEDSTART) {
                             if (verbose) {
                                 cout << "Service failed to start." << endl;
                             }

@@ -432,7 +432,7 @@ static void control_socket_cb(eventloop_t *loop, int sockfd)
 
     if (newfd != -1) {
         try {
-            new control_conn_t(loop, services, newfd);  // will delete itself when it's finished
+            new control_conn_t(*loop, services, newfd);  // will delete itself when it's finished
         }
         catch (std::exception &exc) {
             log(loglevel_t::ERROR, "Accepting control connection: ", exc.what());

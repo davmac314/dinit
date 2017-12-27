@@ -103,8 +103,8 @@
  */
 
 struct onstart_flags_t {
-    bool rw_ready : 1;
-    bool log_ready : 1;
+    bool rw_ready : 1;  // file system should be writable once this service starts
+    bool log_ready : 1; // syslog should be available once this service starts
     
     // Not actually "onstart" commands:
     bool no_sigterm : 1;  // do not send SIGTERM
@@ -286,25 +286,24 @@ class service_record
     bool pinned_stopped : 1;
     bool pinned_started : 1;
     bool waiting_for_deps : 1;  // if STARTING, whether we are waiting for dependencies (inc console) to start
+                                // if STOPPING, whether we are waiting for dependents to stop
     bool waiting_for_execstat : 1;  // if we are waiting for exec status after fork()
-    bool start_explicit : 1;    // whether we are are explictly required to be started
+    bool start_explicit : 1;    // whether we are are explicitly required to be started
 
     bool prop_require : 1;      // require must be propagated
     bool prop_release : 1;      // release must be propagated
     bool prop_failure : 1;      // failure to start must be propagated
     bool prop_start   : 1;
     bool prop_stop    : 1;
+
     bool restarting   : 1;      // re-starting after unexpected termination
     
     int required_by = 0;        // number of dependents wanting this service to be started
 
-    typedef std::list<service_record *> sr_list;
-    typedef sr_list::iterator sr_iter;
-    
-    // list of soft dependencies
+    // list of dependencies
     typedef std::list<service_dep> dep_list;
     
-    // list of soft dependents
+    // list of dependents
     typedef std::list<service_dep *> dpt_list;
     
     dep_list depends_on;  // services this one depends on
@@ -368,7 +367,7 @@ class service_record
             int csfd) noexcept;
     
     // A dependency has reached STARTED state
-    void dependencyStarted() noexcept;
+    void dependency_started() noexcept;
     
     void all_deps_started(bool haveConsole = false) noexcept;
 
@@ -391,6 +390,13 @@ class service_record
         return waiting_for_deps;
     }
     
+    // Whether a STARTING service can transition to its STARTED state, once all
+    // dependencies have started.
+    virtual bool can_proceed_to_start() noexcept
+    {
+        return true;
+    }
+
     virtual void interrupt_start() noexcept;
 
     // Whether a STOPPING service can immediately transition to STARTED.
@@ -419,10 +425,10 @@ class service_record
             || (service_state == service_state_t::STARTING && waiting_for_deps);
     }
     
-    void notify_listeners(service_event event) noexcept
+    void notify_listeners(service_event_t event) noexcept
     {
         for (auto l : listeners) {
-            l->serviceEvent(this, event);
+            l->service_event(this, event);
         }
     }
     
@@ -662,6 +668,11 @@ class base_process_service : public service_record
         return waiting_restart_timer || service_record::can_interrupt_start();
     }
 
+    virtual bool can_proceed_to_start() noexcept override
+    {
+        return ! waiting_restart_timer;
+    }
+
     virtual void interrupt_start() noexcept override;
 
     // Kill with SIGKILL
@@ -880,7 +891,7 @@ class service_set
     }
 
     // Get the list of all loaded services.
-    const std::list<service_record *> &listServices()
+    const std::list<service_record *> &list_services() noexcept
     {
         return records;
     }

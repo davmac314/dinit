@@ -49,34 +49,33 @@ class service_record;
 
 class control_conn_watcher : public eventloop_t::bidi_fd_watcher_impl<control_conn_watcher>
 {
-    inline rearm receiveEvent(eventloop_t &loop, int fd, int flags) noexcept;
+    inline rearm receive_event(eventloop_t &loop, int fd, int flags) noexcept;
+
+    eventloop_t * event_loop;
 
     public:
+    control_conn_watcher(eventloop_t & event_loop_p) : event_loop(&event_loop_p)
+    {
+        // constructor
+    }
+
     rearm read_ready(eventloop_t &loop, int fd) noexcept
     {
-        return receiveEvent(loop, fd, IN_EVENTS);
+        return receive_event(loop, fd, IN_EVENTS);
     }
     
     rearm write_ready(eventloop_t &loop, int fd) noexcept
     {
-        return receiveEvent(loop, fd, OUT_EVENTS);
+        return receive_event(loop, fd, OUT_EVENTS);
     }
-    
-    eventloop_t * eventLoop;
-    
+
     void set_watches(int flags)
     {
-        eventloop_t::bidi_fd_watcher::set_watches(*eventLoop, flags);
-    }
-    
-    void registerWith(eventloop_t &loop, int fd, int flags)
-    {
-        this->eventLoop = &loop;
-        bidi_fd_watcher<eventloop_t>::add_watch(loop, fd, flags);
+        eventloop_t::bidi_fd_watcher::set_watches(*event_loop, flags);
     }
 };
 
-inline rearm control_conn_watcher::receiveEvent(eventloop_t &loop, int fd, int flags) noexcept
+inline rearm control_conn_watcher::receive_event(eventloop_t &loop, int fd, int flags) noexcept
 {
     return control_conn_cb(&loop, this, flags);
 }
@@ -87,14 +86,14 @@ class control_conn_t : private service_listener
     friend rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents);
     
     control_conn_watcher iob;
-    eventloop_t *loop;
+    eventloop_t &loop;
     service_set *services;
     
     bool bad_conn_close = false; // close when finished output?
     bool oom_close = false;      // send final 'out of memory' indicator
 
     // The packet length before we need to re-check if the packet is complete.
-    // processPacket() will not be called until the packet reaches this size.
+    // process_packet() will not be called until the packet reaches this size.
     int chklen;
     
     // Receive buffer
@@ -122,8 +121,8 @@ class control_conn_t : private service_listener
     //            true (with bad_conn_close == true) if the packet was not successfully
     //              queued (but a suitable error packate has been queued).
     // The in/out watch enabled state will also be set appropriately.
-    bool queuePacket(vector<char> &&v) noexcept;
-    bool queuePacket(const char *pkt, unsigned size) noexcept;
+    bool queue_packet(vector<char> &&v) noexcept;
+    bool queue_packet(const char *pkt, unsigned size) noexcept;
 
     // Process a packet.
     //  Returns:  true (with bad_conn_close == false) if successful
@@ -132,29 +131,29 @@ class control_conn_t : private service_listener
     //                (connection should be closed).
     // Throws:
     //    std::bad_alloc - if an out-of-memory condition prevents processing
-    bool processPacket();
+    bool process_packet();
     
     // Process a STARTSERVICE/STOPSERVICE packet. May throw std::bad_alloc.
-    bool processStartStop(int pktType);
+    bool process_start_stop(int pktType);
     
     // Process a FINDSERVICE/LOADSERVICE packet. May throw std::bad_alloc.
-    bool processFindLoad(int pktType);
+    bool process_find_load(int pktType);
 
     // Process an UNPINSERVICE packet. May throw std::bad_alloc.
-    bool processUnpinService();
+    bool process_unpin_service();
     
-    bool listServices();
+    bool list_services();
 
     // Notify that data is ready to be read from the socket. Returns true if the connection should
     // be closed.
-    bool dataReady() noexcept;
+    bool data_ready() noexcept;
     
-    bool sendData() noexcept;
+    bool send_data() noexcept;
     
     // Allocate a new handle for a service; may throw std::bad_alloc
-    handle_t allocateServiceHandle(service_record *record);
+    handle_t allocate_service_handle(service_record *record);
     
-    service_record *findServiceForKey(uint32_t key)
+    service_record *find_service_for_key(uint32_t key)
     {
         try {
             return keyServiceMap.at(key);
@@ -165,7 +164,7 @@ class control_conn_t : private service_listener
     }
     
     // Close connection due to out-of-memory condition.
-    void doOomClose()
+    void do_oom_close()
     {
         bad_conn_close = true;
         oom_close = true;
@@ -175,7 +174,7 @@ class control_conn_t : private service_listener
     // Process service event broadcast.
     // Note that this can potentially be called during packet processing (upon issuing
     // service start/stop orders etc).
-    void serviceEvent(service_record * service, service_event event) noexcept final override
+    void service_event(service_record * service, service_event_t event) noexcept final override
     {
         // For each service handle corresponding to the event, send an information packet.
         auto range = serviceKeyMap.equal_range(service);
@@ -194,24 +193,24 @@ class control_conn_t : private service_listener
                     pkt.push_back(*p++);
                 }
                 pkt.push_back(static_cast<char>(event));
-                queuePacket(std::move(pkt));
+                queue_packet(std::move(pkt));
                 ++i;
             }
         }
         catch (std::bad_alloc &exc) {
-            doOomClose();
+            do_oom_close();
         }
     }
     
     public:
-    control_conn_t(eventloop_t * loop, service_set * services_p, int fd)
-            : loop(loop), services(services_p), chklen(0)
+    control_conn_t(eventloop_t &loop, service_set * services_p, int fd)
+            : iob(loop), loop(loop), services(services_p), chklen(0)
     {
-        iob.registerWith(*loop, fd, IN_EVENTS);
+        iob.add_watch(loop, fd, IN_EVENTS);
         active_control_conns++;
     }
     
-    bool rollbackComplete() noexcept;
+    bool rollback_complete() noexcept;
         
     virtual ~control_conn_t() noexcept;
 };
@@ -222,13 +221,13 @@ static rearm control_conn_cb(eventloop_t * loop, control_conn_watcher * watcher,
     char * cc_addr = (reinterpret_cast<char *>(watcher)) - offsetof(control_conn_t, iob);
     control_conn_t *conn = reinterpret_cast<control_conn_t *>(cc_addr);
     if (revents & IN_EVENTS) {
-        if (conn->dataReady()) {
+        if (conn->data_ready()) {
             delete conn;
             return rearm::REMOVED;
         }
     }
     if (revents & OUT_EVENTS) {
-        if (conn->sendData()) {
+        if (conn->send_data()) {
             delete conn;
             return rearm::REMOVED;
         }

@@ -110,7 +110,7 @@ void service_record::stopped() noexcept
     }
 
     log_service_stopped(service_name);
-    notify_listeners(service_event::STOPPED);
+    notify_listeners(service_event_t::STOPPED);
 }
 
 dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t child, int status) noexcept
@@ -468,7 +468,7 @@ void service_record::start(bool activate) noexcept
         // We're STOPPING, and that can be interrupted. Our dependencies might be STOPPING,
         // but if so they are waiting (for us), so they too can be instantly returned to
         // STARTING state.
-        notify_listeners(service_event::STOPCANCELLED);
+        notify_listeners(service_event_t::STOPCANCELLED);
     }
     else if (! was_active) {
         services->service_active(this);
@@ -550,7 +550,7 @@ void service_record::do_start() noexcept
     }
 }
 
-void service_record::dependencyStarted() noexcept
+void service_record::dependency_started() noexcept
 {
     if ((service_state == service_state_t::STARTING || service_state == service_state_t::STARTED)
             && waiting_for_deps) {
@@ -677,9 +677,7 @@ void service_record::all_deps_started(bool has_console) noexcept
     
     waiting_for_deps = false;
 
-    // We overload can_interrupt_start to check whether there is any other
-    // process (eg restart timer) that needs to finish before starting.
-    if (can_interrupt_start()) {
+    if (! can_proceed_to_start()) {
         waiting_for_deps = true;
         return;
     }
@@ -787,7 +785,7 @@ void service_record::started() noexcept
 
     log_service_started(service_name);
     service_state = service_state_t::STARTED;
-    notify_listeners(service_event::STARTED);
+    notify_listeners(service_event_t::STARTED);
 
     if (onstart_flags.rw_ready) {
         open_control_socket();
@@ -804,7 +802,7 @@ void service_record::started() noexcept
 
     // Notify any dependents whose desired state is STARTED:
     for (auto dept : dependents) {
-        dept->get_from()->dependencyStarted();
+        dept->get_from()->dependency_started();
         dept->waiting_on = false;
     }
 }
@@ -822,7 +820,7 @@ void service_record::failed_to_start(bool depfailed) noexcept
         start_explicit = false;
         release();
     }
-    notify_listeners(service_event::FAILEDSTART);
+    notify_listeners(service_event_t::FAILEDSTART);
     
     // Cancel start of dependents:
     for (auto & dept : dependents) {
@@ -838,7 +836,7 @@ void service_record::failed_to_start(bool depfailed) noexcept
         case dependency_type::SOFT:
             if (dept->waiting_on) {
                 dept->waiting_on = false;
-                dept->get_from()->dependencyStarted();
+                dept->get_from()->dependency_started();
             }
             if (dept->holding_acq) {
                 dept->holding_acq = false;
@@ -905,7 +903,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         fcntl(control_socket[0], F_SETFD, fdflags | FD_CLOEXEC);
         
         try {
-            control_conn = new control_conn_t(&eventLoop, services, control_socket[0]);
+            control_conn = new control_conn_t(eventLoop, services, control_socket[0]);
         }
         catch (std::exception &exc) {
             log(loglevel_t::ERROR, service_name, ": can't launch process; out of memory");
@@ -1140,7 +1138,7 @@ void service_record::do_stop() noexcept
             }
 
             // We must have had desired_state == STARTED.
-            notify_listeners(service_event::STARTCANCELLED);
+            notify_listeners(service_event_t::STARTCANCELLED);
             
             interrupt_start();
 

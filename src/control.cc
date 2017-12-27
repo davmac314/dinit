@@ -1,11 +1,11 @@
 #include "control.h"
 #include "service.h"
 
-bool control_conn_t::processPacket()
+bool control_conn_t::process_packet()
 {
     using std::string;
     
-    // Note that where we call queuePacket, we must generally check the return value. If it
+    // Note that where we call queue_packet, we must generally check the return value. If it
     // returns false it has either deleted the connection or marked it for deletion; we
     // shouldn't touch instance members after that point.
 
@@ -14,19 +14,19 @@ bool control_conn_t::processPacket()
         // Responds with:
         // DINIT_RP_CVERSION, (2 byte) minimum compatible version, (2 byte) maximum compatible version
         char replyBuf[] = { DINIT_RP_CPVERSION, 0, 0, 0, 0 };
-        if (! queuePacket(replyBuf, 1)) return false;
+        if (! queue_packet(replyBuf, 1)) return false;
         rbuf.consume(1);
         return true;
     }
     if (pktType == DINIT_CP_FINDSERVICE || pktType == DINIT_CP_LOADSERVICE) {
-        return processFindLoad(pktType);
+        return process_find_load(pktType);
     }
     if (pktType == DINIT_CP_STARTSERVICE || pktType == DINIT_CP_STOPSERVICE
             || pktType == DINIT_CP_WAKESERVICE || pktType == DINIT_CP_RELEASESERVICE) {
-        return processStartStop(pktType);
+        return process_start_stop(pktType);
     }
     if (pktType == DINIT_CP_UNPINSERVICE) {
-        return processUnpinService();
+        return process_unpin_service();
     }
     if (pktType == DINIT_CP_SHUTDOWN) {
         // Shutdown/reboot
@@ -39,7 +39,7 @@ bool control_conn_t::processPacket()
         
         services->stop_all_services(sd_type);
         char ackBuf[] = { DINIT_RP_ACK };
-        if (! queuePacket(ackBuf, 1)) return false;
+        if (! queue_packet(ackBuf, 1)) return false;
         
         // Clear the packet from the buffer
         rbuf.consume(2);
@@ -47,19 +47,19 @@ bool control_conn_t::processPacket()
         return true;
     }
     if (pktType == DINIT_CP_LISTSERVICES) {
-        return listServices();
+        return list_services();
     }
     else {
         // Unrecognized: give error response
         char outbuf[] = { DINIT_RP_BADREQ };
-        if (! queuePacket(outbuf, 1)) return false;
+        if (! queue_packet(outbuf, 1)) return false;
         bad_conn_close = true;
         iob.set_watches(OUT_EVENTS);
     }
     return true;
 }
 
-bool control_conn_t::processFindLoad(int pktType)
+bool control_conn_t::process_find_load(int pktType)
 {
     using std::string;
     
@@ -76,7 +76,7 @@ bool control_conn_t::processFindLoad(int pktType)
     if (svcSize <= 0 || chklen > 1024) {
         // Queue error response / mark connection bad
         char badreqRep[] = { DINIT_RP_BADREQ };
-        if (! queuePacket(badreqRep, 1)) return false;
+        if (! queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
         iob.set_watches(OUT_EVENTS);
         return true;
@@ -107,7 +107,7 @@ bool control_conn_t::processFindLoad(int pktType)
     
     if (record != nullptr) {
         // Allocate a service handle
-        handle_t handle = allocateServiceHandle(record);
+        handle_t handle = allocate_service_handle(record);
         std::vector<char> rp_buf;
         rp_buf.reserve(7);
         rp_buf.push_back(DINIT_RP_SERVICERECORD);
@@ -116,11 +116,11 @@ bool control_conn_t::processFindLoad(int pktType)
             rp_buf.push_back(*(((char *) &handle) + i));
         }
         rp_buf.push_back(static_cast<char>(record->get_target_state()));
-        if (! queuePacket(std::move(rp_buf))) return false;
+        if (! queue_packet(std::move(rp_buf))) return false;
     }
     else {
         std::vector<char> rp_buf = { DINIT_RP_NOSERVICE };
-        if (! queuePacket(std::move(rp_buf))) return false;
+        if (! queue_packet(std::move(rp_buf))) return false;
     }
     
     // Clear the packet from the buffer
@@ -129,7 +129,7 @@ bool control_conn_t::processFindLoad(int pktType)
     return true;
 }
 
-bool control_conn_t::processStartStop(int pktType)
+bool control_conn_t::process_start_stop(int pktType)
 {
     using std::string;
     
@@ -148,11 +148,11 @@ bool control_conn_t::processStartStop(int pktType)
     handle_t handle;
     rbuf.extract((char *) &handle, 2, sizeof(handle));
     
-    service_record *service = findServiceForKey(handle);
+    service_record *service = find_service_for_key(handle);
     if (service == nullptr) {
         // Service handle is bad
         char badreqRep[] = { DINIT_RP_BADREQ };
-        if (! queuePacket(badreqRep, 1)) return false;
+        if (! queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
         iob.set_watches(OUT_EVENTS);
         return true;
@@ -194,7 +194,7 @@ bool control_conn_t::processStartStop(int pktType)
         
         char ack_buf[] = { (char)(already_there ? DINIT_RP_ALREADYSS : DINIT_RP_ACK) };
         
-        if (! queuePacket(ack_buf, 1)) return false;
+        if (! queue_packet(ack_buf, 1)) return false;
     }
     
     // Clear the packet from the buffer
@@ -203,7 +203,7 @@ bool control_conn_t::processStartStop(int pktType)
     return true;
 }
 
-bool control_conn_t::processUnpinService()
+bool control_conn_t::process_unpin_service()
 {
     using std::string;
     
@@ -220,11 +220,11 @@ bool control_conn_t::processUnpinService()
     handle_t handle;
     rbuf.extract((char *) &handle, 1, sizeof(handle));
     
-    service_record *service = findServiceForKey(handle);
+    service_record *service = find_service_for_key(handle);
     if (service == nullptr) {
         // Service handle is bad
         char badreqRep[] = { DINIT_RP_BADREQ };
-        if (! queuePacket(badreqRep, 1)) return false;
+        if (! queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
         iob.set_watches(OUT_EVENTS);
         return true;
@@ -233,7 +233,7 @@ bool control_conn_t::processUnpinService()
         service->unpin();
         services->process_queues();
         char ack_buf[] = { (char) DINIT_RP_ACK };
-        if (! queuePacket(ack_buf, 1)) return false;
+        if (! queue_packet(ack_buf, 1)) return false;
     }
     
     // Clear the packet from the buffer
@@ -242,13 +242,13 @@ bool control_conn_t::processUnpinService()
     return true;
 }
 
-bool control_conn_t::listServices()
+bool control_conn_t::list_services()
 {
     rbuf.consume(1); // clear request packet
     chklen = 0;
     
     try {
-        auto slist = services->listServices();
+        auto slist = services->list_services();
         for (auto sptr : slist) {
             std::vector<char> pkt_buf;
             
@@ -270,22 +270,22 @@ bool control_conn_t::listServices()
                 pkt_buf[8+i] = name[i];
             }
             
-            if (! queuePacket(std::move(pkt_buf))) return false;
+            if (! queue_packet(std::move(pkt_buf))) return false;
         }
         
         char ack_buf[] = { (char) DINIT_RP_LISTDONE };
-        if (! queuePacket(ack_buf, 1)) return false;
+        if (! queue_packet(ack_buf, 1)) return false;
         
         return true;
     }
     catch (std::bad_alloc &exc)
     {
-        doOomClose();
+        do_oom_close();
         return true;
     }
 }
 
-control_conn_t::handle_t control_conn_t::allocateServiceHandle(service_record *record)
+control_conn_t::handle_t control_conn_t::allocate_service_handle(service_record *record)
 {
     bool is_unique = true;
     handle_t largest_seen = 0;
@@ -309,8 +309,7 @@ control_conn_t::handle_t control_conn_t::allocateServiceHandle(service_record *r
     return candidate;
 }
 
-
-bool control_conn_t::queuePacket(const char *pkt, unsigned size) noexcept
+bool control_conn_t::queue_packet(const char *pkt, unsigned size) noexcept
 {
     int in_flag = bad_conn_close ? 0 : IN_EVENTS;
     bool was_empty = outbuf.empty();
@@ -363,9 +362,9 @@ bool control_conn_t::queuePacket(const char *pkt, unsigned size) noexcept
     }
 }
 
-// This queuePacket method is frustratingly similar to the one above, but the subtle differences
+// This queue_packet method is frustratingly similar to the one above, but the subtle differences
 // make them extraordinary difficult to combine into a single method.
-bool control_conn_t::queuePacket(std::vector<char> &&pkt) noexcept
+bool control_conn_t::queue_packet(std::vector<char> &&pkt) noexcept
 {
     int in_flag = bad_conn_close ? 0 : IN_EVENTS;
     bool was_empty = outbuf.empty();
@@ -416,13 +415,13 @@ bool control_conn_t::queuePacket(std::vector<char> &&pkt) noexcept
     }
 }
 
-bool control_conn_t::rollbackComplete() noexcept
+bool control_conn_t::rollback_complete() noexcept
 {
     char ackBuf[2] = { DINIT_ROLLBACK_COMPLETED, 2 };
-    return queuePacket(ackBuf, 2);
+    return queue_packet(ackBuf, 2);
 }
 
-bool control_conn_t::dataReady() noexcept
+bool control_conn_t::data_ready() noexcept
 {
     int fd = iob.get_watched_fd();
     
@@ -444,10 +443,10 @@ bool control_conn_t::dataReady() noexcept
     // complete packet?
     if (rbuf.get_length() >= chklen) {
         try {
-            return !processPacket();
+            return !process_packet();
         }
         catch (std::bad_alloc &baexc) {
-            doOomClose();
+            do_oom_close();
             return false;
         }
     }
@@ -465,7 +464,7 @@ bool control_conn_t::dataReady() noexcept
     return false;
 }
 
-bool control_conn_t::sendData() noexcept
+bool control_conn_t::send_data() noexcept
 {
     if (outbuf.empty() && bad_conn_close) {
         if (oom_close) {
@@ -515,7 +514,7 @@ bool control_conn_t::sendData() noexcept
 control_conn_t::~control_conn_t() noexcept
 {
     close(iob.get_watched_fd());
-    iob.deregister(*loop);
+    iob.deregister(loop);
     
     // Clear service listeners
     for (auto p : serviceKeyMap) {

@@ -12,7 +12,7 @@ class service_listener
     
     // An event occurred on the service being observed.
     // Listeners must not be added or removed during event notification.
-    virtual void serviceEvent(service_record * service, service_event event) noexcept = 0;
+    virtual void service_event(service_record * service, service_event_t event) noexcept = 0;
 };
 
 #endif
