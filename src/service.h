@@ -349,7 +349,7 @@ class service_record
     // stop immediately
     void emergency_stop() noexcept;
 
-    // All dependents have stopped.
+    // All dependents have stopped, and this service should proceed to stop.
     virtual void all_deps_stopped() noexcept;
     
     // Service has actually stopped (includes having all dependents
@@ -647,7 +647,8 @@ class base_process_service : public service_record
     bool waiting_restart_timer : 1;
     bool stop_timer_armed : 1;
     bool reserved_child_watch : 1;
-    bool tracking_child : 1;
+    bool tracking_child : 1;  // whether we expect to see child process status
+    bool start_is_interruptible : 1;  // whether we can interrupt start
 
     // Start the process, return true on success
     virtual bool start_ps_process() noexcept override;
@@ -661,6 +662,9 @@ class base_process_service : public service_record
     void do_smooth_recovery() noexcept;
 
     virtual void all_deps_stopped() noexcept override;
+
+    // Called when the process exits. The exit_status is the status value yielded by
+    // the "wait" system call.
     virtual void handle_exit_status(int exit_status) noexcept = 0;
 
     virtual bool can_interrupt_start() noexcept override
@@ -709,9 +713,8 @@ class base_process_service : public service_record
 
 class process_service : public base_process_service
 {
-    // called when the process exits. The exit_status is the status value yielded by
-    // the "wait" system call.
     virtual void handle_exit_status(int exit_status) noexcept override;
+    virtual void all_deps_stopped() noexcept override;
 
     public:
     process_service(service_set *sset, string name, string &&command,

@@ -380,9 +380,22 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
             sr->failed_to_start();
         }
         else if (sr->service_state == service_state_t::STOPPING) {
-            // Must be a scripted service. We've logged the failure, but it's probably better
-            // not to leave the service in STARTED state:
-            sr->stopped();
+            // Must be a scripted service, or a regular process service that happened to be in smooth
+            // recovery when the stop was issued.
+            if (sr->record_type == service_type::PROCESS) {
+                if (sr->stop_check_dependents()) {
+                    sr->stopped();
+                }
+            }
+            else {
+                // We've logged the failure, but it's probably better not to leave the service in
+                // STOPPING state:
+                sr->stopped();
+            }
+        }
+        else if (sr->service_state == service_state_t::STARTED) {
+            // Process service in smooth recovery:
+            sr->emergency_stop();
         }
     }
     else {
@@ -393,6 +406,14 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
             // process startup again in either case, so we check for state STARTING:
             if (sr->service_state == service_state_t::STARTING) {
                 sr->started();
+            }
+            else if (sr->service_state == service_state_t::STOPPING) {
+                // stopping, but smooth recovery was in process. That's now over so we can
+                // commence normal stop. Note that if pid == -1 the process already stopped(!),
+                // that's handled below.
+                if (sr->pid != -1 && sr->stop_check_dependents()) {
+                    sr->all_deps_stopped();
+                }
             }
         }
         
@@ -1220,6 +1241,43 @@ void base_process_service::all_deps_stopped() noexcept
 {
     waiting_for_deps = false;
     if (pid != -1) {
+        // The process is still kicking on - must actually kill it. We signal the process
+        // group (-pid) rather than just the process as there's less risk then of creating
+        // an orphaned process group:
+        if (! onstart_flags.no_sigterm) {
+            kill_pg(SIGTERM);
+        }
+        if (term_signal != -1) {
+            kill_pg(term_signal);
+        }
+
+        // In most cases, the rest is done in handle_exit_status.
+        // If we are a BGPROCESS and the process is not our immediate child, however, that
+        // won't work - check for this now:
+        if (record_type == service_type::BGPROCESS && ! tracking_child) {
+            stopped();
+        }
+        else if (stop_timeout != time_val(0,0)) {
+            restart_timer.arm_timer_rel(eventLoop, stop_timeout);
+            stop_timer_armed = true;
+        }
+    }
+    else {
+        // The process is already dead.
+        stopped();
+    }
+}
+
+void process_service::all_deps_stopped() noexcept
+{
+    waiting_for_deps = false;
+    if (waiting_for_execstat) {
+        // The process is still starting. This should be uncommon, but can occur during
+        // smooth recovery. We can't do much now; we have to wait until we get the
+        // status, and then act appropriately.
+        return;
+    }
+    else if (pid != -1) {
         // The process is still kicking on - must actually kill it. We signal the process
         // group (-pid) rather than just the process as there's less risk then of creating
         // an orphaned process group:
