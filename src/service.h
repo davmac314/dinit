@@ -444,6 +444,12 @@ class service_record
     // Started state reached
     bool process_started() noexcept;
 
+    // Called on transition of desired state from stopped to started (or unpinned stop)
+    void do_start() noexcept;
+
+    // Called on transition of desired state from started to stopped (or unpinned start)
+    void do_stop() noexcept;
+
     public:
 
     service_record(service_set *set, string name)
@@ -492,13 +498,7 @@ class service_record
     void execute_transition() noexcept;
     
     void do_propagation() noexcept;
-    
-    // Called on transition of desired state from stopped to started (or unpinned stop)
-    void do_start() noexcept;
 
-    // Called on transition of desired state from started to stopped (or unpinned start)
-    void do_stop() noexcept;
-    
     // Console is available.
     void acquired_console() noexcept;
     
