@@ -258,6 +258,11 @@ class exec_status_pipe_watcher : public eventloop_t::fd_watcher_impl<exec_status
 
 // service_record: base class for service record containing static information
 // and current state of each service.
+//
+// This abstract base class defines the dependency behaviour of services. The actions to actually bring a
+// service up or down are specified by subclasses in the virtual methods (see especially bring_up() and
+// bring_down()).
+//
 class service_record
 {
     protected:
@@ -348,9 +353,6 @@ class service_record
     
     // stop immediately
     void emergency_stop() noexcept;
-
-    // All dependents have stopped, and this service should proceed to stop.
-    virtual void bring_down() noexcept;
     
     // Service has actually stopped (includes having all dependents
     // reaching STOPPED state).
@@ -371,9 +373,6 @@ class service_record
     
     void all_deps_started(bool haveConsole = false) noexcept;
 
-    // Do any post-dependency startup; return false on failure
-    virtual bool start_ps_process() noexcept;
-
     // Open the activation socket, return false on failure
     bool open_socket() noexcept;
 
@@ -382,22 +381,6 @@ class service_record
 
     // Check whether all dependencies have started (i.e. whether we can start now)
     bool check_deps_started() noexcept;
-
-    // Whether a STARTING service can immediately transition to STOPPED (as opposed to
-    // having to wait for it reach STARTED and then go through STOPPING).
-    virtual bool can_interrupt_start() noexcept
-    {
-        return waiting_for_deps;
-    }
-    
-    // Whether a STARTING service can transition to its STARTED state, once all
-    // dependencies have started.
-    virtual bool can_proceed_to_start() noexcept
-    {
-        return true;
-    }
-
-    virtual void interrupt_start() noexcept;
 
     // Whether a STOPPING service can immediately transition to STARTED.
     bool can_interrupt_stop() noexcept
@@ -449,6 +432,30 @@ class service_record
 
     // Called on transition of desired state from started to stopped (or unpinned start)
     void do_stop() noexcept;
+
+    // Virtual functions, to be implemented by service implementations:
+
+    // Do any post-dependency startup; return false on failure
+    virtual bool bring_up() noexcept;
+
+    // All dependents have stopped, and this service should proceed to stop.
+    virtual void bring_down() noexcept;
+
+    // Whether a STARTING service can immediately transition to STOPPED (as opposed to
+    // having to wait for it reach STARTED and then go through STOPPING).
+    virtual bool can_interrupt_start() noexcept
+    {
+        return waiting_for_deps;
+    }
+
+    // Whether a STARTING service can transition to its STARTED state, once all
+    // dependencies have started.
+    virtual bool can_proceed_to_start() noexcept
+    {
+        return true;
+    }
+
+    virtual void interrupt_start() noexcept;
 
     public:
 
@@ -651,7 +658,7 @@ class base_process_service : public service_record
     bool start_is_interruptible : 1;  // whether we can interrupt start
 
     // Start the process, return true on success
-    virtual bool start_ps_process() noexcept override;
+    virtual bool bring_up() noexcept override;
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
 
     // Restart the process (due to start failure or unexpected termination). Restarts will be

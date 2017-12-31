@@ -718,7 +718,7 @@ void service_record::all_deps_started(bool has_console) noexcept
         failed_to_start();
     }
 
-    bool start_success = start_ps_process();
+    bool start_success = bring_up();
     if (! start_success) {
         failed_to_start();
     }
@@ -878,14 +878,14 @@ void service_record::failed_to_start(bool depfailed) noexcept
     }
 }
 
-bool service_record::start_ps_process() noexcept
+bool service_record::bring_up() noexcept
 {
     // default implementation: there is no process, so we are started.
     started();
     return true;
 }
 
-bool base_process_service::start_ps_process() noexcept
+bool base_process_service::bring_up() noexcept
 {
     if (restarting) {
         if (pid == -1) {
