@@ -423,7 +423,7 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
                 // commence normal stop. Note that if pid == -1 the process already stopped(!),
                 // that's handled below.
                 if (sr->pid != -1 && sr->stop_check_dependents()) {
-                    sr->all_deps_stopped();
+                    sr->bring_down();
                 }
             }
         }
@@ -558,7 +558,7 @@ void service_record::execute_transition() noexcept
     }
     else if (service_state == service_state_t::STOPPING) {
         if (stop_check_dependents()) {
-            all_deps_stopped();
+            bring_down();
         }
     }
 }
@@ -1231,7 +1231,7 @@ bool service_record::stop_dependents() noexcept
 }
 
 // All dependents have stopped; we can stop now, too. Only called when STOPPING.
-void service_record::all_deps_stopped() noexcept
+void service_record::bring_down() noexcept
 {
     waiting_for_deps = false;
     stopped();
@@ -1248,7 +1248,7 @@ void base_process_service::kill_pg(int signo) noexcept
     kill(-pgid, signo);
 }
 
-void base_process_service::all_deps_stopped() noexcept
+void base_process_service::bring_down() noexcept
 {
     waiting_for_deps = false;
     if (pid != -1) {
@@ -1279,7 +1279,7 @@ void base_process_service::all_deps_stopped() noexcept
     }
 }
 
-void process_service::all_deps_stopped() noexcept
+void process_service::bring_down() noexcept
 {
     waiting_for_deps = false;
     if (waiting_for_execstat) {
@@ -1316,7 +1316,7 @@ void process_service::all_deps_stopped() noexcept
     }
 }
 
-void scripted_service::all_deps_stopped() noexcept
+void scripted_service::bring_down() noexcept
 {
     waiting_for_deps = false;
     if (stop_command.length() == 0) {

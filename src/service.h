@@ -350,7 +350,7 @@ class service_record
     void emergency_stop() noexcept;
 
     // All dependents have stopped, and this service should proceed to stop.
-    virtual void all_deps_stopped() noexcept;
+    virtual void bring_down() noexcept;
     
     // Service has actually stopped (includes having all dependents
     // reaching STOPPED state).
@@ -661,7 +661,7 @@ class base_process_service : public service_record
     // Perform smooth recovery process
     void do_smooth_recovery() noexcept;
 
-    virtual void all_deps_stopped() noexcept override;
+    virtual void bring_down() noexcept override;
 
     // Called when the process exits. The exit_status is the status value yielded by
     // the "wait" system call.
@@ -716,7 +716,7 @@ class process_service : public base_process_service
 {
     virtual void handle_exit_status(int exit_status) noexcept override;
     virtual void exec_failed(int errcode) noexcept override;
-    virtual void all_deps_stopped() noexcept override;
+    virtual void bring_down() noexcept override;
 
     public:
     process_service(service_set *sset, string name, string &&command,
@@ -764,7 +764,7 @@ class scripted_service : public base_process_service
 {
     virtual void handle_exit_status(int exit_status) noexcept override;
     virtual void exec_failed(int errcode) noexcept override;
-    virtual void all_deps_stopped() noexcept override;
+    virtual void bring_down() noexcept override;
 
     public:
     scripted_service(service_set *sset, string name, string &&command,
