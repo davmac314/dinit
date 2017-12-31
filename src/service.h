@@ -666,6 +666,7 @@ class base_process_service : public service_record
     // Called when the process exits. The exit_status is the status value yielded by
     // the "wait" system call.
     virtual void handle_exit_status(int exit_status) noexcept = 0;
+    virtual void exec_failed(int errcode) noexcept = 0;
 
     virtual bool can_interrupt_start() noexcept override
     {
@@ -714,6 +715,7 @@ class base_process_service : public service_record
 class process_service : public base_process_service
 {
     virtual void handle_exit_status(int exit_status) noexcept override;
+    virtual void exec_failed(int errcode) noexcept override;
     virtual void all_deps_stopped() noexcept override;
 
     public:
@@ -733,6 +735,7 @@ class process_service : public base_process_service
 class bgproc_service : public base_process_service
 {
     virtual void handle_exit_status(int exit_status) noexcept override;
+    virtual void exec_failed(int errcode) noexcept override;
 
     enum class pid_result_t {
         OK,
@@ -759,8 +762,9 @@ class bgproc_service : public base_process_service
 
 class scripted_service : public base_process_service
 {
-    virtual void all_deps_stopped() noexcept override;
     virtual void handle_exit_status(int exit_status) noexcept override;
+    virtual void exec_failed(int errcode) noexcept override;
+    virtual void all_deps_stopped() noexcept override;
 
     public:
     scripted_service(service_set *sset, string name, string &&command,

@@ -163,6 +163,14 @@ void service_record::emergency_stop() noexcept
     stopped();
 }
 
+void base_process_service::do_smooth_recovery() noexcept
+{
+    if (! restart_ps_process()) {
+        emergency_stop();
+        services->process_queues();
+    }
+}
+
 void process_service::handle_exit_status(int exit_status) noexcept
 {
     bool did_exit = WIFEXITED(exit_status);
@@ -204,11 +212,15 @@ void process_service::handle_exit_status(int exit_status) noexcept
     services->process_queues();
 }
 
-void base_process_service::do_smooth_recovery() noexcept
+void process_service::exec_failed(int errcode) noexcept
 {
-    if (! restart_ps_process()) {
+    log(loglevel_t::ERROR, service_name, ": execution failed: ", strerror(errcode));
+    if (service_state == service_state_t::STARTING) {
+        failed_to_start();
+    }
+    else {
+        // Process service in smooth recovery:
         emergency_stop();
-        services->process_queues();
     }
 }
 
@@ -309,6 +321,13 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
     services->process_queues();
 }
 
+void bgproc_service::exec_failed(int errcode) noexcept
+{
+    log(loglevel_t::ERROR, service_name, ": execution failed: ", strerror(errcode));
+    // Only time we execute is for startup:
+    failed_to_start();
+}
+
 void scripted_service::handle_exit_status(int exit_status) noexcept
 {
     bool did_exit = WIFEXITED(exit_status);
@@ -354,6 +373,19 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
     }
 }
 
+void scripted_service::exec_failed(int errcode) noexcept
+{
+    log(loglevel_t::ERROR, service_name, ": execution failed: ", strerror(errcode));
+    if (service_state == service_state_t::STARTING) {
+        failed_to_start();
+    }
+    else if (service_state == service_state_t::STOPPING) {
+        // We've logged the failure, but it's probably better not to leave the service in
+        // STOPPING state:
+        stopped();
+    }
+}
+
 rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) noexcept
 {
     base_process_service *sr = service;
@@ -375,28 +407,7 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
             }
         }
         sr->pid = -1;
-        log(loglevel_t::ERROR, sr->service_name, ": execution failed: ", strerror(exec_status));
-        if (sr->service_state == service_state_t::STARTING) {
-            sr->failed_to_start();
-        }
-        else if (sr->service_state == service_state_t::STOPPING) {
-            // Must be a scripted service, or a regular process service that happened to be in smooth
-            // recovery when the stop was issued.
-            if (sr->record_type == service_type::PROCESS) {
-                if (sr->stop_check_dependents()) {
-                    sr->stopped();
-                }
-            }
-            else {
-                // We've logged the failure, but it's probably better not to leave the service in
-                // STOPPING state:
-                sr->stopped();
-            }
-        }
-        else if (sr->service_state == service_state_t::STARTED) {
-            // Process service in smooth recovery:
-            sr->emergency_stop();
-        }
+        sr->exec_failed(exec_status);
     }
     else {
         // exec() succeeded.
