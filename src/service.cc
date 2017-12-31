@@ -325,7 +325,7 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
                         WEXITSTATUS(exit_status));
             }
             else if (was_signalled) {
-                log(loglevel_t::INFO, "Serivice ", service_name, " stop command terminated due to signal ",
+                log(loglevel_t::INFO, "Service ", service_name, " stop command terminated due to signal ",
                         WTERMSIG(exit_status));
             }
             // Just assume that we stopped, so that any dependencies
