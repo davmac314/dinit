@@ -266,13 +266,15 @@ class exec_status_pipe_watcher : public eventloop_t::fd_watcher_impl<exec_status
 class service_record
 {
     protected:
-    typedef std::string string;
+    using string = std::string;
     
+    private:
     string service_name;
     service_type record_type;  /* ServiceType::DUMMY, PROCESS, SCRIPTED, INTERNAL */
     service_state_t service_state = service_state_t::STOPPED; /* service_state_t::STOPPED, STARTING, STARTED, STOPPING */
     service_state_t desired_state = service_state_t::STOPPED; /* service_state_t::STOPPED / STARTED */
 
+    protected:
     string program_name;          // storage for program/script and arguments
     std::vector<const char *> exec_arg_parts; // pointer to each argument/part of the program_name, and nullptr
     
@@ -501,6 +503,12 @@ class service_record
     {
     }
     
+    // Get the type of this service record
+    service_type get_type() noexcept
+    {
+        return record_type;
+    }
+
     // begin transition from stopped to started state or vice versa depending on current and desired state
     void execute_transition() noexcept;
     
@@ -564,7 +572,7 @@ class service_record
         this->socket_gid = socket_gid;
     }
 
-    const std::string &get_service_name() const noexcept { return service_name; }
+    const std::string &get_name() const noexcept { return service_name; }
     service_state_t get_state() const noexcept { return service_state; }
     
     void start(bool activate = true) noexcept;  // start the service

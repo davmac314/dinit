@@ -36,7 +36,7 @@ static service_record * find_service(const std::list<service_record *> & records
     using std::list;
     list<service_record *>::const_iterator i = records.begin();
     for ( ; i != records.end(); i++ ) {
-        if (strcmp((*i)->get_service_name().c_str(), name) == 0) {
+        if (strcmp((*i)->get_name().c_str(), name) == 0) {
             return *i;
         }
     }
@@ -176,14 +176,15 @@ void process_service::handle_exit_status(int exit_status) noexcept
     bool did_exit = WIFEXITED(exit_status);
     bool was_signalled = WIFSIGNALED(exit_status);
     restarting = false;
+    auto service_state = get_state();
 
     if (exit_status != 0 && service_state != service_state_t::STOPPING) {
         if (did_exit) {
-            log(loglevel_t::ERROR, "Service ", service_name, " process terminated with exit code ",
+            log(loglevel_t::ERROR, "Service ", get_name(), " process terminated with exit code ",
                     WEXITSTATUS(exit_status));
         }
         else if (was_signalled) {
-            log(loglevel_t::ERROR, "Service ", service_name, " terminated due to signal ",
+            log(loglevel_t::ERROR, "Service ", get_name(), " terminated due to signal ",
                     WTERMSIG(exit_status));
         }
     }
@@ -202,7 +203,7 @@ void process_service::handle_exit_status(int exit_status) noexcept
         stopped();
     }
     else if (smooth_recovery && service_state == service_state_t::STARTED
-            && desired_state == service_state_t::STARTED) {
+            && get_target_state() == service_state_t::STARTED) {
         do_smooth_recovery();
         return;
     }
@@ -214,8 +215,8 @@ void process_service::handle_exit_status(int exit_status) noexcept
 
 void process_service::exec_failed(int errcode) noexcept
 {
-    log(loglevel_t::ERROR, service_name, ": execution failed: ", strerror(errcode));
-    if (service_state == service_state_t::STARTING) {
+    log(loglevel_t::ERROR, get_name(), ": execution failed: ", strerror(errcode));
+    if (get_state() == service_state_t::STARTING) {
         failed_to_start();
     }
     else {
@@ -229,14 +230,15 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
     begin:
     bool did_exit = WIFEXITED(exit_status);
     bool was_signalled = WIFSIGNALED(exit_status);
+    auto service_state = get_state();
 
     if (exit_status != 0 && service_state != service_state_t::STOPPING) {
         if (did_exit) {
-            log(loglevel_t::ERROR, "Service ", service_name, " process terminated with exit code ",
+            log(loglevel_t::ERROR, "Service ", get_name(), " process terminated with exit code ",
                     WEXITSTATUS(exit_status));
         }
         else if (was_signalled) {
-            log(loglevel_t::ERROR, "Service ", service_name, " terminated due to signal ",
+            log(loglevel_t::ERROR, "Service ", get_name(), " terminated due to signal ",
                     WTERMSIG(exit_status));
         }
     }
@@ -304,7 +306,8 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         // we assume that the process died because we signalled it.
         stopped();
     }
-    else if (smooth_recovery && service_state == service_state_t::STARTED && desired_state == service_state_t::STARTED) {
+    else if (smooth_recovery && service_state == service_state_t::STARTED
+            && get_target_state() == service_state_t::STARTED) {
         do_smooth_recovery();
         return;
     }
@@ -323,7 +326,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
 
 void bgproc_service::exec_failed(int errcode) noexcept
 {
-    log(loglevel_t::ERROR, service_name, ": execution failed: ", strerror(errcode));
+    log(loglevel_t::ERROR, get_name(), ": execution failed: ", strerror(errcode));
     // Only time we execute is for startup:
     failed_to_start();
 }
@@ -332,6 +335,7 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
 {
     bool did_exit = WIFEXITED(exit_status);
     bool was_signalled = WIFSIGNALED(exit_status);
+    auto service_state = get_state();
 
     if (service_state == service_state_t::STOPPING) {
         if (did_exit && WEXITSTATUS(exit_status) == 0) {
@@ -340,11 +344,11 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
         else {
             // ??? failed to stop! Let's log it as info:
             if (did_exit) {
-                log(loglevel_t::INFO, "Service ", service_name, " stop command failed with exit code ",
+                log(loglevel_t::INFO, "Service ", get_name(), " stop command failed with exit code ",
                         WEXITSTATUS(exit_status));
             }
             else if (was_signalled) {
-                log(loglevel_t::INFO, "Service ", service_name, " stop command terminated due to signal ",
+                log(loglevel_t::INFO, "Service ", get_name(), " stop command terminated due to signal ",
                         WTERMSIG(exit_status));
             }
             // Just assume that we stopped, so that any dependencies
@@ -360,11 +364,11 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
         else {
             // failed to start
             if (did_exit) {
-                log(loglevel_t::ERROR, "Service ", service_name, " command failed with exit code ",
+                log(loglevel_t::ERROR, "Service ", get_name(), " command failed with exit code ",
                         WEXITSTATUS(exit_status));
             }
             else if (was_signalled) {
-                log(loglevel_t::ERROR, "Service ", service_name, " command terminated due to signal ",
+                log(loglevel_t::ERROR, "Service ", get_name(), " command terminated due to signal ",
                         WTERMSIG(exit_status));
             }
             failed_to_start();
@@ -375,7 +379,8 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
 
 void scripted_service::exec_failed(int errcode) noexcept
 {
-    log(loglevel_t::ERROR, service_name, ": execution failed: ", strerror(errcode));
+    log(loglevel_t::ERROR, get_name(), ": execution failed: ", strerror(errcode));
+    auto service_state = get_state();
     if (service_state == service_state_t::STARTING) {
         failed_to_start();
     }
@@ -411,14 +416,14 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
     }
     else {
         // exec() succeeded.
-        if (sr->record_type == service_type::PROCESS) {
+        if (sr->get_type() == service_type::PROCESS) {
             // This could be a smooth recovery (state already STARTED). Even more, the process
             // might be stopped (and killed via a signal) during smooth recovery.  We don't to
             // process startup again in either case, so we check for state STARTING:
-            if (sr->service_state == service_state_t::STARTING) {
+            if (sr->get_state() == service_state_t::STARTING) {
                 sr->started();
             }
-            else if (sr->service_state == service_state_t::STOPPING) {
+            else if (sr->get_state() == service_state_t::STOPPING) {
                 // stopping, but smooth recovery was in process. That's now over so we can
                 // commence normal stop. Note that if pid == -1 the process already stopped(!),
                 // that's handled below.
@@ -745,7 +750,7 @@ bgproc_service::read_pid_file(int *exit_status) noexcept
     const char *pid_file_c = pid_file.c_str();
     int fd = open(pid_file_c, O_CLOEXEC);
     if (fd == -1) {
-        log(loglevel_t::ERROR, service_name, ": read pid file: ", strerror(errno));
+        log(loglevel_t::ERROR, get_name(), ": read pid file: ", strerror(errno));
         return pid_result_t::FAILED;
     }
 
@@ -753,7 +758,7 @@ bgproc_service::read_pid_file(int *exit_status) noexcept
     int r = ss_read(fd, pidbuf, 20);
     if (r < 0) {
         // Could not read from PID file
-        log(loglevel_t::ERROR, service_name, ": could not read from pidfile; ", strerror(errno));
+        log(loglevel_t::ERROR, get_name(), ": could not read from pidfile; ", strerror(errno));
         close(fd);
         return pid_result_t::FAILED;
     }
@@ -785,7 +790,7 @@ bgproc_service::read_pid_file(int *exit_status) noexcept
                 return pid_result_t::OK;
             }
             else {
-                log(loglevel_t::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
+                log(loglevel_t::ERROR, get_name(), ": pid read from pidfile (", pid, ") is not valid");
                 pid = -1;
                 return pid_result_t::FAILED;
             }
@@ -803,7 +808,7 @@ bgproc_service::read_pid_file(int *exit_status) noexcept
         }
     }
 
-    log(loglevel_t::ERROR, service_name, ": pid read from pidfile (", pid, ") is not valid");
+    log(loglevel_t::ERROR, get_name(), ": pid read from pidfile (", pid, ") is not valid");
     pid = -1;
     return pid_result_t::FAILED;
 }
@@ -815,7 +820,7 @@ void service_record::started() noexcept
         release_console();
     }
 
-    log_service_started(service_name);
+    log_service_started(get_name());
     service_state = service_state_t::STARTED;
     notify_listeners(service_event_t::STARTED);
 
@@ -846,7 +851,7 @@ void service_record::failed_to_start(bool depfailed) noexcept
         release_console();
     }
     
-    log_service_failed(service_name);
+    log_service_failed(get_name());
     service_state = service_state_t::STOPPED;
     if (start_explicit) {
         start_explicit = false;
@@ -911,7 +916,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
 
     int pipefd[2];
     if (pipe2(pipefd, O_CLOEXEC)) {
-        log(loglevel_t::ERROR, service_name, ": can't create status check pipe: ", strerror(errno));
+        log(loglevel_t::ERROR, get_name(), ": can't create status check pipe: ", strerror(errno));
         return false;
     }
 
@@ -926,7 +931,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     int control_socket[2] = {-1, -1};
     if (onstart_flags.pass_cs_fd) {
         if (dinit_socketpair(AF_UNIX, SOCK_STREAM, /* protocol */ 0, control_socket, SOCK_NONBLOCK)) {
-            log(loglevel_t::ERROR, service_name, ": can't create control socket: ", strerror(errno));
+            log(loglevel_t::ERROR, get_name(), ": can't create control socket: ", strerror(errno));
             goto out_p;
         }
         
@@ -938,7 +943,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
             control_conn = new control_conn_t(eventLoop, services, control_socket[0]);
         }
         catch (std::exception &exc) {
-            log(loglevel_t::ERROR, service_name, ": can't launch process; out of memory");
+            log(loglevel_t::ERROR, get_name(), ": can't launch process; out of memory");
             goto out_cs;
         }
     }
@@ -959,7 +964,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         reserved_child_watch = true;
     }
     catch (std::exception &e) {
-        log(loglevel_t::ERROR, service_name, ": Could not fork: ", e.what());
+        log(loglevel_t::ERROR, get_name(), ": Could not fork: ", e.what());
         goto out_cs_h;
     }
 
@@ -1242,7 +1247,7 @@ void base_process_service::kill_pg(int signo) noexcept
     pid_t pgid = getpgid(pid);
     if (pgid == -1) {
         // only should happen if pid is invalid, which should never happen...
-        log(loglevel_t::ERROR, service_name, ": can't signal process: ", strerror(errno));
+        log(loglevel_t::ERROR, get_name(), ": can't signal process: ", strerror(errno));
         return;
     }
     kill(-pgid, signo);
@@ -1265,7 +1270,7 @@ void base_process_service::bring_down() noexcept
         // In most cases, the rest is done in handle_exit_status.
         // If we are a BGPROCESS and the process is not our immediate child, however, that
         // won't work - check for this now:
-        if (record_type == service_type::BGPROCESS && ! tracking_child) {
+        if (get_type() == service_type::BGPROCESS && ! tracking_child) {
             stopped();
         }
         else if (stop_timeout != time_val(0,0)) {
@@ -1302,7 +1307,7 @@ void process_service::bring_down() noexcept
         // In most cases, the rest is done in handle_exit_status.
         // If we are a BGPROCESS and the process is not our immediate child, however, that
         // won't work - check for this now:
-        if (record_type == service_type::BGPROCESS && ! tracking_child) {
+        if (get_type() == service_type::BGPROCESS && ! tracking_child) {
             stopped();
         }
         else if (stop_timeout != time_val(0,0)) {
@@ -1405,6 +1410,7 @@ void base_process_service::do_restart() noexcept
 {
     waiting_restart_timer = false;
     restart_interval_count++;
+    auto service_state = get_state();
 
     // We may be STARTING (regular restart) or STARTED ("smooth recovery"). This affects whether
     // the process should be granted access to the console:
@@ -1426,7 +1432,7 @@ void base_process_service::do_restart() noexcept
             failed_to_start();
         }
         else {
-            desired_state = service_state_t::STOPPED;
+            // desired_state = service_state_t::STOPPED;
             forced_stop();
         }
         services->process_queues();
@@ -1445,7 +1451,7 @@ bool base_process_service::restart_ps_process() noexcept
         time_val int_diff = current_time - restart_interval_time;
         if (int_diff < restart_interval) {
             if (restart_interval_count >= max_restart_interval_count) {
-                log(loglevel_t::ERROR, "Service ", service_name, " restarting too quickly; stopping.");
+                log(loglevel_t::ERROR, "Service ", get_name(), " restarting too quickly; stopping.");
                 return false;
             }
         }
@@ -1482,14 +1488,14 @@ void base_process_service::interrupt_start() noexcept
 void base_process_service::kill_with_fire() noexcept
 {
     if (pid != -1) {
-        log(loglevel_t::WARN, "Service ", service_name, "with pid ", pid, " exceeded allowed stop time; killing.");
+        log(loglevel_t::WARN, "Service ", get_name(), "with pid ", pid, " exceeded allowed stop time; killing.");
         kill_pg(SIGKILL);
     }
 }
 
 dasynq::rearm process_restart_timer::timer_expiry(eventloop_t &, int expiry_count)
 {
-    if (service->service_state == service_state_t::STOPPING) {
+    if (service->get_state() == service_state_t::STOPPING) {
         service->kill_with_fire();
         service->stop_timer_armed = false;
     }

@@ -252,7 +252,7 @@ bool control_conn_t::list_services()
         for (auto sptr : slist) {
             std::vector<char> pkt_buf;
             
-            const std::string &name = sptr->get_service_name();
+            const std::string &name = sptr->get_name();
             int nameLen = std::min((size_t)256, name.length());
             pkt_buf.resize(8 + nameLen);
             
