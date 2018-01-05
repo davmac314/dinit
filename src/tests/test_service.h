@@ -11,16 +11,16 @@ class test_service : public service_record
     }
 
     // Do any post-dependency startup; return false on failure
-    virtual bool start_ps_process() noexcept override
+    virtual bool bring_up() noexcept override
     {
-        // return service_record::start_ps_process();
+        // return service_record::bring_up();
         return true;
     }
 
     // All dependents have stopped.
-    virtual void all_deps_stopped() noexcept override
+    virtual void bring_down() noexcept override
     {
-        return service_record::all_deps_stopped();
+        return service_record::bring_down();
     }
 
     // Whether a STARTING service can immediately transition to STOPPED (as opposed to
