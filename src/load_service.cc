@@ -614,9 +614,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rval = rvalps;
                 }
                 else {
-                    rval = new service_record(this, string(name), service_type,
-                            std::move(command), command_offsets,
-                            depends);
+                    rval = new service_record(this, string(name), service_type, depends);
                 }
                 rval->set_log_file(logfile);
                 rval->set_auto_restart(auto_restart);

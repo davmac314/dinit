@@ -275,12 +275,6 @@ class service_record
     service_state_t desired_state = service_state_t::STOPPED; /* service_state_t::STOPPED / STARTED */
 
     protected:
-    string program_name;          // storage for program/script and arguments
-    std::vector<const char *> exec_arg_parts; // pointer to each argument/part of the program_name, and nullptr
-    
-    string stop_command;          // storage for stop program/script and arguments
-    std::vector<const char *> stop_arg_parts; // pointer to each argument/part of the stop_command, and nullptr
-    
     string pid_file;
     
     onstart_flags_t onstart_flags;
@@ -489,16 +483,7 @@ class service_record
             pdep.to->dependents.push_back(&(*b));
         }
     }
-    
-    service_record(service_set *set, string name, service_type record_type_p, string &&command,
-            std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            const std::list<prelim_dep> &deplist_p)
-        : service_record(set, name, record_type_p, deplist_p)
-    {
-        program_name = std::move(command);
-        exec_arg_parts = separate_args(program_name, command_offsets);
-    }
-    
+
     virtual ~service_record() noexcept
     {
     }
@@ -516,13 +501,6 @@ class service_record
 
     // Console is available.
     void acquired_console() noexcept;
-    
-    // Set the stop command and arguments (may throw std::bad_alloc)
-    void set_stop_command(std::string command, std::list<std::pair<unsigned,unsigned>> &stop_command_offsets)
-    {
-        stop_command = command;
-        stop_arg_parts = separate_args(stop_command, stop_command_offsets);
-    }
     
     // Get the target (aka desired) state.
     service_state_t get_target_state() noexcept
@@ -642,6 +620,12 @@ class base_process_service : public service_record
     void do_restart() noexcept;
 
     protected:
+    string program_name;          // storage for program/script and arguments
+    std::vector<const char *> exec_arg_parts; // pointer to each argument/part of the program_name, and nullptr
+
+    string stop_command;          // storage for stop program/script and arguments
+    std::vector<const char *> stop_arg_parts; // pointer to each argument/part of the stop_command, and nullptr
+
     service_child_watcher child_listener;
     exec_status_pipe_watcher child_status_listener;
     process_restart_timer restart_timer;
@@ -708,6 +692,13 @@ class base_process_service : public service_record
 
     ~base_process_service() noexcept
     {
+    }
+
+    // Set the stop command and arguments (may throw std::bad_alloc)
+    void set_stop_command(std::string command, std::list<std::pair<unsigned,unsigned>> &stop_command_offsets)
+    {
+        stop_command = command;
+        stop_arg_parts = separate_args(stop_command, stop_command_offsets);
     }
 
     void set_restart_interval(timespec interval, int max_restarts) noexcept
