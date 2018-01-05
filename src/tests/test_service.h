@@ -30,9 +30,9 @@ class test_service : public service_record
         return waiting_for_deps;
     }
 
-    virtual void interrupt_start() noexcept override
+    virtual bool interrupt_start() noexcept override
     {
-
+        return true;
     }
 
     void started() noexcept

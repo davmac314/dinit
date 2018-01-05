@@ -451,7 +451,9 @@ class service_record
         return true;
     }
 
-    virtual void interrupt_start() noexcept;
+    // Interrupt startup. Returns true if service start is fully cancelled; returns false if cancel order
+    // issued but service has not yet responded.
+    virtual bool interrupt_start() noexcept;
 
     public:
 
@@ -669,7 +671,7 @@ class base_process_service : public service_record
 
     virtual bool can_interrupt_start() noexcept override
     {
-        return waiting_restart_timer || service_record::can_interrupt_start();
+        return waiting_restart_timer || start_is_interruptible || service_record::can_interrupt_start();
     }
 
     virtual bool can_proceed_to_start() noexcept override
@@ -677,7 +679,7 @@ class base_process_service : public service_record
         return ! waiting_restart_timer;
     }
 
-    virtual void interrupt_start() noexcept override;
+    virtual bool interrupt_start() noexcept override;
 
     // Kill with SIGKILL
     void kill_with_fire() noexcept;

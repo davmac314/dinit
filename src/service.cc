@@ -1163,21 +1163,23 @@ void service_record::do_stop() noexcept
         if (required_by == 0) return; // release will re-call us anyway
     }
 
+    bool all_deps_stopped = stop_dependents();
+
     if (service_state != service_state_t::STARTED) {
         if (service_state == service_state_t::STARTING) {
             if (! can_interrupt_start()) {
-                // Well this is awkward: we're going to have to continue
-                // starting, but we don't want any dependents to think that
-                // they are still waiting to start.
-                // Make sure they remain stopped:
-                stop_dependents();
+                // Well this is awkward: we're going to have to continue starting. We can stop once we've
+                // reached the started state.
+                return;
+            }
+
+            if (! interrupt_start()) {
+                // Now wait for service startup to actually end
                 return;
             }
 
             // We must have had desired_state == STARTED.
             notify_listeners(service_event_t::STARTCANCELLED);
-            
-            interrupt_start();
 
             // Reaching this point, we are starting interruptibly - so we
             // stop now (by falling through to below).
@@ -1191,7 +1193,7 @@ void service_record::do_stop() noexcept
 
     service_state = service_state_t::STOPPING;
     waiting_for_deps = true;
-    if (stop_dependents()) {
+    if (all_deps_stopped) {
         services->add_transition_queue(this);
     }
 }
@@ -1368,9 +1370,10 @@ void service_record::release_console() noexcept
     services->pull_console_queue();
 }
 
-void service_record::interrupt_start() noexcept
+bool service_record::interrupt_start() noexcept
 {
     services->unqueue_console(this);
+    return true;
 }
 
 void service_set::service_active(service_record *sr) noexcept
@@ -1407,6 +1410,7 @@ base_process_service::base_process_service(service_set *sset, string name,
     reserved_child_watch = false;
     tracking_child = false;
     stop_timer_armed = false;
+    start_is_interruptible = false;
 }
 
 void base_process_service::do_restart() noexcept
@@ -1478,20 +1482,24 @@ bool base_process_service::restart_ps_process() noexcept
     return true;
 }
 
-void base_process_service::interrupt_start() noexcept
+bool base_process_service::interrupt_start() noexcept
 {
-    // overridden in subclasses
     if (waiting_restart_timer) {
         restart_timer.stop_timer(eventLoop);
         waiting_restart_timer = false;
+        return service_record::interrupt_start();
     }
-    service_record::interrupt_start();
+    else {
+        log(loglevel_t::WARN, "Interrupting start of service ", get_name(), " with pid ", pid, " (with SIGINT).");
+        kill_pg(SIGINT);
+        return false;
+    }
 }
 
 void base_process_service::kill_with_fire() noexcept
 {
     if (pid != -1) {
-        log(loglevel_t::WARN, "Service ", get_name(), "with pid ", pid, " exceeded allowed stop time; killing.");
+        log(loglevel_t::WARN, "Service ", get_name(), " with pid ", pid, " exceeded allowed stop time; killing.");
         kill_pg(SIGKILL);
     }
 }
