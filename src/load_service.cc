@@ -12,8 +12,8 @@
 
 #include "service.h"
 
-typedef std::string string;
-typedef std::string::iterator string_iterator;
+using string = std::string;
+using string_iterator = std::string::iterator;
 
 // Utility function to skip white space. Returns an iterator at the
 // first non-white-space position (or at end).
@@ -59,7 +59,7 @@ namespace {
         {
         }
         
-        std::string &getInfo()
+        std::string &get_info()
         {
             return info;
         }
@@ -185,7 +185,7 @@ static string read_setting_value(string_iterator & i, string_iterator end,
     return rval;
 }
 
-static int signalNameToNumber(std::string &signame)
+static int signal_name_to_number(std::string &signame)
 {
     if (signame == "HUP") return SIGHUP;
     if (signame == "INT") return SIGINT;
@@ -546,7 +546,7 @@ service_record * dirload_service_set::load_service(const char * name)
                 }
                 else if (setting == "termsignal") {
                     string signame = read_setting_value(i, end, nullptr);
-                    int signo = signalNameToNumber(signame);
+                    int signo = signal_name_to_number(signame);
                     if (signo == -1) {
                         throw service_description_exc(name, "Unknown/unsupported termination signal: " + signame);
                     }
@@ -634,7 +634,7 @@ service_record * dirload_service_set::load_service(const char * name)
         // Must remove the dummy service record.
         std::remove(records.begin(), records.end(), rval);
         delete rval;
-        throw service_description_exc(name, std::move(setting_exc.getInfo()));
+        throw service_description_exc(name, std::move(setting_exc.get_info()));
     }
     catch (...) {
         // Must remove the dummy service record.
