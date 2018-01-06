@@ -3,3 +3,4 @@ command = /sbin/agetty tty5 linux-c
 restart = true
 depends-on = loginready
 termsignal = HUP
+smooth-recovery = true

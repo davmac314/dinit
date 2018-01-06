@@ -3,12 +3,12 @@
 type = internal
 
 # Each of these services starts a login prompt:
-depends-on = tty1
-depends-on = tty2
-depends-on = tty3
-depends-on = tty4
-depends-on = tty5
-depends-on = tty6
+depends-ms = tty1
+depends-ms = tty2
+depends-ms = tty3
+depends-ms = tty4
+depends-ms = tty5
+depends-ms = tty6
 
 waits-for = late-filesystems
 waits-for = dhcpcd
