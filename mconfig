@@ -1,3 +1,11 @@
+# Installation path options.
+
+SBINDIR=/sbin
+MANDIR=/usr/share/man
+
+
+# General build options. Uncomment the options appropriate for your system.
+
 # Linux (GCC). Note with GCC 5.x/6.x you must use the old ABI, with GCC 7.x you must use
 # the new ABI. See BUILD file for more information.
 CXX=g++
@@ -6,7 +14,7 @@ EXTRA_LIBS=
 BUILD_SHUTDOWN=yes
 SANITIZEOPTS=-fsanitize=address,undefined
 
-# OpenBSD, tested with GCC 4.9.3 and gmake:
+# OpenBSD, tested with GCC 4.9.3 / Clang++ 4/5 and gmake:
 #CXX=clang++
 #CXXOPTS=-std=gnu++11 -Os -Wall -fno-rtti
 #EXTRA_LIBS=

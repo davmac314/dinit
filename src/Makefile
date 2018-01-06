@@ -26,10 +26,10 @@ check: $(dinit_objects)
 	$(MAKE) -C tests check
 
 install: all
-	install -d $(DESTDIR)/sbin
-	install -s dinit dinitctl $(SHUTDOWN) $(DESTDIR)/sbin
+	install -d $(DESTDIR)$(SBINDIR)
+	install -s dinit dinitctl $(SHUTDOWN) $(DESTDIR)$(SBINDIR)
 ifeq ($(BUILD_SHUTDOWN),yes)
-	install halt reboot $(DESTDIR)/sbin
+	install halt reboot $(DESTDIR)$(SBINDIR)
 endif
 
 clean:

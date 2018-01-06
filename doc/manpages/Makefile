@@ -1,3 +1,3 @@
 install:
-	mkdir -p "$(DESTDIR)/usr/share/man/man8"
-	cp dinit.8 dinitctl.8 "$(DESTDIR)/usr/share/man/man8"
+	mkdir -p "$(DESTDIR)$(MANDIR)/man8"
+	install dinit.8 dinitctl.8 "$(DESTDIR)$(MANDIR)/man8"
