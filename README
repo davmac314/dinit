@@ -288,6 +288,12 @@ options = ( runs-on-console | nosigterm | starts-rwfs | starts-log ) ...
               receives the control socket must close it before launching any
               untrusted processes. You should not use this option unless the
               service is designed to receive a Dinit control socket.
+              
+  start-interruptible : this service can have its startup interrupted
+              (cancelled) if it becomes inactive while still starting.
+              The SIGINT signal will be sent to the signal to cancel its
+              startup. This is meaningful only for scripted and bgprocess
+              services. 
 
 logfile = (log file path)
    Specifies the log file for the service. Output from the service process
@@ -355,8 +361,14 @@ The above represents a number of started services and one stopped service
 (mysql). Services transitioning state (starting or stopping) are displayed
 with an arrow indicating the transition direction:
 
-    [   <<{-}] mysql     # starting
-    [{+}>>   ] mysql     # stopping
+    [{ }<<   ] mysql     # starting
+    [   >>{ }] mysql     # stopping
+    
+The curly brackets indicate the desired state, which may not be the state to
+which the service is currently transitioning. For example:
+
+    [   <<{ }] mysql     # starting, but will stop after starting
+    [{ }>>   ] mysql     # stopping, but will restart once stopped
 
 Remember that a "starting" service may be waiting for its dependencies to
 start, and a "stopping" service may be waiting for its dependencies to stop.

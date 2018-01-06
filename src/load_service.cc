@@ -309,6 +309,7 @@ static gid_t parse_gid_param(const std::string &param, const std::string &servic
 
 // Parse a time, specified as a decimal number of seconds (with optional fractional component after decimal
 // point or decimal comma).
+//
 static void parse_timespec(const std::string &paramval, const std::string &servicename,
         const char * paramname, timespec &ts)
 {
@@ -352,6 +353,7 @@ static void parse_timespec(const std::string &paramval, const std::string &servi
 // Might throw a ServiceLoadExc exception if a dependency cycle is found or if another
 // problem occurs (I/O error, service description not found etc). Throws std::bad_alloc
 // if a memory allocation failure occurs.
+//
 service_record * dirload_service_set::load_service(const char * name)
 {
     using std::string;
@@ -393,6 +395,7 @@ service_record * dirload_service_set::load_service(const char * name)
     int term_signal = -1;  // additional termination signal
     bool auto_restart = false;
     bool smooth_recovery = false;
+    bool start_is_interruptible = false;
     string socket_path;
     int socket_perms = 0666;
     // Note: Posix allows that uid_t and gid_t may be unsigned types, but eg chown uses -1 as an
@@ -416,7 +419,8 @@ service_record * dirload_service_set::load_service(const char * name)
         throw service_not_found(name);
     }
     
-    // Add a dummy service record now to prevent infinite recursion in case of cyclic dependency
+    // Add a dummy service record now to prevent infinite recursion in case of cyclic dependency.
+    // We replace this with the real service later (or remove it if we find a configuration error).
     rval = new service_record(this, string(name));
     add_service(rval);
     
@@ -541,6 +545,9 @@ service_record * dirload_service_set::load_service(const char * name)
                         else if (option_txt == "pass-cs-fd") {
                             onstart_flags.pass_cs_fd = true;
                         }
+                        else if (option_txt == "start-interruptible") {
+                            start_is_interruptible = true;
+                        }
                         else {
                             throw service_description_exc(name, "Unknown option: " + option_txt);
                         }
@@ -597,6 +604,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
                     rvalps->set_stop_timeout(stop_timeout);
+                    rvalps->set_start_interruptible(start_is_interruptible);
                     rval = rvalps;
                 }
                 else if (service_type == service_type::BGPROCESS) {
@@ -606,6 +614,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
                     rvalps->set_stop_timeout(stop_timeout);
+                    rvalps->set_start_interruptible(start_is_interruptible);
                     rval = rvalps;
                 }
                 else if (service_type == service_type::SCRIPTED) {
@@ -613,6 +622,7 @@ service_record * dirload_service_set::load_service(const char * name)
                             command_offsets, depends);
                     rvalps->set_stop_command(stop_command, stop_command_offsets);
                     rvalps->set_stop_timeout(stop_timeout);
+                    rvalps->set_start_interruptible(start_is_interruptible);
                     rval = rvalps;
                 }
                 else {

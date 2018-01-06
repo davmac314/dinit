@@ -3,7 +3,7 @@
 type = scripted
 command = /etc/dinit.d/rootfscheck.sh start
 restart = false
-options = starts-on-console pass-cs-fd
+options = starts-on-console pass-cs-fd start-interruptible
 
 depends-on = early-filesystems
 depends-on = udevd

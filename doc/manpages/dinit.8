@@ -210,7 +210,7 @@ to terminate (applies to 'process' services only). SIGTERM is always
 sent along with the specified signal, unless the \fBnosigterm\fR option is
 specified via the \fBoptions\fR parameter.
 .TP
-\fBoptions\fR = {runs\-on\-console | nosigterm | starts\-rwfs | starts\-log}...
+\fBoptions\fR = {runs\-on\-console | nosigterm | starts\-rwfs | starts\-log | start\-interruptible}...
 Specifies various options for this service:
 .RS
 .TP
@@ -259,6 +259,11 @@ Using this option has security implications! The service which receives the
 control socket must close it before launching any untrusted processes. You
 should not use this option unless the service is designed to receive a Dinit
 control socket.
+.TP
+\fBstart-interruptible\fR
+this service can have its startup interrupted (cancelled) if it becomes inactive
+while still starting, by sending it the SIGINT signal. This is meaningful only
+for \fBbgprocess\fR and \fBscripted\fR services.
 .RE
 .TP
 \fBlogfile\fR = \fIlog-file-path\fR
@@ -320,7 +325,7 @@ More examples are provided with the Dinit distribution.
 When run as a system process, SIGINT stops all services and performs a reboot (on Linux, this signal can be
 generated using the control-alt-delete key combination); SIGTERM stops services and halts the system; and
 SIGQUIT performs an immediate shutdown with no service rollback.
-LP
+.LP
 When run as a user process, SIGINT and SIGTERM both stop services and exit Dinit; SIGQUIT exits Dinit
 immediately.
 .\"
