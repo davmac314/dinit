@@ -307,6 +307,8 @@ static gid_t parse_gid_param(const std::string &param, const std::string &servic
     return grent->gr_gid;
 }
 
+// Parse a time, specified as a decimal number of seconds (with optional fractional component after decimal
+// point or decimal comma).
 static void parse_timespec(const std::string &paramval, const std::string &servicename,
         const char * paramname, timespec &ts)
 {
@@ -317,7 +319,7 @@ static void parse_timespec(const std::string &paramval, const std::string &servi
     decltype(len) i;
     for (i = 0; i < len; i++) {
         char ch = paramval[i];
-        if (ch == '.') {
+        if (ch == '.' || ch == ',') {
             i++;
             break;
         }
