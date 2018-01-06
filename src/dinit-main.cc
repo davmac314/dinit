@@ -1,4 +1,6 @@
 #include <iostream>
+#include <system_error>
+#include <new>
 
 // Entry point for Dinit.
 
