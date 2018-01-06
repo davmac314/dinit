@@ -6,3 +6,4 @@ dinitctl
 test
 shutdown
 dinit-reboot
+src/tests/tests
