@@ -901,7 +901,12 @@ bool base_process_service::bring_up() noexcept
     else {
         eventLoop.get_time(restart_interval_time, clock_type::MONOTONIC);
         restart_interval_count = 0;
-        return start_ps_process(exec_arg_parts, onstart_flags.starts_on_console);
+        if (start_ps_process(exec_arg_parts, onstart_flags.starts_on_console)) {
+            restart_timer.arm_timer_rel(eventLoop, start_timeout);
+            stop_timer_armed = true;
+            return true;
+        }
+        return false;
     }
 }
 
@@ -1492,6 +1497,15 @@ bool base_process_service::interrupt_start() noexcept
     else {
         log(loglevel_t::WARN, "Interrupting start of service ", get_name(), " with pid ", pid, " (with SIGINT).");
         kill_pg(SIGINT);
+        if (stop_timeout != time_val(0,0)) {
+            restart_timer.arm_timer(eventLoop, stop_timeout);
+            stop_timer_armed = true;
+        }
+        else if (stop_timer_armed) {
+            restart_timer.stop_timer(eventLoop);
+            stop_timer_armed = false;
+        }
+        set_state(service_state_t::STOPPING);
         return false;
     }
 }
@@ -1506,13 +1520,24 @@ void base_process_service::kill_with_fire() noexcept
 
 dasynq::rearm process_restart_timer::timer_expiry(eventloop_t &, int expiry_count)
 {
+    service->stop_timer_armed = false;
+
+    // Timer expires if:
+    // We are stopping, including after having startup cancelled (stop timeout, state is STOPPING); We are
+    // starting (start timeout, state is STARTING); We are waiting for restart timer before restarting,
+    // including smooth recovery (restart timeout, state is STARTING or STARTED).
     if (service->get_state() == service_state_t::STOPPING) {
         service->kill_with_fire();
-        service->stop_timer_armed = false;
+    }
+    else if (service->pid != -1) {
+        // Starting, start timed out.
+        service->interrupt_start();
     }
     else {
-        // STARTING / STARTED:
+        // STARTING / STARTED, and we have a pid: must be restarting (smooth recovery if STARTED)
         service->do_restart();
     }
-    return dasynq::rearm::DISARM;
+
+    // Leave the timer disabled, or, if it has been reset by any processing above, leave it armed:
+    return dasynq::rearm::NOOP;
 }

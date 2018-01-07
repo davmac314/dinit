@@ -429,6 +429,12 @@ class service_record
     // Called on transition of desired state from started to stopped (or unpinned start)
     void do_stop() noexcept;
 
+    // Set the service state
+    void set_state(service_state_t new_state) noexcept
+    {
+        service_state = new_state;
+    }
+
     // Virtual functions, to be implemented by service implementations:
 
     // Do any post-dependency startup; return false on failure
@@ -635,15 +641,19 @@ class base_process_service : public service_record
 
     // Restart interval time and restart count are used to track the number of automatic restarts
     // over an interval. Too many restarts over an interval will inhibit further restarts.
-    time_val restart_interval_time;
-    int restart_interval_count;
+    time_val restart_interval_time;  // current restart interval
+    int restart_interval_count;      // count of restarts within current interval
 
-    time_val restart_interval;
-    int max_restart_interval_count;
-    time_val restart_delay;
+    time_val restart_interval;       // maximum restart interval
+    int max_restart_interval_count;  // number of restarts allowed over maximum interval
+    time_val restart_delay;          // delay between restarts
 
     // Time allowed for service stop, after which SIGKILL is sent. 0 to disable.
     time_val stop_timeout = {10, 0}; // default of 10 seconds
+
+    // Time allowed for service start, after which SIGINT is sent (and then SIGKILL after
+    // <stop_timeout>). 0 to disable.
+    time_val start_timeout = {60, 0}; // default of 1 minute
 
     bool waiting_restart_timer : 1;
     bool stop_timer_armed : 1;
@@ -653,6 +663,8 @@ class base_process_service : public service_record
 
     // Start the process, return true on success
     virtual bool bring_up() noexcept override;
+
+    // Launch the process with the given arguments, return true on success
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
 
     // Restart the process (due to start failure or unexpected termination). Restarts will be
