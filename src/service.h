@@ -458,7 +458,7 @@ class service_record
     }
 
     // Interrupt startup. Returns true if service start is fully cancelled; returns false if cancel order
-    // issued but service has not yet responded.
+    // issued but service has not yet responded (state will be set to STOPPING).
     virtual bool interrupt_start() noexcept;
 
     public:
@@ -662,9 +662,6 @@ class base_process_service : public service_record
     bool tracking_child : 1;  // whether we expect to see child process status
     bool start_is_interruptible : 1;  // whether we can interrupt start
 
-    // Start the process, return true on success
-    virtual bool bring_up() noexcept override;
-
     // Launch the process with the given arguments, return true on success
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
 
@@ -675,11 +672,16 @@ class base_process_service : public service_record
     // Perform smooth recovery process
     void do_smooth_recovery() noexcept;
 
+    // Start the process, return true on success
+    virtual bool bring_up() noexcept override;
+
     virtual void bring_down() noexcept override;
 
     // Called when the process exits. The exit_status is the status value yielded by
     // the "wait" system call.
     virtual void handle_exit_status(int exit_status) noexcept = 0;
+
+    // Called if an exec fails.
     virtual void exec_failed(int errcode) noexcept = 0;
 
     virtual bool can_interrupt_start() noexcept override
@@ -797,12 +799,22 @@ class scripted_service : public base_process_service
     virtual void exec_failed(int errcode) noexcept override;
     virtual void bring_down() noexcept override;
 
+    virtual bool interrupt_start() noexcept override
+    {
+        // if base::interrupt_start() returns false, then start hasn't been fully interrupted, but an
+        // interrupt has been issued:
+        interrupting_start = ! base_process_service::interrupt_start();
+        return ! interrupting_start;
+    }
+
+    bool interrupting_start : 1;  // running start script (true) or stop script (false)
+
     public:
     scripted_service(service_set *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             std::list<prelim_dep> depends_p)
          : base_process_service(sset, name, service_type_t::SCRIPTED, std::move(command), command_offsets,
-             depends_p)
+             depends_p), interrupting_start(false)
     {
     }
 
