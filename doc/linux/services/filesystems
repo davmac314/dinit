@@ -4,6 +4,8 @@ type = scripted
 command = /etc/dinit.d/filesystems.sh start
 restart = false
 logfile = /var/log/dinit-filesystems.log
+options = start-interruptible
+start-timeout = 1200   # 20 minutes
 
 depends-on = udevd
 depends-on = rootrw
