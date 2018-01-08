@@ -902,8 +902,14 @@ bool base_process_service::bring_up() noexcept
         eventLoop.get_time(restart_interval_time, clock_type::MONOTONIC);
         restart_interval_count = 0;
         if (start_ps_process(exec_arg_parts, onstart_flags.starts_on_console)) {
-            restart_timer.arm_timer_rel(eventLoop, start_timeout);
-            stop_timer_armed = true;
+            if (start_timeout != time_val(0,0)) {
+                restart_timer.arm_timer_rel(eventLoop, start_timeout);
+                stop_timer_armed = true;
+            }
+            else if (stop_timer_armed) {
+                restart_timer.stop_timer(eventLoop);
+                stop_timer_armed = false;
+            }
             return true;
         }
         return false;
