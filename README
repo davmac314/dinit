@@ -182,12 +182,19 @@ restart-limit-count = NNN
    restart over the interval specified by restart-limit-interval (default of
    10 seconds). Specify a value of 0 to disable the restart limit.
 
-stop-timeout = XXX.YYYY
+stop-timeout = XXX.YYYY   (or XXX,YYYY)
    Specifies the time in seconds allowed for the service to stop. If the
    service takes longer than this, its process group is sent a SIGKILL signal
    which should cause it to terminate immediately. The timeout period begins
    only when all dependent services have already stopped. The default stop
    timeout is 10 seconds.
+
+start-timeout = XXX.YYYY  (or XXX,YYYY)
+   Specifies the time in seconds allowed for the service to start. IF the
+   service startup takes longer than this, its process group is sent a
+   SIGINT signal and transitions to the "stopping" state. if it fails to stop
+   within the period specified by the stop-timeout setting, it is sent a
+   SIGKILL signal.
 
 pid-file = (path to file)
    For "bgprocess" type services only; specifies the path of the file where

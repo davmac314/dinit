@@ -2,10 +2,14 @@
 
 * shutdown command presently hangs if terminal output blocked (scroll lock
   via ^S). Should use a buffer as dinit does, and pipe output from subcommands
-  via the buffer too.
+  via the buffer too - if the buffer becomes full, discard subcommand output
+  and continue to consume it.
 
 * Document utilities (particularly dinitctl) in the README
 
+* scripted process interrupted start might still complete successfully. State will
+  be STOPPING (due to interruptiong), but stop script should still be run in this
+  case.
 
 For version 1.0:
 ----------------
@@ -20,6 +24,8 @@ For version 1.0:
 * Load services from several different directories, with an order of precedence,
   to allow for packaged service descriptions and user-modified service
   descriptions.
+* on shutdown, after repeated intervals with no activity, display information
+  about services we are waiting on.
 
 For later:
 ----------

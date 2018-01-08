@@ -731,6 +731,11 @@ class base_process_service : public service_record
         stop_timeout = timeout;
     }
 
+    void set_start_timeout(timespec timeout) noexcept
+    {
+        start_timeout = timeout;
+    }
+
     void set_start_interruptible(bool value) noexcept
     {
         start_is_interruptible = value;

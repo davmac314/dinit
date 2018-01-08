@@ -407,6 +407,7 @@ service_record * dirload_service_set::load_service(const char * name)
     int max_restarts = 3;
     timespec restart_delay = { .tv_sec = 0, .tv_nsec = 200000000 };
     timespec stop_timeout = { .tv_sec = 10, .tv_nsec = 0 };
+    timespec start_timeout = { .tv_sec = 60, .tv_nsec = 0 };
     
     string line;
     ifstream service_file;
@@ -579,6 +580,10 @@ service_record * dirload_service_set::load_service(const char * name)
                     string stoptimeout_str = read_setting_value(i, end, nullptr);
                     parse_timespec(stoptimeout_str, name, "stop-timeout", stop_timeout);
                 }
+                else if (setting == "start-timeout") {
+                    string starttimeout_str = read_setting_value(i, end, nullptr);
+                    parse_timespec(starttimeout_str, name, "start-timeout", start_timeout);
+                }
                 else {
                     throw service_description_exc(name, "Unknown setting: " + setting);
                 }
@@ -604,6 +609,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
                     rvalps->set_stop_timeout(stop_timeout);
+                    rvalps->set_start_timeout(start_timeout);
                     rvalps->set_start_interruptible(start_is_interruptible);
                     rval = rvalps;
                 }
@@ -614,6 +620,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
                     rvalps->set_stop_timeout(stop_timeout);
+                    rvalps->set_start_timeout(start_timeout);
                     rvalps->set_start_interruptible(start_is_interruptible);
                     rval = rvalps;
                 }
@@ -622,6 +629,7 @@ service_record * dirload_service_set::load_service(const char * name)
                             command_offsets, depends);
                     rvalps->set_stop_command(stop_command, stop_command_offsets);
                     rvalps->set_stop_timeout(stop_timeout);
+                    rvalps->set_start_timeout(start_timeout);
                     rvalps->set_start_interruptible(start_is_interruptible);
                     rval = rvalps;
                 }

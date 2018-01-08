@@ -146,6 +146,15 @@ Specifies the maximum number of times that a service can automatically restart
 over the interval specified by \fBrestart-limit-interval\fR. Specify a value
 of 0 to disable the restart limit.
 .TP
+\fBstart-timeout\fR = \fIXXX.YYY\fR
+Specifies the time in seconds allowed for the service to start. If the
+service takes longer than this, its process group is sent a SIGINT signal
+and enters the "stopping" state (this may be subject to a stop timeout, as
+specified via \fBstop-timeout\fR, after which the process group will be
+terminated via SIGKILL). The timeout period begins only when all dependencies
+have been stopped. The default timeout is 60 seconds. Specify a value of 0 to
+allow unlimited start time.
+.TP
 \fBstop-timeout\fR = \fIXXX.YYY\fR
 Specifies the time in seconds allowed for the service to stop. If the
 service takes longer than this, its process group is sent a SIGKILL signal
