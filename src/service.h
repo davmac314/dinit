@@ -270,7 +270,7 @@ class service_record
     
     private:
     string service_name;
-    service_type record_type;  /* ServiceType::DUMMY, PROCESS, SCRIPTED, INTERNAL */
+    service_type_t record_type;  /* ServiceType::DUMMY, PROCESS, SCRIPTED, INTERNAL */
     service_state_t service_state = service_state_t::STOPPED; /* service_state_t::STOPPED, STARTING, STARTED, STOPPING */
     service_state_t desired_state = service_state_t::STOPPED; /* service_state_t::STOPPED / STARTED */
 
@@ -473,12 +473,12 @@ class service_record
     {
         services = set;
         service_name = name;
-        record_type = service_type::DUMMY;
+        record_type = service_type_t::DUMMY;
         socket_perms = 0;
         exit_status = 0;
     }
 
-    service_record(service_set *set, string name, service_type record_type_p,
+    service_record(service_set *set, string name, service_type_t record_type_p,
             const std::list<prelim_dep> &deplist_p)
         : service_record(set, name)
     {
@@ -497,7 +497,7 @@ class service_record
     }
     
     // Get the type of this service record
-    service_type get_type() noexcept
+    service_type_t get_type() noexcept
     {
         return record_type;
     }
@@ -585,7 +585,7 @@ class service_record
     
     bool isDummy() noexcept
     {
-        return record_type == service_type::DUMMY;
+        return record_type == service_type_t::DUMMY;
     }
     
     // Add a listener. A listener must only be added once. May throw std::bad_alloc.
@@ -700,7 +700,7 @@ class base_process_service : public service_record
     void kill_pg(int signo) noexcept;
 
     public:
-    base_process_service(service_set *sset, string name, service_type record_type_p, string &&command,
+    base_process_service(service_set *sset, string name, service_type_t record_type_p, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             const std::list<prelim_dep> &deplist_p);
 
@@ -752,7 +752,7 @@ class process_service : public base_process_service
     process_service(service_set *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             std::list<prelim_dep> depends_p)
-         : base_process_service(sset, name, service_type::PROCESS, std::move(command), command_offsets,
+         : base_process_service(sset, name, service_type_t::PROCESS, std::move(command), command_offsets,
              depends_p)
     {
     }
@@ -780,7 +780,7 @@ class bgproc_service : public base_process_service
     bgproc_service(service_set *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             std::list<prelim_dep> depends_p)
-         : base_process_service(sset, name, service_type::BGPROCESS, std::move(command), command_offsets,
+         : base_process_service(sset, name, service_type_t::BGPROCESS, std::move(command), command_offsets,
              depends_p)
     {
     }
@@ -800,7 +800,7 @@ class scripted_service : public base_process_service
     scripted_service(service_set *sset, string name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             std::list<prelim_dep> depends_p)
-         : base_process_service(sset, name, service_type::SCRIPTED, std::move(command), command_offsets,
+         : base_process_service(sset, name, service_type_t::SCRIPTED, std::move(command), command_offsets,
              depends_p)
     {
     }

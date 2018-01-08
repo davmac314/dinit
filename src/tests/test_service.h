@@ -3,7 +3,7 @@
 class test_service : public service_record
 {
     public:
-    test_service(service_set *set, std::string name, service_type type_p,
+    test_service(service_set *set, std::string name, service_type_t type_p,
             const std::list<prelim_dep> &deplist_p)
             : service_record(set, name, type_p, deplist_p)
     {

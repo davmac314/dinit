@@ -388,7 +388,7 @@ service_record * dirload_service_set::load_service(const char * name)
     list<pair<unsigned,unsigned>> stop_command_offsets;
     string pid_file;
 
-    service_type service_type = service_type::PROCESS;
+    service_type_t service_type = service_type_t::PROCESS;
     std::list<prelim_dep> depends;
     string logfile;
     onstart_flags_t onstart_flags;
@@ -505,16 +505,16 @@ service_record * dirload_service_set::load_service(const char * name)
                 else if (setting == "type") {
                     string type_str = read_setting_value(i, end);
                     if (type_str == "scripted") {
-                        service_type = service_type::SCRIPTED;
+                        service_type = service_type_t::SCRIPTED;
                     }
                     else if (type_str == "process") {
-                        service_type = service_type::PROCESS;
+                        service_type = service_type_t::PROCESS;
                     }
                     else if (type_str == "bgprocess") {
-                        service_type = service_type::BGPROCESS;
+                        service_type = service_type_t::BGPROCESS;
                     }
                     else if (type_str == "internal") {
-                        service_type = service_type::INTERNAL;
+                        service_type = service_type_t::INTERNAL;
                     }
                     else {
                         throw service_description_exc(name, "Service type must be one of: \"scripted\","
@@ -592,7 +592,7 @@ service_record * dirload_service_set::load_service(const char * name)
         
         service_file.close();
         
-        if (service_type == service_type::PROCESS || service_type == service_type::BGPROCESS || service_type == service_type::SCRIPTED) {
+        if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS || service_type == service_type_t::SCRIPTED) {
             if (command.length() == 0) {
                 throw service_description_exc(name, "Service command not specified");
             }
@@ -603,7 +603,7 @@ service_record * dirload_service_set::load_service(const char * name)
             if (*iter == rval) {
                 // We've found the dummy record
                 delete rval;
-                if (service_type == service_type::PROCESS) {
+                if (service_type == service_type_t::PROCESS) {
                     auto rvalps = new process_service(this, string(name), std::move(command),
                             command_offsets, depends);
                     rvalps->set_restart_interval(restart_interval, max_restarts);
@@ -613,7 +613,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_start_interruptible(start_is_interruptible);
                     rval = rvalps;
                 }
-                else if (service_type == service_type::BGPROCESS) {
+                else if (service_type == service_type_t::BGPROCESS) {
                     auto rvalps = new bgproc_service(this, string(name), std::move(command),
                             command_offsets, depends);
                     rvalps->set_pid_file(std::move(pid_file));
@@ -624,7 +624,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_start_interruptible(start_is_interruptible);
                     rval = rvalps;
                 }
-                else if (service_type == service_type::SCRIPTED) {
+                else if (service_type == service_type_t::SCRIPTED) {
                     auto rvalps = new scripted_service(this, string(name), std::move(command),
                             command_offsets, depends);
                     rvalps->set_stop_command(stop_command, stop_command_offsets);

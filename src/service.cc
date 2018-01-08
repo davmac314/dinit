@@ -416,7 +416,7 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
     }
     else {
         // exec() succeeded.
-        if (sr->get_type() == service_type::PROCESS) {
+        if (sr->get_type() == service_type_t::PROCESS) {
             // This could be a smooth recovery (state already STARTED). Even more, the process
             // might be stopped (and killed via a signal) during smooth recovery.  We don't to
             // process startup again in either case, so we check for state STARTING:
@@ -1283,7 +1283,7 @@ void base_process_service::bring_down() noexcept
         // In most cases, the rest is done in handle_exit_status.
         // If we are a BGPROCESS and the process is not our immediate child, however, that
         // won't work - check for this now:
-        if (get_type() == service_type::BGPROCESS && ! tracking_child) {
+        if (get_type() == service_type_t::BGPROCESS && ! tracking_child) {
             stopped();
         }
         else if (stop_timeout != time_val(0,0)) {
@@ -1320,7 +1320,7 @@ void process_service::bring_down() noexcept
         // In most cases, the rest is done in handle_exit_status.
         // If we are a BGPROCESS and the process is not our immediate child, however, that
         // won't work - check for this now:
-        if (get_type() == service_type::BGPROCESS && ! tracking_child) {
+        if (get_type() == service_type_t::BGPROCESS && ! tracking_child) {
             stopped();
         }
         else if (stop_timeout != time_val(0,0)) {
@@ -1398,7 +1398,7 @@ void service_set::service_inactive(service_record *sr) noexcept
 }
 
 base_process_service::base_process_service(service_set *sset, string name,
-        service_type service_type_p, string &&command,
+        service_type_t service_type_p, string &&command,
         std::list<std::pair<unsigned,unsigned>> &command_offsets,
         const std::list<prelim_dep> &deplist_p)
      : service_record(sset, name, service_type_p, deplist_p), child_listener(this),

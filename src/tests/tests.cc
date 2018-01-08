@@ -14,9 +14,9 @@ void test1()
 {
     service_set sset;
 
-    service_record *s1 = new service_record(&sset, "test-service-1", service_type::INTERNAL, {});
-    service_record *s2 = new service_record(&sset, "test-service-2", service_type::INTERNAL, {{s1, REG}});
-    service_record *s3 = new service_record(&sset, "test-service-3", service_type::INTERNAL, {{s2, REG}});
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
     sset.add_service(s1);
     sset.add_service(s2);
     sset.add_service(s3);
@@ -46,10 +46,10 @@ void test2()
 {
     service_set sset;
 
-    service_record *s1 = new service_record(&sset, "test-service-1", service_type::INTERNAL, {});
-    service_record *s2 = new service_record(&sset, "test-service-2", service_type::INTERNAL, {{s1, REG}});
-    service_record *s3 = new service_record(&sset, "test-service-3", service_type::INTERNAL, {{s2, REG}});
-    service_record *s4 = new service_record(&sset, "test-service-4", service_type::INTERNAL, {{s2, REG}});
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
+    service_record *s4 = new service_record(&sset, "test-service-4", service_type_t::INTERNAL, {{s2, REG}});
     sset.add_service(s1);
     sset.add_service(s2);
     sset.add_service(s3);
@@ -87,9 +87,9 @@ void test3()
 {
     service_set sset;
 
-    service_record *s1 = new service_record(&sset, "test-service-1", service_type::INTERNAL, {});
-    service_record *s2 = new service_record(&sset, "test-service-2", service_type::INTERNAL, {{s1, REG}});
-    service_record *s3 = new service_record(&sset, "test-service-3", service_type::INTERNAL, {{s2, REG}});
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
     sset.add_service(s1);
     sset.add_service(s2);
     sset.add_service(s3);
@@ -115,9 +115,9 @@ void test4()
 {
     service_set sset;
 
-    service_record *s1 = new service_record(&sset, "test-service-1", service_type::INTERNAL, {});
-    service_record *s2 = new service_record(&sset, "test-service-2", service_type::INTERNAL, {{s1, REG}});
-    service_record *s3 = new service_record(&sset, "test-service-3", service_type::INTERNAL, {{s2, REG}});
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
     s2->set_auto_restart(true);
     sset.add_service(s1);
     sset.add_service(s2);
@@ -148,9 +148,9 @@ void test5()
 {
     service_set sset;
 
-    test_service *s1 = new test_service(&sset, "test-service-1", service_type::INTERNAL, {});
-    test_service *s2 = new test_service(&sset, "test-service-2", service_type::INTERNAL, {{s1, REG}});
-    test_service *s3 = new test_service(&sset, "test-service-3", service_type::INTERNAL, {{s2, REG}});
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    test_service *s3 = new test_service(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
 
     sset.add_service(s1);
     sset.add_service(s2);
@@ -187,9 +187,9 @@ void test6()
 {
     service_set sset;
 
-    service_record *s1 = new service_record(&sset, "test-service-1", service_type::INTERNAL, {});
-    service_record *s2 = new service_record(&sset, "test-service-2", service_type::INTERNAL, {{s1, REG}});
-    service_record *s3 = new service_record(&sset, "test-service-3", service_type::INTERNAL, {{s2, REG}});
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
     s2->set_auto_restart(true);
     sset.add_service(s1);
     sset.add_service(s2);
@@ -229,9 +229,9 @@ void test7()
 {
     service_set sset;
 
-    service_record *s1 = new service_record(&sset, "test-service-1", service_type::INTERNAL, {});
-    service_record *s2 = new service_record(&sset, "test-service-2", service_type::INTERNAL, {{s1, REG}});
-    service_record *s3 = new service_record(&sset, "test-service-3", service_type::INTERNAL, {{s2, WAITS}});
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, WAITS}});
     sset.add_service(s1);
     sset.add_service(s2);
     sset.add_service(s3);
@@ -256,8 +256,8 @@ void test8()
 {
     service_set sset;
 
-    service_record *s1 = new service_record(&sset, "test-service-1", service_type::INTERNAL, {});
-    service_record *s2 = new service_record(&sset, "test-service-2", service_type::INTERNAL, {{s1, MS}});
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, MS}});
     sset.add_service(s1);
     sset.add_service(s2);
 
@@ -282,8 +282,8 @@ void test9()
 {
     service_set sset;
 
-    test_service *s1 = new test_service(&sset, "test-service-1", service_type::INTERNAL, {});
-    test_service *s2 = new test_service(&sset, "test-service-2", service_type::INTERNAL, {{s1, MS}});
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, MS}});
     sset.add_service(s1);
     sset.add_service(s2);
 

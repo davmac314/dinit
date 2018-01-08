@@ -10,7 +10,7 @@ enum class service_state_t {
 };
 
 /* Service types */
-enum class service_type {
+enum class service_type_t {
     DUMMY,      // Dummy service, used to detect cyclice dependencies
     PROCESS,    // Service runs as a process, and can be stopped by
                 // sending the process a signal (usually SIGTERM)
