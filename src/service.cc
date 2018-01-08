@@ -1402,7 +1402,7 @@ base_process_service::base_process_service(service_set *sset, string name,
         std::list<std::pair<unsigned,unsigned>> &command_offsets,
         const std::list<prelim_dep> &deplist_p)
      : service_record(sset, name, service_type_p, deplist_p), child_listener(this),
-       child_status_listener(this)
+       child_status_listener(this), restart_timer(this)
 {
     program_name = std::move(command);
     exec_arg_parts = separate_args(program_name, command_offsets);

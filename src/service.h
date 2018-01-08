@@ -610,7 +610,8 @@ class process_restart_timer : public eventloop_t::timer_impl<process_restart_tim
     public:
     base_process_service * service;
 
-    process_restart_timer()
+    process_restart_timer(base_process_service *service_p)
+        : service(service_p)
     {
     }
 
