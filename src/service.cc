@@ -306,13 +306,12 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
         // we assume that the process died because we signalled it.
         stopped();
     }
-    else if (smooth_recovery && service_state == service_state_t::STARTED
-            && get_target_state() == service_state_t::STARTED) {
-        do_smooth_recovery();
-        return;
-    }
     else {
         // we must be STARTED
+        if (smooth_recovery && get_target_state() == service_state_t::STARTED) {
+            do_smooth_recovery();
+            return;
+        }
         if (! do_auto_restart() && start_explicit) {
             start_explicit = false;
             release();
@@ -336,6 +335,11 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
     bool did_exit = WIFEXITED(exit_status);
     bool was_signalled = WIFSIGNALED(exit_status);
     auto service_state = get_state();
+
+    // For a scripted service, a termination occurs in one of three main cases:
+    // - the start script completed (or failed), when service was STARTING
+    // - the start script was interrupted to cancel startup; state is STOPPING
+    // - the stop script complete (or failed), state is STOPPING
 
     if (service_state == service_state_t::STOPPING) {
         // We might be running the stop script, or we might be running the start script and have issued
@@ -374,8 +378,8 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
                             WTERMSIG(exit_status));
                 }
             }
-            // Just assume that we stopped, so that any dependencies
-            // can be stopped:
+            // Even if the stop script failed, assume that service is now stopped, so that any dependencies
+            // can be stopped. There's not really any other useful course of action here.
             interrupting_start = false;
             stopped();
         }
