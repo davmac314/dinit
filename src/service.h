@@ -241,7 +241,7 @@ class service_child_watcher : public eventloop_t::child_proc_watcher_impl<servic
 {
     public:
     base_process_service * service;
-    rearm status_change(eventloop_t &eloop, pid_t child, int status) noexcept;
+    dasynq::rearm status_change(eventloop_t &eloop, pid_t child, int status) noexcept;
     
     service_child_watcher(base_process_service * sr) noexcept : service(sr) { }
 };
@@ -251,7 +251,7 @@ class exec_status_pipe_watcher : public eventloop_t::fd_watcher_impl<exec_status
 {
     public:
     base_process_service * service;
-    rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
+    dasynq::rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
     
     exec_status_pipe_watcher(base_process_service * sr) noexcept : service(sr) { }
 };
@@ -267,6 +267,7 @@ class service_record
 {
     protected:
     using string = std::string;
+    using time_val = dasynq::time_val;
     
     private:
     string service_name;
@@ -615,7 +616,7 @@ class process_restart_timer : public eventloop_t::timer_impl<process_restart_tim
     {
     }
 
-    rearm timer_expiry(eventloop_t &, int expiry_count);
+    dasynq::rearm timer_expiry(eventloop_t &, int expiry_count);
 };
 
 class base_process_service : public service_record

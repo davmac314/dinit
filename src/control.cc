@@ -1,6 +1,11 @@
 #include "control.h"
 #include "service.h"
 
+namespace {
+    constexpr auto OUT_EVENTS = dasynq::OUT_EVENTS;
+    constexpr auto IN_EVENTS = dasynq::IN_EVENTS;
+}
+
 bool control_conn_t::process_packet()
 {
     using std::string;

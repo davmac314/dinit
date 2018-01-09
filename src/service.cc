@@ -27,7 +27,11 @@
 // from dinit.cc:
 void open_control_socket(bool report_ro_failure = true) noexcept;
 void setup_external_log() noexcept;
-extern eventloop_t eventLoop;
+extern eventloop_t event_loop;
+
+using clock_type = dasynq::clock_type;
+using rearm = dasynq::rearm;
+using time_val = dasynq::time_val;
 
 // Find the requested service by name
 static service_record * find_service(const std::list<service_record *> & records,
@@ -128,7 +132,7 @@ dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t chil
     if (sr->waiting_for_execstat) {
         // We still don't have an exec() status from the forked child, wait for that
         // before doing any further processing.
-        return rearm::NOOP; // hold watch reservation
+        return dasynq::rearm::NOOP; // hold watch reservation
     }
     
     // Must stop watch now since handle_exit_status might result in re-launch:
@@ -141,7 +145,7 @@ dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t chil
     }
 
     sr->handle_exit_status(status);
-    return rearm::NOOP;
+    return dasynq::rearm::NOOP;
 }
 
 bool service_record::do_auto_restart() noexcept
@@ -432,7 +436,7 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
     if (r > 0) {
         // We read an errno code; exec() failed, and the service startup failed.
         if (sr->pid != -1) {
-            sr->child_listener.deregister(eventLoop, sr->pid);
+            sr->child_listener.deregister(event_loop, sr->pid);
             sr->reserved_child_watch = false;
             if (sr->stop_timer_armed) {
                 sr->restart_timer.stop_timer(loop);
@@ -829,7 +833,7 @@ bgproc_service::read_pid_file(int *exit_status) noexcept
         }
         else if (wait_r == 0) {
             // We can track the child
-            child_listener.add_reserved(eventLoop, pid, DEFAULT_PRIORITY - 10);
+            child_listener.add_reserved(event_loop, pid, dasynq::DEFAULT_PRIORITY - 10);
             tracking_child = true;
             reserved_child_watch = true;
             return pid_result_t::OK;
@@ -927,15 +931,15 @@ bool base_process_service::bring_up() noexcept
         return true;
     }
     else {
-        eventLoop.get_time(restart_interval_time, clock_type::MONOTONIC);
+        event_loop.get_time(restart_interval_time, clock_type::MONOTONIC);
         restart_interval_count = 0;
         if (start_ps_process(exec_arg_parts, onstart_flags.starts_on_console)) {
             if (start_timeout != time_val(0,0)) {
-                restart_timer.arm_timer_rel(eventLoop, start_timeout);
+                restart_timer.arm_timer_rel(event_loop, start_timeout);
                 stop_timer_armed = true;
             }
             else if (stop_timer_armed) {
-                restart_timer.stop_timer(eventLoop);
+                restart_timer.stop_timer(event_loop);
                 stop_timer_armed = false;
             }
             return true;
@@ -951,10 +955,10 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     // exec closes the pipe, and the parent sees EOF. If the exec is unsuccessful, the errno
     // is written to the pipe, and the parent can read it.
 
-    eventLoop.get_time(last_start_time, clock_type::MONOTONIC);
+    event_loop.get_time(last_start_time, clock_type::MONOTONIC);
 
     int pipefd[2];
-    if (pipe2(pipefd, O_CLOEXEC)) {
+    if (dasynq::pipe2(pipefd, O_CLOEXEC)) {
         log(loglevel_t::ERROR, get_name(), ": can't create status check pipe: ", strerror(errno));
         return false;
     }
@@ -979,7 +983,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         fcntl(control_socket[0], F_SETFD, fdflags | FD_CLOEXEC);
         
         try {
-            control_conn = new control_conn_t(eventLoop, services, control_socket[0]);
+            control_conn = new control_conn_t(event_loop, services, control_socket[0]);
         }
         catch (std::exception &exc) {
             log(loglevel_t::ERROR, get_name(), ": can't launch process; out of memory");
@@ -992,14 +996,14 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     pid_t forkpid;
     
     try {
-        child_status_listener.add_watch(eventLoop, pipefd[0], IN_EVENTS);
+        child_status_listener.add_watch(event_loop, pipefd[0], dasynq::IN_EVENTS);
         child_status_registered = true;
         
         // We specify a high priority (i.e. low priority value) so that process termination is
         // handled early. This means we have always recorded that the process is terminated by the
         // time that we handle events that might otherwise cause us to signal the process, so we
         // avoid sending a signal to an invalid (and possibly recycled) process ID.
-        forkpid = child_listener.fork(eventLoop, reserved_child_watch, DEFAULT_PRIORITY - 10);
+        forkpid = child_listener.fork(event_loop, reserved_child_watch, dasynq::DEFAULT_PRIORITY - 10);
         reserved_child_watch = true;
     }
     catch (std::exception &e) {
@@ -1026,7 +1030,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     
     out_cs_h:
     if (child_status_registered) {
-        child_status_listener.deregister(eventLoop);
+        child_status_listener.deregister(event_loop);
     }
     
     if (onstart_flags.pass_cs_fd) {
@@ -1315,7 +1319,7 @@ void base_process_service::bring_down() noexcept
             stopped();
         }
         else if (stop_timeout != time_val(0,0)) {
-            restart_timer.arm_timer_rel(eventLoop, stop_timeout);
+            restart_timer.arm_timer_rel(event_loop, stop_timeout);
             stop_timer_armed = true;
         }
     }
@@ -1352,7 +1356,7 @@ void process_service::bring_down() noexcept
             stopped();
         }
         else if (stop_timeout != time_val(0,0)) {
-            restart_timer.arm_timer_rel(eventLoop, stop_timeout);
+            restart_timer.arm_timer_rel(event_loop, stop_timeout);
             stop_timer_armed = true;
         }
     }
@@ -1375,7 +1379,7 @@ void scripted_service::bring_down() noexcept
     else {
         // successfully started stop script: start kill timer:
         if (stop_timeout != time_val(0,0)) {
-            restart_timer.arm_timer_rel(eventLoop, stop_timeout);
+            restart_timer.arm_timer_rel(event_loop, stop_timeout);
             stop_timer_armed = true;
         }
     }
@@ -1438,7 +1442,7 @@ base_process_service::base_process_service(service_set *sset, string name,
     restart_interval_count = 0;
     restart_interval_time = {0, 0};
     restart_timer.service = this;
-    restart_timer.add_timer(eventLoop);
+    restart_timer.add_timer(event_loop);
 
     // By default, allow a maximum of 3 restarts within 10.0 seconds:
     restart_interval.seconds() = 10;
@@ -1490,7 +1494,7 @@ bool base_process_service::restart_ps_process() noexcept
     using time_val = dasynq::time_val;
 
     time_val current_time;
-    eventLoop.get_time(current_time, clock_type::MONOTONIC);
+    event_loop.get_time(current_time, clock_type::MONOTONIC);
 
     if (max_restart_interval_count != 0) {
         // Check whether we're still in the most recent restart check interval:
@@ -1515,7 +1519,7 @@ bool base_process_service::restart_ps_process() noexcept
     }
     else {
         time_val timeout = restart_delay - tdiff;
-        restart_timer.arm_timer_rel(eventLoop, timeout);
+        restart_timer.arm_timer_rel(event_loop, timeout);
         waiting_restart_timer = true;
     }
     return true;
@@ -1524,7 +1528,7 @@ bool base_process_service::restart_ps_process() noexcept
 bool base_process_service::interrupt_start() noexcept
 {
     if (waiting_restart_timer) {
-        restart_timer.stop_timer(eventLoop);
+        restart_timer.stop_timer(event_loop);
         waiting_restart_timer = false;
         return service_record::interrupt_start();
     }
@@ -1532,11 +1536,11 @@ bool base_process_service::interrupt_start() noexcept
         log(loglevel_t::WARN, "Interrupting start of service ", get_name(), " with pid ", pid, " (with SIGINT).");
         kill_pg(SIGINT);
         if (stop_timeout != time_val(0,0)) {
-            restart_timer.arm_timer(eventLoop, stop_timeout);
+            restart_timer.arm_timer(event_loop, stop_timeout);
             stop_timer_armed = true;
         }
         else if (stop_timer_armed) {
-            restart_timer.stop_timer(eventLoop);
+            restart_timer.stop_timer(event_loop);
             stop_timer_armed = false;
         }
         set_state(service_state_t::STOPPING);

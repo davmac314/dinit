@@ -37,10 +37,9 @@
  * services even if the halt/reboot commands are unavailable for some reason.
  */
 
-using namespace dasynq;
-using eventloop_t = event_loop<null_mutex>;
+using eventloop_t = dasynq::event_loop<dasynq::null_mutex>;
 
-eventloop_t eventLoop;
+eventloop_t event_loop;
 
 static void sigint_reboot_cb(eventloop_t &eloop) noexcept;
 static void sigquit_cb(eventloop_t &eloop) noexcept;
@@ -94,6 +93,8 @@ const char * get_user_home()
 namespace {
     class callback_signal_handler : public eventloop_t::signal_watcher_impl<callback_signal_handler>
     {
+        using rearm = dasynq::rearm;
+
         public:
         typedef void (*cb_func_t)(eventloop_t &);
         
@@ -118,6 +119,8 @@ namespace {
 
     class control_socket_watcher : public eventloop_t::fd_watcher_impl<control_socket_watcher>
     {
+        using rearm = dasynq::rearm;
+
         public:
         rearm fd_event(eventloop_t &loop, int fd, int flags) noexcept
         {
@@ -278,12 +281,12 @@ int dinit_main(int argc, char **argv)
         sigint_watcher.setCbFunc(sigterm_cb);
     }
 
-    sigint_watcher.add_watch(eventLoop, SIGINT);
-    sigterm_watcher.add_watch(eventLoop, SIGTERM);
+    sigint_watcher.add_watch(event_loop, SIGINT);
+    sigterm_watcher.add_watch(event_loop, SIGTERM);
     
     if (am_system_init) {
         // PID 1: SIGQUIT exec's shutdown
-        sigquit_watcher.add_watch(eventLoop, SIGQUIT);
+        sigquit_watcher.add_watch(event_loop, SIGQUIT);
         // As a user process, we instead just let SIGQUIT perform the default action.
     }
 
@@ -332,7 +335,7 @@ int dinit_main(int argc, char **argv)
     
     // Process events until all services have terminated.
     while (services->count_active_services() != 0) {
-        eventLoop.run();
+        event_loop.run();
     }
 
     shutdown_type_t shutdown_type = services->getShutdownType();
@@ -355,7 +358,7 @@ int dinit_main(int argc, char **argv)
     }
     
     while (! is_log_flushed()) {
-        eventLoop.run();
+        event_loop.run();
     }
     
     close_control_socket();
@@ -395,7 +398,7 @@ int dinit_main(int argc, char **argv)
         
         // PID 1 must not actually exit, although we should never reach this point:
         while (true) {
-            eventLoop.run();
+            event_loop.run();
         }
     }
     else if (shutdown_type == shutdown_type_t::REBOOT) {
@@ -496,7 +499,7 @@ void open_control_socket(bool report_ro_failure) noexcept
         }
 
         try {
-            control_socket_io.add_watch(eventLoop, sockfd, IN_EVENTS);
+            control_socket_io.add_watch(event_loop, sockfd, dasynq::IN_EVENTS);
             control_socket_open = true;
         }
         catch (std::exception &e)
@@ -511,7 +514,7 @@ static void close_control_socket() noexcept
 {
     if (control_socket_open) {
         int fd = control_socket_io.get_watched_fd();
-        control_socket_io.deregister(eventLoop);
+        control_socket_io.deregister(event_loop);
         close(fd);
         
         // Unlink the socket:

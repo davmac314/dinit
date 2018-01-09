@@ -18,14 +18,13 @@
 
 // Control connection for dinit
 
-using namespace dasynq;
-using eventloop_t = event_loop<null_mutex>;
+using eventloop_t = dasynq::event_loop<dasynq::null_mutex>;
 
 class control_conn_t;
 class control_conn_watcher;
 
 // forward-declaration of callback:
-static rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents);
+static dasynq::rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents);
 
 // Pointer to the control connection that is listening for rollback completion
 extern control_conn_t * rollback_handler_conn;
@@ -49,6 +48,7 @@ class service_record;
 
 class control_conn_watcher : public eventloop_t::bidi_fd_watcher_impl<control_conn_watcher>
 {
+    using rearm = dasynq::rearm;
     inline rearm receive_event(eventloop_t &loop, int fd, int flags) noexcept;
 
     eventloop_t * event_loop;
@@ -61,12 +61,12 @@ class control_conn_watcher : public eventloop_t::bidi_fd_watcher_impl<control_co
 
     rearm read_ready(eventloop_t &loop, int fd) noexcept
     {
-        return receive_event(loop, fd, IN_EVENTS);
+        return receive_event(loop, fd, dasynq::IN_EVENTS);
     }
     
     rearm write_ready(eventloop_t &loop, int fd) noexcept
     {
-        return receive_event(loop, fd, OUT_EVENTS);
+        return receive_event(loop, fd, dasynq::OUT_EVENTS);
     }
 
     void set_watches(int flags)
@@ -75,7 +75,7 @@ class control_conn_watcher : public eventloop_t::bidi_fd_watcher_impl<control_co
     }
 };
 
-inline rearm control_conn_watcher::receive_event(eventloop_t &loop, int fd, int flags) noexcept
+inline dasynq::rearm control_conn_watcher::receive_event(eventloop_t &loop, int fd, int flags) noexcept
 {
     return control_conn_cb(&loop, this, flags);
 }
@@ -83,6 +83,7 @@ inline rearm control_conn_watcher::receive_event(eventloop_t &loop, int fd, int 
 
 class control_conn_t : private service_listener
 {
+    using rearm = dasynq::rearm;
     friend rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents);
     
     control_conn_watcher iob;
@@ -168,7 +169,7 @@ class control_conn_t : private service_listener
     {
         bad_conn_close = true;
         oom_close = true;
-        iob.set_watches(OUT_EVENTS);
+        iob.set_watches(dasynq::OUT_EVENTS);
     }
     
     // Process service event broadcast.
@@ -206,7 +207,7 @@ class control_conn_t : private service_listener
     control_conn_t(eventloop_t &loop, service_set * services_p, int fd)
             : iob(loop), loop(loop), services(services_p), chklen(0)
     {
-        iob.add_watch(loop, fd, IN_EVENTS);
+        iob.add_watch(loop, fd, dasynq::IN_EVENTS);
         active_control_conns++;
     }
     
@@ -216,7 +217,7 @@ class control_conn_t : private service_listener
 };
 
 
-static rearm control_conn_cb(eventloop_t * loop, control_conn_watcher * watcher, int revents)
+static dasynq::rearm control_conn_cb(eventloop_t * loop, control_conn_watcher * watcher, int revents)
 {
     // Get the address of the containing control_connt_t object:
     _Pragma ("GCC diagnostic push")
@@ -225,20 +226,20 @@ static rearm control_conn_cb(eventloop_t * loop, control_conn_watcher * watcher,
     control_conn_t *conn = reinterpret_cast<control_conn_t *>(cc_addr);
     _Pragma ("GCC diagnostic pop")
 
-    if (revents & IN_EVENTS) {
+    if (revents & dasynq::IN_EVENTS) {
         if (conn->data_ready()) {
             delete conn;
-            return rearm::REMOVED;
+            return dasynq::rearm::REMOVED;
         }
     }
-    if (revents & OUT_EVENTS) {
+    if (revents & dasynq::OUT_EVENTS) {
         if (conn->send_data()) {
             delete conn;
-            return rearm::REMOVED;
+            return dasynq::rearm::REMOVED;
         }
     }
     
-    return rearm::NOOP;
+    return dasynq::rearm::NOOP;
 }
 
 #endif
