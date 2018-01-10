@@ -1210,15 +1210,17 @@ void service_record::do_stop() noexcept
 
     if (service_state != service_state_t::STARTED) {
         if (service_state == service_state_t::STARTING) {
-            if (! can_interrupt_start()) {
-                // Well this is awkward: we're going to have to continue starting. We can stop once we've
-                // reached the started state.
-                return;
-            }
+            if (! waiting_for_deps) {
+                if (! can_interrupt_start()) {
+                    // Well this is awkward: we're going to have to continue starting. We can stop once we've
+                    // reached the started state.
+                    return;
+                }
 
-            if (! interrupt_start()) {
-                // Now wait for service startup to actually end; we don't need to handle it here.
-                return;
+                if (! interrupt_start()) {
+                    // Now wait for service startup to actually end; we don't need to handle it here.
+                    return;
+                }
             }
 
             // We must have had desired_state == STARTED.
@@ -1536,7 +1538,7 @@ bool base_process_service::interrupt_start() noexcept
         log(loglevel_t::WARN, "Interrupting start of service ", get_name(), " with pid ", pid, " (with SIGINT).");
         kill_pg(SIGINT);
         if (stop_timeout != time_val(0,0)) {
-            restart_timer.arm_timer(event_loop, stop_timeout);
+            restart_timer.arm_timer_rel(event_loop, stop_timeout);
             stop_timer_armed = true;
         }
         else if (stop_timer_armed) {
@@ -1544,6 +1546,7 @@ bool base_process_service::interrupt_start() noexcept
             stop_timer_armed = false;
         }
         set_state(service_state_t::STOPPING);
+        notify_listeners(service_event_t::STARTCANCELLED);
         return false;
     }
 }
@@ -1569,6 +1572,7 @@ dasynq::rearm process_restart_timer::timer_expiry(eventloop_t &, int expiry_coun
     }
     else if (service->pid != -1) {
         // Starting, start timed out.
+        service->stop_dependents();
         service->interrupt_start();
     }
     else {
