@@ -5,6 +5,12 @@
 #include "dinit-util.h"
 #include "proc-service.h"
 
+/*
+ * Most of the implementation for process-based services (process, scripted, bgprocess) is here.
+ *
+ * See proc-service.h header for interface details.
+ */
+
 extern eventloop_t event_loop;
 
 using clock_type = dasynq::clock_type;
