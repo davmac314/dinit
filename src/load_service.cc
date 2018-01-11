@@ -10,7 +10,7 @@
 #include <pwd.h>
 #include <grp.h>
 
-#include "service.h"
+#include "proc-service.h"
 
 using string = std::string;
 using string_iterator = std::string::iterator;

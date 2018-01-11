@@ -1,7 +1,11 @@
 #ifndef DINIT_UTIL_H_INCLUDED
 #define DINIT_UTIL_H_INCLUDED 1
 
+#include <cstddef>
 #include <cerrno>
+
+#include <sys/types.h>
+#include <unistd.h>
 
 // Signal-safe read. Read and re-try if interrupted by signal (EINTR).
 // *May* affect errno even on a successful read (when the return is less than n).
