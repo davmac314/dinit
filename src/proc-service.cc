@@ -11,6 +11,30 @@ using clock_type = dasynq::clock_type;
 using rearm = dasynq::rearm;
 using time_val = dasynq::time_val;
 
+// Given a string and a list of pairs of (start,end) indices for each argument in that string,
+// store a null terminator for the argument. Return a `char *` vector containing the beginning
+// of each argument and a trailing nullptr. (The returned array is invalidated if the string is later modified).
+std::vector<const char *> separate_args(std::string &s, std::list<std::pair<unsigned,unsigned>> &arg_indices)
+{
+    std::vector<const char *> r;
+    r.reserve(arg_indices.size() + 1);
+
+    // First store nul terminator for each part:
+    for (auto index_pair : arg_indices) {
+        if (index_pair.second < s.length()) {
+            s[index_pair.second] = 0;
+        }
+    }
+
+    // Now we can get the C string (c_str) and store offsets into it:
+    const char * cstr = s.c_str();
+    for (auto index_pair : arg_indices) {
+        r.push_back(cstr + index_pair.first);
+    }
+    r.push_back(nullptr);
+    return r;
+}
+
 rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) noexcept
 {
     base_process_service *sr = service;
