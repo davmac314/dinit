@@ -88,6 +88,9 @@ class base_process_service : public service_record
     // Called if an exec fails.
     virtual void exec_failed(int errcode) noexcept = 0;
 
+    // Called if exec succeeds.
+    virtual void exec_succeeded() noexcept { };
+
     virtual bool can_interrupt_start() noexcept override
     {
         return waiting_restart_timer || start_is_interruptible || service_record::can_interrupt_start();
@@ -153,6 +156,7 @@ class process_service : public base_process_service
 {
     virtual void handle_exit_status(int exit_status) noexcept override;
     virtual void exec_failed(int errcode) noexcept override;
+    virtual void exec_succeeded() noexcept override;
     virtual void bring_down() noexcept override;
 
     public:

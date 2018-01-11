@@ -35,6 +35,24 @@ std::vector<const char *> separate_args(std::string &s, std::list<std::pair<unsi
     return r;
 }
 
+void process_service::exec_succeeded() noexcept
+{
+    // This could be a smooth recovery (state already STARTED). Even more, the process
+    // might be stopped (and killed via a signal) during smooth recovery.  We don't to
+    // process startup again in either case, so we check for state STARTING:
+    if (get_state() == service_state_t::STARTING) {
+        started();
+    }
+    else if (get_state() == service_state_t::STOPPING) {
+        // stopping, but smooth recovery was in process. That's now over so we can
+        // commence normal stop. Note that if pid == -1 the process already stopped(!),
+        // that's handled below.
+        if (pid != -1 && stop_check_dependents()) {
+            bring_down();
+        }
+    }
+}
+
 rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) noexcept
 {
     base_process_service *sr = service;
@@ -59,26 +77,10 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
         sr->exec_failed(exec_status);
     }
     else {
-        // exec() succeeded.
-        if (sr->get_type() == service_type_t::PROCESS) {
-            // This could be a smooth recovery (state already STARTED). Even more, the process
-            // might be stopped (and killed via a signal) during smooth recovery.  We don't to
-            // process startup again in either case, so we check for state STARTING:
-            if (sr->get_state() == service_state_t::STARTING) {
-                sr->started();
-            }
-            else if (sr->get_state() == service_state_t::STOPPING) {
-                // stopping, but smooth recovery was in process. That's now over so we can
-                // commence normal stop. Note that if pid == -1 the process already stopped(!),
-                // that's handled below.
-                if (sr->pid != -1 && sr->stop_check_dependents()) {
-                    sr->bring_down();
-                }
-            }
-        }
+        sr->exec_succeeded();
 
         if (sr->pid == -1) {
-            // Somehow the process managed to complete before we even saw the status.
+            // Somehow the process managed to complete before we even saw the exec() status.
             sr->handle_exit_status(sr->exit_status);
         }
     }
