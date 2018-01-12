@@ -10,10 +10,12 @@
 
 #include "dasynq.h"
 
+#include "dinit.h"
 #include "control.h"
 #include "service-listener.h"
 #include "service-constants.h"
 #include "dinit-ll.h"
+#include "dinit-log.h"
 
 /*
  * This header defines service_record, a data record maintaining information about a service,

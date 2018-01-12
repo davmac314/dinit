@@ -1,3 +1,4 @@
+#include "dinit-log.h"
 #include "dinit-socket.h"
 #include "proc-service.h"
 
