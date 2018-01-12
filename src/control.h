@@ -47,7 +47,6 @@ class service_record;
 
 class control_conn_watcher : public eventloop_t::bidi_fd_watcher_impl<control_conn_watcher>
 {
-    using rearm = dasynq::rearm;
     inline rearm receive_event(eventloop_t &loop, int fd, int flags) noexcept;
 
     eventloop_t * event_loop;
@@ -82,7 +81,6 @@ inline dasynq::rearm control_conn_watcher::receive_event(eventloop_t &loop, int 
 
 class control_conn_t : private service_listener
 {
-    using rearm = dasynq::rearm;
     friend rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents);
     
     control_conn_watcher iob;
