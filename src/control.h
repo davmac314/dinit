@@ -11,14 +11,13 @@
 
 #include "dasynq.h"
 
+#include "dinit.h"
 #include "dinit-log.h"
 #include "control-cmds.h"
 #include "service-listener.h"
 #include "cpbuffer.h"
 
 // Control connection for dinit
-
-using eventloop_t = dasynq::event_loop<dasynq::null_mutex>;
 
 class control_conn_t;
 class control_conn_watcher;

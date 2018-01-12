@@ -1,6 +1,7 @@
 #include <sys/un.h>
 #include <sys/socket.h>
 
+#include "dinit.h"
 #include "dinit-socket.h"
 #include "dinit-util.h"
 #include "proc-service.h"
@@ -10,12 +11,6 @@
  *
  * See proc-service.h header for interface details.
  */
-
-extern eventloop_t event_loop;
-
-using clock_type = dasynq::clock_type;
-using rearm = dasynq::rearm;
-using time_val = dasynq::time_val;
 
 // Given a string and a list of pairs of (start,end) indices for each argument in that string,
 // store a null terminator for the argument. Return a `char *` vector containing the beginning

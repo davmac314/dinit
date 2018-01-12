@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <termios.h>
 
+#include "dinit.h"
 #include "service.h"
 #include "dinit-log.h"
 #include "dinit-socket.h"
@@ -23,14 +24,6 @@
  * service.cc - Service management.
  * See service.h for details.
  */
-
-// from dinit.cc:
-void open_control_socket(bool report_ro_failure = true) noexcept;
-void setup_external_log() noexcept;
-
-using clock_type = dasynq::clock_type;
-using rearm = dasynq::rearm;
-using time_val = dasynq::time_val;
 
 // Find the requested service by name
 static service_record * find_service(const std::list<service_record *> & records,

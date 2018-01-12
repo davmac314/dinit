@@ -18,6 +18,7 @@
 #include <sys/reboot.h>
 #endif
 
+#include "dinit.h"
 #include "dasynq.h"
 #include "service.h"
 #include "control.h"
@@ -48,9 +49,6 @@ static void close_control_socket() noexcept;
 static void wait_for_user_input() noexcept;
 
 static void control_socket_cb(eventloop_t *loop, int fd);
-
-void open_control_socket(bool report_ro_failure = true) noexcept;
-void setup_external_log() noexcept;
 
 
 // Variables
