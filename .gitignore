@@ -7,3 +7,4 @@ test
 shutdown
 dinit-reboot
 src/tests/tests
+src/tests/includes
