@@ -4,8 +4,6 @@ ifeq ($(BUILD_SHUTDOWN),yes)
   SHUTDOWN=shutdown
 endif
 
-#objects = dinit.o load_service.o service.o proc-service.o baseproc-service.o control.o dinit-log.o dinit-main.o dinitctl.o shutdown.o
-
 dinit_objects = dinit.o load_service.o service.o proc-service.o baseproc-service.o control.o dinit-log.o dinit-main.o
 
 objects = $(dinit_objects) dinitctl.o shtudown.o
@@ -22,7 +20,7 @@ shutdown: shutdown.o
 	$(CXX) -o shutdown shutdown.o $(EXTRA_LIBS)
 
 $(objects): %.o: %.cc
-	$(CXX) $(CXXOPTS) -Idasynq -c $< -o $@
+	$(CXX) $(CXXOPTS) -Iincludes -Idasynq -c $< -o $@
 
 check: $(dinit_objects)
 	$(MAKE) -C tests check
@@ -40,6 +38,6 @@ clean:
 	$(MAKE) -C tests clean
 
 $(objects:.o=.d): %.d: %.cc
-	$(CXX) $(CXXOPTS) -Idasynq -MM -MG -MF $@ $<
+	$(CXX) $(CXXOPTS) -Iincludes -Idasynq -MM -MG -MF $@ $<
 
 -include $(objects:.o=.d)
