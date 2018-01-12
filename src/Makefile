@@ -6,7 +6,7 @@ endif
 
 dinit_objects = dinit.o load_service.o service.o proc-service.o baseproc-service.o control.o dinit-log.o dinit-main.o
 
-objects = $(dinit_objects) dinitctl.o shtudown.o
+objects = $(dinit_objects) dinitctl.o shutdown.o
 
 all: dinit dinitctl $(SHUTDOWN)
 
