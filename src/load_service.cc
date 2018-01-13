@@ -5,6 +5,8 @@
 #include <iostream>
 #include <limits>
 
+#include <cstring>
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <pwd.h>
