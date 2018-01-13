@@ -20,9 +20,9 @@ shutdown: shutdown.o
 	$(CXX) -o shutdown shutdown.o $(EXTRA_LIBS)
 
 $(objects): %.o: %.cc
-	$(CXX) $(CXXOPTS) -Iincludes -Idasynq -c $< -o $@
+	$(CXX) $(CXXOPTS) -MMD -MP -Iincludes -Idasynq -c $< -o $@
 
-check: $(dinit_objects)
+check:
 	$(MAKE) -C tests check
 
 install: all
@@ -36,8 +36,5 @@ clean:
 	rm -f *.o *.d
 	rm -f dinit dinitctl shutdown
 	$(MAKE) -C tests clean
-
-$(objects:.o=.d): %.d: %.cc
-	$(CXX) $(CXXOPTS) -Iincludes -Idasynq -MM -MG -MF $@ $<
 
 -include $(objects:.o=.d)
