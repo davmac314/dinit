@@ -498,24 +498,7 @@ void scripted_service::bring_down() noexcept
 
 dasynq::rearm process_restart_timer::timer_expiry(eventloop_t &, int expiry_count)
 {
-    service->stop_timer_armed = false;
-
-    // Timer expires if:
-    // We are stopping, including after having startup cancelled (stop timeout, state is STOPPING); We are
-    // starting (start timeout, state is STARTING); We are waiting for restart timer before restarting,
-    // including smooth recovery (restart timeout, state is STARTING or STARTED).
-    if (service->get_state() == service_state_t::STOPPING) {
-        service->kill_with_fire();
-    }
-    else if (service->pid != -1) {
-        // Starting, start timed out.
-        service->stop_dependents();
-        service->interrupt_start();
-    }
-    else {
-        // STARTING / STARTED, and we have a pid: must be restarting (smooth recovery if STARTED)
-        service->do_restart();
-    }
+    service->timer_expired();
 
     // Leave the timer disabled, or, if it has been reset by any processing above, leave it armed:
     return dasynq::rearm::NOOP;

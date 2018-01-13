@@ -26,7 +26,6 @@ class base_process_service : public service_record
 {
     friend class service_child_watcher;
     friend class exec_status_pipe_watcher;
-    friend class process_restart_timer;
     friend class base_process_service_test;
 
     private:
@@ -151,6 +150,9 @@ class base_process_service : public service_record
     {
         start_is_interruptible = value;
     }
+
+    // The restart/stop timer expired.
+    void timer_expired() noexcept;
 };
 
 class process_service : public base_process_service

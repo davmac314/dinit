@@ -314,3 +314,25 @@ void base_process_service::kill_pg(int signo) noexcept
     }
     kill(-pgid, signo);
 }
+
+void base_process_service::timer_expired() noexcept
+{
+    stop_timer_armed = false;
+
+    // Timer expires if:
+    // We are stopping, including after having startup cancelled (stop timeout, state is STOPPING); We are
+    // starting (start timeout, state is STARTING); We are waiting for restart timer before restarting,
+    // including smooth recovery (restart timeout, state is STARTING or STARTED).
+    if (get_state() == service_state_t::STOPPING) {
+        kill_with_fire();
+    }
+    else if (pid != -1) {
+        // Starting, start timed out.
+        stop_dependents();
+        interrupt_start();
+    }
+    else {
+        // STARTING / STARTED, and we have a pid: must be restarting (smooth recovery if STARTED)
+        do_restart();
+    }
+}
