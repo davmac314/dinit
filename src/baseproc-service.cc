@@ -1,5 +1,6 @@
 #include <cstring>
 
+#include "dinit.h"
 #include "dinit-log.h"
 #include "dinit-socket.h"
 #include "proc-service.h"
@@ -9,12 +10,6 @@
  *
  * See proc-service.h for interface documentation.
  */
-
-extern eventloop_t event_loop;
-
-using clock_type = dasynq::clock_type;
-using rearm = dasynq::rearm;
-using time_val = dasynq::time_val;
 
 void base_process_service::do_smooth_recovery() noexcept
 {
