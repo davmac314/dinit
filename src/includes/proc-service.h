@@ -27,6 +27,7 @@ class base_process_service : public service_record
     friend class service_child_watcher;
     friend class exec_status_pipe_watcher;
     friend class process_restart_timer;
+    friend class base_process_service_test;
 
     private:
     // Re-launch process

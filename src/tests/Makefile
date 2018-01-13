@@ -1,12 +1,13 @@
 -include ../../mconfig
 
-objects = tests.o test-dinit.o
-parent_objs = service.o baseproc-service.o proc-service.o dinit-log.o load_service.o
+objects = tests.o test-dinit.o proctests.o test-baseproc.o
+parent_objs = service.o proc-service.o dinit-log.o load_service.o # baseproc-service.o
 
 check: build-tests
 	./tests
+	./proctests
 
-build-tests: prepare-incdir tests
+build-tests: tests proctests
 
 # Create an "includes" directory populated with a combination of real and mock headers:
 prepare-incdir:
@@ -15,8 +16,11 @@ prepare-incdir:
 	cd includes; ln -sf ../../includes/*.h .
 	cd includes; ln -sf ../test-includes/*.h .
 
-tests: $(objects) $(parent_objs)
-	$(CXX) $(SANITIZEOPTS) -o tests $(objects) $(parent_objs) $(EXTRA_LIBS)
+tests: prepare-incdir $(parent_objs) tests.o test-dinit.o test-baseproc.o
+	$(CXX) $(SANITIZEOPTS) -o tests $(parent_objs) tests.o test-dinit.o test-baseproc.o $(EXTRA_LIBS)
+
+proctests: prepare-incdir $(parent_objs) proctests.o test-dinit.o test-baseproc.o
+	$(CXX) $(SANITIZEOPTS) -o proctests $(parent_objs) proctests.o test-dinit.o test-baseproc.o $(EXTRA_LIBS)
 
 $(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -Iincludes -I../dasynq -c $< -o $@
