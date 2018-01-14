@@ -5,6 +5,8 @@
 #include "dinit-socket.h"
 #include "proc-service.h"
 
+#include "baseproc-sys.h"
+
 /*
  * Base process implementation (base_process_service).
  *
@@ -55,7 +57,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     event_loop.get_time(last_start_time, clock_type::MONOTONIC);
 
     int pipefd[2];
-    if (dasynq::pipe2(pipefd, O_CLOEXEC)) {
+    if (bp_sys::pipe2(pipefd, O_CLOEXEC)) {
         log(loglevel_t::ERROR, get_name(), ": can't create status check pipe: ", strerror(errno));
         return false;
     }
@@ -76,8 +78,8 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         }
 
         // Make the server side socket close-on-exec:
-        int fdflags = fcntl(control_socket[0], F_GETFD);
-        fcntl(control_socket[0], F_SETFD, fdflags | FD_CLOEXEC);
+        int fdflags = bp_sys::fcntl(control_socket[0], F_GETFD);
+        bp_sys::fcntl(control_socket[0], F_SETFD, fdflags | FD_CLOEXEC);
 
         try {
             control_conn = new control_conn_t(event_loop, services, control_socket[0]);
@@ -113,9 +115,9 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     }
     else {
         // Parent process
-        close(pipefd[1]); // close the 'other end' fd
+        bp_sys::close(pipefd[1]); // close the 'other end' fd
         if (control_socket[1] != -1) {
-            close(control_socket[1]);
+            bp_sys::close(control_socket[1]);
         }
         pid = forkpid;
 
@@ -134,13 +136,13 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         delete control_conn;
 
         out_cs:
-        close(control_socket[0]);
-        close(control_socket[1]);
+        bp_sys::close(control_socket[0]);
+        bp_sys::close(control_socket[1]);
     }
 
     out_p:
-    close(pipefd[0]);
-    close(pipefd[1]);
+    bp_sys::close(pipefd[0]);
+    bp_sys::close(pipefd[1]);
 
     return false;
 }
@@ -312,7 +314,7 @@ void base_process_service::kill_pg(int signo) noexcept
         log(loglevel_t::ERROR, get_name(), ": can't signal process: ", strerror(errno));
         return;
     }
-    kill(-pgid, signo);
+    bp_sys::kill(-pgid, signo);
 }
 
 void base_process_service::timer_expired() noexcept

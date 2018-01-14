@@ -1,7 +1,7 @@
 -include ../../mconfig
 
-objects = tests.o test-dinit.o proctests.o test-baseproc.o
-parent_objs = service.o proc-service.o dinit-log.o load_service.o # baseproc-service.o
+objects = tests.o test-dinit.o proctests.o test-run-child-proc.o
+parent_objs = service.o proc-service.o dinit-log.o load_service.o baseproc-service.o
 
 check: build-tests
 	./tests
@@ -16,11 +16,11 @@ prepare-incdir:
 	cd includes; ln -sf ../../includes/*.h .
 	cd includes; ln -sf ../test-includes/*.h .
 
-tests: prepare-incdir $(parent_objs) tests.o test-dinit.o test-baseproc.o
-	$(CXX) $(SANITIZEOPTS) -o tests $(parent_objs) tests.o test-dinit.o test-baseproc.o $(EXTRA_LIBS)
+tests: prepare-incdir $(parent_objs) tests.o test-dinit.o
+	$(CXX) $(SANITIZEOPTS) -o tests $(parent_objs) tests.o test-dinit.o $(EXTRA_LIBS)
 
-proctests: prepare-incdir $(parent_objs) proctests.o test-dinit.o test-baseproc.o
-	$(CXX) $(SANITIZEOPTS) -o proctests $(parent_objs) proctests.o test-dinit.o test-baseproc.o $(EXTRA_LIBS)
+proctests: prepare-incdir $(parent_objs) proctests.o test-dinit.o
+	$(CXX) $(SANITIZEOPTS) -o proctests $(parent_objs) proctests.o test-dinit.o $(EXTRA_LIBS)
 
 $(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -Iincludes -I../dasynq -c $< -o $@
