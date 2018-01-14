@@ -4,7 +4,8 @@ ifeq ($(BUILD_SHUTDOWN),yes)
   SHUTDOWN=shutdown
 endif
 
-dinit_objects = dinit.o load_service.o service.o proc-service.o baseproc-service.o control.o dinit-log.o dinit-main.o
+dinit_objects = dinit.o load_service.o service.o proc-service.o baseproc-service.o control.o dinit-log.o \
+		dinit-main.o run-child-proc.o
 
 objects = $(dinit_objects) dinitctl.o shutdown.o
 
