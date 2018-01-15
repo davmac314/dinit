@@ -122,7 +122,7 @@ void service_record::emergency_stop() noexcept
 {
     if (! do_auto_restart() && start_explicit) {
         start_explicit = false;
-        release();
+        release(false);
     }
     forced_stop();
     stop_dependents();
@@ -139,7 +139,7 @@ void service_record::require() noexcept
     }
 }
 
-void service_record::release() noexcept
+void service_record::release(bool issue_stop) noexcept
 {
     if (--required_by == 0) {
         desired_state = service_state_t::STOPPED;
@@ -153,7 +153,7 @@ void service_record::release() noexcept
         if (service_state == service_state_t::STOPPED) {
             services->service_inactive(this);
         }
-        else {
+        else if (issue_stop) {
             do_stop();
         }
     }
@@ -473,7 +473,7 @@ void service_record::failed_to_start(bool depfailed) noexcept
     service_state = service_state_t::STOPPED;
     if (start_explicit) {
         start_explicit = false;
-        release();
+        release(false);
     }
     notify_listeners(service_event_t::FAILEDSTART);
     
@@ -542,8 +542,7 @@ void service_record::do_stop() noexcept
 
     if (start_explicit && ! do_auto_restart()) {
         start_explicit = false;
-        release();
-        if (required_by == 0) return; // release will re-call us anyway
+        release(false);
     }
 
     bool all_deps_stopped = stop_dependents();

@@ -373,7 +373,7 @@ class service_record
     bool stop_dependents() noexcept;
     
     void require() noexcept;
-    void release() noexcept;
+    void release(bool issue_stop = true) noexcept;
     void release_dependencies() noexcept;
     
     // Check if service is, fundamentally, stopped.
