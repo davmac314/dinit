@@ -41,8 +41,12 @@ void test1()
 
     process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
     p.start(true);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
 
     base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTED);
 }

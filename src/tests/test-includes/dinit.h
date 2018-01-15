@@ -22,7 +22,7 @@ class eventloop_t
         public:
         pid_t fork(eventloop_t &loop, bool reserved_child_watcher, int priority = dasynq::DEFAULT_PRIORITY)
         {
-            return -1;
+            return 2; // doesn't matter much what we return here, but it should be a potentially valid pid
         }
 
         void add_reserved(eventloop_t &eloop, pid_t child, int prio = dasynq::DEFAULT_PRIORITY) noexcept

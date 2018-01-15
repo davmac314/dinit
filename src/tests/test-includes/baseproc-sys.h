@@ -1,14 +1,12 @@
 #include <sys/types.h>
+#include <iostream>
 
 // Mock system functions for testing.
 
 namespace bp_sys {
 
-inline int pipe2(int pipefd[2], int flags)
-{
-    abort();
-    return 0;
-}
+int pipe2(int pipefd[2], int flags);
+int close(int fd);
 
 inline int fcntl(int fd, int cmd, ...)
 {
@@ -16,14 +14,10 @@ inline int fcntl(int fd, int cmd, ...)
     return 0;
 }
 
-inline int close(int fd)
-{
-    abort();
-    return 0;
-}
-
 inline int kill(pid_t pid, int sig)
 {
+    // No proper mock implemented yet:
+    std::cout << "(kill; aborting)" << std::endl;
     abort();
     return 0;
 }
