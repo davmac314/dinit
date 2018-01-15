@@ -28,7 +28,7 @@ class base_process_service_test
 };
 
 // Regular service start
-void test1()
+void test_proc_service_start()
 {
     using namespace std;
 
@@ -52,7 +52,7 @@ void test1()
 }
 
 // Unexpected termination
-void test2()
+void test_proc_unexpected_term()
 {
     using namespace std;
 
@@ -79,7 +79,7 @@ void test2()
 }
 
 // Termination via stop request
-void test3()
+void test_term_via_stop()
 {
     using namespace std;
 
@@ -111,7 +111,7 @@ void test3()
 }
 
 // Time-out during start
-void test4()
+void test_proc_start_timeout()
 {
     using namespace std;
 
@@ -139,16 +139,46 @@ void test4()
     assert(p.get_state() == service_state_t::STOPPED);
 }
 
+// Smooth recovery
+void test_proc_smooth_recovery()
+{
+    using namespace std;
 
-#define RUN_TEST(name) \
-    std::cout << #name "... "; \
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    p.set_smooth_recovery(true);
+
+    p.start(true);
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+}
+
+
+#define RUN_TEST(name, spacing) \
+    std::cout << #name "..." spacing; \
     name(); \
     std::cout << "PASSED" << std::endl;
 
 int main(int argc, char **argv)
 {
-    RUN_TEST(test1);
-    RUN_TEST(test2);
-    RUN_TEST(test3);
-    RUN_TEST(test4);
+    RUN_TEST(test_proc_service_start, "   ");
+    RUN_TEST(test_proc_unexpected_term, " ");
+    RUN_TEST(test_term_via_stop, "        ");
+    RUN_TEST(test_proc_start_timeout, "   ");
+    RUN_TEST(test_proc_smooth_recovery, " ");
 }
