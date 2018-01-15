@@ -65,12 +65,15 @@ void test2()
 
     process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
     p.start(true);
+    sset.process_queues();
 
     base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTED);
 
     base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPED);
 }
@@ -89,16 +92,49 @@ void test3()
 
     process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
     p.start(true);
+    sset.process_queues();
 
     base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTED);
 
     p.stop(true);
+    sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPING);
 
     base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+}
+
+// Time-out during start
+void test4()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    p.start(true);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    p.timer_expired();
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPED);
 }
@@ -114,4 +150,5 @@ int main(int argc, char **argv)
     RUN_TEST(test1);
     RUN_TEST(test2);
     RUN_TEST(test3);
+    RUN_TEST(test4);
 }
