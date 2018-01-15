@@ -23,15 +23,12 @@ proctests: prepare-incdir $(parent_objs) proctests.o test-dinit.o test-bpsys.o
 	$(CXX) $(SANITIZEOPTS) -o proctests $(parent_objs) proctests.o test-dinit.o test-bpsys.o $(EXTRA_LIBS)
 
 $(objects): %.o: %.cc
-	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -Iincludes -I../dasynq -c $< -o $@
+	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../dasynq -c $< -o $@
 
 $(parent_objs): %.o: ../%.cc
-	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -Iincludes -I../dasynq -c $< -o $@
+	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../dasynq -c $< -o $@
 
 clean:
 	rm -f *.o *.d
 
-$(objects:.o=.d): %.d: %.cc
-	$(CXX) $(CXXOPTS) -Iincludes -I../dasynq -MM -MG -MF $@ $<
-
-include $(objects:.o=.d)
+-include $(objects:.o=.d)
