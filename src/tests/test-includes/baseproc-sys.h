@@ -22,4 +22,9 @@ inline int kill(pid_t pid, int sig)
     return 0;
 }
 
+inline pid_t getpgid(pid_t pid)
+{
+    return pid;
+}
+
 }

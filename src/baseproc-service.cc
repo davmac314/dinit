@@ -308,7 +308,7 @@ void base_process_service::kill_with_fire() noexcept
 
 void base_process_service::kill_pg(int signo) noexcept
 {
-    pid_t pgid = getpgid(pid);
+    pid_t pgid = bp_sys::getpgid(pid);
     if (pgid == -1) {
         // only should happen if pid is invalid, which should never happen...
         log(loglevel_t::ERROR, get_name(), ": can't signal process: ", strerror(errno));
