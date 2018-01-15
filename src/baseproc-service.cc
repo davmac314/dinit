@@ -331,6 +331,10 @@ void base_process_service::timer_expired() noexcept
     else if (pid != -1) {
         // Starting, start timed out.
         stop_dependents();
+        if (start_explicit) {
+            start_explicit = false;
+            release();
+        }
         interrupt_start();
     }
     else {

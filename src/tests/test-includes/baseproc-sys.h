@@ -16,9 +16,7 @@ inline int fcntl(int fd, int cmd, ...)
 
 inline int kill(pid_t pid, int sig)
 {
-    // No proper mock implemented yet:
-    std::cout << "(kill; aborting)" << std::endl;
-    abort();
+    // No proper mock implemented yet, just return success for now:
     return 0;
 }
 
