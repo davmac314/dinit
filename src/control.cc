@@ -308,7 +308,7 @@ control_conn_t::handle_t control_conn_t::allocate_service_handle(service_record 
     serviceKeyMap.insert(std::make_pair(record, candidate));
     
     if (is_unique) {
-        record->addListener(this);
+        record->add_listener(this);
     }
     
     return candidate;
@@ -523,7 +523,7 @@ control_conn_t::~control_conn_t() noexcept
     
     // Clear service listeners
     for (auto p : serviceKeyMap) {
-        p.first->removeListener(this);
+        p.first->remove_listener(this);
     }
     
     active_control_conns--;

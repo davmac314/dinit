@@ -562,19 +562,19 @@ class service_record
     // commence starting/stopping.
     void unpin() noexcept;
     
-    bool isDummy() noexcept
+    bool is_dummy() noexcept
     {
         return record_type == service_type_t::DUMMY;
     }
     
     // Add a listener. A listener must only be added once. May throw std::bad_alloc.
-    void addListener(service_listener * listener)
+    void add_listener(service_listener * listener)
     {
         listeners.insert(listener);
     }
     
     // Remove a listener.    
-    void removeListener(service_listener * listener) noexcept
+    void remove_listener(service_listener * listener) noexcept
     {
         listeners.erase(listener);
     }

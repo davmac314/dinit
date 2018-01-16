@@ -371,7 +371,7 @@ service_record * dirload_service_set::load_service(const char * name)
     // First try and find an existing record...
     service_record * rval = find_service(string(name));
     if (rval != 0) {
-        if (rval->isDummy()) {
+        if (rval->is_dummy()) {
             throw service_cyclic_dependency(name);
         }
         return rval;
