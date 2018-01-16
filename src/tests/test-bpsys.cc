@@ -23,6 +23,7 @@ static int allocfd()
 namespace bp_sys {
 
 int last_sig_sent = -1; // last signal number sent, accessible for tests.
+pid_t last_forked_pid = 1;  // last forked process id (incremented each 'fork')
 
 int pipe2(int fds[2], int flags)
 {

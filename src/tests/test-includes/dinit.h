@@ -9,6 +9,10 @@ using clock_type = dasynq::clock_type;
 using rearm = dasynq::rearm;
 using time_val = dasynq::time_val;
 
+namespace bp_sys {
+    extern pid_t last_forked_pid;
+}
+
 class eventloop_t
 {
     public:
@@ -22,7 +26,8 @@ class eventloop_t
         public:
         pid_t fork(eventloop_t &loop, bool reserved_child_watcher, int priority = dasynq::DEFAULT_PRIORITY)
         {
-            return 2; // doesn't matter much what we return here, but it should be a potentially valid pid
+            bp_sys::last_forked_pid++;
+            return bp_sys::last_forked_pid;
         }
 
         void add_reserved(eventloop_t &eloop, pid_t child, int prio = dasynq::DEFAULT_PRIORITY) noexcept

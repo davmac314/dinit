@@ -24,6 +24,7 @@ class base_process_service_test
 
     static void handle_exit(base_process_service *bsp, int exit_status)
     {
+        bsp->pid = -1;
         bsp->handle_exit_status(exit_status);
     }
 };
@@ -31,6 +32,7 @@ class base_process_service_test
 namespace bp_sys {
     // last signal sent:
     extern int last_sig_sent;
+    extern pid_t last_forked_pid;
 }
 
 // Regular service start
@@ -208,11 +210,22 @@ void test_proc_smooth_recovery()
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
 
+    pid_t first_instance = bp_sys::last_forked_pid;
+
     assert(p.get_state() == service_state_t::STARTED);
 
     base_process_service_test::handle_exit(&p, 0);
     sset.process_queues();
 
+    // since time hasn't been changed, we expect that the process has not yet been re-launched:
+    assert(first_instance == bp_sys::last_forked_pid);
+    assert(p.get_state() == service_state_t::STARTED);
+
+    p.timer_expired();
+    sset.process_queues();
+
+    // Now a new process should've been launched:
+    assert(first_instance + 1 == bp_sys::last_forked_pid);
     assert(p.get_state() == service_state_t::STARTED);
 }
 
