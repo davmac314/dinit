@@ -190,7 +190,7 @@ void test_proc_stop_timeout()
 }
 
 // Smooth recovery
-void test_proc_smooth_recovery()
+void test_proc_smooth_recovery1()
 {
     using namespace std;
 
@@ -229,6 +229,38 @@ void test_proc_smooth_recovery()
     assert(p.get_state() == service_state_t::STARTED);
 }
 
+void test_proc_smooth_recovery2()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    p.set_smooth_recovery(true);
+    p.set_restart_delay(time_val(0, 0));
+
+    p.start(true);
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    pid_t first_instance = bp_sys::last_forked_pid;
+
+    assert(p.get_state() == service_state_t::STARTED);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    // no restart delay, process should restart immediately:
+    assert(first_instance + 1 == bp_sys::last_forked_pid);
+    assert(p.get_state() == service_state_t::STARTED);
+}
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing; \
@@ -242,5 +274,6 @@ int main(int argc, char **argv)
     RUN_TEST(test_term_via_stop, "        ");
     RUN_TEST(test_proc_start_timeout, "   ");
     RUN_TEST(test_proc_stop_timeout, "    ");
-    RUN_TEST(test_proc_smooth_recovery, " ");
+    RUN_TEST(test_proc_smooth_recovery1, "");
+    RUN_TEST(test_proc_smooth_recovery2, "");
 }

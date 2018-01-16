@@ -260,7 +260,7 @@ bool base_process_service::restart_ps_process() noexcept
         }
     }
 
-    // Check if enough time has lapsed since the prevous restart. If not, start a timer:
+    // Check if enough time has lapsed since the previous restart. If not, start a timer:
     time_val tdiff = current_time - last_start_time;
     if (restart_delay <= tdiff) {
         // > restart delay (normally 200ms)
