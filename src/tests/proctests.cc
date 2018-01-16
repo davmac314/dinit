@@ -35,6 +35,15 @@ namespace bp_sys {
     extern pid_t last_forked_pid;
 }
 
+static void init_service_defaults(process_service &ps)
+{
+    ps.set_restart_interval(time_val(10,0), 3);
+    ps.set_restart_delay(time_val(0, 200000000)); // 200 milliseconds
+    ps.set_stop_timeout(time_val(10,0));
+    ps.set_start_timeout(time_val(10,0));
+    ps.set_start_interruptible(false);
+}
+
 // Regular service start
 void test_proc_service_start()
 {
@@ -48,6 +57,8 @@ void test_proc_service_start()
     std::list<prelim_dep> depends;
 
     process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    init_service_defaults(p);
+
     p.start(true);
     sset.process_queues();
 
@@ -99,6 +110,8 @@ void test_term_via_stop()
     std::list<prelim_dep> depends;
 
     process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    init_service_defaults(p);
+
     p.start(true);
     sset.process_queues();
 
@@ -131,6 +144,8 @@ void test_proc_start_timeout()
     std::list<prelim_dep> depends;
 
     process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    init_service_defaults(p);
+
     p.start(true);
     sset.process_queues();
 
@@ -160,6 +175,8 @@ void test_proc_stop_timeout()
     std::list<prelim_dep> depends;
 
     process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    init_service_defaults(p);
+
     p.start(true);
     sset.process_queues();
 
@@ -202,6 +219,7 @@ void test_proc_smooth_recovery1()
     std::list<prelim_dep> depends;
 
     process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    init_service_defaults(p);
     p.set_smooth_recovery(true);
 
     p.start(true);
@@ -229,6 +247,7 @@ void test_proc_smooth_recovery1()
     assert(p.get_state() == service_state_t::STARTED);
 }
 
+// Smooth recovery without restart delay
 void test_proc_smooth_recovery2()
 {
     using namespace std;
@@ -241,6 +260,7 @@ void test_proc_smooth_recovery2()
     std::list<prelim_dep> depends;
 
     process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    init_service_defaults(p);
     p.set_smooth_recovery(true);
     p.set_restart_delay(time_val(0, 0));
 

@@ -110,6 +110,8 @@ class base_process_service : public service_record
     void kill_pg(int signo) noexcept;
 
     public:
+    // Constructor for a base_process_service. Note that the various parameters not specified here must in
+    // general be set separately (using the appropriate set_xxx function for each).
     base_process_service(service_set *sset, string name, service_type_t record_type_p, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             const std::list<prelim_dep> &deplist_p);
