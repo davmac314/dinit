@@ -32,3 +32,4 @@ clean:
 	rm -f *.o *.d
 
 -include $(objects:.o=.d)
+-include $(parent_objs:.o=.d)
