@@ -4,7 +4,7 @@
 
 #include "baseproc-sys.h"
 
-std::vector<bool> usedfds = {true, true, true};
+static std::vector<bool> usedfds = {true, true, true};
 
 // Allocate a file descriptor
 static int allocfd()
@@ -22,6 +22,8 @@ static int allocfd()
 
 namespace bp_sys {
 
+int last_sig_sent = -1; // last signal number sent, accessible for tests.
+
 int pipe2(int fds[2], int flags)
 {
     fds[0] = allocfd();
@@ -34,6 +36,12 @@ int close(int fd)
     if (fd >= usedfds.size()) abort();
 
     usedfds[fd] = false;
+    return 0;
+}
+
+int kill(pid_t pid, int sig)
+{
+    last_sig_sent = sig;
     return 0;
 }
 

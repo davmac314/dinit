@@ -18,6 +18,7 @@ class base_process_service_test
     public:
     static void exec_succeeded(base_process_service *bsp)
     {
+        bsp->waiting_for_execstat = false;
         bsp->exec_succeeded();
     }
 
@@ -26,6 +27,11 @@ class base_process_service_test
         bsp->handle_exit_status(exit_status);
     }
 };
+
+namespace bp_sys {
+    // last signal sent:
+    extern int last_sig_sent;
+}
 
 // Regular service start
 void test_proc_service_start()
@@ -139,6 +145,48 @@ void test_proc_start_timeout()
     assert(p.get_state() == service_state_t::STOPPED);
 }
 
+// Test stop timeout
+void test_proc_stop_timeout()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    p.start(true);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+
+    p.stop(true);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(bp_sys::last_sig_sent == SIGTERM);
+
+    p.timer_expired();
+    sset.process_queues();
+
+    // kill signal (SIGKILL) should have been sent; process not dead until it's dead, however
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(bp_sys::last_sig_sent == SIGKILL);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+}
+
 // Smooth recovery
 void test_proc_smooth_recovery()
 {
@@ -180,5 +228,6 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_unexpected_term, " ");
     RUN_TEST(test_term_via_stop, "        ");
     RUN_TEST(test_proc_start_timeout, "   ");
+    RUN_TEST(test_proc_stop_timeout, "    ");
     RUN_TEST(test_proc_smooth_recovery, " ");
 }
