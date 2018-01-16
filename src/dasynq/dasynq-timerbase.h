@@ -59,7 +59,7 @@ inline time_val operator-(const time_val &t1, const time_val &t2) noexcept
 {
     time_val diff;
     diff.seconds() = t1.seconds() - t2.seconds();
-    if (t1.nseconds() > t2.nseconds()) {
+    if (t1.nseconds() >= t2.nseconds()) {
         diff.nseconds() = t1.nseconds() - t2.nseconds();
     }
     else {

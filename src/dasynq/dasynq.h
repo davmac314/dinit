@@ -1880,15 +1880,16 @@ class child_proc_watcher : private dprivate::base_child_watcher<typename EventLo
             
             if (child == 0) {
                 // I am the child
+                close(pipefds[1]);
                 
                 // Wait for message from parent before continuing:
                 int rr;
                 int r = read(pipefds[0], &rr, sizeof(rr));
                 while (r == -1 && errno == EINTR) {
-                    read(pipefds[0], &rr, sizeof(rr));
+                    r = read(pipefds[0], &rr, sizeof(rr));
                 }
                 
-                if (r == -1) _exit(0);
+                if (r <= 0) _exit(0);
                 
                 close(pipefds[0]);
                 return 0;

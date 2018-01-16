@@ -181,7 +181,10 @@ namespace dprivate {
         template <typename, typename, typename> friend class event_dispatch;
         template <typename, typename> friend class dasynq::event_loop;
 
+        base_bidi_fd_watcher(const base_bidi_fd_watcher &) = delete;
+
         protected:
+        base_bidi_fd_watcher() noexcept { }
 
         // The main instance is the "input" watcher only; we keep a secondary watcher with a secondary set
         // of flags for the "output" watcher. Note that some of the flags in the secondary watcher aren't
