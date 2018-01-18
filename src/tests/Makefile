@@ -17,10 +17,10 @@ prepare-incdir:
 	cd includes; ln -sf ../test-includes/*.h .
 
 tests: prepare-incdir $(parent_objs) tests.o test-dinit.o test-bpsys.o test-run-child-proc.o
-	$(CXX) $(SANITIZEOPTS) -o tests $(parent_objs) tests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(EXTRA_LIBS)
+	$(CXX) $(SANITIZEOPTS) -o tests $(parent_objs) tests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(LDFLAGS)
 
 proctests: prepare-incdir $(parent_objs) proctests.o test-dinit.o test-bpsys.o test-run-child-proc.o
-	$(CXX) $(SANITIZEOPTS) -o proctests $(parent_objs) proctests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(EXTRA_LIBS)
+	$(CXX) $(SANITIZEOPTS) -o proctests $(parent_objs) proctests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(LDFLAGS)
 
 $(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../dasynq -c $< -o $@

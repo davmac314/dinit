@@ -12,13 +12,13 @@ objects = $(dinit_objects) dinitctl.o shutdown.o
 all: dinit dinitctl $(SHUTDOWN)
 
 dinit: $(dinit_objects)
-	$(CXX) -o dinit $(dinit_objects) $(EXTRA_LIBS)
+	$(CXX) -o dinit $(dinit_objects) $(LDFLAGS)
 
 dinitctl: dinitctl.o
-	$(CXX) -o dinitctl dinitctl.o $(EXTRA_LIBS)
+	$(CXX) -o dinitctl dinitctl.o $(LDFLAGS)
 	
 shutdown: shutdown.o
-	$(CXX) -o shutdown shutdown.o $(EXTRA_LIBS)
+	$(CXX) -o shutdown shutdown.o $(LDFLAGS)
 
 $(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) -MMD -MP -Iincludes -Idasynq -c $< -o $@

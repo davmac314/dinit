@@ -8,7 +8,8 @@ within. In particular:
 
   CXX : should be set to the name of the C++ compiler (and linker)
   CXXOPTS :  are options passed to the compiler during compilation (see note for GCC below)
-  EXTRA_LIBS : are any extra libraries required for linking; should not normally be needed.
+  LDFLAGS :  are any extra flags required for linking; should not normally be needed
+             (FreeBSD requires -lrt).
 
 Defaults for Linux and OpenBSD are provided. Note that the "eg++" or "clang++" package must
 be installed on OpenBSD as the default "g++" compiler is too old. Clang is part of the base
