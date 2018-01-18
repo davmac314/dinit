@@ -769,6 +769,19 @@ class service_set
         }
     }
 
+    // Check if console queue is empty (possibly due to console already having
+    // been assigned to the only queueing service)
+    bool is_console_queue_empty() noexcept
+    {
+        return console_queue.is_empty();
+    }
+
+    // Check whether a service is queued for the console
+    bool is_queued_for_console(service_record * service) noexcept
+    {
+        return console_queue.is_queued(service);
+    }
+
     // Notification from service that it is active (state != STOPPED)
     // Only to be called on the transition from inactive to active.
     void service_active(service_record *) noexcept;

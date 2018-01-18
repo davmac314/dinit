@@ -300,6 +300,65 @@ void test9()
     assert(s2->get_state() == service_state_t::STOPPED);
 }
 
+// Test 10: if start cancelled, remove from console queue
+void test10()
+{
+    service_set sset;
+
+    // Create s1 and s2. s2 depends on s1, and starts on the console.
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    onstart_flags_t s2_flags;
+    s2_flags.starts_on_console = true;
+    s2->set_flags(s2_flags);
+    sset.add_service(s1);
+    sset.add_service(s2);
+
+    // Create s3, which starts and runs on console:
+    test_service *s3 = new test_service(&sset, "test-service-3", service_type_t::INTERNAL, {});
+    onstart_flags_t s3_flags;
+    s3_flags.starts_on_console = true;
+    s3_flags.runs_on_console = true;
+    sset.add_service(s3);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+    assert(sset.find_service("test-service-3") == s3);
+
+    // Start the s3 service, so it gets console:
+    sset.start_service(s3);
+    sset.process_queues();
+    s3->started();
+    sset.process_queues();
+
+    assert(! sset.is_queued_for_console(s3)); // should not be queued, because already has acquired
+    assert(sset.is_console_queue_empty());
+
+    // Start s2, which starts s1 as a dependency:
+
+    sset.start_service(s2);
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STARTING);
+    assert(s2->get_state() == service_state_t::STARTING);
+
+    s1->started();
+    sset.process_queues();
+
+    // s2 should now be waiting for console:
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTING);
+    assert(sset.is_queued_for_console(s2));
+
+    // stop s1, should stop s2, s2 should unqueue:
+    s1->stop();
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(! sset.is_queued_for_console(s2));
+}
+
 #define RUN_TEST(name) \
     std::cout << #name "... "; \
     name(); \
@@ -316,4 +375,5 @@ int main(int argc, char **argv)
     RUN_TEST(test7);
     RUN_TEST(test8);
     RUN_TEST(test9);
+    RUN_TEST(test10);
 }

@@ -1,5 +1,10 @@
 #include "service.h"
 
+// A test service.
+//
+// This service can be induced to successfully start or fail (once it is STARTING) by calling either the
+// started() or failed_to_start() functions.
+//
 class test_service : public service_record
 {
     public:
