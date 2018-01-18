@@ -22,5 +22,12 @@ SANITIZEOPTS=-fsanitize=address,undefined
 #SANITIZEOPTS=
 # (shutdown command not available for OpenBSD yet).
 
+# FreeBSD: use clang++ by default, supports sanitizers, requires linking with -lrt
+#CXX=clang++
+#CXXOPTS=-std=gnu++11 -Os -Wall -fno-rtti
+#EXTRA_LIBS=-lrt
+#BUILD_SHUTDOWN=no
+#SANITIZEOPTS=-fsanitize=address,undefined
+
 # MacOS: use Linux settings, but don't build shutdown:
 #BUILD_SHUTDOWN=no
