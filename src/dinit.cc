@@ -336,7 +336,7 @@ int dinit_main(int argc, char **argv)
         event_loop.run();
     }
 
-    shutdown_type_t shutdown_type = services->getShutdownType();
+    shutdown_type_t shutdown_type = services->get_shutdown_type();
     
     if (am_system_init) {
         log_msg_begin(loglevel_t::INFO, "No more active services.");

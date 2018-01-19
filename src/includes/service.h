@@ -820,7 +820,7 @@ class service_set
         return restart_enabled;
     }
     
-    shutdown_type_t getShutdownType() noexcept
+    shutdown_type_t get_shutdown_type() noexcept
     {
         return shutdown_type;
     }
