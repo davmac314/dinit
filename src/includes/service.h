@@ -307,15 +307,6 @@ class service_record
     uid_t socket_uid = -1;  // socket user id or -1
     gid_t socket_gid = -1;  // socket group id or -1
 
-    // Implementation details
-    
-    pid_t pid = -1;  // PID of the process. If state is STARTING or STOPPING,
-                     //   this is PID of the service script; otherwise it is the
-                     //   PID of the process itself (process service).
-    int exit_status; // Exit status, if the process has exited (pid == -1).
-    int socket_fd = -1;  // For socket-activation services, this is the file
-                         // descriptor for the socket.
-    
     // Data for use by service_set
     public:
     
@@ -327,10 +318,7 @@ class service_record
     lls_node<service_record> stop_queue_node;
     
     protected:
-    
-    // stop immediately
-    void emergency_stop() noexcept;
-    
+
     // Service has actually stopped (includes having all dependents
     // reaching STOPPED state).
     void stopped() noexcept;
@@ -343,15 +331,12 @@ class service_record
     void failed_to_start(bool dep_failed = false) noexcept;
 
     void run_child_proc(const char * const *args, const char *logfile, bool on_console, int wpipefd,
-            int csfd) noexcept;
+            int csfd, int socket_fd) noexcept;
     
     // A dependency has reached STARTED state
     void dependency_started() noexcept;
     
     void all_deps_started() noexcept;
-
-    // Open the activation socket, return false on failure
-    bool open_socket() noexcept;
 
     // Start all dependencies, return true if all have started
     bool start_check_dependencies() noexcept;
@@ -442,6 +427,10 @@ class service_record
     // issued but service has not yet responded (state will be set to STOPPING).
     virtual bool interrupt_start() noexcept;
 
+    // The service is becoming inactive - i.e. it has stopped and will not be immediately restarted. Perform
+    // any appropriate cleanup.
+    virtual void becoming_inactive() noexcept { }
+
     public:
 
     service_record(service_set *set, string name)
@@ -456,7 +445,6 @@ class service_record
         service_name = name;
         record_type = service_type_t::DUMMY;
         socket_perms = 0;
-        exit_status = 0;
     }
 
     service_record(service_set *set, string name, service_type_t record_type_p,
@@ -519,13 +507,7 @@ class service_record
     {
         this->onstart_flags = flags;
     }
-    
-    // Set an additional signal (other than SIGTERM) to be used to terminate the process
-    void set_extra_termination_signal(int signo) noexcept
-    {
-        this->term_signal = signo;
-    }
-    
+
     void set_pid_file(string &&pid_file) noexcept
     {
         this->pid_file = std::move(pid_file);

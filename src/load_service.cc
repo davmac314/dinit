@@ -613,6 +613,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_stop_timeout(stop_timeout);
                     rvalps->set_start_timeout(start_timeout);
                     rvalps->set_start_interruptible(start_is_interruptible);
+                    rvalps->set_extra_termination_signal(term_signal);
                     rval = rvalps;
                 }
                 else if (service_type == service_type_t::BGPROCESS) {
@@ -624,6 +625,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_stop_timeout(stop_timeout);
                     rvalps->set_start_timeout(start_timeout);
                     rvalps->set_start_interruptible(start_is_interruptible);
+                    rvalps->set_extra_termination_signal(term_signal);
                     rval = rvalps;
                 }
                 else if (service_type == service_type_t::SCRIPTED) {
@@ -633,6 +635,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_stop_timeout(stop_timeout);
                     rvalps->set_start_timeout(start_timeout);
                     rvalps->set_start_interruptible(start_is_interruptible);
+                    rvalps->set_extra_termination_signal(term_signal);
                     rval = rvalps;
                 }
                 else {
@@ -642,7 +645,6 @@ service_record * dirload_service_set::load_service(const char * name)
                 rval->set_auto_restart(auto_restart);
                 rval->set_smooth_recovery(smooth_recovery);
                 rval->set_flags(onstart_flags);
-                rval->set_extra_termination_signal(term_signal);
                 rval->set_socket_details(std::move(socket_path), socket_perms, socket_uid, socket_gid);
                 *iter = rval;
                 break;

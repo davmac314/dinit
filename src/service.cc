@@ -1,6 +1,5 @@
 #include <cstring>
 #include <cerrno>
-#include <sstream>
 #include <iterator>
 #include <memory>
 #include <cstddef>
@@ -8,8 +7,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <sys/un.h>
-#include <sys/socket.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
@@ -91,10 +88,7 @@ void service_record::stopped() noexcept
         start(false);
     }
     else {
-        if (socket_fd != -1) {
-            close(socket_fd);
-            socket_fd = -1;
-        }
+        becoming_inactive();
         
         if (start_explicit) {
             start_explicit = false;
@@ -109,7 +103,6 @@ void service_record::stopped() noexcept
     notify_listeners(service_event_t::STOPPED);
 }
 
-
 bool service_record::do_auto_restart() noexcept
 {
     if (auto_restart) {
@@ -117,18 +110,6 @@ bool service_record::do_auto_restart() noexcept
     }
     return false;
 }
-
-void service_record::emergency_stop() noexcept
-{
-    if (! do_auto_restart() && start_explicit) {
-        start_explicit = false;
-        release(false);
-    }
-    forced_stop();
-    stop_dependents();
-    stopped();
-}
-
 
 void service_record::require() noexcept
 {
@@ -311,85 +292,6 @@ bool service_record::check_deps_started() noexcept
     return true;
 }
 
-bool service_record::open_socket() noexcept
-{
-    if (socket_path.empty() || socket_fd != -1) {
-        // No socket, or already open
-        return true;
-    }
-    
-    const char * saddrname = socket_path.c_str();
-    
-    // Check the specified socket path
-    struct stat stat_buf;
-    if (stat(saddrname, &stat_buf) == 0) {
-        if ((stat_buf.st_mode & S_IFSOCK) == 0) {
-            // Not a socket
-            log(loglevel_t::ERROR, service_name, ": Activation socket file exists (and is not a socket)");
-            return false;
-        }
-    }
-    else if (errno != ENOENT) {
-        // Other error
-        log(loglevel_t::ERROR, service_name, ": Error checking activation socket: ", strerror(errno));
-        return false;
-    }
-
-    // Remove stale socket file (if it exists).
-    // We won't test the return from unlink - if it fails other than due to ENOENT, we should get an
-    // error when we try to create the socket anyway.
-    unlink(saddrname);
-
-    uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + socket_path.length() + 1;
-    struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
-    if (name == nullptr) {
-        log(loglevel_t::ERROR, service_name, ": Opening activation socket: out of memory");
-        return false;
-    }
-
-    name->sun_family = AF_UNIX;
-    strcpy(name->sun_path, saddrname);
-
-    int sockfd = dinit_socket(AF_UNIX, SOCK_STREAM, 0, SOCK_NONBLOCK | SOCK_CLOEXEC);
-    if (sockfd == -1) {
-        log(loglevel_t::ERROR, service_name, ": Error creating activation socket: ", strerror(errno));
-        free(name);
-        return false;
-    }
-
-    if (bind(sockfd, (struct sockaddr *) name, sockaddr_size) == -1) {
-        log(loglevel_t::ERROR, service_name, ": Error binding activation socket: ", strerror(errno));
-        close(sockfd);
-        free(name);
-        return false;
-    }
-    
-    free(name);
-    
-    // POSIX (1003.1, 2013) says that fchown and fchmod don't necessarily work on sockets. We have to
-    // use chown and chmod instead.
-    if (chown(saddrname, socket_uid, socket_gid)) {
-        log(loglevel_t::ERROR, service_name, ": Error setting activation socket owner/group: ", strerror(errno));
-        close(sockfd);
-        return false;
-    }
-    
-    if (chmod(saddrname, socket_perms) == -1) {
-        log(loglevel_t::ERROR, service_name, ": Error setting activation socket permissions: ", strerror(errno));
-        close(sockfd);
-        return false;
-    }
-
-    if (listen(sockfd, 128) == -1) { // 128 "seems reasonable".
-        log(loglevel_t::ERROR, ": Error listening on activation socket: ", strerror(errno));
-        close(sockfd);
-        return false;
-    }
-    
-    socket_fd = sockfd;
-    return true;
-}
-
 void service_record::all_deps_started() noexcept
 {
     if (onstart_flags.starts_on_console && ! have_console) {
@@ -402,10 +304,6 @@ void service_record::all_deps_started() noexcept
     if (! can_proceed_to_start()) {
         waiting_for_deps = true;
         return;
-    }
-
-    if (! open_socket()) {
-        failed_to_start();
     }
 
     bool start_success = bring_up();

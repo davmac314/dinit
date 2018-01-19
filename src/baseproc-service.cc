@@ -1,5 +1,8 @@
 #include <cstring>
 
+#include <sys/un.h>
+#include <sys/socket.h>
+
 #include "dinit.h"
 #include "dinit-log.h"
 #include "dinit-socket.h"
@@ -30,6 +33,10 @@ bool base_process_service::bring_up() noexcept
         return true;
     }
     else {
+        if (! open_socket()) {
+            return false;
+        }
+
         event_loop.get_time(restart_interval_time, clock_type::MONOTONIC);
         restart_interval_count = 0;
         if (start_ps_process(exec_arg_parts, onstart_flags.starts_on_console)) {
@@ -111,7 +118,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     }
 
     if (forkpid == 0) {
-        run_child_proc(cmd.data(), logfile, on_console, pipefd[1], control_socket[1]);
+        run_child_proc(cmd.data(), logfile, on_console, pipefd[1], control_socket[1], socket_fd);
     }
     else {
         // Parent process
@@ -335,4 +342,102 @@ void base_process_service::timer_expired() noexcept
         // STARTING / STARTED, and we have a pid: must be restarting (smooth recovery if STARTED)
         do_restart();
     }
+}
+
+void base_process_service::emergency_stop() noexcept
+{
+    if (! do_auto_restart() && start_explicit) {
+        start_explicit = false;
+        release(false);
+    }
+    forced_stop();
+    stop_dependents();
+    stopped();
+}
+
+void base_process_service::becoming_inactive() noexcept
+{
+    if (socket_fd != -1) {
+        close(socket_fd);
+        socket_fd = -1;
+    }
+}
+
+bool base_process_service::open_socket() noexcept
+{
+    if (socket_path.empty() || socket_fd != -1) {
+        // No socket, or already open
+        return true;
+    }
+
+    const char * saddrname = socket_path.c_str();
+
+    // Check the specified socket path
+    struct stat stat_buf;
+    if (stat(saddrname, &stat_buf) == 0) {
+        if ((stat_buf.st_mode & S_IFSOCK) == 0) {
+            // Not a socket
+            log(loglevel_t::ERROR, get_name(), ": Activation socket file exists (and is not a socket)");
+            return false;
+        }
+    }
+    else if (errno != ENOENT) {
+        // Other error
+        log(loglevel_t::ERROR, get_name(), ": Error checking activation socket: ", strerror(errno));
+        return false;
+    }
+
+    // Remove stale socket file (if it exists).
+    // We won't test the return from unlink - if it fails other than due to ENOENT, we should get an
+    // error when we try to create the socket anyway.
+    unlink(saddrname);
+
+    uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + socket_path.length() + 1;
+    struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
+    if (name == nullptr) {
+        log(loglevel_t::ERROR, get_name(), ": Opening activation socket: out of memory");
+        return false;
+    }
+
+    name->sun_family = AF_UNIX;
+    strcpy(name->sun_path, saddrname);
+
+    int sockfd = dinit_socket(AF_UNIX, SOCK_STREAM, 0, SOCK_NONBLOCK | SOCK_CLOEXEC);
+    if (sockfd == -1) {
+        log(loglevel_t::ERROR, get_name(), ": Error creating activation socket: ", strerror(errno));
+        free(name);
+        return false;
+    }
+
+    if (bind(sockfd, (struct sockaddr *) name, sockaddr_size) == -1) {
+        log(loglevel_t::ERROR, get_name(), ": Error binding activation socket: ", strerror(errno));
+        close(sockfd);
+        free(name);
+        return false;
+    }
+
+    free(name);
+
+    // POSIX (1003.1, 2013) says that fchown and fchmod don't necessarily work on sockets. We have to
+    // use chown and chmod instead.
+    if (chown(saddrname, socket_uid, socket_gid)) {
+        log(loglevel_t::ERROR, get_name(), ": Error setting activation socket owner/group: ", strerror(errno));
+        close(sockfd);
+        return false;
+    }
+
+    if (chmod(saddrname, socket_perms) == -1) {
+        log(loglevel_t::ERROR, get_name(), ": Error setting activation socket permissions: ", strerror(errno));
+        close(sockfd);
+        return false;
+    }
+
+    if (listen(sockfd, 128) == -1) { // 128 "seems reasonable".
+        log(loglevel_t::ERROR, ": Error listening on activation socket: ", strerror(errno));
+        close(sockfd);
+        return false;
+    }
+
+    socket_fd = sockfd;
+    return true;
 }

@@ -60,6 +60,13 @@ class base_process_service : public service_record
     // <stop_timeout>). 0 to disable.
     time_val start_timeout = {60, 0}; // default of 1 minute
 
+    pid_t pid = -1;  // PID of the process. If state is STARTING or STOPPING,
+                     //   this is PID of the service script; otherwise it is the
+                     //   PID of the process itself (process service).
+    int exit_status = 0; // Exit status, if the process has exited (pid == -1).
+    int socket_fd = -1;  // For socket-activation services, this is the file
+                         // descriptor for the socket.
+
     bool waiting_restart_timer : 1;
     bool stop_timer_armed : 1;
     bool reserved_child_watch : 1;
@@ -103,11 +110,19 @@ class base_process_service : public service_record
 
     virtual bool interrupt_start() noexcept override;
 
+    void becoming_inactive() noexcept override;
+
     // Kill with SIGKILL
     void kill_with_fire() noexcept;
 
     // Signal the process group of the service process
     void kill_pg(int signo) noexcept;
+
+    // stop immediately
+    void emergency_stop() noexcept;
+
+    // Open the activation socket, return false on failure
+    bool open_socket() noexcept;
 
     public:
     // Constructor for a base_process_service. Note that the various parameters not specified here must in
@@ -151,6 +166,12 @@ class base_process_service : public service_record
     void set_start_interruptible(bool value) noexcept
     {
         start_is_interruptible = value;
+    }
+
+    // Set an additional signal (other than SIGTERM) to be used to terminate the process
+    void set_extra_termination_signal(int signo) noexcept
+    {
+        this->term_signal = signo;
     }
 
     // The restart/stop timer expired.
