@@ -4,11 +4,8 @@
 #include <memory>
 #include <cstddef>
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <termios.h>
 
 #include "dinit.h"
@@ -571,7 +568,9 @@ void service_record::release_console() noexcept
 
 bool service_record::interrupt_start() noexcept
 {
-    services->unqueue_console(this);
+    if (onstart_flags.starts_on_console) {
+        services->unqueue_console(this);
+    }
     return true;
 }
 
