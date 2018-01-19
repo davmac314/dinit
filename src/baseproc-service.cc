@@ -157,36 +157,6 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     return false;
 }
 
-void base_process_service::bring_down() noexcept
-{
-    if (pid != -1) {
-        // The process is still kicking on - must actually kill it. We signal the process
-        // group (-pid) rather than just the process as there's less risk then of creating
-        // an orphaned process group:
-        if (! onstart_flags.no_sigterm) {
-            kill_pg(SIGTERM);
-        }
-        if (term_signal != -1) {
-            kill_pg(term_signal);
-        }
-
-        // In most cases, the rest is done in handle_exit_status.
-        // If we are a BGPROCESS and the process is not our immediate child, however, that
-        // won't work - check for this now:
-        if (get_type() == service_type_t::BGPROCESS && ! tracking_child) {
-            stopped();
-        }
-        else if (stop_timeout != time_val(0,0)) {
-            restart_timer.arm_timer_rel(event_loop, stop_timeout);
-            stop_timer_armed = true;
-        }
-    }
-    else {
-        // The process is already dead.
-        stopped();
-    }
-}
-
 base_process_service::base_process_service(service_set *sset, string name,
         service_type_t service_type_p, string &&command,
         std::list<std::pair<unsigned,unsigned>> &command_offsets,

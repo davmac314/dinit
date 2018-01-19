@@ -442,7 +442,6 @@ bgproc_service::read_pid_file(int *exit_status) noexcept
 
 void process_service::bring_down() noexcept
 {
-    waiting_for_deps = false;
     if (waiting_for_execstat) {
         // The process is still starting. This should be uncommon, but can occur during
         // smooth recovery. We can't do much now; we have to wait until we get the
@@ -460,10 +459,37 @@ void process_service::bring_down() noexcept
             kill_pg(term_signal);
         }
 
+        // If there's a stop timeout, arm the timer now:
+        if (stop_timeout != time_val(0,0)) {
+            restart_timer.arm_timer_rel(event_loop, stop_timeout);
+            stop_timer_armed = true;
+        }
+
+        // The rest is done in handle_exit_status.
+    }
+    else {
+        // The process is already dead.
+        stopped();
+    }
+}
+
+void bgproc_service::bring_down() noexcept
+{
+    if (pid != -1) {
+        // The process is still kicking on - must actually kill it. We signal the process
+        // group (-pid) rather than just the process as there's less risk then of creating
+        // an orphaned process group:
+        if (! onstart_flags.no_sigterm) {
+            kill_pg(SIGTERM);
+        }
+        if (term_signal != -1) {
+            kill_pg(term_signal);
+        }
+
         // In most cases, the rest is done in handle_exit_status.
         // If we are a BGPROCESS and the process is not our immediate child, however, that
         // won't work - check for this now:
-        if (get_type() == service_type_t::BGPROCESS && ! tracking_child) {
+        if (! tracking_child) {
             stopped();
         }
         else if (stop_timeout != time_val(0,0)) {
@@ -479,7 +505,6 @@ void process_service::bring_down() noexcept
 
 void scripted_service::bring_down() noexcept
 {
-    waiting_for_deps = false;
     if (stop_command.length() == 0) {
         stopped();
     }

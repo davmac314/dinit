@@ -86,8 +86,6 @@ class base_process_service : public service_record
     // Start the process, return true on success
     virtual bool bring_up() noexcept override;
 
-    virtual void bring_down() noexcept override;
-
     // Called when the process exits. The exit_status is the status value yielded by
     // the "wait" system call.
     virtual void handle_exit_status(int exit_status) noexcept = 0;
@@ -203,6 +201,7 @@ class bgproc_service : public base_process_service
 {
     virtual void handle_exit_status(int exit_status) noexcept override;
     virtual void exec_failed(int errcode) noexcept override;
+    virtual void bring_down() noexcept override;
 
     enum class pid_result_t {
         OK,
