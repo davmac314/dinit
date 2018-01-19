@@ -243,12 +243,12 @@ void service_record::execute_transition() noexcept
     if (service_state == service_state_t::STARTING || (service_state == service_state_t::STARTED
             && restarting)) {
         if (check_deps_started()) {
-            bool have_console = service_state == service_state_t::STARTED && onstart_flags.runs_on_console;
-            all_deps_started(have_console);
+            all_deps_started();
         }
     }
     else if (service_state == service_state_t::STOPPING) {
         if (stop_check_dependents()) {
+            waiting_for_deps = false;
             bring_down();
         }
     }
@@ -390,10 +390,9 @@ bool service_record::open_socket() noexcept
     return true;
 }
 
-void service_record::all_deps_started(bool has_console) noexcept
+void service_record::all_deps_started() noexcept
 {
-    if (onstart_flags.starts_on_console && ! has_console) {
-        waiting_for_deps = true;
+    if (onstart_flags.starts_on_console && ! have_console) {
         queue_for_console();
         return;
     }
@@ -417,12 +416,15 @@ void service_record::all_deps_started(bool has_console) noexcept
 
 void service_record::acquired_console() noexcept
 {
+    waiting_for_console = false;
+    have_console = true;
+
     if (service_state != service_state_t::STARTING) {
         // We got the console but no longer want it.
         release_console();
     }
     else if (check_deps_started()) {
-        all_deps_started(true);
+        all_deps_started();
     }
     else {
         // We got the console but can't use it yet.
@@ -433,7 +435,8 @@ void service_record::acquired_console() noexcept
 
 void service_record::started() noexcept
 {
-    if (onstart_flags.starts_on_console && ! onstart_flags.runs_on_console) {
+    // If we start on console but don't keep it, release it now:
+    if (have_console && ! onstart_flags.runs_on_console) {
         tcsetpgrp(0, getpgrp());
         release_console();
     }
@@ -464,9 +467,13 @@ void service_record::started() noexcept
 
 void service_record::failed_to_start(bool depfailed) noexcept
 {
-    if (!depfailed && onstart_flags.starts_on_console) {
+    if (have_console) {
         tcsetpgrp(0, getpgrp());
         release_console();
+    }
+    if (waiting_for_console) {
+        services->unqueue_console(this);
+        waiting_for_console = false;
     }
     
     log_service_failed(get_name());
@@ -549,7 +556,9 @@ void service_record::do_stop() noexcept
 
     if (service_state != service_state_t::STARTED) {
         if (service_state == service_state_t::STARTING) {
-            if (! waiting_for_deps) {
+            // If waiting for a dependency, or waiting for the console, we can interrupt start. Otherwise,
+            // we need to delegate to can_interrupt_start() (which can be overridden).
+            if (! waiting_for_deps && ! waiting_for_console) {
                 if (! can_interrupt_start()) {
                     // Well this is awkward: we're going to have to continue starting. We can stop once we've
                     // reached the started state.
@@ -560,6 +569,10 @@ void service_record::do_stop() noexcept
                     // Now wait for service startup to actually end; we don't need to handle it here.
                     return;
                 }
+            }
+            else if (waiting_for_console) {
+                services->unqueue_console(this);
+                waiting_for_console = false;
             }
 
             // We must have had desired_state == STARTED.
@@ -648,11 +661,13 @@ void service_record::unpin() noexcept
 
 void service_record::queue_for_console() noexcept
 {
+    waiting_for_console = true;
     services->append_console_queue(this);
 }
 
 void service_record::release_console() noexcept
 {
+    have_console = false;
     services->pull_console_queue();
 }
 

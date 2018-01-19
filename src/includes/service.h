@@ -267,6 +267,8 @@ class service_record
     bool pinned_started : 1;
     bool waiting_for_deps : 1;  // if STARTING, whether we are waiting for dependencies (inc console) to start
                                 // if STOPPING, whether we are waiting for dependents to stop
+    bool waiting_for_console : 1;   // waiting for exclusive console access (while STARTING)
+    bool have_console : 1;      // whether we have exclusive console access (STARTING/STARTED)
     bool waiting_for_execstat : 1;  // if we are waiting for exec status after fork()
     bool start_explicit : 1;    // whether we are are explicitly required to be started
 
@@ -346,7 +348,7 @@ class service_record
     // A dependency has reached STARTED state
     void dependency_started() noexcept;
     
-    void all_deps_started(bool haveConsole = false) noexcept;
+    void all_deps_started() noexcept;
 
     // Open the activation socket, return false on failure
     bool open_socket() noexcept;
@@ -446,8 +448,8 @@ class service_record
         : service_state(service_state_t::STOPPED), desired_state(service_state_t::STOPPED),
             auto_restart(false), smooth_recovery(false),
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
-            waiting_for_execstat(false), start_explicit(false),
-            prop_require(false), prop_release(false), prop_failure(false),
+            waiting_for_console(false), have_console(false), waiting_for_execstat(false),
+            start_explicit(false), prop_require(false), prop_release(false), prop_failure(false),
             prop_start(false), prop_stop(false), restarting(false), force_stop(false)
     {
         services = set;

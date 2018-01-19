@@ -149,7 +149,6 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
 
 void base_process_service::bring_down() noexcept
 {
-    waiting_for_deps = false;
     if (pid != -1) {
         // The process is still kicking on - must actually kill it. We signal the process
         // group (-pid) rather than just the process as there's less risk then of creating
@@ -211,11 +210,6 @@ void base_process_service::do_restart() noexcept
     restart_interval_count++;
     auto service_state = get_state();
 
-    // We may be STARTING (regular restart) or STARTED ("smooth recovery"). This affects whether
-    // the process should be granted access to the console:
-    bool on_console = service_state == service_state_t::STARTING
-            ? onstart_flags.starts_on_console : onstart_flags.runs_on_console;
-
     if (service_state == service_state_t::STARTING) {
         // for a smooth recovery, we want to check dependencies are available before actually
         // starting:
@@ -225,7 +219,7 @@ void base_process_service::do_restart() noexcept
         }
     }
 
-    if (! start_ps_process(exec_arg_parts, on_console)) {
+    if (! start_ps_process(exec_arg_parts, have_console)) {
         restarting = false;
         if (service_state == service_state_t::STARTING) {
             failed_to_start();
