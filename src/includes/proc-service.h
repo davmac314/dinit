@@ -1,3 +1,5 @@
+#include <sys/types.h>
+
 #include "service.h"
 
 // Given a string and a list of pairs of (start,end) indices for each argument in that string,
@@ -22,6 +24,7 @@ class process_restart_timer : public eventloop_t::timer_impl<process_restart_tim
     dasynq::rearm timer_expiry(eventloop_t &, int expiry_count);
 };
 
+// Base class for process-based services.
 class base_process_service : public service_record
 {
     friend class service_child_watcher;
@@ -59,6 +62,9 @@ class base_process_service : public service_record
     // Time allowed for service start, after which SIGINT is sent (and then SIGKILL after
     // <stop_timeout>). 0 to disable.
     time_val start_timeout = {60, 0}; // default of 1 minute
+
+    uid_t run_as_uid = -1;
+    gid_t run_as_gid = -1;
 
     pid_t pid = -1;  // PID of the process. If state is STARTING or STOPPING,
                      //   this is PID of the service script; otherwise it is the
@@ -172,10 +178,18 @@ class base_process_service : public service_record
         this->term_signal = signo;
     }
 
+    // Set the uid/gid that the service process will be run as
+    void set_run_as_uid_gid(uid_t uid, gid_t gid) noexcept
+    {
+        run_as_uid = uid;
+        run_as_gid = gid;
+    }
+
     // The restart/stop timer expired.
     void timer_expired() noexcept;
 };
 
+// Standard process service.
 class process_service : public base_process_service
 {
     virtual void handle_exit_status(int exit_status) noexcept override;
@@ -197,6 +211,7 @@ class process_service : public base_process_service
     }
 };
 
+// Bgproc (self-"backgrounding", i.e. double-forking) process service
 class bgproc_service : public base_process_service
 {
     virtual void handle_exit_status(int exit_status) noexcept override;
@@ -226,6 +241,7 @@ class bgproc_service : public base_process_service
     }
 };
 
+// Service which is started and stopped via separate commands
 class scripted_service : public base_process_service
 {
     virtual void handle_exit_status(int exit_status) noexcept override;

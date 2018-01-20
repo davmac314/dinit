@@ -135,11 +135,16 @@ Parameter values are interpreted literally, except that:
    non-collapsing whitespace, double-quote marks, and backslashes in the
    parameter value.
 
-Parameters are:
+Some available parameters are:
 
 type = process | bgprocess | scripted | internal
 command = ...
+stop-command = ...
+run-as = (user-id)
+restart = (boolean)
+smooth-recovery = (boolean)
 logfile = ...
+pid-file = ...
 options = ...
 depends-on = (service name)
 depends-ms = (service name)
@@ -151,6 +156,11 @@ command = (external script or executable, and arguments)
 
 stop-command = (external script or executable, and arguments)
    For a 'scripted' service, this command is run to stop the service.
+
+run-as = (user-id)
+   Specifies which user to run the process(es) for this service as. The group
+   id for the process will also be set to the primary group of the specified
+   user.
 
 restart = yes | true | no | false
    Specifies whether the service should automatically restart if it becomes
@@ -165,36 +175,9 @@ smooth-recovery = yes | true | no | false
    the service does not reach the stopped state when the process terminates
    unexpectedly).
 
-restart-delay = XXX.YYYY
-   Specifies the minimum time in seconds between automatic restarts. The
-   default is 0.2 (i.e. 200ms). This prevents Dinit from consuming processor
-   cycles when a process continuously fails immediately after it starts.
-
-restart-limit-interval = XXX.YYYY
-   Specifies the interval, in seconds, over which restarts are limited. If a
-   process automatically restarts more than a certain number of times (default
-   3) in this time interval, it will not restart again. The default value is
-   10 seconds. Use this to prevent broken services from continuously
-   restarting ad infinitum.
-
-restart-limit-count = NNN
-   Specifies the maximum number of times that a service can automatically
-   restart over the interval specified by restart-limit-interval (default of
-   10 seconds). Specify a value of 0 to disable the restart limit.
-
-stop-timeout = XXX.YYYY   (or XXX,YYYY)
-   Specifies the time in seconds allowed for the service to stop. If the
-   service takes longer than this, its process group is sent a SIGKILL signal
-   which should cause it to terminate immediately. The timeout period begins
-   only when all dependent services have already stopped. The default stop
-   timeout is 10 seconds.
-
-start-timeout = XXX.YYYY  (or XXX,YYYY)
-   Specifies the time in seconds allowed for the service to start. IF the
-   service startup takes longer than this, its process group is sent a
-   SIGINT signal and transitions to the "stopping" state. if it fails to stop
-   within the period specified by the stop-timeout setting, it is sent a
-   SIGKILL signal.
+logfile = (log file path)
+   Specifies the log file for the service. Output from the service process
+   will go this file.
 
 pid-file = (path to file)
    For "bgprocess" type services only; specifies the path of the file where
@@ -218,35 +201,6 @@ waits-for = (service name)
    starting (or to fail starting) before commencing the start procedure
    for this service. Starting this service will automatically start
    the named service.
-
-socket-listen = (socket path)
-   Pre-open a socket for the service and pass it to the service using the
-   Systemd activation protocol. This by itself does not give so called
-   "socket activation", but does allow that any process trying to connect
-   to the specified socket will be able to do so, even before the service
-   is properly prepared to accept connections.
-
-socket-permissions = (octal permissions mask)
-   Gives the permissions for the socket specified using socket-listen.
-   Normally this will be 600 (user access only), 660 (user and group
-   access), or 666 (all users).
-
-socket-uid = (numeric user id or username)
-   Specifies the user that should own the activation socket. If socket-uid
-   is specified without also specifying socket-gid, then the socket group
-   is the primary group of the specified user (as found in the system user
-   database, normally /etc/passwd). If the socket owner is not specified,
-   the socket will be owned by the user id of the Dinit process.
-
-socket-gid = (numeric group id or group name)
-   Specifies the group of the activation socket. See discussion of
-   socket-uid.
-
-termsignal = HUP | INT | QUIT | USR1 | USR2
-   Specifies an additional signal to send to the process when requesting it
-   to terminate (applies to 'process' services only). SIGTERM is always
-   sent along with the specified signal, unless the 'nosigterm' setting is
-   set true.
 
 options = ( runs-on-console | nosigterm | starts-rwfs | starts-log ) ...
   Specifies various options for this service:
@@ -302,9 +256,7 @@ options = ( runs-on-console | nosigterm | starts-rwfs | starts-log ) ...
               startup. This is meaningful only for scripted and bgprocess
               services. 
 
-logfile = (log file path)
-   Specifies the log file for the service. Output from the service process
-   will go this file.
+Please see the manual page for a full list of service parameters and options.
 
 
 Controlling services

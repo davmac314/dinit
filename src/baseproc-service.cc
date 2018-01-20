@@ -121,7 +121,8 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     }
 
     if (forkpid == 0) {
-        run_child_proc(cmd.data(), logfile, on_console, pipefd[1], control_socket[1], socket_fd);
+        run_child_proc(cmd.data(), logfile, on_console, pipefd[1], control_socket[1], socket_fd,
+                run_as_uid, run_as_gid);
     }
     else {
         // Parent process

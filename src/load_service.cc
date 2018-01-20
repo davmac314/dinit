@@ -411,6 +411,9 @@ service_record * dirload_service_set::load_service(const char * name)
     timespec stop_timeout = { .tv_sec = 10, .tv_nsec = 0 };
     timespec start_timeout = { .tv_sec = 60, .tv_nsec = 0 };
     
+    uid_t run_as_uid = -1;
+    gid_t run_as_gid = -1;
+
     string line;
     ifstream service_file;
     service_file.exceptions(ios::badbit | ios::failbit);
@@ -586,6 +589,10 @@ service_record * dirload_service_set::load_service(const char * name)
                     string starttimeout_str = read_setting_value(i, end, nullptr);
                     parse_timespec(starttimeout_str, name, "start-timeout", start_timeout);
                 }
+                else if (setting == "run-as") {
+                    string run_as_str = read_setting_value(i, end, nullptr);
+                    run_as_uid = parse_uid_param("run-as", name, &run_as_gid);
+                }
                 else {
                     throw service_description_exc(name, "Unknown setting: " + setting);
                 }
@@ -614,6 +621,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_start_timeout(start_timeout);
                     rvalps->set_start_interruptible(start_is_interruptible);
                     rvalps->set_extra_termination_signal(term_signal);
+                    rvalps->set_run_as_uid_gid(run_as_uid, run_as_gid);
                     rval = rvalps;
                 }
                 else if (service_type == service_type_t::BGPROCESS) {
@@ -626,6 +634,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_start_timeout(start_timeout);
                     rvalps->set_start_interruptible(start_is_interruptible);
                     rvalps->set_extra_termination_signal(term_signal);
+                    rvalps->set_run_as_uid_gid(run_as_uid, run_as_gid);
                     rval = rvalps;
                 }
                 else if (service_type == service_type_t::SCRIPTED) {
@@ -636,6 +645,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_start_timeout(start_timeout);
                     rvalps->set_start_interruptible(start_is_interruptible);
                     rvalps->set_extra_termination_signal(term_signal);
+                    rvalps->set_run_as_uid_gid(run_as_uid, run_as_gid);
                     rval = rvalps;
                 }
                 else {

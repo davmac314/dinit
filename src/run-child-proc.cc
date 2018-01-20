@@ -10,7 +10,7 @@
 #include "service.h"
 
 void service_record::run_child_proc(const char * const *args, const char *logfile, bool on_console,
-        int wpipefd, int csfd, int socket_fd) noexcept
+        int wpipefd, int csfd, int socket_fd, uid_t uid, gid_t gid) noexcept
 {
     // Child process. Must not allocate memory (or otherwise risk throwing any exception)
     // from here until exit().
@@ -55,7 +55,7 @@ void service_record::run_child_proc(const char * const *args, const char *logfil
     }
 
     if (socket_fd != -1) {
-
+        // If we passing a pre-opened socket, it has to be fd number 3. (Thanks, systemd).
         if (dup2(socket_fd, 3) == -1) goto failure_out;
         if (socket_fd != 3) {
             close(socket_fd);
@@ -116,6 +116,11 @@ void service_record::run_child_proc(const char * const *args, const char *logfil
         }
         setpgid(0,0);
         tcsetpgrp(0, getpgrp());
+    }
+
+    if (uid != -1) {
+        if (setreuid(uid, uid) != 0) goto failure_out;
+        if (setregid(gid, gid) != 0) goto failure_out;
     }
 
     sigprocmask(SIG_SETMASK, &sigwait_set, nullptr);
