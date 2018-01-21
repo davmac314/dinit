@@ -14,7 +14,12 @@ function as a system \fBinit\fR process. It has a small but functional
 feature set, offering service dependency handling, parallel startup,
 automatic rate-limited restart of failing processes, and service control
 functions.
-.LP
+
+Dinit can be run as a system instance (when used as an \fBinit\fR or when
+specified via command line parameter) or as a user instance. This affects
+the default paths used to locate certain files, and the reaction to various
+signals.
+
 Dinit reads service descriptions from files located in the service
 description directory, normally \fI/etc/dinit.d\fR for the system instance
 or \fI$HOME/dinit.d\fR when run as a user process. See \fBSERVICE
@@ -44,294 +49,14 @@ that a suitable service description for the \fIboot\fR service exists).
 .\"
 .SH SERVICE DESCRIPTION FILES
 .\"
-Service description files specify the various attributes of a service. A
-service description file is named after the service it represents, and is
-a plain-text file with simple key-value format. The description files are
-located in the service description directory (which defaults to
-\fI/etc/dinit.d\fR for the system process).
-.LP
-All services have a \fItype\fR and a set of \fIdependencies\fR. Service
-types are discussed in the following subsection. If a service depends on
-another service, then starting the first service causes the second to start
-also (and the second service must complete its startup before the first
-is considered started). Similarly, if one service depends on another which
-becomes stopped, the first service must also stop.
-.LP
+Service description files specify the parameters of each service. They are
+named for the service they describe, and are found in \fI/etc/dinit.d\fR
+for a system instance or \fI$HOME/dinit.d\fR for a user instance.
+
 Service description files are read by Dinit on an "as needed" basis. Once a
 service description has been read there is no way (yet) to alter it.
-.\"
-.SS SERVICE TYPES
-.\"
-There are four basic types of service:
-.IP \(bu
-\fBProcess\fR services. This kind of service runs as a single process; starting
-the service simply requires starting the process; stopping the service is
-accomplished by stopping the process (via sending it a signal).
-.IP \(bu
-\fBBgprocess\fR services ("background process" services). This kind of
-service is similar to a regular process service, but the process daemonizes
-or otherwise forks from the original process which starts it, and the
-process ID is written to a file. Dinit can read the process ID from the
-file and, if it is running as the system init process, can supervise it.
-.IP \(bu
-\fBScripted\fR services are services which are started and stopped by a
-command (which need not actually be a script, despite the name). They can
-not be supervised.
-.IP \(bu
-\fBInternal\fR services do not run as an external process at all. They can
-be started and stopped without any external action. They are useful for
-grouping other services (via service dependencies).
-.\"
-.SS SERVICE PROPERTIES
-.\"
-This section described the various service properties that can be specified
-in a service description file. Each line of the file can specify a single
-property value, expressed as "\fIproperty-name\fR = \fIvalue\fR". Comments
-begin with a hash mark (#) and extend to the end of the line (they must be
-separated from setting values by at least one whitespace character). Values
-are interpreted literally, except that:
-.\"
-.IP \(bu
-White space (comprised of spaces, tabs, etc) is collapsed to a single space.
-.IP \(bu
-Double quotes (") can be used around all or part of a property value, to
-prevent whitespace collapse and prevent interpretation of other special
-characters (such as "#") inside the quotes. The quote characters are not
-considered part of the parameter value.
-.IP \(bu
-A backslash (\\) can be used to escape the next character, causing it to
-lose any special meaning and become part of the property value. A double
-backslash (\\\\) is collapsed to a single backslash within the parameter
-value.
-.LP
-The following properties can be specified:
-.TP
-\fBtype\fR = {process | bgprocess | scripted | internal}
-Specifies the service type.
-.TP
-\fBcommand\fR = \fIcommand-string\fR
-Specifies the command, including command-line arguments, for starting the
-process. Applies only to \fBprocess\fR, \fBbgprocess\fR and \fBscripted\fR
-services.
-.TP
-\fBstop\-command\fR = \fIcommand-string\fR
-Specifies the command to stop the service. Applicable only to \fBscripted\fR
-services.
-.TP
-\fBrun-as\fR = \fIuser-id\fR
-Specifies which user to run the process(es) for this service as. The group id
-for the process will also be set to the primary group of the specified user.
-.TP
-\fBrestart\fR = {yes | true | no | false}
-Indicates whether the service should automatically restart if it stops for
-any reason (including unexpected process termination, service dependency
-stopping, or user-initiated service stop).
-.TP
-\fBsmooth-recovery\fR = {yes | true | no | false}
-Applies only to \fBprocess\fR and \fBbgprocess\fR services. When set true/yes,
-an automatic process restart can be performed without first stopping any
-dependent services. This setting is meaningless if the \fBrestart\fR setting
-is set to false.
-.TP
-\fBrestart-delay\fR = \fIXXX.YYYY\fR
-Specifies the minimum time between automatic restarts. Enforcing a sensible
-minimum prevents Dinit from consuming a large number of process cycles in
-case a process continuously fails immediately after it is started. The
-default is 0.2 (200 milliseconds).
-.TP
-\fBrestart-limit-interval\fR = \fIXXX.YYYY\fR
-Sets the interval, in seconds, over which restarts are limited. If a process
-automatically restarts more than a certain number of times (specified by the
-\fBrestart-limit-count\fR setting) in this time interval, it will not restart
-again. The default value is 10 seconds.
-.TP
-\fBrestart-limit-count\fR = \fINNN\fR
-Specifies the maximum number of times that a service can automatically restart
-over the interval specified by \fBrestart-limit-interval\fR. Specify a value
-of 0 to disable the restart limit.
-.TP
-\fBstart-timeout\fR = \fIXXX.YYY\fR
-Specifies the time in seconds allowed for the service to start. If the
-service takes longer than this, its process group is sent a SIGINT signal
-and enters the "stopping" state (this may be subject to a stop timeout, as
-specified via \fBstop-timeout\fR, after which the process group will be
-terminated via SIGKILL). The timeout period begins only when all dependencies
-have been stopped. The default timeout is 60 seconds. Specify a value of 0 to
-allow unlimited start time.
-.TP
-\fBstop-timeout\fR = \fIXXX.YYY\fR
-Specifies the time in seconds allowed for the service to stop. If the
-service takes longer than this, its process group is sent a SIGKILL signal
-which should cause it to terminate immediately. The timeout period begins
-only when all dependent services have already stopped. The default
-timeout is 10 seconds. Specify a value of 0 to allow unlimited stop time.
-.TP
-\fBpid-file\fR = \fIpath-to-file\fR
-For \fBbgprocess\fR type services only; specifies the path of the file where
-daemon will write its process ID before detaching. Dinit will read the
-contents of this file when starting the service, once the initial process
-exits, will supervise the process with the discovered process ID, and may
-send signals to the process ID to stop the service; if Dinit runs as a
-privileged user the path should therefore not be writable by unprivileged
-users.
-.TP
-\fBdepends-on\fR = \fIservice-name\fR
-This service depends on the named service. Starting this service will start
-the named service; the command to start this service will not be executed
-until the named service has started. If the named service is stopped then
-this service will also be stopped.
-.TP
-\fBdepends-ms\fR = \fIservice-name\fR
-This service has a "milestone" dependcy on the named service. Starting this
-service will start the named service; the command to start this service will
-not be executed until the named service has started. If the named service is
-stopped then the dependency is dropped until this service is next started.
-.TP
-\fBwaits-for\fR = \fIservice-name\fR
-When this service is started, wait for the named service to finish starting
-(or to fail starting) before commencing the start procedure for this service.
-Starting this service will automatically start the named service. If the
-named service fails to start, this service will start as usual (subject to
-other dependencies being met).
-.TP
-\fBsocket-listen\fR = \fIsocket-path\fR
-Pre-open a socket for the service and pass it to the service using the
-\fBsystemd\fR activation protocol. This by itself does not give so called
-"socket activation", but does allow that any process trying to connect to the
-specified socket will be able to do so, even before the service is properly
-prepared to accept connections.
-.TP
-\fBsocket-permissions\fR = \fIoctal-permissions-mask\fR
-Gives the permissions for the socket specified using \fBsocket-listen\fR.
-Normally this will be 600 (user access only), 660 (user and group
-access), or 666 (all users). The default is 666.
-.TP
-\fBsocket-uid\fR = {\fInumeric-user-id\fR | \fIusername\fR}
-Specifies the user that should own the activation socket. If
-\fBsocket-uid\fR is specified without also specifying \fBsocket-gid\fR, then
-the socket group is the primary group of the specified user (as found in the
-system user database, normally \fI/etc/passwd\fR). If the socket owner is not
-specified, the socket will be owned by the user id of the Dinit process.
-.TP
-\fBsocket-gid\fR = {\fInumeric-group-id\fR | \fIgroup-name\fR}
-Specifies the group of the activation socket. See discussion of
-\fBsocket-uid\fR.
-.TP
-\fBtermsignal\fR = {HUP | INT | QUIT | USR1 | USR2}
-Specifies an additional signal to send to the process when requesting it
-to terminate (applies to 'process' services only). SIGTERM is always
-sent along with the specified signal, unless the \fBnosigterm\fR option is
-specified via the \fBoptions\fR parameter.
-.TP
-\fBoptions\fR = {runs\-on\-console | nosigterm | starts\-rwfs | starts\-log | start\-interruptible}...
-Specifies various options for this service:
-.RS
-.TP
-\fBno-sigterm\fR
-specifies that the TERM signal should not be send to the process to terminate
-it. (Another signal can be specified using the \fBtermsignal\fR setting; if no
-other signal is specified, no signal will be sent, which usually means that
-the service will not terminate).
-.TP
-\fBruns-on-console\fR
-specifies that this service uses the console; its input and output should be
-directed to the console (or precisely, to the device to which Dinit's standard
-output stream is connected). A service running on the console prevents other
-services from running on the console (they will queue for the console).
 
-The \fIinterrupt\fR key (normally control-C) will be active for process / scripted
-services that run on the console. Handling of an interrupt is determined by
-the service process, but typically will cause it to terminate.
-.TP
-\fBstarts-on-console\fR
-specifies that this service uses the console during service startup. This is
-implied by \fBruns-on-console\fR, but can be specified separately for services
-that need the console while they start but not afterwards.
-
-This setting is not applicable to regular \fBprocess\fR services, but can be
-used for \fBscripted\fR and \fBbgprocess\fR services. It allows for
-interrupting startup via the \fIinterrupt\fR key (normally control-C). This is
-useful to allow filesystem checks to be interrupted/skipped.
-.TP
-\fBstarts-rwfs\fR
-this service mounts the root filesystem read/write (or at least mounts the
-normal writable filesystems for the system). This prompts Dinit to create its
-control socket, if it has not already managed to do so.
-.TP
-\fBstarts-log\fR
-this service starts the system log daemon. Dinit will begin logging via the
-\fI/dev/log\fR socket.
-.TP
-\fBpass-cs-fd\fR
-pass an open Dinit control socket to the process when launching it (the
-\fIDINIT_CS_FD\fR environment variable will be set to the file descriptor of
-the socket). This allows the service to issue commands to Dinit even if the
-regular control socket is not available yet.
-
-Using this option has security implications! The service which receives the
-control socket must close it before launching any untrusted processes. You
-should not use this option unless the service is designed to receive a Dinit
-control socket.
-.TP
-\fBstart-interruptible\fR
-this service can have its startup interrupted (cancelled) if it becomes inactive
-while still starting, by sending it the SIGINT signal. This is meaningful only
-for \fBbgprocess\fR and \fBscripted\fR services.
-.RE
-.TP
-\fBlogfile\fR = \fIlog-file-path\fR
-Specifies the log file for the service. Output from the service process
-will go this file.
-.LP
-The next section contains example service descriptions including some of the
-parameters and options described above.
-.\"
-.SS EXAMPLES
-.LP
-Here is an example service description for the \fBmysql\fR database server.
-It has a dependency on the \fBrcboot\fR service (not shown) which is
-expected to have set up the system to a level suitable for basic operation.
-
-.RS
-.nf
-.gcolor blue
-.ft CR
-# mysqld service
-type = process
-command = /usr/bin/mysqld --user=mysql
-logfile = /var/log/mysqld.log
-smooth-recovery = true
-restart = false
-depends-on = rcboot # Basic system services must be ready
-.ft
-.gcolor
-.RE
-.fi
-.LP
-Here is an examples for a filesystem check "service", run by a script
-(\fI/etc/dinit.d/rootfscheck.sh\fR). The script may need to reboot the
-system, but the control socket may not have been created, so it uses the
-\fBpass-cs-fd\fR option to allow the \fBreboot\fR command to issue control
-commands to Dinit. It runs on the console, so that output is visible and
-the process can be interrupted using control-C.
-
-.RS
-.nf
-.gcolor blue
-.ft CR
-# rootfscheck service
-type = scripted
-command = /etc/dinit.d/rootfscheck.sh
-restart = false
-options = starts-on-console pass-cs-fd
-depends-on = early-filesystems  # /proc and /dev
-depends-on = device-node-daemon
-.ft
-.gcolor
-.fi
-.RE
-
-More examples are provided with the Dinit distribution.
+See \fBdinit-service\fR(5) for details of the format and available parameters.
 .\"
 .SH SIGNALS
 .LP
@@ -344,7 +69,7 @@ immediately.
 .\"
 .SH SEE ALSO
 .\"
-\fBdinitctl\fR(8).
+\fBdinitctl\fR(8), \fBdinit-service\fR(5).
 .\"
 .SH AUTHOR
 Dinit, and this manual, were written by Davin McCall.
