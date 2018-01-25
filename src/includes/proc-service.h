@@ -204,7 +204,6 @@ class process_service : public base_process_service
          : base_process_service(sset, name, service_type_t::PROCESS, std::move(command), command_offsets,
              depends_p)
     {
-        start_timeout = time_val(0,0);
     }
 
     ~process_service() noexcept
