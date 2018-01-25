@@ -152,6 +152,9 @@ void process_service::handle_exit_status(int exit_status) noexcept
     else if (service_state == service_state_t::STOPPING) {
         // We won't log a non-zero exit status or termination due to signal here -
         // we assume that the process died because we signalled it.
+        if (stop_timer_armed) {
+            restart_timer.stop_timer(event_loop);
+        }
         stopped();
     }
     else if (smooth_recovery && service_state == service_state_t::STARTED
