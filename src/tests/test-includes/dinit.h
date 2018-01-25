@@ -3,6 +3,8 @@
 
 // dummy dinit.h
 
+#include <unordered_set>
+
 #include "dasynq.h"
 
 using clock_type = dasynq::clock_type;
@@ -92,12 +94,12 @@ class eventloop_t
 
         void arm_timer_rel(eventloop_t &loop, time_val timeout) noexcept
         {
-
+            loop.active_timers.insert(this);
         }
 
         void stop_timer(eventloop_t &loop) noexcept
         {
-
+            loop.active_timers.erase(this);
         }
     };
 
@@ -105,6 +107,8 @@ class eventloop_t
     {
 
     };
+
+    std::unordered_set<timer *> active_timers;
 };
 
 inline void open_control_socket(bool report_ro_failure = true) noexcept
