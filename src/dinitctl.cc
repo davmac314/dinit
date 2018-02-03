@@ -24,20 +24,20 @@
 using handle_t = uint32_t;
 
 
-class ReadCPException
+class read_cp_exception
 {
     public:
     int errcode;
-    ReadCPException(int err) : errcode(err) { }
+    read_cp_exception(int err) : errcode(err) { }
 };
 
-enum class Command;
+enum class command_t;
 
-static int issueLoadService(int socknum, const char *service_name);
-static int checkLoadReply(int socknum, cpbuffer<1024> &rbuffer, handle_t *handle_p, service_state_t *state_p);
-static int startStopService(int socknum, const char *service_name, Command command, bool do_pin, bool wait_for_service, bool verbose);
-static int unpinService(int socknum, const char *service_name, bool verbose);
-static int listServices(int socknum);
+static int issue_load_service(int socknum, const char *service_name);
+static int check_load_reply(int socknum, cpbuffer<1024> &rbuffer, handle_t *handle_p, service_state_t *state_p);
+static int start_stop_service(int socknum, const char *service_name, command_t command, bool do_pin, bool wait_for_service, bool verbose);
+static int unpin_service(int socknum, const char *service_name, bool verbose);
+static int list_services(int socknum);
 
 
 // Fill a circular buffer from a file descriptor, reading at least _rlength_ bytes.
@@ -51,11 +51,11 @@ static void fillBufferTo(cpbuffer<1024> *buf, int fd, int rlength)
         int r = buf->fill_to(fd, rlength);
         if (r == -1) {
             if (errno != EINTR) {
-                throw ReadCPException(errno);
+                throw read_cp_exception(errno);
             }
         }
         else if (r == 0) {
-            throw ReadCPException(0);
+            throw read_cp_exception(0);
         }
         else {
             return;
@@ -112,7 +112,7 @@ static int write_all(int fd, const void *buf, size_t count)
 }
 
 
-enum class Command {
+enum class command_t {
     NONE,
     START_SERVICE,
     WAKE_SERVICE,
@@ -138,7 +138,7 @@ int main(int argc, char **argv)
     bool wait_for_service = true;
     bool do_pin = false;
     
-    Command command = Command::NONE;
+    command_t command = command_t::NONE;
         
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -162,24 +162,24 @@ int main(int argc, char **argv)
                 return 1;
             }
         }
-        else if (command == Command::NONE) {
+        else if (command == command_t::NONE) {
             if (strcmp(argv[i], "start") == 0) {
-                command = Command::START_SERVICE; 
+                command = command_t::START_SERVICE; 
             }
             else if (strcmp(argv[i], "wake") == 0) {
-                command = Command::WAKE_SERVICE;
+                command = command_t::WAKE_SERVICE;
             }
             else if (strcmp(argv[i], "stop") == 0) {
-                command = Command::STOP_SERVICE;
+                command = command_t::STOP_SERVICE;
             }
             else if (strcmp(argv[i], "release") == 0) {
-                command = Command::RELEASE_SERVICE;
+                command = command_t::RELEASE_SERVICE;
             }
             else if (strcmp(argv[i], "unpin") == 0) {
-                command = Command::UNPIN_SERVICE;
+                command = command_t::UNPIN_SERVICE;
             }
             else if (strcmp(argv[i], "list") == 0) {
-                command = Command::LIST_SERVICES;
+                command = command_t::LIST_SERVICES;
             }
             else {
                 show_help = true;
@@ -197,11 +197,11 @@ int main(int argc, char **argv)
         }
     }
     
-    if (service_name != nullptr && command == Command::LIST_SERVICES) {
+    if (service_name != nullptr && command == command_t::LIST_SERVICES) {
         show_help = true;
     }
     
-    if ((service_name == nullptr && command != Command::LIST_SERVICES) || command == Command::NONE) {
+    if ((service_name == nullptr && command != command_t::LIST_SERVICES) || command == command_t::NONE) {
         show_help = true;
     }
 
@@ -279,24 +279,24 @@ int main(int argc, char **argv)
     
     // TODO should start by querying protocol version
     
-    if (command == Command::UNPIN_SERVICE) {
-        return unpinService(socknum, service_name, verbose);
+    if (command == command_t::UNPIN_SERVICE) {
+        return unpin_service(socknum, service_name, verbose);
     }
-    else if (command == Command::LIST_SERVICES) {
-        return listServices(socknum);
+    else if (command == command_t::LIST_SERVICES) {
+        return list_services(socknum);
     }
 
-    return startStopService(socknum, service_name, command, do_pin, wait_for_service, verbose);
+    return start_stop_service(socknum, service_name, command, do_pin, wait_for_service, verbose);
 }
 
 // Start/stop a service
-static int startStopService(int socknum, const char *service_name, Command command, bool do_pin, bool wait_for_service, bool verbose)
+static int start_stop_service(int socknum, const char *service_name, command_t command, bool do_pin, bool wait_for_service, bool verbose)
 {
     using namespace std;
 
-    bool do_stop = (command == Command::STOP_SERVICE || command == Command::RELEASE_SERVICE);
+    bool do_stop = (command == command_t::STOP_SERVICE || command == command_t::RELEASE_SERVICE);
     
-    if (issueLoadService(socknum, service_name)) {
+    if (issue_load_service(socknum, service_name)) {
         return 1;
     }
 
@@ -310,23 +310,23 @@ static int startStopService(int socknum, const char *service_name, Command comma
         //service_state_t target_state;
         handle_t handle;
         
-        if (checkLoadReply(socknum, rbuffer, &handle, &state) != 0) {
+        if (check_load_reply(socknum, rbuffer, &handle, &state) != 0) {
             return 0;
         }
                 
         service_state_t wanted_state = do_stop ? service_state_t::STOPPED : service_state_t::STARTED;
         int pcommand = 0;
         switch (command) {
-        case Command::STOP_SERVICE:
+        case command_t::STOP_SERVICE:
             pcommand = DINIT_CP_STOPSERVICE;
             break;
-        case Command::RELEASE_SERVICE:
+        case command_t::RELEASE_SERVICE:
             pcommand = DINIT_CP_RELEASESERVICE;
             break;
-        case Command::START_SERVICE:
+        case command_t::START_SERVICE:
             pcommand = DINIT_CP_STARTSERVICE;
             break;
-        case Command::WAKE_SERVICE:
+        case command_t::WAKE_SERVICE:
             pcommand = DINIT_CP_WAKESERVICE;
             break;
         default: ;
@@ -438,7 +438,7 @@ static int startStopService(int socknum, const char *service_name, Command comma
         }
         return 1;
     }
-    catch (ReadCPException &exc) {
+    catch (read_cp_exception &exc) {
         cerr << "dinitctl: control socket read failure or protocol error" << endl;
         return 1;
     }
@@ -452,7 +452,7 @@ static int startStopService(int socknum, const char *service_name, Command comma
 
 // Issue a "load service" command (DINIT_CP_LOADSERVICE), without waiting for
 // a response. Returns 1 on failure (with error logged), 0 on success.
-static int issueLoadService(int socknum, const char *service_name)
+static int issue_load_service(int socknum, const char *service_name)
 {
     // Build buffer;
     uint16_t sname_len = strlen(service_name);
@@ -483,7 +483,7 @@ static int issueLoadService(int socknum, const char *service_name)
 }
 
 // Check that a "load service" reply was received, and that the requested service was found.
-static int checkLoadReply(int socknum, cpbuffer<1024> &rbuffer, handle_t *handle_p, service_state_t *state_p)
+static int check_load_reply(int socknum, cpbuffer<1024> &rbuffer, handle_t *handle_p, service_state_t *state_p)
 {
     using namespace std;
     
@@ -505,12 +505,12 @@ static int checkLoadReply(int socknum, cpbuffer<1024> &rbuffer, handle_t *handle
     }
 }
 
-static int unpinService(int socknum, const char *service_name, bool verbose)
+static int unpin_service(int socknum, const char *service_name, bool verbose)
 {
     using namespace std;
     
     // Build buffer;
-    if (issueLoadService(socknum, service_name) == 1) {
+    if (issue_load_service(socknum, service_name) == 1) {
         return 1;
     }
 
@@ -522,7 +522,7 @@ static int unpinService(int socknum, const char *service_name, bool verbose)
         
         handle_t handle;
         
-        if (checkLoadReply(socknum, rbuffer, &handle, nullptr) != 0) {
+        if (check_load_reply(socknum, rbuffer, &handle, nullptr) != 0) {
             return 1;
         }
         
@@ -551,7 +551,7 @@ static int unpinService(int socknum, const char *service_name, bool verbose)
             rbuffer.consume(1);
         }
     }
-    catch (ReadCPException &exc) {
+    catch (read_cp_exception &exc) {
         cerr << "dinitctl: Control socket read failure or protocol error" << endl;
         return 1;
     }
@@ -566,7 +566,7 @@ static int unpinService(int socknum, const char *service_name, bool verbose)
     return 0;
 }
 
-static int listServices(int socknum)
+static int list_services(int socknum)
 {
     using namespace std;
     
@@ -626,7 +626,7 @@ static int listServices(int socknum)
             return 1;
         }
     }
-    catch (ReadCPException &exc) {
+    catch (read_cp_exception &exc) {
         cerr << "dinitctl: Control socket read failure or protocol error" << endl;
         return 1;
     }
