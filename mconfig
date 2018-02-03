@@ -9,14 +9,14 @@ MANDIR=/usr/share/man
 # Linux (GCC). Note with GCC 5.x/6.x you must use the old ABI, with GCC 7.x you must use
 # the new ABI. See BUILD file for more information.
 CXX=g++
-CXXOPTS=-D_GLIBCXX_USE_CXX11_ABI=1 -std=gnu++11 -Os -Wall -fno-rtti
-LDFLAGS=
+CXXOPTS=-D_GLIBCXX_USE_CXX11_ABI=1 -std=c++11 -Os -Wall -fno-rtti -fno-plt -flto
+LDFLAGS=-flto
 BUILD_SHUTDOWN=yes
 SANITIZEOPTS=-fsanitize=address,undefined
 
 # OpenBSD, tested with GCC 4.9.3 / Clang++ 4/5 and gmake:
 #CXX=clang++
-#CXXOPTS=-std=gnu++11 -Os -Wall -fno-rtti
+#CXXOPTS=-std=c++11 -Os -Wall -fno-rtti
 #LDFLAGS=
 #BUILD_SHUTDOWN=no
 #SANITIZEOPTS=
@@ -24,7 +24,7 @@ SANITIZEOPTS=-fsanitize=address,undefined
 
 # FreeBSD: use clang++ by default, supports sanitizers, requires linking with -lrt
 #CXX=clang++
-#CXXOPTS=-std=gnu++11 -Os -Wall -fno-rtti
+#CXXOPTS=-std=c++11 -Os -Wall -fno-rtti
 #LDFLAGS=-lrt
 #BUILD_SHUTDOWN=no
 #SANITIZEOPTS=-fsanitize=address,undefined
