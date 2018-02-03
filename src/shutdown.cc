@@ -215,7 +215,7 @@ static void wait_for_reply(cpbuffer<1024> &rbuffer, int fd)
     
     while (rbuffer[0] >= 100) {
         // Information packet; discard.
-        fillBufferTo(&rbuffer, fd, 1);
+        fillBufferTo(&rbuffer, fd, 2);
         int pktlen = (unsigned char) rbuffer[1];
         
         rbuffer.consume(1);  // Consume one byte so we'll read one byte of the next packet
