@@ -117,11 +117,9 @@ template <class Base> class posix_timer_events : public timer_base<Base>
 
     // starts (if not started) a timer to timeout at the given time. Resets the expiry count to 0.
     //   enable: specifies whether to enable reporting of timeouts/intervals
-    void set_timer(timer_handle_t &timer_id, time_val &timeouttv, struct timespec &interval,
+    void set_timer(timer_handle_t &timer_id, const timespec &timeout, const timespec &interval,
             bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
-        timespec timeout = timeouttv;
-
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
 
         timer_queue_t &timer_queue = this->queue_for_clock(clock);
@@ -146,12 +144,9 @@ template <class Base> class posix_timer_events : public timer_base<Base>
     }
 
     // Set timer relative to current time:
-    void set_timer_rel(timer_handle_t &timer_id, const time_val &timeouttv, const time_val &intervaltv,
+    void set_timer_rel(timer_handle_t &timer_id, const timespec &timeout, const timespec &interval,
             bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
-        timespec timeout = timeouttv;
-        timespec interval = intervaltv;
-
         // TODO consider caching current time somehow; need to decide then when to update cached value.
         struct timespec curtime;
         int posix_clock_id = (clock == clock_type::MONOTONIC) ? CLOCK_MONOTONIC : CLOCK_REALTIME;

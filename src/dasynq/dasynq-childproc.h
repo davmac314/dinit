@@ -195,7 +195,9 @@ template <class Base> class child_proc_events : public Base
         sigemptyset(&chld_action.sa_mask);
         chld_action.sa_flags = 0;
         sigaction(SIGCHLD, &chld_action, nullptr);
-        loop_mech->add_signal_watch(SIGCHLD, nullptr);
+
+        // Specify a dummy user data value - sigchld_handler
+        loop_mech->add_signal_watch(SIGCHLD, (void *) dprivate::sigchld_handler);
         Base::init(loop_mech);
     }
 };

@@ -1,8 +1,8 @@
 #include <system_error>
-#include <mutex>
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
+#include <tuple>
 
 #include <sys/event.h>
 #include <sys/time.h>
@@ -72,6 +72,9 @@ class kqueue_traits
     // File descriptor optional storage. If the mechanism can return the file descriptor, this
     // class will be empty, otherwise it can hold a file descriptor.
     class fd_s {
+        public:
+        fd_s(int) { }
+
         DASYNQ_EMPTY_BODY
     };
 
@@ -90,8 +93,11 @@ class kqueue_traits
         }
     };
     
-    const static bool has_bidi_fd_watch = false;
-    const static bool has_separate_rw_fd_watches = true;
+    constexpr static bool has_bidi_fd_watch = false;
+    constexpr static bool has_separate_rw_fd_watches = true;
+    constexpr static bool interrupt_after_fd_add = false;
+    constexpr static bool interrupt_after_signal_add = false;
+    constexpr static bool supports_non_oneshot_fd = false;
 };
 
 #if _POSIX_REALTIME_SIGNALS > 0
@@ -213,10 +219,15 @@ template <class Base> class kqueue_loop : public Base
             }
             else if (events[i].filter == EVFILT_READ || events[i].filter == EVFILT_WRITE) {
                 int flags = events[i].filter == EVFILT_READ ? IN_EVENTS : OUT_EVENTS;
-                Base::receive_fd_event(*this, fd_r(events[i].ident), events[i].udata, flags);
-                events[i].flags = EV_DISABLE | EV_CLEAR;
-                // we use EV_CLEAR to clear the EOF status of fifos/pipes (and wait for
-                // another connection).
+                auto r = Base::receive_fd_event(*this, fd_r(events[i].ident), events[i].udata, flags);
+                if (std::get<0>(r) == 0) {
+                    // we use EV_CLEAR to clear the EOF status of fifos/pipes (and wait for
+                    // another connection).
+                    events[i].flags = EV_DISABLE | EV_CLEAR;
+                }
+                else {
+                    events[i].flags = EV_ENABLE;
+                }
             }
             else {
                 events[i].flags = EV_DISABLE;

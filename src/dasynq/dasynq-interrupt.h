@@ -61,15 +61,24 @@ template <typename Base, typename Mutex> class interrupt_channel : public Base
     }
 
     template <typename T>
-    void receive_fd_event(T &loop_mech, typename Base::traits_t::fd_r fd_r_a, void * userdata, int flags)
+    std::tuple<int, typename Base::traits_t::fd_s>
+    receive_fd_event(T &loop_mech, typename Base::traits_t::fd_r fd_r_a, void * userdata, int flags)
     {
         if (userdata == &pipe_r_fd) {
             // try to clear the pipe
             char buf[64];
             read(pipe_r_fd, buf, 64);
+            if (Base::traits_t::supports_non_oneshot_fd) {
+                // If the loop mechanism actually persists none-oneshot marked watches, we don't need
+                // to re-enable:
+                return std::make_tuple(0, typename Base::traits_t::fd_s(pipe_r_fd));
+            }
+            else {
+                return std::make_tuple(IN_EVENTS, typename Base::traits_t::fd_s(pipe_r_fd));
+            }
         }
         else {
-            Base::receive_fd_event(loop_mech, fd_r_a, userdata, flags);
+            return Base::receive_fd_event(loop_mech, fd_r_a, userdata, flags);
         }
     }
 

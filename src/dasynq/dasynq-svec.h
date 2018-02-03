@@ -5,7 +5,11 @@
 #include <utility>
 #include <new>
 
-// Vector with possibility to shrink capacity arbitrarily
+// Vector with possibility to shrink capacity arbitrarily.
+//
+// The standard vector (std::vector) only allows shrinking a vector's capacity to its current size. In cases
+// where we need to keep some reserved capacity beyond the current size, we need an alternative solution: hence,
+// this class, svector.
 
 namespace dasynq {
 
@@ -13,7 +17,14 @@ template <typename T>
 class svector
 {
     private:
-    T * array;
+    union vec_node {
+        T elem;
+
+        vec_node() { }
+        ~vec_node() { }
+    };
+
+    vec_node * array;
     size_t size_v;
     size_t capacity_v;
 
@@ -22,10 +33,10 @@ class svector
         if (size_v == capacity_v) {
             // double capacity now:
             if (capacity_v == 0) capacity_v = 1;
-            T * new_array = new T[capacity_v * 2];
+            vec_node * new_array = new vec_node[capacity_v * 2];
             for (size_t i = 0; i < size_v; i++) {
-                new (&new_array[i]) T(std::move(array[i]));
-                array[i].T::~T();
+                new (&new_array[i].elem) T(std::move(array[i].elem));
+                array[i].elem.T::~T();
             }
             delete[] array;
             array = new_array;
@@ -47,14 +58,14 @@ class svector
         size_v = other.size_v;
         array = new T[capacity_v];
         for (size_t i = 0; i < size_v; i++) {
-            new (&array[i]) T(other[i]);
+            new (&array[i].elem) T(other[i].elem);
         }
     }
 
     ~svector()
     {
         for (size_t i = 0; i < size_v; i++) {
-            array[i].T::~T();
+            array[i].elem.T::~T();
         }
         delete[] array;
     }
@@ -62,14 +73,14 @@ class svector
     void push_back(const T &t)
     {
         check_capacity();
-        new (&array[size_v]) T(t);
+        new (&array[size_v].elem) T(t);
         size_v++;
     }
 
     void push_back(T &&t)
     {
         check_capacity();
-        new (&array[size_v]) T(t);
+        new (&array[size_v].elem) T(t);
         size_v++;
     }
 
@@ -77,7 +88,7 @@ class svector
     void emplace_back(U... args)
     {
         check_capacity();
-        new (&array[size_v]) T(args...);
+        new (&array[size_v].elem) T(args...);
         size_v++;
     }
 
@@ -88,12 +99,12 @@ class svector
 
     T &operator[](size_t index)
     {
-        return array[index];
+        return array[index].elem;
     }
 
     const T &operator[](size_t index) const
     {
-        return array[index];
+        return array[index].elem;
     }
 
     size_t size() const
@@ -124,10 +135,10 @@ class svector
     void reserve(size_t amount)
     {
         if (capacity_v < amount) {
-            T * new_array = new T[amount];
+            vec_node * new_array = new vec_node[amount];
             for (size_t i = 0; i < size_v; i++) {
-                new (&new_array[i]) T(std::move(array[i]));
-                array[i].T::~T();
+                new (&new_array[i].elem) T(std::move(array[i].elem));
+                array[i].elem.T::~T();
             }
             delete[] array;
             array = new_array;
@@ -138,13 +149,13 @@ class svector
     void shrink_to(size_t amount)
     {
         if (capacity_v > amount) {
-            T * new_array = new(std::nothrow) T[amount];
+            vec_node * new_array = new(std::nothrow) vec_node[amount];
             if (new_array == nullptr) {
                 return;
             }
             for (size_t i = 0; i < size_v; i++) {
-                new (&new_array[i]) T(std::move(array[i]));
-                array[i].T::~T();
+                new (&new_array[i].elem) T(std::move(array[i].elem));
+                array[i].elem.T::~T();
             }
             delete[] array;
             array = new_array;
@@ -154,27 +165,27 @@ class svector
 
     T &back()
     {
-        return array[size_v - 1];
+        return array[size_v - 1].elem;
     }
 
     T* begin()
     {
-        return array;
+        return reinterpret_cast<T *>(array);
     }
 
     const T *begin() const
     {
-        return array;
+        return reinterpret_cast<const T *>(array);
     }
 
     T* end()
     {
-        return array + size_v;
+        return reinterpret_cast<T *>(array + size_v);
     }
 
     const T *end() const
     {
-        return array + size_v;
+        return reinterpret_cast<const T *>(array + size_v);
     }
 };
 

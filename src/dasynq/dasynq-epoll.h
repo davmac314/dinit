@@ -68,6 +68,9 @@ class epoll_traits
         // Epoll doesn't return the file descriptor (it can, but it can't return both file
         // descriptor and user data).
         int fd;
+
+        public:
+        fd_s(int fd_p) noexcept : fd(fd_p) { }
     };
 
     // File descriptor reference (passed to event callback). If the mechanism can return the
@@ -75,14 +78,17 @@ class epoll_traits
     // must be stored in an fd_s instance.
     class fd_r {
         public:
-        int getFd(fd_s ss)
+        int get_fd(fd_s ss)
         {
             return ss.fd;
         }
     };
     
-    const static bool has_bidi_fd_watch = true;
-    const static bool has_separate_rw_fd_watches = false;
+    constexpr static bool has_bidi_fd_watch = true;
+    constexpr static bool has_separate_rw_fd_watches = false;
+    constexpr static bool interrupt_after_fd_add = false;
+    constexpr static bool interrupt_after_signal_add = false;
+    constexpr static bool supports_non_oneshot_fd = true;
 };
 
 
@@ -132,7 +138,10 @@ template <class Base> class epoll_loop : public Base
                 (events[i].events & EPOLLHUP) && (flags |= IN_EVENTS);
                 (events[i].events & EPOLLOUT) && (flags |= OUT_EVENTS);
                 (events[i].events & EPOLLERR) && (flags |= IN_EVENTS | OUT_EVENTS | ERR_EVENTS);
-                Base::receive_fd_event(*this, fd_r(), ptr, flags);
+                auto r = Base::receive_fd_event(*this, fd_r(), ptr, flags);
+                if (std::get<0>(r) != 0) {
+                    enable_fd_watch_nolock(fd_r().get_fd(std::get<1>(r)), ptr, std::get<0>(r));
+                }
             }            
         }
     }
