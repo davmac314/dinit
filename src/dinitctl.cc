@@ -38,10 +38,11 @@ static int check_load_reply(int socknum, cpbuffer<1024> &rbuffer, handle_t *hand
 static int start_stop_service(int socknum, const char *service_name, command_t command, bool do_pin, bool wait_for_service, bool verbose);
 static int unpin_service(int socknum, const char *service_name, bool verbose);
 static int list_services(int socknum);
+static int shutdown_dinit(int soclknum);
 
 
-// Fill a circular buffer from a file descriptor, reading at least _rlength_ bytes.
-// Throws ReadException if the requested number of bytes cannot be read, with:
+// Fill a circular buffer from a file descriptor, until it contains at least _rlength_ bytes.
+// Throws read_cp_exception if the requested number of bytes cannot be read, with:
 //     errcode = 0   if end of stream (remote end closed)
 //     errcode = errno   if another error occurred
 // Note that EINTR is ignored (i.e. the read will be re-tried).
@@ -74,8 +75,7 @@ static const char * describeVerb(bool stop)
     return stop ? "stop" : "start";
 }
 
-// Wait for a reply packet, skipping over any information packets
-// that are received in the meantime.
+// Wait for a reply packet, skipping over any information packets that are received in the meantime.
 static void wait_for_reply(cpbuffer<1024> &rbuffer, int fd)
 {
     fillBufferTo(&rbuffer, fd, 1);
@@ -91,6 +91,18 @@ static void wait_for_reply(cpbuffer<1024> &rbuffer, int fd)
     }
 }
 
+// Wait for an info packet. If any other reply packet comes, throw a read_cp_exception.
+static void wait_for_info(cpbuffer<1024> &rbuffer, int fd)
+{
+    fillBufferTo(&rbuffer, fd, 2);
+
+    if (rbuffer[0] < 100) {
+        throw read_cp_exception(0);
+    }
+
+    int pktlen = (unsigned char) rbuffer[1];
+    fillBufferTo(&rbuffer, fd, pktlen);
+}
 
 // Write *all* the requested buffer and re-try if necessary until
 // the buffer is written or an unrecoverable error occurs.
@@ -119,7 +131,8 @@ enum class command_t {
     STOP_SERVICE,
     RELEASE_SERVICE,
     UNPIN_SERVICE,
-    LIST_SERVICES
+    LIST_SERVICES,
+    SHUTDOWN
 };
 
 // Entry point.
@@ -181,6 +194,9 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "list") == 0) {
                 command = command_t::LIST_SERVICES;
             }
+            else if (strcmp(argv[i], "shutdown") == 0) {
+                command = command_t::SHUTDOWN;
+            }
             else {
                 show_help = true;
                 break;
@@ -197,11 +213,13 @@ int main(int argc, char **argv)
         }
     }
     
-    if (service_name != nullptr && command == command_t::LIST_SERVICES) {
+    bool no_service_cmd = (command == command_t::LIST_SERVICES || command == command_t::SHUTDOWN);
+
+    if (service_name != nullptr && no_service_cmd) {
         show_help = true;
     }
     
-    if ((service_name == nullptr && command != command_t::LIST_SERVICES) || command == command_t::NONE) {
+    if ((service_name == nullptr && ! no_service_cmd) || command == command_t::NONE) {
         show_help = true;
     }
 
@@ -215,6 +233,7 @@ int main(int argc, char **argv)
         cout << "    dinitctl [options] release [options] <service-name> : release activation, stop if no dependents" << endl;
         cout << "    dinitctl [options] unpin <service-name>           : un-pin the service (after a previous pin)" << endl;
         cout << "    dinitctl list                                     : list loaded services" << endl;
+        cout << "    dinitctl shutdown                                 : stop all services and terminate dinit" << endl;
         
         cout << "\nNote: An activated service continues running when its dependents stop." << endl;
         
@@ -285,8 +304,12 @@ int main(int argc, char **argv)
     else if (command == command_t::LIST_SERVICES) {
         return list_services(socknum);
     }
-
-    return start_stop_service(socknum, service_name, command, do_pin, wait_for_service, verbose);
+    else if (command == command_t::SHUTDOWN) {
+        return shutdown_dinit(socknum);
+    }
+    else {
+        return start_stop_service(socknum, service_name, command, do_pin, wait_for_service, verbose);
+    }
 }
 
 // Start/stop a service
@@ -635,5 +658,62 @@ static int list_services(int socknum)
         return 1;
     }
     
+    return 0;
+}
+
+static int shutdown_dinit(int socknum)
+{
+    // TODO support no-wait option.
+    using namespace std;
+
+    // Build buffer;
+    constexpr int bufsize = 2;
+    char buf[bufsize];
+
+    buf[0] = DINIT_CP_SHUTDOWN;
+    buf[1] = static_cast<char>(shutdown_type_t::HALT);
+
+    // TODO make sure to write the whole buffer
+    int r = write(socknum, buf, bufsize);
+    if (r == -1) {
+        perror("write");
+        return 1;
+    }
+
+    // Wait for ACK/NACK
+    // r = read(socknum, buf, 1);
+    //if (r > 0) {
+    //    cout << "Received acknowledgement. System should now shut down." << endl;
+    //}
+
+    cpbuffer<1024> rbuffer;
+    try {
+        wait_for_reply(rbuffer, socknum);
+
+        if (rbuffer[0] != DINIT_RP_ACK) {
+            cerr << "dinitctl: Control socket protocol error" << endl;
+            return 1;
+        }
+    }
+    catch (read_cp_exception &exc) {
+        cerr << "dinitctl: Control socket read failure or protocol error" << endl;
+        return 1;
+    }
+
+    // Now wait for rollback complete:
+    try {
+        while (true) {
+            wait_for_info(rbuffer, socknum);
+            if (rbuffer[0] == DINIT_ROLLBACK_COMPLETED) {
+                break;
+            }
+        }
+    }
+    catch (read_cp_exception &exc) {
+        // Dinit can terminate before replying: let's assume that happened.
+        // TODO: better check, possibly ensure that dinit actually sends rollback complete before
+        // termination.
+    }
+
     return 0;
 }

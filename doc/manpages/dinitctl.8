@@ -87,6 +87,10 @@ displayed:
 The << and >> symbols represent a transition state (starting and stopping respectively); curly braces
 indicate the desired state (left: started, right: stopped).
 .RE
+.TP
+\fBshutdown\fR
+Stop all services (without restart) and terminate Dinit. If issued to the system instance of Dinit,
+this will also shut down the system.
 .\"
 .SH SERVICE OPERATION
 .\"
