@@ -17,6 +17,7 @@
 #include "cpbuffer.h"
 #include "control-cmds.h"
 #include "service-constants.h"
+#include "dinit-client.h"
 
 // shutdown:  shut down the system
 // This utility communicates with the dinit daemon via a unix socket (/dev/initctl).
@@ -24,15 +25,6 @@
 void do_system_shutdown(shutdown_type_t shutdown_type);
 static void unmount_disks();
 static void swap_off();
-static void wait_for_reply(cpbuffer<1024> &rbuffer, int fd);
-
-
-class ReadCPException
-{
-    public:
-    int errcode;
-    ReadCPException(int err) : errcode(err) { }
-};
 
 
 int main(int argc, char **argv)
@@ -148,8 +140,7 @@ int main(int argc, char **argv)
     
     cout << "Issuing shutdown command..." << endl;
     
-    // TODO make sure to write the whole buffer
-    int r = write(socknum, buf, bufsize);
+    int r = write_all(socknum, buf, bufsize);
     if (r == -1) {
         perror("write");
         return 1;
@@ -170,7 +161,7 @@ int main(int argc, char **argv)
             return 1;
         }
     }
-    catch (ReadCPException &exc)
+    catch (read_cp_exception &exc)
     {
         cerr << "shutdown: control socket read failure or protocol error" << endl;    
         return 1;
@@ -181,47 +172,6 @@ int main(int argc, char **argv)
     }
     
     return 0;
-}
-
-// Fill a circular buffer from a file descriptor, reading at least _rlength_ bytes.
-// Throws ReadException if the requested number of bytes cannot be read, with:
-//     errcode = 0   if end of stream (remote end closed)
-//     errcode = errno   if another error occurred
-// Note that EINTR is ignored (i.e. the read will be re-tried).
-static void fillBufferTo(cpbuffer<1024> *buf, int fd, int rlength)
-{
-    do {
-        int r = buf->fill_to(fd, rlength);
-        if (r == -1) {
-            if (errno != EINTR) {
-                throw ReadCPException(errno);
-            }
-        }
-        else if (r == 0) {
-            throw ReadCPException(0);
-        }
-        else {
-            return;
-        }
-    }
-    while (true);
-}
-
-// Wait for a reply packet, skipping over any information packets
-// that are received in the meantime.
-static void wait_for_reply(cpbuffer<1024> &rbuffer, int fd)
-{
-    fillBufferTo(&rbuffer, fd, 1);
-    
-    while (rbuffer[0] >= 100) {
-        // Information packet; discard.
-        fillBufferTo(&rbuffer, fd, 2);
-        int pktlen = (unsigned char) rbuffer[1];
-        
-        rbuffer.consume(1);  // Consume one byte so we'll read one byte of the next packet
-        fillBufferTo(&rbuffer, fd, pktlen);
-        rbuffer.consume(pktlen - 1);
-    }
 }
 
 // Actually shut down the system.
