@@ -127,7 +127,28 @@ namespace {
         }
     };
 
+    // Simple timer used to limit the amount of time waiting for the log flush to complete (at shutdown)
+    class log_flush_timer_t : public eventloop_t::timer_impl<log_flush_timer_t>
+    {
+        using rearm = dasynq::rearm;
+
+        bool expired = false;
+
+        public:
+        rearm timer_expiry(eventloop_t &, int expiry_count)
+        {
+            expired = true;
+            return rearm::DISARM;
+        }
+
+        bool has_expired()
+        {
+            return expired;
+        }
+    };
+
     control_socket_watcher control_socket_io;
+    log_flush_timer_t log_flush_timer;
 }
 
 int dinit_main(int argc, char **argv)
@@ -304,6 +325,8 @@ int dinit_main(int argc, char **argv)
     prctl(PR_SET_CHILD_SUBREAPER, 1);
 #endif
     
+    log_flush_timer.add_timer(event_loop, dasynq::clock_type::MONOTONIC);
+
     /* start requested services */
     services = new dirload_service_set(service_dir);
     
@@ -355,7 +378,8 @@ int dinit_main(int argc, char **argv)
         }
     }
     
-    while (! is_log_flushed()) {
+    log_flush_timer.arm_timer_rel(event_loop, timespec{5,0}); // 5 seconds
+    while (! is_log_flushed() && ! log_flush_timer.has_expired()) {
         event_loop.run();
     }
     
