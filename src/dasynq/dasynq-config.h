@@ -44,6 +44,11 @@
 #if ! defined(DASYNQ_HAVE_KQUEUE)
 #if defined(__OpenBSD__) || defined(__APPLE__) || defined(__FreeBSD__)
 #define DASYNQ_HAVE_KQUEUE 1
+#if defined(__APPLE__)
+// kqueue on macos has "issues". See extra/macos-kqueue-bug. There is an alternate Dasyqn kqueue backend
+// which avoids the issue, which is enabled via DASYNQ_KQUEUE_MACOS_WORKAROUND.
+#define DASYNQ_KQUEUE_MACOS_WORKAROUND 1
+#endif
 #endif
 #endif
 

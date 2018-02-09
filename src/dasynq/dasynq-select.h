@@ -13,6 +13,7 @@
 #include <setjmp.h>
 
 #include "dasynq-config.h"
+#include "dasynq-signal.h"
 
 // "pselect"-based event loop mechanism.
 //
@@ -21,39 +22,9 @@ namespace dasynq {
 
 template <class Base> class select_events;
 
-class select_traits
+class select_traits : public signal_traits
 {
     public:
-
-    class sigdata_t
-    {
-        template <class Base> friend class select_events;
-
-        siginfo_t info;
-
-        public:
-        // mandatory:
-        int get_signo() { return info.si_signo; }
-        int get_sicode() { return info.si_code; }
-        pid_t get_sipid() { return info.si_pid; }
-        uid_t get_siuid() { return info.si_uid; }
-        void * get_siaddr() { return info.si_addr; }
-        int get_sistatus() { return info.si_status; }
-        int get_sival_int() { return info.si_value.sival_int; }
-        void * get_sival_ptr() { return info.si_value.sival_ptr; }
-
-        // XSI
-        int get_sierrno() { return info.si_errno; }
-
-        // XSR (streams) OB (obselete)
-#if !defined(__OpenBSD__)
-        // Note: OpenBSD doesn't have this; most other systems do. Technically it is part of the STREAMS
-        // interface.
-        int get_siband() { return info.si_band; }
-#endif
-
-        void set_signo(int signo) { info.si_signo = signo; }
-    };
 
     class fd_r;
 
@@ -89,65 +60,12 @@ class select_traits
     constexpr static bool supports_non_oneshot_fd = false;
 };
 
-namespace dprivate {
-namespace select_mech {
-
-// We need to declare and define a non-static data variable, "siginfo_p", in this header, without
-// violating the "one definition rule". The only way to do that is via a template, even though we
-// don't otherwise need a template here:
-template <typename T = decltype(nullptr)> class sig_capture_templ
-{
-    public:
-    static siginfo_t siginfo_cap;
-    static sigjmp_buf rjmpbuf;
-
-    static void signal_handler(int signo, siginfo_t *siginfo, void *v)
-    {
-        siginfo_cap = *siginfo;
-        siglongjmp(rjmpbuf, 1);
-    }
-};
-template <typename T> siginfo_t sig_capture_templ<T>::siginfo_cap;
-template <typename T> sigjmp_buf sig_capture_templ<T>::rjmpbuf;
-
-using sig_capture = sig_capture_templ<>;
-
-inline void prepare_signal(int signo)
-{
-    struct sigaction the_action;
-    the_action.sa_sigaction = sig_capture::signal_handler;
-    the_action.sa_flags = SA_SIGINFO;
-    sigfillset(&the_action.sa_mask);
-
-    sigaction(signo, &the_action, nullptr);
-}
-
-inline sigjmp_buf &get_sigreceive_jmpbuf()
-{
-    return sig_capture::rjmpbuf;
-}
-
-inline void unprep_signal(int signo)
-{
-    signal(signo, SIG_DFL);
-}
-
-inline siginfo_t * get_siginfo()
-{
-    return &sig_capture::siginfo_cap;
-}
-
-} } // namespace dasynq :: select_mech
-
-template <class Base> class select_events : public Base
+template <class Base> class select_events : public signal_events<Base>
 {
     fd_set read_set;
     fd_set write_set;
     //fd_set error_set;  // logical OR of both the above
     int max_fd = 0; // highest fd in any of the sets
-
-    sigset_t active_sigmask; // mask out unwatched signals i.e. active=0
-    void * sig_userdata[NSIG];
 
     // userdata pointers in read and write respectively, for each fd:
     std::vector<void *> rd_udata;
@@ -159,7 +77,6 @@ template <class Base> class select_events : public Base
     //   receive_signal(sigdata_t &, user *) noexcept
     //   receive_fd_event(fd_r, user *, int flags) noexcept
 
-    using sigdata_t = select_traits::sigdata_t;
     using fd_r = typename select_traits::fd_r;
 
     void process_events(fd_set *read_set_p, fd_set *write_set_p, fd_set *error_set_p)
@@ -204,7 +121,6 @@ template <class Base> class select_events : public Base
     {
         FD_ZERO(&read_set);
         FD_ZERO(&write_set);
-        sigfillset(&active_sigmask);
         Base::init(this);
     }
 
@@ -333,44 +249,6 @@ template <class Base> class select_events : public Base
         disable_fd_watch_nolock(fd, flags);
     }
 
-    // Note signal should be masked before call.
-    void add_signal_watch(int signo, void *userdata)
-    {
-        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-        add_signal_watch_nolock(signo, userdata);
-    }
-
-    // Note signal should be masked before call.
-    void add_signal_watch_nolock(int signo, void *userdata)
-    {
-        sig_userdata[signo] = userdata;
-        sigdelset(&active_sigmask, signo);
-        dprivate::select_mech::prepare_signal(signo);
-    }
-
-    // Note, called with lock held:
-    void rearm_signal_watch_nolock(int signo, void *userdata) noexcept
-    {
-        sig_userdata[signo] = userdata;
-        sigdelset(&active_sigmask, signo);
-    }
-
-    void remove_signal_watch_nolock(int signo) noexcept
-    {
-        dprivate::select_mech::unprep_signal(signo);
-        sigaddset(&active_sigmask, signo);
-        sig_userdata[signo] = nullptr;
-        // No need to signal other threads
-    }
-
-    void remove_signal_watch(int signo) noexcept
-    {
-        std::lock_guard<decltype(Base::lock)> guard(Base::lock);
-        remove_signal_watch_nolock(signo);
-    }
-
-    public:
-
     // If events are pending, process an unspecified number of them.
     // If no events are pending, wait until one event is received and
     // process this event (and possibly any other events received
@@ -383,7 +261,7 @@ template <class Base> class select_events : public Base
     //            pending.
     void pull_events(bool do_wait) noexcept
     {
-        using namespace dprivate::select_mech;
+        //using namespace dprivate::select_mech;
 
         struct timespec ts;
         ts.tv_sec = 0;
@@ -397,6 +275,8 @@ template <class Base> class select_events : public Base
         read_set_c = read_set;
         write_set_c = write_set;
         err_set = read_set;
+
+        const sigset_t &active_sigmask = this->get_active_sigmask();
 
         sigset_t sigmask;
         this->sigmaskf(SIG_UNBLOCK, nullptr, &sigmask);
@@ -414,18 +294,8 @@ template <class Base> class select_events : public Base
 
         // using sigjmp/longjmp is ugly, but there is no other way. If a signal that we're watching is
         // received during polling, it will longjmp back to here:
-        if (sigsetjmp(get_sigreceive_jmpbuf(), 1) != 0) {
-            std::atomic_signal_fence(std::memory_order_acquire);
-            auto * sinfo = get_siginfo();
-            sigdata_t sigdata;
-            sigdata.info = *sinfo;
-            Base::lock.lock();
-            void *udata = sig_userdata[sinfo->si_signo];
-            if (udata != nullptr && Base::receive_signal(*this, sigdata, udata)) {
-                sigaddset(&sigmask, sinfo->si_signo);
-                sigaddset(&active_sigmask, sinfo->si_signo);
-            }
-            Base::lock.unlock();
+        if (sigsetjmp(this->get_sigreceive_jmpbuf(), 1) != 0) {
+            this->process_signal(sigmask);
             was_signalled = true;
         }
 

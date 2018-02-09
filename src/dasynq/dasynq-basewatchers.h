@@ -75,7 +75,7 @@ namespace dprivate {
         TIMER
     };
 
-    template <typename T_Mutex, typename Traits, typename LoopTraits> class event_dispatch;
+    template <typename Traits, typename LoopTraits> class event_dispatch;
 
     // For FD watchers:
     // Use this watch flag to indicate that in and out events should be reported separately,
@@ -139,10 +139,10 @@ namespace dprivate {
     };
 
     // Base signal event - not part of public API
-    template <typename T_Mutex, typename T_Sigdata>
+    template <typename T_Sigdata>
     class base_signal_watcher : public base_watcher
     {
-        template <typename, typename, typename> friend class event_dispatch;
+        template <typename, typename> friend class event_dispatch;
         template <typename, typename> friend class dasynq::event_loop;
 
         protected:
@@ -154,10 +154,9 @@ namespace dprivate {
         typedef siginfo_t &siginfo_p;
     };
 
-    template <typename T_Mutex>
     class base_fd_watcher : public base_watcher
     {
-        template <typename, typename, typename> friend class event_dispatch;
+        template <typename, typename> friend class event_dispatch;
         template <typename, typename> friend class dasynq::event_loop;
 
         protected:
@@ -175,10 +174,9 @@ namespace dprivate {
         base_fd_watcher() noexcept : base_watcher(watch_type_t::FD) { }
     };
 
-    template <typename T_Mutex>
-    class base_bidi_fd_watcher : public base_fd_watcher<T_Mutex>
+    class base_bidi_fd_watcher : public base_fd_watcher
     {
-        template <typename, typename, typename> friend class event_dispatch;
+        template <typename, typename> friend class event_dispatch;
         template <typename, typename> friend class dasynq::event_loop;
 
         base_bidi_fd_watcher(const base_bidi_fd_watcher &) = delete;
@@ -195,10 +193,9 @@ namespace dprivate {
         int write_removed : 1; // write watch removed?
     };
 
-    template <typename T_Mutex>
     class base_child_watcher : public base_watcher
     {
-        template <typename, typename, typename> friend class event_dispatch;
+        template <typename, typename> friend class event_dispatch;
         template <typename, typename> friend class dasynq::event_loop;
 
         protected:
@@ -210,10 +207,9 @@ namespace dprivate {
     };
 
 
-    template <typename T_Mutex>
     class base_timer_watcher : public base_watcher
     {
-        template <typename, typename, typename> friend class event_dispatch;
+        template <typename, typename> friend class event_dispatch;
         template <typename, typename> friend class dasynq::event_loop;
 
         protected:
