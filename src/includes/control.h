@@ -4,6 +4,7 @@
 #include <list>
 #include <vector>
 #include <unordered_map>
+#include <map>
 #include <limits>
 #include <cstddef>
 
@@ -104,7 +105,7 @@ class control_conn_t : private service_listener
     // in communction
     using handle_t = uint32_t;
     std::unordered_multimap<service_record *, handle_t> serviceKeyMap;
-    std::unordered_map<handle_t, service_record *> keyServiceMap;
+    std::map<handle_t, service_record *> keyServiceMap;
     
     // Buffer for outgoing packets. Each outgoing back is represented as a vector<char>.
     list<vector<char>> outbuf;

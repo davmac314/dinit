@@ -292,19 +292,15 @@ bool control_conn_t::list_services()
 
 control_conn_t::handle_t control_conn_t::allocate_service_handle(service_record *record)
 {
-    // Try to find a unique handle (integer) in a single pass. Start with 0, and keep track of the largest
-    // handle seen so far. If we find the current candidate, we set the candidate to (largest+1).
-    bool is_unique = true;
-    handle_t largest_seen = 0;
+    // Try to find a unique handle (integer) in a single pass. Since the map is ordered, we can search until
+    // we find a gap in the handle values.
     handle_t candidate = 0;
     for (auto p : keyServiceMap) {
-        if (p.first > largest_seen) largest_seen = p.first;
-        if (p.first == candidate) {
-            if (largest_seen == std::numeric_limits<handle_t>::max()) throw std::bad_alloc();
-            candidate = largest_seen + 1;
-        }
-        is_unique &= (p.second != record);
+        if (p.first == candidate) candidate++;
+        else break;
     }
+
+    bool is_unique = (serviceKeyMap.find(record) == serviceKeyMap.end());
 
     // The following operations perform allocation (can throw std::bad_alloc). If an exception occurs we
     // must undo any previous actions:
