@@ -622,6 +622,8 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_start_interruptible(start_is_interruptible);
                     rvalps->set_extra_termination_signal(term_signal);
                     rvalps->set_run_as_uid_gid(run_as_uid, run_as_gid);
+                    // process service start / run on console must be the same:
+                    onstart_flags.starts_on_console = onstart_flags.runs_on_console;
                     rval = rvalps;
                 }
                 else if (service_type == service_type_t::BGPROCESS) {
@@ -635,6 +637,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_start_interruptible(start_is_interruptible);
                     rvalps->set_extra_termination_signal(term_signal);
                     rvalps->set_run_as_uid_gid(run_as_uid, run_as_gid);
+                    onstart_flags.runs_on_console = false;
                     rval = rvalps;
                 }
                 else if (service_type == service_type_t::SCRIPTED) {

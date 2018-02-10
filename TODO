@@ -1,5 +1,3 @@
-* Prevent PROCESS services from being starts-on-console without also being runs-on-console.
-
 * shutdown command presently hangs if terminal output blocked (scroll lock
   via ^S). Should use a buffer as dinit does, and pipe output from subcommands
   via the buffer too - if the buffer becomes full, discard subcommand output
@@ -15,7 +13,6 @@ For version 1.0:
 ----------------
 * Man pages for all programs (done for dinit, not for dinitctl/shutdown/etc).
 * Write wtmp entry on startup (see simpleinit)
-* Allow running services as a different UID
 * "triggered" service type: external process notifies Dinit when the service
   has started.
 * Ability to reload stopped services (reload service description)
