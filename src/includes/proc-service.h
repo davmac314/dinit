@@ -137,6 +137,10 @@ class base_process_service : public service_record
 
     ~base_process_service() noexcept
     {
+        if (reserved_child_watch) {
+            child_listener.unreserve(event_loop);
+        }
+        restart_timer.deregister(event_loop);
     }
 
     // Set the stop command and arguments (may throw std::bad_alloc)
