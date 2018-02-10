@@ -292,6 +292,8 @@ bool control_conn_t::list_services()
 
 control_conn_t::handle_t control_conn_t::allocate_service_handle(service_record *record)
 {
+    // Try to find a unique handle (integer) in a single pass. Start with 0, and keep track of the largest
+    // handle seen so far. If we find the current candidate, we set the candidate to (largest+1).
     bool is_unique = true;
     handle_t largest_seen = 0;
     handle_t candidate = 0;
@@ -303,12 +305,23 @@ control_conn_t::handle_t control_conn_t::allocate_service_handle(service_record 
         }
         is_unique &= (p.second != record);
     }
-    
-    keyServiceMap[candidate] = record;
-    serviceKeyMap.insert(std::make_pair(record, candidate));
-    
+
+    // The following operations perform allocation (can throw std::bad_alloc). If an exception occurs we
+    // must undo any previous actions:
     if (is_unique) {
         record->add_listener(this);
+    }
+    
+    try {
+        keyServiceMap[candidate] = record;
+        serviceKeyMap.insert(std::make_pair(record, candidate));
+    }
+    catch (...) {
+        if (is_unique) {
+            record->remove_listener(this);
+        }
+
+        keyServiceMap.erase(candidate);
     }
     
     return candidate;
