@@ -33,10 +33,11 @@ class read_cp_exception
 
 enum class command_t;
 
-static int issue_load_service(int socknum, const char *service_name);
+static int issue_load_service(int socknum, const char *service_name, bool find_only = false);
 static int check_load_reply(int socknum, cpbuffer<1024> &rbuffer, handle_t *handle_p, service_state_t *state_p);
 static int start_stop_service(int socknum, const char *service_name, command_t command, bool do_pin, bool wait_for_service, bool verbose);
 static int unpin_service(int socknum, const char *service_name, bool verbose);
+static int unload_service(int socknum, const char *service_name);
 static int list_services(int socknum);
 static int shutdown_dinit(int soclknum);
 
@@ -131,6 +132,7 @@ enum class command_t {
     STOP_SERVICE,
     RELEASE_SERVICE,
     UNPIN_SERVICE,
+    UNLOAD_SERVICE,
     LIST_SERVICES,
     SHUTDOWN
 };
@@ -191,6 +193,9 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "unpin") == 0) {
                 command = command_t::UNPIN_SERVICE;
             }
+            else if (strcmp(argv[i], "unload") == 0) {
+                command = command_t::UNLOAD_SERVICE;
+            }
             else if (strcmp(argv[i], "list") == 0) {
                 command = command_t::LIST_SERVICES;
             }
@@ -232,6 +237,7 @@ int main(int argc, char **argv)
         cout << "    dinitctl [options] wake [options] <service-name>  : start but do not mark activated" << endl;
         cout << "    dinitctl [options] release [options] <service-name> : release activation, stop if no dependents" << endl;
         cout << "    dinitctl [options] unpin <service-name>           : un-pin the service (after a previous pin)" << endl;
+        cout << "    dinitctl unload <service-name>                    : unload the service" << endl;
         cout << "    dinitctl list                                     : list loaded services" << endl;
         cout << "    dinitctl shutdown                                 : stop all services and terminate dinit" << endl;
         
@@ -300,6 +306,9 @@ int main(int argc, char **argv)
     
     if (command == command_t::UNPIN_SERVICE) {
         return unpin_service(socknum, service_name, verbose);
+    }
+    else if (command == command_t::UNLOAD_SERVICE) {
+        return unload_service(socknum, service_name);
     }
     else if (command == command_t::LIST_SERVICES) {
         return list_services(socknum);
@@ -475,7 +484,7 @@ static int start_stop_service(int socknum, const char *service_name, command_t c
 
 // Issue a "load service" command (DINIT_CP_LOADSERVICE), without waiting for
 // a response. Returns 1 on failure (with error logged), 0 on success.
-static int issue_load_service(int socknum, const char *service_name)
+static int issue_load_service(int socknum, const char *service_name, bool find_only)
 {
     // Build buffer;
     uint16_t sname_len = strlen(service_name);
@@ -486,7 +495,7 @@ static int issue_load_service(int socknum, const char *service_name)
         std::unique_ptr<char[]> ubuf(new char[bufsize]);
         auto buf = ubuf.get();
         
-        buf[0] = DINIT_CP_LOADSERVICE;
+        buf[0] = find_only ? DINIT_CP_FINDSERVICE : DINIT_CP_LOADSERVICE;
         memcpy(buf + 1, &sname_len, 2);
         memcpy(buf + 3, service_name, sname_len);
         
@@ -586,6 +595,70 @@ static int unpin_service(int socknum, const char *service_name, bool verbose)
     if (verbose) {
         cout << "Service unpinned." << endl;
     }
+    return 0;
+}
+
+static int unload_service(int socknum, const char *service_name)
+{
+    using namespace std;
+
+    // Build buffer;
+    if (issue_load_service(socknum, service_name, true) == 1) {
+        return 1;
+    }
+
+    // Now we expect a reply:
+
+    try {
+        cpbuffer<1024> rbuffer;
+        wait_for_reply(rbuffer, socknum);
+
+        handle_t handle;
+
+        if (check_load_reply(socknum, rbuffer, &handle, nullptr) != 0) {
+            return 1;
+        }
+
+        // Issue UNLOAD command.
+        {
+            int r;
+
+            {
+                char *buf = new char[1 + sizeof(handle)];
+                unique_ptr<char[]> ubuf(buf);
+                buf[0] = DINIT_CP_UNLOADSERVICE;
+                memcpy(buf + 1, &handle, sizeof(handle));
+                r = write_all(socknum, buf, 2 + sizeof(handle));
+            }
+
+            if (r == -1) {
+                perror("dinitctl: write");
+                return 1;
+            }
+
+            wait_for_reply(rbuffer, socknum);
+            if (rbuffer[0] == DINIT_RP_NAK) {
+                cerr << "dinitctl: Could not unload service; service not stopped, or is a dependency of "
+                        "other service." << endl;
+                return 1;
+            }
+            if (rbuffer[0] != DINIT_RP_ACK) {
+                cerr << "dinitctl: Protocol error." << endl;
+                return 1;
+            }
+            rbuffer.consume(1);
+        }
+    }
+    catch (read_cp_exception &exc) {
+        cerr << "dinitctl: Control socket read failure or protocol error" << endl;
+        return 1;
+    }
+    catch (std::bad_alloc &exc) {
+        cerr << "dinitctl: Out of memory" << endl;
+        return 1;
+    }
+
+    cout << "Service unloaded." << endl;
     return 0;
 }
 

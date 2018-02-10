@@ -33,6 +33,9 @@ bool control_conn_t::process_packet()
     if (pktType == DINIT_CP_UNPINSERVICE) {
         return process_unpin_service();
     }
+    if (pktType == DINIT_CP_UNLOADSERVICE) {
+        return process_unload_service();
+    }
     if (pktType == DINIT_CP_SHUTDOWN) {
         // Shutdown/reboot
         if (rbuf.get_length() < 2) {
@@ -234,13 +237,65 @@ bool control_conn_t::process_unpin_service()
         iob.set_watches(OUT_EVENTS);
         return true;
     }
+
+    service->unpin();
+    services->process_queues();
+    char ack_buf[] = { (char) DINIT_RP_ACK };
+    if (! queue_packet(ack_buf, 1)) return false;
+    
+    // Clear the packet from the buffer
+    rbuf.consume(pkt_size);
+    chklen = 0;
+    return true;
+}
+
+bool control_conn_t::process_unload_service()
+{
+    using std::string;
+
+    constexpr int pkt_size = 1 + sizeof(handle_t);
+
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    // 1 byte: packet type
+    // 4 bytes: service handle
+
+    handle_t handle;
+    rbuf.extract((char *) &handle, 1, sizeof(handle));
+
+    service_record *service = find_service_for_key(handle);
+    if (service == nullptr) {
+        // Service handle is bad
+        char badreq_rep[] = { DINIT_RP_BADREQ };
+        if (! queue_packet(badreq_rep, 1)) return false;
+        bad_conn_close = true;
+        iob.set_watches(OUT_EVENTS);
+        return true;
+    }
+
+    if (! service->has_lone_ref() || service->get_state() != service_state_t::STOPPED) {
+        // Cannot unload: has other references
+        char nak_rep[] = { DINIT_RP_NAK };
+        if (! queue_packet(nak_rep, 1)) return false;
+    }
     else {
-        service->unpin();
-        services->process_queues();
+        // unload
+        service->prepare_for_unload();
+        services->remove_service(service);
+        delete service;
+
+        // drop handle
+        service_key_map.erase(service);
+        key_service_map.erase(handle);
+
+        // send ack
         char ack_buf[] = { (char) DINIT_RP_ACK };
         if (! queue_packet(ack_buf, 1)) return false;
     }
-    
+
     // Clear the packet from the buffer
     rbuf.consume(pkt_size);
     chklen = 0;

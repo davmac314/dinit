@@ -141,6 +141,9 @@ class control_conn_t : private service_listener
     // Process an UNPINSERVICE packet. May throw std::bad_alloc.
     bool process_unpin_service();
     
+    // Process an UNLOADSERVICE packet.
+    bool process_unload_service();
+
     bool list_services();
 
     // Notify that data is ready to be read from the socket. Returns true if the connection should

@@ -22,6 +22,9 @@ constexpr static int DINIT_CP_UNPINSERVICE = 7;
 // List services:
 constexpr static int DINIT_CP_LISTSERVICES = 8;
 
+// Unload a service:
+constexpr static int DINIT_CP_UNLOADSERVICE = 9;
+
 // Shutdown:
 constexpr static int DINIT_CP_SHUTDOWN = 10;
  // followed by 1-byte shutdown type

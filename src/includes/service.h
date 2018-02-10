@@ -571,6 +571,26 @@ class service_record
     {
         listeners.erase(listener);
     }
+    
+    // Assuming there is one reference (from a control link), return true if this is the only reference,
+    // or false if there are others (including dependents).
+    bool has_lone_ref() noexcept
+    {
+        if (! dependents.empty()) return false;
+        auto i = listeners.begin();
+        return (++i == listeners.end());
+    }
+
+    // Prepare this service to be unloaded.
+    void prepare_for_unload() noexcept
+    {
+        // Remove all dependencies:
+        for (auto &dep : depends_on) {
+            auto &dep_dpts = dep.get_to()->dependents;
+            dep_dpts.erase(std::find(dep_dpts.begin(), dep_dpts.end(), &dep));
+        }
+        depends_on.clear();
+    }
 };
 
 inline auto extract_prop_queue(service_record *sr) -> decltype(sr->prop_queue_node) &
@@ -687,7 +707,7 @@ class service_set
     
     void remove_service(service_record *svc)
     {
-        std::remove(records.begin(), records.end(), svc);
+        records.erase(std::find(records.begin(), records.end(), svc));
     }
 
     // Get the list of all loaded services.
