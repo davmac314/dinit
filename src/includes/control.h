@@ -104,8 +104,8 @@ class control_conn_t : private service_listener
     // A mapping between service records and their associated numerical identifier used
     // in communction
     using handle_t = uint32_t;
-    std::unordered_multimap<service_record *, handle_t> serviceKeyMap;
-    std::map<handle_t, service_record *> keyServiceMap;
+    std::unordered_multimap<service_record *, handle_t> service_key_map;
+    std::map<handle_t, service_record *> key_service_map;
     
     // Buffer for outgoing packets. Each outgoing back is represented as a vector<char>.
     list<vector<char>> outbuf;
@@ -155,7 +155,7 @@ class control_conn_t : private service_listener
     service_record *find_service_for_key(uint32_t key)
     {
         try {
-            return keyServiceMap.at(key);
+            return key_service_map.at(key);
         }
         catch (std::out_of_range &exc) {
             return nullptr;
@@ -176,7 +176,7 @@ class control_conn_t : private service_listener
     void service_event(service_record * service, service_event_t event) noexcept final override
     {
         // For each service handle corresponding to the event, send an information packet.
-        auto range = serviceKeyMap.equal_range(service);
+        auto range = service_key_map.equal_range(service);
         auto & i = range.first;
         auto & end = range.second;
         try {

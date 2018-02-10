@@ -295,12 +295,12 @@ control_conn_t::handle_t control_conn_t::allocate_service_handle(service_record 
     // Try to find a unique handle (integer) in a single pass. Since the map is ordered, we can search until
     // we find a gap in the handle values.
     handle_t candidate = 0;
-    for (auto p : keyServiceMap) {
+    for (auto p : key_service_map) {
         if (p.first == candidate) candidate++;
         else break;
     }
 
-    bool is_unique = (serviceKeyMap.find(record) == serviceKeyMap.end());
+    bool is_unique = (service_key_map.find(record) == service_key_map.end());
 
     // The following operations perform allocation (can throw std::bad_alloc). If an exception occurs we
     // must undo any previous actions:
@@ -309,15 +309,15 @@ control_conn_t::handle_t control_conn_t::allocate_service_handle(service_record 
     }
     
     try {
-        keyServiceMap[candidate] = record;
-        serviceKeyMap.insert(std::make_pair(record, candidate));
+        key_service_map[candidate] = record;
+        service_key_map.insert(std::make_pair(record, candidate));
     }
     catch (...) {
         if (is_unique) {
             record->remove_listener(this);
         }
 
-        keyServiceMap.erase(candidate);
+        key_service_map.erase(candidate);
     }
     
     return candidate;
@@ -531,7 +531,7 @@ control_conn_t::~control_conn_t() noexcept
     iob.deregister(loop);
     
     // Clear service listeners
-    for (auto p : serviceKeyMap) {
+    for (auto p : service_key_map) {
         p.first->remove_listener(this);
     }
     
