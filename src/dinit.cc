@@ -17,6 +17,9 @@
 #include <sys/klog.h>
 #include <sys/reboot.h>
 #endif
+#if defined(__FreeBSD__) || defined(__DragonFly__)
+#include <sys/procctl.h>
+#endif
 
 #include "dinit.h"
 #include "dasynq.h"
@@ -323,6 +326,12 @@ int dinit_main(int argc, char **argv)
     // Mark ourselves as a subreaper. This means that if a process we start double-forks, the
     // orphaned child will re-parent to us rather than to PID 1 (although that could be us too).
     prctl(PR_SET_CHILD_SUBREAPER, 1);
+#endif
+#if defined(__FreeBSD__) || defined(__DragonFly__)
+    // Documentation (man page) for this kind of sucks. PROC_REAP_ACQUIRE "acquires the reaper status for
+    // the current process" but does that mean the first two arguments still need valid values to be
+    // supplied? We'll play itself and explicitly target our own process:
+    procctl(P_PID, getpid(), PROC_REAP_ACQUIRE);
 #endif
     
     log_flush_timer.add_timer(event_loop, dasynq::clock_type::MONOTONIC);
