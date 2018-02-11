@@ -23,8 +23,9 @@ SANITIZEOPTS=-fsanitize=address,undefined
 # (shutdown command not available for OpenBSD yet).
 
 # FreeBSD: use clang++ by default, supports sanitizers, requires linking with -lrt
+# Cannot use -fno-rtti: apparently prevents exception handling from working properly.
 #CXX=clang++
-#CXXOPTS=-std=c++11 -Os -Wall -fno-rtti
+#CXXOPTS=-std=c++11 -Os -Wall
 #LDFLAGS=-lrt
 #BUILD_SHUTDOWN=no
 #SANITIZEOPTS=-fsanitize=address,undefined
