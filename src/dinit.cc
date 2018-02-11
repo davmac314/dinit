@@ -227,6 +227,8 @@ int dinit_main(int argc, char **argv)
             if (! am_system_init || strcmp(argv[i], "auto") != 0) {
                 services_to_start.push_back(argv[i]);
             }
+#else
+            services_to_start.push_back(argv[i]);
 #endif
         }
       }
@@ -330,8 +332,8 @@ int dinit_main(int argc, char **argv)
 #if defined(__FreeBSD__) || defined(__DragonFly__)
     // Documentation (man page) for this kind of sucks. PROC_REAP_ACQUIRE "acquires the reaper status for
     // the current process" but does that mean the first two arguments still need valid values to be
-    // supplied? We'll play itself and explicitly target our own process:
-    procctl(P_PID, getpid(), PROC_REAP_ACQUIRE);
+    // supplied? We'll play it safe and explicitly target our own process:
+    procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL);
 #endif
     
     log_flush_timer.add_timer(event_loop, dasynq::clock_type::MONOTONIC);
