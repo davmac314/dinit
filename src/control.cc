@@ -17,9 +17,9 @@ bool control_conn_t::process_packet()
     int pktType = rbuf[0];
     if (pktType == DINIT_CP_QUERYVERSION) {
         // Responds with:
-        // DINIT_RP_CVERSION, (2 byte) minimum compatible version, (2 byte) maximum compatible version
+        // DINIT_RP_CVERSION, (2 byte) minimum compatible version, (2 byte) actual version
         char replyBuf[] = { DINIT_RP_CPVERSION, 0, 0, 0, 0 };
-        if (! queue_packet(replyBuf, 1)) return false;
+        if (! queue_packet(replyBuf, sizeof(replyBuf))) return false;
         rbuf.consume(1);
         return true;
     }

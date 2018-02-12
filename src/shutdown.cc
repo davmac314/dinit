@@ -161,7 +161,7 @@ int main(int argc, char **argv)
             return 1;
         }
     }
-    catch (read_cp_exception &exc)
+    catch (cp_read_exception &exc)
     {
         cerr << "shutdown: control socket read failure or protocol error" << endl;    
         return 1;
