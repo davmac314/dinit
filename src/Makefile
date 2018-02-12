@@ -35,7 +35,7 @@ endif
 
 clean:
 	rm -f *.o *.d
-	rm -f dinit dinitctl shutdown
+	rm -f dinit dinitctl shutdown halt reboot
 	$(MAKE) -C tests clean
 
 -include $(objects:.o=.d)
