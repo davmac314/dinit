@@ -46,6 +46,11 @@ class eventloop_t
         {
 
         }
+
+        void unreserve(eventloop_t &loop) noexcept
+        {
+
+        }
     };
 
     template <typename Derived> class child_proc_watcher_impl : public child_proc_watcher
@@ -100,6 +105,11 @@ class eventloop_t
         void stop_timer(eventloop_t &loop) noexcept
         {
             loop.active_timers.erase(this);
+        }
+
+        void deregister(eventloop_t &loop) noexcept
+        {
+
         }
     };
 
