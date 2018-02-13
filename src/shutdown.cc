@@ -131,29 +131,24 @@ int main(int argc, char **argv)
         }
     }
 
-    // Build buffer;
-    constexpr int bufsize = 2;
-    char buf[bufsize];
-    
-    buf[0] = DINIT_CP_SHUTDOWN;
-    buf[1] = static_cast<char>(shutdown_type);
-    
-    cout << "Issuing shutdown command..." << endl;
-    
-    int r = write_all(socknum, buf, bufsize);
-    if (r == -1) {
-        perror("write");
-        return 1;
-    }
-    
-    // Wait for ACK/NACK
-    // r = read(socknum, buf, 1);
-    //if (r > 0) {
-    //    cout << "Received acknowledgement. System should now shut down." << endl;
-    //}
-    
-    cpbuffer<1024> rbuffer;
     try {
+        cpbuffer_t rbuffer;
+    
+        check_protocol_version(0, 0, rbuffer, socknum);
+
+        // Build buffer;
+        constexpr int bufsize = 2;
+        char buf[bufsize];
+
+        buf[0] = DINIT_CP_SHUTDOWN;
+        buf[1] = static_cast<char>(shutdown_type);
+
+        cout << "Issuing shutdown command..." << endl;
+
+        write_all_x(socknum, buf, bufsize);
+
+        // Wait for ACK/NACK
+    
         wait_for_reply(rbuffer, socknum);
         
         if (rbuffer[0] != DINIT_RP_ACK) {
@@ -161,9 +156,20 @@ int main(int argc, char **argv)
             return 1;
         }
     }
-    catch (cp_read_exception &exc)
-    {
-        cerr << "shutdown: control socket read failure or protocol error" << endl;    
+    catch (cp_old_client_exception &e) {
+        std::cerr << "shutdown: too old (server reports newer protocol version)" << std::endl;
+        return 1;
+    }
+    catch (cp_old_server_exception &e) {
+        std::cerr << "shutdown: server too old or protocol error" << std::endl;
+        return 1;
+    }
+    catch (cp_read_exception &e) {
+        cerr << "shutdown: control socket read failure or protocol error" << endl;
+        return 1;
+    }
+    catch (cp_write_exception &e) {
+        cerr << "shutdown: control socket write error: " << std::strerror(e.errcode) << endl;
         return 1;
     }
     

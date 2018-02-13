@@ -104,20 +104,25 @@ inline int write_all(int fd, const void *buf, size_t count)
     return w;
 }
 
+// Write all the requested buffer, and throw an exception on failure.
+inline void write_all_x(int fd, const void *buf, size_t count)
+{
+    if (write_all(fd, buf, count) == -1) {
+        throw cp_write_exception(errno);
+    }
+}
+
 // Check the protocol version is compatible with the client.
 //   minverison - minimum protocol version that client can speak
 //   version - maximum protocol version that client can speak
 //   rbuffer, fd -  communication buffer and socket
 // returns: the actual protocol version
 // throws an exception on protocol mismatch or error.
-uint16_t check_protocol_version(int minversion, int version, cpbuffer_t &rbuffer, int fd)
+inline uint16_t check_protocol_version(int minversion, int version, cpbuffer_t &rbuffer, int fd)
 {
     constexpr int bufsize = 1;
     char buf[bufsize] = { DINIT_CP_QUERYVERSION };
-    int r = write_all(fd, buf, bufsize);
-    if (r == -1) {
-        throw cp_write_exception(errno);
-    }
+    write_all_x(fd, buf, bufsize);
 
     wait_for_reply(rbuffer, fd);
     if (rbuffer[0] != DINIT_RP_CPVERSION) {

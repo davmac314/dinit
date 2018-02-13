@@ -290,41 +290,30 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
     service_state_t wanted_state = do_stop ? service_state_t::STOPPED : service_state_t::STARTED;
     int pcommand = 0;
     switch (command) {
-    case command_t::STOP_SERVICE:
-        pcommand = DINIT_CP_STOPSERVICE;
-        break;
-    case command_t::RELEASE_SERVICE:
-        pcommand = DINIT_CP_RELEASESERVICE;
-        break;
-    case command_t::START_SERVICE:
-        pcommand = DINIT_CP_STARTSERVICE;
-        break;
-    case command_t::WAKE_SERVICE:
-        pcommand = DINIT_CP_WAKESERVICE;
-        break;
-    default: ;
+        case command_t::STOP_SERVICE:
+            pcommand = DINIT_CP_STOPSERVICE;
+            break;
+        case command_t::RELEASE_SERVICE:
+            pcommand = DINIT_CP_RELEASESERVICE;
+            break;
+        case command_t::START_SERVICE:
+            pcommand = DINIT_CP_STARTSERVICE;
+            break;
+        case command_t::WAKE_SERVICE:
+            pcommand = DINIT_CP_WAKESERVICE;
+            break;
+        default: ;
     }
 
     // Need to issue STOPSERVICE/STARTSERVICE
     // We'll do this regardless of the current service state / target state, since issuing
     // start/stop also sets or clears the "explicitly started" flag on the service.
     {
-        int r;
-        
-        {
-            auto buf = new char[2 + sizeof(handle)];
-            unique_ptr<char[]> ubuf(buf);
-
-            buf[0] = pcommand;
-            buf[1] = do_pin ? 1 : 0;
-            memcpy(buf + 2, &handle, sizeof(handle));
-            r = write_all(socknum, buf, 2 + sizeof(handle));
-        }
-        
-        if (r == -1) {
-            perror("dinitctl: write");
-            return 1;
-        }
+        char buf[2 + sizeof(handle)];
+        buf[0] = pcommand;
+        buf[1] = do_pin ? 1 : 0;
+        memcpy(buf + 2, &handle, sizeof(handle));
+        write_all_x(socknum, buf, 2 + sizeof(handle));
         
         wait_for_reply(rbuffer, socknum);
         if (rbuffer[0] == DINIT_RP_ALREADYSS) {
@@ -419,27 +408,15 @@ static int issue_load_service(int socknum, const char *service_name, bool find_o
     // Build buffer;
     uint16_t sname_len = strlen(service_name);
     int bufsize = 3 + sname_len;
-    int r;
     
-    try {
-        std::unique_ptr<char[]> ubuf(new char[bufsize]);
-        auto buf = ubuf.get();
-        
-        buf[0] = find_only ? DINIT_CP_FINDSERVICE : DINIT_CP_LOADSERVICE;
-        memcpy(buf + 1, &sname_len, 2);
-        memcpy(buf + 3, service_name, sname_len);
-        
-        r = write_all(socknum, buf, bufsize);
-    }
-    catch (std::bad_alloc &badalloc) {
-        std::cerr << "dinitctl: " << badalloc.what() << std::endl;
-        return 1;
-    }
-    
-    if (r == -1) {
-        perror("dinitctl: write");
-        return 1;
-    }
+    std::unique_ptr<char[]> ubuf(new char[bufsize]);
+    auto buf = ubuf.get();
+
+    buf[0] = find_only ? DINIT_CP_FINDSERVICE : DINIT_CP_LOADSERVICE;
+    memcpy(buf + 1, &sname_len, 2);
+    memcpy(buf + 3, service_name, sname_len);
+
+    write_all_x(socknum, buf, bufsize);
     
     return 0;
 }
@@ -488,20 +465,10 @@ static int unpin_service(int socknum, cpbuffer_t &rbuffer, const char *service_n
 
     // Issue UNPIN command.
     {
-        int r;
-        
-        {
-            char *buf = new char[1 + sizeof(handle)];
-            unique_ptr<char[]> ubuf(buf);
-            buf[0] = DINIT_CP_UNPINSERVICE;
-            memcpy(buf + 1, &handle, sizeof(handle));
-            r = write_all(socknum, buf, 2 + sizeof(handle));
-        }
-        
-        if (r == -1) {
-            perror("dinitctl: write");
-            return 1;
-        }
+        char buf[1 + sizeof(handle)];
+        buf[0] = DINIT_CP_UNPINSERVICE;
+        memcpy(buf + 1, &handle, sizeof(handle));
+        write_all_x(socknum, buf, 2 + sizeof(handle));
         
         wait_for_reply(rbuffer, socknum);
         if (rbuffer[0] != DINIT_RP_ACK) {
@@ -538,20 +505,10 @@ static int unload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
 
     // Issue UNLOAD command.
     {
-        int r;
-
-        {
-            char *buf = new char[1 + sizeof(handle)];
-            unique_ptr<char[]> ubuf(buf);
-            buf[0] = DINIT_CP_UNLOADSERVICE;
-            memcpy(buf + 1, &handle, sizeof(handle));
-            r = write_all(socknum, buf, 2 + sizeof(handle));
-        }
-
-        if (r == -1) {
-            perror("dinitctl: write");
-            return 1;
-        }
+        char buf[1 + sizeof(handle)];
+        buf[0] = DINIT_CP_UNLOADSERVICE;
+        memcpy(buf + 1, &handle, sizeof(handle));
+        write_all_x(socknum, buf, 2 + sizeof(handle));
 
         wait_for_reply(rbuffer, socknum);
         if (rbuffer[0] == DINIT_RP_NAK) {
@@ -575,12 +532,7 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
     using namespace std;
     
     char cmdbuf[] = { (char)DINIT_CP_LISTSERVICES };
-    int r = write_all(socknum, cmdbuf, 1);
-
-    if (r == -1) {
-        perror("dinitctl: write");
-        return 1;
-    }
+    write_all_x(socknum, cmdbuf, 1);
 
     wait_for_reply(rbuffer, socknum);
     while (rbuffer[0] == DINIT_RP_SVCINFO) {
@@ -643,11 +595,7 @@ static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer)
     buf[0] = DINIT_CP_SHUTDOWN;
     buf[1] = static_cast<char>(shutdown_type_t::HALT);
 
-    int r = write_all(socknum, buf, bufsize);
-    if (r == -1) {
-        perror("write");
-        return 1;
-    }
+    write_all_x(socknum, buf, bufsize);
 
     wait_for_reply(rbuffer, socknum);
 
