@@ -1,5 +1,5 @@
 #include <sys/types.h>
-#include <iostream>
+#include <unistd.h>
 
 // Mock system functions for testing.
 
@@ -18,6 +18,16 @@ inline int fcntl(int fd, int cmd, ...)
 inline pid_t getpgid(pid_t pid)
 {
     return pid;
+}
+
+inline int tcsetpgrp(int fd, pid_t pgid)
+{
+    return 0;
+}
+
+inline pid_t getpgrp()
+{
+    return getpid();
 }
 
 }

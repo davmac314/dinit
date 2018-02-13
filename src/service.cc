@@ -13,6 +13,7 @@
 #include "dinit-log.h"
 #include "dinit-socket.h"
 #include "dinit-util.h"
+#include "baseproc-sys.h"
 
 /*
  * service.cc - Service management.
@@ -52,7 +53,7 @@ void service_set::stop_service(const std::string & name) noexcept
 void service_record::stopped() noexcept
 {
     if (onstart_flags.runs_on_console) {
-        tcsetpgrp(0, getpgrp());
+        bp_sys::tcsetpgrp(0, bp_sys::getpgrp());
         discard_console_log_buffer();
         release_console();
     }
@@ -332,7 +333,7 @@ void service_record::started() noexcept
 {
     // If we start on console but don't keep it, release it now:
     if (have_console && ! onstart_flags.runs_on_console) {
-        tcsetpgrp(0, getpgrp());
+        bp_sys::tcsetpgrp(0, bp_sys::getpgrp());
         release_console();
     }
 
@@ -363,7 +364,7 @@ void service_record::started() noexcept
 void service_record::failed_to_start(bool depfailed) noexcept
 {
     if (have_console) {
-        tcsetpgrp(0, getpgrp());
+        bp_sys::tcsetpgrp(0, bp_sys::getpgrp());
         release_console();
     }
     if (waiting_for_console) {

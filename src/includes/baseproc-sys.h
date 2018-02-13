@@ -13,5 +13,7 @@ using ::fcntl;
 using ::close;
 using ::kill;
 using ::getpgid;
+using ::tcsetpgrp;
+using ::getpgrp;
 
 }
