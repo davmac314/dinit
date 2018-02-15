@@ -299,43 +299,41 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
     if (service_state == service_state_t::STOPPING) {
         // We might be running the stop script, or we might be running the start script and have issued
         // a cancel order via SIGINT:
-        if (did_exit && WEXITSTATUS(exit_status) == 0) {
-            if (interrupting_start) {
-                interrupting_start = false;
-                // launch stop script:
-                bring_down();
-            }
-            else {
-                // We were running the stop script and finished successfully
+        if (interrupting_start) {
+            // We issued a start interrupt, so we expected this failure:
+            if (did_exit && WEXITSTATUS(exit_status) != 0) {
+                log(loglevel_t::INFO, "Service ", get_name(), " start cancelled; exit code ",
+                        WEXITSTATUS(exit_status));
+                // Assume that a command terminating normally requires no cleanup:
                 stopped();
             }
-        }
-        else {
-            if (interrupting_start) {
-                // We issued a start interrupt, so we expected this failure:
-                if (did_exit) {
-                    log(loglevel_t::INFO, "Service ", get_name(), " start cancelled; exit code ",
-                            WEXITSTATUS(exit_status));
-                }
-                else if (was_signalled) {
+            else {
+                if (was_signalled) {
                     log(loglevel_t::INFO, "Service ", get_name(), " start cancelled from signal ",
                             WTERMSIG(exit_status));
                 }
+                // If the start script completed successfully, or was interrupted via our signal,
+                // we want to run the stop script to clean up:
+                bring_down();
             }
-            else {
-                // ??? failed to stop! Let's log it as warning:
-                if (did_exit) {
-                    log(loglevel_t::WARN, "Service ", get_name(), " stop command failed with exit code ",
-                            WEXITSTATUS(exit_status));
-                }
-                else if (was_signalled) {
-                    log(loglevel_t::WARN, "Service ", get_name(), " stop command terminated due to signal ",
-                            WTERMSIG(exit_status));
-                }
+            interrupting_start = false;
+        }
+        else if (did_exit && WEXITSTATUS(exit_status) == 0) {
+            // We were running the stop script and finished successfully
+            stopped();
+        }
+        else {
+            // ??? failed to stop! Let's log it as warning:
+            if (did_exit) {
+                log(loglevel_t::WARN, "Service ", get_name(), " stop command failed with exit code ",
+                        WEXITSTATUS(exit_status));
+            }
+            else if (was_signalled) {
+                log(loglevel_t::WARN, "Service ", get_name(), " stop command terminated due to signal ",
+                        WTERMSIG(exit_status));
             }
             // Even if the stop script failed, assume that service is now stopped, so that any dependencies
             // can be stopped. There's not really any other useful course of action here.
-            interrupting_start = false;
             stopped();
         }
         services->process_queues();
