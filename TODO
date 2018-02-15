@@ -3,12 +3,6 @@
   via the buffer too - if the buffer becomes full, discard subcommand output
   and continue to consume it.
 
-* Document utilities (particularly dinitctl) in the README
-
-* scripted process interrupted start might still complete successfully. State will
-  be STOPPING (due to interruptiong), but stop script should still be run in this
-  case.
-
 For version 1.0:
 ----------------
 * Man pages for all programs (done for dinit, not for dinitctl/shutdown/etc).
