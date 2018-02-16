@@ -328,7 +328,6 @@ void base_process_service::emergency_stop() noexcept
     }
     forced_stop();
     stop_dependents();
-    stopped();
 }
 
 void base_process_service::becoming_inactive() noexcept

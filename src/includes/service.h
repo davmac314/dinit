@@ -401,7 +401,7 @@ class service_record
     // Called on transition of desired state from stopped to started (or unpinned stop)
     void do_start() noexcept;
 
-    // Called on transition of desired state from started to stopped (or unpinned start)
+    // Begin stopping, release activation.
     void do_stop() noexcept;
 
     // Set the service state

@@ -2,6 +2,9 @@
 
 #include "service.h"
 
+// This header defines base_proc_service (base process service) and several derivatives, as well as some
+// utility functions and classes. See service.h for full details of services.
+
 // Given a string and a list of pairs of (start,end) indices for each argument in that string,
 // store a null terminator for the argument. Return a `char *` vector containing the beginning
 // of each argument and a trailing nullptr. (The returned array is invalidated if the string is later modified).

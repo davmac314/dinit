@@ -328,7 +328,6 @@ void service_record::acquired_console() noexcept
     }
 }
 
-
 void service_record::started() noexcept
 {
     // If we start on console but don't keep it, release it now:
@@ -416,7 +415,10 @@ void service_record::forced_stop() noexcept
 {
     if (service_state != service_state_t::STOPPED) {
         force_stop = true;
-        services->add_transition_queue(this);
+        if (! pinned_started) {
+            prop_stop = true;
+            services->add_transition_queue(this);
+        }
     }
 }
 
