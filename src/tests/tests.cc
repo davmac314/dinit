@@ -182,8 +182,8 @@ void test5()
     assert(s1->get_state() == service_state_t::STARTED);
 }
 
-// Test 6: service pinned in start state is not stopped when its dependency stops.
-void test6()
+// Test that service pinned in start state is not stopped when its dependency stops.
+void test_pin1()
 {
     service_set sset;
 
@@ -221,6 +221,35 @@ void test6()
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
     // s1 will stop because it is no longer required:
+    assert(s1->get_state() == service_state_t::STOPPED);
+}
+
+// Test that service pinned started is released when stop issued and stops when unpinned
+void test_pin2()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    sset.add_service(s1);
+
+    // Pin s3:
+    s1->pin_start();
+
+    // Start the service:
+    sset.start_service(s1);
+
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    // Issue stop:
+    s1->stop(true);
+    sset.process_queues();
+
+    // s3 should remain started:
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    // If we now unpin, s1 should stop:
+    s1->unpin();
+    sset.process_queues();
     assert(s1->get_state() == service_state_t::STOPPED);
 }
 
@@ -371,7 +400,8 @@ int main(int argc, char **argv)
     RUN_TEST(test3);
     RUN_TEST(test4);
     RUN_TEST(test5);
-    RUN_TEST(test6);
+    RUN_TEST(test_pin1);
+    RUN_TEST(test_pin2);
     RUN_TEST(test7);
     RUN_TEST(test8);
     RUN_TEST(test9);

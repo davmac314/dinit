@@ -445,6 +445,8 @@ void service_record::do_stop() noexcept
 {
     if (pinned_started) return;
 
+    // A service that does actually stop for any reason should have its explicit activation released, unless
+    // it will restart:
     if (start_explicit && ! do_auto_restart()) {
         start_explicit = false;
         release(false);
