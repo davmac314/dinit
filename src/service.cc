@@ -254,6 +254,8 @@ void service_record::do_start() noexcept
 
 void service_record::dependency_started() noexcept
 {
+    // Note that we check for STARTED state here in case the service is in smooth recovery while pinned.
+    // In that case it will wait for dependencies to start before restarting the process.
     if ((service_state == service_state_t::STARTING || service_state == service_state_t::STARTED)
             && waiting_for_deps) {
         services->add_transition_queue(this);
