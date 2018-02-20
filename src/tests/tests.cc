@@ -265,8 +265,58 @@ void test_pin2()
     assert(s1->get_state() == service_state_t::STARTED);
 }
 
-// Test that service pinned started is released when stop issued and stops when unpinned
+// Test that a STOPPING dependency of a pinned service stops when pin is released, even if pinned
+// service is activated:
 void test_pin3()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
+    s2->set_auto_restart(true);
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    // Pin s3:
+    s3->pin_start();
+
+    // Start all three services:
+    sset.start_service(s3);
+
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    // Issue force stop to s2:
+    s2->stop(true);
+    s2->forced_stop();
+    sset.process_queues();
+
+    // s3 should remain started due to pin, but s1 and s2 are released and go STOPPING:
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STOPPING);
+    assert(s1->get_state() == service_state_t::STOPPING);
+
+    // If we now issue start, s2 still needs to stop (due to force stop):
+    s3->start(true);
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STOPPING);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    // When we unpin, s2 should STOP; s3 must stop as a result; s1 is released and so also stops:
+    s3->unpin();
+
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s1->get_state() == service_state_t::STOPPED);
+}
+
+// Test that service pinned started is released when stop issued and stops when unpinned
+void test_pin4()
 {
     service_set sset;
 
@@ -444,6 +494,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_pin1);
     RUN_TEST(test_pin2);
     RUN_TEST(test_pin3);
+    RUN_TEST(test_pin4);
     RUN_TEST(test7);
     RUN_TEST(test8);
     RUN_TEST(test9);
