@@ -84,6 +84,12 @@
  * be set to STARTING or STOPPING to reflect the desired state, but will never be set to STARTED
  * or STOPPED (that happens in the execution phase).
  *
+ * The two-phase transition is needed to avoid problem where a service that becomes STOPPED has
+ * an incorrect acquisition count, which may cause it to restart when it should not. The
+ * propagation phase allows the acquisition count to settle before the transition to the STOPPED
+ * state occurs, and the decision whether to restart can then be made based on the (correct)
+ * acquisition count.
+ *
  * Propagation variables:
  *   prop_acquire:  the service has transitioned to an acquired state and must issue an acquire
  *                  on its dependencies
