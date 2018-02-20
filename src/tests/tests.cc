@@ -210,17 +210,16 @@ void test_pin1()
     s2->stop(true);
     sset.process_queues();
 
-    // s3 should remain started:
+    // s3 should remain started due to pin:
     assert(s3->get_state() == service_state_t::STARTED);
     assert(s2->get_state() == service_state_t::STOPPING);
-    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STOPPING);
 
     // If we now unpin, s3 should stop:
     s3->unpin();
     sset.process_queues();
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
-    // s1 will stop because it is no longer required:
     assert(s1->get_state() == service_state_t::STOPPED);
 }
 

@@ -445,8 +445,6 @@ void service_record::stop(bool bring_down) noexcept
 
 void service_record::do_stop() noexcept
 {
-    if (pinned_started) return;
-
     // A service that does actually stop for any reason should have its explicit activation released, unless
     // it will restart:
     if (start_explicit && ! do_auto_restart()) {
@@ -489,6 +487,8 @@ void service_record::do_stop() noexcept
             return;
         }
     }
+
+    if (pinned_started) return;
 
     service_state = service_state_t::STOPPING;
     waiting_for_deps = true;
