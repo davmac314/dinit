@@ -120,7 +120,7 @@ void service_record::run_child_proc(const char * const *args, const char *logfil
         tcsetpgrp(0, getpgrp());
     }
 
-    if (uid != -1) {
+    if (uid != uid_t(-1)) {
         if (setreuid(uid, uid) != 0) goto failure_out;
         if (setregid(gid, gid) != 0) goto failure_out;
     }
