@@ -115,6 +115,9 @@ void service_record::require() noexcept
         prop_require = !prop_release;
         prop_release = false;
         services->add_prop_queue(this);
+        if (service_state != service_state_t::STARTING && service_state != service_state_t::STARTED) {
+            prop_start = true;
+        }
     }
 }
 
