@@ -123,8 +123,10 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     }
 
     if (forkpid == 0) {
-        run_child_proc(cmd.data(), logfile, on_console, pipefd[1], control_socket[1], socket_fd,
-                run_as_uid, run_as_gid);
+        const char * working_dir_c = nullptr;
+        if (! working_dir.empty()) working_dir_c = working_dir.c_str();
+        run_child_proc(cmd.data(), working_dir_c, logfile, on_console, pipefd[1], control_socket[1],
+                socket_fd, run_as_uid, run_as_gid);
     }
     else {
         // Parent process

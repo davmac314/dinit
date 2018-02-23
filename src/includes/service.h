@@ -338,6 +338,7 @@ class service_record
 
     // Run a child process (call after forking).
     // - args specifies the program arguments including the executable (argv[0])
+    // - working_dir specifies the working directory; may be null
     // - logfile specifies the logfile
     // - on_console: if true, process is run with access to console
     // - wpipefd: if the exec is unsuccessful, or another error occurs beforehand, the
@@ -345,8 +346,8 @@ class service_record
     // - csfd: the control socket fd; may be -1 to inhibit passing of control socket
     // - socket_fd: the pre-opened socket file descriptor (may be -1)
     // - uid/gid: the identity to run the process as (may be both -1, otherwise both must be valid)
-    void run_child_proc(const char * const *args, const char *logfile, bool on_console, int wpipefd,
-            int csfd, int socket_fd, uid_t uid, gid_t gid) noexcept;
+    void run_child_proc(const char * const *args, const char *working_dir, const char *logfile,
+            bool on_console, int wpipefd, int csfd, int socket_fd, uid_t uid, gid_t gid) noexcept;
     
     // A dependency has reached STARTED state
     void dependency_started() noexcept;

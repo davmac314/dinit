@@ -388,6 +388,7 @@ service_record * dirload_service_set::load_service(const char * name)
     list<pair<unsigned,unsigned>> command_offsets;
     string stop_command;
     list<pair<unsigned,unsigned>> stop_command_offsets;
+    string working_dir;
     string pid_file;
 
     service_type_t service_type = service_type_t::PROCESS;
@@ -453,6 +454,9 @@ service_record * dirload_service_set::load_service(const char * name)
                 
                 if (setting == "command") {
                     command = read_setting_value(i, end, &command_offsets);
+                }
+                else if (setting == "working-dir") {
+                    working_dir = read_setting_value(i, end, nullptr);
                 }
                 else if (setting == "socket-listen") {
                     socket_path = read_setting_value(i, end, nullptr);
@@ -615,6 +619,7 @@ service_record * dirload_service_set::load_service(const char * name)
                 if (service_type == service_type_t::PROCESS) {
                     auto rvalps = new process_service(this, string(name), std::move(command),
                             command_offsets, depends);
+                    rvalps->set_workding_dir(working_dir);
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
                     rvalps->set_stop_timeout(stop_timeout);
@@ -622,6 +627,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_start_interruptible(start_is_interruptible);
                     rvalps->set_extra_termination_signal(term_signal);
                     rvalps->set_run_as_uid_gid(run_as_uid, run_as_gid);
+                    rvalps->set_workding_dir(working_dir);
                     // process service start / run on console must be the same:
                     onstart_flags.starts_on_console = onstart_flags.runs_on_console;
                     rval = rvalps;
@@ -629,6 +635,7 @@ service_record * dirload_service_set::load_service(const char * name)
                 else if (service_type == service_type_t::BGPROCESS) {
                     auto rvalps = new bgproc_service(this, string(name), std::move(command),
                             command_offsets, depends);
+                    rvalps->set_workding_dir(working_dir);
                     rvalps->set_pid_file(std::move(pid_file));
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
@@ -644,6 +651,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     auto rvalps = new scripted_service(this, string(name), std::move(command),
                             command_offsets, depends);
                     rvalps->set_stop_command(stop_command, stop_command_offsets);
+                    rvalps->set_workding_dir(working_dir);
                     rvalps->set_stop_timeout(stop_timeout);
                     rvalps->set_start_timeout(start_timeout);
                     rvalps->set_start_interruptible(start_is_interruptible);

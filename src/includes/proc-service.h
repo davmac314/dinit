@@ -45,6 +45,8 @@ class base_process_service : public service_record
     string stop_command;          // storage for stop program/script and arguments
     std::vector<const char *> stop_arg_parts; // pointer to each argument/part of the stop_command, and nullptr
 
+    string working_dir;       // working directory (or empty)
+
     service_child_watcher child_listener;
     exec_status_pipe_watcher child_status_listener;
     process_restart_timer restart_timer;
@@ -190,6 +192,12 @@ class base_process_service : public service_record
     {
         run_as_uid = uid;
         run_as_gid = gid;
+    }
+
+    // Set the working directory
+    void set_workding_dir(string working_dir_p)
+    {
+        working_dir = working_dir_p;
     }
 
     // The restart/stop timer expired.
