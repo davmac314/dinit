@@ -30,6 +30,12 @@ DESCRIPTION FILES\fR for details.
 \fB\-d\fR \fIdir\fP, \fB\-\-services\-dir\fR \fIdir\fP
 Specifies \fIdir\fP as the directory containing service definition files.
 .TP
+\fB\-e\fR \fIfile\fP, \fB\-\-env\-file\fR \fIfile\fP
+Read initial environment from \fIfile\fP. For the system init process, the
+default is \fI/etc/dinit/environment\fR; for a user instance there is no
+default. Values add to and replace variables present in the environment when
+Dinit started.
+.TP
 \fB\-p\fR \fIpath\fP, \fB\-\-socket-path\fR \fIpath\fP
 Species \fIpath\fP as the path to the control socket used to listen for
 commands from the \fBdinitctl\fR program.

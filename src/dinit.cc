@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <list>
 #include <cstring>
 #include <csignal>
@@ -50,6 +51,7 @@ static void sigquit_cb(eventloop_t &eloop) noexcept;
 static void sigterm_cb(eventloop_t &eloop) noexcept;
 static void close_control_socket() noexcept;
 static void wait_for_user_input() noexcept;
+static void read_env_file(const char *);
 
 static void control_socket_cb(eventloop_t *loop, int fd);
 
@@ -68,6 +70,8 @@ int active_control_conns = 0;
 // to allocate storage, but control_socket_path is the authoritative value.
 static const char *control_socket_path = "/dev/dinitctl";
 static std::string control_socket_str;
+
+static const char *env_file_path = "/etc/dinit/environment";
 
 static const char *log_socket_path = "/dev/log";
 
@@ -160,24 +164,33 @@ int dinit_main(int argc, char **argv)
     
     am_system_init = (getpid() == 1);
     const char * service_dir = nullptr;
+    const char * env_file = nullptr;
     string service_dir_str; // to hold storage for above if necessary
     bool control_socket_path_set = false;
+    bool env_file_set = false;
 
     // list of services to start
     list<const char *> services_to_start;
     
     // Arguments, if given, specify a list of services to start.
-    // If we are running as init (PID=1), the kernel gives us any command line
-    // arguments it was given but didn't recognize, including "single" (usually
-    // for "boot to single user mode" aka just start the shell). We can treat
-    // them as service names. In the worst case we can't find any of the named
+    // If we are running as init (PID=1), the Linux kernel gives us any command line arguments it was given
+    // but didn't recognize, including "single" (usually for "boot to single user mode" aka just start the
+    // shell). We can treat them as service names. In the worst case we can't find any of the named
     // services, and so we'll start the "boot" service by default.
     if (argc > 1) {
       for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
             // An option...
-            if (strcmp(argv[i], "--services-dir") == 0 ||
-                    strcmp(argv[i], "-d") == 0) {
+            if (strcmp(argv[i], "--env-file") == 0 || strcmp(argv[i], "-e") == 0) {
+                if (++i < argc) {
+                    env_file_set = true;
+                    env_file = argv[i];
+                }
+                else {
+                    cerr << "dinit: '--env-file' (-e) requires an argument" << endl;
+                }
+            }
+            else if (strcmp(argv[i], "--services-dir") == 0 || strcmp(argv[i], "-d") == 0) {
                 if (++i < argc) {
                     service_dir = argv[i];
                 }
@@ -186,12 +199,10 @@ int dinit_main(int argc, char **argv)
                     return 1;
                 }
             }
-            else if (strcmp(argv[i], "--system") == 0 ||
-                    strcmp(argv[i], "-s") == 0) {
+            else if (strcmp(argv[i], "--system") == 0 || strcmp(argv[i], "-s") == 0) {
                 am_system_init = true;
             }
-            else if (strcmp(argv[i], "--socket-path") == 0 ||
-                    strcmp(argv[i], "-p") == 0) {
+            else if (strcmp(argv[i], "--socket-path") == 0 || strcmp(argv[i], "-p") == 0) {
                 if (++i < argc) {
                     control_socket_path = argv[i];
                     control_socket_path_set = true;
@@ -204,6 +215,8 @@ int dinit_main(int argc, char **argv)
             else if (strcmp(argv[i], "--help") == 0) {
                 cout << "dinit, an init with dependency management" << endl;
                 cout << " --help                       display help" << endl;
+                cout << " --env-file <file>, -e <file>" << endl;
+                cout << "                              environment variable initialisation file" << endl;
                 cout << " --services-dir <dir>, -d <dir>" << endl;
                 cout << "                              set base directory for service description" << endl;
                 cout << "                              files (-d <dir>)" << endl;
@@ -244,6 +257,10 @@ int dinit_main(int argc, char **argv)
         
         if (onefd > 2) close(onefd);
         if (twofd > 2) close(twofd);
+
+        if (! env_file_set) {
+            env_file = env_file_path;
+        }
     }
 
     /* Set up signal handlers etc */
@@ -343,6 +360,10 @@ int dinit_main(int argc, char **argv)
     
     init_log(services);
     
+    if (env_file != nullptr) {
+        read_env_file(env_file);
+    }
+
     for (auto svc : services_to_start) {
         try {
             services->start_service(svc);
@@ -444,6 +465,65 @@ int dinit_main(int argc, char **argv)
     }
     
     return 0;
+}
+
+static void log_bad_env(int linenum)
+{
+    log(loglevel_t::ERROR, "invalid environment variable setting in environment file (line ", linenum, ")");
+}
+
+// Read and set environment variables from a file.
+static void read_env_file(const char *env_file_path)
+{
+    // Note that we can't use the log in this function; it hasn't been initialised yet.
+
+    std::ifstream env_file(env_file_path);
+    if (! env_file) return;
+
+    env_file.exceptions(std::ios::badbit);
+
+    auto &clocale = std::locale::classic();
+    std::string line;
+    int linenum = 0;
+
+    while (std::getline(env_file, line)) {
+        linenum++;
+        auto lpos = line.begin();
+        auto lend = line.end();
+        while (lpos != lend && std::isspace(*lpos, clocale)) {
+            ++lpos;
+        }
+
+        if (lpos != lend) {
+            if (*lpos != '#') {
+                if (*lpos == '=') {
+                    log_bad_env(linenum);
+                    continue;
+                }
+                auto name_begin = lpos++;
+                // skip until '=' or whitespace:
+                while (lpos != lend && *lpos != '=' && ! std::isspace(*lpos, clocale)) ++lpos;
+                auto name_end = lpos;
+                //  skip whitespace:
+                while (lpos != lend && std::isspace(*lpos, clocale)) ++lpos;
+                if (lpos == lend) {
+                    log_bad_env(linenum);
+                    continue;
+                }
+
+                ++lpos;
+                auto val_begin = lpos;
+                while (lpos != lend && *lpos != '\n') ++lpos;
+                auto val_end = lpos;
+
+                std::string name = line.substr(name_begin - line.begin(), name_end - name_begin);
+                std::string value = line.substr(val_begin - line.begin(), val_end - val_begin);
+                if (setenv(name.c_str(), value.c_str(), true) == -1) {
+                    throw std::system_error(errno, std::system_category());
+                }
+            }
+        }
+    }
 }
 
 // In exception situations we want user confirmation before proceeding (eg on critical boot failure

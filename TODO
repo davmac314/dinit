@@ -9,8 +9,6 @@ For version 1.0:
 * Write wtmp entry on startup (see simpleinit)
 * "triggered" service type: external process notifies Dinit when the service
   has started.
-* Some way to specify environment (perhaps a common environment for all
-  processes)
 * Load services from several different directories, with an order of precedence,
   to allow for packaged service descriptions and user-modified service
   descriptions.
