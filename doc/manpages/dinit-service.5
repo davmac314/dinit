@@ -88,7 +88,7 @@ services.
 Specifies the working directory for this service. For a scripted service, this
 affects both the start command and the stop command.
 .TP
-\fBrun-as\fR = \fIuser-id\fR
+\fBrun\-as\fR = \fIuser-id\fR
 Specifies which user to run the process(es) for this service as. The group id
 for the process will also be set to the primary group of the specified user.
 .TP
@@ -97,46 +97,46 @@ Indicates whether the service should automatically restart if it stops for
 any reason (including unexpected process termination, service dependency
 stopping, or user-initiated service stop).
 .TP
-\fBsmooth-recovery\fR = {yes | true | no | false}
+\fBsmooth\-recovery\fR = {yes | true | no | false}
 Applies only to \fBprocess\fR and \fBbgprocess\fR services. When set true/yes,
 an automatic process restart can be performed without first stopping any
 dependent services. This setting is meaningless if the \fBrestart\fR setting
 is set to false.
 .TP
-\fBrestart-delay\fR = \fIXXX.YYYY\fR
+\fBrestart\-delay\fR = \fIXXX.YYYY\fR
 Specifies the minimum time between automatic restarts. Enforcing a sensible
 minimum prevents Dinit from consuming a large number of process cycles in
 case a process continuously fails immediately after it is started. The
 default is 0.2 (200 milliseconds).
 .TP
-\fBrestart-limit-interval\fR = \fIXXX.YYYY\fR
+\fBrestart\-limit\-interval\fR = \fIXXX.YYYY\fR
 Sets the interval, in seconds, over which restarts are limited. If a process
 automatically restarts more than a certain number of times (specified by the
 \fBrestart-limit-count\fR setting) in this time interval, it will not restart
 again. The default value is 10 seconds.
 .TP
-\fBrestart-limit-count\fR = \fINNN\fR
+\fBrestart\-limit\-count\fR = \fINNN\fR
 Specifies the maximum number of times that a service can automatically restart
-over the interval specified by \fBrestart-limit-interval\fR. Specify a value
+over the interval specified by \fBrestart\-limit\-interval\fR. Specify a value
 of 0 to disable the restart limit.
 .TP
-\fBstart-timeout\fR = \fIXXX.YYY\fR
+\fBstart\-timeout\fR = \fIXXX.YYY\fR
 Specifies the time in seconds allowed for the service to start. If the
 service takes longer than this, its process group is sent a SIGINT signal
 and enters the "stopping" state (this may be subject to a stop timeout, as
-specified via \fBstop-timeout\fR, after which the process group will be
+specified via \fBstop\-timeout\fR, after which the process group will be
 terminated via SIGKILL). The timeout period begins only when all dependencies
 have been stopped. The default timeout is 60 seconds. Specify a value of 0 to
 allow unlimited start time.
 .TP
-\fBstop-timeout\fR = \fIXXX.YYY\fR
+\fBstop\-timeout\fR = \fIXXX.YYY\fR
 Specifies the time in seconds allowed for the service to stop. If the
 service takes longer than this, its process group is sent a SIGKILL signal
 which should cause it to terminate immediately. The timeout period begins
 only when all dependent services have already stopped. The default
 timeout is 10 seconds. Specify a value of 0 to allow unlimited stop time.
 .TP
-\fBpid-file\fR = \fIpath-to-file\fR
+\fBpid\-file\fR = \fIpath-to-file\fR
 For \fBbgprocess\fR type services only; specifies the path of the file where
 daemon will write its process ID before detaching. Dinit will read the
 contents of this file when starting the service, once the initial process
@@ -145,47 +145,47 @@ send signals to the process ID to stop the service; if Dinit runs as a
 privileged user the path should therefore not be writable by unprivileged
 users.
 .TP
-\fBdepends-on\fR = \fIservice-name\fR
+\fBdepends\-on\fR = \fIservice-name\fR
 This service depends on the named service. Starting this service will start
 the named service; the command to start this service will not be executed
 until the named service has started. If the named service is stopped then
 this service will also be stopped.
 .TP
-\fBdepends-ms\fR = \fIservice-name\fR
-This service has a "milestone" dependcy on the named service. Starting this
+\fBdepends\-ms\fR = \fIservice-name\fR
+This service has a "milestone" dependency on the named service. Starting this
 service will start the named service; the command to start this service will
 not be executed until the named service has started. If the named service is
 stopped then the dependency is dropped until this service is next started.
 .TP
-\fBwaits-for\fR = \fIservice-name\fR
+\fBwaits\-for\fR = \fIservice-name\fR
 When this service is started, wait for the named service to finish starting
 (or to fail starting) before commencing the start procedure for this service.
 Starting this service will automatically start the named service. If the
 named service fails to start, this service will start as usual (subject to
 other dependencies being met).
 .TP
-\fBsocket-listen\fR = \fIsocket-path\fR
+\fBsocket\-listen\fR = \fIsocket-path\fR
 Pre-open a socket for the service and pass it to the service using the
 \fBsystemd\fR activation protocol. This by itself does not give so called
 "socket activation", but does allow that any process trying to connect to the
 specified socket will be able to do so, even before the service is properly
 prepared to accept connections.
 .TP
-\fBsocket-permissions\fR = \fIoctal-permissions-mask\fR
+\fBsocket\-permissions\fR = \fIoctal-permissions-mask\fR
 Gives the permissions for the socket specified using \fBsocket-listen\fR.
 Normally this will be 600 (user access only), 660 (user and group
 access), or 666 (all users). The default is 666.
 .TP
-\fBsocket-uid\fR = {\fInumeric-user-id\fR | \fIusername\fR}
+\fBsocket\-uid\fR = {\fInumeric-user-id\fR | \fIusername\fR}
 Specifies the user that should own the activation socket. If
-\fBsocket-uid\fR is specified without also specifying \fBsocket-gid\fR, then
+\fBsocket\-uid\fR is specified without also specifying \fBsocket-gid\fR, then
 the socket group is the primary group of the specified user (as found in the
 system user database, normally \fI/etc/passwd\fR). If the socket owner is not
 specified, the socket will be owned by the user id of the Dinit process.
 .TP
-\fBsocket-gid\fR = {\fInumeric-group-id\fR | \fIgroup-name\fR}
+\fBsocket\-gid\fR = {\fInumeric-group-id\fR | \fIgroup-name\fR}
 Specifies the group of the activation socket. See discussion of
-\fBsocket-uid\fR.
+\fBsocket\-uid\fR.
 .TP
 \fBtermsignal\fR = {HUP | INT | QUIT | USR1 | USR2}
 Specifies an additional signal to send to the process when requesting it
@@ -205,13 +205,13 @@ Specifies various options for this service. See the \fBOPTIONS\fR section.
 These options are specified via the \fBoptions\fR parameter. 
 .\"
 .TP
-\fBno-sigterm\fR
+\fBno\-sigterm\fR
 specifies that the TERM signal should not be send to the process to terminate
 it. (Another signal can be specified using the \fBtermsignal\fR setting; if no
 other signal is specified, no signal will be sent, which usually means that
 the service will not terminate).
 .TP
-\fBruns-on-console\fR
+\fBruns\-on\-console\fR
 specifies that this service uses the console; its input and output should be
 directed to the console (or precisely, to the device to which Dinit's standard
 output stream is connected). A service running on the console prevents other
@@ -221,7 +221,7 @@ The \fIinterrupt\fR key (normally control-C) will be active for process / script
 services that run on the console. Handling of an interrupt is determined by
 the service process, but typically will cause it to terminate.
 .TP
-\fBstarts-on-console\fR
+\fBstarts\-on\-console\fR
 specifies that this service uses the console during service startup. This is
 implied by \fBruns-on-console\fR, but can be specified separately for services
 that need the console while they start but not afterwards.
