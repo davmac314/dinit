@@ -345,8 +345,7 @@ int dinit_main(int argc, char **argv)
     // Mark ourselves as a subreaper. This means that if a process we start double-forks, the
     // orphaned child will re-parent to us rather than to PID 1 (although that could be us too).
     prctl(PR_SET_CHILD_SUBREAPER, 1);
-#endif
-#if defined(__FreeBSD__) || defined(__DragonFly__)
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
     // Documentation (man page) for this kind of sucks. PROC_REAP_ACQUIRE "acquires the reaper status for
     // the current process" but does that mean the first two arguments still need valid values to be
     // supplied? We'll play it safe and explicitly target our own process:
@@ -359,6 +358,9 @@ int dinit_main(int argc, char **argv)
     services = new dirload_service_set(service_dir);
     
     init_log(services);
+    if (am_system_init) {
+        log(loglevel_t::INFO, false, "starting system");
+    }
     
     if (env_file != nullptr) {
         read_env_file(env_file);
