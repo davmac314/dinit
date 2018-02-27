@@ -69,7 +69,6 @@ class buffered_log_stream : public eventloop_t::fd_watcher_impl<buffered_log_str
 
     // Check whether the console can be released.
     void flush_for_release();
-    void release_console();
     bool is_release_set() { return release; }
     
     // Commit a log message
@@ -109,6 +108,9 @@ class buffered_log_stream : public eventloop_t::fd_watcher_impl<buffered_log_str
     {
         discarded = true;
     }
+
+    private:
+    void release_console();
 };
 }
 
@@ -276,10 +278,9 @@ void enable_console_log(bool enable) noexcept
 {
     bool log_to_console = ! log_stream[DLOG_CONS].is_release_set();
     if (enable && ! log_to_console) {
-        // Console is fd 1 - stdout
         // Set non-blocking IO:
-        int flags = fcntl(1, F_GETFL, 0);
-        fcntl(1, F_SETFL, flags | O_NONBLOCK);
+        int flags = fcntl(STDOUT_FILENO, F_GETFL, 0);
+        fcntl(STDOUT_FILENO, F_SETFL, flags | O_NONBLOCK);
         // Activate watcher:
         log_stream[DLOG_CONS].init(STDOUT_FILENO);
         log_stream[DLOG_CONS].set_enabled(event_loop, true);
@@ -349,10 +350,10 @@ template <typename ... T> static void push_to_log(int idx, T ... args) noexcept
 }
 
 // Variadic method to potentially log a sequence of strings as a single message with the given log level:
-template <typename ... T> static void do_log(loglevel_t lvl, T ... args) noexcept
+template <typename ... T> static void do_log(loglevel_t lvl, bool to_cons, T ... args) noexcept
 {
-    log_current_line[DLOG_CONS] = lvl >= log_level[DLOG_CONS];
-    log_current_line[DLOG_MAIN] = lvl >= log_level[DLOG_MAIN];
+    log_current_line[DLOG_CONS] = (lvl >= log_level[DLOG_CONS]) && to_cons;
+    log_current_line[DLOG_MAIN] = (lvl >= log_level[DLOG_MAIN]);
     push_to_log(DLOG_CONS, args...);
     
     if (log_current_line[DLOG_MAIN]) {
@@ -385,7 +386,12 @@ template <typename ... T> static void do_log_main(T ... args) noexcept
 // Log a message. A newline will be appended.
 void log(loglevel_t lvl, const char *msg) noexcept
 {
-    do_log(lvl, "dinit: ", msg, "\n");
+    do_log(lvl, true, "dinit: ", msg, "\n");
+}
+
+void log(loglevel_t lvl, bool to_cons, const char *msg) noexcept
+{
+    do_log(lvl, to_cons, "dinit: ", msg, "\n");
 }
 
 // Log part of a message. A series of calls to do_log_part must be followed by a call to do_log_commit.
@@ -418,6 +424,7 @@ void log_msg_begin(loglevel_t lvl, const char *msg) noexcept
     log_current_line[DLOG_CONS] = lvl >= log_level[DLOG_CONS];
     log_current_line[DLOG_MAIN] = lvl >= log_level[DLOG_MAIN];
 
+    // Prepend the syslog priority level string ("<N>") for the main log:
     if (log_current_line[DLOG_MAIN]) {
         char svcbuf[10];
         snprintf(svcbuf, 10, "<%d>", LOG_DAEMON | log_level_to_syslog_level(lvl));

@@ -1,7 +1,15 @@
 #ifndef DINIT_LOG_H
 #define DINIT_LOG_H
 
-// Logging for Dinit
+// Logging for Dinit.
+//
+// The main log function is the variadic template 'log' function:
+//
+//     void log(loglevel_t, ...)
+//
+// It takes a list of items comprising a single log message, including strings (C/C++ style), and integers.
+// The loglevel argument determines if the message will actually be logged (according to the configured log
+// level of the log mechanisms).
 
 #include <string>
 #include <cstdio>
@@ -17,6 +25,7 @@ enum class loglevel_t {
     ZERO    // log absolutely nothing
 };
 
+// These are defined in dinit-log.cc:
 extern loglevel_t log_level[2];
 void enable_console_log(bool do_enable) noexcept;
 void init_log(service_set *sset);
@@ -24,10 +33,18 @@ void setup_main_log(int fd);
 bool is_log_flushed() noexcept;
 void discard_console_log_buffer() noexcept;
 
+// Log a simple string:
 void log(loglevel_t lvl, const char *msg) noexcept;
+// Log a simple string, optionally without logging to console:
+void log(loglevel_t lvl, bool to_cons, const char *msg) noexcept;
+
+// Log a message in parts; a beginnning, various middle parts, and an end part. Calls to these functions
+// must not be interleaved with calls to other logging functions.
 void log_msg_begin(loglevel_t lvl, const char *msg) noexcept;
 void log_msg_part(const char *msg) noexcept;
 void log_msg_end(const char *msg) noexcept;
+
+// Defined below:
 void log_service_started(const char *service_name) noexcept;
 void log_service_failed(const char *service_name) noexcept;
 void log_service_stopped(const char *service_name) noexcept;
@@ -109,6 +126,12 @@ namespace dinit_log {
 }
 
 // Variadic 'log' method.
+template <typename A, typename ...B> static inline void log(loglevel_t lvl, bool log_cons, A a, B ...b) noexcept
+{
+    log_msg_begin(lvl, a);
+    dinit_log::log_parts(b...);
+}
+
 template <typename A, typename ...B> static inline void log(loglevel_t lvl, A a, B ...b) noexcept
 {
     log_msg_begin(lvl, a);
