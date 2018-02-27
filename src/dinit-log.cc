@@ -12,6 +12,19 @@
 #include "dinit-log.h"
 #include "cpbuffer.h"
 
+// Dinit logging subsystem.
+//
+// Note that most actual functions for logging messages are found in the header, dinit-log.h.
+//
+// We have two separate log "streams": one for the console/stdout, one for the syslog facility. Both have a
+// circular buffer. Log messages are appended to the circular buffer (for the syslog stream, the messages
+// are prepended with a syslog priority indicator). Both streams start out inactive (release = true in
+// buffered_log_stream), which means they will buffer messages but not write them.
+//
+// The console log stream needs to be able to release the console, if a service is waiting to acquire it.
+// This is accomplished by calling flush_for_release() which then completes the output of the current
+// message (if any) and then assigns the console to a waiting service.
+
 extern eventloop_t event_loop;
 
 static bool log_current_line[2];  // Whether the current line is being logged (for console, main log)
@@ -22,7 +35,7 @@ static service_set *services = nullptr;  // Reference to service set
 using rearm = dasynq::rearm;
 
 namespace {
-class BufferedLogStream : public eventloop_t::fd_watcher_impl<BufferedLogStream>
+class buffered_log_stream : public eventloop_t::fd_watcher_impl<buffered_log_stream>
 {
     private:
 
@@ -55,7 +68,7 @@ class BufferedLogStream : public eventloop_t::fd_watcher_impl<BufferedLogStream>
     rearm fd_event(eventloop_t &loop, int fd, int flags) noexcept;
 
     // Check whether the console can be released.
-    void flushForRelease();
+    void flush_for_release();
     void release_console();
     bool is_release_set() { return release; }
     
@@ -101,12 +114,12 @@ class BufferedLogStream : public eventloop_t::fd_watcher_impl<BufferedLogStream>
 
 // Two log streams:
 // (One for main log, one for console)
-static BufferedLogStream log_stream[2];
+static buffered_log_stream log_stream[2];
 
 constexpr static int DLOG_MAIN = 0; // main log facility
 constexpr static int DLOG_CONS = 1; // console
 
-void BufferedLogStream::release_console()
+void buffered_log_stream::release_console()
 {
     if (release) {
         int flags = fcntl(1, F_GETFL, 0);
@@ -115,7 +128,7 @@ void BufferedLogStream::release_console()
     }
 }
 
-void BufferedLogStream::flushForRelease()
+void buffered_log_stream::flush_for_release()
 {
     release = true;
     
@@ -129,10 +142,10 @@ void BufferedLogStream::flushForRelease()
     // release when it's finished.
 }
 
-rearm BufferedLogStream::fd_event(eventloop_t &loop, int fd, int flags) noexcept
+rearm buffered_log_stream::fd_event(eventloop_t &loop, int fd, int flags) noexcept
 {
     if ((! partway) && (! special) && discarded) {
-        special_buf = "dinit: *** message discarded due to full buffer ****\n";
+        special_buf = "dinit: *** log message discarded due to full buffer ***\n";
         msg_index = 0;
     }
 
@@ -272,7 +285,7 @@ void enable_console_log(bool enable) noexcept
         log_stream[DLOG_CONS].set_enabled(event_loop, true);
     }
     else if (! enable && log_to_console) {
-        log_stream[DLOG_CONS].flushForRelease();
+        log_stream[DLOG_CONS].flush_for_release();
     }
 }
 
@@ -293,12 +306,12 @@ template <typename ... T> static int sum_length(const char * first, T ... args) 
 }
 
 // Variadic method to append strings to a buffer:
-static void append(BufferedLogStream &buf, const char *s)
+static void append(buffered_log_stream &buf, const char *s)
 {
     buf.append(s, std::strlen(s));
 }
 
-template <typename ... T> static void append(BufferedLogStream &buf, const char *u, T ... t)
+template <typename ... T> static void append(buffered_log_stream &buf, const char *u, T ... t)
 {
     append(buf, u);
     append(buf, t...);
