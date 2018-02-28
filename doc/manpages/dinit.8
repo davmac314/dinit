@@ -32,9 +32,7 @@ Specifies \fIdir\fP as the directory containing service definition files.
 .TP
 \fB\-e\fR \fIfile\fP, \fB\-\-env\-file\fR \fIfile\fP
 Read initial environment from \fIfile\fP. For the system init process, the
-default is \fI/etc/dinit/environment\fR; for a user instance there is no
-default. Values add to and replace variables present in the environment when
-Dinit started.
+default is \fI/etc/dinit/environment\fR; see \fBFILES\fR.
 .TP
 \fB\-p\fR \fIpath\fP, \fB\-\-socket\-path\fR \fIpath\fP
 Species \fIpath\fP as the path to the control socket used to listen for
@@ -63,6 +61,16 @@ Service description files are read by Dinit on an "as needed" basis. Once a
 service description has been read there is no way (yet) to alter it.
 
 See \fBdinit-service\fR(5) for details of the format and available parameters.
+.\"
+.SH FILES
+.\"
+.TP
+\fI/etc/dinit/environment\fR
+Default location of the environment file for Dinit when run as a system
+instance (for user instances there is no default). Values are specified as
+\fINAME\fR=\fIVALUE\fR, one per line, and add to and replace variables present
+in the environment when Dinit started. Lines beginning with a hash character
+(#) are ignored.
 .\"
 .SH SIGNALS
 .LP
