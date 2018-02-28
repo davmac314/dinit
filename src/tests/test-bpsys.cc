@@ -2,6 +2,8 @@
 #include <utility>
 #include <algorithm>
 
+#include <cstdlib>
+
 #include "baseproc-sys.h"
 
 static std::vector<bool> usedfds = {true, true, true};
@@ -34,7 +36,7 @@ int pipe2(int fds[2], int flags)
 
 int close(int fd)
 {
-    if (fd >= usedfds.size()) abort();
+    if (size_t(fd) >= usedfds.size()) abort();
 
     usedfds[fd] = false;
     return 0;
