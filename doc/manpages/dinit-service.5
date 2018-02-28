@@ -153,9 +153,10 @@ this service will also be stopped.
 .TP
 \fBdepends\-ms\fR = \fIservice-name\fR
 This service has a "milestone" dependency on the named service. Starting this
-service will start the named service; the command to start this service will
-not be executed until the named service has started. If the named service is
-stopped then the dependency is dropped until this service is next started.
+service will start the named service; this service will not start until the
+named service has started, and will fail to start if the named service does
+not start. Once the named service reaches the started state, however, the
+dependency is effectively dropped until this service is next started.
 .TP
 \fBwaits\-for\fR = \fIservice-name\fR
 When this service is started, wait for the named service to finish starting
