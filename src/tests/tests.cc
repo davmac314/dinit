@@ -479,6 +479,37 @@ void test10()
     assert(! sset.is_queued_for_console(s2));
 }
 
+// Test 11: if a milestone dependency doesn't start, dependent doesn't start.
+void test11()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, MS}});
+
+    sset.add_service(s1);
+    sset.add_service(s2);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+
+    // Request start of the s2 service:
+    sset.start_service(s2);
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STARTING);
+    assert(s2->get_state() == service_state_t::STARTING);
+
+    s1->stop();
+    sset.process_queues();
+    s1->bring_down();
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+}
+
+
 #define RUN_TEST(name) \
     std::cout << #name "... "; \
     name(); \
@@ -499,4 +530,5 @@ int main(int argc, char **argv)
     RUN_TEST(test8);
     RUN_TEST(test9);
     RUN_TEST(test10);
+    RUN_TEST(test11);
 }

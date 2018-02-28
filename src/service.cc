@@ -517,7 +517,9 @@ bool service_record::stop_dependents() noexcept
 {
     bool all_deps_stopped = true;
     for (auto dept : dependents) {
-        if (dept->dep_type == dependency_type::REGULAR) {
+        if (dept->dep_type == dependency_type::REGULAR ||
+                (dept->dep_type == dependency_type::MILESTONE &&
+                dept->get_from()->service_state != service_state_t::STARTED)) {
             if (! dept->get_from()->is_stopped()) {
                 // Note we check *first* since if the dependent service is not stopped,
                 // 1. We will issue a stop to it shortly and
