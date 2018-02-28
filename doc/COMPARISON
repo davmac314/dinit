@@ -1,11 +1,12 @@
 Comparison of Dinit with other supervision / init systems
 =========================================================
 
-This is intended to be an objective description of the differences between Dinit
-and several other similar software packages. I started writing this with the
-intention of justifying Dinit's existence, but don't know feel that this
-document achieves that goal. It does, however, serve as a short survey of
-service supervision and init systems.
+This is intended to be an objective description of the differences between
+Dinit and several other similar software packages. Due to a myriad of details,
+it is difficult to provide a very meaningful comparison without going into
+great detail (which this document does not). It does, however, serve as a
+short survey of service supervision and init systems, and provides a starting
+point for understanding the unique features of Dinit.
 
 
 Systems without dependency management
@@ -41,7 +42,7 @@ A highly modular init system which apparently offers dependency management
 (as Dinit does). Portability status is unclear; may be Linux-only (Dinit
 strives for portability). Development may have ceased (website is now showing
 Japanese text which I am unable to read) although there are what looks like
-maintennance commits in the Github repository at https://github.com/initng/initng.
+maintenance commits in the Github repository at https://github.com/initng/initng.
 
 
 Nosh (http://homepage.ntlworld.com/jonathan.deboynepollard/Softwares/nosh.html)
@@ -72,7 +73,7 @@ Wikipedia, it provides parallel startup of services (like Dinit).
 
 It is difficult to find high-level documentation regarding the operation of OpenRC.
 It seems that services must be specified via a shell script, and service
-configuration is also specified as part of the script.
+configuration (eg to specify dependencies) is also specified as part of the script.
 
 Although the build system seems to have some support for BSD OSes, it did not
 build successfully on OpenBSD when tested (revision 33d3f33).
@@ -93,9 +94,14 @@ parts and implementing these smaller parts as separate programs, wherever
 practical. Thus, process supervision, log file management, and service management
 are all separate programs.
 
-In contrast, Dinit does not requires compiling service definitions, and allows
-new services to be added after the system starts. Also, Dinit incorporates
-service supervision and management into a single process.
+In contrast, Dinit does not requires compiling service definitions, instead
+loading and parsing them on-the-fly. Also, Dinit incorporates service
+supervision and management into a single process. Some people may see
+the more modularised nature of S6/S6-RC as an advantage of that system; I
+personally feel that Dinit's one-process approach is not particularly
+problematic and that the various functionality it provides is closely enough
+related that splitting it into component processes would not be beneficial -
+However, I can understand the other viewpoint.
 
 It appears that S6 supports only hard dependencies: that is if, a service depends
 on another then that service must start, and stay running. Dinit supports a number
@@ -108,14 +114,15 @@ Systemd
 Systemd is probably the most widely used init system on Linux as of the last year
 or two. Compared to Dinit:
  - Systemd provides a range of functionality not provided by Dinit, such as:
-   - setting UID, priority, and other attributes of the service process. Dinit does
-     not support this yet.
+   - setting priority and various other attributes of the service process that
+     Dinit does not support [yet].
    - seat/session management
    - syslogd replacement (or at least, partial replacement)
    - ability to run tasks at certain times
    - inetd replacement (lazily launch services to handle connection to IP ports)
    - asynchronous filesystem check/mount
    - control group (cgroup) / container management
+   - private tmp directories for services / login sessions
    - system time management
    Some of this functionality can be found in other daemons/packages which can be
    be used to supplement the functionality of Dinit.
