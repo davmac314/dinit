@@ -263,6 +263,7 @@ bool base_process_service::interrupt_start() noexcept
     else {
         log(loglevel_t::WARN, "Interrupting start of service ", get_name(), " with pid ", pid, " (with SIGINT).");
         kill_pg(SIGINT);
+
         if (stop_timeout != time_val(0,0)) {
             restart_timer.arm_timer_rel(event_loop, stop_timeout);
             stop_timer_armed = true;
@@ -271,8 +272,8 @@ bool base_process_service::interrupt_start() noexcept
             restart_timer.stop_timer(event_loop);
             stop_timer_armed = false;
         }
+
         set_state(service_state_t::STOPPING);
-        notify_listeners(service_event_t::STARTCANCELLED);
         return false;
     }
 }

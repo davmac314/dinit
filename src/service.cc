@@ -470,6 +470,7 @@ void service_record::do_stop() noexcept
 
                 if (! interrupt_start()) {
                     // Now wait for service startup to actually end; we don't need to handle it here.
+                    notify_listeners(service_event_t::STARTCANCELLED);
                     return;
                 }
             }
