@@ -59,6 +59,7 @@ void test_proc_service_start()
 
     process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
     init_service_defaults(p);
+    sset.add_service(&p);
 
     p.start(true);
     sset.process_queues();
@@ -70,6 +71,8 @@ void test_proc_service_start()
 
     assert(p.get_state() == service_state_t::STARTED);
     assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
 }
 
 // Unexpected termination
@@ -85,6 +88,9 @@ void test_proc_unexpected_term()
     std::list<prelim_dep> depends;
 
     process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    init_service_defaults(p);
+    sset.add_service(&p);
+
     p.start(true);
     sset.process_queues();
 
@@ -98,6 +104,8 @@ void test_proc_unexpected_term()
 
     assert(p.get_state() == service_state_t::STOPPED);
     assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
 }
 
 // Termination via stop request
@@ -114,6 +122,7 @@ void test_term_via_stop()
 
     process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
     init_service_defaults(p);
+    sset.add_service(&p);
 
     p.start(true);
     sset.process_queues();
@@ -135,6 +144,8 @@ void test_term_via_stop()
 
     assert(p.get_state() == service_state_t::STOPPED);
     assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
 }
 
 // Time-out during start
@@ -149,8 +160,9 @@ void test_proc_start_timeout()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
     init_service_defaults(p);
+    sset.add_service(&p);
 
     p.start(true);
     sset.process_queues();
@@ -167,6 +179,47 @@ void test_proc_start_timeout()
 
     assert(p.get_state() == service_state_t::STOPPED);
     assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
+// Test that a timeout doesn't stop a "waits for" dependent to fail to start
+void test_proc_start_timeout2()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    sset.add_service(&p);
+
+    service_record ts {&sset, "test-service-1", service_type_t::INTERNAL, {{&p, dependency_type::WAITS_FOR}} };
+
+    ts.start(true);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+    assert(ts.get_state() == service_state_t::STARTING);
+
+    p.timer_expired();
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(ts.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
 }
 
 // Test stop timeout
@@ -183,6 +236,7 @@ void test_proc_stop_timeout()
 
     process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
     init_service_defaults(p);
+    sset.add_service(&p);
 
     p.start(true);
     sset.process_queues();
@@ -211,9 +265,11 @@ void test_proc_stop_timeout()
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPED);
+
     // Note that timer is still active as we faked its expiry above
     //assert(event_loop.active_timers.size() == 0);
     event_loop.active_timers.clear();
+    sset.remove_service(&p);
 }
 
 // Smooth recovery
@@ -231,6 +287,7 @@ void test_proc_smooth_recovery1()
     process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
     init_service_defaults(p);
     p.set_smooth_recovery(true);
+    sset.add_service(&p);
 
     p.start(true);
     sset.process_queues();
@@ -256,6 +313,8 @@ void test_proc_smooth_recovery1()
     assert(first_instance + 1 == bp_sys::last_forked_pid);
     assert(p.get_state() == service_state_t::STARTED);
     event_loop.active_timers.clear();
+
+    sset.remove_service(&p);
 }
 
 // Smooth recovery without restart delay
@@ -274,6 +333,7 @@ void test_proc_smooth_recovery2()
     init_service_defaults(p);
     p.set_smooth_recovery(true);
     p.set_restart_delay(time_val(0, 0));
+    sset.add_service(&p);
 
     p.start(true);
     sset.process_queues();
@@ -293,6 +353,8 @@ void test_proc_smooth_recovery2()
     assert(first_instance + 1 == bp_sys::last_forked_pid);
     assert(p.get_state() == service_state_t::STARTED);
     assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
 }
 
 // Test stop timeout
@@ -311,6 +373,7 @@ void test_scripted_stop_timeout()
     scripted_service p = scripted_service(&sset, "testscripted", std::move(command), command_offsets, depends);
     init_service_defaults(p);
     p.set_stop_command(stopcommand, command_offsets);
+    sset.add_service(&p);
 
     p.start(true);
     sset.process_queues();
@@ -346,7 +409,9 @@ void test_scripted_stop_timeout()
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPED);
+
     event_loop.active_timers.clear();
+    sset.remove_service(&p);
 }
 
 
@@ -361,6 +426,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_unexpected_term, " ");
     RUN_TEST(test_term_via_stop, "        ");
     RUN_TEST(test_proc_start_timeout, "   ");
+    RUN_TEST(test_proc_start_timeout2, "  ");
     RUN_TEST(test_proc_stop_timeout, "    ");
     RUN_TEST(test_proc_smooth_recovery1, "");
     RUN_TEST(test_proc_smooth_recovery2, "");
