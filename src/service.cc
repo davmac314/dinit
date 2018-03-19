@@ -52,7 +52,7 @@ void service_set::stop_service(const std::string & name) noexcept
 // is due to an unexpected process termination.
 void service_record::stopped() noexcept
 {
-    if (onstart_flags.runs_on_console) {
+    if (have_console) {
         bp_sys::tcsetpgrp(0, bp_sys::getpgrp());
         discard_console_log_buffer();
         release_console();
