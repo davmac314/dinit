@@ -310,13 +310,9 @@ void base_process_service::timer_expired() noexcept
     }
     else if (pid != -1) {
         // Starting, start timed out.
-        log(loglevel_t::WARN, "Service ", get_name(), " with pid ", pid, " exceeded allowed start time.");
-        stop_dependents();
-        if (start_explicit) {
-            start_explicit = false;
-            release();
-        }
+        log(loglevel_t::WARN, "Service ", get_name(), " with pid ", pid, " exceeded allowed start time; cancelling.");
         interrupt_start();
+        failed_to_start(false, false);
     }
     else {
         // STARTING / STARTED, and we have a pid: must be restarting (smooth recovery if STARTED)

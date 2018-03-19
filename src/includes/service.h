@@ -334,7 +334,8 @@ class service_record
     
     // Service failed to start (only called when in STARTING state).
     //   dep_failed: whether failure is recorded due to a dependency failing
-    void failed_to_start(bool dep_failed = false) noexcept;
+    //   immediate_stop: whether to set state as STOPPED and handle complete stop.
+    void failed_to_start(bool dep_failed = false, bool immediate_stop = true) noexcept;
 
     // Run a child process (call after forking).
     // - args specifies the program arguments including the executable (argv[0])

@@ -365,24 +365,25 @@ void service_record::started() noexcept
     }
 }
 
-void service_record::failed_to_start(bool depfailed) noexcept
+void service_record::failed_to_start(bool depfailed, bool immediate_stop) noexcept
 {
-    if (have_console) {
-        bp_sys::tcsetpgrp(0, bp_sys::getpgrp());
-        release_console();
+    if (immediate_stop) {
+        service_state = service_state_t::STOPPED;
+        if (have_console) {
+            bp_sys::tcsetpgrp(0, bp_sys::getpgrp());
+            release_console();
+        }
     }
+
     if (waiting_for_console) {
         services->unqueue_console(this);
         waiting_for_console = false;
     }
     
-    log_service_failed(get_name());
-    service_state = service_state_t::STOPPED;
     if (start_explicit) {
         start_explicit = false;
         release(false);
     }
-    notify_listeners(service_event_t::FAILEDSTART);
     
     // Cancel start of dependents:
     for (auto & dept : dependents) {
@@ -406,6 +407,9 @@ void service_record::failed_to_start(bool depfailed) noexcept
             }
         }
     }
+
+    log_service_failed(get_name());
+    notify_listeners(service_event_t::FAILEDSTART);
 }
 
 bool service_record::bring_up() noexcept
@@ -592,9 +596,6 @@ void service_record::release_console() noexcept
 
 bool service_record::interrupt_start() noexcept
 {
-    if (onstart_flags.starts_on_console) {
-        services->unqueue_console(this);
-    }
     return true;
 }
 
