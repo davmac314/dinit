@@ -536,6 +536,17 @@ bool service_record::stop_dependents() noexcept
             dept->get_from()->prop_stop = true;
             services->add_prop_queue(dept->get_from());
         }
+        else {
+            // waits-for or soft dependency:
+            if (dept->waiting_on) {
+                dept->waiting_on = false;
+                dept->get_from()->dependency_started();
+            }
+            if (dept->holding_acq) {
+                dept->holding_acq = false;
+                release();
+            }
+        }
     }
 
     return all_deps_stopped;
