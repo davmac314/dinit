@@ -29,6 +29,7 @@ extern eventloop_t event_loop;
 
 static bool log_current_line[2];  // Whether the current line is being logged (for console, main log)
 loglevel_t log_level[2] = { loglevel_t::WARN, loglevel_t::INFO };
+static bool log_format_syslog[2] = { false, true };
 
 static service_set *services = nullptr;  // Reference to service set
 
@@ -260,10 +261,11 @@ void init_log(service_set *sset)
 
 // Set up the main log to output to the given file descriptor.
 // Potentially throws std::bad_alloc or std::system_error
-void setup_main_log(int fd)
+void setup_main_log(int fd, bool syslog_format)
 {
     log_stream[DLOG_MAIN].init(fd);
     log_stream[DLOG_MAIN].add_watch(event_loop, fd, dasynq::OUT_EVENTS);
+    log_format_syslog[DLOG_MAIN] = syslog_format;
 }
 
 bool is_log_flushed() noexcept
@@ -357,10 +359,14 @@ template <typename ... T> static void do_log(loglevel_t lvl, bool to_cons, T ...
     push_to_log(DLOG_CONS, args...);
     
     if (log_current_line[DLOG_MAIN]) {
-        char svcbuf[10];
-        snprintf(svcbuf, 10, "<%d>", LOG_DAEMON | log_level_to_syslog_level(lvl));
-        
-        push_to_log(DLOG_MAIN, svcbuf, args...);
+        if (log_format_syslog[DLOG_MAIN]) {
+            char svcbuf[10];
+            snprintf(svcbuf, 10, "<%d>", LOG_DAEMON | log_level_to_syslog_level(lvl));
+            push_to_log(DLOG_MAIN, svcbuf, args...);
+        }
+        else {
+            push_to_log(DLOG_MAIN, args...);
+        }
     }
 }
 
@@ -377,10 +383,14 @@ template <typename ... T> static void do_log_main(T ... args) noexcept
     log_current_line[DLOG_CONS] = false;
     log_current_line[DLOG_MAIN] = true;
     
-    char svcbuf[10];
-    snprintf(svcbuf, 10, "<%d>", LOG_DAEMON | LOG_NOTICE);
-    
-    push_to_log(DLOG_MAIN, svcbuf, args...);
+    if (log_format_syslog[DLOG_MAIN]) {
+        char svcbuf[10];
+        snprintf(svcbuf, 10, "<%d>", LOG_DAEMON | LOG_NOTICE);
+        push_to_log(DLOG_MAIN, svcbuf, args...);
+    }
+    else {
+        push_to_log(DLOG_MAIN, args...);
+    }
 }
 
 // Log a message. A newline will be appended.
@@ -426,9 +436,11 @@ void log_msg_begin(loglevel_t lvl, const char *msg) noexcept
 
     // Prepend the syslog priority level string ("<N>") for the main log:
     if (log_current_line[DLOG_MAIN]) {
-        char svcbuf[10];
-        snprintf(svcbuf, 10, "<%d>", LOG_DAEMON | log_level_to_syslog_level(lvl));
-        do_log_part(DLOG_MAIN, svcbuf);
+        if (log_format_syslog[DLOG_MAIN]) {
+            char svcbuf[10];
+            snprintf(svcbuf, 10, "<%d>", LOG_DAEMON | log_level_to_syslog_level(lvl));
+            do_log_part(DLOG_MAIN, svcbuf);
+        }
     }
 
     for (int i = 0; i < 2; i++) {

@@ -666,7 +666,7 @@ void setup_external_log() noexcept
             // the file descriptor so we will be notified when it's ready. In other words we can
             // basically use it anyway.
             try {
-                setup_main_log(sockfd);
+                setup_main_log(sockfd, true);
             }
             catch (std::exception &e) {
                 log(loglevel_t::ERROR, "Setting up log failed: ", e.what());
