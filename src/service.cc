@@ -89,10 +89,14 @@ void service_record::stopped() noexcept
         becoming_inactive();
         
         if (start_explicit) {
+            // If we were explicitly started, our required_by count must be at least 1. Use
+            // release() to correctly release, mark inactive and release dependencies.
             start_explicit = false;
             release();
         }
         else if (required_by == 0) {
+            // This can only be the case if we didn't have start_explicit, since required_by would
+            // otherwise by non-zero.
             services->service_inactive(this);
         }
     }
@@ -146,8 +150,10 @@ void service_record::release_dependencies() noexcept
     for (auto & dependency : depends_on) {
         service_record * dep_to = dependency.get_to();
         if (dependency.holding_acq) {
-            dep_to->release();
+            // We must clear holding_acq before calling release, otherwise the dependency
+            // may decide to stop, check this link and release itself a second time.
             dependency.holding_acq = false;
+            dep_to->release();
         }
     }
 }
