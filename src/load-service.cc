@@ -435,8 +435,7 @@ service_record * dirload_service_set::load_service(const char * name)
         // getline can set failbit if it reaches end-of-file, we don't want an exception in that case:
         service_file.exceptions(ios::badbit);
         
-        while (! (service_file.rdstate() & ios::eofbit)) {
-            getline(service_file, line);
+        while (getline(service_file, line)) {
             string::iterator i = line.begin();
             string::iterator end = line.end();
           
