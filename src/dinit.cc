@@ -73,7 +73,8 @@ static std::string control_socket_str;
 
 static const char *env_file_path = "/etc/dinit/environment";
 
-static const char *log_socket_path = "/dev/log";
+static const char *log_path = "/dev/log";
+static bool log_is_syslog = true; // if false, log is a file
 
 static const char *user_home_path = nullptr;
 
@@ -212,6 +213,16 @@ int dinit_main(int argc, char **argv)
                     return 1;
                 }
             }
+            else if (strcmp(argv[i], "--log-file") == 0 || strcmp(argv[i], "-l") == 0) {
+                if (++i < argc) {
+                    log_path = argv[i];
+                    log_is_syslog = false;
+                }
+                else {
+                    cerr << "dinit: '--log-file' (-l) requires an argument" << endl;
+                    return 1;
+                }
+            }
             else if (strcmp(argv[i], "--help") == 0) {
                 cout << "dinit, an init with dependency management" << endl;
                 cout << " --help                       display help" << endl;
@@ -334,6 +345,10 @@ int dinit_main(int argc, char **argv)
     // Try to open control socket (may fail due to readonly filesystem)
     open_control_socket(false);
     
+    // Only try to set up the external log now if we aren't the system init. (If we are the
+    // system init, wait until the log service starts).
+    if (! am_system_init) setup_external_log();
+
 #ifdef __linux__
     if (am_system_init) {
         // Disable non-critical kernel output to console
@@ -640,46 +655,64 @@ static void close_control_socket() noexcept
 void setup_external_log() noexcept
 {
     if (! external_log_open) {
-    
-        const char * saddrname = log_socket_path;
-        size_t saddrname_len = strlen(saddrname);
-        uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + saddrname_len + 1;
-        
-        struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
-        if (name == nullptr) {
-            log(loglevel_t::ERROR, "Connecting to log socket: out of memory");
-            return;
-        }
-        
-        name->sun_family = AF_UNIX;
-        memcpy(name->sun_path, saddrname, saddrname_len + 1);
-        
-        int sockfd = dinit_socket(AF_UNIX, SOCK_DGRAM, 0, SOCK_NONBLOCK | SOCK_CLOEXEC);
-        if (sockfd == -1) {
-            log(loglevel_t::ERROR, "Error creating log socket: ", strerror(errno));
-            free(name);
-            return;
-        }
-        
-        if (connect(sockfd, (struct sockaddr *) name, sockaddr_size) == 0 || errno == EINPROGRESS) {
-            // For EINPROGRESS, connection is still being established; however, we can select on
-            // the file descriptor so we will be notified when it's ready. In other words we can
-            // basically use it anyway.
-            try {
-                setup_main_log(sockfd, true);
+        if (log_is_syslog) {
+            const char * saddrname = log_path;
+            size_t saddrname_len = strlen(saddrname);
+            uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + saddrname_len + 1;
+
+            struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
+            if (name == nullptr) {
+                log(loglevel_t::ERROR, "Connecting to log socket: out of memory");
+                return;
             }
-            catch (std::exception &e) {
-                log(loglevel_t::ERROR, "Setting up log failed: ", e.what());
+
+            name->sun_family = AF_UNIX;
+            memcpy(name->sun_path, saddrname, saddrname_len + 1);
+
+            int sockfd = dinit_socket(AF_UNIX, SOCK_DGRAM, 0, SOCK_NONBLOCK | SOCK_CLOEXEC);
+            if (sockfd == -1) {
+                log(loglevel_t::ERROR, "Error creating log socket: ", strerror(errno));
+                free(name);
+                return;
+            }
+
+            if (connect(sockfd, (struct sockaddr *) name, sockaddr_size) == 0 || errno == EINPROGRESS) {
+                // For EINPROGRESS, connection is still being established; however, we can select on
+                // the file descriptor so we will be notified when it's ready. In other words we can
+                // basically use it anyway.
+                try {
+                    setup_main_log(sockfd, true);
+                }
+                catch (std::exception &e) {
+                    log(loglevel_t::ERROR, "Setting up log failed: ", e.what());
+                    close(sockfd);
+                }
+            }
+            else {
+                // Note if connect fails, we haven't warned at all, because the syslog server might not
+                // have started yet.
                 close(sockfd);
             }
+
+            free(name);
         }
         else {
-            // Note if connect fails, we haven't warned at all, because the syslog server might not
-            // have started yet.
-            close(sockfd);
+            // log to file:
+            int log_fd = open(log_path, O_WRONLY | O_CREAT | O_APPEND | O_NONBLOCK | O_CLOEXEC, 0644);
+            if (log_fd >= 0) {
+                try {
+                    setup_main_log(log_fd, false);
+                }
+                catch (std::exception &e) {
+                    log(loglevel_t::ERROR, "Setting up log failed: ", e.what());
+                    close(log_fd);
+                }
+            }
+            else {
+                // log failure to log? It makes more sense than first appears, because we also log to console:
+                log(loglevel_t::ERROR, "Setting up log failed: ", strerror(errno));
+            }
         }
-        
-        free(name);
     }
 }
 
