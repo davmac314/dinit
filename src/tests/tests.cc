@@ -509,6 +509,47 @@ void test11()
     assert(s2->get_state() == service_state_t::STOPPED);
 }
 
+// Test that active service count reaches 0 when stopping a service with different types of dependency
+void test12()
+{
+    service_set sset;
+
+    service_record *s4 = new service_record(&sset, "test-service-4", service_type_t::INTERNAL, {});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {});
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL,
+            {{s2, WAITS}, {s3, REG}, {s4, MS}});
+
+    sset.add_service(s4);
+    sset.add_service(s3);
+    sset.add_service(s2);
+    sset.add_service(s1);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+    assert(sset.find_service("test-service-3") == s3);
+    assert(sset.find_service("test-service-4") == s4);
+
+    // Request start of the s2 service, should also start s1:
+    sset.start_service(s1);
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s4->get_state() == service_state_t::STARTED);
+
+    s1->stop();
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s4->get_state() == service_state_t::STOPPED);
+
+    assert(sset.count_active_services() == 0);
+}
 
 #define RUN_TEST(name) \
     std::cout << #name "... "; \
@@ -531,4 +572,5 @@ int main(int argc, char **argv)
     RUN_TEST(test9);
     RUN_TEST(test10);
     RUN_TEST(test11);
+    RUN_TEST(test12);
 }
