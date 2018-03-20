@@ -35,8 +35,15 @@ Read initial environment from \fIfile\fP. For the system init process, the
 default is \fI/etc/dinit/environment\fR; see \fBFILES\fR.
 .TP
 \fB\-p\fR \fIpath\fP, \fB\-\-socket\-path\fR \fIpath\fP
-Species \fIpath\fP as the path to the control socket used to listen for
+Specifies \fIpath\fP as the path to the control socket used to listen for
 commands from the \fBdinitctl\fR program.
+.TP
+\fB\-l\fR \fIpath\fP, \fB\-\-log\-file\fR \fIpath\fP
+Species \fIpath\fP as the path to the log file, to which Dinit will log status
+and error messages. Note that when running as the system init process, Dinit
+does not begin logging until the log service has started. Using this option
+inhibits logging via the syslog facility, however, all logging messages are
+duplicated as usual to the console (so long as no service owns the console).
 .TP
 \fB\-s\fR, \fB\-\-system\fR
 Run as the system init process. This is the default if invoked as PID 1.
