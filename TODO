@@ -1,19 +1,29 @@
+For version 0.2.0:
+------------------
 * shutdown command presently hangs if terminal output blocked (scroll lock
   via ^S). Should use a buffer as dinit does, and pipe output from subcommands
   via the buffer too - if the buffer becomes full, discard subcommand output
   and continue to consume it.
-
-For version 1.0:
-----------------
-* Man pages for all programs (done for dinit, not for dinitctl/shutdown/etc).
-* Write wtmp entry on startup (see simpleinit)
-* "triggered" service type: external process notifies Dinit when the service
-  has started.
 * Load services from several different directories, with an order of precedence,
   to allow for packaged service descriptions and user-modified service
   descriptions.
+* Make default control socket location build-time configurable
+  
+For version 1.0:
+----------------
+* Support S6-style startup notification (write to fd)
+* Man pages for all programs (done for dinit, not for dinitctl/shutdown/etc).
+* Write wtmp entry on startup (see simpleinit)
+* "triggered" service type: external process notifies Dinit when the service
+  has started. (maybe?)
 * on shutdown, after repeated intervals with no activity, display information
-  about services we are waiting on.
+  about services we are waiting on (or, do this when prompted via ^C or C-A-D).
+* A (perhaps limited) way(s) to modify a service description after it is loaded -
+  eg add/remove dependencies, change properties.
+* Think about detecting runs-on-console dependency conflicts (i.e. if A runs-on-console and
+  B depends on A and runs-on-consle then B can never start).
+* Documentation must be complete (see section below).
+  
 
 For later:
 ----------
@@ -25,37 +35,20 @@ For later:
    system initialisations that can't or shouldn't really be "undone" and so do
    not need to be re-done).
 * Internationalisation
-* More logging options. Can currently log to syslog only (well, with the
-  syslog protocol, to /dev/log). Possibly should be able to log directly
-  to a file, or input stream of another process.
 * A service can prevent shutdown/reboot by failing to stop. Maybe make
   multiple CTRL-ALT-DEL presses (or ^C since that's more portable) commence
   immediate shutdown (or launch a simple control interface).
-* Interruptible scripted services - where it's ok to terminate the start
-  script with a signal (and return the service to the STOPPED state). So a long-
-  running filesystem check, for instance, need not hold up shutdown.
 * When we take down a service or tty session, it would be ideal if we could kill
   the whole process tree, not just the leader process (need cgroups or pid
   namespace or other mechanism).
-* Investigate using cn_proc netlink connector (cn_proc.h) to receive process
-  termination events even when running with PID != 1 (Linux only).
-  Also, there is the possibility of having a small, simple PID-1 init which
-  sends terminated process IDs over a pipe to Dinit. Finally, it may be possible
-  to run dinit (and subprocesses) in a new PID namespace (again linux-only).
 * Allow logging tasks to memory (growing or circular buffer) and later
   switching to disk logging (allows for filesystem mounted readonly on boot).
   But perhaps this really the responsibility of another daemon.
 * Allow running services with different resource limits, chroot, cgroups,
   namespaces (pid/fs/uid), etc
-* Make default control socket location build-time configurable
-* Allow specifying a timeout for killing services; if they don't die within
-  the timeout (after a TERM) then hit them with a KILL.
-* A (perhaps limited) way(s) to modify a service description after it is loaded -
-  eg add/remove dependencies, change properties.
-* Think about detecting runs-on-console dependency conflicts (i.e. if A runs-on-console and
-  B depends on A and runs-on-consle then B can never start).
 
 Even later / Maybe never:
+-------------------------
 * Support recognising /etc/init.d services automatically (as script services, with
   no dependency management - or upstart compatible dependency management)
   Also BSD's rc.d style scripts (PROVIDE, REQUIRE).
@@ -72,6 +65,7 @@ Even later / Maybe never:
 
 
 Documentation:
+--------------
 * Design philosophy/rationale document
 * Coding style guidelines
 

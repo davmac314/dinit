@@ -103,6 +103,11 @@ problematic and that the various functionality it provides is closely enough
 related that splitting it into component processes would not be beneficial -
 However, I can understand the other viewpoint.
 
+S6-RC nicely manages chaining of service standard input/output, facilitating
+setting up a logging chain where a logging process consumes the output of a
+service, and either can be restarted while losing only minimal (if any)
+output from the logs.
+
 It appears that S6 supports only hard dependencies: that is if, a service depends
 on another then that service must start, and stay running. Dinit supports a number
 of dependency types including "soft" dependencies which allow the dependency to
