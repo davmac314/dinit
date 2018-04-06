@@ -84,12 +84,12 @@
 #if _POSIX_TIMERS > 0
 #include "dasynq-posixtimer.h"
 namespace dasynq {
-    template <typename T> using timer_events = posix_timer_events<T>;
+    template <typename T, bool provide_mono_timer = true> using timer_events = posix_timer_events<T, provide_mono_timer>;
 }
 #else
 #include "dasynq-itimer.h"
 namespace dasynq {
-    template <typename T> using timer_events = itimer_events<T>;
+    template <typename T, bool provide_mono_timer = true> using timer_events = itimer_events<T, provide_mono_timer>;
 }
 #endif
 #endif
@@ -99,14 +99,14 @@ namespace dasynq {
 #include "dasynq-kqueue-macos.h"
 #include "dasynq-childproc.h"
 namespace dasynq {
-    template <typename T> using loop_t = macos_kqueue_loop<interrupt_channel<timer_events<child_proc_events<T>>>>;
+    template <typename T> using loop_t = macos_kqueue_loop<timer_events<child_proc_events<interrupt_channel<T>>, false>>;
     using loop_traits_t = macos_kqueue_traits;
 }
 #else
 #include "dasynq-kqueue.h"
 #include "dasynq-childproc.h"
 namespace dasynq {
-    template <typename T> using loop_t = kqueue_loop<interrupt_channel<timer_events<child_proc_events<T>>>>;
+    template <typename T> using loop_t = kqueue_loop<timer_events<child_proc_events<interrupt_channel<T>>, false>>;
     using loop_traits_t = kqueue_traits;
 }
 #endif
@@ -119,23 +119,20 @@ namespace dasynq {
     using loop_traits_t = epoll_traits;
 }
 #else
-#include "dasynq-select.h"
-#if _POSIX_TIMERS > 0
-#include "dasynq-posixtimer.h"
-namespace dasynq {
-    template <typename T> using timer_events = posix_timer_events<T>;
-}
-#else
-#include "dasynq-itimer.h"
-namespace dasynq {
-    template <typename T> using timer_events = itimer_events<T>;
-}
-#endif
 #include "dasynq-childproc.h"
+#if DASYNQ_HAVE_PSELECT
+#include "dasynq-pselect.h"
 namespace dasynq {
-    template <typename T> using loop_t = select_events<interrupt_channel<timer_events<child_proc_events<T>>>>;
+    template <typename T> using loop_t = pselect_events<timer_events<interrupt_channel<child_proc_events<T>>, false>>;
     using loop_traits_t = select_traits;
 }
+#else
+#include "dasynq-select.h"
+namespace dasynq {
+    template <typename T> using loop_t = select_events<timer_events<interrupt_channel<child_proc_events<T>>, false>>;
+    using loop_traits_t = select_traits;
+}
+#endif
 #endif
 
 #include <atomic>
@@ -2171,7 +2168,7 @@ class timer : private base_timer_watcher
 
     template <typename T>
     static timer<EventLoop> *add_timer(EventLoop &eloop, clock_type clock, bool relative,
-            struct timespec &timeout, struct timespec &interval, T watch_hndlr)
+            const timespec &timeout, const timespec &interval, T watch_hndlr)
     {
         class lambda_timer : public timer_impl<event_loop_t, lambda_timer>
         {

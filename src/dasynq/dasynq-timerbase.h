@@ -4,6 +4,8 @@
 #include <utility>
 #include <mutex>
 
+#include <time.h>
+
 #include "dasynq-daryheap.h"
 
 namespace dasynq {
@@ -302,6 +304,8 @@ template <typename Base> class timer_base : public Base
         return timer_queue.empty() && mono_timer_queue.empty();
     }
 #else
+    // If there is no monotonic clock, map both clock_type::MONOTONIC and clock_type::SYSTEM to a
+    // single clock (based on gettimeofday).
     protected:
     inline timer_queue_t &queue_for_clock(clock_type clock)
     {
@@ -315,9 +319,11 @@ template <typename Base> class timer_base : public Base
 #endif
 
     // For the specified timer queue, issue expirations for all timers set to expire on or before the given
-    // time (curtime). The timer queue must not be empty.
+    // time (curtime).
     void process_timer_queue(timer_queue_t &queue, const struct timespec &curtime) noexcept
     {
+        if (queue.empty()) return;
+
         // Peek timer queue; calculate difference between current time and timeout
         const time_val * timeout = &queue.get_root_priority();
         time_val curtime_tv = curtime;
@@ -364,6 +370,79 @@ template <typename Base> class timer_base : public Base
             // repeat until all expired timeouts processed
             timeout = &queue.get_root_priority();
         }
+    }
+
+    // Process timers based on the current clock time. If any timers have expired,
+    // set do_wait to false; otherwise, if any timers are pending, set ts to the delay before
+    // the next timer expires and set wait_ts to &ts.
+    // (If no timers are active, none of the output parameters are set).
+    inline void process_timers(clock_type clock, bool &do_wait, timespec &ts, timespec *&wait_ts)
+    {
+        timespec now;
+        auto &timer_q = this->queue_for_clock(clock);
+        this->get_time(now, clock, true);
+        if (! timer_q.empty()) {
+            const time_val &timeout = timer_q.get_root_priority();
+            if (timeout <= now) {
+                this->process_timer_queue(timer_q, now);
+                do_wait = false; // don't wait, we have events already
+            }
+            else if (do_wait) {
+                ts = (timeout - now);
+                wait_ts = &ts;
+            }
+        }
+    }
+
+    // Process timers based on the current clock time. If any timers have expired,
+    // set do_wait to false; otherwise, if any timers are pending, set tv to the delay before
+    // the next timer expires and set wait_tv to &tv.
+    // (If no timers are active, none of the output parameters are set).
+    inline void process_timers(clock_type clock, bool &do_wait, timeval &tv, timeval *&wait_tv)
+    {
+        timespec now;
+        auto &timer_q = this->queue_for_clock(clock);
+        this->get_time(now, clock, true);
+        if (! timer_q.empty()) {
+            const time_val &timeout = timer_q.get_root_priority();
+            if (timeout <= now) {
+                this->process_timer_queue(timer_q, now);
+                do_wait = false; // don't wait, we have events already
+            }
+            else if (do_wait) {
+                time_val delay = (timeout - now);
+                tv.tv_sec = delay.seconds();
+                tv.tv_usec = (delay.nseconds() + 999) / 1000;
+                wait_tv = &tv;
+            }
+        }
+    }
+
+    // Process monotonic timers based on the current clock time.
+    inline void process_monotonic_timers()
+    {
+        timespec now;
+        auto &timer_q = this->queue_for_clock(clock_type::MONOTONIC);
+        this->get_time(now, clock_type::MONOTONIC, true);
+        process_timer_queue(timer_q, now);
+    }
+
+    // Process monotonic timers based on the current clock time. If any timers have expired,
+    // set do_wait to false; otherwise, if any timers are pending, set ts to the delay before
+    // the next timer expires and set wait_ts to &ts.
+    // (If no timers are active, none of the output parameters are set).
+    inline void process_monotonic_timers(bool &do_wait, timespec &ts, timespec *&wait_ts)
+    {
+        process_timers(clock_type::MONOTONIC, do_wait, ts, wait_ts);
+    }
+
+    // Process monotonic timers based on the current clock time. If any timers have expired,
+    // set do_wait to false; otherwise, if any timers are pending, set ts to the delay before
+    // the next timer expires and set wait_ts to &ts.
+    // (If no timers are active, none of the output parameters are set).
+    inline void process_monotonic_timers(bool &do_wait, timeval &tv, timeval *&wait_tv)
+    {
+        process_timers(clock_type::MONOTONIC, do_wait, tv, wait_tv);
     }
 
     public:

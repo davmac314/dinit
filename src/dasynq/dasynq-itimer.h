@@ -11,10 +11,13 @@ namespace dasynq {
 
 // Timer implementation based on the (basically obsolete) POSIX itimer interface.
 
-// With this timer implementation, we only use one clock, and allow no distinction between the
-// monotonic and system time.
+// With this timer implementation, we only have one real clock (the monotonic clock) that we can
+// run a timer against. However, if the system has both clocks, we still maintain two separate queues.
+// If provide_mono_timer is false we actually provide no system timer and rely on the event mechanism
+// which extends this class to measure time and run timeouts (via process_monotonic_timers functions).
 
-template <class Base> class itimer_events : public timer_base<Base>
+template <class Base, bool provide_mono_timer = true>
+class itimer_events : public timer_base<Base>
 {
     private:
     
@@ -94,31 +97,100 @@ template <class Base> class itimer_events : public timer_base<Base>
     bool receive_signal(T & loop_mech, sigdata_t &siginfo, void *userdata)
     {
         if (siginfo.get_signo() == SIGALRM) {
-            auto &timer_queue = this->queue_for_clock(clock_type::SYSTEM);
-            if (! timer_queue.empty()) {
-                struct timespec curtime;
-                timer_base<Base>::get_time(curtime, clock_type::SYSTEM, true);
-                timer_base<Base>::process_timer_queue(timer_queue, curtime);
-            }
-            
-#ifdef CLOCK_MONOTONIC
-            auto &mono_timer_queue = this->queue_for_clock(clock_type::MONOTONIC);
-            if (! mono_timer_queue.empty()) {
-                struct timespec curtime_mono;
-                timer_base<Base>::get_time(curtime_mono, clock_type::MONOTONIC, true);
-                timer_base<Base>::process_timer_queue(mono_timer_queue, curtime_mono);
-            }
-#endif
-
-            // arm alarm with timeout from head of queue
-            set_timer_from_queue();
+            process_timers();
             return false; // don't disable signal watch
         }
         else {
             return Base::receive_signal(loop_mech, siginfo, userdata);
         }
     }
+
+#ifdef CLOCK_MONOTONIC
+    // We need to override the monotonic timer processing functions from timer_base to check both
+    // timer queues, since we aren't actually providing a separate timer for the system clock:
+
+    inline void process_monotonic_timers(bool &do_wait, timeval &tv, timeval *&wait_tv)
+    {
+        // We need to process both timer queues and set tv/wait_tv according to which has the
+        // timer that will expire soonest:
+        timer_base<Base>::process_timers(clock_type::MONOTONIC, do_wait, tv, wait_tv);
+
+        if (! do_wait) {
+            timer_base<Base>::process_timers(clock_type::SYSTEM, do_wait, tv, wait_tv);
+        }
+        else {
+            timeval mono_tv = tv;
+            timer_base<Base>::process_timers(clock_type::SYSTEM, do_wait, tv, wait_tv);
+            if (mono_tv.tv_sec < tv.tv_sec ||
+                    (mono_tv.tv_sec == tv.tv_sec && mono_tv.tv_usec < tv.tv_usec)) {
+                tv = mono_tv;
+            }
+        }
+    }
+
+    inline void process_monotonic_timers(bool &do_wait, timespec &ts, timespec *&wait_ts)
+    {
+        // We need to process both timer queues and set tv/wait_tv according to which has the
+        // timer that will expire soonest:
+        timer_base<Base>::process_timers(clock_type::MONOTONIC, do_wait, ts, wait_ts);
+
+        if (! do_wait) {
+            timer_base<Base>::process_timers(clock_type::SYSTEM, do_wait, ts, wait_ts);
+        }
+        else {
+            timespec mono_ts = ts;
+            timer_base<Base>::process_timers(clock_type::SYSTEM, do_wait, ts, wait_ts);
+            ts = std::min(time_val(ts), time_val(mono_ts));
+        }
+    }
+
+    // Process monotonic timers based on the current clock time. However, we shadow the
+    // function and provide an implementation which also processes the system clock timer queue.
+    inline void process_monotonic_timers()
+    {
+        auto &mono_timer_queue = this->queue_for_clock(clock_type::MONOTONIC);
+        if (! mono_timer_queue.empty()) {
+            struct timespec curtime_mono;
+            timer_base<Base>::get_time(curtime_mono, clock_type::MONOTONIC, true);
+            timer_base<Base>::process_timer_queue(mono_timer_queue, curtime_mono);
+        }
+
+        auto &sys_timer_queue = this->queue_for_clock(clock_type::SYSTEM);
+        if (! sys_timer_queue.empty()) {
+            struct timespec curtime_sys;
+            timer_base<Base>::get_time(curtime_sys, clock_type::SYSTEM, true);
+            timer_base<Base>::process_timer_queue(sys_timer_queue, curtime_sys);
+        }
+    }
+
+#endif
+
+    void process_timers()
+    {
+        auto &timer_queue = this->queue_for_clock(clock_type::SYSTEM);
+        if (! timer_queue.empty()) {
+            struct timespec curtime;
+            timer_base<Base>::get_time(curtime, clock_type::SYSTEM, true);
+            timer_base<Base>::process_timer_queue(timer_queue, curtime);
+        }
         
+#ifdef CLOCK_MONOTONIC
+        if (provide_mono_timer) {
+            auto &mono_timer_queue = this->queue_for_clock(clock_type::MONOTONIC);
+            if (! mono_timer_queue.empty()) {
+                struct timespec curtime_mono;
+                timer_base<Base>::get_time(curtime_mono, clock_type::MONOTONIC, true);
+                timer_base<Base>::process_timer_queue(mono_timer_queue, curtime_mono);
+            }
+        }
+#endif
+
+        if (provide_mono_timer) {
+            // arm alarm with timeout from head of queue
+            set_timer_from_queue();
+        }
+    }
+
     public:
 
     class traits_t : public Base::traits_t
@@ -128,11 +200,13 @@ template <class Base> class itimer_events : public timer_base<Base>
 
     template <typename T> void init(T *loop_mech)
     {
-        sigset_t sigmask;
-        this->sigmaskf(SIG_UNBLOCK, nullptr, &sigmask);
-        sigaddset(&sigmask, SIGALRM);
-        this->sigmaskf(SIG_SETMASK, &sigmask, nullptr);
-        loop_mech->add_signal_watch(SIGALRM, nullptr);
+        if (provide_mono_timer) {
+            sigset_t sigmask;
+            this->sigmaskf(SIG_UNBLOCK, nullptr, &sigmask);
+            sigaddset(&sigmask, SIGALRM);
+            this->sigmaskf(SIG_SETMASK, &sigmask, nullptr);
+            loop_mech->add_signal_watch(SIGALRM, this);
+        }
         Base::init(loop_mech);
     }
     
@@ -152,15 +226,21 @@ template <class Base> class itimer_events : public timer_base<Base>
         ts.expiry_count = 0;
         ts.enabled = enable;
 
+        bool do_set_timer;
         if (timer_queue.is_queued(timer_id)) {
             // Already queued; alter timeout
-            if (timer_queue.set_priority(timer_id, timeout)) {
-                set_timer_from_queue();
-            }
+            do_set_timer = timer_queue.set_priority(timer_id, timeout);
         }
         else {
-            if (timer_queue.insert(timer_id, timeout)) {
+            do_set_timer = timer_queue.insert(timer_id, timeout);
+        }
+
+        if (do_set_timer) {
+            if (provide_mono_timer) {
                 set_timer_from_queue();
+            }
+            else {
+                this->interrupt_wait();
             }
         }
     }

@@ -70,72 +70,7 @@ class macos_kqueue_traits : public signal_traits
     constexpr static bool supports_non_oneshot_fd = false;
 };
 
-#if _POSIX_REALTIME_SIGNALS > 0
-static inline void prepare_signal(int signo) { }
-static inline void unprep_signal(int signo) { }
-
-inline bool get_siginfo(int signo, siginfo_t *siginfo)
-{
-    struct timespec timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_nsec = 0;
-
-    sigset_t mask;
-    sigemptyset(&mask);
-    sigaddset(&mask, signo);
-    return (sigtimedwait(&mask, siginfo, &timeout) != -1);
-}
-#else
-
-// If we have no sigtimedwait implementation, we have to retrieve signal data by establishing a
-// signal handler.
-
-// We need to declare and define a non-static data variable, "siginfo_p", in this header, without
-// violating the "one definition rule". The only way to do that is via a template, even though we
-// don't otherwise need a template here:
-template <typename T = decltype(nullptr)> class sig_capture_templ
-{
-    public:
-    static siginfo_t * siginfo_p;
-
-    static void signalHandler(int signo, siginfo_t *siginfo, void *v)
-    {
-        *siginfo_p = *siginfo;
-    }
-};
-template <typename T> siginfo_t * sig_capture_templ<T>::siginfo_p = nullptr;
-
-using sig_capture = sig_capture_templ<>;
-
-inline void prepare_signal(int signo)
-{
-    struct sigaction the_action;
-    the_action.sa_sigaction = sig_capture::signalHandler;
-    the_action.sa_flags = SA_SIGINFO;
-    sigfillset(&the_action.sa_mask);
-
-    sigaction(signo, &the_action, nullptr);
-}
-
-inline void unprep_signal(int signo)
-{
-    signal(signo, SIG_DFL);
-}
-
-inline bool get_siginfo(int signo, siginfo_t *siginfo)
-{
-    sig_capture::siginfo_p = siginfo;
-
-    sigset_t mask;
-    sigfillset(&mask);
-    sigdelset(&mask, signo);
-    sigsuspend(&mask);
-    return true;
-}
-
-#endif
-
-template <class Base> class macos_kqueue_loop : public signal_events<Base,true>
+template <class Base> class macos_kqueue_loop : public signal_events<Base, true>
 {
     int kqfd; // kqueue fd
 
@@ -181,7 +116,8 @@ template <class Base> class macos_kqueue_loop : public signal_events<Base,true>
             }
         }
 
-        // Now we disable all received events, to simulate EV_DISPATCH:
+        // Now we disable all received events, to simulate EV_DISPATCH. Note that EV_DISPATH is
+        // actually available on MacOS, but we can't use it due to the signal processing bug.
         kevent(kqfd, events, r, nullptr, 0, nullptr);
     }
 
@@ -402,34 +338,51 @@ template <class Base> class macos_kqueue_loop : public signal_events<Base,true>
         struct kevent events[16];
         struct timespec ts;
 
-        Base::lock.lock();
-        sigset_t sigmask = this->get_active_sigmask();
-        Base::lock.unlock();
+        // wait_ts remains null for an infinite wait; it is later set to either a 0 timeout
+        // if do_wait is false (or if we otherwise won't wait due to events being detected
+        // early) or is set to an appropriate timeout for the next timer's timeout.
+        struct timespec *wait_ts = nullptr;
 
-        volatile bool was_signalled = false;
+        Base::lock.lock();
+
+        // Check whether any timers are pending, and what the next timeout is.
+        this->process_monotonic_timers(do_wait, ts, wait_ts);
+
+        const sigset_t &active_sigmask = this->get_active_sigmask();
+        Base::lock.unlock();
 
         // using sigjmp/longjmp is ugly, but there is no other way. If a signal that we're watching is
         // received during polling, it will longjmp back to here:
         if (sigsetjmp(this->get_sigreceive_jmpbuf(), 1) != 0) {
-            this->process_signal(sigmask);
-            was_signalled = true;
-        }
-
-        if (was_signalled) {
+            this->process_signal();
             do_wait = false;
         }
 
-        ts.tv_sec = 0;
-        ts.tv_nsec = 0;
+        if (! do_wait) {
+            ts.tv_sec = 0;
+            ts.tv_nsec = 0;
+            wait_ts = &ts;
+        }
 
         std::atomic_signal_fence(std::memory_order_release);
-        this->sigmaskf(SIG_UNBLOCK, &sigmask, nullptr);
-        int r = kevent(kqfd, nullptr, 0, events, 16, do_wait ? nullptr : &ts);
-        this->sigmaskf(SIG_BLOCK, &sigmask, nullptr);
+
+        // Run kevent with signals unmasked:
+        this->sigmaskf(SIG_UNBLOCK, &active_sigmask, nullptr);
+        int r = kevent(kqfd, nullptr, 0, events, 16, wait_ts);
+        this->sigmaskf(SIG_BLOCK, &active_sigmask, nullptr);
+
         if (r == -1 || r == 0) {
             // signal or no events
+            if (r == 0 && do_wait) {
+                // timeout:
+                Base::lock.lock();
+                this->process_monotonic_timers();
+                Base::lock.unlock();
+            }
             return;
         }
+
+        ts = time_val(0, 0);
 
         do {
             process_events(events, r);

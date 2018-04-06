@@ -3,11 +3,13 @@
 
 // You can customise Dasynq's build options in this file. Typically, you won't need to do anything; the
 // defaults are sensible for a range of operating systems, though for some BSD family OSes you may need
-// to explicitly define DASYNQ_HAVE_KQUEUE to 1. Either kqueue or epoll must be available (i.e. either
-// DASYNQ_HAVE_KQUEUE or DASYNQ_HAVE_EPOLL need to be defined to 1). There are two parts to the file: the
-// first is the custom configuration section, where you may specify custom settings, and the second
-// section contains automatic configuration to fill in remaining settings based on known features in
-// certain operating systems and compilers.
+// to explicitly define DASYNQ_HAVE_KQUEUE to 1. If neither epoll nor kqueue are available, the select-
+// based backend is used, and DASYNQ_HAVE_PSELECT must be defined (to either 1 or 0, if pselect is or is
+// not available, respectively).
+
+// There are two parts to the file: the first is the custom configuration section, where you may specify
+// custom settings, and the second section contains automatic configuration to fill in remaining settings
+// based on known features in certain operating systems and compilers.
 
 // ---------------------------------------------------------------------------------------------------------
 // Part 1: Custom configuration, please edit to suit your system / requirements.
@@ -20,10 +22,13 @@
 //     #define DASYNQ_HAVE_KQUEUE 1
 //
 // If the epoll family of system calls are available:
-//     #define DASYNQ_HAVE_KQUEUE 1
+//     #define DASYNQ_HAVE_EPOLL 1
 //
 // If the pipe2 system call is available:
 //     #define HAVE_PIPE2 1
+//
+// If the pselect system call is available:
+//     #define HAVE_PSELECT 1
 //
 // A tag to include at the end of a class body for a class which is allowed to have zero size.
 // Normally, C++ mandates that all objects (except empty base subobjects) have non-zero size, but on some
@@ -44,17 +49,28 @@
 #if ! defined(DASYNQ_HAVE_KQUEUE)
 #if defined(__OpenBSD__) || defined(__APPLE__) || defined(__FreeBSD__)
 #define DASYNQ_HAVE_KQUEUE 1
-#if defined(__APPLE__)
-// kqueue on macos has "issues". See extra/macos-kqueue-bug. There is an alternate Dasyqn kqueue backend
-// which avoids the issue, which is enabled via DASYNQ_KQUEUE_MACOS_WORKAROUND.
-#define DASYNQ_KQUEUE_MACOS_WORKAROUND 1
-#endif
 #endif
 #endif
 
-#if defined(__linux__)
+#if DASYNQ_HAVE_KQUEUE && !defined(DASYNQ_KQUEUE_MACOS_WORKAROUND) && defined(__APPLE__)
+// kqueue on macos has "issues". See extra/macos-kqueue-bug. There is an alternate Dasynq kqueue backend
+// which avoids the issue, which is enabled via DASYNQ_KQUEUE_MACOS_WORKAROUND.
+#define DASYNQ_KQUEUE_MACOS_WORKAROUND 1
+#endif
+
 #if ! defined(DASYNQ_HAVE_EPOLL)
+#if defined(__linux__)
 #define DASYNQ_HAVE_EPOLL 1
+#endif
+#endif
+
+#if ! defined(DASYNQ_HAVE_PSELECT)
+#if defined(__sortix__)
+// Sortix doesn't have pselect yet (but has select):
+#define DASYNQ_HAVE_PSELECT 0
+#else
+// POSIX actually requires pselect, so we otherwise assume it's available:
+#define DASYNQ_HAVE_PSELECT 1
 #endif
 #endif
 

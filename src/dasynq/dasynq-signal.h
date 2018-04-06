@@ -1,3 +1,6 @@
+#ifndef DASYNQ_SIGNAL_INCLUDED
+#define DASYNQ_SIGNAL_INCLUDED 1
+
 #include <atomic>
 
 #include <signal.h>
@@ -124,6 +127,9 @@ template <class Base, bool mask_enables = false> class signal_events : public Ba
         }
     }
 
+    // Get the active signal mask - identifying the set of signals which have an enabled watcher.
+    // if mask_enables is true, the returned set contains the active signals; otherwise, it
+    // contains all inactive signals.
     const sigset_t &get_active_sigmask()
     {
         return active_sigmask;
@@ -134,6 +140,30 @@ template <class Base, bool mask_enables = false> class signal_events : public Ba
         return dprivate::signal_mech::get_sigreceive_jmpbuf();
     }
 
+    // process a received signal
+    void process_signal()
+    {
+        using namespace dprivate::signal_mech;
+        std::atomic_signal_fence(std::memory_order_acquire);
+        auto * sinfo = get_siginfo();
+        sigdata_t sigdata;
+        sigdata.info = *sinfo;
+
+        Base::lock.lock();
+        void *udata = sig_userdata[sinfo->si_signo];
+        if (udata != nullptr && Base::receive_signal(*this, sigdata, udata)) {
+            if (mask_enables) {
+                sigdelset(&active_sigmask, sinfo->si_signo);
+            }
+            else {
+                sigaddset(&active_sigmask, sinfo->si_signo);
+            }
+        }
+        Base::lock.unlock();
+    }
+
+    // process a received signal, and update sigmask - which should reflect the inverse of the
+    // active signal mask.
     void process_signal(sigset_t &sigmask)
     {
         using namespace dprivate::signal_mech;
@@ -146,11 +176,11 @@ template <class Base, bool mask_enables = false> class signal_events : public Ba
         void *udata = sig_userdata[sinfo->si_signo];
         if (udata != nullptr && Base::receive_signal(*this, sigdata, udata)) {
             if (mask_enables) {
-                sigdelset(&sigmask, sinfo->si_signo);
+                sigaddset(&sigmask, sinfo->si_signo);
                 sigdelset(&active_sigmask, sinfo->si_signo);
             }
             else {
-                sigaddset(&sigmask, sinfo->si_signo);
+                sigdelset(&sigmask, sinfo->si_signo);
                 sigaddset(&active_sigmask, sinfo->si_signo);
             }
         }
@@ -213,3 +243,5 @@ template <class Base, bool mask_enables = false> class signal_events : public Ba
 };
 
 }
+
+#endif

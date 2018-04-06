@@ -13,7 +13,8 @@ namespace dasynq {
 // Timer implementation based on POSIX create_timer et al.
 // May require linking with -lrt
 
-template <class Base> class posix_timer_events : public timer_base<Base>
+template <class Base, bool provide_mono_timer = true>
+class posix_timer_events : public timer_base<Base>
 {
     private:
     timer_t real_timer;
@@ -56,7 +57,7 @@ template <class Base> class posix_timer_events : public timer_base<Base>
                 set_timer_from_queue(real_timer, real_timer_queue);
             }
 
-            if (! mono_timer_queue.empty()) {
+            if (! mono_timer_queue.empty() && provide_mono_timer) {
                 this->get_time(curtime, clock_type::MONOTONIC, true);
                 this->process_timer_queue(mono_timer_queue, curtime);
                 set_timer_from_queue(mono_timer, mono_timer_queue);
@@ -94,7 +95,7 @@ template <class Base> class posix_timer_events : public timer_base<Base>
         this->sigmaskf(SIG_UNBLOCK, nullptr, &sigmask);
         sigaddset(&sigmask, SIGALRM);
         this->sigmaskf(SIG_SETMASK, &sigmask, nullptr);
-        loop_mech->add_signal_watch(SIGALRM, nullptr);
+        loop_mech->add_signal_watch(SIGALRM, this);
 
         struct sigevent timer_sigevent;
         timer_sigevent.sigev_notify = SIGEV_SIGNAL;
@@ -103,7 +104,7 @@ template <class Base> class posix_timer_events : public timer_base<Base>
 
         // Create the timers; throw std::system_error if we can't.
         if (timer_create(CLOCK_REALTIME, &timer_sigevent, &real_timer) == 0) {
-            if (timer_create(CLOCK_MONOTONIC, &timer_sigevent, &mono_timer) != 0) {
+            if (provide_mono_timer && timer_create(CLOCK_MONOTONIC, &timer_sigevent, &mono_timer) != 0) {
                 timer_delete(real_timer);
                 throw std::system_error(errno, std::system_category());
             }
@@ -133,12 +134,16 @@ template <class Base> class posix_timer_events : public timer_base<Base>
         if (timer_queue.is_queued(timer_id)) {
             // Already queued; alter timeout
             if (timer_queue.set_priority(timer_id, timeout)) {
-                set_timer_from_queue(timer, timer_queue);
+                if (clock != clock_type::MONOTONIC || provide_mono_timer) {
+                    set_timer_from_queue(timer, timer_queue);
+                }
             }
         }
         else {
             if (timer_queue.insert(timer_id, timeout)) {
-                set_timer_from_queue(timer, timer_queue);
+                if (clock != clock_type::MONOTONIC || provide_mono_timer) {
+                    set_timer_from_queue(timer, timer_queue);
+                }
             }
         }
     }
@@ -147,10 +152,8 @@ template <class Base> class posix_timer_events : public timer_base<Base>
     void set_timer_rel(timer_handle_t &timer_id, const timespec &timeout, const timespec &interval,
             bool enable, clock_type clock = clock_type::MONOTONIC) noexcept
     {
-        // TODO consider caching current time somehow; need to decide then when to update cached value.
         struct timespec curtime;
-        int posix_clock_id = (clock == clock_type::MONOTONIC) ? CLOCK_MONOTONIC : CLOCK_REALTIME;
-        clock_gettime(posix_clock_id, &curtime);
+        this->get_time(curtime, clock, false);
         curtime.tv_sec += timeout.tv_sec;
         curtime.tv_nsec += timeout.tv_nsec;
         if (curtime.tv_nsec > 1000000000) {
@@ -174,7 +177,7 @@ template <class Base> class posix_timer_events : public timer_base<Base>
         if (timer_queue.is_queued(timer_id)) {
             bool was_first = (&timer_queue.get_root()) == &timer_id;
             timer_queue.remove(timer_id);
-            if (was_first) {
+            if (was_first && (clock != clock_type::MONOTONIC || provide_mono_timer)) {
                 set_timer_from_queue(timer, timer_queue);
             }
         }
@@ -182,7 +185,9 @@ template <class Base> class posix_timer_events : public timer_base<Base>
 
     ~posix_timer_events()
     {
-        timer_delete(mono_timer);
+        if (provide_mono_timer) {
+            timer_delete(mono_timer);
+        }
         timer_delete(real_timer);
     }
 };
