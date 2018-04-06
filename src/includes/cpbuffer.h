@@ -47,7 +47,7 @@ template <int SIZE> class cpbuffer
         }
     }
     
-    // fill by reading from the given fd, return positive if some was read or -1 on error.
+    // Fill by reading from the given fd, return positive if some was read or -1 on error.
     int fill(int fd) noexcept
     {
         int pos = cur_idx + length;
@@ -60,6 +60,21 @@ template <int SIZE> class cpbuffer
         return r;
     }
     
+    // Fill by reading up to the specified amount of bytes from the given fd,
+    // Return is the number of bytes read, 0 on end-of-file or -1 on error.
+    int fill(int fd, int limit) noexcept
+    {
+        int pos = cur_idx + length;
+        if (pos >= SIZE) pos -= SIZE;
+        int max_count = std::min(SIZE - pos, SIZE - length);
+        max_count = std::min(max_count, limit);
+        ssize_t r = read(fd, buf + pos, max_count);
+        if (r >= 0) {
+            length += r;
+        }
+        return r;
+    }
+
     // fill by reading from the given fd, until at least the specified number of bytes are in
     // the buffer. Return 0 if end-of-file reached before fill complete, or -1 on error.
     int fill_to(int fd, int rlength) noexcept

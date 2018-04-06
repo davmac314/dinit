@@ -1,9 +1,5 @@
 For version 0.2.0:
 ------------------
-* shutdown command presently hangs if terminal output blocked (scroll lock
-  via ^S). Should use a buffer as dinit does, and pipe output from subcommands
-  via the buffer too - if the buffer becomes full, discard subcommand output
-  and continue to consume it.
 * Load services from several different directories, with an order of precedence,
   to allow for packaged service descriptions and user-modified service
   descriptions.
