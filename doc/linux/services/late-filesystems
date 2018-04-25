@@ -5,6 +5,6 @@ command = /etc/dinit.d/late-filesystems.sh start
 restart = false
 logfile = /var/log/late-filesystems.log
 options = start-interruptible
-start-timeout = 1200   # 20 minutes 
+start-timeout = 0   # unlimited 
 
 depends-on = rcboot
