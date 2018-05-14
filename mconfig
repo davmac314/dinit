@@ -30,5 +30,9 @@ SANITIZEOPTS=-fsanitize=address,undefined
 #BUILD_SHUTDOWN=no
 #SANITIZEOPTS=-fsanitize=address,undefined
 
-# MacOS: use Linux settings, but don't build shutdown:
+# MacOS: use g++ (which may alias clang++):
+#CXX=g++
+#CXXOPTS=-std=c++11 -Os -Wall -fno-rtti -flto
+#LDFLAGS=-flto
 #BUILD_SHUTDOWN=no
+#SANITIZEOPTS=-fsanitize=address,undefined
