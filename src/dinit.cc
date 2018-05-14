@@ -165,6 +165,7 @@ int dinit_main(int argc, char **argv)
     
     am_system_init = (getpid() == 1);
     const char * service_dir = nullptr;
+    bool service_dir_dynamic = false; // service_dir dynamically allocated?
     const char * env_file = nullptr;
     string service_dir_str; // to hold storage for above if necessary
     bool control_socket_path_set = false;
@@ -306,14 +307,18 @@ int dinit_main(int argc, char **argv)
     if (service_dir == nullptr && ! am_system_init) {
         const char * userhome = get_user_home();
         if (userhome != nullptr) {
-            service_dir_str = get_user_home();
-            service_dir_str += "/dinit.d";
-            service_dir = service_dir_str.c_str();
+            const char * user_home = get_user_home();
+            size_t user_home_len = strlen(user_home);
+            size_t dinit_d_len = strlen("/dinit.d");
+            size_t full_len = user_home_len + dinit_d_len + 1;
+            char *service_dir_w = new char[full_len];
+            std::memcpy(service_dir_w, user_home, user_home_len);
+            std::memcpy(service_dir_w + user_home_len, "/dinit.d", dinit_d_len);
+            service_dir_w[full_len - 1] = 0;
+
+            service_dir = service_dir_w;
+            service_dir_dynamic = true;
         }
-    }
-    
-    if (service_dir == nullptr) {
-        service_dir = "/etc/dinit.d";
     }
     
     if (services_to_start.empty()) {
@@ -369,8 +374,18 @@ int dinit_main(int argc, char **argv)
     
     log_flush_timer.add_timer(event_loop, dasynq::clock_type::MONOTONIC);
 
+    bool add_all_service_dirs = false;
+    if (service_dir == nullptr) {
+        service_dir = "/etc/dinit.d";
+        add_all_service_dirs = true;
+    }
+
     /* start requested services */
-    services = new dirload_service_set(service_dir);
+    services = new dirload_service_set(service_dir, service_dir_dynamic);
+    if (add_all_service_dirs) {
+        services->add_service_dir("/usr/local/lib/dinit.d", false);
+        services->add_service_dir("/lib/dinit.d", false);
+    }
     
     init_log(services);
     if (am_system_init) {

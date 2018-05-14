@@ -117,9 +117,10 @@ Service Description files
 =-=-=-=-=-=-=-=-=-=-=-=-=
 
 Dinit discovers services by reading _service description files_. These files
-reside in a directory (/etc/dinit.d is the default "system" location) and
-their name matches the name of the service. Service descriptions are loaded
-lazily, as needed by Dinit.
+reside in a directory (/etc/dinit.d is the default "system" location, with
+"/usr/local/lib/dinit.d" and "/lib/dinit.d" also searched) and their name
+matches the name of the service. Service descriptions are loaded lazily, as
+needed by Dinit.
 
 A service description file consists of a number of parameter settings.
 Settings in the SDF are denoted as a parameter name followed by either an

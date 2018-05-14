@@ -20,15 +20,18 @@ specified via command line parameter) or as a user instance. This affects
 the default paths used to locate certain files, and the reaction to various
 signals.
 
-Dinit reads service descriptions from files located in the service
-description directory, normally \fI/etc/dinit.d\fR for the system instance
-or \fI$HOME/dinit.d\fR when run as a user process. See \fBSERVICE
-DESCRIPTION FILES\fR for details.
+Dinit reads service descriptions from files located in a service
+description directory, normally one of \fI/etc/dinit.d\fR,
+\fI/usr/local/lib/dinit.d/fR or \fI/lib/dinit.d\fR for the system instance
+or just \fI$HOME/dinit.d\fR when run as a user process. See \fBSERVICE
+DESCRIPTION FILES\fR for details of the service description format.
 .\"
 .SH OPTIONS
 .TP
 \fB\-d\fR \fIdir\fP, \fB\-\-services\-dir\fR \fIdir\fP
 Specifies \fIdir\fP as the directory containing service definition files.
+The directory specified will be the only directory searched for service
+definitions.
 .TP
 \fB\-e\fR \fIfile\fP, \fB\-\-env\-file\fR \fIfile\fP
 Read initial environment from \fIfile\fP. For the system init process, the
