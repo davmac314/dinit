@@ -845,13 +845,55 @@ class service_set
     }
 };
 
-class dirload_service_set : public service_set
+// A service directory entry, tracking the directory as a nul-terminated string, which may either
+// be static or dynamically allocated (via new char[...]).
+class service_dir_entry
 {
-    const char *service_dir;  // directory containing service descriptions
+    const char *dir;
+    bool dir_dyn_allocd;  // dynamically allocated?
 
     public:
-    dirload_service_set(const char *service_dir_p) : service_set(), service_dir(service_dir_p)
+    service_dir_entry(const char *dir_p, bool dir_dyn_allocd_p) :
+        dir(dir_p), dir_dyn_allocd(dir_dyn_allocd_p)
+    { }
+
+    ~service_dir_entry()
     {
+        if (dir_dyn_allocd) {
+            delete[] dir;
+        }
+    }
+
+    const char *get_dir() const
+    {
+        return dir;
+    }
+};
+
+// A service set which loads services from one of several service directories.
+class dirload_service_set : public service_set
+{
+    std::vector<service_dir_entry> service_dirs; // directories containing service descriptions
+
+    public:
+    dirload_service_set() : service_set()
+    {
+        // nothing to do.
+    }
+
+    // Construct a dirload_service_set which loads services from the specified directory. The
+    // directory specified can be dynamically allocated via "new char[...]" (dyn_allocd == true)
+    // or statically allocated.
+    dirload_service_set(const char *service_dir_p, bool dyn_allocd = false) : service_set()
+    {
+        service_dirs.emplace_back(service_dir_p, false);
+    }
+
+    // Append a directory to the list of service directories, so that it is searched last for
+    // service description files.
+    void add_service_dir(const char *service_dir_p, bool dyn_allocd = true)
+    {
+        service_dirs.emplace_back(service_dir_p, dyn_allocd);
     }
 
     service_record *load_service(const char *name) override;

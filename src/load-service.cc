@@ -377,12 +377,19 @@ service_record * dirload_service_set::load_service(const char * name)
         return rval;
     }
 
-    // Couldn't find one. Have to load it.    
-    string service_filename = service_dir;
-    if (*(service_filename.rbegin()) != '/') {
-        service_filename += '/';
+    ifstream service_file;
+
+    // Couldn't find one. Have to load it.
+    for (auto &service_dir : service_dirs) {
+        string service_filename = service_dir.get_dir();
+        if (*(service_filename.rbegin()) != '/') {
+            service_filename += '/';
+        }
+        service_filename += name;
+
+        service_file.open(service_filename.c_str(), ios::in);
+        if (service_file) break;
     }
-    service_filename += name;
     
     string command;
     list<pair<unsigned,unsigned>> command_offsets;
@@ -416,15 +423,7 @@ service_record * dirload_service_set::load_service(const char * name)
     gid_t run_as_gid = -1;
 
     string line;
-    ifstream service_file;
     service_file.exceptions(ios::badbit | ios::failbit);
-    
-    try {
-        service_file.open(service_filename.c_str(), ios::in);
-    }
-    catch (std::ios_base::failure &exc) {
-        throw service_not_found(name);
-    }
     
     // Add a dummy service record now to prevent infinite recursion in case of cyclic dependency.
     // We replace this with the real service later (or remove it if we find a configuration error).
