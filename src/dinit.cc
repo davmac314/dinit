@@ -350,10 +350,6 @@ int dinit_main(int argc, char **argv)
     // Try to open control socket (may fail due to readonly filesystem)
     open_control_socket(false);
     
-    // Only try to set up the external log now if we aren't the system init. (If we are the
-    // system init, wait until the log service starts).
-    if (! am_system_init) setup_external_log();
-
 #ifdef __linux__
     if (am_system_init) {
         // Disable non-critical kernel output to console
@@ -387,11 +383,15 @@ int dinit_main(int argc, char **argv)
         services->add_service_dir("/lib/dinit.d", false);
     }
     
-    init_log(services);
+    init_log(services, log_is_syslog);
     if (am_system_init) {
         log(loglevel_t::INFO, false, "starting system");
     }
     
+    // Only try to set up the external log now if we aren't the system init. (If we are the
+    // system init, wait until the log service starts).
+    if (! am_system_init) setup_external_log();
+
     if (env_file != nullptr) {
         read_env_file(env_file);
     }
@@ -696,7 +696,7 @@ void setup_external_log() noexcept
                 // the file descriptor so we will be notified when it's ready. In other words we can
                 // basically use it anyway.
                 try {
-                    setup_main_log(sockfd, true);
+                    setup_main_log(sockfd);
                 }
                 catch (std::exception &e) {
                     log(loglevel_t::ERROR, "Setting up log failed: ", e.what());
@@ -716,7 +716,7 @@ void setup_external_log() noexcept
             int log_fd = open(log_path, O_WRONLY | O_CREAT | O_APPEND | O_NONBLOCK | O_CLOEXEC, 0644);
             if (log_fd >= 0) {
                 try {
-                    setup_main_log(log_fd, false);
+                    setup_main_log(log_fd);
                 }
                 catch (std::exception &e) {
                     log(loglevel_t::ERROR, "Setting up log failed: ", e.what());

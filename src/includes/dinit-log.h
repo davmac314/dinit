@@ -28,8 +28,8 @@ enum class loglevel_t {
 // These are defined in dinit-log.cc:
 extern loglevel_t log_level[2];
 void enable_console_log(bool do_enable) noexcept;
-void init_log(service_set *sset);
-void setup_main_log(int fd, bool syslog_format);
+void init_log(service_set *sset, bool syslog_format);
+void setup_main_log(int fd);
 bool is_log_flushed() noexcept;
 void discard_console_log_buffer() noexcept;
 

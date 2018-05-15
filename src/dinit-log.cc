@@ -254,20 +254,23 @@ rearm buffered_log_stream::fd_event(eventloop_t &loop, int fd, int flags) noexce
 
 // Initialise the logging subsystem
 // Potentially throws std::bad_alloc or std::system_error
-void init_log(service_set *sset)
+void init_log(service_set *sset, bool syslog_format)
 {
     services = sset;
     log_stream[DLOG_CONS].add_watch(event_loop, STDOUT_FILENO, dasynq::OUT_EVENTS, false);
     enable_console_log(true);
+
+    // The main (non-console) log won't be active yet, but we set the format here so that we
+    // buffer messages in the correct format:
+    log_format_syslog[DLOG_MAIN] = syslog_format;
 }
 
 // Set up the main log to output to the given file descriptor.
 // Potentially throws std::bad_alloc or std::system_error
-void setup_main_log(int fd, bool syslog_format)
+void setup_main_log(int fd)
 {
     log_stream[DLOG_MAIN].init(fd);
     log_stream[DLOG_MAIN].add_watch(event_loop, fd, dasynq::OUT_EVENTS);
-    log_format_syslog[DLOG_MAIN] = syslog_format;
 }
 
 bool is_log_flushed() noexcept
