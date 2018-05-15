@@ -149,6 +149,8 @@ rearm buffered_log_stream::fd_event(eventloop_t &loop, int fd, int flags) noexce
 {
     if ((! partway) && (! special) && discarded) {
         special_buf = "dinit: *** log message discarded due to full buffer ***\n";
+        special = true;
+        discarded = false;
         msg_index = 0;
     }
 
@@ -160,7 +162,7 @@ rearm buffered_log_stream::fd_event(eventloop_t &loop, int fd, int flags) noexce
             if (start + r > end) {
                 // All written: go on to next message in queue
                 special = false;
-                partway = false;
+                discarded = false;
                 msg_index = 0;
                 
                 if (release) {
