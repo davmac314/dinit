@@ -11,7 +11,14 @@ objects = $(dinit_objects) dinitctl.o shutdown.o
 
 all: dinit dinitctl $(SHUTDOWN)
 
-dinit: $(dinit_objects)
+mconfig.h: mconfig-gen
+	./mconfig-gen > mconfig.h
+
+mconfig-gen: mconfig-gen.cc ../mconfig
+	$(CXX) $(CXXOPTS) -o mconfig-gen mconfig-gen.cc $(LDFLAGS) -DSBINDIR=$(SBINDIR) \
+		-DSYSCONTROLSOCKET=$(SYSCONTROLSOCKET)
+
+dinit: mconfig.h $(dinit_objects)
 	$(CXX) -o dinit $(dinit_objects) $(LDFLAGS)
 
 dinitctl: dinitctl.o
@@ -35,7 +42,8 @@ endif
 
 clean:
 	rm -f *.o *.d
-	rm -f dinit dinitctl shutdown
+	rm -f dinit dinitctl shutdown mconfig-gen
+	rm -f mconfig.h
 	$(MAKE) -C tests clean
 
 -include $(objects:.o=.d)
