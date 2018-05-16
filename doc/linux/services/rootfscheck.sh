@@ -5,7 +5,7 @@ if [ "$1" != "stop" ]; then
   
   ROOTDEV=`findmnt -o SOURCE -n -M /`
   
-  echo "Checking root file system..."
+  echo "Checking root file system (^C to skip)..."
   if [ -x /sbin/fsck ]; then
     /sbin/fsck -C -a "$ROOTDEV"
     fsckresult=$?
@@ -14,16 +14,16 @@ if [ "$1" != "stop" ]; then
       echo "WARNING WARNING WARNING"
       echo "***********************"
       echo "The root file system has problems which require user attention."
-      echo "A maintennance shell will now be started; system will then be rebooted."
+      echo "A maintenance shell will now be started; system will then be rebooted."
       /sbin/sulogin
-      /sbin/reboot --system -r      
+      /sbin/reboot --use-passed-cfd -r
     elif [ $(($fsckresult & 2)) -eq 2 ]; then
       echo "***********************"
       echo "WARNING WARNING WARNING"
       echo "***********************"
       echo "The root file system had problems (now repaired): rebooting..."
-      sleep 10
-      /sbin/reboot --system -r
+      sleep 5
+      /sbin/reboot --use-passed-cfd -r
     fi
   else
     echo "WARNING - Could not find /sbin/fsck"
