@@ -307,6 +307,9 @@ int main(int argc, char **argv)
             long int cfdnum = strtol(dinit_cs_fd_env, &endptr, 10);
             if (endptr != dinit_cs_fd_env) {
                 socknum = (int) cfdnum;
+                // Set non-blocking mode:
+                int sock_flags = fcntl(socknum, F_GETFL, 0);
+                fcntl(socknum, F_SETFL, sock_flags & ~O_NONBLOCK);
             }
             else {
                 use_passed_cfd = false;
