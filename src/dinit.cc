@@ -28,6 +28,9 @@
 #include "control.h"
 #include "dinit-log.h"
 #include "dinit-socket.h"
+#include "static-string.h"
+
+#include "mconfig.h"
 
 /*
  * When running as the system init process, Dinit processes the following signals:
@@ -41,6 +44,8 @@
  * anyway. But it seems safe to do so, and it means the user can at least stop
  * services even if the halt/reboot commands are unavailable for some reason.
  */
+
+using namespace cts;
 
 using eventloop_t = dasynq::event_loop<dasynq::null_mutex>;
 
@@ -68,7 +73,7 @@ int active_control_conns = 0;
 
 // Control socket path. We maintain a string (control_socket_str) in case we need
 // to allocate storage, but control_socket_path is the authoritative value.
-static const char *control_socket_path = "/dev/dinitctl";
+static const char *control_socket_path = SYSCONTROLSOCKET;
 static std::string control_socket_str;
 
 static const char *env_file_path = "/etc/dinit/environment";
@@ -479,8 +484,9 @@ int dinit_main(int argc, char **argv)
         }
         
         // Fork and execute dinit-reboot.
-        execl("/sbin/shutdown", "/sbin/shutdown", "--system", cmd_arg, nullptr);
-        log(loglevel_t::ERROR, "Could not execute /sbin/shutdown: ", strerror(errno));
+        const char *shutdown_exec = literal(SBINDIR) + "/shutdown";
+        execl(shutdown_exec, shutdown_exec, "--system", cmd_arg, nullptr);
+        log(loglevel_t::ERROR, literal("Could not execute ") + SBINDIR + "/shutdown: ", strerror(errno));
         
         // PID 1 must not actually exit, although we should never reach this point:
         while (true) {
@@ -742,8 +748,9 @@ static void sigquit_cb(eventloop_t &eloop) noexcept
 {
     // This performs an immediate shutdown, without service rollback.
     close_control_socket();
-    execl("/sbin/shutdown", "/sbin/shutdown", "--system", (char *) 0);
-    log(loglevel_t::ERROR, "Error executing /sbin/shutdown: ", strerror(errno));
+    const char *shutdown_exec = literal(SBINDIR) + "/shutdown";
+    execl(shutdown_exec, shutdown_exec, "--system", (char *) 0);
+    log(loglevel_t::ERROR, literal("Error executing ") + SBINDIR + "/sbin/shutdown: ", strerror(errno));
     sync(); // since a hard poweroff might be required at this point...
 }
 
