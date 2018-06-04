@@ -1,5 +1,6 @@
 #include <sys/types.h>
 
+#include "baseproc-sys.h"
 #include "service.h"
 
 // This header defines base_proc_service (base process service) and several derivatives, as well as some
@@ -74,7 +75,7 @@ class base_process_service : public service_record
     pid_t pid = -1;  // PID of the process. If state is STARTING or STOPPING,
                      //   this is PID of the service script; otherwise it is the
                      //   PID of the process itself (process service).
-    int exit_status = 0; // Exit status, if the process has exited (pid == -1).
+    bp_sys::exit_status exit_status; // Exit status, if the process has exited (pid == -1).
     int socket_fd = -1;  // For socket-activation services, this is the file
                          // descriptor for the socket.
 
@@ -99,7 +100,7 @@ class base_process_service : public service_record
 
     // Called when the process exits. The exit_status is the status value yielded by
     // the "wait" system call.
-    virtual void handle_exit_status(int exit_status) noexcept = 0;
+    virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept = 0;
 
     // Called if an exec fails.
     virtual void exec_failed(int errcode) noexcept = 0;
@@ -207,7 +208,7 @@ class base_process_service : public service_record
 // Standard process service.
 class process_service : public base_process_service
 {
-    virtual void handle_exit_status(int exit_status) noexcept override;
+    virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept override;
     virtual void exec_failed(int errcode) noexcept override;
     virtual void exec_succeeded() noexcept override;
     virtual void bring_down() noexcept override;
@@ -229,7 +230,7 @@ class process_service : public base_process_service
 // Bgproc (self-"backgrounding", i.e. double-forking) process service
 class bgproc_service : public base_process_service
 {
-    virtual void handle_exit_status(int exit_status) noexcept override;
+    virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept override;
     virtual void exec_failed(int errcode) noexcept override;
     virtual void bring_down() noexcept override;
 
@@ -240,7 +241,7 @@ class bgproc_service : public base_process_service
     };
 
     // Read the pid-file, return false on failure
-    pid_result_t read_pid_file(int *exit_status) noexcept;
+    pid_result_t read_pid_file(bp_sys::exit_status *exit_status) noexcept;
 
     public:
     bgproc_service(service_set *sset, string name, string &&command,
@@ -259,7 +260,7 @@ class bgproc_service : public base_process_service
 // Service which is started and stopped via separate commands
 class scripted_service : public base_process_service
 {
-    virtual void handle_exit_status(int exit_status) noexcept override;
+    virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept override;
     virtual void exec_failed(int errcode) noexcept override;
     virtual void bring_down() noexcept override;
 

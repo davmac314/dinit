@@ -97,7 +97,7 @@ dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t chil
     base_process_service *sr = service;
 
     sr->pid = -1;
-    sr->exit_status = status;
+    sr->exit_status = bp_sys::exit_status(status);
 
     // Ok, for a process service, any process death which we didn't rig
     // ourselves is a bit... unexpected. Probably, the child died because
@@ -119,30 +119,30 @@ dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t chil
         sr->stop_timer_armed = false;
     }
 
-    sr->handle_exit_status(status);
+    sr->handle_exit_status(bp_sys::exit_status(status));
     return dasynq::rearm::NOOP;
 }
 
-void process_service::handle_exit_status(int exit_status) noexcept
+void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexcept
 {
-    bool did_exit = WIFEXITED(exit_status);
-    bool was_signalled = WIFSIGNALED(exit_status);
+    bool did_exit = exit_status.did_exit();
+    bool was_signalled = exit_status.was_signalled();
     restarting = false;
     auto service_state = get_state();
 
-    if (exit_status != 0 && service_state != service_state_t::STOPPING) {
+    if (exit_status.did_exit_clean() && service_state != service_state_t::STOPPING) {
         if (did_exit) {
             log(loglevel_t::ERROR, "Service ", get_name(), " process terminated with exit code ",
-                    WEXITSTATUS(exit_status));
+                    exit_status.get_exit_status());
         }
         else if (was_signalled) {
             log(loglevel_t::ERROR, "Service ", get_name(), " terminated due to signal ",
-                    WTERMSIG(exit_status));
+                    exit_status.get_term_sig());
         }
     }
 
     if (service_state == service_state_t::STARTING) {
-        if (did_exit && WEXITSTATUS(exit_status) == 0) {
+        if (exit_status.did_exit_clean()) {
             started();
         }
         else {
@@ -180,21 +180,21 @@ void process_service::exec_failed(int errcode) noexcept
     }
 }
 
-void bgproc_service::handle_exit_status(int exit_status) noexcept
+void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcept
 {
     begin:
-    bool did_exit = WIFEXITED(exit_status);
-    bool was_signalled = WIFSIGNALED(exit_status);
+    bool did_exit = exit_status.did_exit();
+    bool was_signalled = exit_status.was_signalled();
     auto service_state = get_state();
 
-    if (exit_status != 0 && service_state != service_state_t::STOPPING) {
+    if (!exit_status.did_exit_clean() && service_state != service_state_t::STOPPING) {
         if (did_exit) {
             log(loglevel_t::ERROR, "Service ", get_name(), " process terminated with exit code ",
-                    WEXITSTATUS(exit_status));
+                    exit_status.get_exit_status());
         }
         else if (was_signalled) {
             log(loglevel_t::ERROR, "Service ", get_name(), " terminated due to signal ",
-                    WTERMSIG(exit_status));
+                    exit_status.get_term_sig());
         }
     }
 
@@ -203,7 +203,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
     if (restarting && service_state == service_state_t::STARTED) {
         restarting = false;
         bool need_stop = false;
-        if ((did_exit && WEXITSTATUS(exit_status) != 0) || was_signalled) {
+        if ((did_exit && exit_status.get_exit_status() != 0) || was_signalled) {
             need_stop = true;
         }
         else {
@@ -236,7 +236,7 @@ void bgproc_service::handle_exit_status(int exit_status) noexcept
     if (service_state == service_state_t::STARTING) {
         // POSIX requires that if the process exited clearly with a status code of 0,
         // the exit status value will be 0:
-        if (exit_status == 0) {
+        if (exit_status.did_exit_clean()) {
             auto pid_result = read_pid_file(&exit_status);
             switch (pid_result) {
                 case pid_result_t::FAILED:
@@ -285,10 +285,10 @@ void bgproc_service::exec_failed(int errcode) noexcept
     failed_to_start();
 }
 
-void scripted_service::handle_exit_status(int exit_status) noexcept
+void scripted_service::handle_exit_status(bp_sys::exit_status exit_status) noexcept
 {
-    bool did_exit = WIFEXITED(exit_status);
-    bool was_signalled = WIFSIGNALED(exit_status);
+    bool did_exit = exit_status.did_exit();
+    bool was_signalled = exit_status.was_signalled();
     auto service_state = get_state();
 
     // For a scripted service, a termination occurs in one of three main cases:
@@ -301,16 +301,16 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
         // a cancel order via SIGINT:
         if (interrupting_start) {
             // We issued a start interrupt, so we expected this failure:
-            if (did_exit && WEXITSTATUS(exit_status) != 0) {
+            if (did_exit && exit_status.get_exit_status() != 0) {
                 log(loglevel_t::INFO, "Service ", get_name(), " start cancelled; exit code ",
-                        WEXITSTATUS(exit_status));
+                        exit_status.get_exit_status());
                 // Assume that a command terminating normally requires no cleanup:
                 stopped();
             }
             else {
                 if (was_signalled) {
                     log(loglevel_t::INFO, "Service ", get_name(), " start cancelled from signal ",
-                            WTERMSIG(exit_status));
+                            exit_status.get_term_sig());
                 }
                 // If the start script completed successfully, or was interrupted via our signal,
                 // we want to run the stop script to clean up:
@@ -318,7 +318,7 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
             }
             interrupting_start = false;
         }
-        else if (did_exit && WEXITSTATUS(exit_status) == 0) {
+        else if (exit_status.did_exit_clean()) {
             // We were running the stop script and finished successfully
             stopped();
         }
@@ -326,11 +326,11 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
             // ??? failed to stop! Let's log it as warning:
             if (did_exit) {
                 log(loglevel_t::WARN, "Service ", get_name(), " stop command failed with exit code ",
-                        WEXITSTATUS(exit_status));
+                        exit_status.get_exit_status());
             }
             else if (was_signalled) {
                 log(loglevel_t::WARN, "Service ", get_name(), " stop command terminated due to signal ",
-                        WTERMSIG(exit_status));
+                        exit_status.get_term_sig());
             }
             // Even if the stop script failed, assume that service is now stopped, so that any dependencies
             // can be stopped. There's not really any other useful course of action here.
@@ -339,18 +339,18 @@ void scripted_service::handle_exit_status(int exit_status) noexcept
         services->process_queues();
     }
     else { // STARTING
-        if (exit_status == 0) {
+        if (exit_status.did_exit_clean()) {
             started();
         }
         else {
             // failed to start
             if (did_exit) {
                 log(loglevel_t::ERROR, "Service ", get_name(), " command failed with exit code ",
-                        WEXITSTATUS(exit_status));
+                        exit_status.get_exit_status());
             }
             else if (was_signalled) {
                 log(loglevel_t::ERROR, "Service ", get_name(), " command terminated due to signal ",
-                        WTERMSIG(exit_status));
+                        exit_status.get_term_sig());
             }
             failed_to_start();
         }
@@ -373,7 +373,7 @@ void scripted_service::exec_failed(int errcode) noexcept
 }
 
 bgproc_service::pid_result_t
-bgproc_service::read_pid_file(int *exit_status) noexcept
+bgproc_service::read_pid_file(bp_sys::exit_status *exit_status) noexcept
 {
     const char *pid_file_c = pid_file.c_str();
     int fd = open(pid_file_c, O_CLOEXEC);
