@@ -201,6 +201,15 @@ will go this file.
 .TP
 \fBoptions\fR = \fIoption\fR...
 Specifies various options for this service. See the \fBOPTIONS\fR section.
+.TP
+\fBload-options\fR = \fIload_option\fR...
+Specifies options for interpreting other settings when loading this service
+description. Currently there is only one available option, \fBsub-vars\fR,
+which specifies that command line arguments in the form of \fB$NAME\fR should
+be replaced with the contents of the environment variable with the specified
+name. Note that no word-splitting is performed and the variable value always
+becomes a single argument; if the variable is not defined, it is replaced with
+an empty (zero-length) argument.
 .\"
 .SS OPTIONS
 .\"

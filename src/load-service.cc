@@ -6,6 +6,7 @@
 #include <limits>
 
 #include <cstring>
+#include <cstdlib>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -349,6 +350,48 @@ static void parse_timespec(const std::string &paramval, const std::string &servi
     ts.tv_nsec = insec;
 }
 
+// Perform environment variable substitution on a command line, if specified.
+//   line -  the string storing the command and arguments
+//   offsets - the [start,end) pair of offsets of the command and each argument within the string
+//
+static void do_env_subst(std::string &line, std::list<std::pair<unsigned,unsigned>> &offsets, bool do_sub_vars)
+{
+    if (do_sub_vars) {
+        auto i = offsets.begin();
+        std::string r_line = line.substr(i->first, i->second - i->first); // copy command part
+        for (++i; i != offsets.end(); ++i) {
+            auto &offset_pair = *i;
+            if (line[offset_pair.first] == '$') {
+                // Do subsitution for this part:
+                auto env_name = line.substr(offset_pair.first + 1, offset_pair.second - offset_pair.first - 1);
+                char *env_val = getenv(env_name.c_str());
+                if (env_val != nullptr) {
+                    auto val_len = strlen(env_val);
+                    r_line += " ";
+                    offset_pair.first = r_line.length();
+                    offset_pair.second = offset_pair.first + val_len;
+                    r_line += env_val;
+                }
+                else {
+                    // specified enironment variable not set: treat as an empty string
+                    offset_pair.first = r_line.length();
+                    offset_pair.second = offset_pair.first;
+                }
+            }
+            else {
+                // No subsitution for this part:
+                r_line += " ";
+                auto new_offs = r_line.length();
+                auto len = offset_pair.second - offset_pair.first;
+                r_line += line.substr(offset_pair.first, len);
+                offset_pair.first = new_offs;
+                offset_pair.second = new_offs + len;
+            }
+        }
+        line = std::move(r_line);
+    }
+}
+
 // Find a service record, or load it from file. If the service has
 // dependencies, load those also.
 //
@@ -397,6 +440,8 @@ service_record * dirload_service_set::load_service(const char * name)
     list<pair<unsigned,unsigned>> stop_command_offsets;
     string working_dir;
     string pid_file;
+
+    bool do_sub_vars = false;
 
     service_type_t service_type = service_type_t::PROCESS;
     std::list<prelim_dep> depends;
@@ -561,6 +606,23 @@ service_record * dirload_service_set::load_service(const char * name)
                         }
                     }
                 }
+                else if (setting == "load-options") {
+                    std::list<std::pair<unsigned,unsigned>> indices;
+                    string load_opts = read_setting_value(i, end, &indices);
+                    for (auto indexpair : indices) {
+                        string option_txt = load_opts.substr(indexpair.first, indexpair.second - indexpair.first);
+                        if (option_txt == "sub-vars") {
+                            // substitute environment variables in command line
+                            do_sub_vars = true;
+                        }
+                        else if (option_txt == "no-sub-vars") {
+                            do_sub_vars = false;
+                        }
+                        else {
+                            throw service_description_exc(name, "Unknown load option: " + option_txt);
+                        }
+                    }
+                }
                 else if (setting == "termsignal") {
                     string signame = read_setting_value(i, end, nullptr);
                     int signo = signal_name_to_number(signame);
@@ -615,6 +677,7 @@ service_record * dirload_service_set::load_service(const char * name)
                 // We've found the dummy record
                 delete rval;
                 if (service_type == service_type_t::PROCESS) {
+                    do_env_subst(command, command_offsets, do_sub_vars);
                     auto rvalps = new process_service(this, string(name), std::move(command),
                             command_offsets, depends);
                     rvalps->set_workding_dir(working_dir);
@@ -631,6 +694,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rval = rvalps;
                 }
                 else if (service_type == service_type_t::BGPROCESS) {
+                    do_env_subst(command, command_offsets, do_sub_vars);
                     auto rvalps = new bgproc_service(this, string(name), std::move(command),
                             command_offsets, depends);
                     rvalps->set_workding_dir(working_dir);
@@ -646,6 +710,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     rval = rvalps;
                 }
                 else if (service_type == service_type_t::SCRIPTED) {
+                    do_env_subst(command, command_offsets, do_sub_vars);
                     auto rvalps = new scripted_service(this, string(name), std::move(command),
                             command_offsets, depends);
                     rvalps->set_stop_command(stop_command, stop_command_offsets);
