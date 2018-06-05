@@ -97,6 +97,9 @@ void service_record::stopped() noexcept
         else if (required_by == 0) {
             // This can only be the case if we didn't have start_explicit, since required_by would
             // otherwise by non-zero.
+            prop_release = !prop_require;
+            prop_require = false;
+            services->add_prop_queue(this);
             services->service_inactive(this);
         }
     }
@@ -373,24 +376,16 @@ void service_record::started() noexcept
 
 void service_record::failed_to_start(bool depfailed, bool immediate_stop) noexcept
 {
-    if (immediate_stop) {
-        service_state = service_state_t::STOPPED;
-        if (have_console) {
-            bp_sys::tcsetpgrp(0, bp_sys::getpgrp());
-            release_console();
-        }
-    }
-
     if (waiting_for_console) {
         services->unqueue_console(this);
         waiting_for_console = false;
     }
-    
+
     if (start_explicit) {
         start_explicit = false;
         release(false);
     }
-    
+
     // Cancel start of dependents:
     for (auto & dept : dependents) {
         switch (dept->dep_type) {
@@ -407,15 +402,22 @@ void service_record::failed_to_start(bool depfailed, bool immediate_stop) noexce
                 dept->waiting_on = false;
                 dept->get_from()->dependency_started();
             }
-            if (dept->holding_acq) {
-                dept->holding_acq = false;
-                release();
-            }
+        }
+
+        // Always release now, so that our desired state will be STOPPED before we call
+        // stopped() below (if we do so). Otherwise it may decide to restart us.
+        if (dept->holding_acq) {
+            dept->holding_acq = false;
+            release(false);
         }
     }
 
     log_service_failed(get_name());
     notify_listeners(service_event_t::FAILEDSTART);
+
+    if (immediate_stop) {
+        stopped();
+    }
 }
 
 bool service_record::bring_up() noexcept
