@@ -881,6 +881,8 @@ class dirload_service_set : public service_set
         // nothing to do.
     }
 
+    dirload_service_set(const dirload_service_set &) = delete;
+
     // Construct a dirload_service_set which loads services from the specified directory. The
     // directory specified can be dynamically allocated via "new char[...]" (dyn_allocd == true)
     // or statically allocated.
