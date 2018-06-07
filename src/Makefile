@@ -12,11 +12,10 @@ objects = $(dinit_objects) dinitctl.o shutdown.o
 all: dinit dinitctl $(SHUTDOWN)
 
 mconfig.h: mconfig-gen
-	./mconfig-gen > mconfig.h
+	./mconfig-gen SBINDIR=$(SBINDIR) SYSCONTROLSOCKET=$(SYSCONTROLSOCKET) > mconfig.h
 
 mconfig-gen: mconfig-gen.cc ../mconfig
-	$(CXX) $(CXXOPTS) -o mconfig-gen mconfig-gen.cc $(LDFLAGS) -DSBINDIR=$(SBINDIR) \
-		-DSYSCONTROLSOCKET=$(SYSCONTROLSOCKET)
+	$(CXX) $(CXXOPTS) -o mconfig-gen mconfig-gen.cc $(LDFLAGS)
 
 dinit: mconfig.h $(dinit_objects)
 	$(CXX) -o dinit $(dinit_objects) $(LDFLAGS)
