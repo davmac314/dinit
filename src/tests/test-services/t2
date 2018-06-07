@@ -1,0 +1,3 @@
+type = process
+load-options = sub-vars
+command = echo $ONEVAR $TWOVAR $THREEVAR

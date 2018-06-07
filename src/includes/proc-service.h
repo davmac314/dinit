@@ -203,6 +203,12 @@ class base_process_service : public service_record
 
     // The restart/stop timer expired.
     void timer_expired() noexcept;
+
+    // Accessor for testing:
+    const std::vector<const char *> & get_exec_arg_parts() noexcept
+    {
+        return exec_arg_parts;
+    }
 };
 
 // Standard process service.
