@@ -114,7 +114,7 @@ constexpr int static_length()
 template <int N>
 class array_string
 {
-    char arr[N+1];
+    const char arr[N+1];
 
     template <typename S1, typename S2, int... S> constexpr
     array_string(const S1 &s1, const S2 &s2, const sequence<S...> seq)
