@@ -104,7 +104,10 @@ void service_record::stopped() noexcept
         }
     }
 
-    log_service_stopped(service_name);
+    // Start failure will have been logged already, only log if we are stopped for other reasons:
+    if (! start_failed) {
+        log_service_stopped(service_name);
+    }
     notify_listeners(service_event_t::STOPPED);
 }
 
@@ -188,6 +191,7 @@ void service_record::start(bool activate) noexcept
         services->service_active(this);
     }
 
+    start_failed = false;
     service_state = service_state_t::STARTING;
     waiting_for_deps = true;
 
@@ -412,6 +416,7 @@ void service_record::failed_to_start(bool depfailed, bool immediate_stop) noexce
         }
     }
 
+    start_failed = true;
     log_service_failed(get_name());
     notify_listeners(service_event_t::FAILEDSTART);
 

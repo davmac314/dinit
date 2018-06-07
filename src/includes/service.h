@@ -285,6 +285,7 @@ class service_record
     bool prop_stop    : 1;
 
     bool restarting   : 1;      // re-starting after unexpected termination
+    bool start_failed : 1;      // failed to start (reset when begins starting)
     
     int required_by = 0;        // number of dependents wanting this service to be started
 
@@ -456,7 +457,8 @@ class service_record
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
             waiting_for_console(false), have_console(false), waiting_for_execstat(false),
             start_explicit(false), prop_require(false), prop_release(false), prop_failure(false),
-            prop_start(false), prop_stop(false), restarting(false), force_stop(false)
+            prop_start(false), prop_stop(false), restarting(false), start_failed(false),
+            force_stop(false)
     {
         services = set;
         service_name = name;
