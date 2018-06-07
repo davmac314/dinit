@@ -484,9 +484,10 @@ int dinit_main(int argc, char **argv)
         }
         
         // Fork and execute dinit-reboot.
-        const char *shutdown_exec = literal(SBINDIR) + "/shutdown";
-        execl(shutdown_exec, shutdown_exec, "--system", cmd_arg, nullptr);
-        log(loglevel_t::ERROR, literal("Could not execute ") + SBINDIR + "/shutdown: ", strerror(errno));
+        constexpr auto shutdown_exec = literal(SBINDIR) + "/shutdown";
+        execl(shutdown_exec.c_str(), shutdown_exec.c_str(), "--system", cmd_arg, nullptr);
+        log(loglevel_t::ERROR, (literal("Could not execute ") + SBINDIR + "/shutdown: ").c_str(),
+                strerror(errno));
         
         // PID 1 must not actually exit, although we should never reach this point:
         while (true) {
@@ -748,8 +749,8 @@ static void sigquit_cb(eventloop_t &eloop) noexcept
 {
     // This performs an immediate shutdown, without service rollback.
     close_control_socket();
-    const char *shutdown_exec = literal(SBINDIR) + "/shutdown";
-    execl(shutdown_exec, shutdown_exec, "--system", (char *) 0);
+    constexpr auto shutdown_exec = literal(SBINDIR) + "/shutdown";
+    execl(shutdown_exec.c_str(), shutdown_exec.c_str(), "--system", (char *) 0);
     log(loglevel_t::ERROR, literal("Error executing ") + SBINDIR + "/sbin/shutdown: ", strerror(errno));
     sync(); // since a hard poweroff might be required at this point...
 }
