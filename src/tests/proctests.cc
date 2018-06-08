@@ -461,6 +461,64 @@ void test_scripted_start_fail()
     assert(sset.count_active_services() == 0);
 }
 
+void test_scripted_stop_fail()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    string stopcommand = "stop-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    scripted_service p = scripted_service(&sset, "testscripted", std::move(command), command_offsets, depends);
+    init_service_defaults(p);
+    p.set_stop_command(stopcommand, command_offsets);
+    sset.add_service(&p);
+
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}, {&p, REG}});
+    service_record *s4 = new service_record(&sset, "test-service-4", service_type_t::INTERNAL, {{&p, REG}, {s3, REG}});
+    sset.add_service(s2);
+    sset.add_service(s3);
+    sset.add_service(s4);
+
+    s4->start(true);
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    base_process_service_test::handle_exit(&p, 0x0);  // success
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s4->get_state() == service_state_t::STARTED);
+
+    pid_t last_forked = bp_sys::last_forked_pid;
+
+    s4->stop(true);
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    base_process_service_test::handle_exit(&p, 0x1);  // failure
+    sset.process_queues();
+
+    // The stop command should be executed once:
+    assert((bp_sys::last_forked_pid - last_forked) == 1);
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s4->get_state() == service_state_t::STOPPED);
+
+    event_loop.active_timers.clear();
+    sset.remove_service(&p);
+}
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing; \
@@ -479,4 +537,5 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_smooth_recovery2, "");
     RUN_TEST(test_scripted_stop_timeout, "");
     RUN_TEST(test_scripted_start_fail, "  ");
+    RUN_TEST(test_scripted_stop_fail, "   ");
 }
