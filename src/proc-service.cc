@@ -55,6 +55,12 @@ void process_service::exec_succeeded() noexcept
     }
 }
 
+void scripted_service::exec_succeeded() noexcept
+{
+	// For a scripted service, this means nothing other than that the start/stop
+	// script will now begin.
+}
+
 rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) noexcept
 {
     base_process_service *sr = service;
@@ -506,6 +512,11 @@ void bgproc_service::bring_down() noexcept
 
 void scripted_service::bring_down() noexcept
 {
+	if (pid != -1) {
+		// We're already running the stop script; nothing to do.
+		return;
+	}
+
     if (stop_command.length() == 0) {
         stopped();
     }

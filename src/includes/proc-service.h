@@ -267,6 +267,7 @@ class bgproc_service : public base_process_service
 class scripted_service : public base_process_service
 {
     virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept override;
+    virtual void exec_succeeded() noexcept override;
     virtual void exec_failed(int errcode) noexcept override;
     virtual void bring_down() noexcept override;
 
