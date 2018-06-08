@@ -1,9 +1,6 @@
-For version 0.2.0:
+For version 0.3.0:
 ------------------
-* Load services from several different directories, with an order of precedence,
-  to allow for packaged service descriptions and user-modified service
-  descriptions.
-* Make default control socket location build-time configurable
+* (Not yet decided).
   
 For version 1.0:
 ----------------
