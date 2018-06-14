@@ -111,17 +111,20 @@
  */
 
 struct onstart_flags_t {
+    // on-start flags:
     bool rw_ready : 1;  // file system should be writable once this service starts
     bool log_ready : 1; // syslog should be available once this service starts
     
-    // Not actually "onstart" commands:
+    // Other service options flags:
     bool no_sigterm : 1;  // do not send SIGTERM
     bool runs_on_console : 1;  // run "in the foreground"
     bool starts_on_console : 1; // starts in the foreground
     bool pass_cs_fd : 1;  // pass this service a control socket connection via fd
+    bool skippable : 1;   // if interrupted the service is skipped (scripted services)
     
     onstart_flags_t() noexcept : rw_ready(false), log_ready(false),
-            no_sigterm(false), runs_on_console(false), starts_on_console(false), pass_cs_fd(false)
+            no_sigterm(false), runs_on_console(false), starts_on_console(false),
+            pass_cs_fd(false), skippable(false)
     {
     }
 };
@@ -286,6 +289,7 @@ class service_record
 
     bool restarting   : 1;      // re-starting after unexpected termination
     bool start_failed : 1;      // failed to start (reset when begins starting)
+    bool start_skipped : 1;     // start was skipped by interrupt
     
     int required_by = 0;        // number of dependents wanting this service to be started
 
@@ -458,7 +462,7 @@ class service_record
             waiting_for_console(false), have_console(false), waiting_for_execstat(false),
             start_explicit(false), prop_require(false), prop_release(false), prop_failure(false),
             prop_start(false), prop_stop(false), restarting(false), start_failed(false),
-            force_stop(false)
+            start_skipped(false), force_stop(false)
     {
         services = set;
         service_name = name;
@@ -565,11 +569,22 @@ class service_record
     // commence starting/stopping.
     void unpin() noexcept;
     
+    // Is this a dummy service (used only when loading a new service)?
     bool is_dummy() noexcept
     {
         return record_type == service_type_t::DUMMY;
     }
     
+    bool did_start_fail() noexcept
+    {
+        return start_failed;
+    }
+
+    bool was_start_skipped() noexcept
+    {
+        return start_skipped;
+    }
+
     // Add a listener. A listener must only be added once. May throw std::bad_alloc.
     void add_listener(service_listener * listener)
     {

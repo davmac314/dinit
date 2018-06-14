@@ -217,13 +217,13 @@ These options are specified via the \fBoptions\fR parameter.
 .\"
 .TP
 \fBno\-sigterm\fR
-specifies that the TERM signal should not be send to the process to terminate
+Specifies that the TERM signal should not be send to the process to terminate
 it. (Another signal can be specified using the \fBtermsignal\fR setting; if no
 other signal is specified, no signal will be sent, which usually means that
 the service will not terminate).
 .TP
 \fBruns\-on\-console\fR
-specifies that this service uses the console; its input and output should be
+Specifies that this service uses the console; its input and output should be
 directed to the console (or precisely, to the device to which Dinit's standard
 output stream is connected). A service running on the console prevents other
 services from running on the console (they will queue for the console).
@@ -233,7 +233,7 @@ services that run on the console. Handling of an interrupt is determined by
 the service process, but typically will cause it to terminate.
 .TP
 \fBstarts\-on\-console\fR
-specifies that this service uses the console during service startup. This is
+Specifies that this service uses the console during service startup. This is
 implied by \fBruns-on-console\fR, but can be specified separately for services
 that need the console while they start but not afterwards.
 
@@ -243,16 +243,16 @@ interrupting startup via the \fIinterrupt\fR key (normally control-C). This is
 useful to allow filesystem checks to be interrupted/skipped.
 .TP
 \fBstarts-rwfs\fR
-this service mounts the root filesystem read/write (or at least mounts the
+This service mounts the root filesystem read/write (or at least mounts the
 normal writable filesystems for the system). This prompts Dinit to create its
 control socket, if it has not already managed to do so.
 .TP
 \fBstarts-log\fR
-this service starts the system log daemon. Dinit will begin logging via the
+This service starts the system log daemon. Dinit will begin logging via the
 \fI/dev/log\fR socket.
 .TP
 \fBpass-cs-fd\fR
-pass an open Dinit control socket to the process when launching it (the
+Pass an open Dinit control socket to the process when launching it (the
 \fIDINIT_CS_FD\fR environment variable will be set to the file descriptor of
 the socket). This allows the service to issue commands to Dinit even if the
 regular control socket is not available yet.
@@ -263,9 +263,15 @@ should not use this option unless the service is designed to receive a Dinit
 control socket.
 .TP
 \fBstart-interruptible\fR
-this service can have its startup interrupted (cancelled) if it becomes inactive
+This service can have its startup interrupted (cancelled) if it becomes inactive
 while still starting, by sending it the SIGINT signal. This is meaningful only
 for \fBbgprocess\fR and \fBscripted\fR services.
+.TP
+\fBskippable\fR
+For scripted services, indicates that if the service startup process terminates
+via an interrupt signal (SIGINT), then the service should be considered started.
+Note that if the interrupt was issued by Dinit to cancel startup, the service
+will instead be considered stopped.
 .RE
 .LP
 The next section contains example service descriptions including some of the
@@ -298,7 +304,8 @@ Here is an examples for a filesystem check "service", run by a script
 system, but the control socket may not have been created, so it uses the
 \fBpass-cs-fd\fR option to allow the \fBreboot\fR command to issue control
 commands to Dinit. It runs on the console, so that output is visible and
-the process can be interrupted using control-C.
+the process can be interrupted using control-C, in which case the check is
+skipped but dependent services continue to start.
 
 .RS
 .nf
@@ -308,7 +315,7 @@ the process can be interrupted using control-C.
 type = scripted
 command = /etc/dinit.d/rootfscheck.sh
 restart = false
-options = starts-on-console pass-cs-fd
+options = starts-on-console pass-cs-fd start-interruptible skippable
 depends-on = early-filesystems  # /proc and /dev
 depends-on = device-node-daemon
 .ft

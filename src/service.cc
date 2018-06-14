@@ -192,6 +192,7 @@ void service_record::start(bool activate) noexcept
     }
 
     start_failed = false;
+    start_skipped = false;
     service_state = service_state_t::STARTING;
     waiting_for_deps = true;
 

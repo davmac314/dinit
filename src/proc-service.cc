@@ -348,6 +348,12 @@ void scripted_service::handle_exit_status(bp_sys::exit_status exit_status) noexc
         if (exit_status.did_exit_clean()) {
             started();
         }
+        else if (was_signalled && exit_status.get_term_sig() == SIGINT && onstart_flags.skippable) {
+            // A skippable service can be skipped by interrupting (eg by ^C if the service
+            // starts on the console).
+            start_skipped = true;
+            started();
+        }
         else {
             // failed to start
             if (did_exit) {

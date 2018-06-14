@@ -601,6 +601,9 @@ service_record * dirload_service_set::load_service(const char * name)
                         else if (option_txt == "start-interruptible") {
                             start_is_interruptible = true;
                         }
+                        else if (option_txt == "skippable") {
+                            onstart_flags.skippable = true;
+                        }
                         else {
                             throw service_description_exc(name, "Unknown option: " + option_txt);
                         }
