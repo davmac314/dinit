@@ -481,8 +481,8 @@ void service_record::do_stop() noexcept
             // we need to delegate to can_interrupt_start() (which can be overridden).
             if (! waiting_for_deps && ! waiting_for_console) {
                 if (! can_interrupt_start()) {
-                    // Well this is awkward: we're going to have to continue starting. We can stop once we've
-                    // reached the started state.
+                    // Well this is awkward: we're going to have to continue starting. We can stop once
+                    // we've reached the started state.
                     return;
                 }
 
@@ -563,7 +563,9 @@ bool service_record::stop_dependents() noexcept
             }
             if (dept->holding_acq) {
                 dept->holding_acq = false;
-                release();
+                // release without issuing stop, since we should be called only when this
+                // service is already stopped/stopping:
+                release(false);
             }
         }
     }
