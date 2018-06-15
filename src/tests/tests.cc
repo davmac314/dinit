@@ -428,7 +428,7 @@ void test10()
     // Create s1 and s2. s2 depends on s1, and starts on the console.
     test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
     test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
-    onstart_flags_t s2_flags;
+    service_flags_t s2_flags;
     s2_flags.starts_on_console = true;
     s2->set_flags(s2_flags);
     sset.add_service(s1);
@@ -436,7 +436,7 @@ void test10()
 
     // Create s3, which starts and runs on console:
     test_service *s3 = new test_service(&sset, "test-service-3", service_type_t::INTERNAL, {});
-    onstart_flags_t s3_flags;
+    service_flags_t s3_flags;
     s3_flags.starts_on_console = true;
     s3_flags.runs_on_console = true;
     sset.add_service(s3);

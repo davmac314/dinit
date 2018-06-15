@@ -110,7 +110,7 @@
  * transition stage, at the latest.
  */
 
-struct onstart_flags_t {
+struct service_flags_t {
     // on-start flags:
     bool rw_ready : 1;  // file system should be writable once this service starts
     bool log_ready : 1; // syslog should be available once this service starts
@@ -123,7 +123,7 @@ struct onstart_flags_t {
     bool start_interruptible : 1; // the startup of this service process is ok to interrupt with SIGINT
     bool skippable : 1;   // if interrupted the service is skipped (scripted services)
     
-    onstart_flags_t() noexcept : rw_ready(false), log_ready(false),
+    service_flags_t() noexcept : rw_ready(false), log_ready(false),
             no_sigterm(false), runs_on_console(false), starts_on_console(false),
             pass_cs_fd(false), start_interruptible(false), skippable(false)
     {
@@ -266,7 +266,7 @@ class service_record
     protected:
     string pid_file;
     
-    onstart_flags_t onstart_flags;
+    service_flags_t onstart_flags;
 
     string logfile;           // log file name, empty string specifies /dev/null
     
@@ -527,7 +527,7 @@ class service_record
     }
     
     // Set "on start" flags (commands)
-    void set_flags(onstart_flags_t flags) noexcept
+    void set_flags(service_flags_t flags) noexcept
     {
         this->onstart_flags = flags;
     }

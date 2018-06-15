@@ -446,7 +446,7 @@ service_record * dirload_service_set::load_service(const char * name)
     service_type_t service_type = service_type_t::PROCESS;
     std::list<prelim_dep> depends;
     string logfile;
-    onstart_flags_t onstart_flags;
+    service_flags_t onstart_flags;
     int term_signal = -1;  // additional termination signal
     bool auto_restart = false;
     bool smooth_recovery = false;

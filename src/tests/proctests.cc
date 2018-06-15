@@ -15,8 +15,6 @@
 extern eventloop_t event_loop;
 
 constexpr static auto REG = dependency_type::REGULAR;
-constexpr static auto WAITS = dependency_type::WAITS_FOR;
-constexpr static auto MS = dependency_type::MILESTONE;
 
 // Friend interface to access base_process_service private/protected members.
 class base_process_service_test
@@ -538,7 +536,7 @@ void test_scripted_start_skip()
 
     scripted_service p = scripted_service(&sset, "testscripted", std::move(command), command_offsets, depends);
     init_service_defaults(p);
-    onstart_flags_t sflags;
+    service_flags_t sflags;
     sflags.skippable = true;
     p.set_flags(sflags);
     sset.add_service(&p);
@@ -588,7 +586,7 @@ void test_scripted_start_skip2()
 
     scripted_service p = scripted_service(&sset, "testscripted", std::move(command), command_offsets, depends);
     init_service_defaults(p);
-    onstart_flags_t sflags;
+    service_flags_t sflags;
     sflags.skippable = true;
     sflags.start_interruptible = true;
     p.set_flags(sflags);
