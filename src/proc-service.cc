@@ -275,7 +275,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
         }
         if (! do_auto_restart() && start_explicit) {
             start_explicit = false;
-            release();
+            release(false);
         }
         forced_stop();
         stop_dependents();
