@@ -186,7 +186,6 @@ base_process_service::base_process_service(service_set *sset, string name,
     reserved_child_watch = false;
     tracking_child = false;
     stop_timer_armed = false;
-    start_is_interruptible = false;
 }
 
 void base_process_service::do_restart() noexcept

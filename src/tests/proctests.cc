@@ -52,7 +52,6 @@ static void init_service_defaults(base_process_service &ps)
     ps.set_restart_interval(time_val(10,0), 3);
     ps.set_restart_delay(time_val(0, 200000000)); // 200 milliseconds
     ps.set_stop_timeout(time_val(10,0));
-    ps.set_start_interruptible(false);
 }
 
 // Regular service start
@@ -591,8 +590,8 @@ void test_scripted_start_skip2()
     init_service_defaults(p);
     onstart_flags_t sflags;
     sflags.skippable = true;
+    sflags.start_interruptible = true;
     p.set_flags(sflags);
-    p.set_start_interruptible(true);
     sset.add_service(&p);
 
     service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{&p, REG}});

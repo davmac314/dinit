@@ -450,7 +450,6 @@ service_record * dirload_service_set::load_service(const char * name)
     int term_signal = -1;  // additional termination signal
     bool auto_restart = false;
     bool smooth_recovery = false;
-    bool start_is_interruptible = false;
     string socket_path;
     int socket_perms = 0666;
     // Note: Posix allows that uid_t and gid_t may be unsigned types, but eg chown uses -1 as an
@@ -599,7 +598,7 @@ service_record * dirload_service_set::load_service(const char * name)
                             onstart_flags.pass_cs_fd = true;
                         }
                         else if (option_txt == "start-interruptible") {
-                            start_is_interruptible = true;
+                            onstart_flags.start_interruptible = true;
                         }
                         else if (option_txt == "skippable") {
                             onstart_flags.skippable = true;
@@ -688,7 +687,6 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_restart_delay(restart_delay);
                     rvalps->set_stop_timeout(stop_timeout);
                     rvalps->set_start_timeout(start_timeout);
-                    rvalps->set_start_interruptible(start_is_interruptible);
                     rvalps->set_extra_termination_signal(term_signal);
                     rvalps->set_run_as_uid_gid(run_as_uid, run_as_gid);
                     rvalps->set_workding_dir(working_dir);
@@ -706,7 +704,6 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_restart_delay(restart_delay);
                     rvalps->set_stop_timeout(stop_timeout);
                     rvalps->set_start_timeout(start_timeout);
-                    rvalps->set_start_interruptible(start_is_interruptible);
                     rvalps->set_extra_termination_signal(term_signal);
                     rvalps->set_run_as_uid_gid(run_as_uid, run_as_gid);
                     onstart_flags.runs_on_console = false;
@@ -720,7 +717,6 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_workding_dir(working_dir);
                     rvalps->set_stop_timeout(stop_timeout);
                     rvalps->set_start_timeout(start_timeout);
-                    rvalps->set_start_interruptible(start_is_interruptible);
                     rvalps->set_extra_termination_signal(term_signal);
                     rvalps->set_run_as_uid_gid(run_as_uid, run_as_gid);
                     rval = rvalps;

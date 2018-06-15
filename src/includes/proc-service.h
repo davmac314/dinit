@@ -83,7 +83,6 @@ class base_process_service : public service_record
     bool stop_timer_armed : 1;
     bool reserved_child_watch : 1;
     bool tracking_child : 1;  // whether we expect to see child process status
-    bool start_is_interruptible : 1;  // whether we can interrupt start
 
     // Launch the process with the given arguments, return true on success
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;
@@ -110,7 +109,8 @@ class base_process_service : public service_record
 
     virtual bool can_interrupt_start() noexcept override
     {
-        return waiting_restart_timer || start_is_interruptible || service_record::can_interrupt_start();
+        return waiting_restart_timer || onstart_flags.start_interruptible
+                || service_record::can_interrupt_start();
     }
 
     virtual bool can_proceed_to_start() noexcept override
@@ -175,11 +175,6 @@ class base_process_service : public service_record
     void set_start_timeout(timespec timeout) noexcept
     {
         start_timeout = timeout;
-    }
-
-    void set_start_interruptible(bool value) noexcept
-    {
-        start_is_interruptible = value;
     }
 
     // Set an additional signal (other than SIGTERM) to be used to terminate the process
