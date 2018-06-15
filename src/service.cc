@@ -459,7 +459,7 @@ void service_record::stop(bool bring_down) noexcept
         release();
     }
 
-    if (bring_down) {
+    if (bring_down && service_state != service_state_t::STOPPED) {
         do_stop();
     }
 }
