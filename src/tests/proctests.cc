@@ -575,6 +575,53 @@ void test_scripted_start_skip()
     sset.remove_service(&p);
 }
 
+// Test interrupting start of a service marked skippable
+void test_scripted_start_skip2()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    scripted_service p = scripted_service(&sset, "testscripted", std::move(command), command_offsets, depends);
+    init_service_defaults(p);
+    onstart_flags_t sflags;
+    sflags.skippable = true;
+    p.set_flags(sflags);
+    p.set_start_interruptible(true);
+    sset.add_service(&p);
+
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{&p, REG}});
+    sset.add_service(s2);
+
+    s2->start(true);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTING);
+
+    s2->stop(true);  // abort startup; p should be cancelled
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    base_process_service_test::handle_signal_exit(&p, SIGINT); // interrupted
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
+
+    event_loop.active_timers.clear();
+    sset.remove_service(&p);
+}
+
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing; \
     name(); \
@@ -594,4 +641,5 @@ int main(int argc, char **argv)
     RUN_TEST(test_scripted_start_fail, "  ");
     RUN_TEST(test_scripted_stop_fail, "   ");
     RUN_TEST(test_scripted_start_skip, "  ");
+    RUN_TEST(test_scripted_start_skip2, " ");
 }
