@@ -183,6 +183,20 @@ enum class dependency_type
     MILESTONE   // dependency must start successfully, but once started the dependency becomes soft
 };
 
+enum class stopped_reason_t
+{
+    NORMAL,
+
+    // Start failures:
+    DEPFAILED, // A dependency failed to start
+    FAILED,    // failed to start (process terminated)
+	EXECFAILED, // failed to start (couldn't launch process)
+    TIMEDOUT,  // timed out when starting
+
+    // Failure after starting:
+    TERMINATED // process terminated
+};
+
 /* Service dependency record */
 class service_dep
 {
@@ -318,6 +332,8 @@ class service_record
     int socket_perms;   // socket permissions ("mode")
     uid_t socket_uid = -1;  // socket user id or -1
     gid_t socket_gid = -1;  // socket group id or -1
+
+    stopped_reason_t stop_reason = stopped_reason_t::NORMAL;  // reason why stopped
 
     // Data for use by service_set
     public:
@@ -616,6 +632,12 @@ class service_record
             dep_dpts.erase(std::find(dep_dpts.begin(), dep_dpts.end(), &dep));
         }
         depends_on.clear();
+    }
+
+    // Why did the service stop?
+    stopped_reason_t get_stop_reason()
+    {
+        return stop_reason;
     }
 };
 

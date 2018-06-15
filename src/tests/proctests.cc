@@ -26,6 +26,12 @@ class base_process_service_test
         bsp->exec_succeeded();
     }
 
+    static void exec_failed(base_process_service *bsp, int errcode)
+    {
+    	bsp->waiting_for_execstat = false;
+    	bsp->exec_failed(errcode);
+    }
+
     static void handle_exit(base_process_service *bsp, int exit_status)
     {
         bsp->pid = -1;
@@ -110,6 +116,7 @@ void test_proc_unexpected_term()
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPED);
+    assert(p.get_stop_reason() == stopped_reason_t::TERMINATED);
     assert(event_loop.active_timers.size() == 0);
 
     sset.remove_service(&p);
@@ -150,6 +157,7 @@ void test_term_via_stop()
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPED);
+    assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
     assert(event_loop.active_timers.size() == 0);
 
     sset.remove_service(&p);
@@ -185,6 +193,7 @@ void test_proc_start_timeout()
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPED);
+    assert(p.get_stop_reason() == stopped_reason_t::TIMEDOUT);
     assert(event_loop.active_timers.size() == 0);
 
     sset.remove_service(&p);
@@ -223,11 +232,44 @@ void test_proc_start_timeout2()
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPED);
+    assert(p.get_stop_reason() == stopped_reason_t::TIMEDOUT);
     assert(ts.get_state() == service_state_t::STARTED);
     assert(event_loop.active_timers.size() == 0);
 
     sset.remove_service(&p);
 }
+
+// Test exec() failure for process service start.
+void test_proc_start_execfail()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    sset.add_service(&p);
+
+    p.start(true);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_failed(&p, ENOENT);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(p.get_stop_reason() == stopped_reason_t::EXECFAILED);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
 
 // Test stop timeout
 void test_proc_stop_timeout()
@@ -272,6 +314,7 @@ void test_proc_stop_timeout()
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPED);
+    assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
 
     // Note that timer is still active as we faked its expiry above
     //assert(event_loop.active_timers.size() == 0);
@@ -416,6 +459,7 @@ void test_scripted_stop_timeout()
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPED);
+    assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
 
     event_loop.active_timers.clear();
     sset.remove_service(&p);
@@ -457,6 +501,9 @@ void test_scripted_start_fail()
     assert(p.get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(s3->get_state() == service_state_t::STOPPED);
+    assert(p.get_stop_reason() == stopped_reason_t::FAILED);
+    assert(s2->get_stop_reason() == stopped_reason_t::DEPFAILED);
+    assert(s3->get_stop_reason() == stopped_reason_t::DEPFAILED);
 
     event_loop.active_timers.clear();
     sset.remove_service(&p);
@@ -566,6 +613,8 @@ void test_scripted_start_skip()
 
     assert(p.get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
+    assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
+    assert(s2->get_stop_reason() == stopped_reason_t::NORMAL);
     assert(sset.count_active_services() == 0);
 
     event_loop.active_timers.clear();
@@ -613,11 +662,14 @@ void test_scripted_start_skip2()
 
     assert(p.get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
+    assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
+    assert(s2->get_stop_reason() == stopped_reason_t::NORMAL);
     assert(sset.count_active_services() == 0);
 
     event_loop.active_timers.clear();
     sset.remove_service(&p);
 }
+
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing; \
@@ -631,6 +683,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_term_via_stop, "        ");
     RUN_TEST(test_proc_start_timeout, "   ");
     RUN_TEST(test_proc_start_timeout2, "  ");
+    RUN_TEST(test_proc_start_execfail, "  ");
     RUN_TEST(test_proc_stop_timeout, "    ");
     RUN_TEST(test_proc_smooth_recovery1, "");
     RUN_TEST(test_proc_smooth_recovery2, "");

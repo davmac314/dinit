@@ -417,6 +417,7 @@ void test9()
     s1->failed_to_start();
     sset.process_queues();
 
+    assert(s1->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
 }
 

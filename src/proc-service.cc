@@ -152,6 +152,7 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
             started();
         }
         else {
+            stop_reason = stopped_reason_t::FAILED;
             failed_to_start();
         }
     }
@@ -169,6 +170,7 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
         return;
     }
     else {
+        stop_reason = stopped_reason_t::TERMINATED;
         emergency_stop();
     }
     services->process_queues();
@@ -178,10 +180,12 @@ void process_service::exec_failed(int errcode) noexcept
 {
     log(loglevel_t::ERROR, get_name(), ": execution failed: ", strerror(errcode));
     if (get_state() == service_state_t::STARTING) {
+        stop_reason = stopped_reason_t::EXECFAILED;
         failed_to_start();
     }
     else {
         // Process service in smooth recovery:
+        stop_reason = stopped_reason_t::TERMINATED;
         emergency_stop();
     }
 }
@@ -231,6 +235,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
 
         if (need_stop) {
             // Failed startup: no auto-restart.
+            stop_reason = stopped_reason_t::TERMINATED;
             emergency_stop();
             services->process_queues();
         }
@@ -247,6 +252,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
             switch (pid_result) {
                 case pid_result_t::FAILED:
                     // Failed startup: no auto-restart.
+                    stop_reason = stopped_reason_t::FAILED;
                     failed_to_start();
                     break;
                 case pid_result_t::TERMINATED:
@@ -259,6 +265,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
             }
         }
         else {
+            stop_reason = stopped_reason_t::FAILED;
             failed_to_start();
         }
     }
@@ -277,6 +284,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
             start_explicit = false;
             release(false);
         }
+        stop_reason = stopped_reason_t::TERMINATED;
         forced_stop();
         stop_dependents();
         stopped();
@@ -288,6 +296,7 @@ void bgproc_service::exec_failed(int errcode) noexcept
 {
     log(loglevel_t::ERROR, get_name(), ": execution failed: ", strerror(errcode));
     // Only time we execute is for startup:
+    stop_reason = stopped_reason_t::EXECFAILED;
     failed_to_start();
 }
 
@@ -364,6 +373,7 @@ void scripted_service::handle_exit_status(bp_sys::exit_status exit_status) noexc
                 log(loglevel_t::ERROR, "Service ", get_name(), " command terminated due to signal ",
                         exit_status.get_term_sig());
             }
+            stop_reason = stopped_reason_t::FAILED;
             failed_to_start();
         }
         services->process_queues();
@@ -375,6 +385,7 @@ void scripted_service::exec_failed(int errcode) noexcept
     log(loglevel_t::ERROR, get_name(), ": execution failed: ", strerror(errcode));
     auto service_state = get_state();
     if (service_state == service_state_t::STARTING) {
+        stop_reason = stopped_reason_t::EXECFAILED;
         failed_to_start();
     }
     else if (service_state == service_state_t::STOPPING) {

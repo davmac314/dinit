@@ -146,6 +146,7 @@ void service_record::release(bool issue_stop) noexcept
             services->service_inactive(this);
         }
         else if (issue_stop) {
+        	stop_reason = stopped_reason_t::NORMAL;
             do_stop();
         }
     }
@@ -219,6 +220,7 @@ void service_record::do_propagation() noexcept
     
     if (prop_failure) {
         prop_failure = false;
+        stop_reason = stopped_reason_t::DEPFAILED;
         failed_to_start(true);
     }
     
@@ -459,7 +461,9 @@ void service_record::stop(bool bring_down) noexcept
         release();
     }
 
-    if (bring_down && service_state != service_state_t::STOPPED) {
+    if (bring_down && service_state != service_state_t::STOPPED
+    		&& service_state != service_state_t::STOPPING) {
+    	stop_reason = stopped_reason_t::NORMAL;
         do_stop();
     }
 }

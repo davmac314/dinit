@@ -311,6 +311,7 @@ void base_process_service::timer_expired() noexcept
         // Starting, start timed out.
         log(loglevel_t::WARN, "Service ", get_name(), " with pid ", pid, " exceeded allowed start time; cancelling.");
         interrupt_start();
+        stop_reason = stopped_reason_t::TIMEDOUT;
         failed_to_start(false, false);
     }
     else {
