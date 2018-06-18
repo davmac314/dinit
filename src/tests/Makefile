@@ -8,22 +8,22 @@ check: build-tests
 	./proctests
 	./loadtests
 
-build-tests: tests proctests loadtests
+build-tests: prepare-incdir tests proctests loadtests
 
 # Create an "includes" directory populated with a combination of real and mock headers:
 prepare-incdir:
 	mkdir -p includes
 	rm -rf includes/*.h
-	cd includes; ln -sf ../../includes/*.h .
-	cd includes; ln -sf ../test-includes/*.h .
+	cd includes; ln -f ../../includes/*.h .
+	cd includes; ln -f ../test-includes/*.h .
 
-tests: prepare-incdir $(parent_objs) tests.o test-dinit.o test-bpsys.o test-run-child-proc.o
+tests: $(parent_objs) tests.o test-dinit.o test-bpsys.o test-run-child-proc.o
 	$(CXX) $(SANITIZEOPTS) -o tests $(parent_objs) tests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(LDFLAGS)
 
-proctests: prepare-incdir $(parent_objs) proctests.o test-dinit.o test-bpsys.o test-run-child-proc.o
+proctests: $(parent_objs) proctests.o test-dinit.o test-bpsys.o test-run-child-proc.o
 	$(CXX) $(SANITIZEOPTS) -o proctests $(parent_objs) proctests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(LDFLAGS)
 	
-loadtests: prepare-incdir $(parent_objs) loadtests.o test-dinit.o test-bpsys.o test-run-child-proc.o
+loadtests: $(parent_objs) loadtests.o test-dinit.o test-bpsys.o test-run-child-proc.o
 	$(CXX) $(SANITIZEOPTS) -o loadtests $(parent_objs) loadtests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(LDFLAGS)
 
 $(objects): %.o: %.cc
