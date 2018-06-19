@@ -80,6 +80,11 @@ class exit_status
     {
         return status;
     }
+
+    int as_int()
+    {
+        return -1;
+    }
 };
 
 inline pid_t waitpid(pid_t p, exit_status *statusp, int flags)

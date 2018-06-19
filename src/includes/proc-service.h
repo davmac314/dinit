@@ -204,6 +204,16 @@ class base_process_service : public service_record
     {
         return exec_arg_parts;
     }
+
+    pid_t get_pid() override
+    {
+        return pid;
+    }
+
+    int get_exit_status() override
+    {
+        return exit_status.as_int();
+    }
 };
 
 // Standard process service.

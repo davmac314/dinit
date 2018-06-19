@@ -29,32 +29,37 @@ class exit_status
     int status;
 
     public:
-    exit_status() : status(0) { }
-    explicit exit_status(int status_p) : status(status_p) { }
+    exit_status() noexcept : status(0) { }
+    explicit exit_status(int status_p) noexcept : status(status_p) { }
 
-    bool did_exit()
+    bool did_exit() noexcept
     {
         return WIFEXITED(status);
     }
 
-    bool did_exit_clean()
+    bool did_exit_clean() noexcept
     {
         return status == 0;
     }
 
-    bool was_signalled()
+    bool was_signalled() noexcept
     {
         return WIFSIGNALED(status);
     }
 
-    int get_exit_status()
+    int get_exit_status() noexcept
     {
         return WEXITSTATUS(status);
     }
 
-    int get_term_sig()
+    int get_term_sig() noexcept
     {
         return WTERMSIG(status);
+    }
+
+    int as_int() noexcept
+    {
+        return status;
     }
 };
 

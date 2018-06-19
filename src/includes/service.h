@@ -639,6 +639,26 @@ class service_record
     {
         return stop_reason;
     }
+
+    bool is_waiting_for_console()
+    {
+        return waiting_for_console;
+    }
+
+    bool has_console()
+    {
+        return have_console;
+    }
+
+    virtual pid_t get_pid()
+    {
+        return -1;
+    }
+
+    virtual int get_exit_status()
+    {
+        return 0;
+    }
 };
 
 inline auto extract_prop_queue(service_record *sr) -> decltype(sr->prop_queue_node) &
