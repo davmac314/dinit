@@ -308,14 +308,14 @@ Finally, you can list the state of all loaded services:
 This may result in something like the following:
 
     [{+}     ] boot
-    [{+}     ] tty1
-    [{+}     ] tty2
-    [{+}     ] tty3
-    [{+}     ] tty4
-    [{+}     ] loginready
+    [{+}     ] tty1 (pid: 300)
+    [{+}     ] tty2 (pid: 301)
+    [{+}     ] tty3 (pid: 302)
+    [{+}     ] tty4 (pid: 303)
+    [{+}     ] loginready (has console)
     [{+}     ] rcboot
     [{+}     ] filesystems
-    [{+}     ] udevd
+    [{+}     ] udevd (pid: 4)
     [     {-}] mysql
 
 The above represents a number of started services and one stopped service
