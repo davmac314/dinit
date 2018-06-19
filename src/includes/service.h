@@ -183,20 +183,6 @@ enum class dependency_type
     MILESTONE   // dependency must start successfully, but once started the dependency becomes soft
 };
 
-enum class stopped_reason_t
-{
-    NORMAL,
-
-    // Start failures:
-    DEPFAILED, // A dependency failed to start
-    FAILED,    // failed to start (process terminated)
-	EXECFAILED, // failed to start (couldn't launch process)
-    TIMEDOUT,  // timed out when starting
-
-    // Failure after starting:
-    TERMINATED // process terminated
-};
-
 /* Service dependency record */
 class service_dep
 {

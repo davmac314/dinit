@@ -38,4 +38,19 @@ enum class shutdown_type_t {
     REBOOT             // Reboot system
 };
 
+/* Reasons for why service stopped */
+enum class stopped_reason_t
+{
+    NORMAL,
+
+    // Start failures:
+    DEPFAILED, // A dependency failed to start
+    FAILED,    // failed to start (process terminated)
+	EXECFAILED, // failed to start (couldn't launch process)
+    TIMEDOUT,  // timed out when starting
+
+    // Failure after starting:
+    TERMINATED // process terminated
+};
+
 #endif
