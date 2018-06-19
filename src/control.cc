@@ -1,6 +1,9 @@
 #include "control.h"
 #include "service.h"
 
+// Server-side control protocol implementation. This implements the functionality that allows
+// clients (such as dinitctl) to query service state and issue commands to control services.
+
 namespace {
     constexpr auto OUT_EVENTS = dasynq::OUT_EVENTS;
     constexpr auto IN_EVENTS = dasynq::IN_EVENTS;
@@ -312,22 +315,37 @@ bool control_conn_t::list_services()
         for (auto sptr : slist) {
             std::vector<char> pkt_buf;
             
+            int hdrsize = 8 + std::max(sizeof(int), sizeof(pid_t));
+
             const std::string &name = sptr->get_name();
             int nameLen = std::min((size_t)256, name.length());
-            pkt_buf.resize(8 + nameLen);
+            pkt_buf.resize(hdrsize + nameLen);
             
             pkt_buf[0] = DINIT_RP_SVCINFO;
             pkt_buf[1] = nameLen;
             pkt_buf[2] = static_cast<char>(sptr->get_state());
             pkt_buf[3] = static_cast<char>(sptr->get_target_state());
             
-            pkt_buf[4] = 0; // reserved
-            pkt_buf[5] = 0;
-            pkt_buf[6] = 0;
+            char b0 = sptr->is_waiting_for_console() ? 1 : 0;
+            b0 |= sptr->has_console() ? 2 : 0;
+            pkt_buf[4] = b0;
+            pkt_buf[5] = static_cast<char>(sptr->get_stop_reason());
+
+            pkt_buf[6] = 0; // reserved
             pkt_buf[7] = 0;
             
+            // Next: either the exit status, or the process ID
+            if (sptr->get_state() != service_state_t::STOPPED) {
+                pid_t proc_pid = sptr->get_pid();
+                memcpy(pkt_buf.data() + 8, &proc_pid, sizeof(proc_pid));
+            }
+            else {
+                int exit_status = sptr->get_exit_status();
+                memcpy(pkt_buf.data() + 8, &exit_status, sizeof(exit_status));
+            }
+
             for (int i = 0; i < nameLen; i++) {
-                pkt_buf[8+i] = name[i];
+                pkt_buf[hdrsize+i] = name[i];
             }
             
             if (! queue_packet(std::move(pkt_buf))) return false;

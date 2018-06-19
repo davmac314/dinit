@@ -218,7 +218,7 @@ class control_conn_t : private service_listener
 };
 
 
-static dasynq::rearm control_conn_cb(eventloop_t * loop, control_conn_watcher * watcher, int revents)
+inline dasynq::rearm control_conn_cb(eventloop_t * loop, control_conn_watcher * watcher, int revents)
 {
     // Get the address of the containing control_connt_t object:
     _Pragma ("GCC diagnostic push")

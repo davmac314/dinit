@@ -536,14 +536,30 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
 
     wait_for_reply(rbuffer, socknum);
     while (rbuffer[0] == DINIT_RP_SVCINFO) {
-        fill_buffer_to(rbuffer, socknum, 8);
+        int hdrsize = 8 + std::max(sizeof(int), sizeof(pid_t));
+        fill_buffer_to(rbuffer, socknum, hdrsize);
         int nameLen = rbuffer[1];
         service_state_t current = static_cast<service_state_t>(rbuffer[2]);
         service_state_t target = static_cast<service_state_t>(rbuffer[3]);
 
-        fill_buffer_to(rbuffer, socknum, nameLen + 8);
+        int console_flags = rbuffer[4];
+        bool has_console = (console_flags & 2) != 0;
+        bool waiting_console = (console_flags & 1) != 0;
 
-        char *name_ptr = rbuffer.get_ptr(8);
+        // stopped_reason_t stop_reason = static_cast<stopped_reason_t>(rbuffer[5]);
+
+        pid_t service_pid;
+        int exit_status;
+        if (current != service_state_t::STOPPED) {
+            rbuffer.extract((char *)&service_pid, 8, sizeof(service_pid));
+        }
+        else {
+        	rbuffer.extract((char *)&exit_status, 8, sizeof(exit_status));
+        }
+
+        fill_buffer_to(rbuffer, socknum, nameLen + hdrsize);
+
+        char *name_ptr = rbuffer.get_ptr(hdrsize);
         int clength = std::min(rbuffer.get_contiguous_length(name_ptr), nameLen);
 
         string name = string(name_ptr, clength);
@@ -569,9 +585,22 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
         cout << (current == service_state_t::STOPPED ? "-" : " ");
         cout << (target  == service_state_t::STOPPED ? "}" : " ");
 
-        cout << "] " << name << endl;
+        cout << "] " << name;
 
-        rbuffer.consume(8 + nameLen);
+        if (current != service_state_t::STOPPED && service_pid != -1) {
+        	cout << " (pid: " << service_pid << ")";
+        }
+
+        if (has_console) {
+        	cout << " (has console)";
+        }
+        else if (waiting_console) {
+        	cout << " (waiting for console)";
+        }
+
+        cout << endl;
+
+        rbuffer.consume(hdrsize + nameLen);
         wait_for_reply(rbuffer, socknum);
     }
 

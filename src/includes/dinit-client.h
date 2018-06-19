@@ -113,7 +113,7 @@ inline void write_all_x(int fd, const void *buf, size_t count)
 }
 
 // Check the protocol version is compatible with the client.
-//   minverison - minimum protocol version that client can speak
+//   minversion - minimum protocol version that client can speak
 //   version - maximum protocol version that client can speak
 //   rbuffer, fd -  communication buffer and socket
 // returns: the actual protocol version
