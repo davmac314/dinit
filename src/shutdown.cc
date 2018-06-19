@@ -24,6 +24,9 @@
 // shutdown:  shut down the system
 // This utility communicates with the dinit daemon via a unix socket (/dev/initctl).
 
+static constexpr uint16_t min_cp_version = 1;
+static constexpr uint16_t max_cp_version = 1;
+
 using loop_t = dasynq::event_loop_n;
 using rearm = dasynq::rearm;
 using clock_type = dasynq::clock_type;
@@ -344,7 +347,7 @@ int main(int argc, char **argv)
     try {
         cpbuffer_t rbuffer;
     
-        check_protocol_version(0, 0, rbuffer, socknum);
+        check_protocol_version(min_cp_version, max_cp_version, rbuffer, socknum);
 
         // Build buffer;
         constexpr int bufsize = 2;

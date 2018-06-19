@@ -22,6 +22,8 @@
 
 // This utility communicates with the dinit daemon via a unix stream socket (/dev/initctl, or $HOME/.dinitctl).
 
+static constexpr uint16_t min_cp_version = 1;
+static constexpr uint16_t max_cp_version = 1;
 
 enum class command_t;
 
@@ -226,7 +228,7 @@ int main(int argc, char **argv)
     try {
         // Start by querying protocol version:
         cpbuffer_t rbuffer;
-        check_protocol_version(0, 0, rbuffer, socknum);
+        check_protocol_version(min_cp_version, max_cp_version, rbuffer, socknum);
 
         if (command == command_t::UNPIN_SERVICE) {
             return unpin_service(socknum, rbuffer, service_name, verbose);

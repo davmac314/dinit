@@ -7,6 +7,10 @@
 namespace {
     constexpr auto OUT_EVENTS = dasynq::OUT_EVENTS;
     constexpr auto IN_EVENTS = dasynq::IN_EVENTS;
+
+    // Control protocol minimum compatible version and current version:
+    constexpr uint16_t min_compat_version = 1;
+    constexpr uint16_t cp_version = 1;
 }
 
 bool control_conn_t::process_packet()
@@ -22,6 +26,8 @@ bool control_conn_t::process_packet()
         // Responds with:
         // DINIT_RP_CVERSION, (2 byte) minimum compatible version, (2 byte) actual version
         char replyBuf[] = { DINIT_RP_CPVERSION, 0, 0, 0, 0 };
+        memcpy(replyBuf + 1, &min_compat_version, 2);
+        memcpy(replyBuf + 3, &cp_version, 2);
         if (! queue_packet(replyBuf, sizeof(replyBuf))) return false;
         rbuf.consume(1);
         return true;
