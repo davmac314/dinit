@@ -1,36 +1,48 @@
-Dinit
------
+# Dinit
 v0.2.0 (pre-release)
 
+This is the README for Dinit, the service manager and init system. It is
+intended to provide an overview; For full documentation please check the manual pages. 
 
-What is it?
-=-=-=-=-=-=
+## Contents
+
+1. [Introduction](#introduction)
+2. [Configuring services](#configuring-services)
+    1. [Service types](#service-types)
+    2. [Service description files](#service-description-files)
+3. [Controlling services](#controlling-services)
+    1. [Service hierarchy and states](#service-hierarchy-and-states)
+    2. [Using dinitctl](#using-dinitctl)
+
+## Introduction
 
 "Dinit" is a service supervisor with dependency support which can also
-act as the system "init" program.
+act as the system "init" program. It was created with the intention of
+providing a portable init system that could serve as a lighter-weight
+alternative to the Linux-only Systemd.
 
-Specifically it can launch multiple services (generally, "daemon" processes,
-but see notes below) in parallel, with dependency management (i.e. if one
-service's operation depends on another, the latter service will be started
-first).
-
-For "process" services Dinit can monitor the process corresponding to the
-service, and re-start it if it dies. It does this in an intelligent way,
+Specifically, Dinit can launch multiple services in parallel, with dependency
+management (i.e. if one service's operation depends on another, the latter
+service will be started first). It  can monitor the process corresponding to a
+service, and re-start it if it dies, and it can do this in an intelligent way,
 first "rolling back" all dependent services, and restarting them when their
-dependencies are satisfied.
+dependencies are satisfied. However, the precise nature of dependency
+relations between services is highly configurable.
 
-Dinit includes a tool ("dinitctl") to issue commands to the main Dinit
-process, and a "shutdown" program (with scripts "halt" and "reboot") to
-manage shutting down and restarting the system.
+Dinit includes "dinitctl", a tool to issue commands to the main Dinit
+process in order to start or stop services and check their state, as well as
+a "shutdown" program (with scripts "halt" and "reboot") to manage shutting
+down and restarting the system.
 
 Dinit is designed to work on POSIXy operating systems such as Linux and
-OpenBSD. It is written in C++ and uses the "Dasynq" event handling library,
-which was written especially to support Dinit.
+OpenBSD. It is written in C++ and uses the [Dasynq](http://davmac.org/projects/dasynq/)
+event handling library, which was written especially to support Dinit.
 
 Development goals include clean design, robustness, portability, and
 avoiding feature bloat (whilst still handling a variety of use cases).
 
-See doc/COMPARISON for a comparison of Dinit with similar software packages.
+See [doc/COMPARISON](doc/COMPARISON) for a comparison of Dinit with similar
+software packages.
 
 Dinit is licensed under the Apache License, version 2.0. A copy of this
 license can be found in the LICENSE file.
@@ -40,14 +52,15 @@ Dinit was written by Davin McCall <davmac@davmac.org>.
 See BUILD for information on how to build Dinit.
 
 
-Introduction to services
-=-=-=-=-=-=-=-=-=-=-=-=-
+## Configuring services
+
+### Service types
 
 A "service" is nominally a persistent process or system state. The two main
 types of service are a _process_ service (represented by a an actual process)
 and a _scripted_ service (which is started and stopped by running a process -
 often a shell script - to completion). There are also _bgprocess_ services
-and _internal_services.
+and _internal_ services.
 
 Many programs that you might want to run under dinit's supervision can run
 either "in the foreground" or as a daemon ("in the background"), and the
@@ -89,32 +102,7 @@ describe a set of dependencies. An internal service has no corresponding
 process.
 
 
-Service Hiearchy and states
-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-Services can depend on other services for operation, and so form a
-dependency hierarchy. Starting a service which depends on another
-causes that other service to start (and the first service waits until
-the latter has started before its process is launched and it is itself
-considered started).
-
-Services are considered _active_ when they are not stopped. Services
-can also be explicitly marked as active (this normally happens when you
-explicitly start a service). Finally, a service with an active dependent
-is also considered active.
-
-If a service stops and becomes inactive (i.e. it is not explicitly marked
-active and has no active dependents) then any services it depends on will
-also be marked inactive and stopped unless they have other active
-dependents, or were explicitly started and marked active.
-
-What this means is that, in general, starting an (inactive, stopped)
-service and then stopping it will return the system to its prior state -
-no dependencies which were started automatically will be left running.
-
-
-Service Description files
-=-=-=-=-=-=-=-=-=-=-=-=-=
+### Service description files
 
 Dinit discovers services by reading _service description files_. These files
 reside in a directory (/etc/dinit.d is the default "system" location, with
@@ -137,122 +125,114 @@ Parameter values are interpreted literally, except that:
    non-collapsing whitespace, double-quote marks, and backslashes in the
    parameter value.
 
-Some available parameters are:
+Some examples of the available parameters are:
 
-type = process | bgprocess | scripted | internal
-command = ...
-stop-command = ...
-run-as = (user-id)
-restart = (boolean)
-smooth-recovery = (boolean)
-logfile = ...
-pid-file = ...
-options = ...
-depends-on = (service name)
-depends-ms = (service name)
-waits-for = (service name)
+    type = process | bgprocess | scripted | internal
+    command = ...
+    stop-command = ...
+    run-as = (user-id)
+    restart = (boolean)
+    smooth-recovery = (boolean)
+    logfile = ...
+    pid-file = ...
+    options = ...
+    depends-on = (service name)
+    depends-ms = (service name)
+    waits-for = (service name)
+    
+Descriptions of individual parameters follows:
 
-command = (external script or executable, and arguments)
-   For a 'process' service, this is the process to run.
-   For a 'scripted' service, this command is run to start the service.
+    command = (external script or executable, and arguments)
 
-stop-command = (external script or executable, and arguments)
-   For a 'scripted' service, this command is run to stop the service.
+For a 'process' service, this is the process to run.
+For a 'scripted' service, this command is run to start the service.
 
-run-as = (user-id)
-   Specifies which user to run the process(es) for this service as. The group
-   id for the process will also be set to the primary group of the specified
-   user.
+    stop-command = (external script or executable, and arguments)
 
-restart = yes | true | no | false
-   Specifies whether the service should automatically restart if it becomes
-   stopped (for any reason, including being explicitly requested to stop).
-   Only active services will restart automatically.
+For a 'scripted' service, this command is run to stop the service.
 
-smooth-recovery = yes | true | no | false
-   For process services only. Specifies that, should the process die, it
-   can be restarted without bringing the service itself down. This means that
-   any dependent services do not need to be stopped/restarted. Such recovery
-   happens regardless of the "restart" setting (if smooth-recovery is enabled,
-   the service does not reach the stopped state when the process terminates
-   unexpectedly).
+    run-as = (user-id)
+ 
+Specifies which user to run the process(es) for this service as. The group
+id for the process will also be set to the primary group of the specified
+user.
 
-logfile = (log file path)
-   Specifies the log file for the service. Output from the service process
-   will go this file.
+    restart = yes | true | no | false
 
-pid-file = (path to file)
-   For "bgprocess" type services only; specifies the path of the file where
-   daemon will write its process ID before detaching.
+Specifies whether the service should automatically restart if it becomes
+stopped (for any reason, including being explicitly requested to stop).
+Only active services will restart automatically.
 
-depends-on = (service name)
-   This service depends on the named service. Starting this service will
-   start the named service; the command to start this service will not be
-   executed until the named service has started. If the named service is
-   stopped then this service will also be stopped.
+    smooth-recovery = yes | true | no | false
+   
+For process services only. Specifies that, should the process die, it
+can be restarted without bringing the service itself down. This means that
+any dependent services do not need to be stopped/restarted. Such recovery
+happens regardless of the "restart" setting (if smooth-recovery is enabled,
+the service does not reach the stopped state when the process terminates
+unexpectedly).
 
-depends-ms = (service name)
-   Indicates a "milestone dependency" on the named service. This service
-   requires the named service to start before it starts itself. Once the
-   named service has started, it remains active due to the dependency, but if
-   it stops for any reason then the dependency link is broken until the next
-   time this service is started.
+    logfile = (log file path)
 
-waits-for = (service name)
-   When this service is started, wait for the named service to finish
-   starting (or to fail starting) before commencing the start procedure
-   for this service. Starting this service will automatically start
-   the named service.
+Specifies the log file for the service. Output from the service process
+will go this file.
 
-options = ( runs-on-console | nosigterm | starts-rwfs | starts-log ) ...
-  Specifies various options for this service:
+    pid-file = (path to file)
 
-  no-sigterm : specifies that the TERM signal should not be send to the
+For "bgprocess" type services only; specifies the path of the file where
+daemon will write its process ID before detaching.
+
+    depends-on = (service name)
+
+This service depends on the named service. Starting this service will
+start the named service; the command to start this service will not be
+executed until the named service has started. If the named service is
+stopped then this service will also be stopped.
+
+    depends-ms = (service name)
+
+Indicates a "milestone dependency" on the named service. This service
+requires the named service to start before it starts itself. Once the
+named service has started, it remains active due to the dependency, but if
+it stops for any reason then the dependency link is broken until the next
+time this service is started.
+
+    waits-for = (service name)
+
+When this service is started, wait for the named service to finish
+starting (or to fail starting) before commencing the start procedure
+for this service. Starting this service will automatically start
+the named service.
+
+    options = ( runs-on-console | nosigterm | starts-rwfs | starts-log ) ...
+
+Specifies various options for this service:
+
+`no-sigterm` : specifies that the TERM signal should not be send to the
               process to terminate it. (Another signal can be specified using
               the "termsignal" setting; if no other signal is specified, NO
               signal will be sent).
 
-  runs-on-console : specifies that this service uses the console; its input
+`runs-on-console` : specifies that this service uses the console; its input
               and output should be directed to the console. A service running
               on the console prevents other services from running on the
               console (they will queue for the console).
-
               The "interrupt" key (normally control-C) will be active for
               process / scripted services that run on the console. Handling
               of an interrupt is determined by the service process, but
               typically will cause it to terminate.
               
-  starts-on-console : specifies that this service uses the console during
+`starts-on-console` : specifies that this service uses the console during
               service startup. This is implied by runs-on-console, but can
               be specified separately for services that need the console
               while they start but not afterwards.
-              
               This setting is not applicable to regular "process" services,
               but can be used for "scripted" and "bgprocess" services. It
               allows for interrupting startup via the "interrupt" key
               (normally control-C). This is useful to allow filesystem checks
               to be interrupted/skipped.
 
-  starts-rwfs : this service mounts the root filesystem read/write (or at
-              least mounts the normal writable filesystems for the system).
-              This prompts Dinit to create its control socket, if it has not
-              already managed to do so.
-
-  starts-log : this service starts the system log daemon. Dinit will begin
-              logging via the /dev/log socket.
-
-  pass-cs-fd : pass an open Dinit control socket to the process when launching
-              it (the DINIT_CS_FD environment variable will be set to the file
-              descriptor of the socket). This allows the service to issue
-              commands to Dinit even if the regular control socket is not
-              available yet.
-
-              Using this option has security implications! The service which
-              receives the control socket must close it before launching any
-              untrusted processes. You should not use this option unless the
-              service is designed to receive a Dinit control socket.
-              
-  start-interruptible : this service can have its startup interrupted
+`start-interruptible` : this service can have its startup interrupted
               (cancelled) if it becomes inactive while still starting.
               The SIGINT signal will be sent to the signal to cancel its
               startup. This is meaningful only for scripted and bgprocess
@@ -261,8 +241,31 @@ options = ( runs-on-console | nosigterm | starts-rwfs | starts-log ) ...
 Please see the manual page for a full list of service parameters and options.
 
 
-Controlling services
-=-=-=-=-=-=-=-=-=-=-
+## Controlling services
+
+### Service hierarchy and states
+
+Services can depend on other services for operation, and so form a
+dependency hierarchy. Starting a service which depends on another
+causes that other service to start (and the first service waits until
+the latter has started before its process is launched and it is itself
+considered started).
+
+Services are considered _active_ when they are not stopped. Services
+can also be explicitly marked as active (this normally happens when you
+explicitly start a service). Finally, a service with an active dependent
+is also considered active.
+
+If a service stops and becomes inactive (i.e. it is not explicitly marked
+active and has no active dependents) then any services it depends on will
+also be marked inactive and stopped unless they have other active
+dependents, or were explicitly started and marked active.
+
+What this means is that, in general, starting an (inactive, stopped)
+service and then stopping it will return the system to its prior state -
+no dependencies which were started automatically will be left running.
+
+### Using dinitctl
 
 You can use the "dinitctl" to start and stop services. Typical invocations
 are:
