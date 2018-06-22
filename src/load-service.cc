@@ -434,6 +434,10 @@ service_record * dirload_service_set::load_service(const char * name)
         if (service_file) break;
     }
     
+    if (! service_file) {
+        throw service_not_found(string(name));
+    }
+
     string command;
     list<pair<unsigned,unsigned>> command_offsets;
     string stop_command;
