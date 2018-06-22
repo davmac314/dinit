@@ -1,14 +1,12 @@
-For version 0.3.0:
+For version 0.4.0:
 ------------------
-* Skippable services: if they terminate via ^C, treat as a successful startup. Allows
-  skipping filesystem checks.
-* Provide better status information:
-  - whether a service failed to start (as opposed to just being STOPPED)
-    - directly, and how (error code? died to signal? timed out?) or
-    - due to a dependency.
-  - whether a service has acquired, or is waiting to acquire, the console
-  - whether service was skipped (via ^C/SIGINT) instead of started normally.
-* Option to send signals to service process leader only (not to process group).
+* A (perhaps limited) way(s) to modify a service description after it is loaded -
+  eg add/remove dependencies, change properties.
+* Package-manager-friendly way to enable/disable services.
+  Perhaps a service can specify a dependency file (with dependency type) where
+  the file contains a list of service names, or if it is a directory, each
+  filename within corresponds to a service that is a dependency.
+* Contributors guide include coding style.
   
 For version 1.0:
 ----------------
@@ -19,17 +17,7 @@ For version 1.0:
   has started. (maybe?)
 * on shutdown, after repeated intervals with no activity, display information
   about services we are waiting on (or, do this when prompted via ^C or C-A-D).
-* A (perhaps limited) way(s) to modify a service description after it is loaded -
-  eg add/remove dependencies, change properties.
-* Think about detecting runs-on-console dependency conflicts (i.e. if A runs-on-console and
-  B depends on A and runs-on-consle then B can never start)?
-  - Complicated if service descriptions can be altered after loading. Perhaps not necessary
-    if better status information can be provided.
 * Documentation must be complete (see section below).
-* Package-manager-friendly way to enable/disable services.
-  Perhaps a service can specify a dependency file (with dependency type) where
-  the file contains a list of service names, or if it is a directory, each
-  filename within corresponds to a service that is a dependency.
 * Proper support for socket activation?
 * Be able to boot and shutdown Linux and FreeBSD.
 
