@@ -35,6 +35,19 @@ void test_env_subst()
     assert(strcmp("", exec_parts[3]) == 0);
 }
 
+void test_nonexistent()
+{
+    bool got_service_not_found = false;
+    dirload_service_set sset(test_service_dir.c_str());
+    try {
+        sset.load_service("does-not-exist");
+    }
+    catch (service_not_found &) {
+        got_service_not_found = true;
+    }
+    assert(got_service_not_found);
+}
+
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing; \
     name(); \
@@ -43,7 +56,8 @@ void test_env_subst()
 int main(int argc, char **argv)
 {
     init_test_service_dir();
-    RUN_TEST(test_basic, "    ");
-    RUN_TEST(test_env_subst, "");
+    RUN_TEST(test_basic, "      ");
+    RUN_TEST(test_env_subst, "  ");
+    RUN_TEST(test_nonexistent, "");
     return 0;
 }
