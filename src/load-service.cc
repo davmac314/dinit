@@ -607,6 +607,9 @@ service_record * dirload_service_set::load_service(const char * name)
                         else if (option_txt == "skippable") {
                             onstart_flags.skippable = true;
                         }
+                        else if (option_txt == "signal-process-only") {
+                            onstart_flags.signal_process_only = true;
+                        }
                         else {
                             throw service_description_exc(name, "Unknown option: " + option_txt);
                         }

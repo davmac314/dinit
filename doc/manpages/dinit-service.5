@@ -272,6 +272,10 @@ For scripted services, indicates that if the service startup process terminates
 via an interrupt signal (SIGINT), then the service should be considered started.
 Note that if the interrupt was issued by Dinit to cancel startup, the service
 will instead be considered stopped.
+.TP
+\fBsignal-process-only\fR
+Signal the service process only, rather than its entire process group, whenever
+sending it a signal for any reason.
 .RE
 .LP
 The next section contains example service descriptions including some of the

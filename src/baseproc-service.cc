@@ -287,13 +287,18 @@ void base_process_service::kill_with_fire() noexcept
 
 void base_process_service::kill_pg(int signo) noexcept
 {
-    pid_t pgid = bp_sys::getpgid(pid);
-    if (pgid == -1) {
-        // only should happen if pid is invalid, which should never happen...
-        log(loglevel_t::ERROR, get_name(), ": can't signal process: ", strerror(errno));
-        return;
+    if (onstart_flags.signal_process_only) {
+        bp_sys::kill(pid, signo);
     }
-    bp_sys::kill(-pgid, signo);
+    else {
+        pid_t pgid = bp_sys::getpgid(pid);
+        if (pgid == -1) {
+            // only should happen if pid is invalid, which should never happen...
+            log(loglevel_t::ERROR, get_name(), ": can't signal process: ", strerror(errno));
+            return;
+        }
+        bp_sys::kill(-pgid, signo);
+    }
 }
 
 void base_process_service::timer_expired() noexcept

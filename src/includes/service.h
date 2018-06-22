@@ -122,10 +122,11 @@ struct service_flags_t {
     bool pass_cs_fd : 1;  // pass this service a control socket connection via fd
     bool start_interruptible : 1; // the startup of this service process is ok to interrupt with SIGINT
     bool skippable : 1;   // if interrupted the service is skipped (scripted services)
+    bool signal_process_only : 1;  // signal the session process, not the whole group
     
-    service_flags_t() noexcept : rw_ready(false), log_ready(false),
-            no_sigterm(false), runs_on_console(false), starts_on_console(false),
-            pass_cs_fd(false), start_interruptible(false), skippable(false)
+    service_flags_t() noexcept : rw_ready(false), log_ready(false), no_sigterm(false),
+            runs_on_console(false), starts_on_console(false), pass_cs_fd(false),
+            start_interruptible(false), skippable(false), signal_process_only(false)
     {
     }
 };
