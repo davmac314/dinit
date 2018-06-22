@@ -33,7 +33,8 @@ SANITIZEOPTS=-fsanitize=address,undefined
 
 # MacOS: use g++ (which may alias clang++):
 #CXX=g++
-#CXXOPTS=-std=c++11 -Os -Wall -fno-rtti -flto
+#CXXOPTS=-std=c++11 -Os -Wall -flto
 #LDFLAGS=-flto
 #BUILD_SHUTDOWN=no
 #SANITIZEOPTS=-fsanitize=address,undefined
+#  Note: -fno-rtti seems to break exception handling.
