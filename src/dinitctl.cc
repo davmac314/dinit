@@ -7,6 +7,7 @@
 #include <memory>
 
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
