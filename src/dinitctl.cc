@@ -602,7 +602,10 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
 
             cout << (did_fail ? "X" : "-");
         }
-        cout << (target  == service_state_t::STOPPED ? "}" : " ");
+        else {
+        	cout << " ";
+        }
+        cout << (target == service_state_t::STOPPED ? "}" : " ");
 
         cout << "] " << name;
 
