@@ -547,8 +547,9 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
         int console_flags = rbuffer[4];
         bool has_console = (console_flags & 2) != 0;
         bool waiting_console = (console_flags & 1) != 0;
+        bool was_skipped = (console_flags & 4) != 0;
 
-        // stopped_reason_t stop_reason = static_cast<stopped_reason_t>(rbuffer[5]);
+        stopped_reason_t stop_reason = static_cast<stopped_reason_t>(rbuffer[5]);
 
         pid_t service_pid;
         int exit_status;
@@ -570,7 +571,12 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
         cout << "[";
 
         cout << (target  == service_state_t::STARTED ? "{" : " ");
-        cout << (current == service_state_t::STARTED ? "+" : " ");
+        if (current == service_state_t::STARTED) {
+            cout << (was_skipped ? "s" : "+");
+        }
+        else {
+            cout << " ";
+        }
         cout << (target  == service_state_t::STARTED ? "}" : " ");
         
         if (current == service_state_t::STARTING) {
@@ -584,13 +590,32 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
         }
         
         cout << (target  == service_state_t::STOPPED ? "{" : " ");
-        cout << (current == service_state_t::STOPPED ? "-" : " ");
+        if (current == service_state_t::STOPPED) {
+            bool did_fail = false;
+            if (stop_reason == stopped_reason_t::TERMINATED) {
+                if (!WIFEXITED(exit_status) || WEXITSTATUS(exit_status) != 0) {
+                    did_fail = true;
+                }
+            }
+            else did_fail = (stop_reason != stopped_reason_t::NORMAL);
+
+            cout << (did_fail ? "X" : "-");
+        }
         cout << (target  == service_state_t::STOPPED ? "}" : " ");
 
         cout << "] " << name;
 
         if (current != service_state_t::STOPPED && service_pid != -1) {
         	cout << " (pid: " << service_pid << ")";
+        }
+        
+        if (current == service_state_t::STOPPED && stop_reason == stopped_reason_t::TERMINATED) {
+            if (WIFEXITED(exit_status)) {
+                cout << " (exit status: " << WEXITSTATUS(exit_status) << ")";
+            }
+            else if (WIFSIGNALED(exit_status)) {
+                cout << " (signal: " << WSTOPSIG(exit_status) << ")";
+            }
         }
 
         if (has_console) {
