@@ -11,8 +11,8 @@ within. In particular:
   LDFLAGS :  are any extra flags required for linking; should not normally be needed
              (FreeBSD requires -lrt).
 
-Defaults for Linux and OpenBSD are provided. Note that the "eg++" or "clang++" package must
-be installed on OpenBSD as the default "g++" compiler is too old. Clang is part of the base
+Suitable defaults for a number of systems are provided. Note that the "eg++" or "clang++" package
+must be installed on OpenBSD as the default "g++" compiler is too old. Clang is part of the base
 system in recent releases.
 
 Then, change into the "src" directory, and run "make" (or "gmake" if the system make is not
@@ -28,6 +28,8 @@ setting the "DESTDIR" variable, eg "make DESTDIR=/tmp/temporary-install-path ins
 
 Special note for GCC/Libstdc++
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+(Note: the issue discussed here has apparently been resolved in recent GCC versions).
 
 GCC 5.x onwards includes a "dual ABI" in its standard library implementation, aka Libstdc++.
 Compiling against the newer (C++11 and later) ABI can be achieved by adding
