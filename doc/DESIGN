@@ -1,0 +1,73 @@
+Dinit Design Overview
+=====================
+
+Dinit's overall function is fairly straightforward but there are some considerations that cause
+its design to be more complicated than it might otherwise be.  The heart of the issue is that
+Dinit should not stall on I/O and its essential operation should never fail, which means that many
+code paths cannot perform memory allocation for example, and that log message all go through a
+buffer.
+
+The design is based around an event loop: events include process termination, signal reception,
+and I/O coming in from control sockets (used to issue service start/stop commands etc via
+dinitctl). The Dasynq library provides the backend event loop functionality; it is included
+with the Dinit source, but has a separate web page and documentation:
+
+    http://davmac.org/projects/dasynq/ 
+
+In Dinit, service actions are often performed by setting "propagation" flags, inserting the
+service in a queue, and then processing the queues. Thus a lot of service actions are performed
+by first calling a function on a service and then draining the propagation queues. More
+information can be found in comments at the beginning of the includes/service.h header.
+
+The logging subsystem is designed to log to two different sinks - typically, one is the console
+and one is the syslog facility, but other arrangements are possible. It uses a circular buffer
+for each output sink, and if the buffer becomes full it discards additional messages to avoid
+blocking (though it flags that this has occurred and later outputs a message to the sink).
+Services may acquire the console and in this case output is discarded (though it will of
+course continue to be logged to the other sink).
+
+Control protocol handling uses a circular receive buffer, but allocates storage for outgoing
+packets dynamically. If allocation files an "out of memory" flag is set and the connection is
+closed after writing an "out of memory" information packet.
+
+
+Services
+--------
+
+There are presently four service types: internal, process, bgprocess and scripted. The latter
+three share the fact that they execute external processes and so naturally share some
+implementation. Specifically, the base service class is "service_record" - this directly
+supports "internal" services. The "base_process_service" class serves as a base class for
+the other three service types and provides common functionality.
+
+Various functions in the service_record / base_process_service classes are virtual, so that
+they can be overridden by the subclasses.
+
+All execution of child processes related to services currently goes through
+service_record::run_child_proc() (after forking).
+
+
+Source code organisation
+------------------------
+
+Most function comments and general documentation can be found in header files rather than in the
+corresponding source files.
+
+dinit.cc - main event loop handling, command line parsing, general initialisation
+
+service.cc, proc-service.cc, baseproc-service.cc -
+    service logic (see service.h, proc-service.h)
+    
+run-child-proc.cc - contains service_record::run_child_proc(), used to run child processes.
+
+load-service.cc - service loading
+
+control.cc - control protocol handling
+
+dinit-log.cc - logging subsystem
+
+
+The utility sources are:
+
+dinitctl.cc - the control/status utility
+shutdown.cc - shutdown/halt/reboot utility
