@@ -3,7 +3,7 @@
 
 #include <cstring>
 
-// control protocol buffer, a circular buffer with 1024-byte capacity.
+// control protocol buffer, a circular buffer with fixed capacity.
 template <int SIZE> class cpbuffer
 {
     char buf[SIZE];
