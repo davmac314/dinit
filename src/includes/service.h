@@ -176,14 +176,6 @@ class service_record;
 class service_set;
 class base_process_service;
 
-enum class dependency_type
-{
-    REGULAR,
-    SOFT,       // dependency starts in parallel, failure/stop does not affect dependent
-    WAITS_FOR,  // as for SOFT, but dependent waits until dependency starts/fails before starting
-    MILESTONE   // dependency must start successfully, but once started the dependency becomes soft
-};
-
 /* Service dependency record */
 class service_dep
 {

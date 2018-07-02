@@ -36,6 +36,8 @@ static int unpin_service(int socknum, cpbuffer_t &, const char *service_name, bo
 static int unload_service(int socknum, cpbuffer_t &, const char *service_name);
 static int list_services(int socknum, cpbuffer_t &);
 static int shutdown_dinit(int soclknum, cpbuffer_t &);
+static int add_dependency(int socknum, cpbuffer_t &rbuffer, char *service_from, char *service_to,
+        dependency_type dep_type);
 
 
 static const char * describeState(bool stopped)
@@ -57,7 +59,8 @@ enum class command_t {
     UNPIN_SERVICE,
     UNLOAD_SERVICE,
     LIST_SERVICES,
-    SHUTDOWN
+    SHUTDOWN,
+    ADD_DEPENDENCY
 };
 
 
@@ -68,6 +71,9 @@ int main(int argc, char **argv)
     
     bool show_help = argc < 2;
     char *service_name = nullptr;
+    char *to_service_name = nullptr;
+    dependency_type dep_type;
+    bool dep_type_set = false;
     
     std::string control_socket_str;
     const char * control_socket_path = nullptr;
@@ -126,19 +132,52 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "shutdown") == 0) {
                 command = command_t::SHUTDOWN;
             }
+            else if (strcmp(argv[i], "add-dep") == 0) {
+                command = command_t::ADD_DEPENDENCY;
+            }
             else {
                 show_help = true;
                 break;
             }
         }
         else {
-            // service name
-            if (service_name != nullptr) {
-                show_help = true;
-                break;
+            // service name / other non-option
+            if (command == command_t::ADD_DEPENDENCY) {
+                if (! dep_type_set) {
+                    if (strcmp(argv[i], "regular") == 0) {
+                    	dep_type = dependency_type::REGULAR;
+                    }
+                    else if (strcmp(argv[i], "milestone") == 0) {
+                    	dep_type = dependency_type::MILESTONE;
+                    }
+                    else if (strcmp(argv[i], "waits-for") == 0) {
+                    	dep_type = dependency_type::WAITS_FOR;
+                    }
+                    else {
+                    	show_help = true;
+                    	break;
+                    }
+                    dep_type_set = true;
+                }
+                else if (service_name == nullptr) {
+                    service_name = argv[i];
+                }
+                else if (to_service_name == nullptr) {
+                    to_service_name = argv[i];
+                }
+                else {
+                    show_help = true;
+                    break;
+                }
             }
-            service_name = argv[i];
-            // TODO support multiple services
+            else {
+                if (service_name != nullptr) {
+                    show_help = true;
+                    break;
+                }
+                service_name = argv[i];
+                // TODO support multiple services
+            }
         }
     }
     
@@ -149,6 +188,11 @@ int main(int argc, char **argv)
     }
     
     if ((service_name == nullptr && ! no_service_cmd) || command == command_t::NONE) {
+        show_help = true;
+    }
+
+    if (command == command_t::ADD_DEPENDENCY && (! dep_type_set || service_name == nullptr
+            || to_service_name == nullptr)) {
         show_help = true;
     }
 
@@ -164,6 +208,7 @@ int main(int argc, char **argv)
         cout << "    dinitctl unload <service-name>                    : unload the service" << endl;
         cout << "    dinitctl list                                     : list loaded services" << endl;
         cout << "    dinitctl shutdown                                 : stop all services and terminate dinit" << endl;
+        cout << "    dinitctl add-dep <type> <from-service> <to-service> : add a dependency between services" << endl;
         
         cout << "\nNote: An activated service continues running when its dependents stop." << endl;
         
@@ -242,6 +287,9 @@ int main(int argc, char **argv)
         }
         else if (command == command_t::SHUTDOWN) {
             return shutdown_dinit(socknum, rbuffer);
+        }
+        else if (command == command_t::ADD_DEPENDENCY) {
+            return add_dependency(socknum, rbuffer, service_name, to_service_name, dep_type);
         }
         else {
             return start_stop_service(socknum, rbuffer, service_name, command, do_pin,
@@ -636,6 +684,58 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
     }
 
     if (rbuffer[0] != DINIT_RP_LISTDONE) {
+        cerr << "dinitctl: Control socket protocol error" << endl;
+        return 1;
+    }
+
+    return 0;
+}
+
+static int add_dependency(int socknum, cpbuffer_t &rbuffer, char *service_from, char *service_to,
+        dependency_type dep_type)
+{
+    using namespace std;
+
+    // First find the "from" service:
+    if (issue_load_service(socknum, service_from, true) == 1) {
+        return 1;
+    }
+
+    wait_for_reply(rbuffer, socknum);
+
+    handle_t from_handle;
+
+    if (check_load_reply(socknum, rbuffer, &from_handle, nullptr) != 0) {
+        return 1;
+    }
+
+    // Then find or load the "to" service:
+    if (issue_load_service(socknum, service_to, true) == 1) {
+        return 1;
+    }
+
+    wait_for_reply(rbuffer, socknum);
+
+    handle_t to_handle;
+
+    if (check_load_reply(socknum, rbuffer, &to_handle, nullptr) != 0) {
+        return 1;
+    }
+
+    constexpr int pktsize = 2 + sizeof(handle_t) * 2;
+    char cmdbuf[pktsize] = { (char)DINIT_CP_ADD_DEP, (char)dep_type};
+    memcpy(cmdbuf + 2, &from_handle, sizeof(from_handle));
+    memcpy(cmdbuf + 2 + sizeof(from_handle), &to_handle, sizeof(to_handle));
+    write_all_x(socknum, cmdbuf, pktsize);
+
+    wait_for_reply(rbuffer, socknum);
+
+    // check reply
+    if (rbuffer[0] == DINIT_RP_NAK) {
+        cerr << "dinitctl: Could not add dependency: circular dependency or wrong state" << endl;
+        return 1;
+    }
+    if (rbuffer[0] != DINIT_RP_ACK) {
         cerr << "dinitctl: Control socket protocol error" << endl;
         return 1;
     }

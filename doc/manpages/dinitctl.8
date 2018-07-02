@@ -24,6 +24,12 @@ unload [\fIservice-name\fR]
 .br
 .B dinitctl
 [\-s] list
+.br
+.B dinitctl
+[\-s] shutdown
+.br
+.B dinitctl
+[\-s] add-dep [\fIdependency-type\fR] [\fIfrom-service\fR] [\fIto-service\fR]
 .\"
 .SH DESCRIPTION
 .\"
@@ -104,6 +110,12 @@ or is waiting to acquire, the console; the process ID; the exit status or signal
 \fBshutdown\fR
 Stop all services (without restart) and terminate Dinit. If issued to the system instance of Dinit,
 this will also shut down the system.
+.TP
+\fBadd-dep\fR
+Add a dependency between two services. The \fIdependency-type\fR must be one of \fBregular\fR,
+\fBmilestone\fR or \fBwaits-for\fR. Note that adding a regular dependency requires that the service
+states are consistent with the dependency (i.e. if the "from" service is started, the "to" service
+must also be started). Circular dependency chains may not be created. 
 .\"
 .SH SERVICE OPERATION
 .\"

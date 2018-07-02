@@ -53,4 +53,12 @@ enum class stopped_reason_t
     TERMINATED // process terminated
 };
 
+enum class dependency_type
+{
+    REGULAR,
+    SOFT,       // dependency starts in parallel, failure/stop does not affect dependent
+    WAITS_FOR,  // as for SOFT, but dependent waits until dependency starts/fails before starting
+    MILESTONE   // dependency must start successfully, but once started the dependency becomes soft
+};
+
 #endif
