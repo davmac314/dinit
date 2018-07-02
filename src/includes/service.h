@@ -202,12 +202,12 @@ class service_dep
             : from(from), to(to), waiting_on(false), holding_acq(false), dep_type(dep_type_p)
     {  }
 
-    service_record * get_from() noexcept
+    service_record * get_from() const noexcept
     {
         return from;
     }
 
-    service_record * get_to() noexcept
+    service_record * get_to() const noexcept
     {
         return to;
     }
@@ -645,6 +645,33 @@ class service_record
     virtual int get_exit_status()
     {
         return 0;
+    }
+
+    const dep_list & get_dependencies()
+    {
+        return depends_on;
+    }
+
+    // Add a dependency. Caller must ensure that the services are in an appropriate state and that
+    // a circular dependency chain is not created. Propagation queues should be processed after
+    // calling this. May throw std::bad_alloc.
+    void add_dep(service_record *to, dependency_type dep_type)
+    {
+        depends_on.emplace_back(this, to, dep_type);
+        try {
+            to->dependents.push_back(& depends_on.back());
+        }
+        catch (...) {
+            depends_on.pop_back();
+            throw;
+        }
+
+        if (dep_type == dependency_type::REGULAR) {
+            if (service_state == service_state_t::STARTING || service_state == service_state_t::STARTED) {
+                to->require();
+                depends_on.back().holding_acq = true;
+            }
+        }
     }
 };
 

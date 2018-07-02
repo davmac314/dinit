@@ -29,7 +29,9 @@ constexpr static int DINIT_CP_UNLOADSERVICE = 9;
 constexpr static int DINIT_CP_SHUTDOWN = 10;
  // followed by 1-byte shutdown type
 
-
+// Add/remove dependency to existing service:
+constexpr static int DINIT_CP_ADD_DEP = 11;
+constexpr static int DINIT_CP_REM_DEP = 12;
 
 // Replies:
 

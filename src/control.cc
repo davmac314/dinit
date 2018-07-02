@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <unordered_set>
+
 #include "control.h"
 #include "service.h"
 
@@ -65,6 +68,9 @@ bool control_conn_t::process_packet()
     }
     if (pktType == DINIT_CP_LISTSERVICES) {
         return list_services();
+    }
+    if (pktType == DINIT_CP_ADD_DEP) {
+        return add_service_dep();
     }
     else {
         // Unrecognized: give error response
@@ -368,6 +374,117 @@ bool control_conn_t::list_services()
         do_oom_close();
         return true;
     }
+}
+
+// check for value in a set
+static inline bool contains(const int (&v)[3], int i)
+{
+    return std::find(std::begin(v), std::end(v), i) != std::end(v);
+}
+
+bool control_conn_t::add_service_dep()
+{
+    // 1 byte packet type
+    // 1 byte dependency type
+    // handle: "from"
+    // handle: "to"
+
+    constexpr int pkt_size = 2 + sizeof(handle_t) * 2;
+
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    handle_t from_handle;
+    handle_t to_handle;
+    rbuf.extract((char *) &from_handle, 2, sizeof(from_handle));
+    rbuf.extract((char *) &to_handle, 2 + sizeof(from_handle), sizeof(to_handle));
+
+    service_record *from_service = find_service_for_key(from_handle);
+    service_record *to_service = find_service_for_key(to_handle);
+    if (from_service == nullptr || to_service == nullptr || from_service == to_service) {
+        // Service handle is bad
+        char badreq_rep[] = { DINIT_RP_BADREQ };
+        if (! queue_packet(badreq_rep, 1)) return false;
+        bad_conn_close = true;
+        iob.set_watches(OUT_EVENTS);
+        return true;
+    }
+
+    // Check dependency type is valid:
+    int dep_type_int = rbuf[1];
+    if (! contains({(int)dependency_type::MILESTONE, (int)dependency_type::REGULAR,
+            (int)dependency_type::WAITS_FOR}, dep_type_int)) {
+        char badreqRep[] = { DINIT_RP_BADREQ };
+        if (! queue_packet(badreqRep, 1)) return false;
+        bad_conn_close = true;
+        iob.set_watches(OUT_EVENTS);
+    }
+    dependency_type dep_type = static_cast<dependency_type>(dep_type_int);
+
+    // Check current service states are valid for given dep type
+    if (dep_type == dependency_type::REGULAR) {
+        if (from_service->get_state() != service_state_t::STOPPED &&
+                to_service->get_state() != service_state_t::STARTED) {
+            // Cannot create dependency now since it would be contradicted:
+            char nak_rep[] = { DINIT_RP_NAK };
+            if (! queue_packet(nak_rep, 1)) return false;
+            rbuf.consume(pkt_size);
+            chklen = 0;
+            return true;
+        }
+    }
+
+    // Check for creation of circular dependency chain
+    std::unordered_set<service_record *> dep_marks;
+    std::vector<service_record *> dep_queue;
+    dep_queue.push_back(to_service);
+    while (! dep_queue.empty()) {
+        service_record * sr = dep_queue.back();
+        dep_queue.pop_back();
+        // iterate deps; if dep == from, abort; otherwise add to set/queue
+        // (only add to queue if not already in set)
+        for (auto &dep : sr->get_dependencies()) {
+            service_record * dep_to = dep.get_to();
+            if (dep_to == from_service) {
+                // fail, circular dependency!
+                char nak_rep[] = { DINIT_RP_NAK };
+                if (! queue_packet(nak_rep, 1)) return false;
+                rbuf.consume(pkt_size);
+                chklen = 0;
+                return true;
+            }
+            if (dep_marks.insert(dep_to).second) {
+                dep_queue.push_back(dep_to);
+            }
+        }
+    }
+    dep_marks.clear();
+    dep_queue.clear();
+
+    // Prevent creation of duplicate dependency:
+    for (auto &dep : from_service->get_dependencies()) {
+        service_record * dep_to = dep.get_to();
+        if (dep_to == to_service && dep.dep_type == dep_type) {
+            // Dependency already exists: return success
+            char ack_rep[] = { DINIT_RP_ACK };
+            if (! queue_packet(ack_rep, 1)) return false;
+            rbuf.consume(pkt_size);
+            chklen = 0;
+            return true;
+        }
+    }
+
+    // Create dependency:
+    from_service->add_dep(to_service, dep_type);
+    services->process_queues();
+
+    char ack_rep[] = { DINIT_RP_ACK };
+    if (! queue_packet(ack_rep, 1)) return false;
+    rbuf.consume(pkt_size);
+    chklen = 0;
+    return true;
 }
 
 control_conn_t::handle_t control_conn_t::allocate_service_handle(service_record *record)

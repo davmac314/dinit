@@ -146,6 +146,8 @@ class control_conn_t : private service_listener
 
     bool list_services();
 
+    bool add_service_dep();
+
     // Notify that data is ready to be read from the socket. Returns true if the connection should
     // be closed.
     bool data_ready() noexcept;
