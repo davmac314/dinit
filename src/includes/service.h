@@ -482,9 +482,24 @@ class service_record
         service_name = name;
         this->record_type = record_type_p;
 
-        for (auto & pdep : deplist_p) {
-            auto b = depends_on.emplace(depends_on.end(), this, pdep.to, pdep.dep_type);
-            pdep.to->dependents.push_back(&(*b));
+        try {
+            for (auto & pdep : deplist_p) {
+                auto b = depends_on.emplace(depends_on.end(), this, pdep.to, pdep.dep_type);
+                try {
+                    pdep.to->dependents.push_back(&(*b));
+                }
+                catch (...) {
+                    // we'll roll back one now and re-throw:
+                    depends_on.pop_back();
+                    throw;
+                }
+            }
+        }
+        catch (...) {
+            for (auto & dep : depends_on) {
+                dep.get_to()->dependents.pop_back();
+            }
+            throw;
         }
     }
 
