@@ -33,7 +33,7 @@ $(parent_objs): %.o: ../%.cc
 	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../dasynq -c $< -o $@
 
 clean:
-	rm -f *.o *.d
+	rm -f *.o *.d tests proctests loadtests
 
 -include $(objects:.o=.d)
 -include $(parent_objs:.o=.d)
