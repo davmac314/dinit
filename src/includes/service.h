@@ -680,6 +680,26 @@ class service_record
             }
         }
     }
+
+    // Remove a dependency, of the given type, to the given service. Propagation queues should be processed
+    // after calling.
+    void rm_dep(service_record *to, dependency_type dep_type) noexcept
+    {
+        for (auto i = depends_on.begin(); i != depends_on.end(); i++) {
+            auto & dep = *i;
+            if (dep.get_to() == to && dep.dep_type == dep_type) {
+                for (auto j = to->dependents.begin(); ; j++) {
+                    if (*j == &dep) {
+                        dependents.erase(j);
+                        break;
+                    }
+                }
+                depends_on.erase(i);
+                to->release();
+                break;
+            }
+        }
+    }
 };
 
 inline auto extract_prop_queue(service_record *sr) -> decltype(sr->prop_queue_node) &

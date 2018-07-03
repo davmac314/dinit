@@ -72,13 +72,15 @@ bool control_conn_t::process_packet()
     if (pktType == DINIT_CP_ADD_DEP) {
         return add_service_dep();
     }
-    else {
-        // Unrecognized: give error response
-        char outbuf[] = { DINIT_RP_BADREQ };
-        if (! queue_packet(outbuf, 1)) return false;
-        bad_conn_close = true;
-        iob.set_watches(OUT_EVENTS);
+    if (pktType == DINIT_CP_REM_DEP) {
+        return rm_service_dep();
     }
+
+    // Unrecognized: give error response
+    char outbuf[] = { DINIT_RP_BADREQ };
+    if (! queue_packet(outbuf, 1)) return false;
+    bad_conn_close = true;
+    iob.set_watches(OUT_EVENTS);
     return true;
 }
 
@@ -478,6 +480,58 @@ bool control_conn_t::add_service_dep()
 
     // Create dependency:
     from_service->add_dep(to_service, dep_type);
+    services->process_queues();
+
+    char ack_rep[] = { DINIT_RP_ACK };
+    if (! queue_packet(ack_rep, 1)) return false;
+    rbuf.consume(pkt_size);
+    chklen = 0;
+    return true;
+}
+
+bool control_conn_t::rm_service_dep()
+{
+    // 1 byte packet type
+    // 1 byte dependency type
+    // handle: "from"
+    // handle: "to"
+
+    constexpr int pkt_size = 2 + sizeof(handle_t) * 2;
+
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    handle_t from_handle;
+    handle_t to_handle;
+    rbuf.extract((char *) &from_handle, 2, sizeof(from_handle));
+    rbuf.extract((char *) &to_handle, 2 + sizeof(from_handle), sizeof(to_handle));
+
+    service_record *from_service = find_service_for_key(from_handle);
+    service_record *to_service = find_service_for_key(to_handle);
+    if (from_service == nullptr || to_service == nullptr || from_service == to_service) {
+        // Service handle is bad
+        char badreq_rep[] = { DINIT_RP_BADREQ };
+        if (! queue_packet(badreq_rep, 1)) return false;
+        bad_conn_close = true;
+        iob.set_watches(OUT_EVENTS);
+        return true;
+    }
+
+    // Check dependency type is valid:
+    int dep_type_int = rbuf[1];
+    if (! contains({(int)dependency_type::MILESTONE, (int)dependency_type::REGULAR,
+            (int)dependency_type::WAITS_FOR}, dep_type_int)) {
+        char badreqRep[] = { DINIT_RP_BADREQ };
+        if (! queue_packet(badreqRep, 1)) return false;
+        bad_conn_close = true;
+        iob.set_watches(OUT_EVENTS);
+    }
+    dependency_type dep_type = static_cast<dependency_type>(dep_type_int);
+
+    // Remove dependency:
+    from_service->rm_dep(to_service, dep_type);
     services->process_queues();
 
     char ack_rep[] = { DINIT_RP_ACK };
