@@ -30,6 +30,9 @@ unload [\fIservice-name\fR]
 .br
 .B dinitctl
 [\-s] add-dep [\fIdependency-type\fR] [\fIfrom-service\fR] [\fIto-service\fR]
+.br
+.B dinitctl
+[\-s] rm-dep [\fIdependency-type\fR] [\fIfrom-service\fR] [\fIto-service\fR]
 .\"
 .SH DESCRIPTION
 .\"
@@ -115,7 +118,12 @@ this will also shut down the system.
 Add a dependency between two services. The \fIdependency-type\fR must be one of \fBregular\fR,
 \fBmilestone\fR or \fBwaits-for\fR. Note that adding a regular dependency requires that the service
 states are consistent with the dependency (i.e. if the "from" service is started, the "to" service
-must also be started). Circular dependency chains may not be created. 
+must also be started). Circular dependency chains may not be created.
+.TP
+\fBrm-dep\fR
+Remove a dependency between two services. The \fIdependency-type\fR must be one of \fBregular\fR,
+\fBmilestone\fR or \fBwaits-for\fR. If the "to" service is not otherwise active it may be stopped
+as a result of removing the dependency.  
 .\"
 .SH SERVICE OPERATION
 .\"

@@ -36,8 +36,8 @@ static int unpin_service(int socknum, cpbuffer_t &, const char *service_name, bo
 static int unload_service(int socknum, cpbuffer_t &, const char *service_name);
 static int list_services(int socknum, cpbuffer_t &);
 static int shutdown_dinit(int soclknum, cpbuffer_t &);
-static int add_dependency(int socknum, cpbuffer_t &rbuffer, char *service_from, char *service_to,
-        dependency_type dep_type);
+static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, char *service_from,
+        char *service_to, dependency_type dep_type);
 
 
 static const char * describeState(bool stopped)
@@ -60,7 +60,8 @@ enum class command_t {
     UNLOAD_SERVICE,
     LIST_SERVICES,
     SHUTDOWN,
-    ADD_DEPENDENCY
+    ADD_DEPENDENCY,
+    RM_DEPENDENCY
 };
 
 
@@ -135,6 +136,9 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "add-dep") == 0) {
                 command = command_t::ADD_DEPENDENCY;
             }
+            else if (strcmp(argv[i], "rm-dep") == 0) {
+                command = command_t::RM_DEPENDENCY;
+            }
             else {
                 show_help = true;
                 break;
@@ -142,7 +146,7 @@ int main(int argc, char **argv)
         }
         else {
             // service name / other non-option
-            if (command == command_t::ADD_DEPENDENCY) {
+            if (command == command_t::ADD_DEPENDENCY || command == command_t::RM_DEPENDENCY) {
                 if (! dep_type_set) {
                     if (strcmp(argv[i], "regular") == 0) {
                     	dep_type = dependency_type::REGULAR;
@@ -191,8 +195,8 @@ int main(int argc, char **argv)
         show_help = true;
     }
 
-    if (command == command_t::ADD_DEPENDENCY && (! dep_type_set || service_name == nullptr
-            || to_service_name == nullptr)) {
+    if ((command == command_t::ADD_DEPENDENCY || command == command_t::RM_DEPENDENCY)
+            && (! dep_type_set || service_name == nullptr || to_service_name == nullptr)) {
         show_help = true;
     }
 
@@ -209,6 +213,7 @@ int main(int argc, char **argv)
         cout << "    dinitctl list                                     : list loaded services" << endl;
         cout << "    dinitctl shutdown                                 : stop all services and terminate dinit" << endl;
         cout << "    dinitctl add-dep <type> <from-service> <to-service> : add a dependency between services" << endl;
+        cout << "    dinitctl rm-dep <type> <from-service> <to-service> : remove a dependency between services" << endl;
         
         cout << "\nNote: An activated service continues running when its dependents stop." << endl;
         
@@ -288,8 +293,9 @@ int main(int argc, char **argv)
         else if (command == command_t::SHUTDOWN) {
             return shutdown_dinit(socknum, rbuffer);
         }
-        else if (command == command_t::ADD_DEPENDENCY) {
-            return add_dependency(socknum, rbuffer, service_name, to_service_name, dep_type);
+        else if (command == command_t::ADD_DEPENDENCY || command == command_t::RM_DEPENDENCY) {
+            return add_remove_dependency(socknum, rbuffer, command == command_t::ADD_DEPENDENCY,
+                    service_name, to_service_name, dep_type);
         }
         else {
             return start_stop_service(socknum, rbuffer, service_name, command, do_pin,
@@ -691,13 +697,13 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
     return 0;
 }
 
-static int add_dependency(int socknum, cpbuffer_t &rbuffer, char *service_from, char *service_to,
-        dependency_type dep_type)
+static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, char *service_from,
+        char *service_to, dependency_type dep_type)
 {
     using namespace std;
 
     // First find the "from" service:
-    if (issue_load_service(socknum, service_from, true) == 1) {
+    if (issue_load_service(socknum, service_from, false) == 1) {
         return 1;
     }
 
@@ -710,7 +716,7 @@ static int add_dependency(int socknum, cpbuffer_t &rbuffer, char *service_from, 
     }
 
     // Then find or load the "to" service:
-    if (issue_load_service(socknum, service_to, true) == 1) {
+    if (issue_load_service(socknum, service_to, false) == 1) {
         return 1;
     }
 
@@ -723,7 +729,7 @@ static int add_dependency(int socknum, cpbuffer_t &rbuffer, char *service_from, 
     }
 
     constexpr int pktsize = 2 + sizeof(handle_t) * 2;
-    char cmdbuf[pktsize] = { (char)DINIT_CP_ADD_DEP, (char)dep_type};
+    char cmdbuf[pktsize] = { add ? (char)DINIT_CP_ADD_DEP : (char)DINIT_CP_REM_DEP, (char)dep_type};
     memcpy(cmdbuf + 2, &from_handle, sizeof(from_handle));
     memcpy(cmdbuf + 2 + sizeof(from_handle), &to_handle, sizeof(to_handle));
     write_all_x(socknum, cmdbuf, pktsize);
