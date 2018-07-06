@@ -46,7 +46,10 @@ class service_record;
 
 class control_conn_watcher : public eventloop_t::bidi_fd_watcher_impl<control_conn_watcher>
 {
-    inline rearm receive_event(eventloop_t &loop, int fd, int flags) noexcept;
+    inline rearm receive_event(eventloop_t &loop, int fd, int flags) noexcept
+    {
+        return control_conn_cb(&loop, this, flags);
+    }
 
     eventloop_t * event_loop;
 
@@ -71,12 +74,6 @@ class control_conn_watcher : public eventloop_t::bidi_fd_watcher_impl<control_co
         eventloop_t::bidi_fd_watcher::set_watches(*event_loop, flags);
     }
 };
-
-inline dasynq::rearm control_conn_watcher::receive_event(eventloop_t &loop, int fd, int flags) noexcept
-{
-    return control_conn_cb(&loop, this, flags);
-}
-
 
 class control_conn_t : private service_listener
 {

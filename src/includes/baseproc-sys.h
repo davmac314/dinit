@@ -20,6 +20,8 @@ using ::kill;
 using ::getpgid;
 using ::tcsetpgrp;
 using ::getpgrp;
+using ::read;
+using ::write;
 
 // Wrapper around a POSIX exit status
 class exit_status

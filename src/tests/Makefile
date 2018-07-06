@@ -7,6 +7,7 @@ check: build-tests
 	./tests
 	./proctests
 	./loadtests
+	$(MAKE) -C cptests check
 
 build-tests: prepare-incdir tests proctests loadtests
 
@@ -33,6 +34,7 @@ $(parent_objs): %.o: ../%.cc
 	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../dasynq -c $< -o $@
 
 clean:
+	$(MAKE) -C cptests clean
 	rm -f *.o *.d tests proctests loadtests
 
 -include $(objects:.o=.d)

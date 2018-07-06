@@ -2,6 +2,9 @@
 #define CPBUFFER_H
 
 #include <cstring>
+#include <algorithm>
+
+#include "baseproc-sys.h"
 
 // control protocol buffer, a circular buffer with fixed capacity.
 template <int SIZE> class cpbuffer
@@ -53,7 +56,7 @@ template <int SIZE> class cpbuffer
         int pos = cur_idx + length;
         if (pos >= SIZE) pos -= SIZE;
         int max_count = std::min(SIZE - pos, SIZE - length);
-        ssize_t r = read(fd, buf + pos, max_count);
+        ssize_t r = bp_sys::read(fd, buf + pos, max_count);
         if (r >= 0) {
             length += r;
         }
@@ -68,7 +71,7 @@ template <int SIZE> class cpbuffer
         if (pos >= SIZE) pos -= SIZE;
         int max_count = std::min(SIZE - pos, SIZE - length);
         max_count = std::min(max_count, limit);
-        ssize_t r = read(fd, buf + pos, max_count);
+        ssize_t r = bp_sys::read(fd, buf + pos, max_count);
         if (r >= 0) {
             length += r;
         }

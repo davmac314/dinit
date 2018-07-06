@@ -582,7 +582,7 @@ bool control_conn_t::queue_packet(const char *pkt, unsigned size) noexcept
     // If the queue is empty, we can try to write the packet out now rather than queueing it.
     // If the write is unsuccessful or partial, we queue the remainder.
     if (was_empty) {
-        int wr = write(iob.get_watched_fd(), pkt, size);
+        int wr = bp_sys::write(iob.get_watched_fd(), pkt, size);
         if (wr == -1) {
             if (errno == EPIPE) {
                 return false;
@@ -637,7 +637,7 @@ bool control_conn_t::queue_packet(std::vector<char> &&pkt) noexcept
     if (was_empty) {
         outpkt_index = 0;
         // We can try sending the packet immediately:
-        int wr = write(iob.get_watched_fd(), pkt.data(), pkt.size());
+        int wr = bp_sys::write(iob.get_watched_fd(), pkt.data(), pkt.size());
         if (wr == -1) {
             if (errno == EPIPE) {
                 return false;
@@ -735,14 +735,14 @@ bool control_conn_t::send_data() noexcept
         if (oom_close) {
             // Send oom response
             char oomBuf[] = { DINIT_RP_OOM };
-            write(iob.get_watched_fd(), oomBuf, 1);
+            bp_sys::write(iob.get_watched_fd(), oomBuf, 1);
         }
         return true;
     }
     
     vector<char> & pkt = outbuf.front();
     char *data = pkt.data();
-    int written = write(iob.get_watched_fd(), data + outpkt_index, pkt.size() - outpkt_index);
+    int written = bp_sys::write(iob.get_watched_fd(), data + outpkt_index, pkt.size() - outpkt_index);
     if (written == -1) {
         if (errno == EPIPE) {
             // read end closed

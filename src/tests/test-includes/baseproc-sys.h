@@ -2,12 +2,25 @@
 #define BPSYS_INCLUDED
 
 #include <string>
+#include <vector>
+
 #include <sys/types.h>
 #include <unistd.h>
 
 // Mock system functions for testing.
 
 namespace bp_sys {
+
+// Test helper functions:
+
+// allocate a file descriptor
+int allocfd();
+
+void supply_read_data(int fd, std::vector<char> &data);
+void supply_read_data(int fd, std::vector<char> &&data);
+void extract_written_data(int fd, std::vector<char> &data);
+
+// Mock system calls:
 
 // implementations elsewhere:
 int pipe2(int pipefd[2], int flags);
@@ -91,6 +104,9 @@ inline pid_t waitpid(pid_t p, exit_status *statusp, int flags)
 {
     throw std::string("not implemented");
 }
+
+ssize_t read(int fd, void *buf, size_t count);
+ssize_t write(int fd, const void *buf, size_t count);
 
 }
 
