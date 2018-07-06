@@ -10,8 +10,6 @@
 
 #include <unistd.h>
 
-#include "dasynq.h"
-
 #include "dinit.h"
 #include "dinit-log.h"
 #include "control-cmds.h"
@@ -24,7 +22,7 @@ class control_conn_t;
 class control_conn_watcher;
 
 // forward-declaration of callback:
-static dasynq::rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents);
+inline dasynq::rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents);
 
 // Pointer to the control connection that is listening for rollback completion
 extern control_conn_t * rollback_handler_conn;
@@ -159,7 +157,8 @@ class control_conn_t : private service_listener
     // Allocate a new handle for a service; may throw std::bad_alloc
     handle_t allocate_service_handle(service_record *record);
     
-    service_record *find_service_for_key(uint32_t key)
+    // Find the service corresponding to a service handle; returns nullptr if not found.
+    service_record *find_service_for_key(handle_t key) noexcept
     {
         try {
             return key_service_map.at(key);
@@ -170,7 +169,7 @@ class control_conn_t : private service_listener
     }
     
     // Close connection due to out-of-memory condition.
-    void do_oom_close()
+    void do_oom_close() noexcept
     {
         bad_conn_close = true;
         oom_close = true;
@@ -216,6 +215,8 @@ class control_conn_t : private service_listener
         active_control_conns++;
     }
     
+    control_conn_t(const control_conn_t &) = delete;
+
     bool rollback_complete() noexcept;
         
     virtual ~control_conn_t() noexcept;
