@@ -267,7 +267,7 @@ no dependencies which were started automatically will be left running.
 
 ### Using dinitctl
 
-You can use the "dinitctl" to start and stop services. Typical invocations
+You can use the "dinitctl" utility to start and stop services. Typical invocations
 are:
 
     dinitctl start <service-name>
