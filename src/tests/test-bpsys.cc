@@ -4,6 +4,7 @@
 #include <map>
 
 #include <cstdlib>
+#include <cerrno>
 
 #include "baseproc-sys.h"
 

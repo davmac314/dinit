@@ -5,6 +5,7 @@
 
 #include <unordered_set>
 #include <map>
+#include <string>
 
 #include "dasynq.h"
 
