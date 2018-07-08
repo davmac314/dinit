@@ -1,6 +1,9 @@
 Dinit Design Overview
 =====================
 
+NOTE: This document is intended to provide an overview. Specifics are generally included as
+      comments/documentation within source files.
+
 Dinit's overall function is fairly straightforward but there are some considerations that cause
 its design to be more complicated than it might otherwise be.  The heart of the issue is that
 Dinit should not stall on I/O and its essential operation should never fail, which means that many
@@ -13,6 +16,9 @@ dinitctl). The Dasynq library provides the backend event loop functionality; it 
 with the Dinit source, but has a separate web page and documentation:
 
     http://davmac.org/projects/dasynq/ 
+
+Note that blocking actions are avoided: non-blocking I/O is used where possible; Dinit must
+remain responsive at all times.
 
 In Dinit, service actions are often performed by setting "propagation" flags, inserting the
 service in a queue, and then processing the queues. Thus a lot of service actions are performed
@@ -66,8 +72,41 @@ control.cc - control protocol handling
 
 dinit-log.cc - logging subsystem
 
+tests/ - various tests
 
 The utility sources are:
 
 dinitctl.cc - the control/status utility
 shutdown.cc - shutdown/halt/reboot utility
+
+
+Testing
+-------
+
+The tests work by mocking out parts of Dinit, and some system calls, in order to isolate
+functional units. In the src/tests/test-includes directory are three mock headers. When compiling
+tests, the src/tests/includes directory is populated with (linked) copies of the standard headers
+from src/include, but with mocked headers taken from src/tests/test-includes instead.
+
+Note that systems calls are not mocked directly, instead:
+
+ - system calls are wrapped in the bp_sys namespace, as defined in the baseproc-sys.h header;
+ - for testing, the header is replaced with a mock header. 
+
+(This avoids problems that might arise from replacing important system calls, and in
+particular avoids interfering with the test harness itself).
+
+It is important when writing new code in Dinit to avoid calling system calls directly, and to
+instead call the wrapper in bp_sys.
+
+
+Exception safety, error handling
+--------------------------------
+
+In general operation Dinit methods should avoid throwing exceptions and be declared as 'noexcept',
+or otherwise be clearly documented as throwing exceptions. Errors should always be handled as
+gracefully as possible and should not prevent Dinit's continued operation. Particular care is
+needed for dynamic allocations: C++ style allocations (including adding elements to C++
+containers) will raise 'std::bad_alloc' if they cannot allocate memory, and this must be handled
+appropriately. Once it has started regular operation, Dinit must not terminate due to an error
+condition, even if the error is an allocation failure.
