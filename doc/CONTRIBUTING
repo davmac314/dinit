@@ -1,0 +1,51 @@
+Contributing to Dinit's development
+===================================
+
+At the time of writing there have been only minimal outside contributions, but I'm writing this
+contribution guide in readiness for contributions being made by other persons.
+
+
+Code contributions
+------------------
+
+In general, code contributions:
+ - should follow existing style and conventions
+ - should keep the design considerations in mind (read the DESIGN document)
+ - should be accompanied by appropriate documentation additions/updates
+ - should include tests where practical
+
+As the maintainer and original author, I maintain the right to reject or request modification to
+contributions, for failure to comply with the points listed above, for failure to adhere to a
+reasonable standard of conduct (see Contributor Conduct below), or because I deem that the
+contribution includes features outside the intended scope. Feel free to contact me to sound
+out whether I would be likely to accept a submission for a particular feature.
+
+Contributors should feel free to create (or add themselves to) a CONTRIBUTORS list as part of
+the patch/pull request.
+
+I will endeavour to respond to all offered contributions with civility and respect, even if I
+choose not to accept them.
+
+
+Contributor Conduct
+-------------------
+
+There is no complete "code of conduct" for Dinit contributors, but contributions will only be
+accepted from those who are civil and respectful towards others. Specific behaviours that won't
+be tolerated from contributors include but are not limited to:
+
+ - discrimination generally, and especially if based on race, gender or gender identity, sexual
+   preference, etc
+ - personal attacks, insults, or harassment, or incitement thereof, against others
+ - unnecessarily drawing attention to another's personal issues or conditions, or other personal
+   details
+
+If a person is deemed to have engaged in negative behaviour such as from the list above,
+contributions from them will not be accepted and the perpetrator may be blocked from
+communications related to Dinit development. Note that such negative behaviours need not have
+occurred in a public forum, and need not be related to Dinit development.
+
+In short: don't be nasty to others; arseholes won't be tolerated.
+
+If you feel that a contributor has behaved inappropriately, please feel free to contact me to
+discuss it; such communication will be kept confidential (unless and until otherwise agreed).
