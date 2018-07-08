@@ -4,10 +4,12 @@ objects = cptests.o
 parent_test_objects = ../test-bpsys.o ../test-dinit.o
 parent_objs = control.o dinit-log.o service.o
 
-check: build-tests
-	./cptests
+check: build-tests run-tests
 
 build-tests: prepare-incdir cptests
+
+run-tests: cptests
+	./cptests
 
 # Create an "includes" directory populated with a combination of real and mock headers:
 prepare-incdir:

@@ -3,13 +3,16 @@
 objects = tests.o test-dinit.o proctests.o loadtests.o test-run-child-proc.o test-bpsys.o
 parent_objs = service.o proc-service.o dinit-log.o load-service.o baseproc-service.o
 
-check: build-tests
+check: build-tests run-tests
+
+build-tests: prepare-incdir tests proctests loadtests
+	$(MAKE) -C cptests build-tests
+
+run-tests: tests proctests loadtests
 	./tests
 	./proctests
 	./loadtests
-	$(MAKE) -C cptests check
-
-build-tests: prepare-incdir tests proctests loadtests
+	$(MAKE) -C cptests run-tests
 
 # Create an "includes" directory populated with a combination of real and mock headers:
 prepare-incdir:
