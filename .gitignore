@@ -12,3 +12,5 @@ src/tests/loadtests
 src/tests/includes
 src/tests/cptests/includes
 src/tests/cptests/cptests
+src/tests/cptests/corpus
+src/tests/cptests/fuzz
