@@ -95,7 +95,7 @@ int kill(pid_t pid, int sig)
 
 ssize_t read(int fd, void *buf, size_t count)
 {
-	std::vector<read_result> rrs = read_data[fd];
+	std::vector<read_result> & rrs = read_data[fd];
 	if (rrs.empty()) {
 		return 0;
 	}
@@ -115,9 +115,7 @@ ssize_t read(int fd, void *buf, size_t count)
 		// Consume entire result:
 		std::copy_n(rr.data.begin(), dsize, (char *)buf);
 		// Remove the result record:
-		auto i = rrs.begin();
-		i++;
-		rrs.erase(rrs.begin(), i);
+		rrs.erase(rrs.begin());
 		return dsize;
 	}
 

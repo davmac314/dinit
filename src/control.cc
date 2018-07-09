@@ -778,7 +778,7 @@ bool control_conn_t::send_data() noexcept
 
 control_conn_t::~control_conn_t() noexcept
 {
-    close(iob.get_watched_fd());
+    bp_sys::close(iob.get_watched_fd());
     iob.deregister(loop);
     
     // Clear service listeners
