@@ -19,7 +19,7 @@ prepare-incdir:
 	cd includes; ln -f ../../test-includes/dinit.h .
 	cd includes; ln -f ../../test-includes/baseproc-sys.h .
 
-cptests: cptests.o $(parent_objs)
+cptests: cptests.o $(parent_objs) $(parent_test_objs)
 	$(CXX) $(SANITIZEOPTS) -o cptests cptests.o $(parent_test_objects) $(parent_objs) $(LDFLAGS)
 
 $(objects): %.o: %.cc
