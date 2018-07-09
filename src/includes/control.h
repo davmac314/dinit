@@ -79,6 +79,12 @@ class control_conn_t : private service_listener
 {
     friend rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents);
     
+    public:
+    // A mapping between service records and their associated numerical identifier used
+    // in communction
+    using handle_t = uint32_t;
+
+    private:
     control_conn_watcher iob;
     eventloop_t &loop;
     service_set *services;
@@ -96,9 +102,6 @@ class control_conn_t : private service_listener
     template <typename T> using list = std::list<T>;
     template <typename T> using vector = std::vector<T>;
     
-    // A mapping between service records and their associated numerical identifier used
-    // in communction
-    using handle_t = uint32_t;
     std::unordered_multimap<service_record *, handle_t> service_key_map;
     std::map<handle_t, service_record *> key_service_map;
     
