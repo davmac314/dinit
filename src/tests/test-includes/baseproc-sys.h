@@ -18,6 +18,7 @@ int allocfd();
 
 void supply_read_data(int fd, std::vector<char> &data);
 void supply_read_data(int fd, std::vector<char> &&data);
+void set_blocking(int fd);
 void extract_written_data(int fd, std::vector<char> &data);
 
 // Mock system calls:

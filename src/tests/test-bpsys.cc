@@ -23,8 +23,17 @@ struct read_result
 	std::vector<char> data;  // data (if errcode == 0)
 };
 
+class read_cond : public std::vector<read_result>
+{
+    public:
+    using vector<read_result>::vector;
+
+    // if blocking, return EAGAIN rather than end-of-file:
+    bool is_blocking = false;
+};
+
 // map of fd to read results to supply for reads of that fd
-std::map<int,std::vector<read_result>> read_data;
+std::map<int,read_cond> read_data;
 
 // map of data written to each fd
 std::map<int,std::vector<char>> written_data;
@@ -63,6 +72,11 @@ void supply_read_data(int fd, std::vector<char> &&data)
 	read_data[fd].emplace_back(std::move(data));
 }
 
+void set_blocking(int fd)
+{
+    read_data[fd].is_blocking = true;
+}
+
 // retrieve data written via write()
 void extract_written_data(int fd, std::vector<char> &data)
 {
@@ -95,8 +109,12 @@ int kill(pid_t pid, int sig)
 
 ssize_t read(int fd, void *buf, size_t count)
 {
-	std::vector<read_result> & rrs = read_data[fd];
+	read_cond & rrs = read_data[fd];
 	if (rrs.empty()) {
+	    if (rrs.is_blocking) {
+	        errno = EAGAIN;
+	        return -1;
+	    }
 		return 0;
 	}
 
