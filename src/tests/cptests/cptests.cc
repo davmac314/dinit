@@ -410,6 +410,126 @@ void cptest_startstop()
     delete cc;
 }
 
+void cptest_unload()
+{
+    service_set sset;
+
+    const char * const service_name1 = "test-service-1";
+    const char * const service_name2 = "test-service-2";
+
+    service_record *s1 = new service_record(&sset, service_name1, service_type_t::INTERNAL, {});
+    sset.add_service(s1);
+    service_record *s2 = new service_record(&sset, service_name2, service_type_t::INTERNAL,
+            {{ s1, dependency_type::WAITS_FOR }});
+    sset.add_service(s2);
+
+    int fd = bp_sys::allocfd();
+    auto *cc = new control_conn_t(event_loop, &sset, fd);
+
+    // Get a service handle:
+    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
+    uint16_t name_len = strlen(service_name1);
+    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
+    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
+    cmd.insert(cmd.end(), service_name1, service_name1 + name_len);
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    // We expect:
+    // (1 byte)   DINIT_RP_SERVICERECORD
+    // (1 byte)   state
+    // (handle_t) handle
+    // (1 byte)   target state
+
+    std::vector<char> wdata;
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
+    assert(wdata[0] == DINIT_RP_SERVICERECORD);
+    service_state_t s = static_cast<service_state_t>(wdata[1]);
+    assert(s == service_state_t::STOPPED);
+    service_state_t ts = static_cast<service_state_t>(wdata[6]);
+    assert(ts == service_state_t::STOPPED);
+
+    control_conn_t::handle_t h1;
+    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h1), reinterpret_cast<char *>(&h1));
+
+    // Issue unload:
+    cmd = { DINIT_CP_UNLOADSERVICE };
+    char * h_cp = reinterpret_cast<char *>(&h1);
+    cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h1));
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    // We should receive NAK, as the service has a dependency:
+    bp_sys::extract_written_data(fd, wdata);
+    assert(wdata.size() == 1);
+    assert(wdata[0] = DINIT_RP_NAK);
+
+    // Get handle for service 2:
+    cmd = { DINIT_CP_FINDSERVICE };
+    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
+    cmd.insert(cmd.end(), service_name2, service_name2 + name_len);
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    // We expect:
+    // (1 byte)   DINIT_RP_SERVICERECORD
+    // (1 byte)   state
+    // (handle_t) handle
+    // (1 byte)   target state
+
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
+    assert(wdata[0] == DINIT_RP_SERVICERECORD);
+    s = static_cast<service_state_t>(wdata[1]);
+    assert(s == service_state_t::STOPPED);
+    ts = static_cast<service_state_t>(wdata[6]);
+    assert(ts == service_state_t::STOPPED);
+
+    control_conn_t::handle_t h2;
+    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h2), reinterpret_cast<char *>(&h2));
+
+    // Issue unload for s2:
+
+    cmd = { DINIT_CP_UNLOADSERVICE };
+    h_cp = reinterpret_cast<char *>(&h2);
+    cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h2));
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    // We should receive ACK:
+    bp_sys::extract_written_data(fd, wdata);
+    assert(wdata.size() == 1);
+    assert(wdata[0] = DINIT_RP_NAK);
+
+    // Now try to unload s1 again:
+
+    cmd = { DINIT_CP_UNLOADSERVICE };
+    h_cp = reinterpret_cast<char *>(&h1);
+    cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h1));
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    // We should receive ACK:
+    bp_sys::extract_written_data(fd, wdata);
+    assert(wdata.size() == 1);
+    assert(wdata[0] = DINIT_RP_NAK);
+
+    delete cc;
+}
+
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing; \
@@ -425,5 +545,6 @@ int main(int argc, char **argv)
     RUN_TEST(cptest_findservice3, "");
     RUN_TEST(cptest_loadservice, " ");
     RUN_TEST(cptest_startstop, "   ");
+    RUN_TEST(cptest_unload, "      ");
     return 0;
 }
