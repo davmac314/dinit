@@ -543,6 +543,107 @@ void cptest_unload()
     delete cc;
 }
 
+void cptest_addrmdeps()
+{
+    service_set sset;
+
+    const char * const service_name1 = "test-service-1";
+    const char * const service_name2 = "test-service-2";
+
+    service_record *s1 = new service_record(&sset, service_name1, service_type_t::INTERNAL, {});
+    sset.add_service(s1);
+    service_record *s2 = new service_record(&sset, service_name2, service_type_t::INTERNAL, {});
+    sset.add_service(s2);
+
+    int fd = bp_sys::allocfd();
+    auto *cc = new control_conn_t(event_loop, &sset, fd);
+
+    // Get a service handle:
+    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
+    uint16_t name_len = strlen(service_name1);
+    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
+    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
+    cmd.insert(cmd.end(), service_name1, service_name1 + name_len);
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    std::vector<char> wdata;
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
+    assert(wdata[0] == DINIT_RP_SERVICERECORD);
+    service_state_t s = static_cast<service_state_t>(wdata[1]);
+    assert(s == service_state_t::STOPPED);
+    service_state_t ts = static_cast<service_state_t>(wdata[6]);
+    assert(ts == service_state_t::STOPPED);
+
+    control_conn_t::handle_t h1;
+    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h1), reinterpret_cast<char *>(&h1));
+
+    // Get handle for service 2:
+    cmd = { DINIT_CP_FINDSERVICE };
+    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
+    cmd.insert(cmd.end(), service_name2, service_name2 + name_len);
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
+    assert(wdata[0] == DINIT_RP_SERVICERECORD);
+    s = static_cast<service_state_t>(wdata[1]);
+    assert(s == service_state_t::STOPPED);
+    ts = static_cast<service_state_t>(wdata[6]);
+    assert(ts == service_state_t::STOPPED);
+
+    control_conn_t::handle_t h2;
+    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h2), reinterpret_cast<char *>(&h2));
+
+    // Add dep from s1 -> s2:
+    cmd = { DINIT_CP_ADD_DEP, static_cast<char>(dependency_type::REGULAR) };
+    char * h1cp = reinterpret_cast<char *>(&h1);
+    char * h2cp = reinterpret_cast<char *>(&h2);
+    cmd.insert(cmd.end(), h1cp, h1cp + sizeof(h1));
+    cmd.insert(cmd.end(), h2cp, h2cp + sizeof(h2));
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 1);
+    assert(wdata[0] == DINIT_RP_ACK);
+
+    // Issue start for S1. S2 should also start:
+    cmd = { DINIT_CP_STARTSERVICE, 0 /* don't pin */ };
+    cmd.insert(cmd.end(), h1cp, h1cp + sizeof(h1));
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 1 + 7 + 7); // ACK + 2 * info packets
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+
+    // Remove dependency from S1 -> S2:
+    cmd = { DINIT_CP_REM_DEP, static_cast<char>(dependency_type::REGULAR) };
+    cmd.insert(cmd.end(), h1cp, h1cp + sizeof(h1));
+    cmd.insert(cmd.end(), h2cp, h2cp + sizeof(h2));
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 1 + 7); // ACK + info packet
+    assert(s2->get_state() == service_state_t::STOPPED);
+
+    delete cc;
+}
+
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing; \
@@ -559,5 +660,6 @@ int main(int argc, char **argv)
     RUN_TEST(cptest_loadservice, " ");
     RUN_TEST(cptest_startstop, "   ");
     RUN_TEST(cptest_unload, "      ");
+    RUN_TEST(cptest_addrmdeps, "   ");
     return 0;
 }
