@@ -527,6 +527,19 @@ void cptest_unload()
     assert(wdata.size() == 1);
     assert(wdata[0] = DINIT_RP_NAK);
 
+    // If we try to FIND service 1 now, it should not be there:
+    cmd = { DINIT_CP_FINDSERVICE };
+    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
+    cmd.insert(cmd.end(), service_name1, service_name1 + name_len);
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    bp_sys::extract_written_data(fd, wdata);
+    assert(wdata.size() == 1);
+    assert(wdata[0] = DINIT_RP_NOSERVICE);
+
     delete cc;
 }
 
