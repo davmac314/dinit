@@ -14,6 +14,14 @@ namespace {
     // Control protocol minimum compatible version and current version:
     constexpr uint16_t min_compat_version = 1;
     constexpr uint16_t cp_version = 1;
+
+    // check for value in a set
+    template <typename T, int N>
+    inline bool contains(const T (&v)[N], int i)
+    {
+        return std::find_if(std::begin(v), std::end(v),
+                [=](T p){ return i == static_cast<int>(p); }) != std::end(v);
+    }
 }
 
 bool control_conn_t::process_packet()
@@ -55,16 +63,21 @@ bool control_conn_t::process_packet()
             return true;
         }
         
-        auto sd_type = static_cast<shutdown_type_t>(rbuf[1]);
-        
-        services->stop_all_services(sd_type);
-        char ackBuf[] = { DINIT_RP_ACK };
-        if (! queue_packet(ackBuf, 1)) return false;
-        
-        // Clear the packet from the buffer
-        rbuf.consume(2);
-        chklen = 0;
-        return true;
+        if (contains({shutdown_type_t::CONTINUE, shutdown_type_t::HALT,
+            	shutdown_type_t::POWEROFF, shutdown_type_t::REBOOT}, rbuf[1])) {
+            auto sd_type = static_cast<shutdown_type_t>(rbuf[1]);
+
+            services->stop_all_services(sd_type);
+            char ackBuf[] = { DINIT_RP_ACK };
+            if (! queue_packet(ackBuf, 1)) return false;
+
+            // Clear the packet from the buffer
+            rbuf.consume(2);
+            chklen = 0;
+            return true;
+        }
+
+        // (otherwise fall through to below).
     }
     if (pktType == DINIT_CP_LISTSERVICES) {
         return list_services();
@@ -376,12 +389,6 @@ bool control_conn_t::list_services()
         do_oom_close();
         return true;
     }
-}
-
-// check for value in a set
-static inline bool contains(const int (&v)[3], int i)
-{
-    return std::find(std::begin(v), std::end(v), i) != std::end(v);
 }
 
 bool control_conn_t::add_service_dep()
