@@ -166,6 +166,14 @@ Starting this service will automatically start the named service. If the
 named service fails to start, this service will start as usual (subject to
 other dependencies being met).
 .TP
+\fBwaits\-for.d\fR = \fIdirectory-path\fR
+For each file name in \fIdirectory-path\fR which does not begin with a dot,
+add a \fBwaits-for\fR dependency to the service with the same name. Note that
+contents of files in the specified directory are not significant; expected
+usage is to have symbolic links to the associated service description files,
+but this is not required. Failure to read the directory contents, or to find
+any of the services named within, is not considered fatal. 
+.TP
 \fBsocket\-listen\fR = \fIsocket-path\fR
 Pre-open a socket for the service and pass it to the service using the
 \fBsystemd\fR activation protocol. This by itself does not give so called

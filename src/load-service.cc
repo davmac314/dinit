@@ -12,8 +12,10 @@
 #include <sys/types.h>
 #include <pwd.h>
 #include <grp.h>
+#include <dirent.h>
 
 #include "proc-service.h"
+#include "dinit-log.h"
 
 using string = std::string;
 using string_iterator = std::string::iterator;
@@ -214,7 +216,8 @@ static uid_t parse_uid_param(const std::string &param, const std::string &servic
         // is is probably safe to assume that valid values are positive. We'll also assert
         // that the value range fits within "unsigned long long" since it seems unlikely
         // that would ever not be the case.
-        static_assert((uintmax_t)std::numeric_limits<uid_t>::max() <= (uintmax_t)std::numeric_limits<unsigned long long>::max(), "uid_t is too large");
+        static_assert((uintmax_t)std::numeric_limits<uid_t>::max()
+                <= (uintmax_t)std::numeric_limits<unsigned long long>::max(), "uid_t is too large");
         unsigned long long v = std::stoull(param, &ind, 0);
         if (v > static_cast<unsigned long long>(std::numeric_limits<uid_t>::max()) || ind != param.length()) {
             throw service_description_exc(service_name, uid_err_msg);
@@ -281,7 +284,8 @@ static gid_t parse_gid_param(const std::string &param, const std::string &servic
         // is is probably safe to assume that valid values are positive. We'll also assume
         // that the value range fits with "unsigned long long" since it seems unlikely
         // that would ever not be the case.
-        static_assert((uintmax_t)std::numeric_limits<gid_t>::max() <= (uintmax_t)std::numeric_limits<unsigned long long>::max(), "gid_t is too large");
+        static_assert((uintmax_t)std::numeric_limits<gid_t>::max()
+                <= (uintmax_t)std::numeric_limits<unsigned long long>::max(), "gid_t is too large");
         unsigned long long v = std::stoull(param, &ind, 0);
         if (v > static_cast<unsigned long long>(std::numeric_limits<gid_t>::max()) || ind != param.length()) {
             throw service_description_exc(service_name, gid_err_msg);
@@ -389,6 +393,47 @@ static void do_env_subst(std::string &line, std::list<std::pair<unsigned,unsigne
             }
         }
         line = std::move(r_line);
+    }
+}
+
+// Process a dependency directory - filenames contained within correspond to service names which
+// are loaded and added as a dependency of the given type. Expected use is with a directory
+// containing symbolic links to other service descriptions, but this isn't required.
+// Failure to read the directory contents, or to find a service listed within, is not considered
+// a fatal error.
+static void process_dep_dir(dirload_service_set &sset,
+        const char *servicename,
+        std::list<prelim_dep> &deplist, const std::string &depdirpath,
+        dependency_type dep_type)
+{
+    DIR *depdir = opendir(depdirpath.c_str());
+    if (depdir == nullptr) {
+        log(loglevel_t::WARN, "Could not open dependency directory '", depdirpath,
+                "' for ", servicename, " service.");
+        return;
+    }
+
+    errno = 0;
+    dirent * dent = readdir(depdir);
+    while (dent != nullptr) {
+        char * name =  dent->d_name;
+        if (name[0] != '.') {
+            try {
+                service_record * sr = sset.load_service(name);
+                deplist.emplace_back(sr, dep_type);
+            }
+            catch (service_not_found &) {
+                log(loglevel_t::WARN, "Ignoring unresolved dependency '", name,
+                        "' in dependency directory '", depdirpath,
+                        "' for ", servicename, " service.");
+            }
+        }
+        dent = readdir(depdir);
+    }
+
+    if (errno != 0) {
+        log(loglevel_t::WARN, "Error reading dependency directory '", depdirpath,
+                "' for ", servicename, " service.");
     }
 }
 
@@ -546,6 +591,10 @@ service_record * dirload_service_set::load_service(const char * name)
                     string dependency_name = read_setting_value(i, end);
                     depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::WAITS_FOR);
                 }
+                else if (setting == "waits-for.d") {
+                    string waitsford = read_setting_value(i, end);
+                    process_dep_dir(*this, name, depends, waitsford, dependency_type::WAITS_FOR);
+                }
                 else if (setting == "logfile") {
                     logfile = read_setting_value(i, end);
                 }
@@ -674,7 +723,8 @@ service_record * dirload_service_set::load_service(const char * name)
         
         service_file.close();
         
-        if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS || service_type == service_type_t::SCRIPTED) {
+        if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS
+                || service_type == service_type_t::SCRIPTED) {
             if (command.length() == 0) {
                 throw service_description_exc(name, "Service command not specified");
             }
