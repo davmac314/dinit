@@ -32,6 +32,9 @@ $(objects): %.o: %.cc
 check:
 	$(MAKE) -C tests check
 
+run-cppcheck:
+	cppcheck --std=c++11 -Iincludes -Idasynq --force --enable=all *.cc 2>../cppcheck-report.txt
+
 install: all
 	install -d $(DESTDIR)$(SBINDIR)
 	install -s dinit dinitctl $(SHUTDOWN) $(DESTDIR)$(SBINDIR)
