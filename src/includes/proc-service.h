@@ -20,7 +20,7 @@ class process_restart_timer : public eventloop_t::timer_impl<process_restart_tim
     public:
     base_process_service * service;
 
-    process_restart_timer(base_process_service *service_p)
+    explicit process_restart_timer(base_process_service *service_p)
         : service(service_p)
     {
     }
@@ -150,7 +150,8 @@ class base_process_service : public service_record
     }
 
     // Set the stop command and arguments (may throw std::bad_alloc)
-    void set_stop_command(std::string command, std::list<std::pair<unsigned,unsigned>> &stop_command_offsets)
+    void set_stop_command(const std::string &command,
+            std::list<std::pair<unsigned,unsigned>> &stop_command_offsets)
     {
         stop_command = command;
         stop_arg_parts = separate_args(stop_command, stop_command_offsets);
@@ -191,7 +192,7 @@ class base_process_service : public service_record
     }
 
     // Set the working directory
-    void set_workding_dir(string working_dir_p)
+    void set_workding_dir(const string &working_dir_p)
     {
         working_dir = working_dir_p;
     }
@@ -225,9 +226,9 @@ class process_service : public base_process_service
     virtual void bring_down() noexcept override;
 
     public:
-    process_service(service_set *sset, string name, string &&command,
+    process_service(service_set *sset, const string &name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            std::list<prelim_dep> depends_p)
+            const std::list<prelim_dep> &depends_p)
          : base_process_service(sset, name, service_type_t::PROCESS, std::move(command), command_offsets,
              depends_p)
     {
@@ -255,9 +256,9 @@ class bgproc_service : public base_process_service
     pid_result_t read_pid_file(bp_sys::exit_status *exit_status) noexcept;
 
     public:
-    bgproc_service(service_set *sset, string name, string &&command,
+    bgproc_service(service_set *sset, const string &name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            std::list<prelim_dep> depends_p)
+            const std::list<prelim_dep> &depends_p)
          : base_process_service(sset, name, service_type_t::BGPROCESS, std::move(command), command_offsets,
              depends_p)
     {
@@ -287,9 +288,9 @@ class scripted_service : public base_process_service
     bool interrupting_start : 1;  // running start script (true) or stop script (false)
 
     public:
-    scripted_service(service_set *sset, string name, string &&command,
+    scripted_service(service_set *sset, const string &name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
-            std::list<prelim_dep> depends_p)
+            const std::list<prelim_dep> &depends_p)
          : base_process_service(sset, name, service_type_t::SCRIPTED, std::move(command), command_offsets,
              depends_p), interrupting_start(false)
     {

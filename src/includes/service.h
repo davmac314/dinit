@@ -139,7 +139,7 @@ class service_load_exc
     std::string excDescription;
     
     protected:
-    service_load_exc(std::string serviceName, std::string &&desc) noexcept
+    service_load_exc(const std::string &serviceName, std::string &&desc) noexcept
         : serviceName(serviceName), excDescription(std::move(desc))
     {
     }
@@ -148,7 +148,7 @@ class service_load_exc
 class service_not_found : public service_load_exc
 {
     public:
-    service_not_found(std::string serviceName) noexcept
+    service_not_found(const std::string &serviceName) noexcept
         : service_load_exc(serviceName, "Service description not found.")
     {
     }
@@ -157,7 +157,7 @@ class service_not_found : public service_load_exc
 class service_cyclic_dependency : public service_load_exc
 {
     public:
-    service_cyclic_dependency(std::string serviceName) noexcept
+    service_cyclic_dependency(const std::string &serviceName) noexcept
         : service_load_exc(serviceName, "Has cyclic dependency.")
     {
     }
@@ -166,7 +166,7 @@ class service_cyclic_dependency : public service_load_exc
 class service_description_exc : public service_load_exc
 {
     public:
-    service_description_exc(std::string serviceName, std::string &&extraInfo) noexcept
+    service_description_exc(const std::string &serviceName, std::string &&extraInfo) noexcept
         : service_load_exc(serviceName, std::move(extraInfo))
     {
     }    
@@ -690,12 +690,14 @@ class service_record
             if (dep.get_to() == to && dep.dep_type == dep_type) {
                 for (auto j = to->dependents.begin(); ; j++) {
                     if (*j == &dep) {
-                        dependents.erase(j);
+                        to->dependents.erase(j);
                         break;
                     }
                 }
+                if (dep.holding_acq) {
+                    to->release();
+                }
                 depends_on.erase(i);
-                to->release();
                 break;
             }
         }

@@ -26,7 +26,7 @@ static service_record * find_service(const std::list<service_record *> & records
 {
     using std::list;
     list<service_record *>::const_iterator i = records.begin();
-    for ( ; i != records.end(); i++ ) {
+    for ( ; i != records.end(); ++i ) {
         if (strcmp((*i)->get_name().c_str(), name) == 0) {
             return *i;
         }

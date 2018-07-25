@@ -796,13 +796,13 @@ service_record * dirload_service_set::load_service(const char * name)
     catch (setting_exception &setting_exc)
     {
         // Must remove the dummy service record.
-        std::remove(records.begin(), records.end(), rval);
+        records.erase(std::find(records.begin(), records.end(), rval));
         delete rval;
         throw service_description_exc(name, std::move(setting_exc.get_info()));
     }
     catch (...) {
         // Must remove the dummy service record.
-        std::remove(records.begin(), records.end(), rval);
+        records.erase(std::find(records.begin(), records.end(), rval));
         delete rval;
         throw;
     }

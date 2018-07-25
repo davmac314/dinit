@@ -704,6 +704,7 @@ void setup_external_log() noexcept
                 // basically use it anyway.
                 try {
                     setup_main_log(sockfd);
+                    external_log_open = true;
                 }
                 catch (std::exception &e) {
                     log(loglevel_t::ERROR, "Setting up log failed: ", e.what());
@@ -724,6 +725,7 @@ void setup_external_log() noexcept
             if (log_fd >= 0) {
                 try {
                     setup_main_log(log_fd);
+                    external_log_open = true;
                 }
                 catch (std::exception &e) {
                     log(loglevel_t::ERROR, "Setting up log failed: ", e.what());
