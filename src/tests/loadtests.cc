@@ -49,15 +49,15 @@ void test_nonexistent()
 }
 
 #define RUN_TEST(name, spacing) \
-    std::cout << #name "..." spacing; \
+    std::cout << #name "..." spacing << std::flush; \
     name(); \
     std::cout << "PASSED" << std::endl;
 
 int main(int argc, char **argv)
 {
     init_test_service_dir();
-    RUN_TEST(test_basic, "      ");
-    RUN_TEST(test_env_subst, "  ");
-    RUN_TEST(test_nonexistent, "");
+    RUN_TEST(test_basic, "                ");
+    RUN_TEST(test_env_subst, "            ");
+    RUN_TEST(test_nonexistent, "          ");
     return 0;
 }

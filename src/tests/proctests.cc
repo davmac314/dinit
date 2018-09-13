@@ -788,7 +788,7 @@ void test_waitsfor_restart()
 
 
 #define RUN_TEST(name, spacing) \
-    std::cout << #name "..." spacing; \
+    std::cout << #name "..." spacing << std::flush; \
     name(); \
     std::cout << "PASSED" << std::endl;
 

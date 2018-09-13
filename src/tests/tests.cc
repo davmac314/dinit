@@ -552,26 +552,27 @@ void test12()
     assert(sset.count_active_services() == 0);
 }
 
-#define RUN_TEST(name) \
-    std::cout << #name "... "; \
+
+#define RUN_TEST(name, spacing) \
+    std::cout << #name "..." spacing << std::flush; \
     name(); \
     std::cout << "PASSED" << std::endl;
 
 int main(int argc, char **argv)
 {
-    RUN_TEST(test1);
-    RUN_TEST(test2);
-    RUN_TEST(test3);
-    RUN_TEST(test4);
-    RUN_TEST(test5);
-    RUN_TEST(test_pin1);
-    RUN_TEST(test_pin2);
-    RUN_TEST(test_pin3);
-    RUN_TEST(test_pin4);
-    RUN_TEST(test7);
-    RUN_TEST(test8);
-    RUN_TEST(test9);
-    RUN_TEST(test10);
-    RUN_TEST(test11);
-    RUN_TEST(test12);
+    RUN_TEST(test1, "                     ");
+    RUN_TEST(test2, "                     ");
+    RUN_TEST(test3, "                     ");
+    RUN_TEST(test4, "                     ");
+    RUN_TEST(test5, "                     ");
+    RUN_TEST(test_pin1, "                 ");
+    RUN_TEST(test_pin2, "                 ");
+    RUN_TEST(test_pin3, "                 ");
+    RUN_TEST(test_pin4, "                 ");
+    RUN_TEST(test7, "                     ");
+    RUN_TEST(test8, "                     ");
+    RUN_TEST(test9, "                     ");
+    RUN_TEST(test10, "                    ");
+    RUN_TEST(test11, "                    ");
+    RUN_TEST(test12, "                    ");
 }

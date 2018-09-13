@@ -646,20 +646,20 @@ void cptest_addrmdeps()
 
 
 #define RUN_TEST(name, spacing) \
-    std::cout << #name "..." spacing; \
+    std::cout << #name "..." spacing << std::flush; \
     name(); \
     std::cout << "PASSED" << std::endl;
 
 int main(int argc, char **argv)
 {
-    RUN_TEST(cptest_queryver, "    ");
-    RUN_TEST(cptest_listservices, "");
-    RUN_TEST(cptest_findservice1, "");
-    RUN_TEST(cptest_findservice2, "");
-    RUN_TEST(cptest_findservice3, "");
-    RUN_TEST(cptest_loadservice, " ");
-    RUN_TEST(cptest_startstop, "   ");
-    RUN_TEST(cptest_unload, "      ");
-    RUN_TEST(cptest_addrmdeps, "   ");
+    RUN_TEST(cptest_queryver, "           ");
+    RUN_TEST(cptest_listservices, "       ");
+    RUN_TEST(cptest_findservice1, "       ");
+    RUN_TEST(cptest_findservice2, "       ");
+    RUN_TEST(cptest_findservice3, "       ");
+    RUN_TEST(cptest_loadservice, "        ");
+    RUN_TEST(cptest_startstop, "          ");
+    RUN_TEST(cptest_unload, "             ");
+    RUN_TEST(cptest_addrmdeps, "          ");
     return 0;
 }
