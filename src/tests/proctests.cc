@@ -15,6 +15,7 @@
 extern eventloop_t event_loop;
 
 constexpr static auto REG = dependency_type::REGULAR;
+constexpr static auto WAITS = dependency_type::WAITS_FOR;
 
 // Friend interface to access base_process_service private/protected members.
 class base_process_service_test
@@ -721,6 +722,70 @@ void test_scripted_start_skip2()
     sset.remove_service(&p);
 }
 
+// Test that starting a service with a waits-for dependency on another - currently stopping - service,
+// causes that service to re-start.
+void test_waitsfor_restart()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    sset.add_service(&p);
+
+    service_record tp {&sset, "test-service", service_type_t::INTERNAL, {{&p, WAITS}}};
+    sset.add_service(&tp);
+
+    // start p:
+
+    p.start(true);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    // begin stopping p:
+
+    p.stop(true);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    // start tp (which waits-for p):
+
+    tp.start(true);
+    sset.process_queues();
+
+    assert(tp.get_state() == service_state_t::STARTING);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    base_process_service_test::handle_signal_exit(&p, SIGTERM);
+    sset.process_queues();
+
+    assert(tp.get_state() == service_state_t::STARTING);
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(tp.get_state() == service_state_t::STARTED);
+    assert(p.get_state() == service_state_t::STARTED);
+
+    sset.remove_service(&tp);
+    sset.remove_service(&p);
+}
+
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing; \
@@ -744,4 +809,5 @@ int main(int argc, char **argv)
     RUN_TEST(test_scripted_stop_fail, "   ");
     RUN_TEST(test_scripted_start_skip, "  ");
     RUN_TEST(test_scripted_start_skip2, " ");
+    RUN_TEST(test_waitsfor_restart, "     ");
 }
