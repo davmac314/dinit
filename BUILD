@@ -26,6 +26,31 @@ utility. Use "make install" to install; you can specify an alternate installatio
 setting the "DESTDIR" variable, eg "make DESTDIR=/tmp/temporary-install-path install".
 
 
+Running test suite
+=-=-=-=-=-=-=-=-=-
+
+Build the "check" target in order to run the test suite:
+
+    make check
+
+The standard mconfig options enable various sanitizers during build of the tests. On Linux you may
+see an error such as the following:
+
+    make[3]: Leaving directory '/home/davmac/workspace/dinit/src/tests/cptests'
+    ./tests
+    ==25332==ERROR: AddressSanitizer failed to allocate 0xdfff0001000 (15392894357504) bytes at
+    address 2008fff7000 (errno: 12)
+    ==25332==ReserveShadowMemoryRange failed while trying to map 0xdfff0001000 bytes. Perhaps
+    you're using ulimit -v
+    make[2]: *** [Makefile:12: run-tests] Aborted
+
+If you get this, either disable the address sanitizer or make sure you have overcommit enabled:
+
+    echo 1 > /proc/sys/vm/overcommit_memory 
+
+Any test failures will abort the test suite run immediately.
+
+
 Special note for GCC/Libstdc++
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
