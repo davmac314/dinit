@@ -50,6 +50,20 @@ If you get this, either disable the address sanitizer or make sure you have over
 
 Any test failures will abort the test suite run immediately.
 
+In addition to the standard test suite, there is experimental support for fuzzing the control
+protocol handling using LLVM/clang's fuzzer (libFuzzer). Change to the `src/tests/cptests`
+directory and build the "fuzz" target:
+
+    make fuzz
+
+Then create a "corpus" directory and run the fuzzer:
+
+    mkdir corpus
+    ./fuzz corpus
+
+This will auto-generate test data as it finds input which triggers new execution paths. Check
+libFuzzer documentation for further details.
+
 
 Special note for GCC/Libstdc++
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
