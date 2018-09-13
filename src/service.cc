@@ -60,10 +60,11 @@ void service_record::stopped() noexcept
 
     force_stop = false;
 
-    // If we are a soft dependency of another target, break the acquisition from that target now:
+    // If we are a soft dependency of another target, break the acquisition from that target now,
+    // so that we don't re-start:
     for (auto & dependent : dependents) {
         if (dependent->dep_type != dependency_type::REGULAR) {
-            if (dependent->holding_acq) {
+            if (dependent->holding_acq  && ! dependent->waiting_on) {
                 dependent->holding_acq = false;
                 release();
             }
