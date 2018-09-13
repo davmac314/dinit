@@ -228,7 +228,7 @@ inline dasynq::rearm control_conn_cb(eventloop_t * loop, control_conn_watcher * 
     // Get the address of the containing control_connt_t object:
     _Pragma ("GCC diagnostic push")
     _Pragma ("GCC diagnostic ignored \"-Winvalid-offsetof\"")
-    char * cc_addr = (reinterpret_cast<char *>(watcher)) - offsetof(control_conn_t, iob);
+    uintptr_t cc_addr = reinterpret_cast<uintptr_t>(watcher) - offsetof(control_conn_t, iob);
     control_conn_t *conn = reinterpret_cast<control_conn_t *>(cc_addr);
     _Pragma ("GCC diagnostic pop")
 
