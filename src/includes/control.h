@@ -59,6 +59,9 @@ class control_conn_watcher : public eventloop_t::bidi_fd_watcher_impl<control_co
         // constructor
     }
 
+    control_conn_watcher(const control_conn_watcher &) = delete;
+    void operator=(const control_conn_watcher &) = delete;
+
     rearm read_ready(eventloop_t &loop, int fd) noexcept
     {
         return receive_event(loop, fd, dasynq::IN_EVENTS);

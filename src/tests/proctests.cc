@@ -71,7 +71,7 @@ void test_proc_service_start()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
     init_service_defaults(p);
     sset.add_service(&p);
 
@@ -101,7 +101,7 @@ void test_proc_unexpected_term()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
     init_service_defaults(p);
     sset.add_service(&p);
 
@@ -135,7 +135,7 @@ void test_term_via_stop()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
     init_service_defaults(p);
     sset.add_service(&p);
 
@@ -176,7 +176,7 @@ void test_term_via_stop2()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
     init_service_defaults(p);
     sset.add_service(&p);
 
@@ -335,7 +335,7 @@ void test_proc_stop_timeout()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
     init_service_defaults(p);
     sset.add_service(&p);
 
@@ -386,7 +386,7 @@ void test_proc_smooth_recovery1()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
     init_service_defaults(p);
     p.set_smooth_recovery(true);
     sset.add_service(&p);
@@ -431,7 +431,7 @@ void test_proc_smooth_recovery2()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    process_service p = process_service(&sset, "testproc", std::move(command), command_offsets, depends);
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
     init_service_defaults(p);
     p.set_smooth_recovery(true);
     p.set_restart_delay(time_val(0, 0));
@@ -472,7 +472,7 @@ void test_scripted_stop_timeout()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    scripted_service p = scripted_service(&sset, "testscripted", std::move(command), command_offsets, depends);
+    scripted_service p {&sset, "testscripted", std::move(command), command_offsets, depends};
     init_service_defaults(p);
     p.set_stop_command(stopcommand, command_offsets);
     sset.add_service(&p);
@@ -529,7 +529,7 @@ void test_scripted_start_fail()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    scripted_service p = scripted_service(&sset, "testscripted", std::move(command), command_offsets, depends);
+    scripted_service p {&sset, "testscripted", std::move(command), command_offsets, depends};
     init_service_defaults(p);
     p.set_stop_command(stopcommand, command_offsets);
     sset.add_service(&p);
@@ -575,7 +575,7 @@ void test_scripted_stop_fail()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    scripted_service p = scripted_service(&sset, "testscripted", std::move(command), command_offsets, depends);
+    scripted_service p {&sset, "testscripted", std::move(command), command_offsets, depends};
     init_service_defaults(p);
     p.set_stop_command(stopcommand, command_offsets);
     sset.add_service(&p);
@@ -633,7 +633,7 @@ void test_scripted_start_skip()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    scripted_service p = scripted_service(&sset, "testscripted", std::move(command), command_offsets, depends);
+    scripted_service p {&sset, "testscripted", std::move(command), command_offsets, depends};
     init_service_defaults(p);
     service_flags_t sflags;
     sflags.skippable = true;
@@ -685,7 +685,7 @@ void test_scripted_start_skip2()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    scripted_service p = scripted_service(&sset, "testscripted", std::move(command), command_offsets, depends);
+    scripted_service p {&sset, "testscripted", std::move(command), command_offsets, depends};
     init_service_defaults(p);
     service_flags_t sflags;
     sflags.skippable = true;

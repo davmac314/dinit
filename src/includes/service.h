@@ -194,6 +194,9 @@ class service_dep
             : from(from), to(to), waiting_on(false), holding_acq(false), dep_type(dep_type_p)
     {  }
 
+    service_dep(const service_dep &) = delete;
+    void operator=(const service_dep &) = delete;
+
     service_record * get_from() const noexcept
     {
         return from;
@@ -225,6 +228,9 @@ class service_child_watcher : public eventloop_t::child_proc_watcher_impl<servic
     dasynq::rearm status_change(eventloop_t &eloop, pid_t child, int status) noexcept;
     
     service_child_watcher(base_process_service * sr) noexcept : service(sr) { }
+
+    service_child_watcher(const service_child_watcher &) = delete;
+    void operator=(const service_child_watcher &) = delete;
 };
 
 // Watcher for the pipe used to receive exec() failure status errno
@@ -235,6 +241,9 @@ class exec_status_pipe_watcher : public eventloop_t::fd_watcher_impl<exec_status
     dasynq::rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
     
     exec_status_pipe_watcher(base_process_service * sr) noexcept : service(sr) { }
+
+    exec_status_pipe_watcher(const exec_status_pipe_watcher &) = delete;
+    void operator=(exec_status_pipe_watcher &) = delete;
 };
 
 // service_record: base class for service record containing static information
@@ -494,6 +503,9 @@ class service_record
             throw;
         }
     }
+
+    service_record(const service_record &) = delete;
+    void operator=(const service_record &) = delete;
 
     virtual ~service_record() noexcept
     {

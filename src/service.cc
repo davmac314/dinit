@@ -74,7 +74,7 @@ void service_record::stopped() noexcept
     bool will_restart = (desired_state == service_state_t::STARTED)
             && services->get_auto_restart();
 
-    for (auto dependency : depends_on) {
+    for (auto & dependency : depends_on) {
         // we signal dependencies in case they are waiting for us to stop:
         dependency.get_to()->dependent_stopped();
     }
