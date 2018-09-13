@@ -9,7 +9,8 @@
 // Given a string and a list of pairs of (start,end) indices for each argument in that string,
 // store a null terminator for the argument. Return a `char *` vector containing the beginning
 // of each argument and a trailing nullptr. (The returned array is invalidated if the string is later modified).
-std::vector<const char *> separate_args(std::string &s, std::list<std::pair<unsigned,unsigned>> &arg_indices);
+std::vector<const char *> separate_args(std::string &s,
+        const std::list<std::pair<unsigned,unsigned>> &arg_indices);
 
 class base_process_service;
 
@@ -138,7 +139,7 @@ class base_process_service : public service_record
     // Constructor for a base_process_service. Note that the various parameters not specified here must in
     // general be set separately (using the appropriate set_xxx function for each).
     base_process_service(service_set *sset, string name, service_type_t record_type_p, string &&command,
-            std::list<std::pair<unsigned,unsigned>> &command_offsets,
+            const std::list<std::pair<unsigned,unsigned>> &command_offsets,
             const std::list<prelim_dep> &deplist_p);
 
     ~base_process_service() noexcept

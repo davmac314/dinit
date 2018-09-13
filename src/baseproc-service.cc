@@ -164,7 +164,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
 
 base_process_service::base_process_service(service_set *sset, string name,
         service_type_t service_type_p, string &&command,
-        std::list<std::pair<unsigned,unsigned>> &command_offsets,
+        const std::list<std::pair<unsigned,unsigned>> &command_offsets,
         const std::list<prelim_dep> &deplist_p)
      : service_record(sset, name, service_type_p, deplist_p), child_listener(this),
        child_status_listener(this), restart_timer(this)

@@ -1,6 +1,7 @@
 #ifndef CPBUFFER_H
 #define CPBUFFER_H
 
+#include <string>
 #include <cstring>
 #include <algorithm>
 

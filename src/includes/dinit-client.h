@@ -1,6 +1,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include "cpbuffer.h"
+
 // Client library for Dinit clients
 
 
