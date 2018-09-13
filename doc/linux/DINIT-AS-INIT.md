@@ -1,9 +1,17 @@
 ## Dinit as init: using Dinit as your Linux system's init
 
 Modern linux is a relatively complex system, these days. You can use Dinit,
-in conjunction with other software, to boot your system and replace your current
-init system (which on most main distributions is now Systemd, Sys V init, or
-OpenRC).
+in conjunction with other software, to boot your system and replace your
+current init system (which on most main distributions is now Systemd, Sys V
+init, or OpenRC).
+
+To have Dinit as your system init, replace your system's `/sbin/init` with a
+link to the `dinit` executable.
+
+*Note*: if your system boots via an "initrd" (initial ramdisk image), you
+might need to either adjust the ramdisk image to include `dinit` or switch
+to mounting the root filesystem directly; consult kernel, bootloader and
+distribution documentation for details.
 
 Be warned that it is not a trivial task to take a system based on a typical
 Linux distribution and make it instead boot with Dinit. You need to set up
@@ -13,7 +21,7 @@ scripts from other systems.
 
 The additional software required can be broken into _essential_ and
 _optional_ packages, which are detailed in following sections. For example service
-files, please check the "services" subdirectory.
+files, please check the `services` subdirectory.
 
 
 # General notes
@@ -26,7 +34,7 @@ as the block device used for the root mount, which must be available in
 order to perform the initial fsck). You must configure your kernel
 appropriately for this to happen.
 
-(actually, it seems that dinit manages output without /dev/console; probably
+(actually, it seems that Dinit manages output without /dev/console; probably
 the kernel is giving it appropriate stdin/out/err file descriptors. I'm not
 sure if this was the case for older kernels).
 
@@ -58,7 +66,8 @@ functionality, although at the cost of the losing automated integration.
 
 Some packages may rely on the "logind" functionality of Systemd for
 session/seat management. This same functionality is also provided by
-ConsoleKit2, though I'm not to what degree nor level of compatibility.
+Elogind and ConsoleKit2, though I'm not to what degree nor level of
+compatibility.
 
 In general I've found it quite possible to run a desktop system with Dinit
 in place of SystemD, but my needs are minimal. If you're running a
@@ -79,15 +88,15 @@ The basic procedure for boot (to be implemented by services) is as follows:
 - start other daemons as appropriate (dhcpcd, any networking daemons)
 - start getty instances virtual terminals
 
-The service description files and scrips in the "services" subdirectory
+The service description files and scripts in the `services` subdirectory
 provide a template for accomplishing the above, but may need some adjustment
 for your particular configuration.
 
 
 # Boot performance compared to Systemd
 
-Boot performance using Dinit suffers slightly compared to Systemd due to
-several factors:
+Boot performance using Dinit _theoretically_ suffers slightly compared to
+Systemd due to several factors:
 
 - Dinit doesn't handle file system mounts/checks and spawns external
   processes and/or scripts to manage these
@@ -98,7 +107,7 @@ several factors:
   recognized before they are configured. With Dinit, the simplest approach
   is to wait until udev "settles" (via "udevadm settle") before attempting
   mounts and network configuration etc.
-- Dinit doesn't do socket activation (yet). What it can do is pre-open a
+- Dinit doesn't do full socket activation (yet). What it can do is pre-open a
   socket while it launches a daemon, which probably improves boot times a
   little but potentially still results in more daemons getting started than
   is strictly necessary.

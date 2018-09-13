@@ -62,17 +62,17 @@ and a _scripted_ service (which is started and stopped by running a process -
 often a shell script - to completion). There are also _bgprocess_ services
 and _internal_ services.
 
-Many programs that you might want to run under dinit's supervision can run
+Many programs that you might want to run under Dinit's supervision can run
 either "in the foreground" or as a daemon ("in the background"), and the
 choice is dictated by a command line switch (for instance the -D and -F
 switches to Samba's "smbd"). Although it might seem counterintuitive,
 the "foreground" mode should be used for programs registered as process
-services in dinit; this allows dinit to monitor the process.
+services in Dinit; this allows Dinit to monitor the process.
 
 Process services are attractive due to the ease of monitoring (and
 restarting) the service, however, they have one inherent problem, which is
-that dinit cannot tell when the service is truly started. Once the process
-has been launched, dinit assumes that the service has started, but in fact
+that Dinit cannot tell when the service is truly started. Once the process
+has been launched, Dinit assumes that the service has started, but in fact
 there will be a short delay before the process sets itself up, starts
 listening on sockets, etc; during this time any other process (including
 one from a service listed as dependent) which tries to contact it will not
@@ -109,6 +109,9 @@ reside in a directory (/etc/dinit.d is the default "system" location, with
 "/usr/local/lib/dinit.d" and "/lib/dinit.d" also searched) and their name
 matches the name of the service. Service descriptions are loaded lazily, as
 needed by Dinit.
+
+(An example of a complete set of system service descriptions can be found in
+the [doc/linux/services](doc/linux/services) directory).
 
 A service description file consists of a number of parameter settings.
 Settings in the SDF are denoted as a parameter name followed by either an
@@ -281,7 +284,7 @@ command by default acts as a "release" which also forces the service to stop
 (although it may then immediately restart, depending on how it and its
 dependents are configured).
 
-Use the "-s" switch to talk the "system" instance of dinit, rather than a
+Use the "-s" switch to talk the "system" instance of Dinit, rather than a
 personal instance, e.g:
 
     dinitctl -s start mysql   # start system mysql service
