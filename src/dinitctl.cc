@@ -105,6 +105,7 @@ int main(int argc, char **argv)
                 do_pin = true;
             }
             else {
+                cerr << "dinitctl: unrecognized option: " << argv[i] << " (use --help for help)\n";
                 return 1;
             }
         }
@@ -140,8 +141,8 @@ int main(int argc, char **argv)
                 command = command_t::RM_DEPENDENCY;
             }
             else {
-                show_help = true;
-                break;
+                cerr << "dinitctl: unrecognized command: " << argv[i] << " (use --help for help)\n";
+                return 1;
             }
         }
         else {
