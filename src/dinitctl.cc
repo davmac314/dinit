@@ -201,30 +201,30 @@ int main(int argc, char **argv)
     }
 
     if (show_help) {
-        cout << "dinitctl:   control Dinit services" << endl;
-        
-        cout << "\nUsage:" << endl;
-        cout << "    dinitctl [options] start [options] <service-name> : start and activate service" << endl;
-        cout << "    dinitctl [options] stop [options] <service-name>  : stop service and cancel explicit activation" << endl;
-        cout << "    dinitctl [options] wake [options] <service-name>  : start but do not mark activated" << endl;
-        cout << "    dinitctl [options] release [options] <service-name> : release activation, stop if no dependents" << endl;
-        cout << "    dinitctl [options] unpin <service-name>           : un-pin the service (after a previous pin)" << endl;
-        cout << "    dinitctl unload <service-name>                    : unload the service" << endl;
-        cout << "    dinitctl list                                     : list loaded services" << endl;
-        cout << "    dinitctl shutdown                                 : stop all services and terminate dinit" << endl;
-        cout << "    dinitctl add-dep <type> <from-service> <to-service> : add a dependency between services" << endl;
-        cout << "    dinitctl rm-dep <type> <from-service> <to-service> : remove a dependency between services" << endl;
-        
-        cout << "\nNote: An activated service continues running when its dependents stop." << endl;
-        
-        cout << "\nGeneral options:" << endl;
-        cout << "  -s, --system     : control system daemon instead of user daemon" << endl;
-        cout << "  --quiet          : suppress output (except errors)" << endl;
-        
-        cout << "\nCommand options:" << endl;
-        cout << "  --help           : show this help" << endl;
-        cout << "  --no-wait        : don't wait for service startup/shutdown to complete" << endl;
-        cout << "  --pin            : pin the service in the requested (started/stopped) state" << endl;
+        cout << "dinitctl:   control Dinit services\n"
+          "\n"
+          "Usage:\n"
+          "    dinitctl [options] start [options] <service-name> : start and activate service\n"
+          "    dinitctl [options] stop [options] <service-name>  : stop service and cancel explicit activation\n"
+          "    dinitctl [options] wake [options] <service-name>  : start but do not mark activated\n"
+          "    dinitctl [options] release [options] <service-name> : release activation, stop if no dependents\n"
+          "    dinitctl [options] unpin <service-name>           : un-pin the service (after a previous pin)\n"
+          "    dinitctl unload <service-name>                    : unload the service\n"
+          "    dinitctl list                                     : list loaded services\n"
+          "    dinitctl shutdown                                 : stop all services and terminate dinit\n"
+          "    dinitctl add-dep <type> <from-service> <to-service> : add a dependency between services\n"
+          "    dinitctl rm-dep <type> <from-service> <to-service> : remove a dependency between services\n"
+          "\n"
+          "Note: An activated service continues running when its dependents stop.\n"
+          "\n"
+          "General options:\n"
+          "  -s, --system     : control system daemon instead of user daemon\n"
+          "  --quiet          : suppress output (except errors)\n"
+          "\n"
+          "Command options:\n"
+          "  --help           : show this help\n"
+          "  --no-wait        : don't wait for service startup/shutdown to complete\n"
+          "  --pin            : pin the service in the requested (started/stopped) state\n";
         return 1;
     }
     

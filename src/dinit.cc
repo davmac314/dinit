@@ -230,17 +230,17 @@ int dinit_main(int argc, char **argv)
                 }
             }
             else if (strcmp(argv[i], "--help") == 0) {
-                cout << "dinit, an init with dependency management" << endl;
-                cout << " --help                       display help" << endl;
-                cout << " --env-file <file>, -e <file>" << endl;
-                cout << "                              environment variable initialisation file" << endl;
-                cout << " --services-dir <dir>, -d <dir>" << endl;
-                cout << "                              set base directory for service description" << endl;
-                cout << "                              files (-d <dir>)" << endl;
-                cout << " --system, -s                 run as the system init process" << endl;
-                cout << " --socket-path <path>, -p <path>" << endl;
-                cout << "                              path to control socket" << endl;
-                cout << " <service-name>               start service with name <service-name>" << endl;
+                cout << "dinit, an init with dependency management\n"
+                        " --help                       display help\n"
+                        " --env-file <file>, -e <file>\n"
+                        "                              environment variable initialisation file\n"
+                        " --services-dir <dir>, -d <dir>\n"
+                        "                              set base directory for service description\n"
+                        "                              files (-d <dir>)\n"
+                        " --system, -s                 run as the system init process\n"
+                        " --socket-path <path>, -p <path>\n"
+                        "                              path to control socket\n"
+                        " <service-name>               start service with name <service-name>\n";
                 return 0;
             }
             else {
