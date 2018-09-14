@@ -342,7 +342,7 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
     handle_t handle;
 
     if (check_load_reply(socknum, rbuffer, &handle, &state) != 0) {
-        return 0;
+        return 1;
     }
 
     service_state_t wanted_state = do_stop ? service_state_t::STOPPED : service_state_t::STARTED;
