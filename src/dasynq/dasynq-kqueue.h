@@ -100,35 +100,29 @@ class kqueue_traits
     constexpr static bool supports_non_oneshot_fd = false;
 };
 
+namespace dprivate {
+namespace dkqueue {
+
 #if _POSIX_REALTIME_SIGNALS > 0
+
 static inline void prepare_signal(int signo) { }
 static inline void unprep_signal(int signo) { }
+// get_siginfo is not required in this case.
 
-inline bool get_siginfo(int signo, siginfo_t *siginfo)
-{
-    struct timespec timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_nsec = 0;
-
-    sigset_t mask;
-    sigemptyset(&mask);
-    sigaddset(&mask, signo);
-    return (sigtimedwait(&mask, siginfo, &timeout) != -1);
-}
 #else
 
 // If we have no sigtimedwait implementation, we have to retrieve signal data by establishing a
 // signal handler.
 
 // We need to declare and define a non-static data variable, "siginfo_p", in this header, without
-// violating the "one definition rule". The only way to do that is via a template, even though we
-// don't otherwise need a template here:
+// violating the "one definition rule". The only way to do that (before C++17) is via a template,
+// even though we don't otherwise need a template here:
 template <typename T = decltype(nullptr)> class sig_capture_templ
 {
     public:
     static siginfo_t * siginfo_p;
 
-    static void signalHandler(int signo, siginfo_t *siginfo, void *v)
+    static void signal_handler(int signo, siginfo_t *siginfo, void *v)
     {
         *siginfo_p = *siginfo;
     }
@@ -140,7 +134,7 @@ using sig_capture = sig_capture_templ<>;
 inline void prepare_signal(int signo)
 {
     struct sigaction the_action;
-    the_action.sa_sigaction = sig_capture::signalHandler;
+    the_action.sa_sigaction = sig_capture::signal_handler;
     the_action.sa_flags = SA_SIGINFO;
     sigfillset(&the_action.sa_mask);
 
@@ -164,6 +158,7 @@ inline bool get_siginfo(int signo, siginfo_t *siginfo)
 }
 
 #endif
+} }  // namespace dprivate :: dkqueue
 
 template <class Base> class kqueue_loop : public Base
 {
@@ -264,7 +259,7 @@ template <class Base> class kqueue_loop : public Base
         sigset_t pending_sigs;
         sigpending(&pending_sigs);
         while (sigismember(&pending_sigs, signo)) {
-            get_siginfo(signo, &siginfo.info);
+            dprivate::dkqueue::get_siginfo(signo, &siginfo.info);
             if (Base::receive_signal(*this, siginfo, userdata)) {
                 enable_filt = false;
                 break;
@@ -487,7 +482,7 @@ template <class Base> class kqueue_loop : public Base
     // Note signal should be masked before call.
     void add_signal_watch_nolock(int signo, void *userdata)
     {
-        prepare_signal(signo);
+        dprivate::dkqueue::prepare_signal(signo);
 
         // We need to register the filter with the kqueue early, to avoid a race where we miss
         // signals:
@@ -526,7 +521,7 @@ template <class Base> class kqueue_loop : public Base
     
     void remove_signal_watch_nolock(int signo) noexcept
     {
-        unprep_signal(signo);
+        dprivate::dkqueue::unprep_signal(signo);
         
         struct kevent evt;
         EV_SET(&evt, signo, EVFILT_SIGNAL, EV_DELETE, 0, 0, 0);

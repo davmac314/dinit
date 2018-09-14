@@ -67,6 +67,8 @@ class dary_heap
         hindex_t heap_index;
 
         handle_t(const handle_t &) = delete;
+        void operator=(const handle_t &) = delete;
+
         handle_t() { }
     };
 

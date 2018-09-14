@@ -396,7 +396,7 @@ namespace dprivate {
         //   may throw: std::bad_alloc
         void prepare_watcher(base_watcher *bwatcher)
         {
-            event_queue.allocate(bwatcher->heap_handle, bwatcher);
+            allocate_handle(event_queue, bwatcher->heap_handle, bwatcher);
         }
         
         void queue_watcher(base_watcher *bwatcher) noexcept
@@ -509,7 +509,7 @@ namespace dprivate {
             }
             
             auto & rhndl = event_queue.get_root();
-            base_watcher *r = event_queue.node_data(rhndl);
+            base_watcher *r = dprivate::get_watcher(event_queue, rhndl);
             event_queue.pull_root();
             return r;
         }
@@ -1326,8 +1326,9 @@ class event_loop
             // (Above variables are initialised only to silence compiler warnings).
             
             if (pqueue->watchType == watch_type_t::SECONDARYFD) {
-                // construct a pointer to the main watcher (using char* arithmetic):
-                char * rp = (char *)pqueue;
+                // construct a pointer to the main watcher, using integer arithmetic to avoid undefined
+                // pointer arithmetic:
+                uintptr_t rp = (uintptr_t)pqueue;
 
                 // Here we take the offset of a member from a non-standard-layout class, which is
                 // specified to have undefined result by the C++ language standard, but which

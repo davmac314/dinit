@@ -10,22 +10,22 @@ namespace dasynq {
 template <typename T, typename P, typename Compare = std::less<P>, int N = 8>
 class btree_set
 {
-    struct HeapNode;
+    struct heapnode;
 
     public:
-    using handle_t = HeapNode;
-    using handle_t_r = HeapNode &;
+    using handle_t = heapnode;
+    using handle_t_r = heapnode &;
 
     private:
 
-    struct SeptNode
+    struct septnode
     {
         P prio[N];
         handle_t * hn_p[N];  // pointer to handle
-        SeptNode * children[N + 1];
-        SeptNode * parent;
+        septnode * children[N + 1];
+        septnode * parent;
 
-        SeptNode()
+        septnode()
         {
             // Do nothing; initialisation will be run later
         }
@@ -83,30 +83,32 @@ class btree_set
         }
     };
 
-    struct HeapNode
+    struct heapnode
     {
-        T data; // TODO this should be obscured to avoid early construction
-        SeptNode * parent = nullptr;
+        union nodedata_u
+        {
+            T data; // TODO this should be obscured to avoid early construction
 
-        HeapNode()
+            nodedata_u() {}
+        };
+
+        nodedata_u nodedata;
+        septnode * parent = nullptr;
+
+        heapnode()
         {
 
-        }
-
-        template <typename ...U> HeapNode(U... u) : data(u...)
-        {
-            parent = nullptr;
         }
     };
 
-    SeptNode * root_sept = nullptr; // root of the B-Tree
-    SeptNode * left_sept = nullptr; // leftmost child (cache)
-    SeptNode * sn_reserve = nullptr;
+    septnode * root_sept = nullptr; // root of the B-Tree
+    septnode * left_sept = nullptr; // leftmost child (cache)
+    septnode * sn_reserve = nullptr;
 
     int num_alloced = 0;
     int num_septs = 0;
     int num_septs_needed = 0;
-    int next_sept = 1;  // next num_allocd for which we need another SeptNode in reserve.
+    int next_sept = 1;  // next num_allocd for which we need another septnode in reserve.
 
     // Note that sept nodes are always at least half full, except for the root sept node.
     // For up to N nodes, one sept node is needed;
@@ -123,7 +125,7 @@ class btree_set
         if (__builtin_expect(num_alloced == next_sept, 0)) {
             if (++num_septs_needed > num_septs) {
                 try {
-                    SeptNode *new_res = new SeptNode();
+                    septnode *new_res = new septnode();
                     new_res->parent = sn_reserve;
                     sn_reserve = new_res;
                     num_septs++;
@@ -138,15 +140,15 @@ class btree_set
         }
     }
 
-    SeptNode * alloc_sept()
+    septnode * alloc_sept()
     {
-        SeptNode * r = sn_reserve;
+        septnode * r = sn_reserve;
         sn_reserve = r->parent;
         r->init();
         return r;
     }
 
-    void release_sept(SeptNode *s)
+    void release_sept(septnode *s)
     {
         s->parent = sn_reserve;
         sn_reserve = s;
@@ -154,7 +156,7 @@ class btree_set
 
     // Merge rsibling, and one value from the parent, into lsibling.
     // Index is the index of the parent value.
-    void merge(SeptNode *lsibling, SeptNode *rsibling, int index) noexcept
+    void merge(septnode *lsibling, septnode *rsibling, int index) noexcept
     {
         int lchildren = lsibling->num_vals();
         lsibling->hn_p[lchildren] = lsibling->parent->hn_p[index];
@@ -195,10 +197,10 @@ class btree_set
 
     // borrow values from, or merge with, a sibling node so that the node
     // is suitably (~>=50%) populated.
-    void repop_node(SeptNode *sept, int children) noexcept
+    void repop_node(septnode *sept, int children) noexcept
     {
         start:
-        SeptNode *parent = sept->parent;
+        septnode *parent = sept->parent;
         if (parent == nullptr) {
             // It's the root node, so don't worry about it, unless empty
             if (sept->hn_p[0] == nullptr) {
@@ -212,7 +214,7 @@ class btree_set
         // Find a suitable sibling to the left or right:
         if (parent->children[0] == sept) {
             // take right sibling
-            SeptNode *rsibling = parent->children[1];
+            septnode *rsibling = parent->children[1];
             if (rsibling->num_vals() + children + 1 <= N) {
                 // We can merge
                 merge(sept, rsibling, 0);
@@ -249,7 +251,7 @@ class btree_set
                 }
             }
 
-            SeptNode *lsibling = parent->children[i-1];
+            septnode *lsibling = parent->children[i-1];
             int lchildren = lsibling->num_vals();
             if (lchildren + children + 1 <= N) {
                 // merge
@@ -285,7 +287,7 @@ class btree_set
 
     T & node_data(handle_t & hn) noexcept
     {
-        return hn.data;
+        return hn.nodedata.data;
     }
 
     static void init_handle(handle_t &hn) noexcept
@@ -294,18 +296,15 @@ class btree_set
     }
 
     // Allocate a slot, but do not incorporate into the heap:
-    template <typename ...U> void allocate(handle_t &hndl, U... u)
+    template <typename ...U> void allocate(handle_t &hn, U... u)
     {
         alloc_slot();
-        // TODO should not really new over an existing object.
-        //      T element in HeapNode should be obscured so we don't need a default-constructed
-        //      T in it.
-        new (& hndl) HeapNode(u...);
+        new (& hn.nodedata.data) T(u...);
     }
 
     void deallocate(handle_t & hn) noexcept
     {
-        // hn.HeapNode::~HeapNode();
+        hn.nodedata.data.T::~T();
         num_alloced--;
 
         // Potentially release reserved sept node
@@ -314,7 +313,7 @@ class btree_set
             num_septs_needed--;
             if (num_septs_needed < num_septs - 1) {
                 // Note the "-1" margin is to alleviate bouncing allocation/deallocation
-                SeptNode * r = sn_reserve;
+                septnode * r = sn_reserve;
                 sn_reserve = r->parent;
                 delete r;
                 num_septs--;
@@ -331,7 +330,7 @@ class btree_set
             left_sept = root_sept;
         }
 
-        SeptNode * srch_sept = root_sept;
+        septnode * srch_sept = root_sept;
 
         bool leftmost = true;
 
@@ -384,15 +383,15 @@ class btree_set
             }
         }
 
-        SeptNode * left_down = nullptr; // left node going down
-        SeptNode * right_down = nullptr; // right node going down
+        septnode * left_down = nullptr; // left node going down
+        septnode * right_down = nullptr; // right node going down
         leftmost = leftmost && pval < srch_sept->prio[0];
 
         handle_t * hndl_p = &hndl;
 
         while (children == N) {
             // split and push value towards root
-            SeptNode * new_sibling = alloc_sept();
+            septnode * new_sibling = alloc_sept();
             new_sibling->parent = srch_sept->parent;
 
             // create new sibling to the right:
@@ -498,14 +497,14 @@ class btree_set
         // Pull nodes from a child, all the way down
         // the tree. Then re-balance back up the tree,
         // merging nodes if necessary.
-        SeptNode * sept = hndl.parent;
+        septnode * sept = hndl.parent;
 
         int i;
         for (i = 0; i < N; i++) {
             if (sept->hn_p[i] == &hndl) {
                 // Ok, go right, then as far as we can to the left:
-                SeptNode * lsrch = sept->children[i+1];
-                SeptNode * prev = sept;
+                septnode * lsrch = sept->children[i+1];
+                septnode * prev = sept;
                 while (lsrch != nullptr) {
                     prev = lsrch;
                     lsrch = lsrch->children[0];
@@ -547,7 +546,7 @@ class btree_set
 
     handle_t *find(const P &pval)
     {
-        SeptNode * cursept = root_sept;
+        septnode * cursept = root_sept;
         while (cursept != nullptr) {
             int i;
             for (i = 0; i < N && cursept->hn_p[i] != nullptr; i++) {

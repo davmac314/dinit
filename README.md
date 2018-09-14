@@ -36,7 +36,10 @@ down and restarting the system.
 
 Dinit is designed to work on POSIXy operating systems such as Linux and
 OpenBSD. It is written in C++ and uses the [Dasynq](http://davmac.org/projects/dasynq/)
-event handling library, which was written especially to support Dinit.
+event handling library, which was written especially to support Dinit. (Note
+that a copy of Dasynq is bundled with Dinit, so a separate copy is not
+required for compilation; however, the bundled copy does not include the
+documentation or test suite).
 
 Development goals include clean design, robustness, portability, and
 avoiding feature bloat (whilst still handling a variety of use cases).

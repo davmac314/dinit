@@ -6,6 +6,8 @@
 // In general access to the members of the basewatcher should be protected by a mutex. The
 // event_dispatch lock is used for this purpose.
 
+#include <type_traits>
+
 namespace dasynq {
 
 namespace dprivate {
@@ -51,8 +53,31 @@ namespace dprivate {
     // (non-public API)
 
     class base_watcher;
+
+    class empty_node
+    {
+        DASYNQ_EMPTY_BODY
+    };
+
+    // heap_def decides the queue implementation that we use. It must be stable:
     template <typename A, typename B, typename C> using dary_heap_def = dary_heap<A,B,C>;
-    using prio_queue = stable_heap<dary_heap_def, dprivate::base_watcher *, int>;
+    template <typename A, typename B> using heap_def = stable_heap<dary_heap_def,A,B>;
+
+    namespace {
+        // use empty handles (not containing basewatcher *) if the handles returned from the
+        // queue are handle references, because we can derive a pointer to the containing basewatcher
+        // via the address of the handle in that case:
+        constexpr bool use_empty_node = std::is_same<
+                typename heap_def<empty_node, int>::handle_t_r,
+                typename heap_def<empty_node, int>::handle_t &>::value;
+
+        using node_type = std::conditional<use_empty_node, empty_node, base_watcher *>::type;
+    }
+
+    using prio_queue = heap_def<node_type, int>;
+
+    using prio_queue_emptynode = heap_def<empty_node, int>;
+    using prio_queue_bwnode = heap_def<base_watcher *, int>;
 
     template <typename T_Loop> class fd_watcher;
     template <typename T_Loop> class bidi_fd_watcher;
@@ -137,6 +162,33 @@ namespace dprivate {
             // delete this;
         }
     };
+
+    // Retrieve watcher from queue handle:
+    inline base_watcher * get_watcher(prio_queue_emptynode &q, prio_queue_emptynode::handle_t &n)
+    {
+        uintptr_t bptr = (uintptr_t)&n;
+        _Pragma ("GCC diagnostic push")
+        _Pragma ("GCC diagnostic ignored \"-Winvalid-offsetof\"")
+        bptr -= offsetof(base_watcher, heap_handle);
+        _Pragma ("GCC diagnostic pop")
+        return (base_watcher *)bptr;
+    }
+
+    inline dprivate::base_watcher * get_watcher(prio_queue_bwnode &q, prio_queue_bwnode::handle_t &n)
+    {
+        return q.node_data(n);
+    }
+
+    // Allocate queue handle:
+    inline void allocate_handle(prio_queue_emptynode &q, prio_queue_emptynode::handle_t &n, base_watcher *bw)
+    {
+        q.allocate(n);
+    }
+
+    inline void allocate_handle(prio_queue_bwnode &q, prio_queue_bwnode::handle_t &n, base_watcher *bw)
+    {
+        q.allocate(n, bw);
+    }
 
     // Base signal event - not part of public API
     template <typename T_Sigdata>
