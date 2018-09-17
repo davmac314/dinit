@@ -172,7 +172,6 @@ int dinit_main(int argc, char **argv)
     const char * service_dir = nullptr;
     bool service_dir_dynamic = false; // service_dir dynamically allocated?
     const char * env_file = nullptr;
-    string service_dir_str; // to hold storage for above if necessary
     bool control_socket_path_set = false;
     bool env_file_set = false;
 
