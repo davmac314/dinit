@@ -1003,7 +1003,7 @@ class dirload_service_set : public service_set
     // or statically allocated.
     dirload_service_set(const char *service_dir_p, bool dyn_allocd = false) : service_set()
     {
-        service_dirs.emplace_back(service_dir_p, false);
+        service_dirs.emplace_back(service_dir_p, dyn_allocd);
     }
 
     // Append a directory to the list of service directories, so that it is searched last for
