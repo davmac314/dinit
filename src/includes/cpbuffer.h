@@ -112,7 +112,7 @@ template <int SIZE> class cpbuffer
     }
     
     // Extract bytes from the buffer. The bytes remain in the buffer.
-    void extract(char *dest, int index, int length) noexcept
+    void extract(void *dest, int index, int length) noexcept
     {
         index += cur_idx;
         if (index >= SIZE) index -= SIZE;
@@ -120,7 +120,8 @@ template <int SIZE> class cpbuffer
             // wrap-around copy
             int half = SIZE - index;
             std::memcpy(dest, buf + index, half);
-            std::memcpy(dest + half, buf, length - half);
+            std::memcpy(reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(dest) + half),
+                    buf, length - half);
         }
         else {
             std::memcpy(dest, buf + index, length);
