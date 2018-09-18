@@ -145,11 +145,17 @@ class control_conn_t : private service_listener
     // Process an UNLOADSERVICE packet.
     bool process_unload_service();
 
+    // List all loaded services and their state.
     bool list_services();
 
+    // Add a dependency between two services.
     bool add_service_dep();
 
+    // Remove a dependency between two services.
     bool rm_service_dep();
+
+    // Query service path / load mechanism.
+    bool query_load_mech();
 
     // Notify that data is ready to be read from the socket. Returns true if the connection should
     // be closed.

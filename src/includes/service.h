@@ -731,6 +731,10 @@ inline auto extract_console_queue(service_record *sr) -> decltype(sr->console_qu
     return sr->console_queue_node;
 }
 
+// Service set type identifiers:
+constexpr int SSET_TYPE_NONE = 0;
+constexpr int SSET_TYPE_DIRLOAD = 1;
+
 /*
  * A service_set, as the name suggests, manages a set of services.
  *
@@ -958,6 +962,13 @@ class service_set
     {
         return shutdown_type;
     }
+
+    // Get an identifier for the run-time type of the service set (similar to typeid, but without
+    // requiring RTTI to be enabled during compilation).
+    virtual int get_set_type_id()
+    {
+        return SSET_TYPE_NONE;
+    }
 };
 
 // A service directory entry, tracking the directory as a nul-terminated string, which may either
@@ -1013,7 +1024,22 @@ class dirload_service_set : public service_set
         service_dirs.emplace_back(service_dir_p, dyn_allocd);
     }
 
+    int get_service_dir_count()
+    {
+        return service_dirs.size();
+    }
+
+    const char * get_service_dir(int n)
+    {
+        return service_dirs[n].get_dir();
+    }
+
     service_record *load_service(const char *name) override;
+
+    int get_set_type_id() override
+    {
+        return SSET_TYPE_DIRLOAD;
+    }
 };
 
 #endif

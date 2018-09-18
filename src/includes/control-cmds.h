@@ -33,6 +33,9 @@ constexpr static int DINIT_CP_SHUTDOWN = 10;
 constexpr static int DINIT_CP_ADD_DEP = 11;
 constexpr static int DINIT_CP_REM_DEP = 12;
 
+// Query service load path / mechanism:
+constexpr static int DINIT_CP_QUERY_LOAD_MECH = 13;
+
 // Replies:
 
 // Reply: ACK/NAK to request
@@ -68,6 +71,9 @@ constexpr static int DINIT_RP_ALREADYSS = 61;
 // Information on a service / list complete:
 constexpr static int DINIT_RP_SVCINFO = 62;
 constexpr static int DINIT_RP_LISTDONE = 63;
+
+// Service loader information:
+constexpr static int DINIT_RP_LOADER_MECH = 64;
 
 // Information:
 

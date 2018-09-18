@@ -88,6 +88,9 @@ bool control_conn_t::process_packet()
     if (pktType == DINIT_CP_REM_DEP) {
         return rm_service_dep();
     }
+    if (pktType == DINIT_CP_QUERY_LOAD_MECH) {
+        return query_load_mech();
+    }
 
     // Unrecognized: give error response
     char outbuf[] = { DINIT_RP_BADREQ };
@@ -546,6 +549,47 @@ bool control_conn_t::rm_service_dep()
     rbuf.consume(pkt_size);
     chklen = 0;
     return true;
+}
+
+bool control_conn_t::query_load_mech()
+{
+    if (services->get_set_type_id() == SSET_TYPE_DIRLOAD) {
+        dirload_service_set *dss = static_cast<dirload_service_set *>(services);
+        std::vector<char> reppkt;
+        reppkt.resize(2 + sizeof(uint32_t) * 2);  // packet type, loader type, packet size, # dirs
+        reppkt[0] = DINIT_RP_LOADER_MECH;
+        reppkt[1] = SSET_TYPE_DIRLOAD;
+
+        // Number of directories in load path:
+        uint32_t sdirs = dss->get_service_dir_count();
+        std::memcpy(reppkt.data() + 2 + sizeof(uint32_t), &sdirs, sizeof(sdirs));
+
+        for (int i = 0; i < sdirs; i++) {
+            const char *sdir = dss->get_service_dir(i);
+            uint32_t dlen = std::strlen(sdir);
+            auto cursize = reppkt.size();
+            reppkt.resize(cursize + sizeof(dlen) + dlen);
+            std::memcpy(reppkt.data() + cursize, &dlen, sizeof(dlen));
+            std::memcpy(reppkt.data() + cursize + sizeof(dlen), sdir, dlen);
+        }
+
+        // Total packet size:
+        uint32_t fsize = reppkt.size();
+        std::memcpy(reppkt.data() + 2, &fsize, sizeof(fsize));
+
+        if (! queue_packet(std::move(reppkt))) return false;
+        rbuf.consume(1);
+        chklen = 0;
+        return true;
+    }
+    else {
+        // If we don't know how to deal with the service set type, send a NAK reply:
+        char ack_rep[] = { DINIT_RP_NAK };
+        if (! queue_packet(ack_rep, 1)) return false;
+        rbuf.consume(1);
+        chklen = 0;
+        return true;
+    }
 }
 
 control_conn_t::handle_t control_conn_t::allocate_service_handle(service_record *record)
