@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <unordered_set>
+#include <climits>
 
 #include "control.h"
 #include "service.h"
@@ -553,6 +554,9 @@ bool control_conn_t::rm_service_dep()
 
 bool control_conn_t::query_load_mech()
 {
+    rbuf.consume(1);
+    chklen = 0;
+
     if (services->get_set_type_id() == SSET_TYPE_DIRLOAD) {
         dirload_service_set *dss = static_cast<dirload_service_set *>(services);
         std::vector<char> reppkt;
@@ -564,6 +568,41 @@ bool control_conn_t::query_load_mech()
         uint32_t sdirs = dss->get_service_dir_count();
         std::memcpy(reppkt.data() + 2 + sizeof(uint32_t), &sdirs, sizeof(sdirs));
 
+        // Our current working directory, which above are relative to:
+        // leave sizeof(uint32_t) for size, which we'll fill in afterwards:
+        std::size_t curpos = reppkt.size() + sizeof(uint32_t);
+#ifdef PATH_MAX
+        uint32_t try_path_size = PATH_MAX;
+#else
+        uint32_t try_path_size = 2048;
+#endif
+        char *wd;
+        while (true) {
+            std::size_t total_size = curpos + std::size_t(try_path_size);
+            reppkt.resize(total_size);
+            if (total_size < curpos) {
+                // overflow.
+                char ack_rep[] = { DINIT_RP_NAK };
+                if (! queue_packet(ack_rep, 1)) return false;
+                return true;
+            }
+            wd = getcwd(reppkt.data() + curpos, try_path_size);
+            if (wd != nullptr) break;
+
+            try_path_size *= uint32_t(2u);
+            if (try_path_size == 0) {
+                // overflow.
+                char ack_rep[] = { DINIT_RP_NAK };
+                if (! queue_packet(ack_rep, 1)) return false;
+                return true;
+            }
+        }
+
+        uint32_t wd_len = std::strlen(reppkt.data() + curpos);
+        reppkt.resize(curpos + std::size_t(wd_len));
+        std::memcpy(reppkt.data() + curpos - sizeof(uint32_t), &wd_len, sizeof(wd_len));
+
+        // Each directory in the load path:
         for (int i = 0; i < sdirs; i++) {
             const char *sdir = dss->get_service_dir(i);
             uint32_t dlen = std::strlen(sdir);
@@ -578,16 +617,12 @@ bool control_conn_t::query_load_mech()
         std::memcpy(reppkt.data() + 2, &fsize, sizeof(fsize));
 
         if (! queue_packet(std::move(reppkt))) return false;
-        rbuf.consume(1);
-        chklen = 0;
         return true;
     }
     else {
         // If we don't know how to deal with the service set type, send a NAK reply:
         char ack_rep[] = { DINIT_RP_NAK };
         if (! queue_packet(ack_rep, 1)) return false;
-        rbuf.consume(1);
-        chklen = 0;
         return true;
     }
 }
