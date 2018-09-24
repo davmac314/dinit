@@ -61,4 +61,8 @@ enum class dependency_type
     MILESTONE   // dependency must start successfully, but once started the dependency becomes soft
 };
 
+// Service set type identifiers:
+constexpr int SSET_TYPE_NONE = 0;
+constexpr int SSET_TYPE_DIRLOAD = 1;
+
 #endif

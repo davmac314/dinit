@@ -731,10 +731,6 @@ inline auto extract_console_queue(service_record *sr) -> decltype(sr->console_qu
     return sr->console_queue_node;
 }
 
-// Service set type identifiers:
-constexpr int SSET_TYPE_NONE = 0;
-constexpr int SSET_TYPE_DIRLOAD = 1;
-
 /*
  * A service_set, as the name suggests, manages a set of services.
  *
