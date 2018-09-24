@@ -162,6 +162,13 @@ template <int SIZE> class cpbuffer
             std::memcpy(buf, s, len);
         }
     }
+
+    // reset the index and length.
+    void reset()
+    {
+        cur_idx = 0;
+        length = 0;
+    }
 };
 
 #endif

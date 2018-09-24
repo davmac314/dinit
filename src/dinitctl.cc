@@ -5,6 +5,7 @@
 #include <iostream>
 #include <system_error>
 #include <memory>
+#include <algorithm>
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -319,6 +320,35 @@ int main(int argc, char **argv)
         cerr << "dinitctl: control socket write error: " << std::strerror(e.errcode) << endl;
         return 1;
     }
+}
+
+// Extract/read a string of specified length from the buffer/socket. The string is consumed
+// from the buffer.
+static std::string read_string(int socknum, cpbuffer_t &rbuffer, uint32_t length)
+{
+    int rb_len = rbuffer.get_length();
+    if (rb_len >= length) {
+        std::string r = rbuffer.extract_string(0, length);
+        rbuffer.consume(length);
+        return r;
+    }
+
+    std::string r = rbuffer.extract_string(0, rb_len);
+    uint32_t rlen = length - rb_len;
+    uint32_t clen;
+    do {
+        rbuffer.reset();
+        rbuffer.fill(socknum);
+        char *bptr = rbuffer.get_ptr(0);
+        clen = rbuffer.get_length();
+        clen = std::min(clen, rlen);
+        r.append(bptr, clen);
+        rlen -= clen;
+    } while (rlen > 0);
+
+    rbuffer.consume(clen);
+
+    return r;
 }
 
 // Start/stop a service
