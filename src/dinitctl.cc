@@ -22,7 +22,8 @@
 
 // dinitctl:  utility to control the Dinit daemon, including starting and stopping of services.
 
-// This utility communicates with the dinit daemon via a unix stream socket (/dev/initctl, or $HOME/.dinitctl).
+// This utility communicates with the dinit daemon via a unix stream socket (/dev/initctl,
+// or $HOME/.dinitctl).
 
 static constexpr uint16_t min_cp_version = 1;
 static constexpr uint16_t max_cp_version = 1;
@@ -206,16 +207,16 @@ int main(int argc, char **argv)
         cout << "dinitctl:   control Dinit services\n"
           "\n"
           "Usage:\n"
-          "    dinitctl [options] start [options] <service-name> : start and activate service\n"
-          "    dinitctl [options] stop [options] <service-name>  : stop service and cancel explicit activation\n"
-          "    dinitctl [options] wake [options] <service-name>  : start but do not mark activated\n"
-          "    dinitctl [options] release [options] <service-name> : release activation, stop if no dependents\n"
-          "    dinitctl [options] unpin <service-name>           : un-pin the service (after a previous pin)\n"
-          "    dinitctl unload <service-name>                    : unload the service\n"
-          "    dinitctl list                                     : list loaded services\n"
-          "    dinitctl shutdown                                 : stop all services and terminate dinit\n"
-          "    dinitctl add-dep <type> <from-service> <to-service> : add a dependency between services\n"
-          "    dinitctl rm-dep <type> <from-service> <to-service> : remove a dependency between services\n"
+          "    dinitctl [options] start [options] <service-name>\n"
+          "    dinitctl [options] stop [options] <service-name>\n"
+          "    dinitctl [options] wake [options] <service-name>\n"
+          "    dinitctl [options] release [options] <service-name>\n"
+          "    dinitctl [options] unpin <service-name>\n"
+          "    dinitctl unload <service-name>\n"
+          "    dinitctl list\n"
+          "    dinitctl shutdown\n"
+          "    dinitctl add-dep <type> <from-service> <to-service>\n"
+          "    dinitctl rm-dep <type> <from-service> <to-service>\n"
           "\n"
           "Note: An activated service continues running when its dependents stop.\n"
           "\n"
@@ -226,7 +227,7 @@ int main(int argc, char **argv)
           "Command options:\n"
           "  --help           : show this help\n"
           "  --no-wait        : don't wait for service startup/shutdown to complete\n"
-          "  --pin            : pin the service in the requested (started/stopped) state\n";
+          "  --pin            : pin the service in the requested state\n";
         return 1;
     }
     
@@ -407,7 +408,8 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
         if (rbuffer[0] == DINIT_RP_ALREADYSS) {
             bool already = (state == wanted_state);
             if (verbose) {
-                cout << "Service " << (already ? "(already) " : "") << describeState(do_stop) << "." << endl;
+                cout << "Service " << (already ? "(already) " : "")
+                        << describeState(do_stop) << "." << endl;
             }
             return 0; // success!
         }
