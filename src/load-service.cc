@@ -236,10 +236,12 @@ static uid_t parse_uid_param(const std::string &param, const std::string &servic
     if (pwent == nullptr) {
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
-            throw service_description_exc(service_name, "Specified user \"" + param + "\" does not exist in system database.");
+            throw service_description_exc(service_name, "Specified user \"" + param
+                    + "\" does not exist in system database.");
         }
         else {
-            throw service_description_exc(service_name, std::string("Error accessing user database: ") + strerror(errno));
+            throw service_description_exc(service_name, std::string("Error accessing user database: ")
+                    + strerror(errno));
         }
     }
     
@@ -250,7 +252,8 @@ static uid_t parse_uid_param(const std::string &param, const std::string &servic
     return pwent->pw_uid;
 }
 
-static const char * num_err_msg = "Specified value contains invalid numeric characters or is outside allowed range.";
+static const char * num_err_msg = "Specified value contains invalid numeric characters or is outside "
+        "allowed range.";
 
 // Parse an unsigned numeric parameter value
 static unsigned long long parse_unum_param(const std::string &param, const std::string &service_name,
@@ -272,7 +275,8 @@ static unsigned long long parse_unum_param(const std::string &param, const std::
     }
 }
 
-static const char * gid_err_msg = "Specified group id contains invalid numeric characters or is outside allowed range.";
+static const char * gid_err_msg = "Specified group id contains invalid numeric characters or is "
+        "outside allowed range.";
 
 static gid_t parse_gid_param(const std::string &param, const std::string &service_name)
 {
@@ -287,7 +291,8 @@ static gid_t parse_gid_param(const std::string &param, const std::string &servic
         static_assert((uintmax_t)std::numeric_limits<gid_t>::max()
                 <= (uintmax_t)std::numeric_limits<unsigned long long>::max(), "gid_t is too large");
         unsigned long long v = std::stoull(param, &ind, 0);
-        if (v > static_cast<unsigned long long>(std::numeric_limits<gid_t>::max()) || ind != param.length()) {
+        if (v > static_cast<unsigned long long>(std::numeric_limits<gid_t>::max())
+                || ind != param.length()) {
             throw service_description_exc(service_name, gid_err_msg);
         }
         return v;
@@ -304,10 +309,12 @@ static gid_t parse_gid_param(const std::string &param, const std::string &servic
     if (grent == nullptr) {
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
-            throw service_description_exc(service_name, "Specified group \"" + param + "\" does not exist in system database.");
+            throw service_description_exc(service_name, "Specified group \"" + param
+                    + "\" does not exist in system database.");
         }
         else {
-            throw service_description_exc(service_name, std::string("Error accessing group database: ") + strerror(errno));
+            throw service_description_exc(service_name, std::string("Error accessing group database: ")
+                    + strerror(errno));
         }
     }
     
@@ -358,7 +365,8 @@ static void parse_timespec(const std::string &paramval, const std::string &servi
 //   line -  the string storing the command and arguments
 //   offsets - the [start,end) pair of offsets of the command and each argument within the string
 //
-static void do_env_subst(std::string &line, std::list<std::pair<unsigned,unsigned>> &offsets, bool do_sub_vars)
+static void do_env_subst(std::string &line, std::list<std::pair<unsigned,unsigned>> &offsets,
+        bool do_sub_vars)
 {
     if (do_sub_vars) {
         auto i = offsets.begin();
@@ -367,7 +375,8 @@ static void do_env_subst(std::string &line, std::list<std::pair<unsigned,unsigne
             auto &offset_pair = *i;
             if (line[offset_pair.first] == '$') {
                 // Do subsitution for this part:
-                auto env_name = line.substr(offset_pair.first + 1, offset_pair.second - offset_pair.first - 1);
+                auto env_name = line.substr(offset_pair.first + 1,
+                        offset_pair.second - offset_pair.first - 1);
                 char *env_val = getenv(env_name.c_str());
                 if (env_val != nullptr) {
                     auto val_len = strlen(env_val);
@@ -562,7 +571,8 @@ service_record * dirload_service_set::load_service(const char * name)
                         }
                     }
                     catch (std::logic_error &exc) {
-                        throw service_description_exc(name, "socket-permissions: Badly-formed or out-of-range numeric value");
+                        throw service_description_exc(name, "socket-permissions: Badly-formed or "
+                                "out-of-range numeric value");
                     }
                 }
                 else if (setting == "socket-uid") {
@@ -629,7 +639,8 @@ service_record * dirload_service_set::load_service(const char * name)
                     std::list<std::pair<unsigned,unsigned>> indices;
                     string onstart_cmds = read_setting_value(i, end, &indices);
                     for (auto indexpair : indices) {
-                        string option_txt = onstart_cmds.substr(indexpair.first, indexpair.second - indexpair.first);
+                        string option_txt = onstart_cmds.substr(indexpair.first,
+                                indexpair.second - indexpair.first);
                         if (option_txt == "starts-rwfs") {
                             onstart_flags.rw_ready = true;
                         }
@@ -668,7 +679,8 @@ service_record * dirload_service_set::load_service(const char * name)
                     std::list<std::pair<unsigned,unsigned>> indices;
                     string load_opts = read_setting_value(i, end, &indices);
                     for (auto indexpair : indices) {
-                        string option_txt = load_opts.substr(indexpair.first, indexpair.second - indexpair.first);
+                        string option_txt = load_opts.substr(indexpair.first,
+                                indexpair.second - indexpair.first);
                         if (option_txt == "sub-vars") {
                             // substitute environment variables in command line
                             do_sub_vars = true;
@@ -685,7 +697,8 @@ service_record * dirload_service_set::load_service(const char * name)
                     string signame = read_setting_value(i, end, nullptr);
                     int signo = signal_name_to_number(signame);
                     if (signo == -1) {
-                        throw service_description_exc(name, "Unknown/unsupported termination signal: " + signame);
+                        throw service_description_exc(name, "Unknown/unsupported termination signal: "
+                                + signame);
                     }
                     else {
                         term_signal = signo;
