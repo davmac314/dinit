@@ -14,6 +14,7 @@
 #include "control.h"
 #include "service-listener.h"
 #include "service-constants.h"
+#include "load-service.h"
 #include "dinit-ll.h"
 #include "dinit-log.h"
 
@@ -129,47 +130,6 @@ struct service_flags_t {
             start_interruptible(false), skippable(false), signal_process_only(false)
     {
     }
-};
-
-// Exception while loading a service
-class service_load_exc
-{
-    public:
-    std::string serviceName;
-    std::string excDescription;
-    
-    protected:
-    service_load_exc(const std::string &serviceName, std::string &&desc) noexcept
-        : serviceName(serviceName), excDescription(std::move(desc))
-    {
-    }
-};
-
-class service_not_found : public service_load_exc
-{
-    public:
-    service_not_found(const std::string &serviceName) noexcept
-        : service_load_exc(serviceName, "Service description not found.")
-    {
-    }
-};
-
-class service_cyclic_dependency : public service_load_exc
-{
-    public:
-    service_cyclic_dependency(const std::string &serviceName) noexcept
-        : service_load_exc(serviceName, "Has cyclic dependency.")
-    {
-    }
-};
-
-class service_description_exc : public service_load_exc
-{
-    public:
-    service_description_exc(const std::string &serviceName, std::string &&extraInfo) noexcept
-        : service_load_exc(serviceName, std::move(extraInfo))
-    {
-    }    
 };
 
 class service_record;
