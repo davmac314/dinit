@@ -17,11 +17,11 @@ namespace {
     constexpr uint16_t cp_version = 1;
 
     // check for value in a set
-    template <typename T, int N>
-    inline bool contains(const T (&v)[N], int i)
+    template <typename T, int N, typename U>
+    inline bool contains(const T (&v)[N], U i)
     {
         return std::find_if(std::begin(v), std::end(v),
-                [=](T p){ return i == static_cast<int>(p); }) != std::end(v);
+                [=](T p){ return i == static_cast<U>(p); }) != std::end(v);
     }
 }
 
@@ -91,6 +91,9 @@ bool control_conn_t::process_packet()
     }
     if (pktType == DINIT_CP_QUERY_LOAD_MECH) {
         return query_load_mech();
+    }
+    if (pktType == DINIT_CP_ENABLESERVICE) {
+        return add_service_dep(true);
     }
 
     // Unrecognized: give error response
@@ -395,7 +398,7 @@ bool control_conn_t::list_services()
     }
 }
 
-bool control_conn_t::add_service_dep()
+bool control_conn_t::add_service_dep(bool do_enable)
 {
     // 1 byte packet type
     // 1 byte dependency type
@@ -427,8 +430,8 @@ bool control_conn_t::add_service_dep()
 
     // Check dependency type is valid:
     int dep_type_int = rbuf[1];
-    if (! contains({(int)dependency_type::MILESTONE, (int)dependency_type::REGULAR,
-            (int)dependency_type::WAITS_FOR}, dep_type_int)) {
+    if (! contains({dependency_type::MILESTONE, dependency_type::REGULAR,
+            dependency_type::WAITS_FOR}, dep_type_int)) {
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
@@ -476,22 +479,33 @@ bool control_conn_t::add_service_dep()
     dep_marks.clear();
     dep_queue.clear();
 
+    bool dep_exists = false;
+    service_dep * dep_record = nullptr;
+
     // Prevent creation of duplicate dependency:
     for (auto &dep : from_service->get_dependencies()) {
         service_record * dep_to = dep.get_to();
         if (dep_to == to_service && dep.dep_type == dep_type) {
-            // Dependency already exists: return success
-            char ack_rep[] = { DINIT_RP_ACK };
-            if (! queue_packet(ack_rep, 1)) return false;
-            rbuf.consume(pkt_size);
-            chklen = 0;
-            return true;
+            // Dependency already exists
+            dep_exists = true;
+            dep_record = &dep;
+            break;
         }
     }
 
-    // Create dependency:
-    from_service->add_dep(to_service, dep_type);
-    services->process_queues();
+    if (! dep_exists) {
+        // Create dependency:
+        dep_record = &(from_service->add_dep(to_service, dep_type));
+        services->process_queues();
+    }
+
+    if (do_enable && contains({service_state_t::STARTED, service_state_t::STARTING},
+            from_service->get_state())) {
+        // The dependency record is activated: mark it as holding acquisition of the dependency, and start
+        // the dependency.
+        dep_record->get_from()->start_dep(*dep_record);
+        services->process_queues();
+    }
 
     char ack_rep[] = { DINIT_RP_ACK };
     if (! queue_packet(ack_rep, 1)) return false;
@@ -532,8 +546,8 @@ bool control_conn_t::rm_service_dep()
 
     // Check dependency type is valid:
     int dep_type_int = rbuf[1];
-    if (! contains({(int)dependency_type::MILESTONE, (int)dependency_type::REGULAR,
-            (int)dependency_type::WAITS_FOR}, dep_type_int)) {
+    if (! contains({dependency_type::MILESTONE, dependency_type::REGULAR,
+            dependency_type::WAITS_FOR}, dep_type_int)) {
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;

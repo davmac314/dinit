@@ -626,7 +626,7 @@ class service_record
         return 0;
     }
 
-    const dep_list & get_dependencies()
+    dep_list & get_dependencies()
     {
         return depends_on;
     }
@@ -634,7 +634,7 @@ class service_record
     // Add a dependency. Caller must ensure that the services are in an appropriate state and that
     // a circular dependency chain is not created. Propagation queues should be processed after
     // calling this. May throw std::bad_alloc.
-    void add_dep(service_record *to, dependency_type dep_type)
+    service_dep & add_dep(service_record *to, dependency_type dep_type)
     {
         depends_on.emplace_back(this, to, dep_type);
         try {
@@ -651,6 +651,8 @@ class service_record
                 depends_on.back().holding_acq = true;
             }
         }
+
+        return depends_on.back();
     }
 
     // Remove a dependency, of the given type, to the given service. Propagation queues should be processed
@@ -673,6 +675,15 @@ class service_record
                 break;
             }
         }
+    }
+
+    // Start a speficic dependency of this service. Should only be called if this service is in an
+    // appropriate state (started, starting). The dependency is marked as holding acquired; when
+    // this service stops, the dependency will be released and may also stop.
+    void start_dep(service_dep &dep)
+    {
+        dep.get_to()->require();
+        dep.holding_acq = true;
     }
 };
 

@@ -149,7 +149,7 @@ class control_conn_t : private service_listener
     bool list_services();
 
     // Add a dependency between two services.
-    bool add_service_dep();
+    bool add_service_dep(bool do_start = false);
 
     // Remove a dependency between two services.
     bool rm_service_dep();

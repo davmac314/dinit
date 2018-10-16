@@ -36,6 +36,9 @@ constexpr static int DINIT_CP_REM_DEP = 12;
 // Query service load path / mechanism:
 constexpr static int DINIT_CP_QUERY_LOAD_MECH = 13;
 
+// Add a waits for dependency from one service to another, and start the dependency:
+constexpr static int DINIT_CP_ENABLESERVICE = 14;
+
 // Replies:
 
 // Reply: ACK/NAK to request
