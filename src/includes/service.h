@@ -682,8 +682,10 @@ class service_record
     // this service stops, the dependency will be released and may also stop.
     void start_dep(service_dep &dep)
     {
-        dep.get_to()->require();
-        dep.holding_acq = true;
+        if (! dep.holding_acq) {
+            dep.get_to()->require();
+            dep.holding_acq = true;
+        }
     }
 };
 
