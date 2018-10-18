@@ -42,7 +42,8 @@ static int list_services(int socknum, cpbuffer_t &);
 static int shutdown_dinit(int soclknum, cpbuffer_t &);
 static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, const char *service_from,
         const char *service_to, dependency_type dep_type);
-static int enable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to);
+static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to,
+        bool enable);
 
 static const char * describeState(bool stopped)
 {
@@ -158,6 +159,9 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "enable") == 0) {
                 command = command_t::ENABLE_SERVICE;
             }
+            else if (strcmp(argv[i], "disable") == 0) {
+                command = command_t::DISABLE_SERVICE;
+            }
             else {
                 cerr << "dinitctl: unrecognized command: " << argv[i] << " (use --help for help)\n";
                 return 1;
@@ -240,6 +244,8 @@ int main(int argc, char **argv)
           "    dinitctl shutdown\n"
           "    dinitctl add-dep <type> <from-service> <to-service>\n"
           "    dinitctl rm-dep <type> <from-service> <to-service>\n"
+          "    dinitctl enable [--from <from-service>] <to-service>\n"
+          "    dinitctl disable [--from <from-service>] <to-service>\n"
           "\n"
           "Note: An activated service continues running when its dependents stop.\n"
           "\n"
@@ -323,12 +329,13 @@ int main(int argc, char **argv)
             return add_remove_dependency(socknum, rbuffer, command == command_t::ADD_DEPENDENCY,
                     service_name, to_service_name, dep_type);
         }
-        else if (command == command_t::ENABLE_SERVICE) {
+        else if (command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE) {
             // If only one service specified, assume that we enable for 'boot' service:
             if (service_name == nullptr) {
                 service_name = "boot";
             }
-            return enable_service(socknum, rbuffer, service_name, to_service_name);
+            return enable_disable_service(socknum, rbuffer, service_name, to_service_name,
+                    command == command_t::ENABLE_SERVICE);
         }
         else {
             return start_stop_service(socknum, rbuffer, service_name, command, do_pin,
@@ -389,7 +396,8 @@ static std::string read_string(int socknum, cpbuffer_t &rbuffer, uint32_t length
 //      name     - the name of the service to load
 //      handle   - where to store the handle of the loaded service
 //      state    - where to store the state of the loaded service (may be null).
-static bool load_service(int socknum, cpbuffer_t &rbuffer, const char *name, handle_t *handle, service_state_t *state)
+static bool load_service(int socknum, cpbuffer_t &rbuffer, const char *name, handle_t *handle,
+        service_state_t *state)
 {
     // Load 'to' service:
     if (issue_load_service(socknum, name)) {
@@ -856,7 +864,7 @@ static std::string join_paths(std::string p1, std::string p2)
 // exception for cancelling a service operation
 class service_op_cancel { };
 
-static int enable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to)
+static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to, bool enable)
 {
     using namespace std;
 
@@ -988,18 +996,21 @@ static int enable_service(int socknum, cpbuffer_t &rbuffer, const char *from, co
     }
     else {
         // dependency already exists
-        cerr << "dinitctl: service already enabled." << endl;
-        return 1;
+        if (enable) {
+            cerr << "dinitctl: service already enabled." << endl;
+            return 1;
+        }
     }
 
     // warn if 'from' service is not started
-    if (from_state != service_state_t::STARTED) {
+    if (enable && from_state != service_state_t::STARTED) {
         cerr << "dinitctl: warning: enabling dependency for non-started service" << endl;
     }
 
-    // add dependency
+    // add/remove dependency
     constexpr int enable_pktsize = 2 + sizeof(handle_t) * 2;
-    char cmdbuf[enable_pktsize] = { char(DINIT_CP_ENABLESERVICE), char(dependency_type::WAITS_FOR)};
+    char cmdbuf[enable_pktsize] = { char(enable ? DINIT_CP_ENABLESERVICE : DINIT_CP_REM_DEP),
+            char(dependency_type::WAITS_FOR)};
     memcpy(cmdbuf + 2, &from_handle, sizeof(from_handle));
     memcpy(cmdbuf + 2 + sizeof(from_handle), &to_handle, sizeof(to_handle));
     write_all_x(socknum, cmdbuf, enable_pktsize);
@@ -1007,7 +1018,7 @@ static int enable_service(int socknum, cpbuffer_t &rbuffer, const char *from, co
     wait_for_reply(rbuffer, socknum);
 
     // check reply
-    if (rbuffer[0] == DINIT_RP_NAK) {
+    if (enable && rbuffer[0] == DINIT_RP_NAK) {
         cerr << "dinitctl: Could not enable service: possible circular dependency" << endl;
         return 1;
     }
@@ -1017,10 +1028,19 @@ static int enable_service(int socknum, cpbuffer_t &rbuffer, const char *from, co
     }
 
     // create link
-    if (symlink(dep_link_path.c_str(), (string("../") + to).c_str()) == -1) {
-        cerr << "dinitctl: Could not create symlink at " << dep_link_path << ": " << strerror(errno) << "\n"
-                "dinitctl: Note: service was activated, but will not be enabled on restart." << endl;
-        return 1;
+    if (enable) {
+        if (symlink(dep_link_path.c_str(), (string("../") + to).c_str()) == -1) {
+            cerr << "dinitctl: Could not create symlink at " << dep_link_path << ": " << strerror(errno) << "\n"
+                    "dinitctl: Note: service was activated, but will not be enabled on restart." << endl;
+            return 1;
+        }
+    }
+    else {
+        if (unlink(dep_link_path.c_str()) == -1) {
+            cerr << "dinitctl: Could not unlink dependency entry " << dep_link_path << ": " << strerror(errno) << "\n"
+                    "dinitctl: Note: service was disabled, but will be re-enabled on restart." << endl;
+            return 1;
+        }
     }
 
     return 0;
