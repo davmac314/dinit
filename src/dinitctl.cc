@@ -1033,7 +1033,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
 
     // create link
     if (enable) {
-        if (symlink(dep_link_path.c_str(), (string("../") + to).c_str()) == -1) {
+        if (symlink((string("../") + to).c_str(), dep_link_path.c_str()) == -1) {
             cerr << "dinitctl: Could not create symlink at " << dep_link_path << ": " << strerror(errno) << "\n"
                     "dinitctl: Note: service was activated, but will not be enabled on restart." << endl;
             return 1;
