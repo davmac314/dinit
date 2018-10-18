@@ -91,7 +91,7 @@ inline string read_setting_name(string_iterator & i, string_iterator end)
 
     string rval;
     // Allow alphabetical characters, and dash (-) in setting name
-    while (i != end && (*i == '-' || facet.is(ctype<char>::alpha, *i))) {
+    while (i != end && (*i == '-' || *i == '.' || facet.is(ctype<char>::alpha, *i))) {
         rval += *i;
         ++i;
     }
