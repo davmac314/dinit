@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -365,7 +366,7 @@ int main(int argc, char **argv)
 static std::string read_string(int socknum, cpbuffer_t &rbuffer, uint32_t length)
 {
     int rb_len = rbuffer.get_length();
-    if (rb_len >= length) {
+    if (uint32_t(rb_len) >= length) {
         std::string r = rbuffer.extract_string(0, length);
         rbuffer.consume(length);
         return r;

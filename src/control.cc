@@ -617,7 +617,7 @@ bool control_conn_t::query_load_mech()
         std::memcpy(reppkt.data() + curpos - sizeof(uint32_t), &wd_len, sizeof(wd_len));
 
         // Each directory in the load path:
-        for (int i = 0; i < sdirs; i++) {
+        for (int i = 0; uint32_t(i) < sdirs; i++) {
             const char *sdir = dss->get_service_dir(i);
             uint32_t dlen = std::strlen(sdir);
             auto cursize = reppkt.size();
