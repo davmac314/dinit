@@ -11,7 +11,7 @@ For version 0.4.0:
 For version 1.0:
 ----------------
 * Support S6-style startup notification (write to fd)
-* Man pages for all programs (done for dinit, not for dinitctl/shutdown/etc).
+* Man pages for all programs (done for dinit and dinitctl, not for shutdown/halt etc).
 * Write wtmp entry on startup (see simpleinit)
 * "triggered" service type: external process notifies Dinit when the service
   has started. (maybe?)
@@ -20,6 +20,9 @@ For version 1.0:
 * Documentation must be complete (see section below).
 * Proper support for socket activation?
 * Be able to boot and shutdown Linux and FreeBSD.
+* The DINIT_ROLLBACK_COMPLETED acknowledgement is never sent, since
+  control_conn_t::rollback_complete() is not currently called.
+* Refuse to start new services during shutdown.
 
 For later:
 ----------
