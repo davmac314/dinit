@@ -382,6 +382,29 @@ static std::string read_string(int socknum, cpbuffer_t &rbuffer, uint32_t length
     return r;
 }
 
+// Load a service: issue load command, wait for reply. Return true on success, display error message
+// and return false on failure.
+//      socknum  - the socket fd to communicate via
+//      rbuffer  - the buffer for communication
+//      name     - the name of the service to load
+//      handle   - where to store the handle of the loaded service
+//      state    - where to store the state of the loaded service (may be null).
+static bool load_service(int socknum, cpbuffer_t &rbuffer, const char *name, handle_t *handle, service_state_t *state)
+{
+    // Load 'to' service:
+    if (issue_load_service(socknum, name)) {
+        return false;
+    }
+
+    wait_for_reply(rbuffer, socknum);
+
+    if (check_load_reply(socknum, rbuffer, handle, state) != 0) {
+        return false;
+    }
+
+    return true;
+}
+
 // Start/stop a service
 static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *service_name,
         command_t command, bool do_pin, bool wait_for_service, bool verbose)
@@ -389,20 +412,11 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
     using namespace std;
 
     bool do_stop = (command == command_t::STOP_SERVICE || command == command_t::RELEASE_SERVICE);
-    
-    if (issue_load_service(socknum, service_name)) {
-        return 1;
-    }
-
-    // Now we expect a reply:
-    
-    wait_for_reply(rbuffer, socknum);
 
     service_state_t state;
-    //service_state_t target_state;
     handle_t handle;
-
-    if (check_load_reply(socknum, rbuffer, &handle, &state) != 0) {
+    
+    if (! load_service(socknum, rbuffer, service_name, &handle, &state)) {
         return 1;
     }
 
@@ -542,6 +556,7 @@ static int issue_load_service(int socknum, const char *service_name, bool find_o
 }
 
 // Check that a "load service" reply was received, and that the requested service was found.
+//   state_p may be null.
 static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p, service_state_t *state_p)
 {
     using namespace std;
@@ -567,22 +582,14 @@ static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p
 static int unpin_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool verbose)
 {
     using namespace std;
-    
-    // Build buffer;
-    if (issue_load_service(socknum, service_name) == 1) {
-        return 1;
-    }
-
-    // Now we expect a reply:
-    
-    wait_for_reply(rbuffer, socknum);
 
     handle_t handle;
-
-    if (check_load_reply(socknum, rbuffer, &handle, nullptr) != 0) {
+    
+    // Build buffer;
+    if (! load_service(socknum, rbuffer, service_name, &handle, nullptr)) {
         return 1;
     }
-
+    
     // Issue UNPIN command.
     {
         char buf[1 + sizeof(handle)];
@@ -608,12 +615,10 @@ static int unload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
 {
     using namespace std;
 
-    // Build buffer;
     if (issue_load_service(socknum, service_name, true) == 1) {
         return 1;
     }
 
-    // Now we expect a reply:
     wait_for_reply(rbuffer, socknum);
 
     handle_t handle;
@@ -769,29 +774,12 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
 {
     using namespace std;
 
-    // First find the "from" service:
-    if (issue_load_service(socknum, service_from, false) == 1) {
-        return 1;
-    }
-
-    wait_for_reply(rbuffer, socknum);
 
     handle_t from_handle;
-
-    if (check_load_reply(socknum, rbuffer, &from_handle, nullptr) != 0) {
-        return 1;
-    }
-
-    // Then find or load the "to" service:
-    if (issue_load_service(socknum, service_to, false) == 1) {
-        return 1;
-    }
-
-    wait_for_reply(rbuffer, socknum);
-
     handle_t to_handle;
 
-    if (check_load_reply(socknum, rbuffer, &to_handle, nullptr) != 0) {
+    if (! load_service(socknum, rbuffer, service_from, &from_handle, nullptr)
+            || ! load_service(socknum, rbuffer, service_to, &to_handle, nullptr)) {
         return 1;
     }
 
@@ -872,31 +860,13 @@ static int enable_service(int socknum, cpbuffer_t &rbuffer, const char *from, co
 {
     using namespace std;
 
-    // Load 'from' service:
-    if (issue_load_service(socknum, from)) {
-        return 1;
-    }
-
-    wait_for_reply(rbuffer, socknum);
-
-    service_state_t from_state;
+    service_state_t from_state = service_state_t::STARTED;
     handle_t from_handle;
 
-    if (check_load_reply(socknum, rbuffer, &from_handle, &from_state) != 0) {
-        return 1;
-    }
-
-    // Load 'to' service:
-    if (issue_load_service(socknum, to)) {
-        return 1;
-    }
-
-    wait_for_reply(rbuffer, socknum);
-
-    service_state_t to_state;
     handle_t to_handle;
 
-    if (check_load_reply(socknum, rbuffer, &to_handle, &to_state) != 0) {
+    if (! load_service(socknum, rbuffer, from, &from_handle, &from_state)
+            || ! load_service(socknum, rbuffer, to, &to_handle, nullptr)) {
         return 1;
     }
 
