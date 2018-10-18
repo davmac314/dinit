@@ -218,11 +218,14 @@ int main(int argc, char **argv)
     
     bool no_service_cmd = (command == command_t::LIST_SERVICES || command == command_t::SHUTDOWN);
 
-    if (service_name != nullptr && no_service_cmd) {
+    if (command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE) {
+        show_help |= (to_service_name == nullptr);
+    }
+    else if ((service_name == nullptr && ! no_service_cmd) || command == command_t::NONE) {
         show_help = true;
     }
-    
-    if ((service_name == nullptr && ! no_service_cmd) || command == command_t::NONE) {
+
+    if (service_name != nullptr && no_service_cmd) {
         show_help = true;
     }
 
