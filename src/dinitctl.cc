@@ -3,6 +3,7 @@
 #include <cstring>
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <system_error>
 #include <memory>
 #include <algorithm>
@@ -19,6 +20,7 @@
 #include "service-constants.h"
 #include "cpbuffer.h"
 #include "dinit-client.h"
+#include "load-service.h"
 
 // dinitctl:  utility to control the Dinit daemon, including starting and stopping of services.
 
@@ -38,9 +40,9 @@ static int unpin_service(int socknum, cpbuffer_t &, const char *service_name, bo
 static int unload_service(int socknum, cpbuffer_t &, const char *service_name);
 static int list_services(int socknum, cpbuffer_t &);
 static int shutdown_dinit(int soclknum, cpbuffer_t &);
-static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, char *service_from,
-        char *service_to, dependency_type dep_type);
-
+static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, const char *service_from,
+        const char *service_to, dependency_type dep_type);
+static int enable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to);
 
 static const char * describeState(bool stopped)
 {
@@ -63,7 +65,9 @@ enum class command_t {
     LIST_SERVICES,
     SHUTDOWN,
     ADD_DEPENDENCY,
-    RM_DEPENDENCY
+    RM_DEPENDENCY,
+    ENABLE_SERVICE,
+    DISABLE_SERVICE
 };
 
 
@@ -73,8 +77,8 @@ int main(int argc, char **argv)
     using namespace std;
     
     bool show_help = argc < 2;
-    char *service_name = nullptr;
-    char *to_service_name = nullptr;
+    const char *service_name = nullptr;
+    const char *to_service_name = nullptr;
     dependency_type dep_type;
     bool dep_type_set = false;
     
@@ -105,6 +109,15 @@ int main(int argc, char **argv)
             }
             else if (strcmp(argv[i], "--pin") == 0) {
                 do_pin = true;
+            }
+            else if ((command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE)
+                    && strcmp(argv[i], "--from") == 0) {
+                ++i;
+                if (i == argc) {
+                    cerr << "dinitctl: --from should be followed by a service name" << std::endl;
+                    return 1;
+                }
+                service_name = argv[i];
             }
             else {
                 cerr << "dinitctl: unrecognized option: " << argv[i] << " (use --help for help)\n";
@@ -142,6 +155,9 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "rm-dep") == 0) {
                 command = command_t::RM_DEPENDENCY;
             }
+            else if (strcmp(argv[i], "enable") == 0) {
+                command = command_t::ENABLE_SERVICE;
+            }
             else {
                 cerr << "dinitctl: unrecognized command: " << argv[i] << " (use --help for help)\n";
                 return 1;
@@ -176,6 +192,13 @@ int main(int argc, char **argv)
                     show_help = true;
                     break;
                 }
+            }
+            else if (command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE) {
+                if (to_service_name != nullptr) {
+                    show_help = true;
+                    break;
+                }
+                to_service_name = argv[i];
             }
             else {
                 if (service_name != nullptr) {
@@ -299,6 +322,13 @@ int main(int argc, char **argv)
         else if (command == command_t::ADD_DEPENDENCY || command == command_t::RM_DEPENDENCY) {
             return add_remove_dependency(socknum, rbuffer, command == command_t::ADD_DEPENDENCY,
                     service_name, to_service_name, dep_type);
+        }
+        else if (command == command_t::ENABLE_SERVICE) {
+            // If only one service specified, assume that we enable for 'boot' service:
+            if (service_name == nullptr) {
+                service_name = "boot";
+            }
+            return enable_service(socknum, rbuffer, service_name, to_service_name);
         }
         else {
             return start_stop_service(socknum, rbuffer, service_name, command, do_pin,
@@ -734,8 +764,8 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
     return 0;
 }
 
-static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, char *service_from,
-        char *service_to, dependency_type dep_type)
+static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
+        const char *service_from, const char *service_to, dependency_type dep_type)
 {
     using namespace std;
 
@@ -820,6 +850,207 @@ static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer)
         // Dinit can terminate before replying: let's assume that happened.
         // TODO: better check, possibly ensure that dinit actually sends rollback complete before
         // termination.
+    }
+
+    return 0;
+}
+
+// Join two paths; the 2nd must be relative
+static std::string join_paths(std::string p1, std::string p2)
+{
+    std::string r = p1;
+    if (*(r.rbegin()) != '/') {
+        r += '/';
+    }
+    return r + p2;
+}
+
+// exception for cancelling a service operation
+class service_op_cancel { };
+
+static int enable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to)
+{
+    using namespace std;
+
+    // Load 'from' service:
+    if (issue_load_service(socknum, from)) {
+        return 1;
+    }
+
+    wait_for_reply(rbuffer, socknum);
+
+    service_state_t from_state;
+    handle_t from_handle;
+
+    if (check_load_reply(socknum, rbuffer, &from_handle, &from_state) != 0) {
+        return 1;
+    }
+
+    // Load 'to' service:
+    if (issue_load_service(socknum, to)) {
+        return 1;
+    }
+
+    wait_for_reply(rbuffer, socknum);
+
+    service_state_t to_state;
+    handle_t to_handle;
+
+    if (check_load_reply(socknum, rbuffer, &to_handle, &to_state) != 0) {
+        return 1;
+    }
+
+    // Get service load path
+    char buf[1] = { DINIT_CP_QUERY_LOAD_MECH };
+    write_all_x(socknum, buf, 1);
+
+    wait_for_reply(rbuffer, socknum);
+
+    if (rbuffer[0] != DINIT_RP_LOADER_MECH) {
+        cerr << "dinitctl: Control socket protocol error" << endl;
+        return 1;
+    }
+
+    // Packet type, load mechanism type, packet size:
+    fill_buffer_to(rbuffer, socknum, 2 + sizeof(uint32_t));
+
+    if (rbuffer[1] != SSET_TYPE_DIRLOAD) {
+        cerr << "dinitctl: unknown configuration, unable to load service descriptions" << endl;
+        return 1;
+    }
+
+    vector<string> paths;
+
+    uint32_t pktsize;
+    rbuffer.extract(&pktsize, 2, sizeof(uint32_t));
+
+    fill_buffer_to(rbuffer, socknum, 2 + sizeof(uint32_t) * 3); // path entries, cwd length
+
+    uint32_t path_entries;  // number of service directories
+    rbuffer.extract(&path_entries, 2 + sizeof(uint32_t), sizeof(uint32_t));
+
+    uint32_t cwd_len;
+    rbuffer.extract(&cwd_len, 2 + sizeof(uint32_t) * 2, sizeof(uint32_t));
+    rbuffer.consume(2 + sizeof(uint32_t) * 3);
+    pktsize -= 2 + sizeof(uint32_t) * 3;
+
+    // Read current working directory of daemon:
+    std::string dinit_cwd = read_string(socknum, rbuffer, cwd_len);
+
+    // dinit daemon base directory against which service paths are resolved is in dinit_cwd
+
+    for (int i = 0; i < (int)path_entries; i++) {
+        uint32_t plen;
+        fill_buffer_to(rbuffer, socknum, sizeof(uint32_t));
+        rbuffer.extract(&plen, 0, sizeof(uint32_t));
+        rbuffer.consume(sizeof(uint32_t));
+        paths.push_back(read_string(socknum, rbuffer, plen));
+    }
+
+    // all service directories are now in the 'paths' vector
+    // Load/read service description for 'from' service:
+
+    ifstream service_file;
+    string service_file_path;
+
+    for (std::string path : paths) {
+        string test_path = join_paths(dinit_cwd + '/' + path, from);
+
+        service_file.open(test_path.c_str(), ios::in);
+        if (service_file) {
+            service_file_path = test_path;
+            break;
+        }
+    }
+
+    if (! service_file) {
+        cerr << "dinitctl: could not locate service file for service '" << from << "'" << endl;
+        return 1;
+    }
+
+    // We now need to read the service file, identify the waits-for.d directory (bail out if more than one),
+    // make sure the service is not listed as a dependency individually.
+
+    string waits_for_d;
+
+    try {
+        process_service_file(from, service_file, [&](string &line, string &setting,
+                dinit_load::string_iterator i, dinit_load::string_iterator end) -> void {
+            if (setting == "waits-for" || setting == "depends-on" || setting == "depends-ms") {
+                string dname = dinit_load::read_setting_value(i, end);
+                if (dname == to) {
+                    // There is already a dependency
+                    cerr << "dinitctl: there is a fixed dependency to service '" << to
+                            << "' in the service description of '" << from << "'." << endl;
+                    throw service_op_cancel();
+                }
+            }
+            else if (setting == "waits-for.d") {
+                string dname = dinit_load::read_setting_value(i, end);
+                if (! waits_for_d.empty()) {
+                    cerr << "dinitctl: service '" << from << "' has multiple waits-for.d directories "
+                            << "specified in service description" << endl;
+                    throw service_op_cancel();
+                }
+                waits_for_d = std::move(dname);
+            }
+        });
+    }
+    catch (const service_op_cancel &cexc) {
+        return 1;
+    }
+
+    // If the from service has no waits-for.d specified, we can't continue
+    if (waits_for_d.empty()) {
+        cerr << "dinitctl: service '" << from << "' has no waits-for.d directory specified" << endl;
+        return 1;
+    }
+
+    // check if dependency already exists
+    string dep_link_path = join_paths(waits_for_d, to);
+    struct stat stat_buf;
+    if (lstat(dep_link_path.c_str(), &stat_buf) == -1) {
+        if (errno != ENOENT) {
+            cerr << "dinitctl: checking for existing dependency link: " << dep_link_path << ": "
+                    << strerror(errno) << endl;
+            return 1;
+        }
+    }
+    else {
+        // dependency already exists
+        cerr << "dinitctl: service already enabled." << endl;
+        return 1;
+    }
+
+    // warn if 'from' service is not started
+    if (from_state != service_state_t::STARTED) {
+        cerr << "dinitctl: warning: enabling dependency for non-started service" << endl;
+    }
+
+    // add dependency
+    constexpr int enable_pktsize = 2 + sizeof(handle_t) * 2;
+    char cmdbuf[enable_pktsize] = { char(DINIT_CP_ENABLESERVICE), char(dependency_type::WAITS_FOR)};
+    memcpy(cmdbuf + 2, &from_handle, sizeof(from_handle));
+    memcpy(cmdbuf + 2 + sizeof(from_handle), &to_handle, sizeof(to_handle));
+    write_all_x(socknum, cmdbuf, enable_pktsize);
+
+    wait_for_reply(rbuffer, socknum);
+
+    // check reply
+    if (rbuffer[0] == DINIT_RP_NAK) {
+        cerr << "dinitctl: Could not enable service: possible circular dependency" << endl;
+        return 1;
+    }
+    if (rbuffer[0] != DINIT_RP_ACK) {
+        cerr << "dinitctl: Control socket protocol error" << endl;
+        return 1;
+    }
+
+    // create link
+    if (symlink(dep_link_path.c_str(), (string("../") + to).c_str()) == -1) {
+        cerr << "dinitctl: Could not create symlink at " << dep_link_path << ": " << strerror(errno) << "\n"
+                "dinitctl: Note: service was activated, but will not be enabled on restart." << endl;
+        return 1;
     }
 
     return 0;
