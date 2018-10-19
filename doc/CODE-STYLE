@@ -1,0 +1,48 @@
+Code style in Dinit
+===================
+
+This document presents a brief overview of the style used in the Dinit source code. It may not be
+exhaustive. If you would like to contribute, please check this guide and also observe any existing
+code style.
+
+1. Line widths - do not exceed 110 characters; try to limit to 100. When wrapping a line, the
+   indent should be increased by at least two levels on the subsequent lines.
+
+2. Curly braces - for classes and functions, the opening brace appears by itself on an empty line,
+   as does the closing brace. In other cases the opening brace should appear at the end of the
+   line (and not on a line by itself). The closing brace always appears on a line by itself.
+
+   If curly braces are omitted (for a control statement) then the entire statement should be a
+   single line. Otherwise the braces are mandatory.
+   
+       class a
+       {
+           void foo()
+           {
+               if (true) {
+                   // ok - braces used
+               }
+               
+               if (true) foo(); // ok - same line
+           }
+       }   
+
+3. Indentation - is 4 spaces per level. Never tabs. Indentation level increases after an opening
+   curly brace, though for long namespace declarations this is optional.
+   
+4. Blank lines - should be used between method and class definitions, and can be used in code
+   to break it into sections with different concerns. A double blank line should never appear
+   inside a function, and generally not inside a class, but may be used to indicate a significant
+   break. Blank lines should never immediately follow an opening curly brace nor precede a
+   closing curly brace.
+
+5. Exceptions - should be used sparingly. Much of the Dinit code is exception-free and this
+   needs to be maintained. Functions that cannot throw or propagate exceptions should be marked
+   as "noexcept".
+
+6. Pointers and references - the rules are a bit loose here, but in general function parameters
+   which may be modified by the callee should be passed via pointer, to act as a visual aid
+   in understanding the function semantics.
+
+7. Balance maintainability (including readability) with efficiency. Existing code should serve
+   as a guide.
