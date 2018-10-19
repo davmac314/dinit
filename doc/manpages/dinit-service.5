@@ -172,7 +172,10 @@ add a \fBwaits-for\fR dependency to the service with the same name. Note that
 contents of files in the specified directory are not significant; expected
 usage is to have symbolic links to the associated service description files,
 but this is not required. Failure to read the directory contents, or to find
-any of the services named within, is not considered fatal. 
+any of the services named within, is not considered fatal.
+
+The directory path, if not absolute, is relative to the directory containing
+the service description file.
 .TP
 \fBsocket\-listen\fR = \fIsocket-path\fR
 Pre-open a socket for the service and pass it to the service using the

@@ -16,6 +16,7 @@
 
 #include "proc-service.h"
 #include "dinit-log.h"
+#include "dinit-util.h"
 
 using string = std::string;
 using string_iterator = std::string::iterator;
@@ -243,12 +244,15 @@ static void do_env_subst(std::string &line, std::list<std::pair<unsigned,unsigne
 // a fatal error.
 static void process_dep_dir(dirload_service_set &sset,
         const char *servicename,
+        string service_filename,
         std::list<prelim_dep> &deplist, const std::string &depdirpath,
         dependency_type dep_type)
 {
-    DIR *depdir = opendir(depdirpath.c_str());
+    std::string depdir_fname = combine_paths(parent_path(service_filename), depdirpath.c_str());
+
+    DIR *depdir = opendir(depdir_fname.c_str());
     if (depdir == nullptr) {
-        log(loglevel_t::WARN, "Could not open dependency directory '", depdirpath,
+        log(loglevel_t::WARN, "Could not open dependency directory '", depdir_fname,
                 "' for ", servicename, " service.");
         return;
     }
@@ -308,10 +312,11 @@ service_record * dirload_service_set::load_service(const char * name)
     }
 
     ifstream service_file;
+    string service_filename;
 
     // Couldn't find one. Have to load it.
     for (auto &service_dir : service_dirs) {
-        string service_filename = service_dir.get_dir();
+        service_filename = service_dir.get_dir();
         if (*(service_filename.rbegin()) != '/') {
             service_filename += '/';
         }
@@ -422,7 +427,8 @@ service_record * dirload_service_set::load_service(const char * name)
             }
             else if (setting == "waits-for.d") {
                 string waitsford = read_setting_value(i, end);
-                process_dep_dir(*this, name, depends, waitsford, dependency_type::WAITS_FOR);
+                process_dep_dir(*this, name, service_filename, depends, waitsford,
+                        dependency_type::WAITS_FOR);
             }
             else if (setting == "logfile") {
                 logfile = read_setting_value(i, end);

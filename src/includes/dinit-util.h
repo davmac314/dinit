@@ -36,4 +36,29 @@ inline ssize_t ss_read(int fd, void * buf, size_t n)
     return n;
 }
 
+// Combine two paths to produce a path. If the second path is absolute, it is returned unmodified;
+// otherwise, it is appended to the first path (with a slash separator added if needed).
+inline std::string combine_paths(const std::string &p1, const char * p2)
+{
+    if (*p2 == 0) return p1;
+    if (p1.empty()) return std::string(p2);
+
+    if (p2[0] == '/') return p2;
+
+    if (*(p1.rbegin()) == '/') return p1 + p2;
+    return p1 + '/' + p2;
+}
+
+// Find the parent path of a given path, which should refer to a named file or directory (not . or ..).
+// If the path contains no directory, returns the empty string.
+inline std::string parent_path(const std::string &p)
+{
+    auto spos = p.rfind('/');
+    if (spos == std::string::npos) {
+        return std::string {};
+    }
+
+    return p.substr(0, spos + 1);
+}
+
 #endif

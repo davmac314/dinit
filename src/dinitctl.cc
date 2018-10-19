@@ -22,6 +22,7 @@
 #include "cpbuffer.h"
 #include "dinit-client.h"
 #include "load-service.h"
+#include "dinit-util.h"
 
 // dinitctl:  utility to control the Dinit daemon, including starting and stopping of services.
 
@@ -855,16 +856,6 @@ static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer)
     return 0;
 }
 
-// Join two paths; the 2nd must be relative
-static std::string join_paths(std::string p1, std::string p2)
-{
-    std::string r = p1;
-    if (*(r.rbegin()) != '/') {
-        r += '/';
-    }
-    return r + p2;
-}
-
 // exception for cancelling a service operation
 class service_op_cancel { };
 
@@ -936,7 +927,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
     string service_file_path;
 
     for (std::string path : paths) {
-        string test_path = join_paths(dinit_cwd + '/' + path, from);
+        string test_path = combine_paths(dinit_cwd + '/' + path, from);
 
         service_file.open(test_path.c_str(), ios::in);
         if (service_file) {
@@ -988,8 +979,11 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
         return 1;
     }
 
+    // The waits-for.d path is relative to the service file path, combine:
+    string waits_for_d_full = combine_paths(parent_path(service_file_path), waits_for_d.c_str());
+
     // check if dependency already exists
-    string dep_link_path = join_paths(waits_for_d, to);
+    string dep_link_path = combine_paths(waits_for_d_full, to);
     struct stat stat_buf;
     if (lstat(dep_link_path.c_str(), &stat_buf) == -1) {
         if (errno != ENOENT) {
