@@ -1,6 +1,6 @@
-*.o
-*.d
 .*
+*.o
+src/**/*.d
 src/dinit
 src/dinitctl
 src/shutdown
