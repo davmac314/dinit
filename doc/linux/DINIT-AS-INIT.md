@@ -154,8 +154,10 @@ boot time).
 
 # Optional packages for building a Dinit-based system
 
-ConsoleKit2, to act as seat/sesion manager (functionality otherwise
-provided by Systemd):
+elogind, to act as seat/session manager (extracted from Systemd's logind):
+https://github.com/elogind/elogind
+
+Alternatively, ConsoleKit2:
 https://github.com/ConsoleKit2/ConsoleKit2
 
 cgmanager, the control group manager; you probably want this if you use
@@ -166,5 +168,5 @@ https://github.com/lxc/cgmanager
 I expect that v2 cgroups together with cgroup namespaces as found in newer
 kernels will render it obselete).
 
-Both ConsoleKit2 and cgmanager use Dbus:
+The above use Dbus:
 https://dbus.freedesktop.org/
