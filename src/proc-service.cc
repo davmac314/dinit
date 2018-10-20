@@ -407,7 +407,7 @@ bgproc_service::read_pid_file(bp_sys::exit_status *exit_status) noexcept
     }
 
     char pidbuf[21]; // just enough to hold any 64-bit integer
-    int r = ss_read(fd, pidbuf, 20);
+    int r = complete_read(fd, pidbuf, 20);
     if (r < 0) {
         // Could not read from PID file
         log(loglevel_t::ERROR, get_name(), ": could not read from pidfile; ", strerror(errno));

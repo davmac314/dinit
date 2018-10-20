@@ -7,9 +7,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-// Signal-safe read. Read and re-try if interrupted by signal (EINTR).
-// *May* affect errno even on a successful read (when the return is less than n).
-inline ssize_t ss_read(int fd, void * buf, size_t n)
+// Complete read - read the specified size until end-of-file or error; continue read if
+// interrupted by signal.
+inline ssize_t complete_read(int fd, void * buf, size_t n)
 {
     char * cbuf = static_cast<char *>(buf);
     ssize_t r = 0;
