@@ -136,7 +136,10 @@ Permanently enable a \fBwaits-for\fR dependency between two services. This is mu
 but it also starts the dependency if the dependent is started (without explicit activation, so the
 dependency will stop if the dependent stops), and it creates a symbolic link in the directory
 specified via the \fBwaits-for.d\fR directive in the service description (there must be only one such
-directive). The dependency should therefore be persistent. 
+directive). The dependency should therefore be persistent.
+
+If the \fB--from\fR option is not used to specify the dependent, the dependency is created from the
+\fBboot\fR service by default.
 .TP
 \fBdisable\fR
 Permanently disable a \fBwaits-for\fR dependency between two services. This is the complement of the
