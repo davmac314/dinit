@@ -1,6 +1,8 @@
 #ifndef DINIT_UTIL_H_INCLUDED
 #define DINIT_UTIL_H_INCLUDED 1
 
+#include <string>
+
 #include <cstddef>
 #include <cerrno>
 
