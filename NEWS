@@ -1,0 +1,19 @@
+== Version 0.4.0:
+
+This version focuses on being more "distribution friendly". It adds mechanisms to add and remove
+dependencies, either temporarily or persistently, between services without manual editing of
+service description files.
+
+Changes:
+ * A new service description directive, "waits-for.d", allows specifying a directory for which the
+   contents (filenames) are read as dependencies. This provides a convenient way to add and remove
+   dependencies to service descriptions without editing the textual service description file. 
+ * dinitctl has new commands, "add-dep" and "rm-dep", to add or remove a dependency between
+   services. The dependency is not persisted and won't survive a restart. Check the man page for
+   details.
+ * dinitctl has new commands, "enable" and "disable". These permanently enable/disable
+   a service for some target ("boot" by default) by creating/destroying a symbolic link
+   in the waits-for.d directory specified in the service description (and create/remove
+   waits-for dependency dynamically). Check the man page for details.
+ * A code style guide has been added (in the "doc" directory).
+ * More tests, minor bugfixes.
