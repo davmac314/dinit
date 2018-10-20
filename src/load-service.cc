@@ -244,7 +244,7 @@ static void do_env_subst(std::string &line, std::list<std::pair<unsigned,unsigne
 // a fatal error.
 static void process_dep_dir(dirload_service_set &sset,
         const char *servicename,
-        string service_filename,
+        const string &service_filename,
         std::list<prelim_dep> &deplist, const std::string &depdirpath,
         dependency_type dep_type)
 {

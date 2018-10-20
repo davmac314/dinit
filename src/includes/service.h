@@ -421,8 +421,8 @@ class service_record
     public:
 
     service_record(service_set *set, string name)
-        : service_state(service_state_t::STOPPED), desired_state(service_state_t::STOPPED),
-            auto_restart(false), smooth_recovery(false),
+        : service_name(name), service_state(service_state_t::STOPPED),
+            desired_state(service_state_t::STOPPED), auto_restart(false), smooth_recovery(false),
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
             waiting_for_console(false), have_console(false), waiting_for_execstat(false),
             start_explicit(false), prop_require(false), prop_release(false), prop_failure(false),
@@ -430,7 +430,6 @@ class service_record
             start_skipped(false), force_stop(false)
     {
         services = set;
-        service_name = name;
         record_type = service_type_t::DUMMY;
         socket_perms = 0;
     }
