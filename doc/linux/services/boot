@@ -10,6 +10,5 @@ depends-ms = tty4
 depends-ms = tty5
 depends-ms = tty6
 
-waits-for = late-filesystems
-waits-for = dhcpcd
-waits-for = sshd
+# the boot.d directory contents determine other dependencies:
+waits-for.d = boot.d
