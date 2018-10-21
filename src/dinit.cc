@@ -65,6 +65,7 @@ static void control_socket_cb(eventloop_t *loop, int fd);
 
 static dirload_service_set *services;
 
+static bool am_pid_one = false;     // true if we are PID 1
 static bool am_system_init = false; // true if we are the system init process
 
 static bool control_socket_open = false;
@@ -168,7 +169,8 @@ int dinit_main(int argc, char **argv)
 {
     using namespace std;
     
-    am_system_init = (getpid() == 1);
+    am_pid_one = (getpid() == 1);
+    am_system_init = (getuid() == 0);
     const char * service_dir = nullptr;
     bool service_dir_dynamic = false; // service_dir dynamically allocated?
     const char * env_file = nullptr;
@@ -286,7 +288,7 @@ int dinit_main(int argc, char **argv)
     sigaddset(&sigwait_set, SIGCHLD);
     sigaddset(&sigwait_set, SIGINT);
     sigaddset(&sigwait_set, SIGTERM);
-    if (am_system_init) sigaddset(&sigwait_set, SIGQUIT);
+    if (am_pid_one) sigaddset(&sigwait_set, SIGQUIT);
     sigprocmask(SIG_BLOCK, &sigwait_set, NULL);
 
     // Terminal access control signals - we block these so that dinit can't be
@@ -334,7 +336,7 @@ int dinit_main(int argc, char **argv)
     callback_signal_handler sigint_watcher;
     callback_signal_handler sigquit_watcher;
 
-    if (am_system_init) {
+    if (am_pid_one) {
         sigint_watcher.setCbFunc(sigint_reboot_cb);
         sigquit_watcher.setCbFunc(sigquit_cb);
     }
@@ -345,7 +347,7 @@ int dinit_main(int argc, char **argv)
     sigint_watcher.add_watch(event_loop, SIGINT);
     sigterm_watcher.add_watch(event_loop, SIGTERM);
     
-    if (am_system_init) {
+    if (am_pid_one) {
         // PID 1: SIGQUIT exec's shutdown
         sigquit_watcher.add_watch(event_loop, SIGQUIT);
         // As a user process, we instead just let SIGQUIT perform the default action.
@@ -429,7 +431,7 @@ int dinit_main(int argc, char **argv)
 
     shutdown_type_t shutdown_type = services->get_shutdown_type();
     
-    if (am_system_init) {
+    if (am_pid_one) {
         log_msg_begin(loglevel_t::INFO, "No more active services.");
         
         if (shutdown_type == shutdown_type_t::REBOOT) {
@@ -453,7 +455,7 @@ int dinit_main(int argc, char **argv)
     
     close_control_socket();
     
-    if (am_system_init) {
+    if (am_pid_one) {
         if (shutdown_type == shutdown_type_t::CONTINUE) {
             // It could be that we started in single user mode, and the
             // user has now exited the shell. We'll try and re-start the

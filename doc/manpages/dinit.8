@@ -83,6 +83,19 @@ to use other character sets may see odd behaviour if the input character set doe
 not match the output character set, or if either input or output character sets
 are not a superset of the execution character set.
 .\"
+.SS RUNNING AS SYSTEM MANAGER / PRIMARY INIT
+.\"
+Running as the system manager (primary \fBinit\fR) is currently supported only on
+Linux. When run as process ID 1, the \fBdinit\fR daemon assumes responsibility for
+system shutdown and restart (partially relying on external utilities which are
+part of the Dinit distribution).
+
+When not running as process ID 1, \fBdinit\fR assumes responsibility only for
+service management. System shutdown or restart need to be handled by the primary
+\fBinit\fR, which should start \fBdinit\fR on normal startup, and terminate
+\fBdinit\fR before shutdown, by signalling it and waiting for it to terminate
+after stopping services.
+.\"
 .SH FILES
 .\"
 .TP
@@ -95,12 +108,12 @@ in the environment when Dinit started. Lines beginning with a hash character
 .\"
 .SH SIGNALS
 .LP
-When run as a system process, SIGINT stops all services and performs a reboot (on Linux, this signal can be
+When run as a system manager, SIGINT stops all services and performs a reboot (on Linux, this signal can be
 generated using the control-alt-delete key combination); SIGTERM stops services and halts the system; and
 SIGQUIT performs an immediate shutdown with no service rollback.
 .LP
-When run as a user process, SIGINT and SIGTERM both stop services and exit Dinit; SIGQUIT exits Dinit
-immediately.
+When run as a user process or system service manager only, SIGINT and SIGTERM both stop services
+and exit Dinit; SIGQUIT exits Dinit immediately.
 .\"
 .SH SEE ALSO
 .\"
