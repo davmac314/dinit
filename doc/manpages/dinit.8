@@ -72,6 +72,17 @@ service description has been read there is no way (yet) to alter it.
 
 See \fBdinit-service\fR(5) for details of the format and available parameters.
 .\"
+.SH GENERAL NOTES
+.\"
+Dinit does no character set translation. Dinit's own output is in the execution
+character set as determined at compilation, as is the interpretation of input.
+Service names (and other user-defined inputs) are interpreted as byte sequences
+and are output as they were read. In general, modern systems use the UTF-8
+character set universally and no problems will arise; however, systems configured
+to use other character sets may see odd behaviour if the input character set does
+not match the output character set, or if either input or output character sets
+are not a superset of the execution character set.
+.\"
 .SH FILES
 .\"
 .TP
