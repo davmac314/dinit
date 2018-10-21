@@ -28,52 +28,77 @@ packages do not:
  * Perp (http://b0llix.net/perp/)
  * Runit (http://smarden.org/runit/)
 
+I've read arguments that suggest dependency management isn't really needed: if a
+service really does require another, then it fail in some way when the dependency
+goes down, and should then go down itself; supervision of the service may try to
+restart it, but should use an increasing delay to avoid continuously bouncing the
+service up and down. In my opinion this could create unnecessary load, unnecessary
+delay, and noise in logs that might make it more difficult to pinpoint the cause
+of problems, though I'll acknowledge that in simpler setups these are unlikely to
+be real problems.
 
-Cinit (http://www.nico.schottelius.org/software/cinit)
--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-An obscure init system which apparently offers portability and dependency
-management, just as Dinit does. Development appears to have ceased some
-time ago, unfortunately.
+Not all services will necessarily behave as is required for this type of service
+management to work properly. An argument could be made that this is a fault of the
+particular service / daemon, but practical considerations may be in play. 
+
+The basic problem of starting login sessions only after system initialisation has
+(at least partially) completed is naturally solved with a dependency-managing
+solution; you can have the tty sessions (getty) depend on some other service unit
+which, in turn, depends on the basic system initialisation services. In non-
+dependency-handling managers this must usually be special-cased (eg an "inittab"
+which is processed once all services have started).
+
+With all the above in mind, I feel that dependency management allows generally
+greater flexibility and control in how services are managed. While this might not
+always be useful, and comes at a certain cost of complexity, I argue that it is at
+least sometimes useful, and that the cost is not so high. However, to be fair,
+many systems have successfully taken the simpler approach.
 
 
-InitNG (http://initng.org/trac)
--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-A highly modular init system which apparently offers dependency management
-(as Dinit does). Portability status is unclear; may be Linux-only (Dinit
-strives for portability). Development may have ceased (website is now showing
-Japanese text which I am unable to read) although there are what looks like
-maintenance commits in the Github repository at https://github.com/initng/initng.
-
-
-Nosh (http://homepage.ntlworld.com/jonathan.deboynepollard/Softwares/nosh.html)
--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+Nosh suite (http://homepage.ntlworld.com/jonathan.deboynepollard/Softwares/nosh.html)
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 Another seemingly modular init system offering dependency management and socket
 activation, with BSD licensing. Service configuration is expressed through
-directory structure (symbolic links represent service dependencies, etc). It
-provides a simple shell-like scripting language which can be used to describe
-how to start services (and to control resource limits etc).
+directory structure (symbolic links represent service dependencies, etc; 
+"start", "stop" and "run" commands are individual scripts within a service
+directory bundle). It provides a simple shell-like scripting language which can be
+used (via the "nosh" interpreter) to implement service commands without requiring
+the user of a full shell. Several "chain loading" utilities are provided to
+allow running processes in a different directory, with a different user id, with
+resource limits, etc.
 
 It was originally designed for BSD systems but works on Linux too (i.e. is
-portable). It does not provide a D-Bus interface. Seemingly, this package addresses
-most of the various complaints that have been levelled against SystemD. Compared to
-Dinit, it favors chain-loading of smaller utilities to provide even more basic
-functionality. By comparison Dinit tends to avoid starting additional processes by
-design, expresses configuration in files and tracks state internally.
+portable). It does not provide a D-Bus interface. 
+
+Compared to Dinit, the two most significant differences appear to be use of a
+directory structure for service configuration (Dinit uses a combination of
+directory structure and ini-style configuration file), and use of small chain
+loading utilities to implement service parameters (Dinit has a wider range of
+direct configuration options via the service description file).
 
 Nosh seems to be a quite mature system with a range of features that makes it
-appear competitive, feature-wise, with Systemd, though without a lot of the
-feature-creep extras that can easily be implemented separately.
+appear competitive, feature-wise, in terms of system/servive management, with
+Systemd - though without a lot of the feature-creep extras that can easily be
+implemented separately.
 
 
 OpenRC (Gentoo)
 -=-=-=-=-=-=-=-
 The OpenRC system used in Gentoo Linux is a dependency-managing service supervision
 system with functionality that may similar in some respects to Dinit. According to
-Wikipedia, it provides parallel startup of services (like Dinit).
+Wikipedia, it provides parallel startup of services (like Dinit), though this is
+disabled by default. It is designed to be used in conjunction with a primary init
+which handles system management and which defers to openrc at boot or shutdown to
+bring services up or down.
 
-It is difficult to find high-level documentation regarding the operation of OpenRC.
-It seems that services must be specified via a shell script, and service
-configuration (eg to specify dependencies) is also specified as part of the script.
+Unusually, OpenRC does not run as a daemon itself; it terminates once it has
+established service states. It has some support for integration with service
+supervisors such as S6.
+
+Service configuration is specified via a shell script, with the 'openrc-run'
+interpreter (which makes certain special shell functions available, and interprets
+shell variables once the service script completes. For performance reasons
+metatdata extracted from the service scripts is cached in an alternative format.
 
 Although the build system seems to have some support for BSD OSes, it did not
 build successfully on OpenBSD when tested (revision 33d3f33).
@@ -82,33 +107,35 @@ build successfully on OpenBSD when tested (revision 33d3f33).
 S6-RC (http://skarnet.org/software/s6-rc/s6-rc.html)
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 S6-RC provides a dependency-management system over the top of the S6 supervision
-system. Apparently it maintains most state on disk. S6-RC requires compiling the
-complete set of service descriptions into a database. New services cannot be added
-once the system is in operation, and service definitions cannot be changed in
-general, except by re-compiling the database; S6-RC will then start any new
-services as required (and stop any processes no longer considered part of an
-active service).
+system. S6-RC requires compiling the complete set of service descriptions into a
+database. Services are are configured via a directory structure, with a
+one-parameter-per-file style, rather than a single service description file.
 
-S6 in general seems to follow the philosophy of breaking up functionality into smaller
+As well as services, S6-RC has the concept of service "bundles", named groups
+of services that can be started/stopped as a group.
+
+New services cannot be added once the system is in operation, and service
+definitions cannot be changed in general, except by re-compiling the database;
+S6-RC will then start any new services as required (and stop any processes no longer
+considered part of an active service).
+
+S6-RC in general seems to follow the philosophy of breaking up functionality into smaller
 parts and implementing these smaller parts as separate programs, wherever
 practical. Thus, process supervision, log file management, and service management
 are all separate programs.
 
-In contrast, Dinit does not requires compiling service definitions, instead
+In contrast to S6-RC, Dinit does not requires compiling service definitions, instead
 loading and parsing them on-the-fly. Also, Dinit incorporates service
-supervision and management into a single process. Some people may see
-the more modularised nature of S6/S6-RC as an advantage of that system; I
-personally feel that Dinit's one-process approach is not particularly
-problematic and that the various functionality it provides is closely enough
-related that splitting it into component processes would not be beneficial -
-However, I can understand the other viewpoint.
+supervision and management into a single process (and does not require one
+supervisory process per service). On the other hand, the Dinit process is
+somewhat more complex than any of the individual S6-RC components.
 
 S6-RC nicely manages chaining of service standard input/output, facilitating
 setting up a logging chain where a logging process consumes the output of a
 service, and either can be restarted while losing only minimal (if any)
 output from the logs.
 
-It appears that S6 supports only hard dependencies: that is if, a service depends
+It appears that S6-RC supports only hard dependencies: that is if, a service depends
 on another then that service must start, and stay running. Dinit supports a number
 of dependency types including "soft" dependencies which allow the dependency to
 stop or fail without necessarily stopping the dependent.
@@ -116,9 +143,8 @@ stop or fail without necessarily stopping the dependent.
 
 Systemd
 -=-=-=-
-Systemd is probably the most widely used init system on Linux as of the last year
-or two. Compared to Dinit:
- - Systemd provides a range of functionality not provided by Dinit, such as:
+Systemd is probably the most widely used init system on Linux as in recent years.
+Compared to Dinit, Systemd provides a range of functionality such as:
    - setting priority and various other attributes of the service process that
      Dinit does not support [yet].
    - seat/session management
@@ -129,21 +155,57 @@ or two. Compared to Dinit:
    - control group (cgroup) / container management
    - private tmp directories for services / login sessions
    - system time management
-   Some of this functionality can be found in other daemons/packages which can be
-   be used to supplement the functionality of Dinit.
- - Systemd running in "system" mode does not properly support running with a PID
-   other than 1 [1]. That is, it must replace /sbin/init. Systemd can however be run in
-   "user" mode where it (most likely) provides the same or greater level of functionality
-   as Dinit, though in a more complex package.
- - Systemd exposes a D-Bus API. Dinit eschews D-Bus in favor of a compact custom protocol.
- - Systemd makes no attempt to be portable to operating system kernels other than
-   Linux. The maintainers consider it infeasible to port to non-Linux-based OSes
-   and will refuse patches designed to do so [2]. Dinit, by comparison, strives to be
-   portable.
+Some of this functionality can be found in other daemons/packages which can be be used
+to supplement the functionality of Dinit or another service manager, and even in the
+case of Systemd, some of the functionality is not part of the core process (the
+actualy systemd binary).
+
+In Systemd terminology, it manages "units" of which services are one type. In practice
+this is an issue only of nomenclature; Dinit "services" and Systemd "units" are, I think,
+essentially the same thing.
+
+Systemd running in "system" mode does not properly support running with a PID other than
+one [1]. That is, it must replace /sbin/init. Systemd can however be run in "user" mode
+where it (most likely) provides roughly the same level of functionality as Dinit, though
+in a more complex package.
+
+The Systemd interdependence graph is more complex than for Dinit and most other
+dependency-handling service managers: a service can conflict with another service, meaning
+that starting one causes the other to stop and vice versa. Systemd implements shutdown
+via a special "shutdown" unit which conflicts with other services so that they stop
+when the shutdown is "started". Other service managers typically do not implement shutdown
+as a service but as a special action; they then don't need to support conflicting
+services.
+
+The "shutdown" unit is just one example of a "special" service. Systemd has several such
+services, for various purposes, including for tight integration with D-Bus (Systemd
+exposes a D-Bus API, and contains its own implementation of the D-Bus protocol).
+
+Systemd makes no attempt to be portable to operating system kernels other than Linux.
+The maintainers have stated that they consider it infeasible to port to non-Linux-based
+OSes and will refuse patches designed to do so [2]. Dinit, by comparison, strives to be
+portable.
 
 [1] http://freedesktop.org/software/systemd/man/systemd.html as at 18/11/2015
 [2] http://freedesktop.org/wiki/Software/systemd/InterfacePortabilityAndStabilityChart/
     as at 18/11/2015
+
+
+Cinit (http://www.nico.schottelius.org/software/cinit; defunct)
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+An obscure init system which apparently offers portability and dependency
+management, just as Dinit does. Development appears to have ceased some
+time ago, unfortunately.
+
+
+InitNG (http://initng.org/trac; defunct)
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+A highly modular init system which apparently offers dependency management
+(as Dinit does). Portability status is unclear; may be Linux-only (Dinit
+strives for portability). Development may have ceased (website is now showing
+Japanese text which I am unable to read) although there are what looks like
+maintenance commits from 2017 in the Github repository at
+https://github.com/initng/initng.
 
 
 Upstart (Ubuntu; http://upstart.ubuntu.com)
