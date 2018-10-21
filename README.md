@@ -52,7 +52,7 @@ license can be found in the LICENSE file.
 
 Dinit was written by Davin McCall <davmac@davmac.org>.
 
-See BUILD for information on how to build Dinit.
+See BUILD.txt for information on how to build Dinit.
 
 
 ## Configuring services
