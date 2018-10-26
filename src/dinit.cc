@@ -103,6 +103,7 @@ const char * get_user_home()
 
 
 namespace {
+    // Event-loop handler for a signal, which just delegates to a function (pointer).
     class callback_signal_handler : public eventloop_t::signal_watcher_impl<callback_signal_handler>
     {
         using rearm = dasynq::rearm;
@@ -129,6 +130,7 @@ namespace {
         }
     };
 
+    // Event-loop handler for when a connection is made to the control socket.
     class control_socket_watcher : public eventloop_t::fd_watcher_impl<control_socket_watcher>
     {
         using rearm = dasynq::rearm;
@@ -507,6 +509,7 @@ int dinit_main(int argc, char **argv)
     return 0;
 }
 
+// Log a parse error when reading the environment file.
 static void log_bad_env(int linenum)
 {
     log(loglevel_t::ERROR, "invalid environment variable setting in environment file (line ", linenum, ")");
@@ -597,6 +600,9 @@ static void control_socket_cb(eventloop_t *loop, int sockfd)
     }
 }
 
+// Open/create the control socket, normally /dev/dinitctl, used to allow client programs to connect
+// and issue service orders and shutdown commands etc. This can safely be called multiple times;
+// once the socket has been successfully opened, further calls have no effect.
 void open_control_socket(bool report_ro_failure) noexcept
 {
     if (! control_socket_open) {
