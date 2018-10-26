@@ -117,7 +117,7 @@ namespace {
         callback_signal_handler() : cb_func(nullptr) { }
         callback_signal_handler(cb_func_t pcb_func) :  cb_func(pcb_func) { }
         
-        void setCbFunc(cb_func_t cb_func)
+        void set_cb_func(cb_func_t cb_func)
         {
             this->cb_func = cb_func;
         }
@@ -337,11 +337,11 @@ int dinit_main(int argc, char **argv)
     callback_signal_handler sigquit_watcher;
 
     if (am_pid_one) {
-        sigint_watcher.setCbFunc(sigint_reboot_cb);
-        sigquit_watcher.setCbFunc(sigquit_cb);
+        sigint_watcher.set_cb_func(sigint_reboot_cb);
+        sigquit_watcher.set_cb_func(sigquit_cb);
     }
     else {
-        sigint_watcher.setCbFunc(sigterm_cb);
+        sigint_watcher.set_cb_func(sigterm_cb);
     }
 
     sigint_watcher.add_watch(event_loop, SIGINT);
