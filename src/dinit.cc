@@ -678,6 +678,8 @@ static void close_control_socket() noexcept
         
         // Unlink the socket:
         unlink(control_socket_path);
+
+        control_socket_open = false;
     }
 }
 
