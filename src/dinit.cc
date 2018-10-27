@@ -212,6 +212,9 @@ int dinit_main(int argc, char **argv)
                 else if (strcmp(argv[i], "--system") == 0 || strcmp(argv[i], "-s") == 0) {
                     am_system_init = true;
                 }
+                else if (strcmp(argv[i], "--user") == 0 || strcmp(argv[i], "-u") == 0) {
+                    am_system_init = false;
+                }
                 else if (strcmp(argv[i], "--socket-path") == 0 || strcmp(argv[i], "-p") == 0) {
                     if (++i < argc) {
                         control_socket_path = argv[i];
@@ -240,7 +243,8 @@ int dinit_main(int argc, char **argv)
                             " --services-dir <dir>, -d <dir>\n"
                             "                              set base directory for service description\n"
                             "                              files (-d <dir>)\n"
-                            " --system, -s                 run as the system init process\n"
+                            " --system, -s                 run as the system service manager\n"
+                            " --user, -u                   run as a user service manager\n"
                             " --socket-path <path>, -p <path>\n"
                             "                              path to control socket\n"
                             " <service-name>               start service with name <service-name>\n";

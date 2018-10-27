@@ -4,8 +4,12 @@ dinit \- supervise processes and manage services
 .\"
 .SH SYNOPSIS
 .\"
+.HP \w'\ 'u
 .B dinit
-[\-s] [\-d \fIdir\fR] [\-p \fIpath\fR] [\fIservice-name\fR]
+[\fB\-s\fR|\fB\-\-system\fR|\fB\-u\fR|\fB\-\-user\fR] [\fB\-d\fR|\fB\-\-services\-dir\fR \fIdir\fR]
+[\fB\-p\fR|\fB\-\-socket\-path\fR \fIpath\fR] [\fB\-e\fR|\fB\-\-env\-file\fR \fIpath\fR]
+[\fB\-l\fR|\fB\-\-log\-file\fR \fIpath\fR]
+[\fIservice-name\fR]
 .\"
 .SH DESCRIPTION
 .\"
@@ -15,7 +19,7 @@ feature set, offering service dependency handling, parallel startup,
 automatic rate-limited restart of failing processes, and service control
 functions.
 
-Dinit can be run as a system instance (when used as an \fBinit\fR or when
+Dinit can be run as a system instance (when run as the root user or when
 specified via command line parameter) or as a user instance. This affects
 the default paths used to locate certain files, and the reaction to various
 signals.
@@ -43,15 +47,19 @@ commands from the \fBdinitctl\fR program.
 .TP
 \fB\-l\fR \fIpath\fP, \fB\-\-log\-file\fR \fIpath\fP
 Species \fIpath\fP as the path to the log file, to which Dinit will log status
-and error messages. Note that when running as the system init process, Dinit
+and error messages. Note that when running as the system service manager, Dinit
 does not begin logging until the log service has started. Using this option
 inhibits logging via the syslog facility, however, all logging messages are
 duplicated as usual to the console (so long as no service owns the console).
 .TP
 \fB\-s\fR, \fB\-\-system\fR
-Run as the system init process. This is the default if invoked as PID 1.
-This option affects the default service definition directory and
-control socket path.
+Run as the system service manager. This is the default if invoked as the root
+user. This option affects the default service definition directory and control
+socket path.
+.TP
+\fB\-u\fR, \fB\-\-user\fR
+Run as a user. This is the opposite of \fB\-\-system\fR, and is the default if
+not invoked as the root user.
 .TP
 \fB\-\-help\fR
 display this help and exit
