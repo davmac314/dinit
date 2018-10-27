@@ -36,6 +36,10 @@ DESCRIPTION FILES\fR for details of the service description format.
 Specifies \fIdir\fP as the directory containing service definition files.
 The directory specified will be the only directory searched for service
 definitions.
+
+If not specified, the default is \fI$HOME/dinit.d\fR or, for the
+system service manager, each of \fI/etc/dinit.d/fR, \fI/usr/local/lib/dinit.d\fR,
+and \fI/lib/dinit.d\fR (searched in that order).
 .TP
 \fB\-e\fR \fIfile\fP, \fB\-\-env\-file\fR \fIfile\fP
 Read initial environment from \fIfile\fP. For the system init process, the
@@ -43,7 +47,9 @@ default is \fI/etc/dinit/environment\fR; see \fBFILES\fR.
 .TP
 \fB\-p\fR \fIpath\fP, \fB\-\-socket\-path\fR \fIpath\fP
 Specifies \fIpath\fP as the path to the control socket used to listen for
-commands from the \fBdinitctl\fR program.
+commands from the \fBdinitctl\fR program. The default for the system service
+manager is usually \fI/dev/dinitctl\fR (but can be configured at build time).
+For a user service manager the default is \fI$HOME/.dinitctl\fR.
 .TP
 \fB\-l\fR \fIpath\fP, \fB\-\-log\-file\fR \fIpath\fP
 Species \fIpath\fP as the path to the log file, to which Dinit will log status
@@ -76,7 +82,8 @@ named for the service they describe, and are found in \fI/etc/dinit.d\fR
 for a system instance or \fI$HOME/dinit.d\fR for a user instance.
 
 Service description files are read by Dinit on an "as needed" basis. Once a
-service description has been read there is no way (yet) to alter it.
+service description has been read the configuration can be altered in limited
+ways via the \fBdinitctl\fR(8) program.
 
 See \fBdinit-service\fR(5) for details of the format and available parameters.
 .\"
