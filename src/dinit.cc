@@ -261,7 +261,7 @@ int dinit_main(int argc, char **argv)
             else {
 #ifdef __linux__
                 // LILO puts "auto" on the kernel command line for unattended boots; we'll filter it.
-                if (! am_system_init || strcmp(argv[i], "auto") != 0) {
+                if (! am_pid_one || strcmp(argv[i], "auto") != 0) {
                     services_to_start.push_back(argv[i]);
                 }
 #else
