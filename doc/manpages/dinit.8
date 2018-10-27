@@ -80,7 +80,26 @@ service description has been read there is no way (yet) to alter it.
 
 See \fBdinit-service\fR(5) for details of the format and available parameters.
 .\"
-.SH GENERAL NOTES
+.SH OPERATION
+.\"
+On starting, Dinit starts the initial service(s) as specified on the command
+line. Starting a service also causes the dependencies of that service to
+start, and any service processes will not be launched until the dependencies
+are satisfied. Similarly, stopping a service first stops any dependent
+services.
+
+During execution, Dinit accepts commands via a control socket which is created
+by Dinit when it starts. This can be used to order that a service be started
+or stopped, to determine service status, or to make certain configuration
+changes. See \fBdinitctl\fR(8) for details.
+
+Process-based services are monitored and, if the process terminates, the
+service may be stopped or the process may be re-started, according to the
+configuration in the service description.  
+
+Once all services stop, the \fBdinit\fR daemon will itself terminate.
+.\"
+.SS CHARACTER SET HANDLING
 .\"
 Dinit does no character set translation. Dinit's own output is in the execution
 character set as determined at compilation, as is the interpretation of input.
