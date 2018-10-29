@@ -5,12 +5,12 @@
 class service_load_exc
 {
     public:
-    std::string serviceName;
-    std::string excDescription;
+    std::string service_name;
+    std::string exc_description;
 
     protected:
     service_load_exc(const std::string &serviceName, std::string &&desc) noexcept
-        : serviceName(serviceName), excDescription(std::move(desc))
+        : service_name(serviceName), exc_description(std::move(desc))
     {
     }
 };

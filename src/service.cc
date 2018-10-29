@@ -108,6 +108,22 @@ void service_record::stopped() noexcept
     // Start failure will have been logged already, only log if we are stopped for other reasons:
     if (! start_failed) {
         log_service_stopped(service_name);
+
+        // If this service chains to another, start the other service now:
+        if (! will_restart && ! start_on_completion.empty()) {
+            try {
+                auto chain_to = services->load_service(start_on_completion.c_str());
+                chain_to->start();
+            }
+            catch (service_load_exc &sle) {
+                log(loglevel_t::ERROR, "Couldn't chain to service ", start_on_completion, ": ",
+                        "couldn't load ", sle.service_name, ": ", sle.exc_description);
+            }
+            catch (std::bad_alloc &bae) {
+                log(loglevel_t::ERROR, "Couldn't chain to service ", start_on_completion,
+                        ": Out of memory");
+            }
+        }
     }
     notify_listeners(service_event_t::STOPPED);
 }

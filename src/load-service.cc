@@ -362,6 +362,8 @@ service_record * dirload_service_set::load_service(const char * name)
     uid_t run_as_uid = -1;
     gid_t run_as_gid = -1;
 
+    string chain_to_name;
+
     string line;
     service_file.exceptions(ios::badbit | ios::failbit);
     
@@ -553,6 +555,9 @@ service_record * dirload_service_set::load_service(const char * name)
                 string run_as_str = read_setting_value(i, end, nullptr);
                 run_as_uid = parse_uid_param(run_as_str, name, &run_as_gid);
             }
+            else if (setting == "chain-to") {
+                chain_to_name = read_setting_value(i, end, nullptr);
+            }
             else {
                 throw service_description_exc(name, "Unknown setting: " + setting);
             }
@@ -623,6 +628,7 @@ service_record * dirload_service_set::load_service(const char * name)
                 rval->set_smooth_recovery(smooth_recovery);
                 rval->set_flags(onstart_flags);
                 rval->set_socket_details(std::move(socket_path), socket_perms, socket_uid, socket_gid);
+                rval->set_chain_to(std::move(chain_to_name));
                 *iter = rval;
                 break;
             }

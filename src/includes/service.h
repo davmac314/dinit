@@ -286,6 +286,8 @@ class service_record
 
     stopped_reason_t stop_reason = stopped_reason_t::NORMAL;  // reason why stopped
 
+    string start_on_completion;  // service to start when this one completes
+
     // Data for use by service_set
     public:
     
@@ -528,6 +530,12 @@ class service_record
         this->socket_perms = socket_perms;
         this->socket_uid = socket_uid;
         this->socket_gid = socket_gid;
+    }
+
+    // Set the service that this one "chains" to. When this service completes, the named service is started.
+    void set_chain_to(string &&chain_to)
+    {
+        start_on_completion = std::move(chain_to);
     }
 
     const std::string &get_name() const noexcept { return service_name; }
@@ -775,7 +783,7 @@ class service_set
     // Load a service description, and dependencies, if there is no existing
     // record for the given name.
     // Throws:
-    //   ServiceLoadException (or subclass) on problem with service description
+    //   service_load_exc (or subclass) on problem with service description
     //   std::bad_alloc on out-of-memory condition
     virtual service_record *load_service(const char *name)
     {
@@ -789,7 +797,7 @@ class service_set
     // Start the service with the given name. The named service will begin
     // transition to the 'started' state.
     //
-    // Throws a ServiceLoadException (or subclass) if the service description
+    // Throws a service_load_exc (or subclass) if the service description
     // cannot be loaded or is invalid;
     // Throws std::bad_alloc if out of memory.
     void start_service(const char *name)

@@ -177,6 +177,20 @@ any of the services named within, is not considered fatal.
 The directory path, if not absolute, is relative to the directory containing
 the service description file.
 .TP
+\fBchain-to\fR = \fIservice-name\fR
+When this service completes successfully (i.e. starts and then stops), the
+named service should be started. Note that the named service is not loaded
+until that time; naming an invalid service will not cause this service to
+fail to load.
+
+This can be used for a service that supplies an interactive "recovery mode"
+for another service; once the user exits the recovery shell, the primary
+service (as named via this setting) will then start. It also supports
+multi-stage system startup where later service description files reside on
+a separate filesystem that is mounted during the first stage; such service
+descriptions will not be found at initial start, and so cannot be started
+directly, but can be chained via this directive.
+.TP
 \fBsocket\-listen\fR = \fIsocket-path\fR
 Pre-open a socket for the service and pass it to the service using the
 \fBsystemd\fR activation protocol. This by itself does not give so called

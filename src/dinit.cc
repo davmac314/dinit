@@ -417,10 +417,10 @@ int dinit_main(int argc, char **argv)
             // exit if user process).
         }
         catch (service_not_found &snf) {
-            log(loglevel_t::ERROR, snf.serviceName, ": Could not find service description.");
+            log(loglevel_t::ERROR, snf.service_name, ": Could not find service description.");
         }
         catch (service_load_exc &sle) {
-            log(loglevel_t::ERROR, sle.serviceName, ": ", sle.excDescription);
+            log(loglevel_t::ERROR, sle.service_name, ": ", sle.exc_description);
         }
         catch (std::bad_alloc &badalloce) {
             log(loglevel_t::ERROR, "Out of memory when trying to start service: ", svc, ".");
@@ -746,7 +746,8 @@ void setup_external_log() noexcept
                 }
             }
             else {
-                // log failure to log? It makes more sense than first appears, because we also log to console:
+                // log failure to log? It makes more sense than first appears, because we also log
+                // to console:
                 log(loglevel_t::ERROR, "Setting up log failed: ", strerror(errno));
             }
         }

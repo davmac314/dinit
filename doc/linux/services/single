@@ -2,3 +2,4 @@ type = process
 command = /bin/sh
 restart = false
 options = runs-on-console
+chain-to = boot

@@ -142,7 +142,8 @@ bool control_conn_t::process_find_load(int pktType)
             record = services->load_service(serviceName.c_str());
         }
         catch (service_load_exc &slexc) {
-            log(loglevel_t::ERROR, "Could not load service ", slexc.serviceName, ": ", slexc.excDescription);
+            log(loglevel_t::ERROR, "Could not load service ", slexc.service_name, ": ",
+                    slexc.exc_description);
         }
     }
     else {
