@@ -221,9 +221,12 @@ class service_record
     
     private:
     string service_name;
-    service_type_t record_type;  /* ServiceType::DUMMY, PROCESS, SCRIPTED, INTERNAL */
-    service_state_t service_state = service_state_t::STOPPED; /* service_state_t::STOPPED, STARTING, STARTED, STOPPING */
-    service_state_t desired_state = service_state_t::STOPPED; /* service_state_t::STOPPED / STARTED */
+    service_type_t record_type;  // service_type_t::DUMMY, PROCESS, SCRIPTED, or INTERNAL
+
+    // 'service_state' can be any valid state: STARTED, STARTING, STOPPING, STOPPED.
+    // 'desired_state' is only set to final states: STARTED or STOPPED.
+    service_state_t service_state = service_state_t::STOPPED;
+    service_state_t desired_state = service_state_t::STOPPED;
 
     protected:
     string pid_file;
@@ -237,7 +240,7 @@ class service_record
     
     bool pinned_stopped : 1;
     bool pinned_started : 1;
-    bool waiting_for_deps : 1;  // if STARTING, whether we are waiting for dependencies (inc console) to start
+    bool waiting_for_deps : 1;  // if STARTING, whether we are waiting for dependencies/console
                                 // if STOPPING, whether we are waiting for dependents to stop
     bool waiting_for_console : 1;   // waiting for exclusive console access (while STARTING)
     bool have_console : 1;      // whether we have exclusive console access (STARTING/STARTED)
@@ -518,7 +521,8 @@ class service_record
         this->pid_file = std::move(pid_file);
     }
     
-    void set_socket_details(string &&socket_path, int socket_perms, uid_t socket_uid, uid_t socket_gid) noexcept
+    void set_socket_details(string &&socket_path, int socket_perms, uid_t socket_uid, uid_t socket_gid)
+            noexcept
     {
         this->socket_path = std::move(socket_path);
         this->socket_perms = socket_perms;
