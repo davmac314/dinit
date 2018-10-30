@@ -225,7 +225,8 @@ Specifies the log file for the service. Output from the service process
 will go this file.
 .TP
 \fBoptions\fR = \fIoption\fR...
-Specifies various options for this service. See the \fBOPTIONS\fR section.
+Specifies various options for this service. See the \fBOPTIONS\fR section. This
+directive can be specified multiple times to set additional options.
 .TP
 \fBload-options\fR = \fIload_option\fR...
 Specifies options for interpreting other settings when loading this service
@@ -356,7 +357,8 @@ skipped but dependent services continue to start.
 type = scripted
 command = /etc/dinit.d/rootfscheck.sh
 restart = false
-options = starts-on-console pass-cs-fd start-interruptible skippable
+options = starts-on-console pass-cs-fd
+options = start-interruptible skippable
 depends-on = early-filesystems  # /proc and /dev
 depends-on = device-node-daemon
 .ft
