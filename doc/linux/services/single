@@ -1,5 +1,8 @@
+# Single-user mode. This just starts a shell on the console; other services
+# can be started by issuing dinitctl commands. On exit, "boot" resumes.
+
 type = process
 command = /bin/sh
 restart = false
-options = runs-on-console
+options = shares-console
 chain-to = boot

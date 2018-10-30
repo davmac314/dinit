@@ -32,7 +32,8 @@ static int signal_name_to_number(std::string &signame)
     return -1;
 }
 
-static const char * uid_err_msg = "Specified user id contains invalid numeric characters or is outside allowed range.";
+static const char * uid_err_msg = "Specified user id contains invalid numeric characters "
+        "or is outside allowed range.";
 
 // Parse a userid parameter which may be a numeric user ID or a username. If a name, the
 // userid is looked up via the system user database (getpwnam() function). In this case,
@@ -51,7 +52,8 @@ static uid_t parse_uid_param(const std::string &param, const std::string &servic
         static_assert((uintmax_t)std::numeric_limits<uid_t>::max()
                 <= (uintmax_t)std::numeric_limits<unsigned long long>::max(), "uid_t is too large");
         unsigned long long v = std::stoull(param, &ind, 0);
-        if (v > static_cast<unsigned long long>(std::numeric_limits<uid_t>::max()) || ind != param.length()) {
+        if (v > static_cast<unsigned long long>(std::numeric_limits<uid_t>::max())
+                || ind != param.length()) {
             throw service_description_exc(service_name, uid_err_msg);
         }
         return v;
@@ -481,9 +483,16 @@ service_record * dirload_service_set::load_service(const char * name)
                         onstart_flags.runs_on_console = true;
                         // A service that runs on the console necessarily starts on console:
                         onstart_flags.starts_on_console = true;
+                        onstart_flags.shares_console = false;
                     }
                     else if (option_txt == "starts-on-console") {
                         onstart_flags.starts_on_console = true;
+                        onstart_flags.shares_console = false;
+                    }
+                    else if (option_txt == "shares-console") {
+                        onstart_flags.shares_console = true;
+                        onstart_flags.runs_on_console = false;
+                        onstart_flags.starts_on_console = false;
                     }
                     else if (option_txt == "pass-cs-fd") {
                         onstart_flags.pass_cs_fd = true;

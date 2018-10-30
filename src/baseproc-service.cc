@@ -43,7 +43,8 @@ bool base_process_service::bring_up() noexcept
 
         event_loop.get_time(restart_interval_time, clock_type::MONOTONIC);
         restart_interval_count = 0;
-        if (start_ps_process(exec_arg_parts, onstart_flags.starts_on_console)) {
+        if (start_ps_process(exec_arg_parts,
+                onstart_flags.starts_on_console || onstart_flags.shares_console)) {
             // Note: we don't set a start timeout for PROCESS services.
             if (start_timeout != time_val(0,0) && get_type() != service_type_t::PROCESS) {
                 restart_timer.arm_timer_rel(event_loop, start_timeout);
@@ -203,7 +204,7 @@ void base_process_service::do_restart() noexcept
         }
     }
 
-    if (! start_ps_process(exec_arg_parts, have_console)) {
+    if (! start_ps_process(exec_arg_parts, have_console || onstart_flags.shares_console)) {
         restarting = false;
         if (service_state == service_state_t::STARTING) {
             failed_to_start();

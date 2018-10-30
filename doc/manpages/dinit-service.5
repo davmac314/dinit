@@ -266,6 +266,18 @@ This setting is not applicable to regular \fBprocess\fR services, but can be
 used for \fBscripted\fR and \fBbgprocess\fR services. It allows for
 interrupting startup via the \fIinterrupt\fR key (normally control-C). This is
 useful to allow filesystem checks to be interrupted/skipped.
+
+This option is implied by \fBruns\-on\-console\fR, and is mutually exclusive
+with \fBshares\-console\fR; setting this option, or setting \fBruns\-on\-console\fR,
+unsets \fBshares\-console\fR.
+.TP
+\fBshares\-console\fR
+Specifies that this service should be given access to the console (input and output
+will be connected to the console), but that it should not exclusively hold the
+console and not delay the start of services with \fBstarts\-on\-console\fR.
+
+This is mutually exclusive with both \fBstarts\-on\-console\fR and \fBruns\-on\-console\fR;
+setting this option unsets both those options.
 .TP
 \fBstarts-rwfs\fR
 This service mounts the root filesystem read/write (or at least mounts the
