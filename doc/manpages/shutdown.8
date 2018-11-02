@@ -1,0 +1,57 @@
+.TH SHUTDOWN "8" "October 2018" "Dinit 0.4.0" "Dinit \- service management system"
+.SH NAME
+shutdown, halt, reboot \- system shutdown 
+.\"
+.SH SYNOPSIS
+.\"
+.B shutdown
+[\fB\-r\fR|\fB\-h\fR|\fB\-p\fR] [\fB\-\-use\-passed\-cfd\fR]
+[\fB\-\-system\fR]
+.br
+\fBhalt\fR [\fIoptions...\fR]
+.br
+\fBreboot\fR [\fIoptions...\fR]
+.\"
+.SH DESCRIPTION
+.\"
+This manual page is for the shutdown utility included with the \fBDinit\fR
+service manager package. See \fBdinit\fR(8).
+
+The shutdown, reboot and halt commands can be used to instruct the service
+manager daemon to perform a service rollback and then to shutdown the
+system. They can also perform shutdown directly, without service rollback.
+.\"
+.SH OPTIONS
+.TP
+\fB\-r\fP
+Request a shutdown followed by restart. This is the default if executed as
+\fBreboot\fR.
+.TP
+\fB\-h\fP
+Shutdown and then halt the system. This is the default if executed as
+neither \fBhalt\fR nor \fBreboot\fR.
+.TP
+\fB\-p\fP
+Shutdown and then power down the system. This is the default if executed as
+\fBhalt\fR.
+.TP
+\fB\-\-use\-passed\-cfd\fR
+Instead of attempting to open a socket connection to the service daemon,
+use a pre-opened connection that has been passed to the process from its parent
+via an open file descriptor. The file descriptor with the connection is identifed
+by the DINIT_CS_FD environment variable.
+.TP
+\fB\-\-system\fR
+Shut down directly, instead of by issuing a command to the service manager. Use of
+this option should be avoided, but it may allow performing a clean shutdown in case
+the service manager has stopped responding.
+
+The service manager may invoke \fBshutdown\fR with this option in order to perform
+system shutdown after it has rolled back services.
+.\"
+.SH SEE ALSO
+.\"
+\fBdinit\fR(8), \fBdinitctl\fR(8)
+.\"
+.SH AUTHOR
+Dinit, and this manual, were written by Davin McCall.
