@@ -20,6 +20,9 @@ service manager package. See \fBdinit\fR(8).
 The shutdown, reboot and halt commands can be used to instruct the service
 manager daemon to perform a service rollback and then to shutdown the
 system. They can also perform shutdown directly, without service rollback.
+
+Note that for consistency with other packages a "halt" alias is provided,
+however it has no special significance.
 .\"
 .SH OPTIONS
 .TP
@@ -28,12 +31,11 @@ Request a shutdown followed by restart. This is the default if executed as
 \fBreboot\fR.
 .TP
 \fB\-h\fP
-Shutdown and then halt the system. This is the default if executed as
-neither \fBhalt\fR nor \fBreboot\fR.
+Shutdown and then halt the system (without powering down).
 .TP
 \fB\-p\fP
-Shutdown and then power down the system. This is the default if executed as
-\fBhalt\fR.
+Shutdown and then power down the system. This is the default unless executed
+as \fBreboot\fR.
 .TP
 \fB\-\-use\-passed\-cfd\fR
 Instead of attempting to open a socket connection to the service daemon,

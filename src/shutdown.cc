@@ -18,6 +18,7 @@
 #include "control-cmds.h"
 #include "service-constants.h"
 #include "dinit-client.h"
+#include "dinit-util.h"
 
 #include "dasynq.h"
 
@@ -246,6 +247,11 @@ int main(int argc, char **argv)
     bool use_passed_cfd = false;
     
     auto shutdown_type = shutdown_type_t::POWEROFF;
+
+    const char *execname = base_name(argv[0]);
+    if (strcmp(execname, "reboot")) {
+        shutdown_type = shutdown_type_t::REBOOT;
+    }
         
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -281,16 +287,16 @@ int main(int argc, char **argv)
     }
 
     if (show_help) {
-        cout << "dinit-shutdown :   shutdown the system" << endl;
-        cout << "  --help           : show this help" << endl;
-        cout << "  -r               : reboot" << endl;
-        cout << "  -h               : halt system" << endl;
-        cout << "  -p               : power down (default)" << endl;
-        cout << "  --use-passed-cfd : use the socket file descriptor identified by the DINIT_CS_FD" << endl;
-        cout << "                     environment variable to communicate with the init daemon." << endl;
-        cout << "  --system         : perform shutdown immediately, instead of issuing shutdown" << endl;
-        cout << "                     command to the init program. Not recommended for use" << endl;
-        cout << "                     by users." << endl;
+        cout << execname << " :   shutdown the system\n"
+                "  --help           : show this help\n"
+                "  -r               : reboot\n"
+                "  -h               : halt system\n"
+                "  -p               : power down (default)\n"
+                "  --use-passed-cfd : use the socket file descriptor identified by the DINIT_CS_FD\n"
+                "                     environment variable to communicate with the init daemon.\n"
+                "  --system         : perform shutdown immediately, instead of issuing shutdown\n"
+                "                     command to the init program. Not recommended for use\n"
+                "                     by users.\n";
         return 1;
     }
     

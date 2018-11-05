@@ -63,4 +63,16 @@ inline std::string parent_path(const std::string &p)
     return p.substr(0, spos + 1);
 }
 
+// Find the base name of a path (the name after the final '/').
+inline const char * base_name(const char *path)
+{
+    const char * basen = path;
+    const char * s = path;
+    while (*s != 0) {
+        if (*s == '/') basen = s + 1;
+        s++;
+    }
+    return basen;
+}
+
 #endif
