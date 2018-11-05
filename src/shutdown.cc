@@ -1,10 +1,10 @@
 #include <cstddef>
 #include <cstdio>
 #include <csignal>
-#include <unistd.h>
 #include <cstring>
 #include <string>
 #include <iostream>
+#include <exception>
 
 #include <sys/reboot.h>
 #include <sys/types.h>
@@ -12,6 +12,7 @@
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <fcntl.h>
 
 #include "cpbuffer.h"
@@ -536,46 +537,82 @@ static void run_process(const char * prog_args[], loop_t &loop, subproc_buffer &
     sp_watcher_t sp_watcher;
 
     // Create output pipe
+    bool have_pipe = true;
     int pipefds[2];
     if (dasynq::pipe2(pipefds, O_NONBLOCK) == -1) {
-        // TODO
-        std::cout << "*** pipe2 failed ***" << std::endl;
+        sub_buf.append("Warning: ");
+        sub_buf.append(prog_args[0]);
+        sub_buf.append(": could not create pipe for subprocess output\n");
+        have_pipe = false;
+        // Note, we proceed and let the sub-process run with our stdout/stderr.
     }
+
+    subproc_out_watch owatch {sub_buf};
+
+    if (have_pipe) {
+        close(pipefds[1]);
+        try {
+            owatch.add_watch(loop, pipefds[0], dasynq::IN_EVENTS);
+        }
+        catch (...) {
+            // failed to create the watcher for the subprocess output; again, let it run with
+            // our stdout/stderr
+            sub_buf.append("Warning: could not create output watch for subprocess\n");
+            close(pipefds[0]);
+            have_pipe = false;
+        }
+    }
+
+    // If we've buffered any messages/output, give them a chance to go out now:
+    loop.poll();
 
     pid_t ch_pid = sp_watcher.fork(loop);
     if (ch_pid == 0) {
         // child
         // Dup output pipe to stdout, stderr
-        dup2(pipefds[1], STDOUT_FILENO);
-        dup2(pipefds[1], STDERR_FILENO);
-        close(pipefds[0]);
-        close(pipefds[1]);
+        if (have_pipe) {
+            dup2(pipefds[1], STDOUT_FILENO);
+            dup2(pipefds[1], STDERR_FILENO);
+            close(pipefds[0]);
+            close(pipefds[1]);
+        }
         execv(prog_args[0], const_cast<char **>(prog_args));
-        puts("Failed to execute subprocess:\n");
+        puts("Failed to execute subprocess: ");
         perror(prog_args[0]);
         _exit(1);
     }
-
-    close(pipefds[1]);
-
-    subproc_out_watch owatch {sub_buf};
-    owatch.add_watch(loop, pipefds[0], dasynq::IN_EVENTS);
 
     do {
         loop.run();
     } while (! sp_watcher.terminated);
 
-    owatch.deregister(loop);
+    if (have_pipe) {
+        owatch.deregister(loop);
+    }
 }
 
 static void unmount_disks(loop_t &loop, subproc_buffer &sub_buf)
 {
-    const char * unmount_args[] = { "/bin/umount", "-a", "-r", nullptr };
-    run_process(unmount_args, loop, sub_buf);
+    try {
+        const char * unmount_args[] = { "/bin/umount", "-a", "-r", nullptr };
+        run_process(unmount_args, loop, sub_buf);
+    }
+    catch (std::exception &e) {
+        sub_buf.append("Couldn't fork for umount: ");
+        sub_buf.append(e.what());
+        sub_buf.append("\n");
+    }
 }
 
 static void swap_off(loop_t &loop, subproc_buffer &sub_buf)
 {
-    const char * swapoff_args[] = { "/sbin/swapoff", "-a", nullptr };
-    run_process(swapoff_args, loop, sub_buf);
+    try {
+        const char * swapoff_args[] = { "/sbin/swapoff", "-a", nullptr };
+        run_process(swapoff_args, loop, sub_buf);
+    }
+    catch (std::exception &e) {
+        sub_buf.append("Couldn't fork for swapoff: ");
+        sub_buf.append(e.what());
+        sub_buf.append("\n");
+    }
 }
