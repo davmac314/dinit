@@ -1,6 +1,6 @@
 For version 0.5.0:
 ------------------
-* Man pages for all programs (done for dinit and dinitctl, not for shutdown/halt etc).
+* [DONE] Man pages for all programs (done for dinit and dinitctl, not for shutdown/halt etc).
 * The DINIT_ROLLBACK_COMPLETED acknowledgement is never sent, since
   control_conn_t::rollback_complete() is not currently called. Fix.
 * Write wtmp entry on startup (see simpleinit). Investigate.
