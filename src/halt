@@ -1,3 +1,0 @@
-#!/bin/sh
-# "halt" command actually executes the more useful "power off".
-shutdown -p "$@"

@@ -39,7 +39,8 @@ install: all
 	install -d $(DESTDIR)$(SBINDIR)
 	install -s dinit dinitctl $(SHUTDOWN) $(DESTDIR)$(SBINDIR)
 ifeq ($(BUILD_SHUTDOWN),yes)
-	install halt reboot $(DESTDIR)$(SBINDIR)
+	ln $(DESTDIR)$(SBINDIR)\shutdown $(DESTDIR)$(SBINDIR)\halt
+	ln $(DESTDIR)$(SBINDIR)\shutdown $(DESTDIR)$(SBINDIR)\reboot
 endif
 
 clean:
