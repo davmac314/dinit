@@ -17,7 +17,9 @@ includes/mconfig.h: mconfig-gen
 mconfig-gen: mconfig-gen.cc ../mconfig
 	$(CXX) $(CXXOPTS) -o mconfig-gen mconfig-gen.cc $(LDFLAGS)
 
-dinit: includes/mconfig.h $(dinit_objects)
+$(dinit_objects): includes/mconfig.h
+
+dinit: $(dinit_objects)
 	$(CXX) -o dinit $(dinit_objects) $(LDFLAGS)
 
 dinitctl: dinitctl.o
