@@ -33,7 +33,7 @@ Services may acquire the console and in this case output is discarded (though it
 course continue to be logged to the other sink).
 
 Control protocol handling uses a circular receive buffer, but allocates storage for outgoing
-packets dynamically. If allocation files an "out of memory" flag is set and the connection is
+packets dynamically. If allocation fails an "out of memory" flag is set and the connection is
 closed after writing an "out of memory" information packet.
 
 
