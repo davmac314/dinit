@@ -263,7 +263,8 @@ bool base_process_service::interrupt_start() noexcept
         return service_record::interrupt_start();
     }
     else {
-        log(loglevel_t::WARN, "Interrupting start of service ", get_name(), " with pid ", pid, " (with SIGINT).");
+        log(loglevel_t::WARN, "Interrupting start of service ", get_name(), " with pid ", pid,
+                " (with SIGINT).");
         kill_pg(SIGINT);
 
         if (stop_timeout != time_val(0,0)) {
@@ -283,7 +284,8 @@ bool base_process_service::interrupt_start() noexcept
 void base_process_service::kill_with_fire() noexcept
 {
     if (pid != -1) {
-        log(loglevel_t::WARN, "Service ", get_name(), " with pid ", pid, " exceeded allowed stop time; killing.");
+        log(loglevel_t::WARN, "Service ", get_name(), " with pid ", pid,
+                " exceeded allowed stop time; killing.");
         kill_pg(SIGKILL);
     }
 }
@@ -317,7 +319,8 @@ void base_process_service::timer_expired() noexcept
     }
     else if (pid != -1) {
         // Starting, start timed out.
-        log(loglevel_t::WARN, "Service ", get_name(), " with pid ", pid, " exceeded allowed start time; cancelling.");
+        log(loglevel_t::WARN, "Service ", get_name(), " with pid ", pid,
+                " exceeded allowed start time; cancelling.");
         interrupt_start();
         stop_reason = stopped_reason_t::TIMEDOUT;
         failed_to_start(false, false);
@@ -404,13 +407,15 @@ bool base_process_service::open_socket() noexcept
     // POSIX (1003.1, 2013) says that fchown and fchmod don't necessarily work on sockets. We have to
     // use chown and chmod instead.
     if (chown(saddrname, socket_uid, socket_gid)) {
-        log(loglevel_t::ERROR, get_name(), ": Error setting activation socket owner/group: ", strerror(errno));
+        log(loglevel_t::ERROR, get_name(), ": Error setting activation socket owner/group: ",
+                strerror(errno));
         close(sockfd);
         return false;
     }
 
     if (chmod(saddrname, socket_perms) == -1) {
-        log(loglevel_t::ERROR, get_name(), ": Error setting activation socket permissions: ", strerror(errno));
+        log(loglevel_t::ERROR, get_name(), ": Error setting activation socket permissions: ",
+                strerror(errno));
         close(sockfd);
         return false;
     }
