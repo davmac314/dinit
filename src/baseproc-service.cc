@@ -41,10 +41,11 @@ bool base_process_service::bring_up() noexcept
             return false;
         }
 
-        event_loop.get_time(restart_interval_time, clock_type::MONOTONIC);
         restart_interval_count = 0;
         if (start_ps_process(exec_arg_parts,
                 onstart_flags.starts_on_console || onstart_flags.shares_console)) {
+            // start_ps_process updates last_start_time, use it also for restart_interval_time:
+            restart_interval_time = last_start_time;
             // Note: we don't set a start timeout for PROCESS services.
             if (start_timeout != time_val(0,0) && get_type() != service_type_t::PROCESS) {
                 restart_timer.arm_timer_rel(event_loop, start_timeout);
@@ -56,6 +57,7 @@ bool base_process_service::bring_up() noexcept
             }
             return true;
         }
+        restart_interval_time = last_start_time;
         return false;
     }
 }
