@@ -17,7 +17,8 @@
 
 // Given a string and a list of pairs of (start,end) indices for each argument in that string,
 // store a null terminator for the argument. Return a `char *` vector containing the beginning
-// of each argument and a trailing nullptr. (The returned array is invalidated if the string is later modified).
+// of each argument and a trailing nullptr. (The returned array is invalidated if the string is
+// later modified).
 std::vector<const char *> separate_args(std::string &s,
         const std::list<std::pair<unsigned,unsigned>> &arg_indices)
 {

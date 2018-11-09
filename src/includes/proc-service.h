@@ -8,7 +8,8 @@
 
 // Given a string and a list of pairs of (start,end) indices for each argument in that string,
 // store a null terminator for the argument. Return a `char *` vector containing the beginning
-// of each argument and a trailing nullptr. (The returned array is invalidated if the string is later modified).
+// of each argument and a trailing nullptr. (The returned array is invalidated if the string is later
+// modified).
 std::vector<const char *> separate_args(std::string &s,
         const std::list<std::pair<unsigned,unsigned>> &arg_indices);
 
@@ -42,10 +43,12 @@ class base_process_service : public service_record
 
     protected:
     string program_name;          // storage for program/script and arguments
-    std::vector<const char *> exec_arg_parts; // pointer to each argument/part of the program_name, and nullptr
+    // pointer to each argument/part of the program_name, and nullptr:
+    std::vector<const char *> exec_arg_parts;
 
     string stop_command;          // storage for stop program/script and arguments
-    std::vector<const char *> stop_arg_parts; // pointer to each argument/part of the stop_command, and nullptr
+    // pointer to each argument/part of the stop_command, and nullptr:
+    std::vector<const char *> stop_arg_parts;
 
     string working_dir;       // working directory (or empty)
 
