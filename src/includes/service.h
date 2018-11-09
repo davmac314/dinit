@@ -183,31 +183,6 @@ class prelim_dep
     }
 };
 
-class service_child_watcher : public eventloop_t::child_proc_watcher_impl<service_child_watcher>
-{
-    public:
-    base_process_service * service;
-    dasynq::rearm status_change(eventloop_t &eloop, pid_t child, int status) noexcept;
-    
-    service_child_watcher(base_process_service * sr) noexcept : service(sr) { }
-
-    service_child_watcher(const service_child_watcher &) = delete;
-    void operator=(const service_child_watcher &) = delete;
-};
-
-// Watcher for the pipe used to receive exec() failure status errno
-class exec_status_pipe_watcher : public eventloop_t::fd_watcher_impl<exec_status_pipe_watcher>
-{
-    public:
-    base_process_service * service;
-    dasynq::rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
-    
-    exec_status_pipe_watcher(base_process_service * sr) noexcept : service(sr) { }
-
-    exec_status_pipe_watcher(const exec_status_pipe_watcher &) = delete;
-    void operator=(exec_status_pipe_watcher &) = delete;
-};
-
 // service_record: base class for service record containing static information
 // and current state of each service.
 //
