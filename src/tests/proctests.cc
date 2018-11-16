@@ -44,6 +44,11 @@ class base_process_service_test
         bsp->pid = -1;
         bsp->handle_exit_status(bp_sys::exit_status(false, true, signo));
     }
+
+    static int get_notification_fd(base_process_service *bsp)
+    {
+        return bsp->notification_fd;
+    }
 };
 
 namespace bp_sys {
@@ -82,6 +87,49 @@ void test_proc_service_start()
 
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
+// Test start with readiness notification
+void test_proc_notify_start()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_notification_fd(3);
+    sset.add_service(&p);
+
+    p.start(true);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    int nfd = base_process_service_test::get_notification_fd(&p);
+    assert(nfd > 0);
+
+    char notifystr[] = "ok started\n";
+    std::vector<char> rnotifystr;
+    rnotifystr.insert(rnotifystr.end(), notifystr, notifystr + sizeof(notifystr));
+    bp_sys::supply_read_data(nfd, std::move(rnotifystr));
+
+    event_loop.regd_fd_watchers[nfd]->fd_event(event_loop, nfd, dasynq::IN_EVENTS);
 
     assert(p.get_state() == service_state_t::STARTED);
     assert(event_loop.active_timers.size() == 0);
@@ -267,7 +315,8 @@ void test_proc_start_timeout2()
     init_service_defaults(p);
     sset.add_service(&p);
 
-    service_record ts {&sset, "test-service-1", service_type_t::INTERNAL, {{&p, dependency_type::WAITS_FOR}} };
+    service_record ts {&sset, "test-service-1", service_type_t::INTERNAL,
+        {{&p, dependency_type::WAITS_FOR}} };
 
     ts.start(true);
     sset.process_queues();
@@ -321,7 +370,6 @@ void test_proc_start_execfail()
 
     sset.remove_service(&p);
 }
-
 
 // Test stop timeout
 void test_proc_stop_timeout()
@@ -535,7 +583,8 @@ void test_scripted_start_fail()
     sset.add_service(&p);
 
     service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{&p, REG}});
-    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{&p, REG}, {s2, REG}});
+    service_record *s3 = new service_record(&sset, "test-service-3",
+            service_type_t::INTERNAL, {{&p, REG}, {s2, REG}});
     sset.add_service(s2);
     sset.add_service(s3);
 
@@ -581,8 +630,10 @@ void test_scripted_stop_fail()
     sset.add_service(&p);
 
     service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {});
-    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}, {&p, REG}});
-    service_record *s4 = new service_record(&sset, "test-service-4", service_type_t::INTERNAL, {{&p, REG}, {s3, REG}});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL,
+            {{s2, REG}, {&p, REG}});
+    service_record *s4 = new service_record(&sset, "test-service-4", service_type_t::INTERNAL,
+            {{&p, REG}, {s3, REG}});
     sset.add_service(s2);
     sset.add_service(s3);
     sset.add_service(s4);
@@ -795,6 +846,7 @@ void test_waitsfor_restart()
 int main(int argc, char **argv)
 {
     RUN_TEST(test_proc_service_start, "   ");
+    RUN_TEST(test_proc_notify_start, "    ");
     RUN_TEST(test_proc_unexpected_term, " ");
     RUN_TEST(test_term_via_stop, "        ");
     RUN_TEST(test_term_via_stop2, "       ");

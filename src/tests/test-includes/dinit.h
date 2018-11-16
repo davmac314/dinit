@@ -67,7 +67,12 @@ class eventloop_t
         public:
         void add_watch(eventloop_t &loop, int fd, int events, bool enable = true)
         {
+            if (loop.regd_fd_watchers.find(fd) != loop.regd_fd_watchers.end()
+                    || loop.regd_bidi_watchers.find(fd) != loop.regd_bidi_watchers.end()) {
+                throw std::string("must not add_watch when already active");
+            }
             watched_fd = fd;
+            loop.regd_fd_watchers[fd] = this;
         }
 
         int get_watched_fd() noexcept
@@ -82,8 +87,11 @@ class eventloop_t
 
         void deregister(eventloop_t &loop) noexcept
         {
-
+            loop.regd_fd_watchers.erase(watched_fd);
+            watched_fd = -1;
         }
+
+        virtual rearm fd_event(eventloop_t & loop, int fd, int flags) = 0;
     };
 
     template <typename Derived> class fd_watcher_impl : public fd_watcher
@@ -163,6 +171,7 @@ class eventloop_t
 
     std::unordered_set<timer *> active_timers;
 	std::map<int, bidi_fd_watcher *> regd_bidi_watchers;
+	std::map<int, fd_watcher *> regd_fd_watchers;
 };
 
 inline void open_control_socket(bool report_ro_failure = true) noexcept
