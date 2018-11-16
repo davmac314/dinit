@@ -289,18 +289,26 @@ class service_record
     //   immediate_stop: whether to set state as STOPPED and handle complete stop.
     void failed_to_start(bool dep_failed = false, bool immediate_stop = true) noexcept;
 
-    // Run a child process (call after forking).
+    // Run a child process (call after forking). Note that some arguments specify file descriptors,
+    // but in general file descriptors may be moved before the exec call.
     // - args specifies the program arguments including the executable (argv[0])
     // - working_dir specifies the working directory; may be null
-    // - logfile specifies the logfile
+    // - logfile specifies the logfile (where stdout/stderr are directed)
     // - on_console: if true, process is run with access to console
     // - wpipefd: if the exec is unsuccessful, or another error occurs beforehand, the
     //   error number (errno) is written to this file descriptor
     // - csfd: the control socket fd; may be -1 to inhibit passing of control socket
     // - socket_fd: the pre-opened socket file descriptor (may be -1)
+    // - notify_fd: the readiness notification fd; process should write to this descriptor when
+    //   is is ready
+    // - force_notify_fd: if not -1, specifies the file descriptor that notify_fd should be moved
+    //   to (via dup2 and close of the original).
+    // - notify_var: the name of an environment variable which will be set to contain the notification
+    //   fd
     // - uid/gid: the identity to run the process as (may be both -1, otherwise both must be valid)
     void run_child_proc(const char * const *args, const char *working_dir, const char *logfile,
-            bool on_console, int wpipefd, int csfd, int socket_fd, uid_t uid, gid_t gid) noexcept;
+            bool on_console, int wpipefd, int csfd, int socket_fd, int notify_fd, int force_notify_fd,
+            const char *notify_var,uid_t uid, gid_t gid) noexcept;
     
     // A dependency has reached STARTED state
     void dependency_started() noexcept;

@@ -86,6 +86,11 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     control_conn_t *control_conn = nullptr;
 
     int control_socket[2] = {-1, -1};
+    int notify_pipe[2] = {-1, -1};
+    bool have_notify = !notification_var.empty() || force_notification_fd != -1;
+    ready_notify_watcher * rwatcher = have_notify ? get_ready_watcher() : nullptr;
+    bool ready_watcher_registered = false;
+
     if (onstart_flags.pass_cs_fd) {
         if (dinit_socketpair(AF_UNIX, SOCK_STREAM, /* protocol */ 0, control_socket, SOCK_NONBLOCK)) {
             log(loglevel_t::ERROR, get_name(), ": can't create control socket: ", strerror(errno));
@@ -102,6 +107,27 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         catch (std::exception &exc) {
             log(loglevel_t::ERROR, get_name(), ": can't launch process; out of memory");
             goto out_cs;
+        }
+    }
+
+    if (have_notify) {
+        // Create a notification pipe:
+        if (bp_sys::pipe2(notify_pipe, 0) != 0) {
+            log(loglevel_t::ERROR, get_name(), ": can't create notification pipe: ", strerror(errno));
+            goto out_cs_h;
+        }
+
+        // Set the read side as close-on-exec:
+        int fdflags = bp_sys::fcntl(notify_pipe[0], F_GETFD);
+        bp_sys::fcntl(notify_pipe[0], F_SETFD, fdflags | FD_CLOEXEC);
+
+        // add, but don't yet enable, readiness watcher:
+        try {
+            rwatcher->add_watch(event_loop, notify_pipe[0], dasynq::IN_EVENTS, false);
+            ready_watcher_registered = true;
+        }
+        catch (std::exception &exc) {
+            log(loglevel_t::ERROR, get_name(), ": can't add notification watch: ", exc.what());
         }
     }
 
@@ -129,7 +155,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         const char * working_dir_c = nullptr;
         if (! working_dir.empty()) working_dir_c = working_dir.c_str();
         run_child_proc(cmd.data(), working_dir_c, logfile, on_console, pipefd[1], control_socket[1],
-                socket_fd, run_as_uid, run_as_gid);
+                socket_fd, notify_pipe[0], force_notification_fd, nullptr,  run_as_uid, run_as_gid);
     }
     else {
         // Parent process
@@ -139,6 +165,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         }
         pid = forkpid;
 
+        notification_fd = notify_pipe[0];
         waiting_for_execstat = true;
         return true;
     }
@@ -148,6 +175,12 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
     out_cs_h:
     if (child_status_registered) {
         child_status_listener.deregister(event_loop);
+    }
+
+    if (notify_pipe[0] != -1) bp_sys::close(notify_pipe[0]);
+    if (notify_pipe[1] != -1) bp_sys::close(notify_pipe[1]);
+    if (ready_watcher_registered) {
+        rwatcher->deregister(event_loop);
     }
 
     if (onstart_flags.pass_cs_fd) {

@@ -47,7 +47,13 @@ void process_service::exec_succeeded() noexcept
     // might be stopped (and killed via a signal) during smooth recovery.  We don't to
     // process startup again in either case, so we check for state STARTING:
     if (get_state() == service_state_t::STARTING) {
-        started();
+        if (force_notification_fd != -1 || !notification_var.empty()) {
+            // Wait for readiness notification:
+            readiness_watcher.set_enabled(event_loop, true);
+        }
+        else {
+            started();
+        }
     }
     else if (get_state() == service_state_t::STOPPING) {
         // stopping, but smooth recovery was in process. That's now over so we can
@@ -102,6 +108,31 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
     return rearm::REMOVED;
 }
 
+rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
+{
+    char buf[128];
+    if (service->get_state() == service_state_t::STARTING) {
+        // can we actually read anything from the notification pipe?
+        int r = bp_sys::read(fd, buf, sizeof(buf));
+        if (r > 0) {
+            service->started();
+        }
+        else if (r == 0 || errno != EAGAIN) {
+            service->failed_to_start(false, false);
+        }
+    }
+    else {
+        int r = bp_sys::read(fd, buf, sizeof(buf));
+        if (r == 0) {
+            // Process closed write end or terminated
+            close(fd);
+            service->notification_fd = -1;
+            return rearm::DISARM;
+        }
+    }
+    return rearm::REARM;
+}
+
 dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t child, int status) noexcept
 {
     base_process_service *sr = service;
@@ -109,10 +140,9 @@ dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t chil
     sr->pid = -1;
     sr->exit_status = bp_sys::exit_status(status);
 
-    // Ok, for a process service, any process death which we didn't rig
-    // ourselves is a bit... unexpected. Probably, the child died because
-    // we asked it to (sr->service_state == STOPPING). But even if
-    // we didn't, there's not much we can do.
+    // Ok, for a process service, any process death which we didn't rig ourselves is a bit... unexpected.
+    // Probably, the child died because we asked it to (sr->service_state == STOPPING). But even if we
+    // didn't, there's not much we can do.
 
     if (sr->waiting_for_execstat) {
         // We still don't have an exec() status from the forked child, wait for that
@@ -139,6 +169,12 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
     bool was_signalled = exit_status.was_signalled();
     restarting = false;
     auto service_state = get_state();
+
+    if (notification_fd != -1) {
+        readiness_watcher.deregister(event_loop);
+        bp_sys::close(notification_fd);
+        notification_fd = -1;
+    }
 
     if (exit_status.did_exit_clean() && service_state != service_state_t::STOPPING) {
         if (did_exit) {

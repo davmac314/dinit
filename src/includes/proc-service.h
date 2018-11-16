@@ -40,8 +40,22 @@ class exec_status_pipe_watcher : public eventloop_t::fd_watcher_impl<exec_status
     exec_status_pipe_watcher(base_process_service * sr) noexcept : service(sr) { }
 
     exec_status_pipe_watcher(const exec_status_pipe_watcher &) = delete;
-    void operator=(exec_status_pipe_watcher &) = delete;
+    void operator=(const exec_status_pipe_watcher &) = delete;
 };
+
+// Watcher for readiness notification pipe
+class ready_notify_watcher : public eventloop_t::fd_watcher_impl<ready_notify_watcher>
+{
+    public:
+    base_process_service * service;
+    dasynq::rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
+
+    ready_notify_watcher(base_process_service * sr) noexcept : service(sr) { }
+
+    ready_notify_watcher(const ready_notify_watcher &) = delete;
+    void operator=(const ready_notify_watcher &) = delete;
+};
+
 
 class service_child_watcher : public eventloop_t::child_proc_watcher_impl<service_child_watcher>
 {
@@ -61,6 +75,7 @@ class base_process_service : public service_record
     friend class service_child_watcher;
     friend class exec_status_pipe_watcher;
     friend class base_process_service_test;
+    friend class ready_notify_watcher;
 
     private:
     // Re-launch process
@@ -100,6 +115,8 @@ class base_process_service : public service_record
 
     uid_t run_as_uid = -1;
     gid_t run_as_gid = -1;
+    int force_notification_fd = -1;  // if set, notification fd for service process is set to this fd
+    string notification_var; // if set, name of an environment variable for notification fd
 
     pid_t pid = -1;  // PID of the process. If state is STARTING or STOPPING,
                      //   this is PID of the service script; otherwise it is the
@@ -107,6 +124,7 @@ class base_process_service : public service_record
     bp_sys::exit_status exit_status; // Exit status, if the process has exited (pid == -1).
     int socket_fd = -1;  // For socket-activation services, this is the file
                          // descriptor for the socket.
+    int notification_fd = -1;  // If readiness notification is via fd
 
     bool waiting_restart_timer : 1;
     bool stop_timer_armed : 1;
@@ -162,6 +180,12 @@ class base_process_service : public service_record
 
     // Open the activation socket, return false on failure
     bool open_socket() noexcept;
+
+    // Get the readiness notification watcher for this service, if it has one; may return nullptr.
+    virtual ready_notify_watcher *get_ready_watcher() noexcept
+    {
+        return nullptr;
+    }
 
     public:
     // Constructor for a base_process_service. Note that the various parameters not specified here must in
@@ -226,6 +250,19 @@ class base_process_service : public service_record
         working_dir = working_dir_p;
     }
 
+    // Set the notification fd number that the service process will use
+    void set_notification_fd(int fd)
+    {
+        force_notification_fd = fd;
+    }
+
+    // Set the name of the environment variable that will be set to the notification fd number
+    // when the service process is run
+    void set_notification_var(string &&varname)
+    {
+        notification_var = std::move(varname);
+    }
+
     // The restart/stop timer expired.
     void timer_expired() noexcept;
 
@@ -254,12 +291,20 @@ class process_service : public base_process_service
     virtual void exec_succeeded() noexcept override;
     virtual void bring_down() noexcept override;
 
+    ready_notify_watcher readiness_watcher;
+
+    protected:
+    ready_notify_watcher *get_ready_watcher() noexcept override
+    {
+        return &readiness_watcher;
+    }
+
     public:
     process_service(service_set *sset, const string &name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             const std::list<prelim_dep> &depends_p)
          : base_process_service(sset, name, service_type_t::PROCESS, std::move(command), command_offsets,
-             depends_p)
+             depends_p), readiness_watcher(this)
     {
     }
 
