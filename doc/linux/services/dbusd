@@ -1,15 +1,15 @@
 # Dbus daemon.
 
-# Dbusd can use socket activation, which Dinit (sort-of) supports. However, this currently
-# requires building Dbus against SystemD.
+# Dbusd can use socket activation, which Dinit (sort-of) supports. However,
+# this currently requires building Dbus against SystemD. Alternatively, we
+# can use the --print-address option for an effective readiness notification.
 
 # For non-socket-activated:
-#type = bgprocess
-#command = /usr/bin/dbus-daemon --system
-#pid-file = /var/run/dbus/pid
-#restart = false
+#type = process
+#command = /usr/bin/dbus-daemon --system --nofork --nopidfile --print-address=4
 #depends-on = rcboot
 #logfile = /var/log/dbus-daemon.log
+#ready-notification = pipefd:4
 #smooth-recovery = yes
 
 # For socket-activation:
