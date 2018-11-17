@@ -283,6 +283,17 @@ static void process_dep_dir(dirload_service_set &sset,
     }
 }
 
+// Check if one string starts with another
+static bool starts_with(string s, const char *prefix)
+{
+    const char * sp = s.c_str();
+    while (*sp != 0 && *prefix != 0) {
+        if (*sp != *prefix) return false;
+        sp++; prefix++;
+    }
+    return *prefix == 0;
+}
+
 // Find a service record, or load it from file. If the service has
 // dependencies, load those also.
 //
@@ -361,6 +372,9 @@ service_record * dirload_service_set::load_service(const char * name)
     timespec stop_timeout = { .tv_sec = 10, .tv_nsec = 0 };
     timespec start_timeout = { .tv_sec = 60, .tv_nsec = 0 };
     
+    int readiness_fd = -1;      // readiness fd in service process
+    std::string readiness_var;  // environment var to hold readiness fd
+
     uid_t run_as_uid = -1;
     gid_t run_as_gid = -1;
 
@@ -567,6 +581,24 @@ service_record * dirload_service_set::load_service(const char * name)
             else if (setting == "chain-to") {
                 chain_to_name = read_setting_value(i, end, nullptr);
             }
+            else if (setting == "ready-notification") {
+                string notify_setting = read_setting_value(i, end, nullptr);
+                if (starts_with(notify_setting, "pipefd:")) {
+                    readiness_fd = parse_unum_param(notify_setting.substr(7 /* len 'pipefd:' */),
+                            name, std::numeric_limits<int>::max());
+                }
+                else if (starts_with(notify_setting, "pipevar:")) {
+                    readiness_var = notify_setting.substr(8 /* len 'pipevar:' */);
+                    if (readiness_var.empty()) {
+                        throw service_description_exc(name, "Invalid pipevar variable name "
+                                "in ready-notification");
+                    }
+                }
+                else {
+                    throw service_description_exc(name, "Unknown ready-notification setting: "
+                            + notify_setting);
+                }
+            }
             else {
                 throw service_description_exc(name, "Unknown setting: " + setting);
             }
@@ -598,6 +630,8 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_extra_termination_signal(term_signal);
                     rvalps->set_run_as_uid_gid(run_as_uid, run_as_gid);
                     rvalps->set_workding_dir(working_dir);
+                    rvalps->set_notification_fd(readiness_fd);
+                    rvalps->set_notification_var(std::move(readiness_var));
                     // process service start / run on console must be the same:
                     onstart_flags.starts_on_console = onstart_flags.runs_on_console;
                     rval = rvalps;

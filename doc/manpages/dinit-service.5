@@ -220,6 +220,21 @@ to terminate (applies to 'process' services only). SIGTERM is always
 sent along with the specified signal, unless the \fBnosigterm\fR option is
 specified via the \fBoptions\fR parameter.
 .TP
+\fBready-notification\fR = {\fBpipefd:\fR\fIfd-number\fR | \fBpipevar:\fR\fIenv-var-name\fR}
+Specifies the mechanism, if any, by which a process service will notify that it is ready
+(successfully started). If not specified, a process service is considered started as soon as it
+has begun execution. The two options are:
+.RS
+.IP \(bu
+\fBpipefd:\fR\fIfd-number\fR \(em the service will write a message to the specified file descriptor,
+which \fBdinit\fR sets up as the write end of a pipe before execution. This mechanism is compatible
+with the S6 supervision suite.
+.IP \(bu
+\fBpipevar:\fR\fIenv-var-name\fR \(em the service will write a message to file descriptor identified
+using the contents of the specified environment variable, which will be set by \fBdinit\fR before
+execution to a file descriptor (chosen arbitrarily) attached to the write end of a pipe.
+.RE
+.TP
 \fBlogfile\fR = \fIlog-file-path\fR
 Specifies the log file for the service. Output from the service process
 will go this file.
