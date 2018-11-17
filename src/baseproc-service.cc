@@ -155,16 +155,15 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         const char * working_dir_c = nullptr;
         if (! working_dir.empty()) working_dir_c = working_dir.c_str();
         run_child_proc(cmd.data(), working_dir_c, logfile, on_console, pipefd[1], control_socket[1],
-                socket_fd, notify_pipe[0], force_notification_fd, nullptr,  run_as_uid, run_as_gid);
+                socket_fd, notify_pipe[1], force_notification_fd, nullptr,  run_as_uid, run_as_gid);
     }
     else {
         // Parent process
-        bp_sys::close(pipefd[1]); // close the 'other end' fd
-        if (control_socket[1] != -1) {
-            bp_sys::close(control_socket[1]);
-        }
         pid = forkpid;
 
+        bp_sys::close(pipefd[1]); // close the 'other end' fd
+        if (control_socket[1] != -1) bp_sys::close(control_socket[1]);
+        if (notify_pipe[1] != -1) bp_sys::close(notify_pipe[1]);
         notification_fd = notify_pipe[0];
         waiting_for_execstat = true;
         return true;
