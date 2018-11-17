@@ -250,7 +250,7 @@ int main(int argc, char **argv)
     auto shutdown_type = shutdown_type_t::POWEROFF;
 
     const char *execname = base_name(argv[0]);
-    if (strcmp(execname, "reboot")) {
+    if (strcmp(execname, "reboot") == 0) {
         shutdown_type = shutdown_type_t::REBOOT;
     }
         
