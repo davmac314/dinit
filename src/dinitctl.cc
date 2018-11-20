@@ -838,19 +838,15 @@ static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer)
         return 1;
     }
 
-    // Now wait for rollback complete:
+    // Now wait for rollback complete, by waiting for the connection to close:
     try {
         while (true) {
             wait_for_info(rbuffer, socknum);
-            if (rbuffer[0] == DINIT_ROLLBACK_COMPLETED) {
-                break;
-            }
+            rbuffer.consume(rbuffer[1]);
         }
     }
     catch (cp_read_exception &exc) {
-        // Dinit can terminate before replying: let's assume that happened.
-        // TODO: better check, possibly ensure that dinit actually sends rollback complete before
-        // termination.
+        // Assume that the connection closed.
     }
 
     return 0;
@@ -859,7 +855,8 @@ static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer)
 // exception for cancelling a service operation
 class service_op_cancel { };
 
-static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to, bool enable)
+static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to,
+        bool enable)
 {
     using namespace std;
 
@@ -1028,14 +1025,16 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
     // create link
     if (enable) {
         if (symlink((string("../") + to).c_str(), dep_link_path.c_str()) == -1) {
-            cerr << "dinitctl: Could not create symlink at " << dep_link_path << ": " << strerror(errno) << "\n"
-                    "dinitctl: Note: service was activated, but will not be enabled on restart." << endl;
+            cerr << "dinitctl: Could not create symlink at " << dep_link_path << ": " << strerror(errno)
+                    << "\n" "dinitctl: Note: service was activated, but will not be enabled on restart."
+                    << endl;
             return 1;
         }
     }
     else {
         if (unlink(dep_link_path.c_str()) == -1) {
-            cerr << "dinitctl: Could not unlink dependency entry " << dep_link_path << ": " << strerror(errno) << "\n"
+            cerr << "dinitctl: Could not unlink dependency entry " << dep_link_path << ": "
+                    << strerror(errno) << "\n"
                     "dinitctl: Note: service was disabled, but will be re-enabled on restart." << endl;
             return 1;
         }

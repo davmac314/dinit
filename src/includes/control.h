@@ -226,8 +226,6 @@ class control_conn_t : private service_listener
     
     control_conn_t(const control_conn_t &) = delete;
 
-    bool rollback_complete() noexcept;
-        
     virtual ~control_conn_t() noexcept;
 };
 

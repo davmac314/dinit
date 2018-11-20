@@ -781,12 +781,6 @@ bool control_conn_t::queue_packet(std::vector<char> &&pkt) noexcept
     }
 }
 
-bool control_conn_t::rollback_complete() noexcept
-{
-    char ackBuf[2] = { DINIT_ROLLBACK_COMPLETED, 2 };
-    return queue_packet(ackBuf, 2);
-}
-
 bool control_conn_t::data_ready() noexcept
 {
     int fd = iob.get_watched_fd();

@@ -82,6 +82,3 @@ constexpr static int DINIT_RP_LOADER_MECH = 64;
 
 // Service event occurred (4-byte service handle, 1 byte event code)
 constexpr static int DINIT_IP_SERVICEEVENT = 100;
-
-// rollback completed
-constexpr static int DINIT_ROLLBACK_COMPLETED = 101;
