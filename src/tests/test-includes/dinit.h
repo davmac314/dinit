@@ -174,7 +174,7 @@ class eventloop_t
 	std::map<int, fd_watcher *> regd_fd_watchers;
 };
 
-inline void open_control_socket(bool report_ro_failure = true) noexcept
+inline void rootfs_is_rw() noexcept
 {
 }
 

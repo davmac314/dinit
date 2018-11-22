@@ -379,7 +379,7 @@ void service_record::started() noexcept
     notify_listeners(service_event_t::STARTED);
 
     if (onstart_flags.rw_ready) {
-        open_control_socket();
+        rootfs_is_rw();
     }
     if (onstart_flags.log_ready) {
         setup_external_log();

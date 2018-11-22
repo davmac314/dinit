@@ -13,7 +13,7 @@ using clock_type = dasynq::clock_type;
 using rearm = dasynq::rearm;
 using time_val = dasynq::time_val;
 
-void open_control_socket(bool report_ro_failure = true) noexcept;
+void rootfs_is_rw() noexcept;
 void setup_external_log() noexcept;
 
 extern eventloop_t event_loop;

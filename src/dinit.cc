@@ -29,6 +29,7 @@
 #include "dinit-log.h"
 #include "dinit-socket.h"
 #include "static-string.h"
+#include "dinit-utmp.h"
 
 #include "mconfig.h"
 
@@ -54,6 +55,7 @@ eventloop_t event_loop;
 static void sigint_reboot_cb(eventloop_t &eloop) noexcept;
 static void sigquit_cb(eventloop_t &eloop) noexcept;
 static void sigterm_cb(eventloop_t &eloop) noexcept;
+static void open_control_socket(bool report_ro_failure = true) noexcept;
 static void close_control_socket() noexcept;
 static void wait_for_user_input() noexcept;
 static void read_env_file(const char *);
@@ -68,6 +70,7 @@ static dirload_service_set *services;
 static bool am_pid_one = false;     // true if we are PID 1
 static bool am_system_init = false; // true if we are the system init process
 
+static bool did_log_boot = false;
 static bool control_socket_open = false;
 static bool external_log_open = false;
 int active_control_conns = 0;
@@ -604,10 +607,19 @@ static void control_socket_cb(eventloop_t *loop, int sockfd)
     }
 }
 
+// Callback when the root filesystem is read/write:
+void rootfs_is_rw() noexcept
+{
+    open_control_socket(true);
+    if (! did_log_boot) {
+        did_log_boot = log_boot();
+    }
+}
+
 // Open/create the control socket, normally /dev/dinitctl, used to allow client programs to connect
 // and issue service orders and shutdown commands etc. This can safely be called multiple times;
 // once the socket has been successfully opened, further calls have no effect.
-void open_control_socket(bool report_ro_failure) noexcept
+static void open_control_socket(bool report_ro_failure) noexcept
 {
     if (! control_socket_open) {
         const char * saddrname = control_socket_path;
