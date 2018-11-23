@@ -371,6 +371,50 @@ void test_proc_start_execfail()
     sset.remove_service(&p);
 }
 
+// Test no ready notification before process terminates
+void test_proc_notify_fail()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_notification_fd(3);
+    sset.add_service(&p);
+
+    p.start(true);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    int nfd = base_process_service_test::get_notification_fd(&p);
+    assert(nfd > 0);
+
+    // Signal EOF on notify fd:
+    event_loop.regd_fd_watchers[nfd]->fd_event(event_loop, nfd, dasynq::IN_EVENTS);
+
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
 // Test stop timeout
 void test_proc_stop_timeout()
 {
@@ -853,6 +897,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_start_timeout, "   ");
     RUN_TEST(test_proc_start_timeout2, "  ");
     RUN_TEST(test_proc_start_execfail, "  ");
+    RUN_TEST(test_proc_notify_fail, "     ");
     RUN_TEST(test_proc_stop_timeout, "    ");
     RUN_TEST(test_proc_smooth_recovery1, "");
     RUN_TEST(test_proc_smooth_recovery2, "");

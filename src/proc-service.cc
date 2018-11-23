@@ -119,9 +119,12 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
         }
         else if (r == 0 || errno != EAGAIN) {
             service->failed_to_start(false, false);
+            service->set_state(service_state_t::STOPPING);
+            service->bring_down();
         }
     }
     else {
+        // Just keep consuming data from the pipe:
         int r = bp_sys::read(fd, buf, sizeof(buf));
         if (r == 0) {
             // Process closed write end or terminated
@@ -176,7 +179,7 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
         notification_fd = -1;
     }
 
-    if (exit_status.did_exit_clean() && service_state != service_state_t::STOPPING) {
+    if (!exit_status.did_exit_clean() && service_state != service_state_t::STOPPING) {
         if (did_exit) {
             log(loglevel_t::ERROR, "Service ", get_name(), " process terminated with exit code ",
                     exit_status.get_exit_status());
@@ -188,13 +191,10 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
     }
 
     if (service_state == service_state_t::STARTING) {
-        if (exit_status.did_exit_clean()) {
-            started();
-        }
-        else {
-            stop_reason = stopped_reason_t::FAILED;
-            failed_to_start();
-        }
+        // If state is STARTING, we must be waiting for readiness notification; the process has
+        // terminated before becoming ready.
+        stop_reason = stopped_reason_t::FAILED;
+        failed_to_start();
     }
     else if (service_state == service_state_t::STOPPING) {
         // We won't log a non-zero exit status or termination due to signal here -
@@ -219,6 +219,13 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
 void process_service::exec_failed(int errcode) noexcept
 {
     log(loglevel_t::ERROR, get_name(), ": execution failed: ", strerror(errcode));
+
+    if (notification_fd != -1) {
+        readiness_watcher.deregister(event_loop);
+        bp_sys::close(notification_fd);
+        notification_fd = -1;
+    }
+
     if (get_state() == service_state_t::STARTING) {
         stop_reason = stopped_reason_t::EXECFAILED;
         failed_to_start();
