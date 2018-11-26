@@ -4,7 +4,11 @@
 #define DINIT_UTMP_H_INCLUDED
 
 #ifndef USE_UTMPX
+#if __linux__ || __FreeBSD__ || __DragonFly__
 #define USE_UTMPX 1
+#else
+#define USE_UTMPX 0
+#endif
 #endif
 
 #ifndef USE_UPDWTMPX
@@ -58,9 +62,67 @@ inline bool log_boot()
     return success;
 }
 
+// Create a utmp entry for the specified process, with the given id and tty line.
+inline bool create_utmp_entry(const char *utmp_id, const char *utmp_line, pid_t pid)
+{
+    struct utmpx record;
+    memset(&record, 0, sizeof(record));
+
+    record.ut_type = INIT_PROCESS;
+    record.ut_pid = pid;
+    set_current_time(&record);
+    strncpy(record.ut_id, utmp_id, sizeof(record.ut_id));
+    strncpy(record.ut_line, utmp_line, sizeof(record.ut_line));
+
+    setutxent();
+    bool success = (pututxline(&record) != NULL);
+    endutxent();
+
+    return success;
+}
+
+// Clear the utmp entry for the given id/line/process.
+inline void clear_utmp_entry(const char *utmp_id, const char *utmp_line)
+{
+    struct utmpx record;
+    memset(&record, 0, sizeof(record));
+
+    record.ut_type = DEAD_PROCESS;
+    set_current_time(&record);
+    strncpy(record.ut_id, utmp_id, sizeof(record.ut_id));
+    strncpy(record.ut_line, utmp_line, sizeof(record.ut_line));
+
+    struct utmpx *result;
+
+    setutxent();
+
+    // Try to find an existing entry by id/line and copy the process ID:
+    if (*utmp_id) {
+        result = getutxid(&record);
+    }
+    else {
+        result = getutxline(&record);
+    }
+
+    if (result) {
+        record.ut_pid = result->ut_pid;
+    }
+
+    pututxline(&record);
+    endutxent();
+}
+
 #else // Don't update databases:
 
-static inline void log_boot()  {  }
+static inline bool log_boot()
+{
+    return true;
+}
+
+static inline bool create_utmp_entry(const char *utmp_id, const char *utmp_line)
+{
+    return true;
+}
 
 #endif
 

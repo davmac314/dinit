@@ -2,6 +2,7 @@
 
 #include "baseproc-sys.h"
 #include "service.h"
+#include "dinit-utmp.h"
 
 // This header defines base_proc_service (base process service) and several derivatives, as well as some
 // utility functions and classes. See service.h for full details of services.
@@ -143,6 +144,10 @@ class base_process_service : public service_record
 
     // Start the process, return true on success
     virtual bool bring_up() noexcept override;
+
+    // Called after forking (before executing remote process). Returns true to continue
+    // execution, otherwise sets errno and returns false.
+    virtual bool after_fork(pid_t child_pid) noexcept { return true; }
 
     // Called when the process exits. The exit_status is the status value yielded by
     // the "wait" system call.
@@ -293,6 +298,22 @@ class process_service : public base_process_service
 
     ready_notify_watcher readiness_watcher;
 
+#if USE_UTMPX
+
+    char inittab_id[sizeof(utmpx().ut_id)];
+    char inittab_line[sizeof(utmpx().ut_line)];
+
+    protected:
+    bool after_fork(pid_t child_pid) noexcept override
+    {
+        if (*inittab_id || *inittab_line) {
+            return create_utmp_entry(inittab_id, inittab_line, child_pid);
+        }
+        return true;
+    }
+
+#endif
+
     protected:
     ready_notify_watcher *get_ready_watcher() noexcept override
     {
@@ -307,6 +328,22 @@ class process_service : public base_process_service
              depends_p), readiness_watcher(this)
     {
     }
+
+#if USE_UTMPX
+
+    // Set the id of the process in utmp (the "inittab" id)
+    void set_utmp_id(const char *id)
+    {
+        strncpy(inittab_id, id, sizeof(inittab_id));
+    }
+
+    // Set the device line of the process in utmp database
+    void set_utmp_line(const char *line)
+    {
+        strncpy(inittab_line, line, sizeof(inittab_line));
+    }
+
+#endif
 
     ~process_service() noexcept
     {

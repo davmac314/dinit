@@ -17,6 +17,7 @@
 #include "proc-service.h"
 #include "dinit-log.h"
 #include "dinit-util.h"
+#include "dinit-utmp.h"
 
 using string = std::string;
 using string_iterator = std::string::iterator;
@@ -380,6 +381,11 @@ service_record * dirload_service_set::load_service(const char * name)
 
     string chain_to_name;
 
+    #if USE_UTMPX
+    char inittab_id[sizeof(utmpx().ut_id)] = {0};
+    char inittab_line[sizeof(utmpx().ut_line)] = {0};
+    #endif
+
     string line;
     service_file.exceptions(ios::badbit | ios::failbit);
     
@@ -599,6 +605,24 @@ service_record * dirload_service_set::load_service(const char * name)
                             + notify_setting);
                 }
             }
+            else if (setting == "inittab-id") {
+                string inittab_setting = read_setting_value(i, end, nullptr);
+                #if USE_UTMPX
+                if (inittab_setting.length() > sizeof(inittab_id)) {
+                    throw service_description_exc(name, "inittab-id setting is too long");
+                }
+                strncpy(inittab_id, inittab_setting.c_str(), sizeof(inittab_id));
+                #endif
+            }
+            else if (setting == "inittab-line") {
+                string inittab_setting = read_setting_value(i, end, nullptr);
+                #if USE_UTMPX
+                if (inittab_setting.length() > sizeof(inittab_line)) {
+                    throw service_description_exc(name, "inittab-line setting is too long");
+                }
+                strncpy(inittab_line, inittab_setting.c_str(), sizeof(inittab_line));
+                #endif
+            }
             else {
                 throw service_description_exc(name, "Unknown setting: " + setting);
             }
@@ -632,8 +656,10 @@ service_record * dirload_service_set::load_service(const char * name)
                     rvalps->set_workding_dir(working_dir);
                     rvalps->set_notification_fd(readiness_fd);
                     rvalps->set_notification_var(std::move(readiness_var));
-                    // process service start / run on console must be the same:
-                    onstart_flags.starts_on_console = onstart_flags.runs_on_console;
+                    #if USE_UTMPX
+                    rvalps->set_utmp_id(inittab_id);
+                    rvalps->set_utmp_line(inittab_line);
+                    #endif
                     rval = rvalps;
                 }
                 else if (service_type == service_type_t::BGPROCESS) {
