@@ -1,10 +1,22 @@
 For version 0.5.0:
 ------------------
 * [DONE] Man pages for all programs (done for dinit and dinitctl, not for shutdown/halt etc).
-* The DINIT_ROLLBACK_COMPLETED acknowledgement is never sent, since
-  control_conn_t::rollback_complete() is not currently called. Fix.
+* [DONE] Support S6-style startup notification (write to fd).
 * Write wtmp entry on startup (see simpleinit). Investigate.
-* Support S6-style startup notification (write to fd).
+  - clear utmp before writing boot line? probably not even necessary
+  - document inittab-id and inittab-line service settings
+  - make writing utmp entry failure not fatal?
+  - update ttyX example service descriptions
+  - document the utmp locking problem with Glibc (can block up to 10 seconds)
+    - can this happen with freebsd? (yep - permanent block).
+* Fix when boot stops without restart being issued
+  (currently goes into loop?)
+
+For version 0.6.0:
+------------------
+* Refuse to start new services during shutdown.
+* Basic resource limits setting.
+* per-service environment.
 
 For version 1.0:
 ----------------
@@ -15,7 +27,6 @@ For version 1.0:
 * Documentation must be complete (see section below).
 * Proper support for socket activation?
 * Be able to boot and shutdown Linux and FreeBSD.
-* Refuse to start new services during shutdown.
 
 For later:
 ----------
