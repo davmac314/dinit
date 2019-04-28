@@ -251,6 +251,28 @@ be replaced with the contents of the environment variable with the specified
 name. Note that no word-splitting is performed and the variable value always
 becomes a single argument; if the variable is not defined, it is replaced with
 an empty (zero-length) argument.
+.TP
+\fBinittab-id\fR = \fIid-string\fR
+When this service is started, if this setting (or the \fBinittab-line\fR setting) has a
+specified value, an entry will be created in the system "utmp" database which tracks
+processes and logged-in users. Typically this database is used by the "who" command to
+list logged-in users. The entry will be cleared when the service terminates.
+
+The \fBinittab-id\fR setting specifies the "inittab id" to be written in the entry for
+the process. The value is normally quite meaningless. However, it should be distinct
+(or unset) for separate processes. It is typically limited to a very short length.
+
+The "utmp" database is mostly a historical artifact. Access to it on some systems is
+prone to denial-of-service by unprivileged users. It is therefore recommended that this
+setting not be used. However, "who" and similar utilities may not work correctly without
+this setting (or \fBinittab-line\fR) enabled appropriately.
+.TP
+\fBinittab-line\fR = \fItty-name-string\fR
+This specifies the tty line that will be written to the "utmp" database when this service
+is started. Normally, for a terminal login service, it would match the terminal device name
+on which the login process runs, without the "/dev/" prefix.
+
+See the description of the \fBinittab-id\fR setting for details.
 .\"
 .SS OPTIONS
 .\"
