@@ -3,6 +3,12 @@
 #ifndef DINIT_UTMP_H_INCLUDED
 #define DINIT_UTMP_H_INCLUDED
 
+// Configuration:
+// USE_UTMPX - whether to update the utmp[x] database. If 0, no-op stubs are defined.
+// USE_UPDWTMPX - whether to use the updwtmpx function to log boot (contingent on USE_UTMPX).
+// CLEAR_UTMP_ON_BOOT - whether to explicitly clear the utmp database file before writing the
+//                      boot entry.
+
 #ifndef USE_UTMPX
 #if __linux__ || __FreeBSD__ || __DragonFly__
 #define USE_UTMPX 1
@@ -19,6 +25,14 @@
 #endif
 #endif
 
+#ifndef CLEAR_UTMP_ON_BOOT
+#if __linux__
+#define CLEAR_UTMP_ON_BOOT 1
+#else
+#define CLEAR UTMP_ON_BOOT 0
+#endif
+#endif
+
 #if USE_UTMPX
 
 #include <cstring>
@@ -30,7 +44,9 @@
 inline void set_current_time(struct utmpx *record)
 {
 #ifdef __linux__
-    // On Linux, ut_tv is not actually a struct timeval:
+    // On Linux, ut_tv is not necessarily actually a struct timeval - on x86_64 the tv_sec and tv_usec
+    // fields are actually int32_t (by default) to preserve structural compatibility with 32-bit
+    // utmp format.
     timeval curtime;
     gettimeofday(&curtime, nullptr);
     record->ut_tv.tv_sec = curtime.tv_sec;
@@ -53,6 +69,10 @@ inline bool log_boot()
     // the utmp database: we need to update the wtmp database explicitly:
 #if USE_UPDWTMPX
     updwtmpx(_PATH_WTMPX, &record);
+#endif
+
+#if CLEAR_UTMP_ON_BOOT
+    truncate(_PATH_UTMPX, 0);
 #endif
 
     setutxent();
@@ -122,6 +142,11 @@ static inline bool log_boot()
 static inline bool create_utmp_entry(const char *utmp_id, const char *utmp_line)
 {
     return true;
+}
+
+inline void clear_utmp_entry(const char *utmp_id, const char *utmp_line)
+{
+    return;
 }
 
 #endif
