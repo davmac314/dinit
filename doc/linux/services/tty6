@@ -4,3 +4,5 @@ restart = true
 depends-on = loginready
 termsignal = HUP
 smooth-recovery = true
+inittab-id = 6
+inittab-line = tty6
