@@ -190,9 +190,11 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
         }
     }
 
+#if USE_UTMPX
     if (*inittab_id || *inittab_line) {
         clear_utmp_entry(inittab_id, inittab_line);
     }
+#endif
 
     if (service_state == service_state_t::STARTING) {
         // If state is STARTING, we must be waiting for readiness notification; the process has
