@@ -64,7 +64,7 @@ bool control_conn_t::process_packet()
             return true;
         }
         
-        if (contains({shutdown_type_t::CONTINUE, shutdown_type_t::HALT,
+        if (contains({shutdown_type_t::REMAIN, shutdown_type_t::HALT,
             	shutdown_type_t::POWEROFF, shutdown_type_t::REBOOT}, rbuf[1])) {
             auto sd_type = static_cast<shutdown_type_t>(rbuf[1]);
 

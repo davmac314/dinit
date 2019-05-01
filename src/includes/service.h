@@ -725,7 +725,7 @@ class service_set
     std::list<service_record *> records;
     bool restart_enabled; // whether automatic restart is enabled (allowed)
     
-    shutdown_type_t shutdown_type = shutdown_type_t::CONTINUE;  // Shutdown type, if stopping
+    shutdown_type_t shutdown_type = shutdown_type_t::NONE;  // Shutdown type, if stopping
     
     // Services waiting for exclusive access to the console
     dlist<service_record, extract_console_queue> console_queue;
@@ -926,6 +926,13 @@ class service_set
     shutdown_type_t get_shutdown_type() noexcept
     {
         return shutdown_type;
+    }
+
+    // Set the shutdown type to the specified type, without issuing a shutdown order. If all services
+    // stop, the shutdown type determines the action that Dinit will take.
+    void set_shutdown_type(shutdown_type_t new_shutdown_type) noexcept
+    {
+        shutdown_type = new_shutdown_type;
     }
 
     // Get an identifier for the run-time type of the service set (similar to typeid, but without

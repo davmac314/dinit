@@ -32,7 +32,8 @@ enum class service_event_t {
 
 /* Shutdown types */
 enum class shutdown_type_t {
-    CONTINUE,          // Continue normal boot sequence (used after single-user shell)
+    NONE,              // No explicit shutdown
+    REMAIN,            // Continue running with no services
     HALT,              // Halt system without powering down
     POWEROFF,          // Power off system
     REBOOT             // Reboot system

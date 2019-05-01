@@ -439,6 +439,9 @@ int dinit_main(int argc, char **argv)
     }
 
     shutdown_type_t shutdown_type = services->get_shutdown_type();
+    if (shutdown_type == shutdown_type_t::REMAIN) {
+        goto event_loop;
+    }
     
     if (am_pid_one) {
         log_msg_begin(loglevel_t::INFO, "No more active services.");
@@ -452,9 +455,6 @@ int dinit_main(int argc, char **argv)
         else if (shutdown_type == shutdown_type_t::POWEROFF) {
             log_msg_end(" Will power down.");
         }
-        else {
-            log_msg_end(" Re-initiating boot sequence.");
-        }
     }
     
     log_flush_timer.arm_timer_rel(event_loop, timespec{5,0}); // 5 seconds
@@ -465,10 +465,12 @@ int dinit_main(int argc, char **argv)
     close_control_socket();
     
     if (am_pid_one) {
-        if (shutdown_type == shutdown_type_t::CONTINUE) {
-            // It could be that we started in single user mode, and the
-            // user has now exited the shell. We'll try and re-start the
-            // boot process...
+        if (shutdown_type == shutdown_type_t::NONE) {
+            // Services all stopped but there was no shutdown issued. Inform user, wait for ack, and
+            // re-start boot sequence.
+            std::cout << "No shutdown was requested; boot failure? Will re-run boot sequence." << std::endl;
+            sync(); // Sync to minimise data loss if user elects to power off / hard reset
+            wait_for_user_input();
             try {
                 services->start_service("boot");
                 goto event_loop; // yes, the "evil" goto
@@ -476,7 +478,6 @@ int dinit_main(int argc, char **argv)
             catch (...) {
                 // Now what do we do? try to reboot, but wait for user ack to avoid boot loop.
                 log(loglevel_t::ERROR, "Could not start 'boot' service. Will attempt reboot.");
-                wait_for_user_input();
                 shutdown_type = shutdown_type_t::REBOOT;
             }
         }
