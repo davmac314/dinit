@@ -21,8 +21,12 @@ functions.
 
 Dinit can be run as a system instance (when run as the root user or when
 specified via command line parameter) or as a user instance. This affects
-the default paths used to locate certain files, and the reaction to various
-signals.
+the default paths used to locate certain files.
+
+When run as PID 1, the first process, Dinit acts as a system manager and
+shuts down or reboots the system on request (including on receipt of
+certain signals). This is currently fully supported only on Linux. See
+\fBRUNNING AS SYSTEM MANAGER / PRIMARY INIT\fR.
 
 Dinit reads service descriptions from files located in a service
 description directory, normally one of \fI/etc/dinit.d\fR,
@@ -104,7 +108,8 @@ Process-based services are monitored and, if the process terminates, the
 service may be stopped or the process may be re-started, according to the
 configuration in the service description.  
 
-Once all services stop, the \fBdinit\fR daemon will itself terminate.
+Once all services stop, the \fBdinit\fR daemon will itself terminate (or, if
+running as PID 1, will perform the appropriate type of system shutdown).
 .\"
 .SS CHARACTER SET HANDLING
 .\"
