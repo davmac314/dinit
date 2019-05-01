@@ -1,4 +1,4 @@
-.TH SHUTDOWN "8" "October 2018" "Dinit 0.4.0" "Dinit \- service management system"
+.TH SHUTDOWN "8" "May 2019" "Dinit 0.5.0" "Dinit \- service management system"
 .SH NAME
 shutdown, halt, reboot \- system shutdown 
 .\"
@@ -22,7 +22,8 @@ manager daemon to perform a service rollback and then to shutdown the
 system. They can also perform shutdown directly, without service rollback.
 
 Note that for consistency with other packages a "halt" alias is provided,
-however it has no special significance.
+however it has no special significance. Note that the default action is to
+power down the system.
 .\"
 .SH OPTIONS
 .TP

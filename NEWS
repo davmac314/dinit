@@ -1,3 +1,19 @@
+== Version 0.5.0:
+
+This version adds S6-compatible readiness notification support, and adds support for updating
+the "utmp" database when services start/stop (this functionality should be avoided if possible
+since the "utmp" database is mostly an historical artifact, and system support is often prone
+to issues which allow unprivileged users to prevent updates and deny or delay logins; however,
+utilities such as "who" may depend on the database being updated appropriately). 
+
+Other changes:
+ * Add "-u" command line option to force running dinit as a user instance.
+ * Add a "chain-to" service property to better support recovery services.
+ * Add a "shares-console" service option to allow running services "on the console" without having
+   them own it exclusively.
+ * Add "inittab-id" and "inittab-line" service settings for utmp support.
+ * Minor bugfixes.
+
 == Version 0.4.0:
 
 This version focuses on being more "distribution friendly". It adds mechanisms to add and remove
