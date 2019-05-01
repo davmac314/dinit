@@ -266,6 +266,9 @@ The "utmp" database is mostly a historical artifact. Access to it on some system
 prone to denial-of-service by unprivileged users. It is therefore recommended that this
 setting not be used. However, "who" and similar utilities may not work correctly without
 this setting (or \fBinittab-line\fR) enabled appropriately.
+
+This setting has no effect if Dinit was not built with support for writing to the "utmp"
+database.
 .TP
 \fBinittab-line\fR = \fItty-name-string\fR
 This specifies the tty line that will be written to the "utmp" database when this service
