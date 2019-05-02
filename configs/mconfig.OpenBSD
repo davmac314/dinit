@@ -1,0 +1,16 @@
+# Installation path options.
+
+SBINDIR=/sbin
+MANDIR=/usr/share/man
+SYSCONTROLSOCKET=/dev/dinitctl
+
+
+# General build options. Uncomment the options appropriate for your system.
+
+# OpenBSD, tested with GCC 4.9.3 / Clang++ 4/5 and gmake:
+CXX=clang++
+CXXOPTS=-std=c++11 -Os -Wall -fno-rtti
+LDFLAGS=
+BUILD_SHUTDOWN=no
+SANITIZEOPTS=
+# (shutdown command not available for OpenBSD yet).

@@ -11,6 +11,16 @@ objects = $(dinit_objects) dinitctl.o shutdown.o
 
 all: dinit dinitctl $(SHUTDOWN)
 
+# Look for a suitable build config file and use it.
+../mconfig:
+	@UNAME=`uname`;\
+	if [ -f "../configs/mconfig.$$UNAME" ]; then \
+	    echo "Found configuration for OS: $$UNAME"; \
+	    ln -sf "configs/mconfig.$$UNAME" ../mconfig; \
+	else \
+	    echo "No config available. Please create suitable mconfig file."; \
+	fi
+
 includes/mconfig.h: mconfig-gen
 	./mconfig-gen SBINDIR=$(SBINDIR) SYSCONTROLSOCKET=$(SYSCONTROLSOCKET) > includes/mconfig.h
 

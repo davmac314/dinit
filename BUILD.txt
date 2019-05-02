@@ -4,17 +4,19 @@ Building Dinit
 Building Dinit should be a straight-forward process. It requires GNU make and a C++11 compiler
 (GCC version 4.9 and later, or Clang ~5.0 and later, should be fine)
 
-Edit the "mconfig" file to choose appropriate values for the configuration variables defined
-within. In particular:
+On the directly supported operating systems - Linux, OpenBSD, FreeBSD and Darwin (macOS) - a
+suitable build configuration is provided and should be used automatically. For other systems,
+or to fine tune or correct the configuration, create and edit the "mconfig" file (start by
+copying one for a particular OS from the "configs" directory) to choose appropriate values for
+the configuration variables defined within. In particular:
 
   CXX : should be set to the name of the C++ compiler (and link driver)
   CXXOPTS :  are options passed to the compiler during compilation (see note for GCC below)
   LDFLAGS :  are any extra flags required for linking; should not normally be needed
              (FreeBSD requires -lrt).
 
-Suitable defaults for a number of systems are provided. Note that the "eg++" or "clang++" package
-must be installed on OpenBSD as the default "g++" compiler is too old. Clang is part of the base
-system in recent releases.
+Note that the "eg++" or "clang++" package must be installed on OpenBSD as the default "g++"
+compiler is too old. Clang is part of the base system in recent releases.
 
 Then, change into the "src" directory, and run "make" (or "gmake" if the system make is not
 GNU make, such as on most BSD systems):
