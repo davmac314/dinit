@@ -280,10 +280,10 @@ are:
     dinitctl stop <service-name>
     dinitctl release <service-name>
 
-Note that a "start" markes the service active, as well as starting it if it is
+Note that a "start" marks the service active, as well as starting it if it is
 not already started; the opposite of this is actually "release", which clears
 the active mark and stops it if it has no active dependent services. The "stop"
-command by default acts as a "release" which also forces the service to stop
+command by default acts as a "release" that also forces the service to stop
 (although it may then immediately restart, depending on how it and its
 dependents are configured).
 
