@@ -2,6 +2,9 @@
 
 all:
 	$(MAKE) -C src all
+	@echo "***"
+	@echo "*** Build complete; use \"make check\" to run tests or \"make install\" to install."
+	@echo "***"
 
 check:
 	$(MAKE) -C src check
