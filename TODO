@@ -1,22 +1,14 @@
-For version 0.5.0:
-------------------
-* [DONE] Man pages for all programs (done for dinit and dinitctl, not for shutdown/halt etc).
-* [DONE] Support S6-style startup notification (write to fd).
-* Write wtmp entry on startup (see simpleinit). Investigate.
-  - clear utmp before writing boot line? probably not even necessary
-  - document inittab-id and inittab-line service settings
-  - make writing utmp entry failure not fatal?
-  - update ttyX example service descriptions
-  - document the utmp locking problem with Glibc (can block up to 10 seconds)
-    - can this happen with freebsd? (yep - permanent block).
-* Fix when boot stops without restart being issued
-  (currently goes into loop?)
-
 For version 0.6.0:
 ------------------
 * Refuse to start new services during shutdown.
+* On service failure (all services stop when no restart issued), allow user to interrupt/ctrl+alt+del when
+  they are prompted to press enter, to allow halt/rebooting instead of re-launching the boot service. 
 * Basic resource limits setting.
 * per-service environment.
+
+For version 0.7.0:
+------------------
+? Not decided yet.
 
 For version 1.0:
 ----------------
