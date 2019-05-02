@@ -34,10 +34,19 @@
 #endif
 
 #if USE_UTMPX
+#include <utmpx.h>
+// Musl has a utmpx.h header but only stub implementations of the functions, and does not define _PATH_UTMPX
+// nor _PATH_WTMPX.
+#if !defined(_PATH_UTMPX) || !defined(_PATH_WTMPX)
+#undef USE_UTMPX
+#define USE_UTMPX 0
+#endif
+#endif
+
+#if USE_UTMPX
 
 #include <cstring>
 
-#include <utmpx.h>
 #include <sys/time.h>
 
 // Set the time for a utmpx record to the current time.
