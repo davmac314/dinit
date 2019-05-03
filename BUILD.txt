@@ -28,6 +28,28 @@ If everything goes smoothly this will build dinit, dinitctl, and optionally the 
 utility. Use "make install" to install; you can specify an alternate installation by
 setting the "DESTDIR" variable, eg "make DESTDIR=/tmp/temporary-install-path install".
 
+Other configuration variables
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+There are a number of other variables you can set in the mconfig file which affect the build:
+
+SBINDIR=...
+    Where the "/sbin" directory is. Executables will be installed here.
+MANDIR=...
+    Where the "man" directory is. Man pages will be installed here.
+SYSCONTROLSOCKET=...
+    Default full path to the control socket, for when Dinit runs as system service manager.
+BUILD_SHUTDOWN=yes|no
+    Whether to build the "shutdown" (and "halt" etc) utilities. These are only useful
+    if dinit is the system init (i.e. the PID 1 process). You probably don't want this
+    unless building for Linux. 
+USE_UTMPX=1|0
+    Whether to build support for manipulating the utmp/utmpx database via the related POSIX
+    functions. If not set to any value, support is enabled for certain systems automatically
+    and disabled for all others.
+SANITIZE_OPTS=...
+    Any options to enable run-time sanitizers or additional safety checks. This will be used
+    only when building tests. It can safely be left blank.
 
 Running test suite
 =-=-=-=-=-=-=-=-=-
