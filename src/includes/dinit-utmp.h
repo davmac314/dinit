@@ -12,6 +12,11 @@
 #ifndef USE_UTMPX
 #if __linux__ || __FreeBSD__ || __DragonFly__
 #define USE_UTMPX 1
+#if __linux__
+// Should be safe to #include <utmpx.h>, but it may be stub implementation (Musl). Need to check
+// that after include:
+#define CHECK_UTMP_PATH 1
+#endif
 #else
 #define USE_UTMPX 0
 #endif
@@ -37,9 +42,12 @@
 #include <utmpx.h>
 // Musl has a utmpx.h header but only stub implementations of the functions, and does not define _PATH_UTMPX
 // nor _PATH_WTMPX.
+#if CHECK_UTMP_PATH
+#undef CHECK_UTMP_PATH
 #if !defined(_PATH_UTMPX) || !defined(_PATH_WTMPX)
 #undef USE_UTMPX
 #define USE_UTMPX 0
+#endif
 #endif
 #endif
 
