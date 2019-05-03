@@ -9,8 +9,7 @@ if [ "$1" != "stop" ]; then
   rm -rf /tmp/* /tmp/.[^.]* /tmp/..?*
   rm -rf /var/lock/* /var/lock/.[^.]* /var/lock/..?*
   rm -rf /var/run/* /var/run/.[^.]* /var/run/..?*
-  # Create (empty) utmp database
-  : > /var/run/utmp
+  # create state directories
   mkdir /var/run/dbus
 
   # Configure random number generator
