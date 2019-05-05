@@ -410,7 +410,7 @@ class service_record
 
     public:
 
-    service_record(service_set *set, string name)
+    service_record(service_set *set, const string &name)
         : service_name(name), service_state(service_state_t::STOPPED),
             desired_state(service_state_t::STOPPED), auto_restart(false), smooth_recovery(false),
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
@@ -424,7 +424,7 @@ class service_record
         socket_perms = 0;
     }
 
-    service_record(service_set *set, string name, service_type_t record_type_p,
+    service_record(service_set *set, const string &name, service_type_t record_type_p,
             const std::list<prelim_dep> &deplist_p)
         : service_record(set, name)
     {
@@ -481,7 +481,7 @@ class service_record
     }
 
     // Set logfile, should be done before service is started
-    void set_log_file(string logfile)
+    void set_log_file(const string &logfile)
     {
         this->logfile = logfile;
     }

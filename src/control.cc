@@ -117,8 +117,7 @@ bool control_conn_t::process_find_load(int pktType)
     
     uint16_t svcSize;
     rbuf.extract((char *)&svcSize, 1, 2);
-    chklen = svcSize + 3; // packet type + (2 byte) length + service name
-    if (svcSize <= 0 || chklen > 1024) {
+    if (svcSize <= 0 || svcSize > (1024 - 3)) {
         // Queue error response / mark connection bad
         char badreqRep[] = { DINIT_RP_BADREQ };
         if (! queue_packet(badreqRep, 1)) return false;
@@ -126,6 +125,7 @@ bool control_conn_t::process_find_load(int pktType)
         iob.set_watches(OUT_EVENTS);
         return true;
     }
+    chklen = svcSize + 3; // packet type + (2 byte) length + service name
     
     if (rbuf.get_length() < chklen) {
         // packet not complete yet; read more
@@ -648,7 +648,7 @@ control_conn_t::handle_t control_conn_t::allocate_service_handle(service_record 
     // we find a gap in the handle values.
     handle_t candidate = 0;
     for (auto p : key_service_map) {
-        if (p.first == candidate) candidate++;
+        if (p.first == candidate) ++candidate;
         else break;
     }
 

@@ -507,11 +507,11 @@ int dinit_main(int argc, char **argv)
     }
     else if (shutdown_type == shutdown_type_t::REBOOT) {
         // Non-system-process. If we got SIGINT, let's die due to it:
-        sigset_t sigwait_set;
-        sigemptyset(&sigwait_set);
-        sigaddset(&sigwait_set, SIGINT);
+        sigset_t sigwait_set_int;
+        sigemptyset(&sigwait_set_int);
+        sigaddset(&sigwait_set_int, SIGINT);
         raise(SIGINT);
-        sigprocmask(SIG_UNBLOCK, &sigwait_set, NULL);
+        sigprocmask(SIG_UNBLOCK, &sigwait_set_int, NULL);
     }
     
     return 0;
