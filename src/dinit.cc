@@ -447,7 +447,7 @@ int dinit_main(int argc, char **argv)
         }
     }
     
-    event_loop:
+    run_event_loop:
     
     // Process events until all services have terminated.
     while (services->count_active_services() != 0) {
@@ -456,7 +456,7 @@ int dinit_main(int argc, char **argv)
 
     shutdown_type_t shutdown_type = services->get_shutdown_type();
     if (shutdown_type == shutdown_type_t::REMAIN) {
-        goto event_loop;
+        goto run_event_loop;
     }
     
     if (am_pid_one) {
@@ -489,7 +489,7 @@ int dinit_main(int argc, char **argv)
             confirm_restart_boot();
             try {
                 services->start_service("boot");
-                goto event_loop; // yes, the "evil" goto
+                goto run_event_loop; // yes, the "evil" goto
             }
             catch (...) {
                 // Now what do we do? try to reboot, but wait for user ack to avoid boot loop.
