@@ -57,7 +57,7 @@ static void sigquit_cb(eventloop_t &eloop) noexcept;
 static void sigterm_cb(eventloop_t &eloop) noexcept;
 static void open_control_socket(bool report_ro_failure = true) noexcept;
 static void close_control_socket() noexcept;
-static void wait_for_user_input() noexcept;
+static void confirm_restart_boot() noexcept;
 static void read_env_file(const char *);
 
 static void control_socket_cb(eventloop_t *loop, int fd);
@@ -87,10 +87,12 @@ static bool log_is_syslog = true; // if false, log is a file
 
 static const char *user_home_path = nullptr;
 
+// Set to true (when console_input_watcher is active) if console input becomes available
+static bool console_input_ready = false;
 
 // Get user home (and set user_home_path). (The return may become invalid after
 // changing the evironment (HOME variable) or using the getpwuid() function).
-const char * get_user_home()
+static const char * get_user_home()
 {
     if (user_home_path == nullptr) {
         user_home_path = getenv("HOME");
@@ -146,6 +148,18 @@ namespace {
         }
     };
 
+    class console_input_watcher : public eventloop_t::fd_watcher_impl<console_input_watcher>
+    {
+        using rearm = dasynq::rearm;
+
+        public:
+        rearm fd_event(eventloop_t &loop, int fd, int flags) noexcept
+        {
+            control_socket_cb(&loop, fd); // DAV
+            return rearm::REARM;
+        }
+    };
+
     // Simple timer used to limit the amount of time waiting for the log flush to complete (at shutdown)
     class log_flush_timer_t : public eventloop_t::timer_impl<log_flush_timer_t>
     {
@@ -167,6 +181,7 @@ namespace {
     };
 
     control_socket_watcher control_socket_io;
+    console_input_watcher console_input_io;
     log_flush_timer_t log_flush_timer;
 }
 
@@ -355,6 +370,7 @@ int dinit_main(int argc, char **argv)
 
     sigint_watcher.add_watch(event_loop, SIGINT);
     sigterm_watcher.add_watch(event_loop, SIGTERM);
+    console_input_io.add_watch(event_loop, STDIN_FILENO, dasynq::IN_EVENTS, false);
     
     if (am_pid_one) {
         // PID 1: SIGQUIT exec's shutdown
@@ -470,7 +486,7 @@ int dinit_main(int argc, char **argv)
             // re-start boot sequence.
             std::cout << "No shutdown was requested; boot failure? Will re-run boot sequence." << std::endl;
             sync(); // Sync to minimise data loss if user elects to power off / hard reset
-            wait_for_user_input();
+            confirm_restart_boot();
             try {
                 services->start_service("boot");
                 goto event_loop; // yes, the "evil" goto
@@ -577,13 +593,26 @@ static void read_env_file(const char *env_file_path)
     }
 }
 
-// In exception situations we want user confirmation before proceeding (eg on critical boot failure
-// we wait before rebooting to avoid a reboot loop).
-static void wait_for_user_input() noexcept
+// Get user confirmation before proceeding with restarting boot sequence.
+static void confirm_restart_boot() noexcept
 {
+    // Bypass log; we want to make certain the message is seen:
     std::cout << "Press Enter to continue." << std::endl;
-    char buf[1];
-    read(STDIN_FILENO, buf, 1);
+
+    console_input_io.set_enabled(event_loop, true);
+    while (! console_input_ready) {
+        event_loop.run();
+        if (services->get_shutdown_type() != shutdown_type_t::NONE) {
+            break;
+        }
+    }
+    console_input_io.set_enabled(event_loop, false);
+
+    if (console_input_ready) {
+        char buf[1];
+        read(STDIN_FILENO, buf, 1);
+        console_input_ready = false;
+    }
 }
 
 // Callback for control socket
