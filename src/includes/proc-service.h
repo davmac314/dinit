@@ -145,9 +145,8 @@ class base_process_service : public service_record
     // Start the process, return true on success
     virtual bool bring_up() noexcept override;
 
-    // Called after forking (before executing remote process). Returns true to continue
-    // execution, otherwise sets errno and returns false.
-    virtual bool after_fork(pid_t child_pid) noexcept { return true; }
+    // Called after forking (before executing remote process).
+    virtual void after_fork(pid_t child_pid) noexcept { }
 
     // Called when the process exits. The exit_status is the status value yielded by
     // the "wait" system call.
@@ -304,12 +303,11 @@ class process_service : public base_process_service
     char inittab_line[sizeof(utmpx().ut_line)];
 
     protected:
-    bool after_fork(pid_t child_pid) noexcept override
+    void after_fork(pid_t child_pid) noexcept override
     {
         if (*inittab_id || *inittab_line) {
-            return create_utmp_entry(inittab_id, inittab_line, child_pid);
+            create_utmp_entry(inittab_id, inittab_line, child_pid);
         }
-        return true;
     }
 
 #endif
