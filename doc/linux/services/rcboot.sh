@@ -10,6 +10,7 @@ if [ "$1" != "stop" ]; then
   rm -rf /var/lock/* /var/lock/.[^.]* /var/lock/..?*
   rm -rf /var/run/* /var/run/.[^.]* /var/run/..?*
   # create state directories
+  : > /var/run/utmp
   mkdir /var/run/dbus
 
   # Configure random number generator
