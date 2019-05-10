@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <pwd.h>
+#include <termios.h>
 #ifdef __linux__
 #include <sys/prctl.h>
 #include <sys/klog.h>
@@ -487,14 +488,17 @@ int dinit_main(int argc, char **argv)
             std::cout << "No shutdown was requested; boot failure? Will re-run boot sequence." << std::endl;
             sync(); // Sync to minimise data loss if user elects to power off / hard reset
             confirm_restart_boot();
-            try {
-                services->start_service("boot");
-                goto run_event_loop; // yes, the "evil" goto
-            }
-            catch (...) {
-                // Now what do we do? try to reboot, but wait for user ack to avoid boot loop.
-                log(loglevel_t::ERROR, "Could not start 'boot' service. Will attempt reboot.");
-                shutdown_type = shutdown_type_t::REBOOT;
+            shutdown_type = services->get_shutdown_type();
+            if (shutdown_type == shutdown_type_t::NONE) {
+                try {
+                    services->start_service("boot");
+                    goto run_event_loop; // yes, the "evil" goto
+                }
+                catch (...) {
+                    // Now what do we do? try to reboot, but wait for user ack to avoid boot loop.
+                    log(loglevel_t::ERROR, "Could not start 'boot' service. Will attempt reboot.");
+                    shutdown_type = shutdown_type_t::REBOOT;
+                }
             }
         }
         
@@ -599,20 +603,25 @@ static void confirm_restart_boot() noexcept
     // Bypass log; we want to make certain the message is seen:
     std::cout << "Press Enter to continue." << std::endl;
 
+    // Drain input, set non-blocking mode
+    tcflush(STDIN_FILENO, TCIFLUSH);
+    int origFlags = fcntl(STDIN_FILENO, F_GETFL);
+
     console_input_io.set_enabled(event_loop, true);
-    while (! console_input_ready) {
+    do {
         event_loop.run();
-        if (services->get_shutdown_type() != shutdown_type_t::NONE) {
-            break;
-        }
-    }
+    } while (! console_input_ready && services->get_shutdown_type() == shutdown_type_t::NONE);
     console_input_io.set_enabled(event_loop, false);
 
+    // We either have input, or shutdown type has been set, or both.
     if (console_input_ready) {
         char buf[1];
-        read(STDIN_FILENO, buf, 1);
+        read(STDIN_FILENO, buf, 1);  // read a single character, to make sure we wait for input
+        tcflush(STDIN_FILENO, TCIFLUSH); // discard the rest of input
         console_input_ready = false;
     }
+
+    fcntl(STDIN_FILENO, F_SETFL, origFlags);
 }
 
 // Callback for control socket
