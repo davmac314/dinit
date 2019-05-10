@@ -859,6 +859,10 @@ class service_set
     void pull_console_queue() noexcept
     {
         if (console_queue.is_empty()) {
+            // Discard the log buffer now, because we've potentially blocked output for a while
+            // and allowed it to fill with stale messages. (If not much time has passed, the
+            // request to discard will be ignored anyway).
+            discard_console_log_buffer();
             enable_console_log(true);
         }
         else {

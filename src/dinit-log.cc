@@ -16,10 +16,10 @@
 //
 // Note that most actual functions for logging messages are found in the header, dinit-log.h.
 //
-// We have two separate log "streams": one for the console/stdout, one for the syslog facility. Both have a
-// circular buffer. Log messages are appended to the circular buffer (for the syslog stream, the messages
-// are prepended with a syslog priority indicator). Both streams start out inactive (release = true in
-// buffered_log_stream), which means they will buffer messages but not write them.
+// We have two separate log "streams": one for the console/stdout, one for the syslog facility (or log
+// file). Both have a circular buffer. Log messages are appended to the circular buffer (for a syslog
+// stream, the messages are prepended with a syslog priority indicator). Both streams start out inactive
+// (release = true in buffered_log_stream), which means they will buffer messages but not write them.
 //
 // The console log stream needs to be able to release the console, if a service is waiting to acquire it.
 // This is accomplished by calling flush_for_release() which then completes the output of the current
@@ -32,6 +32,8 @@ loglevel_t log_level[2] = { loglevel_t::WARN, loglevel_t::INFO };
 static bool log_format_syslog[2] = { false, true };
 
 static service_set *services = nullptr;  // Reference to service set
+
+dasynq::time_val release_time; // time the log was released
 
 using rearm = dasynq::rearm;
 
@@ -128,6 +130,11 @@ void buffered_log_stream::release_console()
         int flags = fcntl(1, F_GETFL, 0);
         fcntl(1, F_SETFL, flags & ~O_NONBLOCK);
         services->pull_console_queue();
+        if (release) {
+            // release still set, we didn't immediately get the console back; record the
+            // time at which we released:
+            event_loop.get_time(release_time, clock_type::MONOTONIC);
+        }
     }
 }
 
@@ -299,7 +306,12 @@ void enable_console_log(bool enable) noexcept
 
 void discard_console_log_buffer() noexcept
 {
-    log_stream[DLOG_CONS].discard();
+    // Only discard if more than a second has passed since we released the console.
+    dasynq::time_val current_time;
+    event_loop.get_time(current_time, clock_type::MONOTONIC);
+    if (current_time - release_time >= dasynq::time_val(1, 0)) {
+        log_stream[DLOG_CONS].discard();
+    }
 }
 
 // Variadic method to calculate the sum of string lengths:

@@ -54,7 +54,6 @@ void service_record::stopped() noexcept
 {
     if (have_console) {
         bp_sys::tcsetpgrp(0, bp_sys::getpgrp());
-        discard_console_log_buffer();
         release_console();
     }
 
