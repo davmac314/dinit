@@ -10,7 +10,8 @@ intended to provide an overview; For full documentation please check the manual 
 2. [Configuring services](#configuring-services)
     1. [Service types](#service-types)
     2. [Service description files](#service-description-files)
-3. [Controlling services](#controlling-services)
+3. [Running Dinit](#running-dinit)
+4. [Controlling services](#controlling-services)
     1. [Service hierarchy and states](#service-hierarchy-and-states)
     2. [Using dinitctl](#using-dinitctl)
 
@@ -27,12 +28,13 @@ service will be started first). It  can monitor the process corresponding to a
 service, and re-start it if it dies, and it can do this in an intelligent way,
 first "rolling back" all dependent services, and restarting them when their
 dependencies are satisfied. However, the precise nature of dependency
-relations between services is highly configurable.
+relations between services is highly configurable. The "dinitctl" tool can
+be used to start or stop services and check their state (by issuing commands
+to the "dinit" daemon).
 
-Dinit includes "dinitctl", a tool to issue commands to the main Dinit
-process in order to start or stop services and check their state, as well as
-a "shutdown" program (with scripts "halt" and "reboot") to manage shutting
-down and restarting the system.
+Dinit is designed to run as either as a system service manager (runs as root,
+uses system paths for configuration etc) or a user process (runs as a user,
+uses paths in the user's home directory by default).
 
 Dinit is designed to work on POSIXy operating systems such as Linux and
 OpenBSD. It is written in C++ and uses the [Dasynq](http://davmac.org/projects/dasynq/)
@@ -109,9 +111,10 @@ process.
 
 Dinit discovers services by reading _service description files_. These files
 reside in a directory (/etc/dinit.d is the default "system" location, with
-"/usr/local/lib/dinit.d" and "/lib/dinit.d" also searched) and their name
-matches the name of the service. Service descriptions are loaded lazily, as
-needed by Dinit.
+"/usr/local/lib/dinit.d" and "/lib/dinit.d" also searched; the default user
+location is "$HOME/dinit.d") and the name of a service description file
+matches the name of the service they configure. Service descriptions are
+loaded lazily, as needed by Dinit.
 
 (An example of a complete set of system service descriptions can be found in
 the [doc/linux/services](doc/linux/services) directory).
@@ -246,6 +249,23 @@ Specifies various options for this service:
 
 Please see the manual page for a full list of service parameters and options.
 
+## Running Dinit
+
+Dinit can run as the system "init" - the first process started by the kernel
+on boot - which is normally done by linking or copying it to `/sbin/init`.
+This is currently supported only on Linux. It requires having suitable service
+descriptions in place and should be attempted only by those comfortable
+with low-level system administration and recovery. See doc/linux directory for
+more information.
+
+Dinit can also run as a normal process, and can be started in this case by a
+regular user.
+
+By default, regardless of whether it runs as a system or user process, Dinit
+will look for and start the service named "boot". This service should be
+configured with dependencies which will cause any other desired services to
+start. You can specify alternative services to start via the `dinit` command
+line (consult the man page for more information).
 
 ## Controlling services
 

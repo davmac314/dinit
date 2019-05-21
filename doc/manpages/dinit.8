@@ -9,7 +9,7 @@ dinit \- supervise processes and manage services
 [\fB\-s\fR|\fB\-\-system\fR|\fB\-u\fR|\fB\-\-user\fR] [\fB\-d\fR|\fB\-\-services\-dir\fR \fIdir\fR]
 [\fB\-p\fR|\fB\-\-socket\-path\fR \fIpath\fR] [\fB\-e\fR|\fB\-\-env\-file\fR \fIpath\fR]
 [\fB\-l\fR|\fB\-\-log\-file\fR \fIpath\fR]
-[\fIservice-name\fR]
+[\fIservice-name\fR...]
 .\"
 .SH DESCRIPTION
 .\"
@@ -76,7 +76,7 @@ display this help and exit
 .TP
 \fIservice-name\fR
 Specifies the name of the service that should be started (along with its
-dependencies). If not specified, defaults to \fIboot\fR (which requires
+dependencies). If none are specified, defaults to \fIboot\fR (which requires
 that a suitable service description for the \fIboot\fR service exists).
 .\"
 .SH SERVICE DESCRIPTION FILES
