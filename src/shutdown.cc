@@ -20,11 +20,12 @@
 #include "service-constants.h"
 #include "dinit-client.h"
 #include "dinit-util.h"
+#include "mconfig.h"
 
 #include "dasynq.h"
 
 // shutdown:  shut down the system
-// This utility communicates with the dinit daemon via a unix socket (/dev/initctl).
+// This utility communicates with the dinit daemon via a unix socket (specified in SYSCONTROLSOCKET).
 
 static constexpr uint16_t min_cp_version = 1;
 static constexpr uint16_t max_cp_version = 1;
@@ -337,7 +338,7 @@ int main(int argc, char **argv)
             return 1;
         }
         
-        const char *naddr = "/dev/dinitctl";
+        const char *naddr = SYSCONTROLSOCKET;
         
         struct sockaddr_un name;
         name.sun_family = AF_UNIX;

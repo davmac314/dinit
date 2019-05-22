@@ -23,11 +23,12 @@
 #include "dinit-client.h"
 #include "load-service.h"
 #include "dinit-util.h"
+#include "mconfig.h"
 
 // dinitctl:  utility to control the Dinit daemon, including starting and stopping of services.
 
-// This utility communicates with the dinit daemon via a unix stream socket (/dev/initctl,
-// or $HOME/.dinitctl).
+// This utility communicates with the dinit daemon via a unix stream socket (as specified in
+// SYSCONTROLSOCKET, or $HOME/.dinitctl).
 
 static constexpr uint16_t min_cp_version = 1;
 static constexpr uint16_t max_cp_version = 1;
@@ -267,7 +268,7 @@ int main(int argc, char **argv)
     
     signal(SIGPIPE, SIG_IGN);
     
-    control_socket_path = "/dev/dinitctl";
+    control_socket_path = SYSCONTROLSOCKET;
     
     // Locate control socket
     if (! sys_dinit) {
