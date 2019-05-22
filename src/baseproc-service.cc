@@ -331,8 +331,13 @@ void base_process_service::kill_pg(int signo) noexcept
     else {
         pid_t pgid = bp_sys::getpgid(pid);
         if (pgid == -1) {
-            // only should happen if pid is invalid, which should never happen...
-            log(loglevel_t::ERROR, get_name(), ": can't signal process: ", strerror(errno));
+            // On some OSes (eg OpenBSD) we aren't allowed to get the pgid of a process in a different
+            // session. Just kill the process in that case.
+            log(loglevel_t::WARN, get_name(), ": can't signal process group: ", strerror(errno));
+            log(loglevel_t::WARN, get_name(), ": will signal process only "
+                    "(consider using option = signal-process-only)");
+
+            bp_sys::kill(pid, signo);
             return;
         }
         bp_sys::kill(-pgid, signo);
