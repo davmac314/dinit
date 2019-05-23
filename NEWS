@@ -1,3 +1,14 @@
+== Version 0.5.1:
+
+This is a bug-fix release for several issues of varying severity which have been found in the
+preceding release.
+
+ * Improved logging behaviour when a service runs "on console" for a very short time.
+ * Fix for crash due to SIGALRM on OpenBSD.
+ * Fixes for compiling with Musl C library.
+ * Fix dinitctl "enable" and "disable" commands when path to service directory is absolute.
+ * Other minor fixes.
+
 == Version 0.5.0:
 
 This version adds S6-compatible readiness notification support, and adds support for updating
