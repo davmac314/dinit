@@ -925,7 +925,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
     string service_file_path;
 
     for (std::string path : paths) {
-        string test_path = combine_paths(dinit_cwd + '/' + path, from);
+        string test_path = combine_paths(combine_paths(dinit_cwd, path.c_str()), from);
 
         service_file.open(test_path.c_str(), ios::in);
         if (service_file) {
