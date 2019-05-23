@@ -5,6 +5,7 @@
 
 #include <signal.h>
 #include <setjmp.h>
+#include <sys/types.h>
 
 // Support for the standard POSIX signal mechanisms. This can be used by backends that don't
 // otherwise support receiving signals. It is not particularly nice (it involves using longjmp
@@ -99,7 +100,7 @@ inline siginfo_t * get_siginfo()
     return &sig_capture::siginfo_cap;
 }
 
-} } // namespace dasynq :: signal_mech
+} } // namespace dprivate :: signal_mech
 
 // signal_events template.
 //

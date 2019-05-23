@@ -275,7 +275,7 @@ class itimer_events : public timer_base<Base>
         if (timer_queue.is_queued(timer_id)) {
             bool was_first = (&timer_queue.get_root()) == &timer_id;
             timer_queue.remove(timer_id);
-            if (was_first) {
+            if (was_first && provide_mono_timer) {
                 set_timer_from_queue();
             }
         }
