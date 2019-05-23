@@ -4,6 +4,7 @@
 #include <system_error>
 #include <vector>
 #include <atomic>
+#include <tuple>
 
 #include <sys/time.h>
 #include <sys/types.h>

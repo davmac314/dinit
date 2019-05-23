@@ -214,13 +214,13 @@ specified, the socket will be owned by the user id of the Dinit process.
 Specifies the group of the activation socket. See discussion of
 \fBsocket\-uid\fR.
 .TP
-\fBtermsignal\fR = {HUP | INT | QUIT | USR1 | USR2}
+\fBterm\-signal\fR = {HUP | INT | QUIT | USR1 | USR2 | KILL}
 Specifies an additional signal to send to the process when requesting it
 to terminate (applies to 'process' services only). SIGTERM is always
-sent along with the specified signal, unless the \fBnosigterm\fR option is
+sent along with the specified signal, unless the \fBno\-sigterm\fR option is
 specified via the \fBoptions\fR parameter.
 .TP
-\fBready-notification\fR = {\fBpipefd:\fR\fIfd-number\fR | \fBpipevar:\fR\fIenv-var-name\fR}
+\fBready\-notification\fR = {\fBpipefd:\fR\fIfd-number\fR | \fBpipevar:\fR\fIenv-var-name\fR}
 Specifies the mechanism, if any, by which a process service will notify that it is ready
 (successfully started). If not specified, a process service is considered started as soon as it
 has begun execution. The two options are:

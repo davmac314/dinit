@@ -30,6 +30,7 @@ static int signal_name_to_number(std::string &signame)
     if (signame == "QUIT") return SIGQUIT;
     if (signame == "USR1") return SIGUSR1;
     if (signame == "USR2") return SIGUSR2;
+    if (signame == "KILL") return SIGKILL;
     return -1;
 }
 
@@ -549,7 +550,8 @@ service_record * dirload_service_set::load_service(const char * name)
                     }
                 }
             }
-            else if (setting == "termsignal") {
+            else if (setting == "term-signal" || setting == "termsignal") {
+                // Note: "termsignal" supported for legacy reasons.
                 string signame = read_setting_value(i, end, nullptr);
                 int signo = signal_name_to_number(signame);
                 if (signo == -1) {
