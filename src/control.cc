@@ -204,15 +204,19 @@ bool control_conn_t::process_start_stop(int pktType)
         return true;
     }
     else {
-        bool already_there = false;
+        char ack_buf[1] = { DINIT_RP_ACK };
         
         switch (pktType) {
         case DINIT_CP_STARTSERVICE:
             // start service, mark as required
+            if (services->is_shutting_down()) {
+                ack_buf[0] = DINIT_RP_NAK;
+                break;
+            }
             if (do_pin) service->pin_start();
             service->start();
             services->process_queues();
-            already_there = service->get_state() == service_state_t::STARTED;
+            if (service->get_state() == service_state_t::STARTED) ack_buf[0] = DINIT_RP_ALREADYSS;
             break;
         case DINIT_CP_STOPSERVICE:
             // force service to stop
@@ -220,25 +224,27 @@ bool control_conn_t::process_start_stop(int pktType)
             service->stop(true);
             service->forced_stop();
             services->process_queues();
-            already_there = service->get_state() == service_state_t::STOPPED;
+            if (service->get_state() == service_state_t::STOPPED) ack_buf[0] = DINIT_RP_ALREADYSS;
             break;
         case DINIT_CP_WAKESERVICE:
             // re-start a stopped service (do not mark as required)
+            if (services->is_shutting_down()) {
+                ack_buf[0] = DINIT_RP_NAK;
+                break;
+            }
             if (do_pin) service->pin_start();
             service->start(false);
             services->process_queues();
-            already_there = service->get_state() == service_state_t::STARTED;
+            if (service->get_state() == service_state_t::STARTED) ack_buf[0] = DINIT_RP_ALREADYSS;
             break;
         case DINIT_CP_RELEASESERVICE:
             // remove required mark, stop if not required by dependents
             if (do_pin) service->pin_stop();
             service->stop(false);
             services->process_queues();
-            already_there = service->get_state() == service_state_t::STOPPED;
+            if (service->get_state() == service_state_t::STOPPED) ack_buf[0] = DINIT_RP_ALREADYSS;
             break;
         }
-        
-        char ack_buf[] = { (char)(already_there ? DINIT_RP_ALREADYSS : DINIT_RP_ACK) };
         
         if (! queue_packet(ack_buf, 1)) return false;
     }
@@ -504,8 +510,10 @@ bool control_conn_t::add_service_dep(bool do_enable)
             from_service->get_state())) {
         // The dependency record is activated: mark it as holding acquisition of the dependency, and start
         // the dependency.
-        dep_record->get_from()->start_dep(*dep_record);
-        services->process_queues();
+        if (!services->is_shutting_down()) {
+            dep_record->get_from()->start_dep(*dep_record);
+            services->process_queues();
+        }
     }
 
     char ack_rep[] = { DINIT_RP_ACK };
