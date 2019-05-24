@@ -28,7 +28,7 @@
 extern eventloop_t event_loop;
 
 static bool log_current_line[2];  // Whether the current line is being logged (for console, main log)
-loglevel_t log_level[2] = { loglevel_t::WARN, loglevel_t::INFO };
+loglevel_t log_level[2] = { loglevel_t::INFO, loglevel_t::WARN };
 static bool log_format_syslog[2] = { false, true };
 
 static service_set *services = nullptr;  // Reference to service set
