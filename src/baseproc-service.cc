@@ -332,13 +332,9 @@ void base_process_service::kill_pg(int signo) noexcept
         pid_t pgid = bp_sys::getpgid(pid);
         if (pgid == -1) {
             // On some OSes (eg OpenBSD) we aren't allowed to get the pgid of a process in a different
-            // session. Just kill the process in that case.
-            log(loglevel_t::INFO, get_name(), ": can't signal process group: ", strerror(errno));
-            log(loglevel_t::INFO, get_name(), ": will signal process only "
-                    "(consider using 'options = signal-process-only')");
-
-            bp_sys::kill(pid, signo);
-            return;
+            // session. If the process is in a different session, however, it must be a process group
+            // leader and the pgid must equal the process id.
+            pgid = pid;
         }
         bp_sys::kill(-pgid, signo);
     }
