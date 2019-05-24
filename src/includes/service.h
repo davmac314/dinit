@@ -917,26 +917,14 @@ class service_set
         process_queues();
     }
     
-    void set_auto_restart(bool restart) noexcept
+    bool is_shutting_down() noexcept
     {
-        restart_enabled = restart;
+        return !restart_enabled;
     }
-    
-    bool get_auto_restart() noexcept
-    {
-        return restart_enabled;
-    }
-    
+
     shutdown_type_t get_shutdown_type() noexcept
     {
         return shutdown_type;
-    }
-
-    // Set the shutdown type to the specified type, without issuing a shutdown order. If all services
-    // stop, the shutdown type determines the action that Dinit will take.
-    void set_shutdown_type(shutdown_type_t new_shutdown_type) noexcept
-    {
-        shutdown_type = new_shutdown_type;
     }
 
     // Get an identifier for the run-time type of the service set (similar to typeid, but without

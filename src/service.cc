@@ -71,7 +71,7 @@ void service_record::stopped() noexcept
     }
 
     bool will_restart = (desired_state == service_state_t::STARTED)
-            && services->get_auto_restart();
+            && !services->is_shutting_down();
 
     for (auto & dependency : depends_on) {
         // we signal dependencies in case they are waiting for us to stop:
@@ -130,7 +130,7 @@ void service_record::stopped() noexcept
 bool service_record::do_auto_restart() noexcept
 {
     if (auto_restart) {
-        return services->get_auto_restart();
+        return !services->is_shutting_down();
     }
     return false;
 }
