@@ -485,9 +485,12 @@ int dinit_main(int argc, char **argv)
         if (shutdown_type == shutdown_type_t::NONE) {
             // Services all stopped but there was no shutdown issued. Inform user, wait for ack, and
             // re-start boot sequence.
-            std::cout << "No shutdown was requested; boot failure? Will re-run boot sequence." << std::endl;
             sync(); // Sync to minimise data loss if user elects to power off / hard reset
             confirm_restart_boot();
+            if (services->count_active_services() != 0) {
+                // Recovery service started
+                goto run_event_loop;
+            }
             shutdown_type = services->get_shutdown_type();
             if (shutdown_type == shutdown_type_t::NONE) {
                 try {
@@ -598,14 +601,29 @@ static void read_env_file(const char *env_file_path)
 }
 
 // Get user confirmation before proceeding with restarting boot sequence.
+// Returns after confirmation, possibly with shutdown type altered.
 static void confirm_restart_boot() noexcept
 {
     // Bypass log; we want to make certain the message is seen:
-    std::cout << "Press Enter to continue." << std::endl;
+    std::cout << "All services have stopped with no shutdown issued; boot failure?\n";
 
-    // Drain input, set non-blocking mode
-    tcflush(STDIN_FILENO, TCIFLUSH);
+    // Drain input, set non-canonical input mode (receive characters as they are typed)
+    struct termios term_attr;
+    if (tcgetattr(STDIN_FILENO, &term_attr) != 0) {
+        // Not a terminal?
+        std::cout << "Halting." << std::endl;
+        services->stop_all_services(shutdown_type_t::HALT);
+        return;
+    }
+    term_attr.c_lflag &= ~ICANON;
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &term_attr);
+
+    // Set non-blocking mode
     int origFlags = fcntl(STDIN_FILENO, F_GETFL);
+    fcntl(STDIN_FILENO, F_SETFL, origFlags | O_NONBLOCK);
+
+    do_prompt:
+    std::cout << "Please choose: (r)eboot, r(e)covery, re(s)tart boot sequence, (p)ower off?" << std::endl;
 
     console_input_io.set_enabled(event_loop, true);
     do {
@@ -616,11 +634,36 @@ static void confirm_restart_boot() noexcept
     // We either have input, or shutdown type has been set, or both.
     if (console_input_ready) {
         char buf[1];
-        read(STDIN_FILENO, buf, 1);  // read a single character, to make sure we wait for input
+        int r = read(STDIN_FILENO, buf, 1);  // read a single character, to make sure we wait for input
+        if (r == 1) {
+            if (buf[0] == 'r' || buf[0] == 'R') {
+                services->stop_all_services(shutdown_type_t::REBOOT);
+            }
+            else if (buf[0] == 'e' || buf[0] == 'E') {
+                try {
+                    services->start_service("recovery");
+                }
+                catch (...) {
+                    std::cout << "Unable to start recovery service.\n";
+                    goto do_prompt;
+                }
+            }
+            else if (buf[0] == 's' || buf[0] == 'S') {
+                // nothing - leave no shutdown type
+            }
+            else if (buf[0] == 'p' || buf[0] == 'P') {
+                services->stop_all_services(shutdown_type_t::POWEROFF);
+            }
+            else {
+                goto do_prompt;
+            }
+        }
         tcflush(STDIN_FILENO, TCIFLUSH); // discard the rest of input
         console_input_ready = false;
     }
 
+    term_attr.c_lflag |= ICANON;
+    tcsetattr(STDIN_FILENO, TCSANOW, &term_attr);
     fcntl(STDIN_FILENO, F_SETFL, origFlags);
 }
 
