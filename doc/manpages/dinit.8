@@ -91,6 +91,17 @@ ways via the \fBdinitctl\fR(8) program.
 
 See \fBdinit-service\fR(5) for details of the format and available parameters.
 .\"
+.SH SPECIAL SERVICE NAMES
+.\"
+There are two service names that are "special" to Dinit.
+
+The \fIboot\fR service is the service that Dinit starts by default, if no
+other service names are provided when it is started.
+
+The \fIrecovery\fR service is a service that Dinit will offer to start if
+boot appears to fail (that is, if all services stop without a shutdown command
+having been issued), when Dinit is running as system manager.
+.\"
 .SH OPERATION
 .\"
 On starting, Dinit starts the initial service(s) as specified on the command
@@ -133,7 +144,7 @@ When not running as process ID 1, \fBdinit\fR assumes responsibility only for
 service management. System shutdown or restart need to be handled by the primary
 \fBinit\fR, which should start \fBdinit\fR on normal startup, and terminate
 \fBdinit\fR before shutdown, by signalling it and waiting for it to terminate
-after stopping services.
+after stopping services (possibly by invoking \fBdinitctl shutdown\fR).
 .\"
 .SH FILES
 .\"
