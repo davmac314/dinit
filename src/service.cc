@@ -458,7 +458,7 @@ void service_record::forced_stop() noexcept
         force_stop = true;
         if (! pinned_started) {
             prop_stop = true;
-            services->add_transition_queue(this);
+            services->add_prop_queue(this);
         }
     }
 }
