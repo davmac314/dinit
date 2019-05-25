@@ -3,6 +3,7 @@ v0.5.1 (pre-release)
 
 This is the README for Dinit, the service manager and init system. It is
 intended to provide an overview; For full documentation please check the manual pages. 
+The impatient may wish to check out the [getting started guide](doc/getting_started.md).
 
 ## Contents
 
