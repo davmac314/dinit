@@ -31,7 +31,8 @@ class eventloop_t
     void advance_time(time_val amount)
     {
         current_time += amount;
-        for (timer * t : active_timers) {
+        auto active_copy = active_timers;
+        for (timer * t : active_copy) {
             if (t->expiry_time >= current_time) {
                 t->stop_timer(*this);
                 rearm r = t->expired(*this, 1);
