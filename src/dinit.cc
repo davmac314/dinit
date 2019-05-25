@@ -149,6 +149,7 @@ namespace {
         }
     };
 
+    // Watch for console input and set a flag when it is available.
     class console_input_watcher : public eventloop_t::fd_watcher_impl<console_input_watcher>
     {
         using rearm = dasynq::rearm;
@@ -156,8 +157,8 @@ namespace {
         public:
         rearm fd_event(eventloop_t &loop, int fd, int flags) noexcept
         {
-            control_socket_cb(&loop, fd); // DAV
-            return rearm::REARM;
+            console_input_ready = true;
+            return rearm::DISARM;
         }
     };
 
@@ -633,6 +634,7 @@ static void confirm_restart_boot() noexcept
 
     // We either have input, or shutdown type has been set, or both.
     if (console_input_ready) {
+        console_input_ready = false;
         char buf[1];
         int r = read(STDIN_FILENO, buf, 1);  // read a single character, to make sure we wait for input
         if (r == 1) {
@@ -659,7 +661,6 @@ static void confirm_restart_boot() noexcept
             }
         }
         tcflush(STDIN_FILENO, TCIFLUSH); // discard the rest of input
-        console_input_ready = false;
     }
 
     term_attr.c_lflag |= ICANON;
