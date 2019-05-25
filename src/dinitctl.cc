@@ -758,7 +758,7 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
                 cout << " (exit status: " << WEXITSTATUS(exit_status) << ")";
             }
             else if (WIFSIGNALED(exit_status)) {
-                cout << " (signal: " << WSTOPSIG(exit_status) << ")";
+                cout << " (signal: " << WTERMSIG(exit_status) << ")";
             }
         }
 
