@@ -167,7 +167,7 @@ namespace {
     {
         using rearm = dasynq::rearm;
 
-        bool expired = false;
+        bool expired;
 
         public:
         rearm timer_expiry(eventloop_t &, int expiry_count)
@@ -179,6 +179,11 @@ namespace {
         bool has_expired()
         {
             return expired;
+        }
+
+        void reset()
+        {
+            expired = false;
         }
     };
 
@@ -475,6 +480,7 @@ int dinit_main(int argc, char **argv)
         }
     }
     
+    log_flush_timer.reset();
     log_flush_timer.arm_timer_rel(event_loop, timespec{5,0}); // 5 seconds
     while (! is_log_flushed() && ! log_flush_timer.has_expired()) {
         event_loop.run();
@@ -624,7 +630,7 @@ static void confirm_restart_boot() noexcept
     fcntl(STDIN_FILENO, F_SETFL, origFlags | O_NONBLOCK);
 
     do_prompt:
-    std::cout << "Please choose: (r)eboot, r(e)covery, re(s)tart boot sequence, (p)ower off?" << std::endl;
+    std::cout << "Choose: (r)eboot, r(e)covery, re(s)tart boot sequence, (p)ower off? " << std::flush;
 
     console_input_io.set_enabled(event_loop, true);
     do {
@@ -638,6 +644,7 @@ static void confirm_restart_boot() noexcept
         char buf[1];
         int r = read(STDIN_FILENO, buf, 1);  // read a single character, to make sure we wait for input
         if (r == 1) {
+            std::cout << "\n"; // force new line after input
             if (buf[0] == 'r' || buf[0] == 'R') {
                 services->stop_all_services(shutdown_type_t::REBOOT);
             }
