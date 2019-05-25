@@ -1,0 +1,7 @@
+# Recovery service. Dinit will offer to start this service if boot fails;
+# we'll run "sulogin" from util-linux, to prompt for root password and then
+# run a shell.
+
+type = process
+command = /sbin/sulogin
+options = runs-on-console
