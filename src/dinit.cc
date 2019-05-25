@@ -156,7 +156,7 @@ namespace {
         public:
         rearm fd_event(eventloop_t &loop, int fd, int flags) noexcept
         {
-            control_socket_cb(&loop, fd); // DAV
+            console_input_ready = true;
             return rearm::REARM;
         }
     };
