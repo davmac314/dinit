@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include <map>
 #include <string>
+#include <cassert>
 
 #include "dasynq.h"
 
@@ -19,10 +20,24 @@ namespace bp_sys {
 
 class eventloop_t
 {
+    time_val current_time {0, 0};
+
     public:
     void get_time(time_val &tv, dasynq::clock_type clock) noexcept
     {
-        tv = {0, 0};
+        tv = current_time;
+    }
+
+    void advance_time(time_val amount)
+    {
+        current_time += amount;
+        for (timer * t : active_timers) {
+            if (t->expiry_time >= current_time) {
+                t->stop_timer(*this);
+                rearm r = t->expired(*this, 1);
+                assert(r == rearm::NOOP); // others not handled
+            }
+        }
     }
 
     class child_proc_watcher
@@ -142,6 +157,17 @@ class eventloop_t
 
     class timer
     {
+        friend class eventloop_t;
+
+        private:
+        time_val expiry_time;
+
+        protected:
+        virtual rearm expired(eventloop_t &loop, int expiry_count)
+        {
+            return rearm::NOOP;
+        }
+
         public:
         void add_timer(eventloop_t &loop)
         {
@@ -150,6 +176,7 @@ class eventloop_t
 
         void arm_timer_rel(eventloop_t &loop, time_val timeout) noexcept
         {
+            expiry_time = loop.current_time + timeout;
             loop.active_timers.insert(this);
         }
 
@@ -166,7 +193,11 @@ class eventloop_t
 
     template <typename Derived> class timer_impl : public timer
     {
-
+        protected:
+        virtual rearm expired(eventloop_t &loop, int expiry_count) override
+        {
+            return static_cast<Derived *>(this)->timer_expiry(loop, expiry_count);
+        }
     };
 
     std::unordered_set<timer *> active_timers;
