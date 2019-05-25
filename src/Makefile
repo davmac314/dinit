@@ -1,5 +1,9 @@
 include ../mconfig
 
+HOSTCXX ?= $(CXX)
+HOSTCXXFLAGS ?= $(CXXFLAGS)
+HOSTLDFLAGS ?= $(LDFLAGS)
+
 ifeq ($(BUILD_SHUTDOWN),yes)
   SHUTDOWN=shutdown
 endif
@@ -26,7 +30,7 @@ includes/mconfig.h: mconfig-gen
 		$(if $(USE_UTMPX),USE_UTMPX=$(USE_UTMPX),) > includes/mconfig.h
 
 mconfig-gen: mconfig-gen.cc ../mconfig
-	$(CXX) $(CXXOPTS) -o mconfig-gen mconfig-gen.cc $(LDFLAGS)
+	$(HOSTCXX) $(HOSTCXXOPTS) -o mconfig-gen mconfig-gen.cc $(HOSTLDFLAGS)
 
 $(dinit_objects): includes/mconfig.h
 

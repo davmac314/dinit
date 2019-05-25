@@ -11,6 +11,6 @@ SYSCONTROLSOCKET=/dev/dinitctl
 # the new ABI. See BUILD file for more information.
 CXX=g++
 CXXOPTS=-D_GLIBCXX_USE_CXX11_ABI=1 -std=c++11 -Os -Wall -fno-rtti -fno-plt -flto
-LDFLAGS=-flto
+LDFLAGS=-flto -Os
 BUILD_SHUTDOWN=yes
 SANITIZEOPTS=-fsanitize=address,undefined
