@@ -321,8 +321,9 @@ void test_proc_start_timeout()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    scripted_service p {&sset, "testproc", std::move(command), command_offsets, depends};
     init_service_defaults(p);
+    p.set_start_timeout(time_val(10,0));
     sset.add_service(&p);
 
     p.start(true);
@@ -330,14 +331,15 @@ void test_proc_start_timeout()
 
     assert(p.get_state() == service_state_t::STARTING);
 
-    p.timer_expired();
+    event_loop.advance_time(time_val(10,0));
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPING);
 
-    base_process_service_test::handle_exit(&p, 0);
+    base_process_service_test::handle_signal_exit(&p, SIGTERM);
     sset.process_queues();
 
+    // We set no stop script, so state should now be STOPPED with no timer set
     assert(p.get_state() == service_state_t::STOPPED);
     assert(p.get_stop_reason() == stopped_reason_t::TIMEDOUT);
     assert(event_loop.active_timers.size() == 0);

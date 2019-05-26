@@ -28,6 +28,7 @@ class eventloop_t
         tv = current_time;
     }
 
+    // Advance the simulated current time by the given amount, and call timer callbacks.
     void advance_time(time_val amount)
     {
         current_time += amount;
