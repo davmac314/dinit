@@ -359,7 +359,8 @@ void test_proc_start_timeout2()
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    scripted_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    p.set_start_timeout(time_val {1,0});
     init_service_defaults(p);
     sset.add_service(&p);
 
@@ -372,7 +373,7 @@ void test_proc_start_timeout2()
     assert(p.get_state() == service_state_t::STARTING);
     assert(ts.get_state() == service_state_t::STARTING);
 
-    p.timer_expired();
+    event_loop.advance_time(time_val {1,0}); // start timer should expire
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPING);
@@ -477,6 +478,7 @@ void test_proc_stop_timeout()
 
     process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
     init_service_defaults(p);
+    p.set_stop_timeout(time_val {10, 0});
     sset.add_service(&p);
 
     p.start(true);
@@ -495,7 +497,7 @@ void test_proc_stop_timeout()
     assert(p.get_state() == service_state_t::STOPPING);
     assert(bp_sys::last_sig_sent == SIGTERM);
 
-    p.timer_expired();
+    event_loop.advance_time(time_val {10, 0}); // expire stop timer
     sset.process_queues();
 
     // kill signal (SIGKILL) should have been sent; process not dead until it's dead, however
@@ -508,9 +510,8 @@ void test_proc_stop_timeout()
     assert(p.get_state() == service_state_t::STOPPED);
     assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
 
-    // Note that timer is still active as we faked its expiry above
-    //assert(event_loop.active_timers.size() == 0);
-    event_loop.active_timers.clear();
+    assert(event_loop.active_timers.size() == 0);
+
     sset.remove_service(&p);
 }
 
@@ -529,6 +530,7 @@ void test_proc_smooth_recovery1()
     process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
     init_service_defaults(p);
     p.set_smooth_recovery(true);
+    p.set_restart_delay(time_val {0, 1000});
     sset.add_service(&p);
 
     p.start(true);
@@ -548,13 +550,14 @@ void test_proc_smooth_recovery1()
     assert(first_instance == bp_sys::last_forked_pid);
     assert(p.get_state() == service_state_t::STARTED);
 
-    p.timer_expired();
+    event_loop.advance_time(time_val {0, 1000});
     sset.process_queues();
 
     // Now a new process should've been launched:
     assert(first_instance + 1 == bp_sys::last_forked_pid);
     assert(p.get_state() == service_state_t::STARTED);
-    event_loop.active_timers.clear();
+
+    assert(event_loop.active_timers.size() == 0);
 
     sset.remove_service(&p);
 }
@@ -615,6 +618,7 @@ void test_scripted_stop_timeout()
     scripted_service p {&sset, "testscripted", std::move(command), command_offsets, depends};
     init_service_defaults(p);
     p.set_stop_command(stopcommand, command_offsets);
+    p.set_stop_timeout(time_val {10, 0});
     sset.add_service(&p);
 
     p.start(true);
@@ -640,7 +644,7 @@ void test_scripted_stop_timeout()
     // should still be stopping:
     assert(p.get_state() == service_state_t::STOPPING);
 
-    p.timer_expired();
+    event_loop.advance_time(time_val {10, 0}); // expire stop timer
     sset.process_queues();
 
     // kill signal (SIGKILL) should have been sent; process not dead until it's dead, however
@@ -653,7 +657,8 @@ void test_scripted_stop_timeout()
     assert(p.get_state() == service_state_t::STOPPED);
     assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
 
-    event_loop.active_timers.clear();
+    assert(event_loop.active_timers.size() == 0);
+
     sset.remove_service(&p);
 }
 
