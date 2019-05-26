@@ -368,11 +368,15 @@ void scripted_service::handle_exit_status(bp_sys::exit_status exit_status) noexc
         // We might be running the stop script, or we might be running the start script and have issued
         // a cancel order via SIGINT:
         if (interrupting_start) {
+            if (stop_timer_armed) {
+                restart_timer.stop_timer(event_loop);
+                stop_timer_armed = false;
+            }
             // We issued a start interrupt, so we expected this failure:
             if (did_exit && exit_status.get_exit_status() != 0) {
                 log(loglevel_t::INFO, "Service ", get_name(), " start cancelled; exit code ",
                         exit_status.get_exit_status());
-                // Assume that a command terminating normally requires no cleanup:
+                // Assume that a command terminating normally (with failure status) requires no cleanup:
                 stopped();
             }
             else {
