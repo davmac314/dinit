@@ -171,7 +171,7 @@ void test_proc_unexpected_term()
     sset.remove_service(&p);
 }
 
-// Unexpected termination
+// Unexpected termination with restart
 void test_proc_term_restart()
 {
     using namespace std;
@@ -216,6 +216,60 @@ void test_proc_term_restart()
 
     sset.remove_service(&p);
 }
+
+void test_proc_term_restart2()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    service_record b {&sset, "boot"};
+    sset.add_service(&b);
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_auto_restart(true);
+    sset.add_service(&p);
+
+    b.add_dep(&p, WAITS);
+
+    b.start(true);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    // Starting, restart timer should be armed:
+    assert(p.get_state() == service_state_t::STARTING);
+    assert(event_loop.active_timers.size() == 1);
+
+    event_loop.advance_time(time_val(0, 200000000));
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.process_queues();
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+    sset.remove_service(&b);
+}
+
 
 // Termination via stop request
 void test_term_via_stop()
@@ -946,6 +1000,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_notify_start, "    ");
     RUN_TEST(test_proc_unexpected_term, " ");
     RUN_TEST(test_proc_term_restart, "    ");
+    RUN_TEST(test_proc_term_restart2, "   ");
     RUN_TEST(test_term_via_stop, "        ");
     RUN_TEST(test_term_via_stop2, "       ");
     RUN_TEST(test_proc_start_timeout, "   ");
