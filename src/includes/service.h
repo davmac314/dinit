@@ -808,10 +808,6 @@ class service_set
         return records;
     }
     
-    // Stop the service with the given name. The named service will begin
-    // transition to the 'stopped' state.
-    void stop_service(const std::string &name) noexcept;
-    
     // Add a service record to the state propagation queue. The service record will have its
     // do_propagation() method called when the queue is processed.
     void add_prop_queue(service_record *service) noexcept

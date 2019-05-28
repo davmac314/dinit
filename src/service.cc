@@ -39,15 +39,6 @@ service_record * service_set::find_service(const std::string &name) noexcept
     return ::find_service(records, name.c_str());
 }
 
-void service_set::stop_service(const std::string & name) noexcept
-{
-    service_record *record = find_service(name);
-    if (record != nullptr) {
-        record->stop();
-        process_queues();
-    }
-}
-
 // Called when a service has actually stopped; dependents have stopped already, unless this stop
 // is due to an unexpected process termination.
 void service_record::stopped() noexcept
