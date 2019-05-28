@@ -59,17 +59,6 @@ void service_record::stopped() noexcept
 
     force_stop = false;
 
-    // If we are a soft dependency of another target, break the acquisition from that target now,
-    // so that we don't re-start:
-    for (auto & dependent : dependents) {
-        if (dependent->dep_type != dependency_type::REGULAR) {
-            if (dependent->holding_acq  && ! dependent->waiting_on) {
-                dependent->holding_acq = false;
-                release();
-            }
-        }
-    }
-
     bool will_restart = (desired_state == service_state_t::STARTED)
             && !services->is_shutting_down();
 
@@ -581,7 +570,7 @@ bool service_record::stop_dependents() noexcept
                 dept->waiting_on = false;
                 dept->get_from()->dependency_started();
             }
-            if (dept->holding_acq) {
+            if (dept->holding_acq && !auto_restart) {
                 dept->holding_acq = false;
                 // release without issuing stop, since we should be called only when this
                 // service is already stopped/stopping:
