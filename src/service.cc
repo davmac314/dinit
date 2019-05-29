@@ -457,6 +457,26 @@ void service_record::stop(bool bring_down) noexcept
         release();
     }
 
+    // If it's a manual bring-down, we'll also break holds from waits-for dependencies, to avoid
+    // bouncing back up again -- but only if all holds are from waits-for dependencies.
+    if (bring_down) {
+        if (std::all_of(dependents.begin(), dependents.end(), [](service_dep * x) {
+            return x->dep_type == dependency_type::WAITS_FOR || x->dep_type == dependency_type::SOFT; }))
+        {
+            for (auto dept : dependents) {
+                if (dept->waiting_on) {
+                    dept->waiting_on = false;
+                    dept->get_from()->dependency_started();
+                }
+                if (dept->holding_acq) {
+                    dept->holding_acq = false;
+                    // release without issuing stop, since we issue stop if necessary below
+                    release(false);
+                }
+            }
+        }
+    }
+
     if (bring_down && service_state != service_state_t::STOPPED
     		&& service_state != service_state_t::STOPPING) {
     	stop_reason = stopped_reason_t::NORMAL;
