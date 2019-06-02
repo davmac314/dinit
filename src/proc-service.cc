@@ -133,6 +133,8 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
             return rearm::DISARM;
         }
     }
+
+    service->services->process_queues();
     return rearm::REARM;
 }
 
