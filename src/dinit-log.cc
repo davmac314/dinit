@@ -163,7 +163,8 @@ rearm buffered_log_stream::fd_event(eventloop_t &loop, int fd, int flags) noexce
 
     if ((! partway) && special) {
         const char * start = special_buf + msg_index;
-        const char * end = std::find(special_buf + msg_index, (const char *)nullptr, '\n');
+        const char * end = start;
+        while (*end != '\n') end++;
         int r = write(fd, start, end - start + 1);
         if (r >= 0) {
             if (start + r > end) {
