@@ -648,14 +648,14 @@ service_record * dirload_service_set::load_service(const char * name)
                     do_env_subst(command, command_offsets, do_sub_vars);
                     auto rvalps = new process_service(this, string(name), std::move(command),
                             command_offsets, depends);
-                    rvalps->set_workding_dir(working_dir);
+                    rvalps->set_working_dir(working_dir);
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
                     rvalps->set_stop_timeout(stop_timeout);
                     rvalps->set_start_timeout(start_timeout);
                     rvalps->set_extra_termination_signal(term_signal);
                     rvalps->set_run_as_uid_gid(run_as_uid, run_as_gid);
-                    rvalps->set_workding_dir(working_dir);
+                    rvalps->set_working_dir(working_dir);
                     rvalps->set_notification_fd(readiness_fd);
                     rvalps->set_notification_var(std::move(readiness_var));
                     #if USE_UTMPX
@@ -668,7 +668,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     do_env_subst(command, command_offsets, do_sub_vars);
                     auto rvalps = new bgproc_service(this, string(name), std::move(command),
                             command_offsets, depends);
-                    rvalps->set_workding_dir(working_dir);
+                    rvalps->set_working_dir(working_dir);
                     rvalps->set_pid_file(std::move(pid_file));
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
@@ -684,7 +684,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     auto rvalps = new scripted_service(this, string(name), std::move(command),
                             command_offsets, depends);
                     rvalps->set_stop_command(stop_command, stop_command_offsets);
-                    rvalps->set_workding_dir(working_dir);
+                    rvalps->set_working_dir(working_dir);
                     rvalps->set_stop_timeout(stop_timeout);
                     rvalps->set_start_timeout(start_timeout);
                     rvalps->set_extra_termination_signal(term_signal);

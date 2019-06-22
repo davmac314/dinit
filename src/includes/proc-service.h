@@ -249,7 +249,7 @@ class base_process_service : public service_record
     }
 
     // Set the working directory
-    void set_workding_dir(const string &working_dir_p)
+    void set_working_dir(const string &working_dir_p)
     {
         working_dir = working_dir_p;
     }
