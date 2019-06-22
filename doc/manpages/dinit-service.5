@@ -276,6 +276,23 @@ is started. Normally, for a terminal login service, it would match the terminal 
 on which the login process runs, without the "/dev/" prefix.
 
 See the description of the \fBinittab-id\fR setting for details.
+.TP
+\fBrlimit-nofile\fR = \fIresource-limits\fR
+Specifies the number of file descriptors that a process may have open simultaneously. See the
+\fBRESOURCE LIMITS\fR section.
+.TP
+\fBrlimit-core\fR = \fIresource-limits\fR
+Specifies the maximum size of the core dump file that will be generated for the process if it
+crashes (in a way that would result in a core dump). See the \fBRESOURCE LIMITS\fR section.
+.TP
+\fBrlimit-data\fR = \fIresource-limits\fR
+Specifies the maximum size of the data segment for the process, including statically allocated
+data and heap allocations. Precise meaning may vary between operating systems. See the
+\fBRESOURCE LIMITS\fR section.
+.TP
+\fBrlimit-addrspace\fR = \fIresource-limits\fR
+Specifies the maximum size of the address space of the process. See the \fBRESOURCE LIMITS\fR
+section.
 .\"
 .SS OPTIONS
 .\"
@@ -358,6 +375,30 @@ sending it a signal for any reason.
 .LP
 The next section contains example service descriptions including some of the
 parameters and options described above.
+.\"
+.SS RESOURCE LIMITS
+.\"
+There are several settings for specifying process resource limits: \fBrlmit-nofile\fR,
+\fBrlimit-core\fR, \fBrlimit-data\fR and \fBrlimit-addrspace\fR. See the descriptions
+of each above. These settings place a limit on resource usage directly by the process.
+Note that resource limits are inherited by subprocesses, but that usage of a resource
+and subprocess are counted separately (in other words, a process can effectively bypass
+its resource limits by spawning a subprocess and allocating further resources within it).
+
+Resources have both a \fIhard\fR and \fIsoft\fR limit. The soft limit is the effective
+limit, but note that a process can raise its soft limit up to the hard limit for any
+given resource. Therefore the soft limit acts more as a sanity-check; a process can
+exceed the soft limit only by deliberately raising it first.
+
+Resource limits are specified in the following format:
+
+.RS
+\fIsoft-limit\fR:\fIhard-limit\fR
+.RE
+
+Either the soft limit or the hard limit can be omitted (in which case it will be unchanged).
+A limit can be specified as a dash, `\fB-\fR', in which case the limit will be removed. If
+only one value is specified with no colon separator, it affects both the soft and hard limit.
 .\"
 .SS EXAMPLES
 .LP
