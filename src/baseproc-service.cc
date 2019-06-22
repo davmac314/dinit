@@ -156,7 +156,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         if (! working_dir.empty()) working_dir_c = working_dir.c_str();
         after_fork(getpid());
         run_child_proc(cmd.data(), working_dir_c, logfile, on_console, pipefd[1], control_socket[1],
-                socket_fd, notify_pipe[1], force_notification_fd, nullptr, run_as_uid, run_as_gid);
+                socket_fd, notify_pipe[1], force_notification_fd, nullptr, run_as_uid, run_as_gid, rlimits);
     }
     else {
         // Parent process

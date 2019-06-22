@@ -159,7 +159,6 @@ static gid_t parse_gid_param(const std::string &param, const std::string &servic
 
 // Parse a time, specified as a decimal number of seconds (with optional fractional component after decimal
 // point or decimal comma).
-//
 static void parse_timespec(const std::string &paramval, const std::string &servicename,
         const char * paramname, timespec &ts)
 {
@@ -195,6 +194,84 @@ static void parse_timespec(const std::string &paramval, const std::string &servi
     }
     ts.tv_sec = isec;
     ts.tv_nsec = insec;
+}
+
+// In a vector, find or create rlimits for a particular resource type.
+static service_rlimits &find_rlimits(std::vector<service_rlimits> all_rlimits, int resource_id)
+{
+    for (service_rlimits &limits : all_rlimits) {
+        if (limits.resource_id == resource_id) {
+            return limits;
+        }
+    }
+
+    all_rlimits.emplace_back(resource_id);
+    return all_rlimits.back();
+}
+
+// Parse resource limits setting (can specify both hard and soft limit).
+static void parse_rlimit(const std::string &line, const std::string &service_name, const char *param_name,
+        service_rlimits &rlimit)
+{
+    // Examples:
+    // 4:5 - soft:hard limits both set
+    // 4:-   soft set, hard set to unlimited
+    // 4:    soft set, hard limit unchanged
+    // 4     soft and hard limit set to same limit
+
+    if (line.empty()) {
+        throw service_description_exc(service_name, std::string("Bad value for ") + param_name);
+    }
+
+    const char *cline = line.c_str();
+    rlimit.hard_set = rlimit.soft_set = false;
+
+    try {
+        char * index;
+        errno = 0;
+        if (cline[0] != ':') {
+            rlimit.soft_set = true;
+            if (cline[0] == '-') {
+                rlimit.limits.rlim_cur = RLIM_INFINITY;
+            }
+            else {
+                unsigned long long limit = std::strtoull(cline, &index, 0);
+                if (errno == ERANGE || limit > std::numeric_limits<rlim_t>::max()) throw std::out_of_range("");
+                if (index == cline) throw std::invalid_argument("");
+                rlimit.limits.rlim_cur = limit;
+            }
+
+            if (*index == 0) {
+                rlimit.hard_set = true;
+                rlimit.limits.rlim_max = rlimit.limits.rlim_cur;
+                return;
+            }
+        }
+
+        if (*index != ':') {
+            throw service_description_exc(service_name, std::string("Bad value for ") + param_name);
+        }
+
+        index++;
+        if (*index == 0) return;
+
+        if (*index == '-') {
+            rlimit.limits.rlim_max = RLIM_INFINITY;
+        }
+        else {
+            char *hard_start = index;
+            unsigned long long limit = std::strtoull(cline, &index, 0);
+            if (errno == ERANGE || limit > std::numeric_limits<rlim_t>::max()) throw std::out_of_range("");
+            if (index == hard_start) throw std::invalid_argument("");
+            rlimit.limits.rlim_max = limit;
+        }
+    }
+    catch (std::invalid_argument &exc) {
+        throw service_description_exc(service_name, std::string("Bad value for ") + param_name);
+    }
+    catch (std::out_of_range &exc) {
+        throw service_description_exc(service_name, std::string("Too-large value for ") + param_name);
+    }
 }
 
 // Perform environment variable substitution on a command line, if specified.
@@ -373,6 +450,7 @@ service_record * dirload_service_set::load_service(const char * name)
     timespec restart_delay = { .tv_sec = 0, .tv_nsec = 200000000 };
     timespec stop_timeout = { .tv_sec = 10, .tv_nsec = 0 };
     timespec start_timeout = { .tv_sec = 60, .tv_nsec = 0 };
+    std::vector<service_rlimits> rlimits;
     
     int readiness_fd = -1;      // readiness fd in service process
     std::string readiness_var;  // environment var to hold readiness fd
@@ -625,6 +703,26 @@ service_record * dirload_service_set::load_service(const char * name)
                 strncpy(inittab_line, inittab_setting.c_str(), sizeof(inittab_line));
                 #endif
             }
+            else if (setting == "rlimit-nofile") {
+                string nofile_setting = read_setting_value(i, end, nullptr);
+                service_rlimits &nofile_limits = find_rlimits(rlimits, RLIMIT_NOFILE);
+                parse_rlimit(line, name, "rlimit-nofile", nofile_limits);
+            }
+            else if (setting == "rlimit-core") {
+                string nofile_setting = read_setting_value(i, end, nullptr);
+                service_rlimits &nofile_limits = find_rlimits(rlimits, RLIMIT_CORE);
+                parse_rlimit(line, name, "rlimit-core", nofile_limits);
+            }
+            else if (setting == "rlimit-data") {
+                string nofile_setting = read_setting_value(i, end, nullptr);
+                service_rlimits &nofile_limits = find_rlimits(rlimits, RLIMIT_DATA);
+                parse_rlimit(line, name, "rlimit-data", nofile_limits);
+            }
+            else if (setting == "rlimit-addrspace") {
+                string nofile_setting = read_setting_value(i, end, nullptr);
+                service_rlimits &nofile_limits = find_rlimits(rlimits, RLIMIT_AS);
+                parse_rlimit(line, name, "rlimit-addrspace", nofile_limits);
+            }
             else {
                 throw service_description_exc(name, "Unknown setting: " + setting);
             }
@@ -649,13 +747,13 @@ service_record * dirload_service_set::load_service(const char * name)
                     auto rvalps = new process_service(this, string(name), std::move(command),
                             command_offsets, depends);
                     rvalps->set_workding_dir(working_dir);
+                    rvalps->set_rlimits(std::move(rlimits));
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
                     rvalps->set_stop_timeout(stop_timeout);
                     rvalps->set_start_timeout(start_timeout);
                     rvalps->set_extra_termination_signal(term_signal);
                     rvalps->set_run_as_uid_gid(run_as_uid, run_as_gid);
-                    rvalps->set_workding_dir(working_dir);
                     rvalps->set_notification_fd(readiness_fd);
                     rvalps->set_notification_var(std::move(readiness_var));
                     #if USE_UTMPX
@@ -669,6 +767,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     auto rvalps = new bgproc_service(this, string(name), std::move(command),
                             command_offsets, depends);
                     rvalps->set_workding_dir(working_dir);
+                    rvalps->set_rlimits(std::move(rlimits));
                     rvalps->set_pid_file(std::move(pid_file));
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
@@ -685,6 +784,7 @@ service_record * dirload_service_set::load_service(const char * name)
                             command_offsets, depends);
                     rvalps->set_stop_command(stop_command, stop_command_offsets);
                     rvalps->set_workding_dir(working_dir);
+                    rvalps->set_rlimits(std::move(rlimits));
                     rvalps->set_stop_timeout(stop_timeout);
                     rvalps->set_start_timeout(start_timeout);
                     rvalps->set_extra_termination_signal(term_signal);

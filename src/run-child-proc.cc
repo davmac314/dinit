@@ -11,6 +11,7 @@
 #include <termios.h>
 
 #include "service.h"
+#include "proc-service.h"
 
 // Move an fd, if necessary, to another fd. The destination fd must be available (not open).
 // if fd is specified as -1, returns -1 immediately. Returns 0 on success.
@@ -27,10 +28,10 @@ static int move_fd(int fd, int dest)
     return 0;
 }
 
-void service_record::run_child_proc(const char * const *args, const char *working_dir,
+void base_process_service::run_child_proc(const char * const *args, const char *working_dir,
         const char *logfile, bool on_console, int wpipefd, int csfd, int socket_fd,
         int notify_fd, int force_notify_fd, const char *notify_var,
-        uid_t uid, gid_t gid) noexcept
+        uid_t uid, gid_t gid, const std::vector<service_rlimits> &rlimits) noexcept
 {
     // Child process. Must not risk throwing any uncaught exception from here until exit().
 
@@ -176,6 +177,18 @@ void service_record::run_child_proc(const char * const *args, const char *workin
         }
         setpgid(0,0);
         tcsetpgrp(0, getpgrp());
+    }
+
+    // Resource limits
+    for (auto &limit : rlimits) {
+        rlimit setlimits;
+        if (!limit.hard_set || !limit.soft_set) {
+            // if either hard or soft limit is not set, use current:
+            if (getrlimit(limit.resource_id, &setlimits) != 0) goto failure_out;
+        }
+        if (limit.hard_set) setlimits.rlim_max = limit.limits.rlim_max;
+        if (limit.soft_set) setlimits.rlim_cur = limit.limits.rlim_cur;
+        if (setrlimit(limit.resource_id, &setlimits) != 0) goto failure_out;
     }
 
     if (uid != uid_t(-1)) {
