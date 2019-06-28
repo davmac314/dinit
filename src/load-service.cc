@@ -258,6 +258,9 @@ static void parse_rlimit(const std::string &line, const std::string &service_nam
 
         if (*index == '-') {
             rlimit.limits.rlim_max = RLIM_INFINITY;
+            if (index[1] != 0) {
+                throw service_description_exc(service_name, std::string("Bad value for ") + param_name);
+            }
         }
         else {
             char *hard_start = index;
