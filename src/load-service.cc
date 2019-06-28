@@ -227,7 +227,7 @@ static void parse_rlimit(const std::string &line, const std::string &service_nam
     rlimit.hard_set = rlimit.soft_set = false;
 
     try {
-        char * index;
+        const char * index = cline;
         errno = 0;
         if (cline[0] != ':') {
             rlimit.soft_set = true;
@@ -236,7 +236,9 @@ static void parse_rlimit(const std::string &line, const std::string &service_nam
                 index = cline + 1;
             }
             else {
-                unsigned long long limit = std::strtoull(cline, &index, 0);
+                char *nindex;
+                unsigned long long limit = std::strtoull(cline, &nindex, 0);
+                index = nindex;
                 if (errno == ERANGE || limit > std::numeric_limits<rlim_t>::max()) throw std::out_of_range("");
                 if (index == cline) throw std::invalid_argument("");
                 rlimit.limits.rlim_cur = limit;
@@ -247,10 +249,10 @@ static void parse_rlimit(const std::string &line, const std::string &service_nam
                 rlimit.limits.rlim_max = rlimit.limits.rlim_cur;
                 return;
             }
-        }
 
-        if (*index != ':') {
-            throw service_description_exc(service_name, std::string("Bad value for ") + param_name);
+            if (*index != ':') {
+                throw service_description_exc(service_name, std::string("Bad value for ") + param_name);
+            }
         }
 
         index++;
@@ -263,8 +265,10 @@ static void parse_rlimit(const std::string &line, const std::string &service_nam
             }
         }
         else {
-            char *hard_start = index;
-            unsigned long long limit = std::strtoull(cline, &index, 0);
+            const char *hard_start = index;
+            char *nindex;
+            unsigned long long limit = std::strtoull(cline, &nindex, 0);
+            index = nindex;
             if (errno == ERANGE || limit > std::numeric_limits<rlim_t>::max()) throw std::out_of_range("");
             if (index == hard_start) throw std::invalid_argument("");
             rlimit.limits.rlim_max = limit;
