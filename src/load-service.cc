@@ -233,6 +233,7 @@ static void parse_rlimit(const std::string &line, const std::string &service_nam
             rlimit.soft_set = true;
             if (cline[0] == '-') {
                 rlimit.limits.rlim_cur = RLIM_INFINITY;
+                index = cline + 1;
             }
             else {
                 unsigned long long limit = std::strtoull(cline, &index, 0);
