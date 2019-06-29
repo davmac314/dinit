@@ -25,6 +25,31 @@ struct service_rlimits
     service_rlimits(int id) : resource_id(id), soft_set(0), hard_set(0), limits({0,0}) { }
 };
 
+// Parameters for process execution
+struct run_proc_params
+{
+    const char * const *args; // program arguments including executable (args[0])
+    const char *working_dir;  // working directory
+    const char *logfile;      // log file or nullptr (stdout/stderr); must be valid if !on_console
+    bool on_console;          // whether to run on console
+    int wpipefd;              // pipe to which error status will be sent (if error occurs)
+    int csfd;                 // control socket fd (or -1); may be moved
+    int socket_fd;            // pre-opened socket fd (or -1); may be moved
+    int notify_fd;            // pipe for readiness notification message (or -1); may be moved
+    int force_notify_fd;      // if not -1, notification fd must be moved to this fd
+    const char *notify_var;   // environment variable name where notification fd will be stored, or nullptr
+    uid_t uid;
+    gid_t gid;
+    const std::vector<service_rlimits> &rlimits;
+
+    run_proc_params(const char * const *args, const char *working_dir, const char *logfile, int wpipefd,
+            uid_t uid, gid_t gid, const std::vector<service_rlimits> &rlimits)
+            : args(args), working_dir(working_dir), logfile(logfile), on_console(false), wpipefd(wpipefd),
+              csfd(-1), socket_fd(-1), notify_fd(-1), force_notify_fd(-1), notify_var(nullptr), uid(uid),
+              gid(gid), rlimits(rlimits)
+    { }
+};
+
 class base_process_service;
 
 // A timer for process restarting. Used to ensure a minimum delay between process restarts (and
@@ -145,26 +170,9 @@ class base_process_service : public service_record
     bool reserved_child_watch : 1;
     bool tracking_child : 1;  // whether we expect to see child process status
 
-    // Run a child process (call after forking). Note that some arguments specify file descriptors,
+    // Run a child process (call after forking). Note that some parameters specify file descriptors,
     // but in general file descriptors may be moved before the exec call.
-    // - args specifies the program arguments including the executable (argv[0])
-    // - working_dir specifies the working directory; may be null
-    // - logfile specifies the logfile (where stdout/stderr are directed)
-    // - on_console: if true, process is run with access to console
-    // - wpipefd: if the exec is unsuccessful, or another error occurs beforehand, the
-    //   error number (errno) is written to this file descriptor
-    // - csfd: the control socket fd; may be -1 to inhibit passing of control socket
-    // - socket_fd: the pre-opened socket file descriptor (may be -1)
-    // - notify_fd: the readiness notification fd; process should write to this descriptor when
-    //   is is ready
-    // - force_notify_fd: if not -1, specifies the file descriptor that notify_fd should be moved
-    //   to (via dup2 and close of the original).
-    // - notify_var: the name of an environment variable which will be set to contain the notification
-    //   fd
-    // - uid/gid: the identity to run the process as (may be both -1, otherwise both must be valid)
-    void run_child_proc(const char * const *args, const char *working_dir, const char *logfile,
-            bool on_console, int wpipefd, int csfd, int socket_fd, int notify_fd, int force_notify_fd,
-            const char *notify_var,uid_t uid, gid_t gid, const std::vector<service_rlimits> &rlimits) noexcept;
+    void run_child_proc(run_proc_params params) noexcept;
 
     // Launch the process with the given arguments, return true on success
     bool start_ps_process(const std::vector<const char *> &args, bool on_console) noexcept;

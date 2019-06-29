@@ -40,12 +40,21 @@ static int move_reserved_fd(int *fd, int min_fd)
     return new_fd;
 }
 
-void base_process_service::run_child_proc(const char * const *args, const char *working_dir,
-        const char *logfile, bool on_console, int wpipefd, int csfd, int socket_fd,
-        int notify_fd, int force_notify_fd, const char *notify_var,
-        uid_t uid, gid_t gid, const std::vector<service_rlimits> &rlimits) noexcept
+void base_process_service::run_child_proc(run_proc_params params) noexcept
 {
     // Child process. Must not risk throwing any uncaught exception from here until exit().
+    const char * const *args = params.args;
+    const char *working_dir = params.working_dir;
+    const char *logfile = params.logfile;
+    bool on_console = params.on_console;
+    int wpipefd = params.wpipefd;
+    int csfd = params.csfd;
+    int notify_fd = params.notify_fd;
+    int force_notify_fd = params.force_notify_fd;
+    const char *notify_var = params.notify_var;
+    uid_t uid = params.uid;
+    gid_t gid = params.gid;
+    const std::vector<service_rlimits> &rlimits = params.rlimits;
 
     // If the console already has a session leader, presumably it is us. On the other hand
     // if it has no session leader, and we don't create one, then control inputs such as
