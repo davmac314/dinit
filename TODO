@@ -1,14 +1,18 @@
 For version 0.6.0:
 ------------------
-* Refuse to start new services during shutdown.
-* On service failure (all services stop when no restart issued), allow user to interrupt/ctrl+alt+del when
-  they are prompted to press enter, to allow halt/rebooting instead of re-launching the boot service. 
-* Basic resource limits setting.
-* per-service environment.
+* Refuse to start new services during shutdown [DONE].
+* On service failure (all services stop when no restart issued), allow user to
+  interrupt/ctrl+alt+del when they are prompted to press enter, to allow halt/rebooting instead of
+  re-launching the boot service.  [DONE][ even better, you can now choose from several options! ]
+* Basic resource limits setting. [DONE, mostly. OpenBSD compilation issues, others need testing].
+* Per-service environment.
+* Process start failure: track where in the launch process we get failure (i.e. we send errno over a pipe,
+  we should send a state value as well).
 
 For version 0.7.0:
 ------------------
-? Not decided yet.
+* dinitctl: Warn when stopping a service would cause a dependent to stop. Require a force flag to proceed.
+* dinitctl: implement "restart" command. 
 
 For version 1.0:
 ----------------
