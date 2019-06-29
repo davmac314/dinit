@@ -75,26 +75,26 @@ void base_process_service::run_child_proc(const char * const *args, const char *
 
     int minfd = (socket_fd == -1) ? 3 : 4;
 
-    // Move wpipefd/csfd/socket_fd to another fd if necessary:
-    if (wpipefd == force_notify_fd) {
-        if (move_reserved_fd(&wpipefd, minfd) == -1) {
-            goto failure_out;
-        }
-    }
-    if (csfd == force_notify_fd) {
-        if (move_reserved_fd(&csfd, minfd) == -1) {
-            goto failure_out;
-        }
-    }
-    if (socket_fd == force_notify_fd) {
-        // Note that we might move this again later
-        if (move_reserved_fd(&socket_fd, 0) == -1) {
-            goto failure_out;
-        }
-    }
-
-    // allocate the forced notification fd, if specified:
     if (force_notify_fd != -1) {
+        // Move wpipefd/csfd/socket_fd to another fd if necessary:
+        if (wpipefd == force_notify_fd) {
+            if (move_reserved_fd(&wpipefd, minfd) == -1) {
+                goto failure_out;
+            }
+        }
+        if (csfd == force_notify_fd) {
+            if (move_reserved_fd(&csfd, minfd) == -1) {
+                goto failure_out;
+            }
+        }
+        if (socket_fd == force_notify_fd) {
+            // Note that we might move this again later
+            if (move_reserved_fd(&socket_fd, 0) == -1) {
+                goto failure_out;
+            }
+        }
+
+        // allocate the forced notification fd:
         if (notify_fd != force_notify_fd) {
             if (dup2(notify_fd, force_notify_fd) == -1) {
                 goto failure_out;
