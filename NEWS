@@ -1,3 +1,15 @@
+== Version 0.5.2:
+
+This is a bug-fix release for several minor issues which have been found in the preceding
+release (0.5.1).
+
+ * Fix logging failure after log buffer becomes full.
+ * Fix readiness-fd notification not immediately updating service states.
+ * Fix use of old settings in sample configuration for Linux.
+ * Re-create control socket file node if it "disappears". Should solve issues if root filesystem
+   is mounted read-write on boot.
+ * Fix potential issue with service launch failure for services using a fixed notification fd. 
+
 == Version 0.5.1:
 
 This is a bug-fix release for several issues of varying severity which have been found in the
