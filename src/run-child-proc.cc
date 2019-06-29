@@ -27,6 +27,18 @@ static int move_fd(int fd, int dest)
     return 0;
 }
 
+// Move a file descriptor to another, freeing up the original descriptor so that it can be used
+// for some reserved purpose.
+static int move_reserved_fd(int *fd, int min_fd)
+{
+    int new_fd = fcntl(*fd, F_DUPFD_CLOEXEC, min_fd);
+    if (new_fd != -1) {
+        close(*fd);
+        *fd = new_fd;
+    }
+    return new_fd;
+}
+
 void service_record::run_child_proc(const char * const *args, const char *working_dir,
         const char *logfile, bool on_console, int wpipefd, int csfd, int socket_fd,
         int notify_fd, int force_notify_fd, const char *notify_var,
@@ -62,9 +74,25 @@ void service_record::run_child_proc(const char * const *args, const char *workin
 
     int minfd = (socket_fd == -1) ? 3 : 4;
 
-    // Move wpipefd/csfd/notifyfd to another fd if necessary
+    // Move wpipefd/csfd/socket_fd to another fd if necessary:
+    if (wpipefd == force_notify_fd) {
+        if (move_reserved_fd(&wpipefd, minfd) == -1) {
+            goto failure_out;
+        }
+    }
+    if (csfd == force_notify_fd) {
+        if (move_reserved_fd(&csfd, minfd) == -1) {
+            goto failure_out;
+        }
+    }
+    if (socket_fd == force_notify_fd) {
+        // Note that we might move this again later
+        if (move_reserved_fd(&socket_fd, 0) == -1) {
+            goto failure_out;
+        }
+    }
 
-    // first allocate the forced notification fd, if specified:
+    // allocate the forced notification fd, if specified:
     if (force_notify_fd != -1) {
         if (notify_fd != force_notify_fd) {
             if (dup2(notify_fd, force_notify_fd) == -1) {
@@ -75,6 +103,7 @@ void service_record::run_child_proc(const char * const *args, const char *workin
         }
     }
 
+    // Make sure we have the fds for stdin/out/err (and pre-opened socket) available:
     if (wpipefd < minfd) {
         wpipefd = fcntl(wpipefd, F_DUPFD_CLOEXEC, minfd);
         if (wpipefd == -1) goto failure_out;
@@ -90,7 +119,7 @@ void service_record::run_child_proc(const char * const *args, const char *workin
         if (notify_fd == -1) goto failure_out;
     }
 
-    // Set up notify-fd variable
+    // Set up notify-fd variable:
     if (notify_var != nullptr && *notify_var != 0) {
         // We need to do an allocation: the variable name length, '=', and space for the value,
         // and nul terminator:
@@ -102,7 +131,7 @@ void service_record::run_child_proc(const char * const *args, const char *workin
         if (putenv(var_str)) goto failure_out;
     }
 
-    // Set up Systemd-style socket activation
+    // Set up Systemd-style socket activation:
     if (socket_fd != -1) {
         // If we passing a pre-opened socket, it has to be fd number 3. (Thanks, Systemd).
         if (dup2(socket_fd, 3) == -1) goto failure_out;
