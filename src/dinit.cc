@@ -711,6 +711,17 @@ void rootfs_is_rw() noexcept
 // once the socket has been successfully opened, further calls have no effect.
 static void open_control_socket(bool report_ro_failure) noexcept
 {
+    if (control_socket_open) {
+        struct stat stat_buf;
+        if (stat(control_socket_path, &stat_buf) != 0 && errno == ENOENT) {
+            // Looks like our control socket has disappeared from the filesystem. Close our control
+            // socket and re-create it:
+            control_socket_io.deregister(event_loop);
+            close(control_socket_io.get_watched_fd());
+            control_socket_open = false; // now re-open below
+        }
+    }
+
     if (! control_socket_open) {
         const char * saddrname = control_socket_path;
         size_t saddrname_len = strlen(saddrname);
