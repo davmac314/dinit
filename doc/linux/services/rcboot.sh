@@ -6,9 +6,9 @@ if [ "$1" != "stop" ]; then
   
   # cleanup
   # (delete /tmp etc)
-  rm -rf /tmp/* /tmp/.[^.]* /tmp/..?*
-  rm -rf /var/lock/* /var/lock/.[^.]* /var/lock/..?*
-  rm -rf /var/run/* /var/run/.[^.]* /var/run/..?*
+  rm -rf /tmp/* /tmp/.[!.]* /tmp/..?*
+  rm -rf /var/lock/* /var/lock/.[!.]* /var/lock/..?*
+  rm -rf /var/run/* /var/run/.[!.]* /var/run/..?*
   # create state directories
   : > /var/run/utmp
   mkdir /var/run/dbus
@@ -31,7 +31,7 @@ else
   # The system is being shut down
   
   # echo "Saving random number seed..."
-  POOLSIZE=`cat /proc/sys/kernel/random/poolsize`
+  POOLSIZE="$(cat /proc/sys/kernel/random/poolsize)"
   dd if=/dev/urandom of=/var/state/random-seed bs="$POOLSIZE" count=1 2> /dev/null
 
 fi;
