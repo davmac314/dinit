@@ -25,8 +25,13 @@ enum class loglevel_t {
     ZERO    // log absolutely nothing
 };
 
+constexpr static int DLOG_MAIN = 0; // main log facility
+constexpr static int DLOG_CONS = 1; // console
+
 // These are defined in dinit-log.cc:
 extern loglevel_t log_level[2];
+extern bool console_service_status;  // show service status messages to console?
+
 void enable_console_log(bool do_enable) noexcept;
 void init_log(service_set *sset, bool syslog_format);
 void setup_main_log(int fd);

@@ -28,10 +28,12 @@
 extern eventloop_t event_loop;
 
 static bool log_current_line[2];  // Whether the current line is being logged (for console, main log)
-loglevel_t log_level[2] = { loglevel_t::INFO, loglevel_t::WARN };
 static bool log_format_syslog[2] = { false, true };
 
 static service_set *services = nullptr;  // Reference to service set
+
+loglevel_t log_level[2] = { loglevel_t::INFO, loglevel_t::WARN };
+bool console_service_status = true;  // show service status messages to console?
 
 dasynq::time_val release_time; // time the log was released
 
@@ -120,9 +122,6 @@ class buffered_log_stream : public eventloop_t::fd_watcher_impl<buffered_log_str
 // Two log streams:
 // (One for main log, one for console)
 static buffered_log_stream log_stream[2];
-
-constexpr static int DLOG_MAIN = 0; // main log facility
-constexpr static int DLOG_CONS = 1; // console
 
 void buffered_log_stream::release_console()
 {
@@ -390,9 +389,11 @@ template <typename ... T> static void do_log(loglevel_t lvl, bool to_cons, T ...
 
 template <typename ... T> static void do_log_cons(T ... args) noexcept
 {
-    log_current_line[DLOG_CONS] = true;
-    log_current_line[DLOG_MAIN] = false;
-    push_to_log(DLOG_CONS, args...);
+    if (console_service_status) {
+        log_current_line[DLOG_CONS] = true;
+        log_current_line[DLOG_MAIN] = false;
+        push_to_log(DLOG_CONS, args...);
+    }
 }
 
 // Log to the main facility at NOTICE level

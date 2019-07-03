@@ -260,6 +260,10 @@ int dinit_main(int argc, char **argv)
                         return 1;
                     }
                 }
+                else if (strcmp(argv[i], "--quiet") == 0 || strcmp(argv[i], "-q") == 0) {
+                    console_service_status = false;
+                    log_level[DLOG_CONS] = loglevel_t::ZERO;
+                }
                 else if (strcmp(argv[i], "--help") == 0) {
                     cout << "dinit, an init with dependency management\n"
                             " --help                       display help\n"
@@ -272,6 +276,7 @@ int dinit_main(int argc, char **argv)
                             " --user, -u                   run as a user service manager\n"
                             " --socket-path <path>, -p <path>\n"
                             "                              path to control socket\n"
+                            " --quiet, -q                  disable output to standard output\n"
                             " <service-name>               start service with name <service-name>\n";
                     return 0;
                 }
