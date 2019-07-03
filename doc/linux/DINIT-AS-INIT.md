@@ -66,7 +66,7 @@ functionality, although at the cost of the losing automated integration.
 
 Some packages may rely on the "logind" functionality of Systemd for
 session/seat management. This same functionality is also provided by
-Elogind and ConsoleKit2, though I'm not to what degree nor level of
+Elogind and ConsoleKit2, though I'm not sure to what degree nor level of
 compatibility.
 
 In general I've found it quite possible to run a desktop system with Dinit
@@ -85,6 +85,8 @@ The basic procedure for boot (to be implemented by services) is as follows:
 - run root filesystem check
 - remount root filesystem read-write
 - start syslog deamon
+- various miscellaneous tasks: seed the random number generator, configure the
+  loopback interface, cleanup files in /tmp, /var/run and /var/lock
 - start other daemons as appropriate (dhcpcd, any networking daemons)
 - start getty instances virtual terminals
 
