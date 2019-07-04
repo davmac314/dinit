@@ -3,7 +3,7 @@ include ../mconfig
 HOSTCXX ?= $(CXX)
 HOSTCXXFLAGS ?= $(CXXFLAGS)
 HOSTLDFLAGS ?= $(LDFLAGS)
-STRIP ?= strip
+STRIPOPTS ?= -s
 
 ifeq ($(BUILD_SHUTDOWN),yes)
   SHUTDOWN=shutdown
@@ -55,7 +55,7 @@ run-cppcheck:
 
 install: all
 	install -d $(DESTDIR)$(SBINDIR)
-	install -s --strip-program=$(STRIP) dinit dinitctl $(SHUTDOWN) $(DESTDIR)$(SBINDIR)
+	install $(STRIPOPTS) dinit dinitctl $(SHUTDOWN) $(DESTDIR)$(SBINDIR)
 ifeq ($(BUILD_SHUTDOWN),yes)
 	ln -f $(DESTDIR)$(SBINDIR)/shutdown $(DESTDIR)$(SBINDIR)/halt
 	ln -f $(DESTDIR)$(SBINDIR)/shutdown $(DESTDIR)$(SBINDIR)/reboot
