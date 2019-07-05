@@ -292,7 +292,8 @@ data and heap allocations. Precise meaning may vary between operating systems. S
 .TP
 \fBrlimit-addrspace\fR = \fIresource-limits\fR
 Specifies the maximum size of the address space of the process. See the \fBRESOURCE LIMITS\fR
-section.
+section. Note that some operating systems (notably OpenBSD) do not support this limit; the
+setting will be ignored on such systems.
 .\"
 .SS OPTIONS
 .\"

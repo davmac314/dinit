@@ -727,9 +727,11 @@ service_record * dirload_service_set::load_service(const char * name)
                 parse_rlimit(line, name, "rlimit-data", nofile_limits);
             }
             else if (setting == "rlimit-addrspace") {
-                string nofile_setting = read_setting_value(i, end, nullptr);
-                service_rlimits &nofile_limits = find_rlimits(rlimits, RLIMIT_AS);
-                parse_rlimit(line, name, "rlimit-addrspace", nofile_limits);
+                #if defined(RLIMIT_AS)
+                    string nofile_setting = read_setting_value(i, end, nullptr);
+                    service_rlimits &nofile_limits = find_rlimits(rlimits, RLIMIT_AS);
+                    parse_rlimit(line, name, "rlimit-addrspace", nofile_limits);
+                #endif
             }
             else {
                 throw service_description_exc(name, "Unknown setting: " + setting);
