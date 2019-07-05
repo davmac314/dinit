@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
+extern char **environ;
+
 // Integration test suite runner.
 
 int main(int argc, char **argv)
