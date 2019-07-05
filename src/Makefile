@@ -50,6 +50,9 @@ $(objects): %.o: %.cc
 check:
 	$(MAKE) -C tests check
 
+check-igr: dinit dinitctl
+	$(MAKE) -C igr-tests check-igr
+
 run-cppcheck:
 	cppcheck --std=c++11 -Iincludes -Idasynq --force --enable=all *.cc 2>../cppcheck-report.txt
 
@@ -66,5 +69,6 @@ clean:
 	rm -f dinit dinitctl shutdown mconfig-gen
 	rm -f includes/mconfig.h
 	$(MAKE) -C tests clean
+	$(MAKE) -C igr-tests clean
 
 -include $(objects:.o=.d)

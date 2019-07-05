@@ -3,11 +3,15 @@
 all:
 	$(MAKE) -C src all
 	@echo "***"
-	@echo "*** Build complete; use \"make check\" to run tests or \"make install\" to install."
+	@echo "*** Build complete; use \"make check\" to run unit tests, \"make check-igr\" for"
+	@echo "*** integration tests, or \"make install\" to install."
 	@echo "***"
 
 check:
 	$(MAKE) -C src check
+
+check-igr:
+	$(MAKE) -C src check-igr
 
 run-cppcheck:
 	$(MAKE) -C src run-cppcheck

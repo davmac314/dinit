@@ -1,0 +1,2 @@
+type = process
+command = ./basic.sh
