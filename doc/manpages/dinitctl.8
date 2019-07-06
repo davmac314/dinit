@@ -5,40 +5,40 @@ dinitctl \- control services supervised by Dinit
 .SH SYNOPSIS
 .\"
 .B dinitctl
-[\fB\-s\fR] [\fB\-\-quiet\fR] \fBstart\fR [\fB\-\-no\-wait\fR] [\fB\-\-pin\fR] \fIservice-name\fR
+[\fIoptions\fR] \fBstart\fR [\fB\-\-no\-wait\fR] [\fB\-\-pin\fR] \fIservice-name\fR
 .br
 .B dinitctl
-[\fB\-s\fR] [\fB\-\-quiet\fR] \fBstop\fR [\fB\-\-no\-wait\fR] [\fB\-\-pin\fR] \fIservice-name\fR
+[\fIoptions\fR] \fBstop\fR [\fB\-\-no\-wait\fR] [\fB\-\-pin\fR] \fIservice-name\fR
 .br
 .B dinitctl
-[\fB\-s\fR] [\fB\-\-quiet\fR] \fBwake\fR [\fB\-\-no\-wait\fR] \fIservice-name\fR
+[\fIoptions\fR] \fBwake\fR [\fB\-\-no\-wait\fR] \fIservice-name\fR
 .br
 .B dinitctl
-[\fB\-s\fR] [\fB\-\-quiet\fR] \fBrelease\fR \fIservice-name\fR
+[\fIoptions\fR] \fBrelease\fR \fIservice-name\fR
 .br
 .B dinitctl
-[\fB\-s\fR] [\fB\-\-quiet\fR] \fBunpin\fR \fIservice-name\fR
+[\fIoptions\fR] \fBunpin\fR \fIservice-name\fR
 .br
 .B dinitctl
-[\fB\-s\fR] \fBunload\fR \fIservice-name\fR
+[\fIoptions\fR] \fBunload\fR \fIservice-name\fR
 .br
 .B dinitctl
-[\fB\-s\fR] \fBlist\fR
+[\fIoptions\fR] \fBlist\fR
 .br
 .B dinitctl
-[\fB\-s\fR] \fBshutdown\fR
+[\fIoptions\fR] \fBshutdown\fR
 .br
 .B dinitctl
-[\fB\-s\fR] \fBadd-dep\fR \fIdependency-type\fR \fIfrom-service\fR \fIto-service\fR
+[\fIoptions\fR] \fBadd-dep\fR \fIdependency-type\fR \fIfrom-service\fR \fIto-service\fR
 .br
 .B dinitctl
-[\fB\-s\fR] \fBrm-dep\fR \fIdependency-type\fR \fIfrom-service\fR \fIto-service\fR
+[\fIoptions\fR] \fBrm-dep\fR \fIdependency-type\fR \fIfrom-service\fR \fIto-service\fR
 .br
 .B dinitctl
-[\fB\-s\fR] \fBenable\fR [\fB\-\-from\fR \fIfrom-service\fR] \fIto-service\fR
+[\fIoptions\fR] \fBenable\fR [\fB\-\-from\fR \fIfrom-service\fR] \fIto-service\fR
 .br
 .B dinitctl
-[\fB\-s\fR] \fBdisable\fR [\fB\-\-from\fR \fIfrom-service\fR] \fIto-service\fR
+[\fIoptions\fR] \fBdisable\fR [\fB\-\-from\fR \fIfrom-service\fR] \fIto-service\fR
 .\"
 .SH DESCRIPTION
 .\"
@@ -46,10 +46,22 @@ dinitctl \- control services supervised by Dinit
 \fBdinit\fR daemon. It allows starting and stopping services, and listing
 service status. 
 .\"
-.SH OPTIONS
+.SH GENERAL OPTIONS
 .TP
 \fB\-\-help\fR
 display this help and exit
+.TP
+\fB\-s\fR, \fB\-\-system\fR
+Control the system init process. The default is to control the user process. This option selects
+the path to the control socket used to communicate with the \fBdinit\fR daemon process.
+.TP
+\fB\-\-socket\-path\fR \fIsocket-path\fR, \fB\-p\fR \fIsocket-path\fR
+Specify the path to the socket used for communicating with the service manager daemon.
+.TP
+\fB\-\-quiet\fR
+Suppress status output, except for errors. 
+.\"
+.SH COMMAND OPTIONS
 .TP
 \fB\-\-no\-wait\fR
 Do not wait for issued command to complete; exit immediately.
@@ -57,10 +69,6 @@ Do not wait for issued command to complete; exit immediately.
 \fB\-\-pin\fR
 Pin the service in the requested state. The service will not leave the state until it is unpinned, although
 start/stop commands will be "remembered" while the service is pinned.
-.TP
-\fB\-s\fR, \fB\-\-system\fR
-Control the system init process. The default is to control the user process. This option selects
-the path to the control socket used to communicate with the \fBdinit\fR daemon process.
 .TP
 \fIservice-name\fR
 Specifies the name of the service to which the command applies.

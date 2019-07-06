@@ -114,6 +114,14 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "--pin") == 0) {
                 do_pin = true;
             }
+            else if (strcmp(argv[i], "--socket-path") || strcmp(argv[i], "-p")) {
+                ++i;
+                if (i == argc) {
+                    cerr << "dinitctl: --socket-path/-p should be followed by socket path" << std::endl;
+                    return 1;
+                }
+                control_socket_str = argv[i];
+            }
             else if ((command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE)
                     && strcmp(argv[i], "--from") == 0) {
                 ++i;
@@ -258,6 +266,8 @@ int main(int argc, char **argv)
           "General options:\n"
           "  -s, --system     : control system daemon instead of user daemon\n"
           "  --quiet          : suppress output (except errors)\n"
+          "  --socket-path <path>, -p <path>\n"
+          "                   : specify socket for communication with daemon\n"
           "\n"
           "Command options:\n"
           "  --help           : show this help\n"
@@ -268,26 +278,30 @@ int main(int argc, char **argv)
     
     signal(SIGPIPE, SIG_IGN);
     
-    control_socket_path = SYSCONTROLSOCKET;
-    
     // Locate control socket
-    if (! sys_dinit) {
-        char * userhome = getenv("HOME");
-        if (userhome == nullptr) {
-            struct passwd * pwuid_p = getpwuid(getuid());
-            if (pwuid_p != nullptr) {
-                userhome = pwuid_p->pw_dir;
+    if (! control_socket_str.empty()) {
+        control_socket_path = control_socket_str.c_str();
+    }
+    else {
+        control_socket_path = SYSCONTROLSOCKET; // default to system
+        if (! sys_dinit) {
+            char * userhome = getenv("HOME");
+            if (userhome == nullptr) {
+                struct passwd * pwuid_p = getpwuid(getuid());
+                if (pwuid_p != nullptr) {
+                    userhome = pwuid_p->pw_dir;
+                }
             }
-        }
-        
-        if (userhome != nullptr) {
-            control_socket_str = userhome;
-            control_socket_str += "/.dinitctl";
-            control_socket_path = control_socket_str.c_str();
-        }
-        else {
-            cerr << "Cannot locate user home directory (set HOME or check /etc/passwd file)" << endl;
-            return 1;
+
+            if (userhome != nullptr) {
+                control_socket_str = userhome;
+                control_socket_str += "/.dinitctl";
+                control_socket_path = control_socket_str.c_str();
+            }
+            else {
+                cerr << "Cannot locate user home directory (set HOME or check /etc/passwd file)" << endl;
+                return 1;
+            }
         }
     }
     
