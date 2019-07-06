@@ -31,6 +31,7 @@ struct run_proc_params
     const char * const *args; // program arguments including executable (args[0])
     const char *working_dir;  // working directory
     const char *logfile;      // log file or nullptr (stdout/stderr); must be valid if !on_console
+    const char *env_file;      // file with environment settings (or nullptr)
     bool on_console;          // whether to run on console
     int wpipefd;              // pipe to which error status will be sent (if error occurs)
     int csfd;                 // control socket fd (or -1); may be moved
@@ -44,9 +45,9 @@ struct run_proc_params
 
     run_proc_params(const char * const *args, const char *working_dir, const char *logfile, int wpipefd,
             uid_t uid, gid_t gid, const std::vector<service_rlimits> &rlimits)
-            : args(args), working_dir(working_dir), logfile(logfile), on_console(false), wpipefd(wpipefd),
-              csfd(-1), socket_fd(-1), notify_fd(-1), force_notify_fd(-1), notify_var(nullptr), uid(uid),
-              gid(gid), rlimits(rlimits)
+            : args(args), working_dir(working_dir), logfile(logfile), env_file(nullptr), on_console(false),
+              wpipefd(wpipefd), csfd(-1), socket_fd(-1), notify_fd(-1), force_notify_fd(-1), notify_var(nullptr),
+              uid(uid), gid(gid), rlimits(rlimits)
     { }
 };
 
@@ -128,6 +129,7 @@ class base_process_service : public service_record
     std::vector<const char *> stop_arg_parts;
 
     string working_dir;       // working directory (or empty)
+    string env_file;          // file with environment settings for this service
 
     std::vector<service_rlimits> rlimits; // resource limits
 
@@ -254,6 +256,11 @@ class base_process_service : public service_record
     {
         stop_command = command;
         stop_arg_parts = separate_args(stop_command, stop_command_offsets);
+    }
+
+    void set_env_file(const std::string &env_file_p)
+    {
+        env_file = env_file_p;
     }
 
     void set_rlimits(std::vector<service_rlimits> &&rlimits_p)

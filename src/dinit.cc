@@ -59,7 +59,6 @@ static void sigterm_cb(eventloop_t &eloop) noexcept;
 static void open_control_socket(bool report_ro_failure = true) noexcept;
 static void close_control_socket() noexcept;
 static void confirm_restart_boot() noexcept;
-static void read_env_file(const char *);
 
 static void control_socket_cb(eventloop_t *loop, int fd);
 
@@ -558,8 +557,8 @@ static void log_bad_env(int linenum)
     log(loglevel_t::ERROR, "invalid environment variable setting in environment file (line ", linenum, ")");
 }
 
-// Read and set environment variables from a file.
-static void read_env_file(const char *env_file_path)
+// Read and set environment variables from a file. May throw std::bad_alloc, std::system_error.
+void read_env_file(const char *env_file_path)
 {
     // Note that we can't use the log in this function; it hasn't been initialised yet.
 

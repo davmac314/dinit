@@ -436,6 +436,7 @@ service_record * dirload_service_set::load_service(const char * name)
     list<pair<unsigned,unsigned>> stop_command_offsets;
     string working_dir;
     string pid_file;
+    string env_file;
 
     bool do_sub_vars = false;
 
@@ -492,6 +493,9 @@ service_record * dirload_service_set::load_service(const char * name)
             }
             else if (setting == "working-dir") {
                 working_dir = read_setting_value(i, end, nullptr);
+            }
+            else if (setting == "env-file") {
+                env_file = read_setting_value(i, end, nullptr);
             }
             else if (setting == "socket-listen") {
                 socket_path = read_setting_value(i, end, nullptr);
@@ -757,6 +761,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     auto rvalps = new process_service(this, string(name), std::move(command),
                             command_offsets, depends);
                     rvalps->set_working_dir(working_dir);
+                    rvalps->set_env_file(env_file);
                     rvalps->set_rlimits(std::move(rlimits));
                     rvalps->set_restart_interval(restart_interval, max_restarts);
                     rvalps->set_restart_delay(restart_delay);
@@ -777,6 +782,7 @@ service_record * dirload_service_set::load_service(const char * name)
                     auto rvalps = new bgproc_service(this, string(name), std::move(command),
                             command_offsets, depends);
                     rvalps->set_working_dir(working_dir);
+                    rvalps->set_env_file(env_file);
                     rvalps->set_rlimits(std::move(rlimits));
                     rvalps->set_pid_file(std::move(pid_file));
                     rvalps->set_restart_interval(restart_interval, max_restarts);
@@ -794,6 +800,7 @@ service_record * dirload_service_set::load_service(const char * name)
                             command_offsets, depends);
                     rvalps->set_stop_command(stop_command, stop_command_offsets);
                     rvalps->set_working_dir(working_dir);
+                    rvalps->set_env_file(env_file);
                     rvalps->set_rlimits(std::move(rlimits));
                     rvalps->set_stop_timeout(stop_timeout);
                     rvalps->set_start_timeout(start_timeout);

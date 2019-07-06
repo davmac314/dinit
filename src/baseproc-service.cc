@@ -162,6 +162,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         run_params.notify_fd = notify_pipe[1];
         run_params.force_notify_fd = force_notification_fd;
         run_params.notify_var = notification_var.c_str();
+        run_params.env_file = env_file.c_str();
         run_child_proc(run_params);
     }
     else {

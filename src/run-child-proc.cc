@@ -129,6 +129,19 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         if (notify_fd == -1) goto failure_out;
     }
 
+    // Read environment from file
+    if (params.env_file != nullptr) {
+        try {
+            read_env_file(params.env_file);
+        }
+        catch (std::system_error &sys_err) {
+            errno = sys_err.code().value();
+        }
+        catch (std::bad_alloc &alloc_err) {
+            errno = ENOMEM; goto failure_out;
+        }
+    }
+
     // Set up notify-fd variable:
     if (notify_var != nullptr && *notify_var != 0) {
         // We need to do an allocation: the variable name length, '=', and space for the value,

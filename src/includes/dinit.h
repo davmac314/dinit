@@ -15,6 +15,7 @@ using time_val = dasynq::time_val;
 
 void rootfs_is_rw() noexcept;
 void setup_external_log() noexcept;
+void read_env_file(const char *);
 
 extern eventloop_t event_loop;
 
