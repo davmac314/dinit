@@ -31,8 +31,9 @@ struct run_proc_params
     const char * const *args; // program arguments including executable (args[0])
     const char *working_dir;  // working directory
     const char *logfile;      // log file or nullptr (stdout/stderr); must be valid if !on_console
-    const char *env_file;      // file with environment settings (or nullptr)
+    const char *env_file;     // file with environment settings (or nullptr)
     bool on_console;          // whether to run on console
+    bool in_foreground;       // if on console: whether to run in foreground
     int wpipefd;              // pipe to which error status will be sent (if error occurs)
     int csfd;                 // control socket fd (or -1); may be moved
     int socket_fd;            // pre-opened socket fd (or -1); may be moved
@@ -46,8 +47,8 @@ struct run_proc_params
     run_proc_params(const char * const *args, const char *working_dir, const char *logfile, int wpipefd,
             uid_t uid, gid_t gid, const std::vector<service_rlimits> &rlimits)
             : args(args), working_dir(working_dir), logfile(logfile), env_file(nullptr), on_console(false),
-              wpipefd(wpipefd), csfd(-1), socket_fd(-1), notify_fd(-1), force_notify_fd(-1), notify_var(nullptr),
-              uid(uid), gid(gid), rlimits(rlimits)
+              in_foreground(false), wpipefd(wpipefd), csfd(-1), socket_fd(-1), notify_fd(-1),
+              force_notify_fd(-1), notify_var(nullptr), uid(uid), gid(gid), rlimits(rlimits)
     { }
 };
 

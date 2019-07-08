@@ -227,7 +227,9 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             ioctl(0, TIOCSCTTY, 0);
         }
         setpgid(0,0);
-        tcsetpgrp(0, getpgrp());
+        if (params.in_foreground) {
+            tcsetpgrp(0, getpgrp());
+        }
     }
 
     // Resource limits
