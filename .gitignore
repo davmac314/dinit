@@ -14,7 +14,11 @@
 /src/tests/cptests/cptests
 /src/tests/cptests/corpus
 /src/tests/cptests/fuzz
-/src/igr-tests/basic/basic-ran
-/src/igr-tests/environ/env-record
 /src/igr-tests/igr-runner
 /mconfig
+
+# Integration test output:
+/src/igr-tests/basic/basic-ran
+/src/igr-tests/environ/env-record
+/src/igr-tests/ps-environ/env-record
+/src/igr-tests/chain-to/recorded-output
