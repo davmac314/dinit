@@ -5,7 +5,8 @@ For version 0.6.0:
   interrupt/ctrl+alt+del when they are prompted to press enter, to allow halt/rebooting instead of
   re-launching the boot service.  [DONE][ even better, you can now choose from several options! ]
 * Basic resource limits setting. [DONE, mostly. OpenBSD compilation issues, others need testing].
-* Per-service environment.
+* Per-service environment. [DONE].
+* shares_console processes should not be set as foreground process group [DONE]
 * Process start failure: track where in the launch process we get failure (i.e. we send errno over a pipe,
   we should send a state value as well).
 
@@ -13,11 +14,16 @@ For version 0.7.0:
 ------------------
 * dinitctl: Warn when stopping a service would cause a dependent to stop. Require a force flag to proceed.
 * dinitctl: implement "restart" command. 
+* provide a way to check configuration for errors (maybe a dinitctl command)
+  - eg. check a service and all dependencies
 
 For version 1.0:
 ----------------
 * "triggered" service type: external process notifies Dinit when the service
   has started. (maybe?)
+  - key thing is we want some way to eg mount filesystem once the disk comes up,
+    configure network when device comes up, etc, potentially relying an an external
+    tool/daemon.
 * on shutdown, after repeated intervals with no activity, display information
   about services we are waiting on (or, do this when prompted via ^C or C-A-D).
 * Documentation must be complete (see section below).
