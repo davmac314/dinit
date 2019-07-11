@@ -202,6 +202,7 @@ int dinit_main(int argc, char **argv)
     const char * env_file = nullptr;
     bool control_socket_path_set = false;
     bool env_file_set = false;
+    bool log_specified = false;
 
     // list of services to start
     list<const char *> services_to_start;
@@ -253,6 +254,7 @@ int dinit_main(int argc, char **argv)
                     if (++i < argc) {
                         log_path = argv[i];
                         log_is_syslog = false;
+                        log_specified = true;
                     }
                     else {
                         cerr << "dinit: '--log-file' (-l) requires an argument" << endl;
@@ -275,6 +277,7 @@ int dinit_main(int argc, char **argv)
                             " --user, -u                   run as a user service manager\n"
                             " --socket-path <path>, -p <path>\n"
                             "                              path to control socket\n"
+                            " --log-file <file>, -l <file> log to the specified file\n"
                             " --quiet, -q                  disable output to standard output\n"
                             " <service-name>               start service with name <service-name>\n";
                     return 0;
@@ -326,7 +329,7 @@ int dinit_main(int argc, char **argv)
     if (am_pid_one) sigaddset(&sigwait_set, SIGQUIT);
     sigprocmask(SIG_BLOCK, &sigwait_set, NULL);
 
-    // Terminal access control signals - we block these so that dinit can't be
+    // Terminal access control signals - we ignore these so that dinit can't be
     // suspended if it writes to the terminal after some other process has claimed
     // ownership of it.
     signal(SIGTSTP, SIG_IGN);
@@ -432,7 +435,7 @@ int dinit_main(int argc, char **argv)
     
     // Only try to set up the external log now if we aren't the system init. (If we are the
     // system init, wait until the log service starts).
-    if (! am_system_init) setup_external_log();
+    if (! am_system_init && log_specified) setup_external_log();
 
     if (env_file != nullptr) {
         read_env_file(env_file);
