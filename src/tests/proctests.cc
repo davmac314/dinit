@@ -29,8 +29,11 @@ class base_process_service_test
 
     static void exec_failed(base_process_service *bsp, int errcode)
     {
+        run_proc_err err;
+        err.stage = exec_stage::DO_EXEC;
+        err.st_errno = errcode;
     	bsp->waiting_for_execstat = false;
-    	bsp->exec_failed(errcode);
+    	bsp->exec_failed(err);
     }
 
     static void handle_exit(base_process_service *bsp, int exit_status)

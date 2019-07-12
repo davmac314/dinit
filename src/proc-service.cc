@@ -15,6 +15,20 @@
  * See proc-service.h header for interface details.
  */
 
+// Strings describing the execution stages (failure points).
+const char * const exec_stage_descriptions[static_cast<int>(exec_stage::DO_EXEC) + 1] = {
+        "arranging file descriptors",   // ARRANGE_FDS
+        "reading environment file",     // READ_ENV_FILE
+        "setting environment variable", // SET_NOTIFYFD_VAR
+        "setting up activation socket", // SETUP_ACTIVATION_SOCKET
+        "setting up control socket",    // SETUP_CONTROL_SOCKET
+        "changing directory",           // CHDIR
+        "setting up standard input/output descriptors", // SETUP_STDINOUTERR
+        "setting resource limits",      // SET_RLIMITS
+        "setting user/group ID",        // SET_UIDGID
+        "executing command"             // DO_EXEC
+};
+
 // Given a string and a list of pairs of (start,end) indices for each argument in that string,
 // store a null terminator for the argument. Return a `char *` vector containing the beginning
 // of each argument and a trailing nullptr. (The returned array is invalidated if the string is
@@ -76,8 +90,8 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
     base_process_service *sr = service;
     sr->waiting_for_execstat = false;
 
-    int exec_status;
-    int r = read(get_watched_fd(), &exec_status, sizeof(int));
+    run_proc_err exec_status;
+    int r = read(get_watched_fd(), &exec_status, sizeof(exec_status));
     deregister(loop);
     close(get_watched_fd());
 
@@ -224,9 +238,10 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
     services->process_queues();
 }
 
-void process_service::exec_failed(int errcode) noexcept
+void process_service::exec_failed(run_proc_err errcode) noexcept
 {
-    log(loglevel_t::ERROR, get_name(), ": execution failed: ", strerror(errcode));
+    log(loglevel_t::ERROR, get_name(), ": execution failed - ",
+            exec_stage_descriptions[static_cast<int>(errcode.stage)], strerror(errcode.st_errno));
 
     if (notification_fd != -1) {
         readiness_watcher.deregister(event_loop);
@@ -347,9 +362,11 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
     services->process_queues();
 }
 
-void bgproc_service::exec_failed(int errcode) noexcept
+void bgproc_service::exec_failed(run_proc_err errcode) noexcept
 {
-    log(loglevel_t::ERROR, get_name(), ": execution failed: ", strerror(errcode));
+    log(loglevel_t::ERROR, get_name(), ": execution failed - ",
+            exec_stage_descriptions[static_cast<int>(errcode.stage)], strerror(errcode.st_errno));
+
     // Only time we execute is for startup:
     stop_reason = stopped_reason_t::EXECFAILED;
     failed_to_start();
@@ -439,9 +456,10 @@ void scripted_service::handle_exit_status(bp_sys::exit_status exit_status) noexc
     }
 }
 
-void scripted_service::exec_failed(int errcode) noexcept
+void scripted_service::exec_failed(run_proc_err errcode) noexcept
 {
-    log(loglevel_t::ERROR, get_name(), ": execution failed: ", strerror(errcode));
+    log(loglevel_t::ERROR, get_name(), ": execution failed - ",
+            exec_stage_descriptions[static_cast<int>(errcode.stage)], strerror(errcode.st_errno));
     auto service_state = get_state();
     if (service_state == service_state_t::STARTING) {
         stop_reason = stopped_reason_t::EXECFAILED;

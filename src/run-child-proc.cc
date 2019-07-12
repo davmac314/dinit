@@ -82,6 +82,9 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     constexpr int csenvbufsz = 12 + ((CHAR_BIT * sizeof(int) - 1 + 2) / 3) + 1;
     char csenvbuf[csenvbufsz];
 
+    run_proc_err err;
+    err.stage = exec_stage::ARRANGE_FDS;
+
     int minfd = (socket_fd == -1) ? 3 : 4;
 
     if (force_notify_fd != -1) {
@@ -129,6 +132,8 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         if (notify_fd == -1) goto failure_out;
     }
 
+    err.stage = exec_stage::READ_ENV_FILE;
+
     // Read environment from file
     if (params.env_file != nullptr) {
         try {
@@ -144,6 +149,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
 
     // Set up notify-fd variable:
     if (notify_var != nullptr && *notify_var != 0) {
+        err.stage = exec_stage::SET_NOTIFYFD_VAR;
         // We need to do an allocation: the variable name length, '=', and space for the value,
         // and nul terminator:
         int notify_var_len = strlen(notify_var);
@@ -156,6 +162,8 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
 
     // Set up Systemd-style socket activation:
     if (socket_fd != -1) {
+        err.stage = exec_stage::SETUP_ACTIVATION_SOCKET;
+
         // If we passing a pre-opened socket, it has to be fd number 3. (Thanks, Systemd).
         if (dup2(socket_fd, 3) == -1) goto failure_out;
         if (socket_fd != 3) close(socket_fd);
@@ -166,11 +174,13 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     }
 
     if (csfd != -1) {
+        err.stage = exec_stage::SETUP_CONTROL_SOCKET;
         snprintf(csenvbuf, csenvbufsz, "DINIT_CS_FD=%d", csfd);
         if (putenv(csenvbuf)) goto failure_out;
     }
 
     if (working_dir != nullptr && *working_dir != 0) {
+        err.stage = exec_stage::CHDIR;
         if (chdir(working_dir) == -1) {
             goto failure_out;
         }
@@ -182,6 +192,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             if (i != force_notify_fd) close(i);
         }
 
+        err.stage = exec_stage::SETUP_STDINOUTERR;
         if (notify_fd == 0 || move_fd(open("/dev/null", O_RDONLY), 0) == 0) {
             // stdin = 0. That's what we should have; proceed with opening stdout and stderr. We have to
             // take care not to clobber the notify_fd.
@@ -233,6 +244,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     }
 
     // Resource limits
+    err.stage = exec_stage::SET_RLIMITS;
     for (auto &limit : rlimits) {
         rlimit setlimits;
         if (!limit.hard_set || !limit.soft_set) {
@@ -245,17 +257,19 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     }
 
     if (uid != uid_t(-1)) {
+        err.stage = exec_stage::SET_UIDGID;
         if (setreuid(uid, uid) != 0) goto failure_out;
         if (setregid(gid, gid) != 0) goto failure_out;
     }
 
     sigprocmask(SIG_SETMASK, &sigwait_set, nullptr);
 
+    err.stage = exec_stage::DO_EXEC;
     execvp(args[0], const_cast<char **>(args));
 
     // If we got here, the exec failed:
     failure_out:
-    int exec_status = errno;
-    write(wpipefd, &exec_status, sizeof(int));
+    err.st_errno = errno;
+    write(wpipefd, &err, sizeof(err));
     _exit(0);
 }

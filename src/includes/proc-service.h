@@ -52,6 +52,20 @@ struct run_proc_params
     { }
 };
 
+enum class exec_stage {
+    ARRANGE_FDS, READ_ENV_FILE, SET_NOTIFYFD_VAR, SETUP_ACTIVATION_SOCKET, SETUP_CONTROL_SOCKET,
+    CHDIR, SETUP_STDINOUTERR, SET_RLIMITS, SET_UIDGID, /* must be last: */ DO_EXEC
+};
+
+extern const char * const exec_stage_descriptions[static_cast<int>(exec_stage::DO_EXEC) + 1];
+
+// Error information from process execution transferred via this struct
+struct run_proc_err
+{
+    exec_stage stage;
+    int st_errno;
+};
+
 class base_process_service;
 
 // A timer for process restarting. Used to ensure a minimum delay between process restarts (and
@@ -198,7 +212,7 @@ class base_process_service : public service_record
     virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept = 0;
 
     // Called if an exec fails.
-    virtual void exec_failed(int errcode) noexcept = 0;
+    virtual void exec_failed(run_proc_err errcode) noexcept = 0;
 
     // Called if exec succeeds.
     virtual void exec_succeeded() noexcept { };
@@ -346,7 +360,7 @@ class base_process_service : public service_record
 class process_service : public base_process_service
 {
     virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept override;
-    virtual void exec_failed(int errcode) noexcept override;
+    virtual void exec_failed(run_proc_err errcode) noexcept override;
     virtual void exec_succeeded() noexcept override;
     virtual void bring_down() noexcept override;
 
@@ -407,7 +421,7 @@ class process_service : public base_process_service
 class bgproc_service : public base_process_service
 {
     virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept override;
-    virtual void exec_failed(int errcode) noexcept override;
+    virtual void exec_failed(run_proc_err errcode) noexcept override;
     virtual void bring_down() noexcept override;
 
     enum class pid_result_t {
@@ -438,7 +452,7 @@ class scripted_service : public base_process_service
 {
     virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept override;
     virtual void exec_succeeded() noexcept override;
-    virtual void exec_failed(int errcode) noexcept override;
+    virtual void exec_failed(run_proc_err errcode) noexcept override;
     virtual void bring_down() noexcept override;
 
     virtual bool interrupt_start() noexcept override
