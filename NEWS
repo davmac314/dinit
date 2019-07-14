@@ -1,3 +1,23 @@
+== Version 0.6.0:
+
+This release adds a number of minor features:
+
+ * Better behaviour when boot fails. User can choose an action from reboot, resume boot process,
+   start the "recovery" service, or power-off. 
+ * New service settings for limiting resources at the process level: "rlimit-nofile",
+   "rlimit-core", "rlimit-data", "rlimit-addrspace". Both hard and soft limits can be set.
+   See dinit-service(5) for details.
+ * New "env-file" setting allows per-setting environment to be specified via a file. The file
+   is re-read each time the service process is started. 
+ * Added a "--quiet" option to suppress console output from Dinit.
+ * Dinit when run as a user daemon no longer logs via syslog. Logging to file can still be
+   enabled via the "-l"/"--log-file" option.
+ * Added a "--socket-path"/"-p" option to dinitctl, to specify the socket path for communication
+   with the dinit daemon.
+ 
+A number of minor bugfixes and other improvements are also implemented. An integration test
+framework has been added with a small number of tests, to complement the existing unit tests.
+
 == Version 0.5.2:
 
 This is a bug-fix release for several minor issues which have been found in the preceding
