@@ -1,4 +1,5 @@
-.TH SHUTDOWN "8" "June 2019" "Dinit 0.5.2" "Dinit \- service management system"
+changequote(`@@@',`$$$')dnl
+@@@.TH SHUTDOWN "8" "$$$MONTH YEAR@@@" "Dinit $$$VERSION@@@" "Dinit \- service management system"
 .SH NAME
 shutdown, halt, reboot \- system shutdown 
 .\"
@@ -58,3 +59,4 @@ system shutdown after it has rolled back services.
 .\"
 .SH AUTHOR
 Dinit, and this manual, were written by Davin McCall.
+$$$dnl

@@ -1,4 +1,5 @@
-.TH DINITCTL "8" "June 2019" "Dinit 0.5.2" "Dinit \- service management system"
+changequote(`@@@',`$$$')dnl
+@@@.TH DINITCTL "8" "$$$MONTH YEAR@@@" "Dinit $$$VERSION@@@" "Dinit \- service management system"
 .SH NAME
 dinitctl \- control services supervised by Dinit
 .\"
@@ -181,3 +182,4 @@ unless pinned.
 .\"
 .SH AUTHOR
 Dinit, and this manual, were written by Davin McCall.
+$$$dnl

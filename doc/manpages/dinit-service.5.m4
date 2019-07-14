@@ -1,4 +1,5 @@
-.TH DINIT-SERVICE "5" "June 2019" "Dinit 0.5.2" "Dinit \- service management system"
+changequote(`@@@',`$$$')dnl
+@@@.TH DINIT-SERVICE "5" "$$$MONTH YEAR@@@" "Dinit $$$VERSION@@@" "Dinit \- service management system"
 .SH NAME
 Dinit service description files
 .\"
@@ -452,3 +453,4 @@ More examples are provided with the Dinit distribution.
 .\"
 .SH AUTHOR
 Dinit, and this manual, were written by Davin McCall.
+$$$dnl

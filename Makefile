@@ -2,6 +2,7 @@
 
 all:
 	$(MAKE) -C src all
+	$(MAKE) -C doc/manpages all
 	@echo "***"
 	@echo "*** Build complete; use \"make check\" to run unit tests, \"make check-igr\" for"
 	@echo "*** integration tests, or \"make install\" to install."
@@ -22,3 +23,4 @@ install:
 
 clean:
 	$(MAKE) -C src clean
+	$(MAKE) -C doc/manpages clean

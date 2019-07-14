@@ -1,4 +1,5 @@
-.TH DINIT "8" "June 2019" "Dinit 0.5.2" "Dinit \- service management system"
+changequote(`@@@',`$$$')dnl
+@@@.TH DINIT "8" "$$$MONTH YEAR@@@" "Dinit $$$VERSION@@@" "Dinit \- service management system"
 .SH NAME
 dinit \- supervise processes and manage services
 .\"
@@ -175,3 +176,4 @@ and exit Dinit; SIGQUIT exits Dinit immediately.
 .\"
 .SH AUTHOR
 Dinit, and this manual, were written by Davin McCall.
+$$$dnl
