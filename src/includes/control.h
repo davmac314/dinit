@@ -119,7 +119,7 @@ class control_conn_t : private service_listener
     //            true (with bad_conn_close == false) if the packet was successfully
     //              queued;
     //            true (with bad_conn_close == true) if the packet was not successfully
-    //              queued (but a suitable error packate has been queued).
+    //              queued (but a suitable error packet has been queued).
     // The in/out watch enabled state will also be set appropriately.
     bool queue_packet(vector<char> &&v) noexcept;
     bool queue_packet(const char *pkt, unsigned size) noexcept;
@@ -163,6 +163,11 @@ class control_conn_t : private service_listener
     
     bool send_data() noexcept;
     
+    // Check if any dependents will be affected by stopping a service, generate a response packet if so.
+    // had_dependents will be set true if the service should not be stopped, false otherwise.
+    // Returns false if the connection must be closed, true otherwise.
+    bool check_dependents(service_record *service, bool &had_dependents);
+
     // Allocate a new handle for a service; may throw std::bad_alloc
     handle_t allocate_service_handle(service_record *record);
     

@@ -78,6 +78,9 @@ constexpr static int DINIT_RP_LISTDONE = 63;
 // Service loader information:
 constexpr static int DINIT_RP_LOADER_MECH = 64;
 
+// Dependent services prevent stopping/restarting. Includes size_t count, handle_t * N handles.
+constexpr static int DINIT_RP_DEPENDENTS = 65;
+
 // Information:
 
 // Service event occurred (4-byte service handle, 1 byte event code)

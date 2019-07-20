@@ -175,6 +175,35 @@ bool control_conn_t::process_find_load(int pktType)
     return true;
 }
 
+bool control_conn_t::check_dependents(service_record *service, bool &had_dependents)
+{
+    std::vector<char> reply_pkt;
+
+    for (service_dep *dep : service->get_dependents()) {
+        if (dep->dep_type == dependency_type::REGULAR) {
+            // find or allocate a service handle
+            handle_t dept_handle = allocate_service_handle(dep->get_from());
+            if (reply_pkt.empty()) {
+                // packet type, size
+                reply_pkt.reserve(1 + sizeof(size_t) + sizeof(handle_t));
+                reply_pkt.resize(1 + sizeof(size_t));
+                reply_pkt[0] = DINIT_RP_DEPENDENTS;
+            }
+            auto old_size = reply_pkt.size();
+            reply_pkt.resize(old_size + sizeof(handle_t));
+            memcpy(reply_pkt.data() + old_size, &dept_handle, sizeof(dept_handle));
+        }
+    }
+
+    had_dependents = !reply_pkt.empty();
+    if (had_dependents) {
+        // We didn't build a reply packet, so there are no affected dependents
+        if (! queue_packet(std::move(reply_pkt))) return false;
+    }
+
+    return true;
+}
+
 bool control_conn_t::process_start_stop(int pktType)
 {
     using std::string;
@@ -190,7 +219,7 @@ bool control_conn_t::process_start_stop(int pktType)
     // 1 byte: pin in requested state (0 = no pin, 1 = pin)
     // 4 bytes: service handle
     
-    bool do_pin = (rbuf[1] == 1);
+    bool do_pin = ((rbuf[1] & 1) == 1);
     handle_t handle;
     rbuf.extract((char *) &handle, 2, sizeof(handle));
     
@@ -219,13 +248,27 @@ bool control_conn_t::process_start_stop(int pktType)
             if (service->get_state() == service_state_t::STARTED) ack_buf[0] = DINIT_RP_ALREADYSS;
             break;
         case DINIT_CP_STOPSERVICE:
+        {
             // force service to stop
+            bool gentle = ((rbuf[1] & 2) == 2);
+            if (gentle) {
+                // Check dependents; return appropriate response if any will be affected
+                bool has_dependents;
+                if (check_dependents(service, has_dependents)) {
+                    return false;
+                }
+                if (has_dependents) {
+                    // Reply packet has already been sent
+                    goto clear_out;
+                }
+            }
             if (do_pin) service->pin_stop();
             service->stop(true);
             service->forced_stop();
             services->process_queues();
             if (service->get_state() == service_state_t::STOPPED) ack_buf[0] = DINIT_RP_ALREADYSS;
             break;
+        }
         case DINIT_CP_WAKESERVICE:
             // re-start a stopped service (do not mark as required)
             if (services->is_shutting_down()) {
@@ -249,6 +292,7 @@ bool control_conn_t::process_start_stop(int pktType)
         if (! queue_packet(ack_buf, 1)) return false;
     }
     
+    clear_out:
     // Clear the packet from the buffer
     rbuf.consume(pkt_size);
     chklen = 0;

@@ -606,6 +606,11 @@ class service_record
         return depends_on;
     }
 
+    dpt_list & get_dependents()
+    {
+        return dependents;
+    }
+
     // Add a dependency. Caller must ensure that the services are in an appropriate state and that
     // a circular dependency chain is not created. Propagation queues should be processed after
     // calling this. May throw std::bad_alloc.
