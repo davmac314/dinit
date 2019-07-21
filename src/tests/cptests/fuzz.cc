@@ -36,33 +36,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 	// Write will process immediately, so there's no need for this:
 	//event_loop.regd_bidi_watchers[fd]->write_ready(event_loop, fd);
 
-	// We expect, for each service:
-	// (1 byte)   DINIT_RP_SVCINFO
-	// (1 byte)   service name length
-	// (1 byte)   state
-	// (1 byte)   target state
-	// (1 byte)   flags: has console, waiting for console, start skipped
-	// (1 byte)   stop reason
-    // (2 bytes)  reserved
-	// (? bytes)  exit status (int) / process id (pid_t)
-	// (N bytes)  service name
-
 	delete cc;
 
 	return 0;
 }
-
-/*
-
-#define RUN_TEST(name, spacing) \
-    std::cout << #name "..." spacing; \
-    name(); \
-    std::cout << "PASSED" << std::endl;
-
-int main(int argc, char **argv)
-{
-    RUN_TEST(cptest_queryver, "    ");
-    RUN_TEST(cptest_listservices, "");
-    return 0;
-}
-*/
