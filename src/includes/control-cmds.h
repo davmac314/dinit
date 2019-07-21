@@ -39,6 +39,9 @@ constexpr static int DINIT_CP_QUERY_LOAD_MECH = 13;
 // Add a waits for dependency from one service to another, and start the dependency:
 constexpr static int DINIT_CP_ENABLESERVICE = 14;
 
+// Find the name of a service (from a handle)
+constexpr static int DINIT_CP_QUERYSERVICENAME = 15;
+
 // Replies:
 
 // Reply: ACK/NAK to request
@@ -80,6 +83,9 @@ constexpr static int DINIT_RP_LOADER_MECH = 64;
 
 // Dependent services prevent stopping/restarting. Includes size_t count, handle_t * N handles.
 constexpr static int DINIT_RP_DEPENDENTS = 65;
+
+// Service name:
+constexpr static int DINIT_RP_SERVICENAME = 66;
 
 // Information:
 

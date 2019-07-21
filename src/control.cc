@@ -95,6 +95,9 @@ bool control_conn_t::process_packet()
     if (pktType == DINIT_CP_ENABLESERVICE) {
         return add_service_dep(true);
     }
+    if (pktType == DINIT_CP_QUERYSERVICENAME) {
+        return process_query_name();
+    }
 
     // Unrecognized: give error response
     char outbuf[] = { DINIT_RP_BADREQ };
@@ -623,6 +626,46 @@ bool control_conn_t::rm_service_dep()
     return true;
 }
 
+bool control_conn_t::process_query_name()
+{
+    // 1 byte packet type
+    // 1 byte reserved
+    // handle: service
+    constexpr int pkt_size = 2 + sizeof(handle_t);
+
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    // Reply:
+    // 1 byte packet type = DINIT_RP_SERVICENAME
+    // 1 byte reserved
+    // uint16_t length
+    // N bytes name
+
+    handle_t handle;
+    rbuf.extract(&handle, 2, sizeof(handle));
+    rbuf.consume(pkt_size);
+    chklen = 0;
+
+    service_record *service = find_service_for_key(handle);
+    if (service == nullptr || service->get_name().length() > std::numeric_limits<uint16_t>::max()) {
+        char ack_rep[] = { DINIT_RP_ACK };
+        if (! queue_packet(ack_rep, 1)) return false;
+    }
+
+    std::vector<char> reply;
+    const std::string &name = service->get_name();
+    uint16_t name_length = name.length();
+    reply.resize(2 + sizeof(uint16_t) + name_length);
+    reply[0] = DINIT_RP_SERVICENAME;
+    memcpy(reply.data() + 2, &name_length, sizeof(name_length));
+    memcpy(reply.data() + 2 + sizeof(uint16_t), name.c_str(), name_length);
+
+    return queue_packet(std::move(reply));
+}
+
 bool control_conn_t::query_load_mech()
 {
     rbuf.consume(1);
@@ -664,8 +707,7 @@ bool control_conn_t::query_load_mech()
             if (try_path_size == 0) {
                 // overflow.
                 char ack_rep[] = { DINIT_RP_NAK };
-                if (! queue_packet(ack_rep, 1)) return false;
-                return true;
+                return queue_packet(ack_rep, 1);
             }
         }
 
@@ -693,8 +735,7 @@ bool control_conn_t::query_load_mech()
     else {
         // If we don't know how to deal with the service set type, send a NAK reply:
         char ack_rep[] = { DINIT_RP_NAK };
-        if (! queue_packet(ack_rep, 1)) return false;
-        return true;
+        return queue_packet(ack_rep, 1);
     }
 }
 
