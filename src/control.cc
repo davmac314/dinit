@@ -178,9 +178,11 @@ bool control_conn_t::process_find_load(int pktType)
 bool control_conn_t::check_dependents(service_record *service, bool &had_dependents)
 {
     std::vector<char> reply_pkt;
+    size_t num_depts = 0;
 
     for (service_dep *dep : service->get_dependents()) {
         if (dep->dep_type == dependency_type::REGULAR) {
+            num_depts++;
             // find or allocate a service handle
             handle_t dept_handle = allocate_service_handle(dep->get_from());
             if (reply_pkt.empty()) {
@@ -195,12 +197,14 @@ bool control_conn_t::check_dependents(service_record *service, bool &had_depende
         }
     }
 
-    had_dependents = !reply_pkt.empty();
-    if (had_dependents) {
-        // We didn't build a reply packet, so there are no affected dependents
-        if (! queue_packet(std::move(reply_pkt))) return false;
+    if (num_depts != 0) {
+        // There are affected dependents
+        had_dependents = true;
+        memcpy(reply_pkt.data() + 1, &num_depts, sizeof(num_depts));
+        return queue_packet(std::move(reply_pkt));
     }
 
+    had_dependents = false;
     return true;
 }
 
@@ -254,7 +258,7 @@ bool control_conn_t::process_start_stop(int pktType)
             if (gentle) {
                 // Check dependents; return appropriate response if any will be affected
                 bool has_dependents;
-                if (check_dependents(service, has_dependents)) {
+                if (! check_dependents(service, has_dependents)) {
                     return false;
                 }
                 if (has_dependents) {
