@@ -81,6 +81,7 @@ class control_conn_watcher : public eventloop_t::bidi_fd_watcher_impl<control_co
 class control_conn_t : private service_listener
 {
     friend rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents);
+    friend class control_conn_t_test;
     
     public:
     // A mapping between service records and their associated numerical identifier used
