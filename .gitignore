@@ -22,3 +22,7 @@
 /src/igr-tests/environ/env-record
 /src/igr-tests/ps-environ/env-record
 /src/igr-tests/chain-to/recorded-output
+
+# Generated man pages:
+/doc/manpages/*.5
+/doc/manpages/*.8
