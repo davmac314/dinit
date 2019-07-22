@@ -503,6 +503,74 @@ void cptest_gentlestop()
     delete cc;
 }
 
+void cptest_queryname()
+{
+    service_set sset;
+
+    const char * const test1_name = "test-service-1";
+
+    service_record *s1 = new service_record(&sset, test1_name, service_type_t::INTERNAL, {});
+    sset.add_service(s1);
+
+    int fd = bp_sys::allocfd();
+    auto *cc = new control_conn_t(event_loop, &sset, fd);
+
+    // Get a service handle:
+    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
+    uint16_t name_len = strlen(test1_name);
+    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
+    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
+    cmd.insert(cmd.end(), test1_name, test1_name + name_len);
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    // We expect:
+    // (1 byte)   DINIT_RP_SERVICERECORD
+    // (1 byte)   state
+    // (handle_t) handle
+    // (1 byte)   target state
+
+    std::vector<char> wdata;
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
+    assert(wdata[0] == DINIT_RP_SERVICERECORD);
+
+    control_conn_t::handle_t h;
+    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h), reinterpret_cast<char *>(&h));
+
+    char * h_cp = reinterpret_cast<char *>(&h);
+
+    // Issue name query:
+    cmd = { DINIT_CP_QUERYSERVICENAME, 0 /* reserved */ };
+    cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    bp_sys::extract_written_data(fd, wdata);
+
+    // We expect:
+    // 1 byte packet type = DINIT_RP_SERVICENAME
+    // 1 byte reserved
+    // uint16_t length
+    // N bytes name
+
+    assert(wdata.size() == (2 + sizeof(uint16_t) + strlen(test1_name)));
+    assert(wdata[0] == DINIT_RP_SERVICENAME);
+    assert(wdata[1] == 0);
+    uint16_t len;
+    memcpy(&len, wdata.data() + 2, sizeof(uint16_t));
+    assert(len == strlen(test1_name));
+
+    assert(strncmp(wdata.data() + 2 + sizeof(uint16_t), test1_name, strlen(test1_name)) == 0);
+
+    delete cc;
+}
+
 void cptest_unload()
 {
     service_set sset;
@@ -852,6 +920,7 @@ int main(int argc, char **argv)
     RUN_TEST(cptest_loadservice, "        ");
     RUN_TEST(cptest_startstop, "          ");
     RUN_TEST(cptest_gentlestop, "         ");
+    RUN_TEST(cptest_queryname, "          ");
     RUN_TEST(cptest_unload, "             ");
     RUN_TEST(cptest_addrmdeps, "          ");
     RUN_TEST(cptest_enableservice, "      ");
