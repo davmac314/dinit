@@ -71,6 +71,9 @@ Do not wait for issued command to complete; exit immediately.
 Pin the service in the requested state. The service will not leave the state until it is unpinned, although
 start/stop commands will be "remembered" while the service is pinned.
 .TP
+\fB\-\-force\fR
+Stop the service even if it will require stopping other services which depend on the specified service.
+.TP
 \fIservice-name\fR
 Specifies the name of the service to which the command applies.
 .TP
