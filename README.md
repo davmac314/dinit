@@ -308,6 +308,9 @@ command by default acts as a "release" that also forces the service to stop
 (although it may then immediately restart, depending on how it and its
 dependents are configured).
 
+If stopping a service would also require a dependent service to stop, a warning
+will be issued and the `--force` option will be required.
+
 Use the "-s" switch to talk the "system" instance of Dinit, rather than a
 personal instance, e.g:
 

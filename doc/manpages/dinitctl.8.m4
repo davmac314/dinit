@@ -83,17 +83,19 @@ automatically if its dependents stop. If the service is currently stopping it wi
 to stop before it is then restarted.
 .TP
 \fBstop\fR
-Stop the specified service, and remove explicit activation. The service will stop, but may restart
-immediately if any dependents are configured to restart. If the service has dependents only via
-soft dependency links (i.e. \fBwaits-for\fR dependencies) then these links will be broken, so that
-the service will not restart (any other dependencies, however, are retained).
+Stop the specified service, and remove explicit activation. If the service has (non-soft) dependents, an
+error will be displayed unless the \fB\-\-force\fR option is used.
+
+A service with any dependents via soft dependencies will have these dependency links broken when it stops.
 
 The \fBrestart\fR option applied to the stopped service will not by itself cause the service to restart
 when it is stopped via this command. However, a dependent which is configured to restart may
 cause the service itself to restart as a result.
 
 Any pending \fBstart\fR orders are cancelled,
-though a service which is starting might continue its startup before then stopping.
+though a service which is starting will continue its startup before then stopping (unless the service is
+configured to have an interruptible startup or is otherwise at a stage of startup which can be safely
+interrupted).
 .TP
 \fBwake\fR
 Start the specified service, but do not mark it as explicitly activated if it is not already so
