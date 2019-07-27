@@ -457,6 +457,9 @@ void service_record::stop(bool bring_down) noexcept
         release();
     }
 
+    // If our required_by count is 0, we should treat this as a full manual stop regardless
+    if (required_by == 0) bring_down = true;
+
     // If it's a manual bring-down, we'll also break holds from waits-for dependencies, to avoid
     // bouncing back up again -- but only if all holds are from waits-for dependencies.
     if (bring_down) {
