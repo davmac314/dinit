@@ -184,7 +184,7 @@ bool control_conn_t::check_dependents(service_record *service, bool &had_depende
     size_t num_depts = 0;
 
     for (service_dep *dep : service->get_dependents()) {
-        if (dep->dep_type == dependency_type::REGULAR) {
+        if (dep->dep_type == dependency_type::REGULAR && dep->holding_acq) {
             num_depts++;
             // find or allocate a service handle
             handle_t dept_handle = allocate_service_handle(dep->get_from());
@@ -223,7 +223,7 @@ bool control_conn_t::process_start_stop(int pktType)
     }
     
     // 1 byte: packet type
-    // 1 byte: pin in requested state (0 = no pin, 1 = pin)
+    // 1 byte: flags eg pin in requested state (0 = no pin, 1 = pin)
     // 4 bytes: service handle
     
     bool do_pin = ((rbuf[1] & 1) == 1);
@@ -258,6 +258,12 @@ bool control_conn_t::process_start_stop(int pktType)
         {
             // force service to stop
             bool gentle = ((rbuf[1] & 2) == 2);
+            bool do_restart = ((rbuf[1] & 4) == 4);
+            bool is_active = service->is_marked_active();
+            if (do_restart && services->is_shutting_down()) {
+                ack_buf[0] = DINIT_RP_NAK;
+                break;
+            }
             if (gentle) {
                 // Check dependents; return appropriate response if any will be affected
                 bool has_dependents;
@@ -273,7 +279,13 @@ bool control_conn_t::process_start_stop(int pktType)
             service->stop(true);
             service->forced_stop();
             services->process_queues();
-            if (service->get_state() == service_state_t::STOPPED) ack_buf[0] = DINIT_RP_ALREADYSS;
+            service_state_t wanted_state = service_state_t::STOPPED;
+            if (do_restart) {
+                service->start(is_active);
+                wanted_state = service_state_t::STARTED;
+                services->process_queues();
+            }
+            if (service->get_state() == wanted_state) ack_buf[0] = DINIT_RP_ALREADYSS;
             break;
         }
         case DINIT_CP_WAKESERVICE:

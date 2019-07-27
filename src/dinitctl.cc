@@ -63,6 +63,7 @@ enum class command_t {
     START_SERVICE,
     WAKE_SERVICE,
     STOP_SERVICE,
+    RESTART_SERVICE,
     RELEASE_SERVICE,
     UNPIN_SERVICE,
     UNLOAD_SERVICE,
@@ -132,7 +133,7 @@ int main(int argc, char **argv)
                 }
                 service_name = argv[i];
             }
-            else if ((command == command_t::STOP_SERVICE)
+            else if ((command == command_t::STOP_SERVICE || command == command_t::RESTART_SERVICE)
                     && (strcmp(argv[i], "--force") == 0 || strcmp(argv[i], "-f") == 0)) {
                 do_force = true;
             }
@@ -150,6 +151,9 @@ int main(int argc, char **argv)
             }
             else if (strcmp(argv[i], "stop") == 0) {
                 command = command_t::STOP_SERVICE;
+            }
+            else if (strcmp(argv[i], "restart") == 0) {
+                command = command_t::RESTART_SERVICE;
             }
             else if (strcmp(argv[i], "release") == 0) {
                 command = command_t::RELEASE_SERVICE;
@@ -507,6 +511,7 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
     int pcommand = 0;
     switch (command) {
         case command_t::STOP_SERVICE:
+        case command_t::RESTART_SERVICE:  // stop, and then start
             pcommand = DINIT_CP_STOPSERVICE;
             break;
         case command_t::RELEASE_SERVICE:
@@ -528,11 +533,16 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
         char buf[2 + sizeof(handle)];
         buf[0] = pcommand;
         buf[1] = (do_pin ? 1 : 0) | ((pcommand == DINIT_CP_STOPSERVICE && !do_force) ? 2 : 0);
+        if (command == command_t::RESTART_SERVICE) {
+            buf[1] |= 4;
+        }
         memcpy(buf + 2, &handle, sizeof(handle));
         write_all_x(socknum, buf, 2 + sizeof(handle));
         
         wait_for_reply(rbuffer, socknum);
-        if (rbuffer[0] == DINIT_RP_ALREADYSS) {
+        auto reply_pkt_h = rbuffer[0];
+        rbuffer.consume(1); // consume header
+        if (reply_pkt_h == DINIT_RP_ALREADYSS) {
             bool already = (state == wanted_state);
             if (verbose) {
                 cout << "Service " << (already ? "(already) " : "")
@@ -540,11 +550,10 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             }
             return 0; // success!
         }
-        if (rbuffer[0] == DINIT_RP_DEPENDENTS && pcommand == DINIT_CP_STOPSERVICE) {
+        if (reply_pkt_h == DINIT_RP_DEPENDENTS && pcommand == DINIT_CP_STOPSERVICE) {
             cerr << "dinitctl: Cannot stop service due to the following dependents:\n"
                     "(Only direct dependents are listed. Exercise caution before using '--force' !!)\n";
             // size_t number, N * handle_t handles
-            rbuffer.consume(1);  // packet header
             size_t number;
             rbuffer.fill_to(socknum, sizeof(number));
             rbuffer.extract(&number, 0, sizeof(number));
@@ -566,11 +575,10 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             cerr << "\n";
             return 1;
         }
-        if (rbuffer[0] != DINIT_RP_ACK) {
-            cerr << "dinitctl: Protocol error." << endl;
+        if (reply_pkt_h != DINIT_RP_ACK && reply_pkt_h != DINIT_RP_ALREADYSS) {
+            cerr << "dinitctl: protocol error." << endl;
             return 1;
         }
-        rbuffer.consume(1);
     }
 
     if (! wait_for_service) {

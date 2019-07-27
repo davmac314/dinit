@@ -459,6 +459,12 @@ class service_record
         return desired_state;
     }
 
+    // Is the service explicitly marked active?
+    bool is_marked_active() noexcept
+    {
+        return start_explicit;
+    }
+
     // Set logfile, should be done before service is started
     void set_log_file(const string &logfile)
     {
