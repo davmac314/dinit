@@ -623,7 +623,7 @@ static int unpin_service(int socknum, cpbuffer_t &rbuffer, const char *service_n
         char buf[1 + sizeof(handle)];
         buf[0] = DINIT_CP_UNPINSERVICE;
         memcpy(buf + 1, &handle, sizeof(handle));
-        write_all_x(socknum, buf, 2 + sizeof(handle));
+        write_all_x(socknum, buf, sizeof(buf));
         
         wait_for_reply(rbuffer, socknum);
         if (rbuffer[0] != DINIT_RP_ACK) {

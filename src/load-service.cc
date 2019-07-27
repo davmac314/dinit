@@ -197,7 +197,7 @@ static void parse_timespec(const std::string &paramval, const std::string &servi
 }
 
 // In a vector, find or create rlimits for a particular resource type.
-static service_rlimits &find_rlimits(std::vector<service_rlimits> all_rlimits, int resource_id)
+static service_rlimits &find_rlimits(std::vector<service_rlimits> &all_rlimits, int resource_id)
 {
     for (service_rlimits &limits : all_rlimits) {
         if (limits.resource_id == resource_id) {
@@ -368,6 +368,8 @@ static void process_dep_dir(dirload_service_set &sset,
         log(loglevel_t::WARN, "Error reading dependency directory '", depdirpath,
                 "' for ", servicename, " service.");
     }
+
+    closedir(depdir);
 }
 
 // Check if one string starts with another
