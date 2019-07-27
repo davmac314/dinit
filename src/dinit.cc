@@ -388,12 +388,12 @@ int dinit_main(int argc, char **argv)
 
     sigint_watcher.add_watch(event_loop, SIGINT);
     sigterm_watcher.add_watch(event_loop, SIGTERM);
-    console_input_io.add_watch(event_loop, STDIN_FILENO, dasynq::IN_EVENTS, false);
     
     if (am_pid_one) {
-        // PID 1: SIGQUIT exec's shutdown
+        // PID 1: we may ask for console input; SIGQUIT exec's shutdown
+        console_input_io.add_watch(event_loop, STDIN_FILENO, dasynq::IN_EVENTS, false);
         sigquit_watcher.add_watch(event_loop, SIGQUIT);
-        // As a user process, we instead just let SIGQUIT perform the default action.
+        // (If not PID 1, we instead just let SIGQUIT perform the default action.)
     }
 
     // Try to open control socket (may fail due to readonly filesystem)
