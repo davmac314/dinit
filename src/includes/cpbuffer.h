@@ -15,6 +15,11 @@ template <int SIZE> class cpbuffer
     int length = 0;  // number of elements in the buffer
     
     public:
+    static constexpr int get_size()
+    {
+        return SIZE;
+    }
+
     int get_length() noexcept
     {
         return length;

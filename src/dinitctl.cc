@@ -439,6 +439,55 @@ static bool load_service(int socknum, cpbuffer_t &rbuffer, const char *name, han
     return true;
 }
 
+// Get the service name for a given handle, by querying the daemon.
+static std::string get_service_name(int socknum, cpbuffer_t &rbuffer, handle_t handle)
+{
+    char buf[2 + sizeof(handle)];
+    buf[0] = DINIT_CP_QUERYSERVICENAME;
+    buf[1] = 0;
+    memcpy(buf + 2, &handle, sizeof(handle));
+
+    write_all_x(socknum, buf, sizeof(buf));
+
+    wait_for_reply(rbuffer, socknum);
+
+    if (rbuffer[0] != DINIT_RP_SERVICENAME) {
+        throw cp_read_exception{0};
+    }
+
+    // 1 byte reserved
+    // uint16_t size
+    fill_buffer_to(rbuffer, socknum, 2 + sizeof(uint16_t));
+    uint16_t namesize;
+    rbuffer.extract(&namesize, 2, sizeof(uint16_t));
+    rbuffer.consume(2 + sizeof(uint16_t));
+
+    std::string name;
+
+    do {
+        if (rbuffer.get_length() == 0) {
+            rbuffer.fill(socknum);
+        }
+
+        size_t to_extract = std::min(size_t(rbuffer.get_length()), namesize - name.length());
+        size_t contiguous_len = rbuffer.get_contiguous_length(rbuffer.get_ptr(0));
+        if (contiguous_len <= to_extract) {
+            name.append(rbuffer.get_ptr(0), contiguous_len);
+            rbuffer.consume(contiguous_len);
+            name.append(rbuffer.get_ptr(0), to_extract - contiguous_len);
+            rbuffer.consume(to_extract - contiguous_len);
+        }
+        else {
+            name.append(rbuffer.get_ptr(0), to_extract);
+            rbuffer.consume(to_extract);
+            break;
+        }
+
+    } while (name.length() < namesize);
+
+    return name;
+}
+
 // Start/stop a service
 static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *service_name,
         command_t command, bool do_pin, bool do_force, bool wait_for_service, bool verbose)
@@ -492,7 +541,29 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             return 0; // success!
         }
         if (rbuffer[0] == DINIT_RP_DEPENDENTS && pcommand == DINIT_CP_STOPSERVICE) {
-            cerr << "dinitctl: Cannot stop service due to dependents (consider using --force)." << endl;
+            cerr << "dinitctl: Cannot stop service due to the following dependents:\n"
+                    "(Only direct dependents are listed. Exercise caution before using '--force' !!)\n";
+            // size_t number, N * handle_t handles
+            rbuffer.consume(1);  // packet header
+            size_t number;
+            rbuffer.fill_to(socknum, sizeof(number));
+            rbuffer.extract(&number, 0, sizeof(number));
+            rbuffer.consume(sizeof(number));
+            std::vector<handle_t> handles;
+            handles.reserve(number);
+            for (size_t i = 0; i < number; i++) {
+                handle_t handle;
+                rbuffer.fill_to(socknum, sizeof(handle_t));
+                rbuffer.extract(&handle, 0, sizeof(handle));
+                handles.push_back(handle);
+                rbuffer.consume(sizeof(handle));
+            }
+            // Print the directly affected dependents:
+            cerr << " ";
+            for (handle_t handle : handles) {
+                cerr << " " << get_service_name(socknum, rbuffer, handle);
+            }
+            cerr << "\n";
             return 1;
         }
         if (rbuffer[0] != DINIT_RP_ACK) {
