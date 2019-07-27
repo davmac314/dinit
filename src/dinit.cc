@@ -306,10 +306,14 @@ int dinit_main(int argc, char **argv)
     if (am_system_init) {
         // setup STDIN, STDOUT, STDERR so that we can use them
         int onefd = open("/dev/console", O_RDONLY, 0);
-        dup2(onefd, 0);
+        if (onefd != -1) {
+            dup2(onefd, 0);
+        }
         int twofd = open("/dev/console", O_RDWR, 0);
-        dup2(twofd, 1);
-        dup2(twofd, 2);
+        if (twofd != -1) {
+            dup2(twofd, 1);
+            dup2(twofd, 2);
+        }
         
         if (onefd > 2) close(onefd);
         if (twofd > 2) close(twofd);

@@ -21,7 +21,7 @@ inline ssize_t complete_read(int fd, void * buf, size_t n)
             return r;
         }
         if (res < 0) {
-            if (res == EINTR) {
+            if (errno == EINTR) {
                 continue;
             }
 

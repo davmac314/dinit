@@ -693,22 +693,25 @@ bool control_conn_t::query_load_mech()
         char *wd;
         while (true) {
             std::size_t total_size = curpos + std::size_t(try_path_size);
-            reppkt.resize(total_size);
             if (total_size < curpos) {
-                // overflow.
+                // Overflow. In theory we could now limit to size_t max, but the size must already
+                // be crazy long; let's abort.
                 char ack_rep[] = { DINIT_RP_NAK };
                 if (! queue_packet(ack_rep, 1)) return false;
                 return true;
             }
+            reppkt.resize(total_size);
             wd = getcwd(reppkt.data() + curpos, try_path_size);
             if (wd != nullptr) break;
 
-            try_path_size *= uint32_t(2u);
-            if (try_path_size == 0) {
-                // overflow.
+            // Keep doubling the path size we try until it's big enough, or we get numeric overflow
+            uint32_t new_try_path_size = try_path_size * uint32_t(2u);
+            if (new_try_path_size < try_path_size) {
+                // Overflow.
                 char ack_rep[] = { DINIT_RP_NAK };
                 return queue_packet(ack_rep, 1);
             }
+            try_path_size = new_try_path_size;
         }
 
         uint32_t wd_len = std::strlen(reppkt.data() + curpos);
