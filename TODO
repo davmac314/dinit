@@ -9,8 +9,20 @@ For version 0.7.0:
   started during shutdown to prevent this (also avoids a race condition where the chained service is left
   running when everything else has shutdown).
 
+For version 0.8.0:
+------------------
+* Get rid of "floating" service state:
+  - soft dependencies should always be re-attached when the dependency starts.
+  - "dinitctl wake" should fail (report error) if there are no running dependents.
+  - if a service starts and required-by count is 0 it should always immediately stop.
+  - update man pages accordingly.
+* Easy way to reload service description (including if service is running, where possible).
+
 For version 1.0:
 ----------------
+* Limit memory use by control connections. Currently clients can queue commands without limit.
+* Consider using mlockall (if system process).
+* Dinitctl command to get full status of a service.
 * "triggered" service type: external process notifies Dinit when the service
   has started. (maybe?)
   - key thing is we want some way to eg mount filesystem once the disk comes up,
@@ -72,19 +84,4 @@ Even later / Maybe never:
 Documentation:
 --------------
 * Design philosophy/rationale document
-* Coding style guidelines
-
-* What's the best TERM setting? gogetty gives me "linux" but I think other variants may be
-  better (eg "linux-c").
-
-* Figure out the ConsoleKit/logind / PolicyKit mess & how dinit needs to fit into it.
-  * Consolekit/logind tracks "sessions". Provides a mechanism to mark a session starting,
-    associates processes with sessions, provides calls to terminate sessions etc (why?!!)
-    Can use environment variable or cgroups to track processes in a session.
-    A PAM module exists to create/destroy sessions.
-  * Consolekit/logind also allows for requesting shutdown, reboot, and inhibiting reboot
-    (via dbus API).
-  * "seats" are a set of input/output hardware (mouse/keyboard/monitor) on which a session
-    can be run. You can have multiple sessions on a seat - one is in the foreground
-    (eg linux virtual ttys implement multiple sessions on a single seat).
-    Sessions can run without a seat (eg ssh session).
+* More system integration documentation?
