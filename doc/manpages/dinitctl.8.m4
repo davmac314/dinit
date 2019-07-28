@@ -12,6 +12,9 @@ dinitctl \- control services supervised by Dinit
 [\fIoptions\fR] \fBstop\fR [\fB\-\-no\-wait\fR] [\fB\-\-pin\fR] \fIservice-name\fR
 .br
 .B dinitctl
+[\fIoptions\fR] \restart\fR [\fB\-\-no\-wait\fR] \fIservice-name\fR
+.br
+.B dinitctl
 [\fIoptions\fR] \fBwake\fR [\fB\-\-no\-wait\fR] \fIservice-name\fR
 .br
 .B dinitctl
@@ -97,9 +100,17 @@ though a service which is starting will continue its startup before then stoppin
 configured to have an interruptible startup or is otherwise at a stage of startup which can be safely
 interrupted).
 .TP
+\fBrestart\fR
+Restart the specified service. The service will be stopped (if it is not already stopped) and then restarted.
+
+The service will not be marked explicitly active if it is not already marked; it is started as if by the
+\fBwake\fR command in that case. Note that since stopping the service may break dependency links, this may
+result in a "floating" service even if the service was not already "floating".
+.TP
 \fBwake\fR
 Start the specified service, but do not mark it as explicitly activated if it is not already so
-marked.
+marked. This may result in a "floating" service which will only stop if explicitly requested, or if a
+dependent starts and then stops (i.e. if a dependency link is reestablished and then broken).
 .TP
 \fBrelease\fR
 Clear the explicit activation mark from a service (service will then stop if it has no active dependents).
