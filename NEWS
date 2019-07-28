@@ -1,3 +1,12 @@
+== Version 0.6.1:
+
+This is a bug-fix release with several minor fixes:
+
+ * Resource limits were not properly being set.
+ * Prevent early termination when standard input is closed or set to a device which cannot
+   be watched for input.
+ * Control protocol fix, possibly not affecting any real usage.
+
 == Version 0.6.0:
 
 This release adds a number of minor features:
