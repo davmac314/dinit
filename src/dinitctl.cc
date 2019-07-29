@@ -446,12 +446,11 @@ static bool load_service(int socknum, cpbuffer_t &rbuffer, const char *name, han
 // Get the service name for a given handle, by querying the daemon.
 static std::string get_service_name(int socknum, cpbuffer_t &rbuffer, handle_t handle)
 {
-    char buf[2 + sizeof(handle)];
-    buf[0] = DINIT_CP_QUERYSERVICENAME;
-    buf[1] = 0;
-    memcpy(buf + 2, &handle, sizeof(handle));
-
-    write_all_x(socknum, buf, sizeof(buf));
+    auto m = membuf()
+            .append((char) DINIT_CP_QUERYSERVICENAME)
+            .append((char) 0)
+            .append(handle);
+    write_all_x(socknum, m);
 
     wait_for_reply(rbuffer, socknum);
 
@@ -530,15 +529,17 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
     // We'll do this regardless of the current service state / target state, since issuing
     // start/stop also sets or clears the "explicitly started" flag on the service.
     {
-        char buf[2 + sizeof(handle)];
-        buf[0] = pcommand;
-        buf[1] = (do_pin ? 1 : 0) | ((pcommand == DINIT_CP_STOPSERVICE && !do_force) ? 2 : 0);
+        char flags = (do_pin ? 1 : 0) | ((pcommand == DINIT_CP_STOPSERVICE && !do_force) ? 2 : 0);
         if (command == command_t::RESTART_SERVICE) {
-            buf[1] |= 4;
+            flags |= 4;
         }
-        memcpy(buf + 2, &handle, sizeof(handle));
-        write_all_x(socknum, buf, 2 + sizeof(handle));
-        
+
+        auto m = membuf()
+                .append((char) pcommand)
+                .append(flags)
+                .append(handle);
+        write_all_x(socknum, m);
+
         wait_for_reply(rbuffer, socknum);
         auto reply_pkt_h = rbuffer[0];
         rbuffer.consume(1); // consume header
@@ -709,10 +710,10 @@ static int unpin_service(int socknum, cpbuffer_t &rbuffer, const char *service_n
     
     // Issue UNPIN command.
     {
-        char buf[1 + sizeof(handle)];
-        buf[0] = DINIT_CP_UNPINSERVICE;
-        memcpy(buf + 1, &handle, sizeof(handle));
-        write_all_x(socknum, buf, sizeof(buf));
+        auto m = membuf()
+                .append<char>(DINIT_CP_UNPINSERVICE)
+                .append(handle);
+        write_all_x(socknum, m);
         
         wait_for_reply(rbuffer, socknum);
         if (rbuffer[0] != DINIT_RP_ACK) {
@@ -751,10 +752,10 @@ static int unload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
 
     // Issue UNLOAD command.
     {
-        char buf[1 + sizeof(handle)];
-        buf[0] = DINIT_CP_UNLOADSERVICE;
-        memcpy(buf + 1, &handle, sizeof(handle));
-        write_all_x(socknum, buf, 2 + sizeof(handle));
+        auto m = membuf()
+                .append<char>(DINIT_CP_UNLOADSERVICE)
+                .append(handle);
+        write_all_x(socknum, m);
 
         wait_for_reply(rbuffer, socknum);
         if (rbuffer[0] == DINIT_RP_NAK) {
@@ -891,7 +892,6 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
 {
     using namespace std;
 
-
     handle_t from_handle;
     handle_t to_handle;
 
@@ -900,11 +900,12 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
         return 1;
     }
 
-    constexpr int pktsize = 2 + sizeof(handle_t) * 2;
-    char cmdbuf[pktsize] = { add ? (char)DINIT_CP_ADD_DEP : (char)DINIT_CP_REM_DEP, (char)dep_type};
-    memcpy(cmdbuf + 2, &from_handle, sizeof(from_handle));
-    memcpy(cmdbuf + 2 + sizeof(from_handle), &to_handle, sizeof(to_handle));
-    write_all_x(socknum, cmdbuf, pktsize);
+    auto m = membuf()
+            .append<char>(add ? (char)DINIT_CP_ADD_DEP : (char)DINIT_CP_REM_DEP)
+            .append(dep_type)
+            .append(from_handle)
+            .append(to_handle);
+    write_all_x(socknum, m);
 
     wait_for_reply(rbuffer, socknum);
 
@@ -926,14 +927,10 @@ static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer)
     // TODO support no-wait option.
     using namespace std;
 
-    // Build buffer;
-    constexpr int bufsize = 2;
-    char buf[bufsize];
-
-    buf[0] = DINIT_CP_SHUTDOWN;
-    buf[1] = static_cast<char>(shutdown_type_t::HALT);
-
-    write_all_x(socknum, buf, bufsize);
+    auto m = membuf()
+            .append<char>(DINIT_CP_SHUTDOWN)
+            .append(static_cast<char>(shutdown_type_t::HALT));
+    write_all_x(socknum, m);
 
     wait_for_reply(rbuffer, socknum);
 
