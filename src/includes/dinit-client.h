@@ -37,54 +37,35 @@ class cp_old_server_exception
 
 // static_membuf: a buffer of a fixed size (N) with one additional value (of type T). Don't use this
 // directly, construct via membuf.
-template <int N, typename T> class static_membuf
+template <int N> class static_membuf
 {
     public:
-    static constexpr int size() { return N + sizeof(T); }
+    static constexpr int size() { return N; }
 
     private:
-    char buf[size()];
+    char buf[N];
 
     public:
-    static_membuf(char (&prevbuf)[N], const T &val)
+    template <typename T>
+    static_membuf(const T &val)
     {
-        memcpy(buf, prevbuf, N);
-        memcpy(buf + N, &val, sizeof(val));
+        static_assert(sizeof(T) == N);
+        memcpy(buf, &val, N);
+    }
+
+    template <int M, typename T>
+    static_membuf(char (&prevbuf)[M], const T &val)
+    {
+        static_assert(M + sizeof(T) == N);
+        memcpy(buf, prevbuf, M);
+        memcpy(buf + M, &val, sizeof(val));
     }
 
     const char *data() const { return buf; }
 
-    template <typename U> static_membuf<N+sizeof(T), U> append(const U &u)
+    template <typename U> static_membuf<N+sizeof(U)> append(const U &u)
     {
-        return static_membuf<N+sizeof(T), U>{buf, u};
-    }
-
-    void output(char *out)
-    {
-        memcpy(out, buf, size());
-    }
-};
-
-// static_membuf specialisation for N = 0. Don't use this directly, construct via membuf.
-template <typename T> class static_membuf<0, T>
-{
-    public:
-    static constexpr int size() { return sizeof(T); }
-
-    private:
-    char buf[size()];
-
-    public:
-    static_membuf(const T &val)
-    {
-        memcpy(buf, &val, sizeof(val));
-    }
-
-    const char *data() { return buf; }
-
-    template <typename U> static_membuf<sizeof(T), U> append(const U &u)
-    {
-        return static_membuf<sizeof(T), U>{buf, u};
+        return static_membuf<N+sizeof(U)>{buf, u};
     }
 
     void output(char *out)
@@ -106,9 +87,9 @@ class membuf
 {
     public:
 
-    template <typename U> static_membuf<0, U> append(const U &u)
+    template <typename U> static_membuf<sizeof(U)> append(const U &u)
     {
-        return static_membuf<0, U>(u);
+        return static_membuf<sizeof(U)>(u);
     }
 };
 
