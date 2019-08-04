@@ -152,6 +152,13 @@ class service_dep
 
     const dependency_type dep_type;
 
+    // Check if the dependency is a hard dependency (including milestone still waiting).
+    bool is_hard()
+    {
+        return dep_type == dependency_type::REGULAR
+                || (dep_type == dependency_type::MILESTONE && waiting_on);
+    }
+
     service_dep(service_record * from, service_record * to, dependency_type dep_type_p) noexcept
             : from(from), to(to), waiting_on(false), holding_acq(false), dep_type(dep_type_p)
     {  }
@@ -230,7 +237,7 @@ class service_record
     bool prop_start   : 1;
     bool prop_stop    : 1;
 
-    bool restarting   : 1;      // re-starting after unexpected termination
+    bool restarting   : 1;      // re-start after stopping
     bool start_failed : 1;      // failed to start (reset when begins starting)
     bool start_skipped : 1;     // start was skipped by interrupt
     
@@ -340,8 +347,6 @@ class service_record
     // Release console (console must be currently held by this service)
     void release_console() noexcept;
     
-    bool do_auto_restart() noexcept;
-
     // Started state reached
     bool process_started() noexcept;
 
@@ -513,6 +518,7 @@ class service_record
     
     void start(bool activate = true) noexcept;  // start the service
     void stop(bool bring_down = true) noexcept;   // stop the service
+    void restart() noexcept; // restart the service
     
     void forced_stop() noexcept; // force-stop this service and all dependents
     
@@ -824,7 +830,7 @@ class service_set
                 auto next = prop_queue.pop_front();
                 next->do_propagation();
             }
-            while (! stop_queue.is_empty()) {
+            if (! stop_queue.is_empty()) {
                 auto next = stop_queue.pop_front();
                 next->execute_transition();
             }

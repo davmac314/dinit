@@ -375,10 +375,6 @@ void base_process_service::timer_expired() noexcept
 
 void base_process_service::emergency_stop() noexcept
 {
-    if (! do_auto_restart() && start_explicit) {
-        start_explicit = false;
-        release(false);
-    }
     forced_stop();
     stop_dependents();
 }

@@ -186,7 +186,6 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
 {
     bool did_exit = exit_status.did_exit();
     bool was_signalled = exit_status.was_signalled();
-    restarting = false;
     auto service_state = get_state();
 
     if (notification_fd != -1) {
@@ -281,7 +280,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
     // This may be a "smooth recovery" where we are restarting the process while leaving the
     // service in the STARTED state.
     if (restarting && service_state == service_state_t::STARTED) {
-        restarting = false;
+        //restarting = false;
         bool need_stop = false;
         if ((did_exit && exit_status.get_exit_status() != 0) || was_signalled) {
             need_stop = true;
@@ -313,7 +312,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
         return;
     }
 
-    restarting = false;
+    //restarting = false;
     if (service_state == service_state_t::STARTING) {
         // POSIX requires that if the process exited clearly with a status code of 0,
         // the exit status value will be 0:
@@ -349,10 +348,6 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
         if (smooth_recovery && get_target_state() == service_state_t::STARTED) {
             do_smooth_recovery();
             return;
-        }
-        if (! do_auto_restart() && start_explicit) {
-            start_explicit = false;
-            release(false);
         }
         stop_reason = stopped_reason_t::TERMINATED;
         forced_stop();

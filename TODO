@@ -12,8 +12,10 @@ For version 0.7.0:
 For version 0.8.0:
 ------------------
 * Get rid of "floating" service state:
-  - soft dependencies should always be re-attached when the dependency starts.
-  - "dinitctl wake" should fail (report error) if there are no running dependents.
+  - soft dependencies should remain attached when a dependency restarts and removed
+    only if it stops without restarting
+  - "dinitctl wake" should fail (report error) if there are no running dependents and
+    should re-attach soft dependencies.
   - if a service starts and required-by count is 0 it should always immediately stop.
   - update man pages accordingly.
 * Easy way to reload service description (including if service is running, where possible).

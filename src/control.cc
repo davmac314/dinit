@@ -223,7 +223,7 @@ bool control_conn_t::process_start_stop(int pktType)
     }
     
     // 1 byte: packet type
-    // 1 byte: flags eg pin in requested state (0 = no pin, 1 = pin)
+    // 1 byte: flags eg. pin in requested state (0 = no pin, 1 = pin)
     // 4 bytes: service handle
     
     bool do_pin = ((rbuf[1] & 1) == 1);
@@ -259,7 +259,6 @@ bool control_conn_t::process_start_stop(int pktType)
             // force service to stop
             bool gentle = ((rbuf[1] & 2) == 2);
             bool do_restart = ((rbuf[1] & 4) == 4);
-            bool is_active = service->is_marked_active();
             if (do_restart && services->is_shutting_down()) {
                 ack_buf[0] = DINIT_RP_NAK;
                 break;
@@ -275,16 +274,18 @@ bool control_conn_t::process_start_stop(int pktType)
                     goto clear_out;
                 }
             }
-            if (do_pin) service->pin_stop();
-            service->stop(true);
+            service_state_t wanted_state;
+            if (do_restart) {
+                service->restart(); // TODO XXX check return, reply NAK if fail
+                wanted_state = service_state_t::STARTED;
+            }
+            else {
+                if (do_pin) service->pin_stop();
+                service->stop(true);
+                wanted_state = service_state_t::STOPPED;
+            }
             service->forced_stop();
             services->process_queues();
-            service_state_t wanted_state = service_state_t::STOPPED;
-            if (do_restart) {
-                service->start(is_active);
-                wanted_state = service_state_t::STARTED;
-                services->process_queues();
-            }
             if (service->get_state() == wanted_state) ack_buf[0] = DINIT_RP_ALREADYSS;
             break;
         }
