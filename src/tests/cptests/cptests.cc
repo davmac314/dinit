@@ -9,6 +9,8 @@
 #include "baseproc-sys.h"
 #include "control.h"
 
+#include "../test_service.h"
+
 // Control protocol tests.
 
 class control_conn_t_test
@@ -901,6 +903,109 @@ void cptest_enableservice()
 
     assert(s2->get_state() == service_state_t::STOPPED);
 
+    bp_sys::extract_written_data(fd, wdata);
+
+    delete cc;
+}
+
+void cptest_restart()
+{
+    service_set sset;
+
+    const char * const service_name = "test-service-1";
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    sset.add_service(s1);
+
+    int fd = bp_sys::allocfd();
+    auto *cc = new control_conn_t(event_loop, &sset, fd);
+
+    // Get a service handle:
+    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
+    uint16_t name_len = strlen(service_name);
+    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
+    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
+    cmd.insert(cmd.end(), service_name, service_name + name_len);
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    // We expect:
+    // (1 byte)   DINIT_RP_SERVICERECORD
+    // (1 byte)   state
+    // (handle_t) handle
+    // (1 byte)   target state
+
+    std::vector<char> wdata;
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
+    assert(wdata[0] == DINIT_RP_SERVICERECORD);
+    service_state_t s = static_cast<service_state_t>(wdata[1]);
+    assert(s == service_state_t::STOPPED);
+    service_state_t ts = static_cast<service_state_t>(wdata[6]);
+    assert(ts == service_state_t::STOPPED);
+
+    control_conn_t::handle_t h;
+    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h), reinterpret_cast<char *>(&h));
+
+    bp_sys::extract_written_data(fd, wdata); // DAV
+    assert(wdata.size() == 0);
+
+    // Issue restart:
+    cmd = { DINIT_CP_STOPSERVICE, 4 /* restart */ };
+    char * h_cp = reinterpret_cast<char *>(&h);
+    cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
+
+    bp_sys::supply_read_data(fd, cmd);
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 1 /* NAK reply, wrong state */);
+    assert(wdata[0] == DINIT_RP_NAK);
+
+    // Start the service now:
+    s1->start();
+    sset.process_queues();
+    s1->started();
+    sset.process_queues();
+
+    bp_sys::extract_written_data(fd, wdata);
+
+    // Issue restart (again):
+    bp_sys::supply_read_data(fd, std::move(cmd));
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 7 + 1);  // info packet (service stopped) + ACK
+    assert(wdata[0] == DINIT_IP_SERVICEEVENT);
+    assert(wdata[1] == 7);
+    control_conn_t::handle_t ip_h;
+    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
+    assert(ip_h == h);
+    assert(wdata[6] == static_cast<int>(service_event_t::STOPPED));
+    assert(wdata[7] == DINIT_RP_ACK);
+
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STARTING);
+
+    s1->started();
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 7);  /* info packet */
+    assert(wdata[0] == DINIT_IP_SERVICEEVENT);
+    // packetsize, key (handle), event
+    assert(wdata[1] == 7);
+    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
+    assert(ip_h == h);
+    assert(wdata[6] == static_cast<int>(service_event_t::STARTED));
+
     delete cc;
 }
 
@@ -924,5 +1029,6 @@ int main(int argc, char **argv)
     RUN_TEST(cptest_unload, "             ");
     RUN_TEST(cptest_addrmdeps, "          ");
     RUN_TEST(cptest_enableservice, "      ");
+    RUN_TEST(cptest_restart, "            ");
     return 0;
 }

@@ -518,7 +518,7 @@ class service_record
     
     void start(bool activate = true) noexcept;  // start the service
     void stop(bool bring_down = true) noexcept;   // stop the service
-    void restart() noexcept; // restart the service
+    bool restart() noexcept; // restart the service, returns true iff restart issued
     
     void forced_stop() noexcept; // force-stop this service and all dependents
     

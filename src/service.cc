@@ -499,7 +499,7 @@ void service_record::stop(bool bring_down) noexcept
     }
 }
 
-void service_record::restart() noexcept
+bool service_record::restart() noexcept
 {
     // Re-start without affecting dependency links/activation.
 
@@ -507,7 +507,11 @@ void service_record::restart() noexcept
         restarting = true;
         stop_reason = stopped_reason_t::NORMAL;
         do_stop();
+        return true;
     }
+
+    // Wrong state
+    return false;
 }
 
 void service_record::do_stop() noexcept

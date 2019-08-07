@@ -257,8 +257,8 @@ bool control_conn_t::process_start_stop(int pktType)
         case DINIT_CP_STOPSERVICE:
         {
             // force service to stop
-            bool gentle = ((rbuf[1] & 2) == 2);
             bool do_restart = ((rbuf[1] & 4) == 4);
+            bool gentle = ((rbuf[1] & 2) == 2) || do_restart;  // restart is always "gentle"
             if (do_restart && services->is_shutting_down()) {
                 ack_buf[0] = DINIT_RP_NAK;
                 break;
@@ -276,7 +276,10 @@ bool control_conn_t::process_start_stop(int pktType)
             }
             service_state_t wanted_state;
             if (do_restart) {
-                service->restart(); // TODO XXX check return, reply NAK if fail
+                if (! service->restart()) {
+                    ack_buf[0] = DINIT_RP_NAK;
+                    break;
+                }
                 wanted_state = service_state_t::STARTED;
             }
             else {
@@ -286,7 +289,7 @@ bool control_conn_t::process_start_stop(int pktType)
             }
             service->forced_stop();
             services->process_queues();
-            if (service->get_state() == wanted_state) ack_buf[0] = DINIT_RP_ALREADYSS;
+            if (service->get_state() == wanted_state && !do_restart) ack_buf[0] = DINIT_RP_ALREADYSS;
             break;
         }
         case DINIT_CP_WAKESERVICE:
