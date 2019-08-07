@@ -552,8 +552,10 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             return 0; // success!
         }
         if (reply_pkt_h == DINIT_RP_DEPENDENTS && pcommand == DINIT_CP_STOPSERVICE) {
-            cerr << "dinitctl: Cannot stop service due to the following dependents:\n"
-                    "(Only direct dependents are listed. Exercise caution before using '--force' !!)\n";
+            cerr << "dinitctl: cannot stop service due to the following dependents:\n";
+            if (command != command_t::RESTART_SERVICE) {
+                cerr << "(Only direct dependents are listed. Exercise caution before using '--force' !!)\n";
+            }
             // size_t number, N * handle_t handles
             size_t number;
             rbuffer.fill_to(socknum, sizeof(number));
@@ -574,6 +576,10 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
                 cerr << " " << get_service_name(socknum, rbuffer, handle);
             }
             cerr << "\n";
+            return 1;
+        }
+        if (reply_pkt_h == DINIT_RP_NAK && command == command_t::RESTART_SERVICE) {
+            cerr << "dinitctl: cannot restart service; service not started.\n";
             return 1;
         }
         if (reply_pkt_h != DINIT_RP_ACK && reply_pkt_h != DINIT_RP_ALREADYSS) {

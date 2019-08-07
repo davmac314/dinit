@@ -1,3 +1,3 @@
-dinitctl: Cannot stop service due to the following dependents:
+dinitctl: cannot stop service due to the following dependents:
 (Only direct dependents are listed. Exercise caution before using '--force' !!)
   intermediary boot
