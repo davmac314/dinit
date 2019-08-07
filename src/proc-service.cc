@@ -1,4 +1,5 @@
 #include <cstring>
+#include <type_traits>
 
 #include <sys/un.h>
 #include <sys/socket.h>
@@ -467,6 +468,12 @@ void scripted_service::exec_failed(run_proc_err errcode) noexcept
     }
 }
 
+// Return a value as an unsigned-type value.
+template <typename T> typename std::make_unsigned<T>::type make_unsigned_val(T val)
+{
+    return static_cast<typename std::make_unsigned<T>::type>(val);
+}
+
 bgproc_service::pid_result_t
 bgproc_service::read_pid_file(bp_sys::exit_status *exit_status) noexcept
 {
@@ -492,7 +499,7 @@ bgproc_service::read_pid_file(bp_sys::exit_status *exit_status) noexcept
     bool valid_pid = false;
     try {
         unsigned long long v = std::stoull(pidbuf, nullptr, 0);
-        if (v <= std::numeric_limits<pid_t>::max()) {
+        if (v <= make_unsigned_val(std::numeric_limits<pid_t>::max())) {
             pid = (pid_t) v;
             valid_pid = true;
         }
