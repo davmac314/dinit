@@ -8,6 +8,35 @@ constexpr static auto REG = dependency_type::REGULAR;
 constexpr static auto WAITS = dependency_type::WAITS_FOR;
 constexpr static auto MS = dependency_type::MILESTONE;
 
+class test_listener : public service_listener
+{
+    public:
+    bool got_started = false;
+    bool got_stopped = false;
+    bool start_cancelled = false;
+    bool stop_cancelled = false;
+
+    void service_event(service_record * service, service_event_t event) noexcept override
+    {
+        switch (event) {
+        case service_event_t::STARTED:
+            got_started = true;
+            break;
+        case service_event_t::STOPPED:
+            got_stopped = true;
+            break;
+        case service_event_t::STARTCANCELLED:
+            start_cancelled = true;
+            break;
+        case service_event_t::STOPCANCELLED:
+            stop_cancelled = true;
+            break;
+        case service_event_t::FAILEDSTART:
+            break;
+        }
+    }
+};
+
 // Test 1: starting a service starts dependencies; stopping the service releases and
 // stops dependencies.
 void test1()
@@ -570,6 +599,10 @@ void test13()
     assert(s2->get_state() == service_state_t::STARTED);
     assert(s1->get_state() == service_state_t::STARTED);
 
+    test_listener tl;
+
+    s1->add_listener(&tl);
+
     s1->restart();
     s1->forced_stop();
     sset.process_queues();
@@ -577,6 +610,7 @@ void test13()
     assert(s3->get_state() == service_state_t::STARTED);
     assert(s2->get_state() == service_state_t::STARTED);
     assert(s1->get_state() == service_state_t::STARTING);
+    assert(! tl.got_started);
 
     s1->started();
     sset.process_queues();
@@ -584,6 +618,7 @@ void test13()
     assert(s3->get_state() == service_state_t::STARTED);
     assert(s2->get_state() == service_state_t::STARTED);
     assert(s1->get_state() == service_state_t::STARTED);
+    assert(tl.got_started);
 }
 
 // Make sure a service only restarts once (i.e. restart flag doesn't get stuck)
@@ -597,7 +632,7 @@ void test14()
     sset.add_service(s1);
     sset.add_service(s2);
 
-    // Start all services via s3
+    // Start all services via s2
     sset.start_service(s2);
     s1->started();
     sset.process_queues();
@@ -629,6 +664,50 @@ void test14()
     assert(s1->get_state() == service_state_t::STOPPED); // didn't restart
 }
 
+// Test that restart can be cancelled if dependents stop
+void test15()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, WAITS}});
+
+    sset.add_service(s1);
+    sset.add_service(s2);
+
+    // Start all services via s2
+    sset.start_service(s2);
+    s1->started();
+    sset.process_queues();
+    s2->started();
+    sset.process_queues();
+
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    test_listener tl;
+    s1->add_listener(&tl);
+
+    s1->auto_stop = false;
+
+    s1->restart();
+    s1->forced_stop();
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STOPPING);
+
+    s2->stop();
+    sset.process_queues();
+    s1->stopped();
+    sset.process_queues();
+
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s1->get_state() == service_state_t::STOPPED);
+
+    assert(tl.start_cancelled);
+    assert(! tl.got_started);
+}
+
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
@@ -654,4 +733,5 @@ int main(int argc, char **argv)
     RUN_TEST(test12, "                    ");
     RUN_TEST(test13, "                    ");
     RUN_TEST(test14, "                    ");
+    RUN_TEST(test15, "                    ");
 }

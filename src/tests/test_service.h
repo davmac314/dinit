@@ -15,6 +15,8 @@ class test_service : public service_record
 
     }
 
+    bool auto_stop = true;  // whether to call stopped() immediately from bring_down()
+
     // Do any post-dependency startup; return false on failure
     virtual bool bring_up() noexcept override
     {
@@ -25,7 +27,15 @@ class test_service : public service_record
     // All dependents have stopped.
     virtual void bring_down() noexcept override
     {
-        return service_record::bring_down();
+        waiting_for_deps = false;
+        if (auto_stop) {
+            stopped();
+        }
+    }
+
+    void stopped() noexcept
+    {
+        service_record::stopped();
     }
 
     // Whether a STARTING service can immediately transition to STOPPED (as opposed to

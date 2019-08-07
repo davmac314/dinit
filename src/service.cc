@@ -52,6 +52,9 @@ void service_record::stopped() noexcept
 
     restarting |= auto_restart;
     bool will_restart = restarting && required_by > 0;
+    if (restarting && ! will_restart) {
+        notify_listeners(service_event_t::STARTCANCELLED);
+    }
     restarting = false;
 
     // If we won't restart, break soft dependencies now
