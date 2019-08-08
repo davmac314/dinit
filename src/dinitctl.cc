@@ -582,6 +582,14 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             cerr << "dinitctl: cannot restart service; service not started.\n";
             return 1;
         }
+        if (reply_pkt_h == DINIT_RP_NAK && command == command_t::START_SERVICE) {
+            cerr << "dinitctl: cannot start service (during shut down).\n";
+            return 1;
+        }
+        if (reply_pkt_h == DINIT_RP_NAK && command == command_t::WAKE_SERVICE) {
+            cerr << "dinitctl: service has no active dependents (or system is shutting down), cannot wake.\n";
+            return 1;
+        }
         if (reply_pkt_h != DINIT_RP_ACK && reply_pkt_h != DINIT_RP_ALREADYSS) {
             cerr << "dinitctl: protocol error." << endl;
             return 1;

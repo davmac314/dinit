@@ -293,16 +293,32 @@ bool control_conn_t::process_start_stop(int pktType)
             break;
         }
         case DINIT_CP_WAKESERVICE:
-            // re-start a stopped service (do not mark as required)
+        {
+            // re-attach a service to its (started) dependents, causing it to start.
             if (services->is_shutting_down()) {
                 ack_buf[0] = DINIT_RP_NAK;
                 break;
             }
+            bool found_dpt = false;
+            for (auto dpt : service->get_dependents()) {
+                auto from = dpt->get_from();
+                auto from_state = from->get_state();
+                if (from_state == service_state_t::STARTED || from_state == service_state_t::STARTING) {
+                    found_dpt = true;
+                    if (! dpt->holding_acq) {
+                        dpt->get_from()->start_dep(*dpt);
+                    }
+                }
+            }
+            if (! found_dpt) {
+                ack_buf[0] = DINIT_RP_NAK;
+            }
+
             if (do_pin) service->pin_start();
-            service->start(false);
             services->process_queues();
             if (service->get_state() == service_state_t::STARTED) ack_buf[0] = DINIT_RP_ALREADYSS;
             break;
+        }
         case DINIT_CP_RELEASESERVICE:
             // remove required mark, stop if not required by dependents
             if (do_pin) service->pin_stop();
