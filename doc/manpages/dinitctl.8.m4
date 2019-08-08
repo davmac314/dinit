@@ -101,19 +101,15 @@ configured to have an interruptible startup or is otherwise at a stage of startu
 interrupted).
 .TP
 \fBrestart\fR
-Restart the specified service. The service will be stopped (if it is not already stopped) and then restarted.
-
-The service will not be marked explicitly active if it is not already marked; it is started as if by the
-\fBwake\fR command in that case. Note that since stopping the service may break dependency links, this may
-result in a "floating" service even if the service was not already "floating".
+Restart the specified service. The service will be stopped and then restarted, without affecting explicit
+activation status or dependency links from dependents.
 .TP
 \fBwake\fR
-Start the specified service, but do not mark it as explicitly activated if it is not already so
-marked. This may result in a "floating" service which will only stop if explicitly requested, or if a
-dependent starts and then stops (i.e. if a dependency link is reestablished and then broken).
+Start the specified service after reattaching dependency links from all active dependents of the specified
+service. The service will not be marked explicitly activated, and so will stop if the dependents stop.
 .TP
 \fBrelease\fR
-Clear the explicit activation mark from a service (service will then stop if it has no active dependents).
+Clear the explicit activation mark from a service (the service will then stop if it has no active dependents).
 .TP
 \fBunpin\fR
 Remove start- and stop- pins from a service. If a started service is not explicitly activated and
