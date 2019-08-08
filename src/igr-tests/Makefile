@@ -8,3 +8,4 @@ igr-runner: igr-runner.cc
 
 clean:
 	rm -f igr-runner basic/basic-ran environ/env-record ps-environ/env-record chain-to/recorded-output
+	rm -f restart/basic-ran
