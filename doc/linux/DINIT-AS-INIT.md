@@ -1,27 +1,31 @@
 ## Dinit as init: using Dinit as your Linux system's init
 
-Modern linux is a relatively complex system, these days. You can use Dinit,
-in conjunction with other software, to boot your system and replace your
-current init system (which on most main distributions is now Systemd, Sys V
-init, or OpenRC).
+You can use Dinit, in conjunction with other software, to boot your system and
+replace your current init system (which on most main distributions is now
+Systemd, Sys V init, or OpenRC). Be warned that a modern Linux system is
+complex and changing your init system will require some effort and
+preparation.
 
-To have Dinit as your system init, replace your system's `/sbin/init` with a
-link to the `dinit` executable.
+Be warned that it is not a trivial task to take a system based on a typical
+Linux distribution and make it instead boot with Dinit. You need to set up
+suitable service description files for your system; at present there are no
+automated conversion tools for converting service descriptions or startup
+scripts from other systems. For example service files, please check the
+`services` subdirectory.
+
+Once you have service descriptions ready, to have Dinit run as your system
+init, replace your system's `/sbin/init` with a link to the `dinit`
+executable. For testing, it's a good idea to leave your existing init in
+place, and use Dinit by adding "init=/sbin/dinit" (for example) to the kernel
+command line when booting.
 
 *Note*: if your system boots via an "initrd" (initial ramdisk image), you
 might need to either adjust the ramdisk image to include `dinit` or switch
 to mounting the root filesystem directly; consult kernel, bootloader and
 distribution documentation for details.
 
-Be warned that it is not a trivial task to take a system based on a typical
-Linux distribution and make it instead boot with Dinit. You need to set up
-suitable service description files for your system; at present there are no
-automated conversion tools for converting service descriptions or startup
-scripts from other systems.
-
 The additional software required can be broken into _essential_ and
-_optional_ packages, which are detailed in following sections. For example service
-files, please check the `services` subdirectory.
+_optional_ packages, which are detailed in following sections. 
 
 
 # General notes
@@ -88,38 +92,11 @@ The basic procedure for boot (to be implemented by services) is as follows:
 - various miscellaneous tasks: seed the random number generator, configure the
   loopback interface, cleanup files in /tmp, /var/run and /var/lock
 - start other daemons as appropriate (dhcpcd, any networking daemons)
-- start getty instances virtual terminals
+- start getty instances on virtual terminals
 
 The service description files and scripts in the `services` subdirectory
 provide a template for accomplishing the above, but may need some adjustment
 for your particular configuration.
-
-
-# Boot performance compared to Systemd
-
-Boot performance using Dinit _theoretically_ suffers slightly compared to
-Systemd due to several factors:
-
-- Dinit doesn't handle file system mounts/checks and spawns external
-  processes and/or scripts to manage these
-- In the absence of full udev integration, it is more difficult to start
-  some services as early as possible. For instance, filesystem mounts need
-  to wait for the appropriate device to be recognized by the kernel and
-  exported as a device node; similarly network interfaces need to be
-  recognized before they are configured. With Dinit, the simplest approach
-  is to wait until udev "settles" (via "udevadm settle") before attempting
-  mounts and network configuration etc.
-- Dinit doesn't do full socket activation (yet). What it can do is pre-open a
-  socket while it launches a daemon, which probably improves boot times a
-  little but potentially still results in more daemons getting started than
-  is strictly necessary.
-
-In the future Dinit might provide functionality to perform basic mounts
-without spawning an external process, and will almost certainly support full
-socket activation. Some of the more fundamental startup script functionality
-might also be offered via some kind of intrinsic service(s). However, where
-at all possible, the intention is to keep service functionality separate to
-Dinit itself.
 
 
 # Essential packages for building a Dinit-based system
@@ -156,13 +133,13 @@ boot time).
 
 # Optional packages for building a Dinit-based system
 
-elogind, to act as seat/session manager (extracted from Systemd's logind):
+**elogind**, to act as seat/session manager (extracted from Systemd's logind):
 https://github.com/elogind/elogind
 
-Alternatively, ConsoleKit2:
+Alternatively, **ConsoleKit2**:
 https://github.com/ConsoleKit2/ConsoleKit2
 
-cgmanager, the control group manager; you probably want this if you use
+**cgmanager**, the control group manager; you probably want this if you use
 ConsoleKit2, and maybe if you want to use containers:
 https://github.com/lxc/cgmanager
 
@@ -170,5 +147,5 @@ https://github.com/lxc/cgmanager
 I expect that v2 cgroups together with cgroup namespaces as found in newer
 kernels will render it obselete).
 
-The above use Dbus:
+The above use **Dbus**:
 https://dbus.freedesktop.org/

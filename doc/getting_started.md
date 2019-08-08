@@ -1,10 +1,14 @@
 # Getting Started with Dinit
 
 In this guide we will go through the steps required to set up a tiny user-mode
-dinit instance.
+dinit instance. When run as a regular user, Dinit can be used to supervise,
+start, and stop other processes (services) also running under the same user ID.
 
 We assume that dinit has already been installed; i.e. we only cover
 configuration here.
+
+We don't cover how to set up Dinit as a system "init". See [linux/DINIT-AS-INIT.md](linux/DINIT-AS-INIT.md)
+if you're interested in using Dinit as your system "init" or system-level service manager.
 
 ## Starting Dinit
 
