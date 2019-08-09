@@ -1,3 +1,15 @@
+== Version 0.7.0
+
+This release adds a minor feature, and includes a re-work of some base functionality
+(which should not affect most use cases).
+
+ * dinitctl "restart" command added. Re-starts an already-running service without affecting
+   activation or dependency links.
+ * dinitctl "stop" command now requires a `--force` option if dependents of the specified
+   service would also need to stop.
+ * dinitctl "wake" command now reconnects dependency links from dependents of the specified
+   service, and can only be used if at least one such dependent is started.
+
 == Version 0.6.1:
 
 This is a bug-fix release with several minor fixes:

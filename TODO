@@ -1,24 +1,20 @@
 For version 0.7.0:
 ------------------
-* dinitctl: Warn when stopping a service would cause a dependent to stop. Require a force flag to proceed.
-* dinitctl: implement "restart" command. 
+* dinitctl: Warn when stopping a service would cause a dependent to stop. Require a force flag to
+  proceed [done]
+* dinitctl: implement "restart" command [done]
+* Get rid of "floating" service state [done]
+
+For version 0.8.0:
+------------------
+* Easy way to reload service description (including if service is running, where possible).
 * provide a way to check configuration for errors (maybe a dinitctl command)
   - eg. check a service and all dependencies.
 * report process launch failure reason (stage & errno) via dinitctl.
 * "chain-to" can result in an unbreakable loop if the chain is circular. Chained services should not be
   started during shutdown to prevent this (also avoids a race condition where the chained service is left
   running when everything else has shutdown).
-
-For version 0.8.0:
-------------------
-* Get rid of "floating" service state:
-  - soft dependencies should remain attached when a dependency restarts and removed
-    only if it stops without restarting
-  - "dinitctl wake" should fail (report error) if there are no running dependents and
-    should re-attach soft dependencies.
-  - if a service starts and required-by count is 0 it should always immediately stop.
-  - update man pages accordingly.
-* Easy way to reload service description (including if service is running, where possible).
+* Show "activated" state in "dinitctl list" output
 
 For version 1.0:
 ----------------
