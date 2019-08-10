@@ -2,22 +2,22 @@
 
 You can use Dinit, in conjunction with other software, to boot your system and
 replace your current init system (which on most main distributions is now
-Systemd, Sys V init, or OpenRC). Be warned that a modern Linux system is
-complex and changing your init system will require some effort and
-preparation.
+Systemd, Sys V init, or OpenRC).
 
-Be warned that it is not a trivial task to take a system based on a typical
-Linux distribution and make it instead boot with Dinit. You need to set up
-suitable service description files for your system; at present there are no
-automated conversion tools for converting service descriptions or startup
-scripts from other systems. For example service files, please check the
-`services` subdirectory.
+Be warned that a modern Linux system is complex and changing your init system
+will require some effort and preparation. It is not a trivial task to take a
+system based on a typical Linux distribution that uses some particular init
+system and make it instead boot with Dinit. You need to set up suitable
+service description files for your system; at present there are no automated
+conversion tools for converting service descriptions or startup scripts from
+other systems. For example service files, please check the `services`
+subdirectory.
 
-Once you have service descriptions ready, to have Dinit run as your system
-init, replace your system's `/sbin/init` with a link to the `dinit`
-executable. For testing, it's a good idea to leave your existing init in
-place, and use Dinit by adding "init=/sbin/dinit" (for example) to the kernel
-command line when booting.
+Once you have service descriptions ready, you can test Dinit by adding
+"init=/sbin/dinit" (for example) to the kernel command line when booting. 
+To have Dinit run as your system init (once you are satisfied that the service
+descriptions are correct and that the system is bootable via Dinit), replace
+your system's `/sbin/init` with a link to the `dinit` executable. 
 
 *Note*: if your system boots via an "initrd" (initial ramdisk image), you
 might need to either adjust the ramdisk image to include `dinit` or switch
@@ -145,7 +145,7 @@ https://github.com/lxc/cgmanager
 
 (However, I believe that cgmanager works with the old v1 cgroups interface.
 I expect that v2 cgroups together with cgroup namespaces as found in newer
-kernels will render it obselete).
+kernels will render it obsolete).
 
 The above use **Dbus**:
 https://dbus.freedesktop.org/
