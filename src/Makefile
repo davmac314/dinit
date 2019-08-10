@@ -12,9 +12,9 @@ endif
 dinit_objects = dinit.o load-service.o service.o proc-service.o baseproc-service.o control.o dinit-log.o \
 		dinit-main.o run-child-proc.o
 
-objects = $(dinit_objects) dinitctl.o shutdown.o
+objects = $(dinit_objects) dinitctl.o dinitcheck.o shutdown.o
 
-all: dinit dinitctl $(SHUTDOWN)
+all: dinit dinitctl dinitcheck $(SHUTDOWN)
 
 # Look for a suitable build config file and use it.
 ../mconfig:
@@ -40,6 +40,9 @@ dinit: $(dinit_objects)
 
 dinitctl: dinitctl.o
 	$(CXX) -o dinitctl dinitctl.o $(LDFLAGS)
+
+dinitcheck: dinitcheck.o
+	$(CXX) -o dinitcheck dinitcheck.o $(LDFLAGS)
 
 shutdown: shutdown.o
 	$(CXX) -o shutdown shutdown.o $(LDFLAGS)

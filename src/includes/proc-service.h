@@ -15,16 +15,6 @@
 std::vector<const char *> separate_args(std::string &s,
         const std::list<std::pair<unsigned,unsigned>> &arg_indices);
 
-struct service_rlimits
-{
-    int resource_id; // RLIMIT_xxx identifying resource
-    bool soft_set : 1;
-    bool hard_set : 1;
-    struct rlimit limits;
-
-    service_rlimits(int id) : resource_id(id), soft_set(0), hard_set(0), limits({0,0}) { }
-};
-
 // Parameters for process execution
 struct run_proc_params
 {

@@ -75,4 +75,15 @@ inline const char * base_name(const char *path)
     return basen;
 }
 
+// Check if one string starts with another
+inline bool starts_with(std::string s, const char *prefix)
+{
+    const char * sp = s.c_str();
+    while (*sp != 0 && *prefix != 0) {
+        if (*sp != *prefix) return false;
+        sp++; prefix++;
+    }
+    return *prefix == 0;
+}
+
 #endif

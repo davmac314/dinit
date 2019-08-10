@@ -111,29 +111,6 @@
  * transition stage, at the latest.
  */
 
-struct service_flags_t
-{
-    // on-start flags:
-    bool rw_ready : 1;  // file system should be writable once this service starts
-    bool log_ready : 1; // syslog should be available once this service starts
-    
-    // Other service options flags:
-    bool no_sigterm : 1;  // do not send SIGTERM
-    bool runs_on_console : 1;  // run "in the foreground"
-    bool starts_on_console : 1; // starts in the foreground
-    bool shares_console : 1;    // run on console, but not exclusively
-    bool pass_cs_fd : 1;  // pass this service a control socket connection via fd
-    bool start_interruptible : 1; // the startup of this service process is ok to interrupt with SIGINT
-    bool skippable : 1;   // if interrupted the service is skipped (scripted services)
-    bool signal_process_only : 1;  // signal the session process, not the whole group
-    
-    service_flags_t() noexcept : rw_ready(false), log_ready(false), no_sigterm(false),
-            runs_on_console(false), starts_on_console(false), shares_console(false),
-            pass_cs_fd(false), start_interruptible(false), skippable(false), signal_process_only(false)
-    {
-    }
-};
-
 class service_record;
 class service_set;
 class base_process_service;
@@ -927,35 +904,12 @@ class service_set
     }
 };
 
-// A service directory entry, tracking the directory as a nul-terminated string, which may either
-// be static or dynamically allocated (via new char[...]).
-class service_dir_entry
-{
-    const char *dir;
-    bool dir_dyn_allocd;  // dynamically allocated?
-
-    public:
-    service_dir_entry(const char *dir_p, bool dir_dyn_allocd_p) :
-        dir(dir_p), dir_dyn_allocd(dir_dyn_allocd_p)
-    { }
-
-    ~service_dir_entry()
-    {
-        if (dir_dyn_allocd) {
-            delete[] dir;
-        }
-    }
-
-    const char *get_dir() const
-    {
-        return dir;
-    }
-};
-
 // A service set which loads services from one of several service directories.
 class dirload_service_set : public service_set
 {
-    std::vector<service_dir_entry> service_dirs; // directories containing service descriptions
+    using dir_entry = dinit_load::dir_entry;
+
+    std::vector<dir_entry> service_dirs; // directories containing service descriptions
 
     public:
     dirload_service_set() : service_set()
