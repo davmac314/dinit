@@ -91,7 +91,7 @@ int main(int argc, char **argv)
     const char * control_socket_path = nullptr;
     
     bool verbose = true;
-    bool sys_dinit = false;  // communicate with system daemon
+    bool user_dinit = (getuid() != 0);  // communicate with user daemon
     bool wait_for_service = true;
     bool do_pin = false;
     bool do_force = false;
@@ -110,8 +110,8 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "--quiet") == 0) {
                 verbose = false;
             }
-            else if (strcmp(argv[i], "--system") == 0 || strcmp(argv[i], "-s") == 0) {
-                sys_dinit = true;
+            else if (strcmp(argv[i], "--user") == 0 || strcmp(argv[i], "-u") == 0) {
+                user_dinit = true;
             }
             else if (strcmp(argv[i], "--pin") == 0) {
                 do_pin = true;
@@ -274,7 +274,7 @@ int main(int argc, char **argv)
           "\n"
           "General options:\n"
           "  --help           : show this help\n"
-          "  -s, --system     : control system daemon instead of user daemon\n"
+          "  -u, --user       : control user daemon instead of system daemon\n"
           "  --quiet          : suppress output (except errors)\n"
           "  --socket-path <path>, -p <path>\n"
           "                   : specify socket for communication with daemon\n"
@@ -294,7 +294,7 @@ int main(int argc, char **argv)
     }
     else {
         control_socket_path = SYSCONTROLSOCKET; // default to system
-        if (! sys_dinit) {
+        if (user_dinit) {
             char * userhome = getenv("HOME");
             if (userhome == nullptr) {
                 struct passwd * pwuid_p = getpwuid(getuid());
