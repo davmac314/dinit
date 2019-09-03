@@ -55,8 +55,8 @@ service status.
 \fB\-\-help\fR
 display this help and exit
 .TP
-\fB\-s\fR, \fB\-\-system\fR
-Control the system init process. The default is to control the user process. This option selects
+\fB\-u\fR, \fB\-\-user\fR
+Control the user init process. The default is to control the system process. This option selects
 the path to the control socket used to communicate with the \fBdinit\fR daemon process.
 .TP
 \fB\-\-socket\-path\fR \fIsocket-path\fR, \fB\-p\fR \fIsocket-path\fR

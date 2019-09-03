@@ -311,10 +311,12 @@ dependents are configured).
 If stopping a service would also require a dependent service to stop, a warning
 will be issued and the `--force` option will be required.
 
-Use the "-s" switch to talk the "system" instance of Dinit, rather than a
-personal instance, e.g:
+Use the "-u" switch to talk the "user" instance of Dinit, rather than the system
+instance, e.g:
 
-    dinitctl -s start mysql   # start system mysql service
+    dinitctl -u start mysql   # start user mysql service
+
+The -u flag is implicitely set when calling dinitctl as a regular user, not when root.
 
 For complete details on the command line, use:
 
@@ -324,9 +326,9 @@ You can "pin" a service in either the stopped or started state, which prevents
 it from changing state either due to a dependency/dependent or a direct
 command:
 
-    dinitctl -s start --pin mysql  # start mysql service, pin it as "started"
-    dinitctl -s stop mysql  # issues stop, but doesn't take effect due to pin
-    dinitctl -s unpin mysql # release pin; service will now stop
+    dinitctl start --pin mysql  # start mysql service, pin it as "started"
+    dinitctl stop mysql  # issues stop, but doesn't take effect due to pin
+    dinitctl unpin mysql # release pin; service will now stop
 
 You can pin a service in the stopped state in order to make sure it doesn't
 get started accidentally (either via a dependency or directly). You can also
@@ -336,7 +338,7 @@ to restart automatically).
 
 Finally, you can list the state of all loaded services:
 
-    dinitctl -s list
+    dinitctl list
 
 This may result in something like the following:
 
