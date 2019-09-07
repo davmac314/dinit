@@ -12,7 +12,7 @@ dinitctl \- control services supervised by Dinit
 [\fIoptions\fR] \fBstop\fR [\fB\-\-no\-wait\fR] [\fB\-\-pin\fR] \fIservice-name\fR
 .br
 .B dinitctl
-[\fIoptions\fR] \restart\fR [\fB\-\-no\-wait\fR] \fIservice-name\fR
+[\fIoptions\fR] \fBrestart\fR [\fB\-\-no\-wait\fR] \fIservice-name\fR
 .br
 .B dinitctl
 [\fIoptions\fR] \fBwake\fR [\fB\-\-no\-wait\fR] \fIservice-name\fR

@@ -259,6 +259,7 @@ int main(int argc, char **argv)
           "Usage:\n"
           "    dinitctl [options] start [options] <service-name>\n"
           "    dinitctl [options] stop [options] <service-name>\n"
+          "    dinitctl [options] restart [options] <service-name>\n"
           "    dinitctl [options] wake [options] <service-name>\n"
           "    dinitctl [options] release [options] <service-name>\n"
           "    dinitctl [options] unpin <service-name>\n"
