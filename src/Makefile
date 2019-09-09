@@ -33,7 +33,7 @@ includes/mconfig.h: mconfig-gen
 mconfig-gen: mconfig-gen.cc ../mconfig
 	$(HOSTCXX) $(HOSTCXXOPTS) -o mconfig-gen mconfig-gen.cc $(HOSTLDFLAGS)
 
-$(dinit_objects): includes/mconfig.h
+$(objects): includes/mconfig.h
 
 dinit: $(dinit_objects)
 	$(CXX) -o dinit $(dinit_objects) $(LDFLAGS)
