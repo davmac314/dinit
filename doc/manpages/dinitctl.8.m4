@@ -48,16 +48,23 @@ dinitctl \- control services supervised by Dinit
 .\"
 \fBdinitctl\fR is a utility to control services being managed by the
 \fBdinit\fR daemon. It allows starting and stopping services, and listing
-service status. 
+service status, amongst other actions. It functions by issuing commands to the daemon
+via a control socket.
 .\"
 .SH GENERAL OPTIONS
 .TP
 \fB\-\-help\fR
 display this help and exit
 .TP
+\fB\-s\fR, \fB\-\-system\fR
+Control the system init process (this is the default unless run as a non-root user). This option
+determines the default path to the control socket used to communicate with the \fBdinit\fR daemon
+process (it does not override the \fB\-s\fR option).
+.TP
 \fB\-u\fR, \fB\-\-user\fR
-Control the user init process. The default is to control the system process. This option selects
-the path to the control socket used to communicate with the \fBdinit\fR daemon process.
+Control the user init process (this is the default when not run as root). This option determines
+the default path to the control socket used to communicate with the \fBdinit\fR daemon process
+(it does not override the \fB\-s\fR option).
 .TP
 \fB\-\-socket\-path\fR \fIsocket-path\fR, \fB\-p\fR \fIsocket-path\fR
 Specify the path to the socket used for communicating with the service manager daemon.

@@ -110,6 +110,9 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "--quiet") == 0) {
                 verbose = false;
             }
+            else if (strcmp(argv[i], "--system") == 0 || strcmp(argv[i], "-s") == 0) {
+                user_dinit = false;
+            }
             else if (strcmp(argv[i], "--user") == 0 || strcmp(argv[i], "-u") == 0) {
                 user_dinit = true;
             }
@@ -275,7 +278,8 @@ int main(int argc, char **argv)
           "\n"
           "General options:\n"
           "  --help           : show this help\n"
-          "  -u, --user       : control user daemon instead of system daemon\n"
+          "  -s, --system     : control system daemon (default if run as root)\n"
+          "  -u, --user       : control user daemon\n"
           "  --quiet          : suppress output (except errors)\n"
           "  --socket-path <path>, -p <path>\n"
           "                   : specify socket for communication with daemon\n"

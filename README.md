@@ -311,12 +311,15 @@ dependents are configured).
 If stopping a service would also require a dependent service to stop, a warning
 will be issued and the `--force` option will be required.
 
-Use the "-u" switch to talk the "user" instance of Dinit, rather than the system
-instance, e.g:
+When run as root, dinitctl (by default) communicates with the system instance of
+Dinit. Otherwise, it communicates with a user (personal) instance. This can be
+overridden (using "-u" or "-s" for the user or system instance, respectively), but
+note that regular users will generally lack the required permission to communicate
+with the system instance. 
 
-    dinitctl -u start mysql   # start user mysql service
+Here is an example command for starting a service:
 
-The -u flag is implicitely set when calling dinitctl as a regular user, not when root.
+    dinitctl start mysql   # start mysql service
 
 For complete details on the command line, use:
 
