@@ -383,10 +383,9 @@ static bool starts_with(string s, const char *prefix)
     return *prefix == 0;
 }
 
-// Find a service record, or load it from file. If the service has
-// dependencies, load those also.
+// Find a service record, or load it from file. If the service has dependencies, load those also.
 //
-// Might throw a ServiceLoadExc exception if a dependency cycle is found or if another
+// Throws service_load_exc (or subclass) if a dependency cycle is found or if another
 // problem occurs (I/O error, service description not found etc). Throws std::bad_alloc
 // if a memory allocation failure occurs.
 //
@@ -833,8 +832,14 @@ service_record * dirload_service_set::load_service(const char * name)
         delete rval;
         throw service_description_exc(name, std::move(setting_exc.get_info()));
     }
-    catch (...) {
-        // Must remove the dummy service record.
+    catch (std::system_error &sys_err)
+    {
+        records.erase(std::find(records.begin(), records.end(), rval));
+        delete rval;
+        throw service_description_exc(name, sys_err.what());
+    }
+    catch (...) // (should only be std::bad_alloc)
+    {
         records.erase(std::find(records.begin(), records.end(), rval));
         delete rval;
         throw;
