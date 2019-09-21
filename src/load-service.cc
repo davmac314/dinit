@@ -205,7 +205,9 @@ service_record * dirload_service_set::load_service(const char * name)
     #endif
 
     string line;
-    service_file.exceptions(ios::badbit | ios::failbit);
+    // getline can set failbit if it reaches end-of-file, we don't want an exception in that case. There's
+    // no good way to handle an I/O error however, so we'll have exceptions thrown on badbit:
+    service_file.exceptions(ios::badbit);
     
     // Add a dummy service record now to prevent infinite recursion in case of cyclic dependency.
     // We replace this with the real service later (or remove it if we find a configuration error).
@@ -213,9 +215,6 @@ service_record * dirload_service_set::load_service(const char * name)
     add_service(rval);
     
     try {
-        // getline can set failbit if it reaches end-of-file, we don't want an exception in that case:
-        service_file.exceptions(ios::badbit);
-        
         process_service_file(name, service_file,
                 [&](string &line, string &setting, string_iterator &i, string_iterator &end) -> void {
             if (setting == "command") {
