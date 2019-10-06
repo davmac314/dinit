@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <cstring>
@@ -25,7 +26,7 @@ using string_iterator = std::string::iterator;
 static const char *user_home_path = nullptr;
 
 // Get user home (and set user_home_path). (The return may become invalid after
-// changing the evironment (HOME variable) or using the getpwuid() function).
+// changing the environment (HOME variable) or using the getpwuid() function).
 static const char * get_user_home()
 {
     if (user_home_path == nullptr) {
@@ -42,10 +43,10 @@ static const char * get_user_home()
 
 class prelim_dep
 {
+    public:
     std::string name;
     dependency_type dep_type;
 
-    public:
     prelim_dep(std::string &name_p, dependency_type dep_type_p)
         : name(name_p), dep_type(dep_type_p) { }
     prelim_dep(std::string &&name_p, dependency_type dep_type_p)
@@ -66,6 +67,12 @@ using service_set_t = std::map<std::string, service_record *>;
 
 service_record *load_service(service_set_t &services, const std::string &name,
         const std::vector<dinit_load::dir_entry> &service_dirs);
+
+// Add some missing standard library functionality...
+template <typename T> bool contains(std::vector<T> vec, const T& elem)
+{
+    return std::find(vec.begin(), vec.end(), elem) != vec.end();
+}
 
 int main(int argc, char **argv)
 {
@@ -123,12 +130,21 @@ int main(int argc, char **argv)
 
     for (const auto &name : services_to_check) {
         try {
-            load_service(service_set, name, service_dirs);
+            service_record *sr = load_service(service_set, name, service_dirs);
+            service_set[name] = sr;
+            // add dependencies to services_to_check
+            for (auto &dep : sr->dependencies) {
+                if (service_set.count(dep.name) == 0 && !contains(services_to_check, dep.name)) {
+                    services_to_check.push_back(dep.name);
+                }
+            }
         }
         catch (service_load_exc &exc) {
             std::cerr << "Unable to load service '" << name << "': " << exc.exc_description << "\n";
         }
     }
+
+    // check for circular dependencies
 
     return 0;
 }
