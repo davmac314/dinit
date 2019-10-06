@@ -91,7 +91,7 @@ static const char *user_home_path = nullptr;
 static bool console_input_ready = false;
 
 // Get user home (and set user_home_path). (The return may become invalid after
-// changing the evironment (HOME variable) or using the getpwuid() function).
+// changing the environment (HOME variable) or using the getpwuid() function).
 static const char * get_user_home()
 {
     if (user_home_path == nullptr) {
