@@ -17,6 +17,7 @@
 #include "dinit-util.h"
 #include "service-constants.h"
 #include "load-service.h"
+#include "options-processing.h"
 
 // dinitcheck:  utility to check Dinit configuration for correctness/lint
 
@@ -66,7 +67,7 @@ public:
 using service_set_t = std::map<std::string, service_record *>;
 
 service_record *load_service(service_set_t &services, const std::string &name,
-        const std::vector<dinit_load::dir_entry> &service_dirs);
+        const std::vector<dir_entry> &service_dirs);
 
 // Add some missing standard library functionality...
 template <typename T> bool contains(std::vector<T> vec, const T& elem)
@@ -109,7 +110,7 @@ int main(int argc, char **argv)
         add_all_service_dirs = true;
     }
 
-    std::vector<dinit_load::dir_entry> service_dirs;
+    std::vector<dir_entry> service_dirs;
 
     service_dirs.emplace_back(service_dir, service_dir_dynamic);
     if (add_all_service_dirs) {
@@ -201,7 +202,7 @@ static void process_dep_dir(const char *servicename,
 }
 
 service_record *load_service(service_set_t &services, const std::string &name,
-        const std::vector<dinit_load::dir_entry> &service_dirs)
+        const std::vector<dir_entry> &service_dirs)
 {
     using namespace std;
     using namespace dinit_load;

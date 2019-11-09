@@ -17,6 +17,7 @@
 #include "load-service.h"
 #include "dinit-ll.h"
 #include "dinit-log.h"
+#include "options-processing.h" // TODO maybe remove, service_dir_pathlist can be moved?
 
 /*
  * This header defines service_record, a data record maintaining information about a service,
@@ -907,9 +908,7 @@ class service_set
 // A service set which loads services from one of several service directories.
 class dirload_service_set : public service_set
 {
-    using dir_entry = dinit_load::dir_entry;
-
-    std::vector<dir_entry> service_dirs; // directories containing service descriptions
+    service_dir_pathlist service_dirs;
 
     public:
     dirload_service_set() : service_set()
@@ -917,22 +916,12 @@ class dirload_service_set : public service_set
         // nothing to do.
     }
 
+    dirload_service_set(service_dir_pathlist &&pathlist) : service_set(), service_dirs(std::move(pathlist))
+    {
+        // nothing to do.
+    }
+
     dirload_service_set(const dirload_service_set &) = delete;
-
-    // Construct a dirload_service_set which loads services from the specified directory. The
-    // directory specified can be dynamically allocated via "new char[...]" (dyn_allocd == true)
-    // or statically allocated.
-    dirload_service_set(const char *service_dir_p, bool dyn_allocd = false) : service_set()
-    {
-        service_dirs.emplace_back(service_dir_p, dyn_allocd);
-    }
-
-    // Append a directory to the list of service directories, so that it is searched last for
-    // service description files.
-    void add_service_dir(const char *service_dir_p, bool dyn_allocd = true)
-    {
-        service_dirs.emplace_back(service_dir_p, dyn_allocd);
-    }
 
     int get_service_dir_count()
     {

@@ -2,6 +2,7 @@
 #include <list>
 #include <limits>
 #include <csignal>
+#include <cstring>
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -88,40 +89,6 @@ namespace dinit_load {
 
 using string = std::string;
 using string_iterator = std::string::iterator;
-
-// A service directory entry, tracking the directory as a nul-terminated string, which may either
-// be static or dynamically allocated (via new char[...]).
-class dir_entry
-{
-    const char *dir;
-    bool dir_dyn_allocd;  // dynamically allocated?
-
-    public:
-    dir_entry(const char *dir_p, bool dir_dyn_allocd_p) :
-        dir(dir_p), dir_dyn_allocd(dir_dyn_allocd_p)
-    { }
-
-    dir_entry(dir_entry &&other)
-    {
-        dir = other.dir;
-        dir_dyn_allocd = other.dir_dyn_allocd;
-        other.dir_dyn_allocd = false;
-    }
-
-    dir_entry(const dir_entry &other) = delete;
-
-    ~dir_entry()
-    {
-        if (dir_dyn_allocd) {
-            delete[] dir;
-        }
-    }
-
-    const char *get_dir() const
-    {
-        return dir;
-    }
-};
 
 // exception thrown when encountering a syntax issue when reading a setting value
 class setting_exception
