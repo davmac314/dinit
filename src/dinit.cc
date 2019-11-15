@@ -86,26 +86,8 @@ static const char *env_file_path = "/etc/dinit/environment";
 static const char *log_path = "/dev/log";
 static bool log_is_syslog = true; // if false, log is a file
 
-static const char *user_home_path = nullptr;
-
 // Set to true (when console_input_watcher is active) if console input becomes available
 static bool console_input_ready = false;
-
-// Get user home (and set user_home_path). (The return may become invalid after
-// changing the environment (HOME variable) or using the getpwuid() function).
-static const char * get_user_home()
-{
-    if (user_home_path == nullptr) {
-        user_home_path = getenv("HOME");
-        if (user_home_path == nullptr) {
-            struct passwd * pwuid_p = getpwuid(getuid());
-            if (pwuid_p != nullptr) {
-                user_home_path = pwuid_p->pw_dir;
-            }
-        }
-    }
-    return user_home_path;
-}
 
 
 namespace {
@@ -192,6 +174,7 @@ namespace {
     log_flush_timer_t log_flush_timer;
 }
 
+// Main entry point
 int dinit_main(int argc, char **argv)
 {
     using namespace std;
@@ -344,7 +327,7 @@ int dinit_main(int argc, char **argv)
     signal(SIGPIPE, SIG_IGN);
     
     if (! am_system_init && ! control_socket_path_set) {
-        const char * userhome = get_user_home();
+        const char * userhome = service_dir_opt::get_user_home();
         if (userhome != nullptr) {
             control_socket_str = userhome;
             control_socket_str += "/.dinitctl";
@@ -402,7 +385,7 @@ int dinit_main(int argc, char **argv)
     
     log_flush_timer.add_timer(event_loop, dasynq::clock_type::MONOTONIC);
 
-    service_dir_opts.build_paths();
+    service_dir_opts.build_paths(am_system_init);
 
     /* start requested services */
     services = new dirload_service_set(std::move(service_dir_opts.get_paths()));

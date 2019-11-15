@@ -41,8 +41,8 @@ dinit: $(dinit_objects)
 dinitctl: dinitctl.o
 	$(CXX) -o dinitctl dinitctl.o $(LDFLAGS)
 
-dinitcheck: dinitcheck.o
-	$(CXX) -o dinitcheck dinitcheck.o $(LDFLAGS)
+dinitcheck: dinitcheck.o options-processing.o
+	$(CXX) -o dinitcheck dinitcheck.o options-processing.o $(LDFLAGS)
 
 shutdown: shutdown.o
 	$(CXX) -o shutdown shutdown.o $(LDFLAGS)

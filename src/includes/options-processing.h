@@ -55,7 +55,7 @@ public:
         service_dirs.emplace_back(service_dir_p, dyn_allocd);
     }
 
-    size_t size()
+    size_t size() const
     {
         return service_dirs.size();
     }
@@ -65,12 +65,12 @@ public:
         return service_dirs[index];
     }
 
-    std::vector<dir_entry>::iterator begin()
+    std::vector<dir_entry>::const_iterator begin() const
     {
         return service_dirs.begin();
     }
 
-    std::vector<dir_entry>::iterator end()
+    std::vector<dir_entry>::const_iterator end() const
     {
         return service_dirs.end();
     }
@@ -80,8 +80,6 @@ class service_dir_opt
 {
     const char *service_dir = nullptr;;
     bool service_dir_dynamic = false;
-
-    bool am_system_init;
 
     static const char *user_home_path;
 
@@ -97,8 +95,11 @@ public:
         service_dir = specified_dir;
     }
 
-    void build_paths();
+    // Build the set of service directory paths, as per configuration specified thus far. This might be a
+    // single specified path, or a set of default paths.
+    void build_paths(bool am_system_init);
 
+    // Get the service directory paths as a (mutable) collection. Call only after calling build_paths().
     service_dir_pathlist &get_paths()
     {
         return service_dir_paths;

@@ -24,24 +24,7 @@
 using string = std::string;
 using string_iterator = std::string::iterator;
 
-static const char *user_home_path = nullptr;
-
-// Get user home (and set user_home_path). (The return may become invalid after
-// changing the environment (HOME variable) or using the getpwuid() function).
-static const char * get_user_home()
-{
-    if (user_home_path == nullptr) {
-        user_home_path = getenv("HOME");
-        if (user_home_path == nullptr) {
-            struct passwd * pwuid_p = getpwuid(getuid());
-            if (pwuid_p != nullptr) {
-                user_home_path = pwuid_p->pw_dir;
-            }
-        }
-    }
-    return user_home_path;
-}
-
+// prelim_dep: A preliminary (unresolved) service dependency
 class prelim_dep
 {
     public:
@@ -67,7 +50,7 @@ public:
 using service_set_t = std::map<std::string, service_record *>;
 
 service_record *load_service(service_set_t &services, const std::string &name,
-        const std::vector<dir_entry> &service_dirs);
+        const service_dir_pathlist &service_dirs);
 
 // Add some missing standard library functionality...
 template <typename T> bool contains(std::vector<T> vec, const T& elem)
@@ -79,44 +62,33 @@ int main(int argc, char **argv)
 {
     using namespace std;
 
-    bool add_all_service_dirs = false;
-    bool for_system = false;
-    const char * service_dir = nullptr;
-    bool service_dir_dynamic = false; // service_dir dynamically allocated?
+    service_dir_opt service_dir_opts;
+    bool am_system_init = (getuid() == 0);
 
     std::vector<std::string> services_to_check;
 
-    // Figure out service dirs
-    /* service directory name */
-    if (service_dir == nullptr && ! for_system) {
-        const char * userhome = get_user_home();
-        if (userhome != nullptr) {
-            const char * user_home = get_user_home();
-            size_t user_home_len = strlen(user_home);
-            size_t dinit_d_len = strlen("/dinit.d");
-            size_t full_len = user_home_len + dinit_d_len + 1;
-            char *service_dir_w = new char[full_len];
-            std::memcpy(service_dir_w, user_home, user_home_len);
-            std::memcpy(service_dir_w + user_home_len, "/dinit.d", dinit_d_len);
-            service_dir_w[full_len - 1] = 0;
-
-            service_dir = service_dir_w;
-            service_dir_dynamic = true;
+    // Process command line
+    if (argc > 1) {
+        for (int i = 1; i < argc; i++) {
+            if (argv[i][0] == '-') {
+                if (argv[i][0] == '-') {
+                    // An option...
+                    if (strcmp(argv[i], "--services-dir") == 0 || strcmp(argv[i], "-d") == 0) {
+                        if (++i < argc) {
+                            service_dir_opts.set_specified_service_dir(argv[i]);
+                        }
+                        else {
+                            cerr << "dinitcheck: '--services-dir' (-d) requires an argument" << endl;
+                            return 1;
+                        }
+                    }
+                }
+                // TODO handle other options, err if unrecognized
+            }
         }
     }
 
-    if (service_dir == nullptr) {
-        service_dir = "/etc/dinit.d";
-        add_all_service_dirs = true;
-    }
-
-    std::vector<dir_entry> service_dirs;
-
-    service_dirs.emplace_back(service_dir, service_dir_dynamic);
-    if (add_all_service_dirs) {
-        service_dirs.emplace_back("/usr/local/lib/dinit.d", false);
-        service_dirs.emplace_back("/lib/dinit.d", false);
-    }
+    service_dir_opts.build_paths(am_system_init);
 
     // Temporary, for testing:
     services_to_check.push_back("boot");
@@ -127,11 +99,11 @@ int main(int argc, char **argv)
     // - load the service, store dependencies as strings
     // - recurse
 
-    // additional: check chain-to, other lint
+    // TODO additional: check chain-to, other lint
 
     for (const auto &name : services_to_check) {
         try {
-            service_record *sr = load_service(service_set, name, service_dirs);
+            service_record *sr = load_service(service_set, name, service_dir_opts.get_paths());
             service_set[name] = sr;
             // add dependencies to services_to_check
             for (auto &dep : sr->dependencies) {
@@ -145,7 +117,7 @@ int main(int argc, char **argv)
         }
     }
 
-    // check for circular dependencies
+    // TODO check for circular dependencies
 
     return 0;
 }
@@ -201,8 +173,9 @@ static void process_dep_dir(const char *servicename,
     closedir(depdir);
 }
 
+// TODO: this is pretty much copy-paste from load_service.cc. Need to factor out common structure.
 service_record *load_service(service_set_t &services, const std::string &name,
-        const std::vector<dir_entry> &service_dirs)
+        const service_dir_pathlist &service_dirs)
 {
     using namespace std;
     using namespace dinit_load;

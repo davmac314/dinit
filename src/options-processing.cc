@@ -25,7 +25,7 @@ const char * service_dir_opt::get_user_home()
     return user_home_path;
 }
 
-void service_dir_opt::build_paths()
+void service_dir_opt::build_paths(bool am_system_init)
 {
     /* service directory name */
     if (service_dir == nullptr && ! am_system_init) {
