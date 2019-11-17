@@ -101,7 +101,9 @@ int main(int argc, char **argv)
 
     // TODO additional: check chain-to, other lint
 
-    for (const auto &name : services_to_check) {
+    for (size_t i = 0; i < services_to_check.size(); ++i) {
+        const std::string &name = services_to_check[i];
+        std::cout << "Checking service: " << name << "...\n";
         try {
             service_record *sr = load_service(service_set, name, service_dir_opts.get_paths());
             service_set[name] = sr;
@@ -120,6 +122,11 @@ int main(int argc, char **argv)
     // TODO check for circular dependencies
 
     return 0;
+}
+
+static void report_unknown_setting_error(const std::string &service_name, const char *setting_name)
+{
+    std::cerr << "Service '" << service_name << "', unknown setting: " << setting_name << "\n";
 }
 
 static void report_error(dinit_load::setting_exception &exc, const std::string &service_name, const char *setting_name)
@@ -505,7 +512,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
                     #endif
                 }
                 else {
-                    throw service_description_exc(name, "Unknown setting: " + setting);
+                    report_unknown_setting_error(name, setting.c_str());
                 }
             }
             catch (setting_exception &exc) {
