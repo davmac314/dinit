@@ -273,7 +273,7 @@ inline string read_setting_value(string_iterator & i, string_iterator end,
 // userid is looked up via the system user database (getpwnam() function). In this case,
 // the associated group is stored in the location specified by the group_p parameter iff
 // it is not null and iff it contains the value -1.
-inline uid_t parse_uid_param(const std::string &param, const std::string &service_name, gid_t *group_p)
+inline uid_t parse_uid_param(const std::string &param, const std::string &service_name, const char *setting_name, gid_t *group_p)
 {
     const char * uid_err_msg = "Specified user id contains invalid numeric characters "
             "or is outside allowed range.";
@@ -291,7 +291,7 @@ inline uid_t parse_uid_param(const std::string &param, const std::string &servic
         unsigned long long v = std::stoull(param, &ind, 0);
         if (v > static_cast<unsigned long long>(std::numeric_limits<uid_t>::max())
                 || ind != param.length()) {
-            throw service_description_exc(service_name, uid_err_msg);
+            throw service_description_exc(service_name, std::string(setting_name) + ": " + uid_err_msg);
         }
         return v;
     }
@@ -307,7 +307,7 @@ inline uid_t parse_uid_param(const std::string &param, const std::string &servic
     if (pwent == nullptr) {
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
-            throw service_description_exc(service_name, "Specified user \"" + param
+            throw service_description_exc(service_name, std::string(setting_name) + ": Specified user \"" + param
                     + "\" does not exist in system database.");
         }
         else {
@@ -323,7 +323,7 @@ inline uid_t parse_uid_param(const std::string &param, const std::string &servic
     return pwent->pw_uid;
 }
 
-inline gid_t parse_gid_param(const std::string &param, const std::string &service_name)
+inline gid_t parse_gid_param(const std::string &param, const char *setting_name, const std::string &service_name)
 {
     const char * gid_err_msg = "Specified group id contains invalid numeric characters or is "
             "outside allowed range.";
@@ -341,12 +341,12 @@ inline gid_t parse_gid_param(const std::string &param, const std::string &servic
         unsigned long long v = std::stoull(param, &ind, 0);
         if (v > static_cast<unsigned long long>(std::numeric_limits<gid_t>::max())
                 || ind != param.length()) {
-            throw service_description_exc(service_name, gid_err_msg);
+            throw service_description_exc(service_name, std::string(setting_name) + ": " + gid_err_msg);
         }
         return v;
     }
     catch (std::out_of_range &exc) {
-        throw service_description_exc(service_name, gid_err_msg);
+        throw service_description_exc(service_name, std::string(setting_name) + ": " + gid_err_msg);
     }
     catch (std::invalid_argument &exc) {
         // Ok, so it doesn't look like a number: proceed...
@@ -357,7 +357,7 @@ inline gid_t parse_gid_param(const std::string &param, const std::string &servic
     if (grent == nullptr) {
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
-            throw service_description_exc(service_name, "Specified group \"" + param
+            throw service_description_exc(service_name, std::string(setting_name) + ": Specified group \"" + param
                     + "\" does not exist in system database.");
         }
         else {
@@ -455,7 +455,7 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
     // 4     soft and hard limit set to same limit
 
     if (line.empty()) {
-        throw service_description_exc(service_name, std::string("Bad value for ") + param_name);
+        throw service_description_exc(service_name, std::string(param_name) + ": Bad value.");
     }
 
     const char *cline = line.c_str();
@@ -486,7 +486,7 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
             }
 
             if (*index != ':') {
-                throw service_description_exc(service_name, std::string("Bad value for ") + param_name);
+                throw service_description_exc(service_name, std::string(param_name) + ": Bad value.");
             }
         }
 
@@ -496,7 +496,7 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
         if (*index == '-') {
             rlimit.limits.rlim_max = RLIM_INFINITY;
             if (index[1] != 0) {
-                throw service_description_exc(service_name, std::string("Bad value for ") + param_name);
+                throw service_description_exc(service_name, std::string(param_name) + ": Bad value.");
             }
         }
         else {
@@ -510,10 +510,10 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
         }
     }
     catch (std::invalid_argument &exc) {
-        throw service_description_exc(service_name, std::string("Bad value for ") + param_name);
+        throw service_description_exc(service_name, std::string(param_name) + ": Bad value.");
     }
     catch (std::out_of_range &exc) {
-        throw service_description_exc(service_name, std::string("Too-large value for ") + param_name);
+        throw service_description_exc(service_name, std::string(param_name) + ": Too-large value.");
     }
 }
 

@@ -126,12 +126,17 @@ int main(int argc, char **argv)
 
 static void report_unknown_setting_error(const std::string &service_name, const char *setting_name)
 {
-    std::cerr << "Service '" << service_name << "', unknown setting: " << setting_name << "\n";
+    std::cerr << "Service '" << service_name << "', unknown setting: '" << setting_name << "'.\n";
 }
 
 static void report_error(dinit_load::setting_exception &exc, const std::string &service_name, const char *setting_name)
 {
     std::cerr << "Service '" << service_name << "', " << setting_name << ": " << exc.get_info() << "\n";
+}
+
+static void report_service_description_exc(service_description_exc &exc)
+{
+    std::cerr << "Service '" << exc.service_name << "': " << exc.exc_description << "\n";
 }
 
 static void report_error(std::system_error &exc, const std::string &service_name)
@@ -290,11 +295,11 @@ service_record *load_service(service_set_t &services, const std::string &name,
                 }
                 else if (setting == "socket-uid") {
                     string sock_uid_s = read_setting_value(i, end, nullptr);
-                    socket_uid = parse_uid_param(sock_uid_s, name, &socket_gid);
+                    socket_uid = parse_uid_param(sock_uid_s, name, "socket-uid", &socket_gid);
                 }
                 else if (setting == "socket-gid") {
                     string sock_gid_s = read_setting_value(i, end, nullptr);
-                    socket_gid = parse_gid_param(sock_gid_s, name);
+                    socket_gid = parse_gid_param(sock_gid_s, "socket-gid", name);
                 }
                 else if (setting == "stop-command") {
                     stop_command = read_setting_value(i, end, &stop_command_offsets);
@@ -448,7 +453,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
                 }
                 else if (setting == "run-as") {
                     string run_as_str = read_setting_value(i, end, nullptr);
-                    run_as_uid = parse_uid_param(run_as_str, name, &run_as_gid);
+                    run_as_uid = parse_uid_param(run_as_str, name, "run-as", &run_as_gid);
                 }
                 else if (setting == "chain-to") {
                     chain_to_name = read_setting_value(i, end, nullptr);
@@ -514,6 +519,9 @@ service_record *load_service(service_set_t &services, const std::string &name,
                 else {
                     report_unknown_setting_error(name, setting.c_str());
                 }
+            }
+            catch (service_description_exc &exc) {
+                report_service_description_exc(exc);
             }
             catch (setting_exception &exc) {
                 report_error(exc, name, setting.c_str());

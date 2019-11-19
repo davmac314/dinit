@@ -245,11 +245,11 @@ service_record * dirload_service_set::load_service(const char * name)
             }
             else if (setting == "socket-uid") {
                 string sock_uid_s = read_setting_value(i, end, nullptr);
-                socket_uid = parse_uid_param(sock_uid_s, name, &socket_gid);
+                socket_uid = parse_uid_param(sock_uid_s, name, "socket-uid", &socket_gid);
             }
             else if (setting == "socket-gid") {
                 string sock_gid_s = read_setting_value(i, end, nullptr);
-                socket_gid = parse_gid_param(sock_gid_s, name);
+                socket_gid = parse_gid_param(sock_gid_s, "socket-gid", name);
             }
             else if (setting == "stop-command") {
                 stop_command = read_setting_value(i, end, &stop_command_offsets);
@@ -403,7 +403,7 @@ service_record * dirload_service_set::load_service(const char * name)
             }
             else if (setting == "run-as") {
                 string run_as_str = read_setting_value(i, end, nullptr);
-                run_as_uid = parse_uid_param(run_as_str, name, &run_as_gid);
+                run_as_uid = parse_uid_param(run_as_str, name, "run-as", &run_as_gid);
             }
             else if (setting == "chain-to") {
                 chain_to_name = read_setting_value(i, end, nullptr);
