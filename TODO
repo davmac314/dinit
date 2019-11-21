@@ -1,15 +1,9 @@
-For version 0.7.0:
-------------------
-* dinitctl: Warn when stopping a service would cause a dependent to stop. Require a force flag to
-  proceed [done]
-* dinitctl: implement "restart" command [done]
-* Get rid of "floating" service state [done]
-
 For version 0.8.0:
 ------------------
 * Easy way to reload service description (including if service is running, where possible).
-* provide a way to check configuration for errors (maybe a dinitctl command)
-  - eg. check a service and all dependencies.
+* provide a way to check configuration for errors (dinitcheck command) [In progress]
+  - man page
+  - circular dependency checks
 * report process launch failure reason (stage & errno) via dinitctl.
 * "chain-to" can result in an unbreakable loop if the chain is circular. Chained services should not be
   started during shutdown to prevent this (also avoids a race condition where the chained service is left
@@ -18,6 +12,8 @@ For version 0.8.0:
 
 For version 1.0:
 ----------------
+* Service description parse errors should report line number
+* dinitcheck should perform lint checks - do named files exist? etc
 * Limit memory use by control connections. Currently clients can queue commands without limit.
 * Consider using mlockall (if system process).
 * Dinitctl command to get full status of a service.
