@@ -892,7 +892,7 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         #endif
     }
     else {
-        throw service_description_exc(name, "Unknown setting: " + setting);
+        throw service_description_exc(name, "Unknown setting: '" + setting + "'.");
     }
 }
 
