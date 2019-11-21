@@ -71,35 +71,47 @@ int main(int argc, char **argv)
     if (argc > 1) {
         for (int i = 1; i < argc; i++) {
             if (argv[i][0] == '-') {
-                if (argv[i][0] == '-') {
-                    // An option...
-                    if (strcmp(argv[i], "--services-dir") == 0 || strcmp(argv[i], "-d") == 0) {
-                        if (++i < argc) {
-                            service_dir_opts.set_specified_service_dir(argv[i]);
-                        }
-                        else {
-                            cerr << "dinitcheck: '--services-dir' (-d) requires an argument" << endl;
-                            return 1;
-                        }
+                // An option...
+                if (strcmp(argv[i], "--services-dir") == 0 || strcmp(argv[i], "-d") == 0) {
+                    if (++i < argc) {
+                        service_dir_opts.set_specified_service_dir(argv[i]);
+                    }
+                    else {
+                        cerr << "dinitcheck: '--services-dir' (-d) requires an argument" << endl;
+                        return 1;
                     }
                 }
-                // TODO handle other options, err if unrecognized
+                else if (strcmp(argv[i], "--help")) {
+                    cout << "dinitcheck: check dinit service descriptions\n"
+                            " --help                       display help\n"
+                            " --services-dir <dir>, -d <dir>\n"
+                            "                              set base directory for service description\n"
+                            "                              files\n"
+                            " <service-name>               check service with name <service-name>\n";
+                    return EXIT_SUCCESS;
+                }
+                else {
+                    std::cerr << "dinitcheck: Unrecognized option: '" << argv[i] << "' (use '--help' for help)\n";
+                    return EXIT_FAILURE;
+                }
+            }
+            else {
+                services_to_check.push_back(argv[i]);
             }
         }
     }
 
     service_dir_opts.build_paths(am_system_init);
 
-    // Temporary, for testing:
-    services_to_check.push_back("boot");
+    if (services_to_check.empty()) {
+        services_to_check.push_back("boot");
+    }
 
     // Load named service(s)
-    std::map<std::string, service_record *> service_set;
-
     // - load the service, store dependencies as strings
     // - recurse
 
-    // TODO additional: check chain-to, other lint
+    std::map<std::string, service_record *> service_set;
 
     for (size_t i = 0; i < services_to_check.size(); ++i) {
         const std::string &name = services_to_check[i];
@@ -120,6 +132,7 @@ int main(int argc, char **argv)
     }
 
     // TODO check for circular dependencies
+    // TODO additional: check chain-to, other lint
 
     return 0;
 }
