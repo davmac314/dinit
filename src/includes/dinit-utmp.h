@@ -3,6 +3,8 @@
 #ifndef DINIT_UTMP_H_INCLUDED
 #define DINIT_UTMP_H_INCLUDED
 
+#include "mconfig.h"  // pull in any explicit configuration
+
 // Configuration:
 // USE_UTMPX - whether to update the utmp[x] database. If 0, no-op stubs are defined.
 // USE_UPDWTMPX - whether to use the updwtmpx function to log boot (contingent on USE_UTMPX).

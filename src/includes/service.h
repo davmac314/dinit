@@ -164,7 +164,7 @@ class prelim_dep
 
     prelim_dep(service_record *to_p, dependency_type dep_type_p) : to(to_p), dep_type(dep_type_p)
     {
-        //
+        // (constructor)
     }
 };
 

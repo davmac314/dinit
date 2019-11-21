@@ -3,12 +3,16 @@
 #include <limits>
 #include <csignal>
 #include <cstring>
+#include <utility>
 
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <grp.h>
 #include <pwd.h>
+
+#include "dinit-utmp.h"
+#include "dinit-util.h"
 
 struct service_flags_t
 {
@@ -552,6 +556,343 @@ void process_service_file(string name, std::istream &service_file, T func)
 
             func(line, setting, i, end);
         }
+    }
+}
+
+// A wrapper type for service parameters. It is parameterised by dependency type.
+template <class dep_type>
+class service_settings_wrapper
+{
+    template <typename A, typename B> using pair = std::pair<A,B>;
+    template <typename A> using list = std::list<A>;
+
+    public:
+
+    string command;
+    list<pair<unsigned,unsigned>> command_offsets;
+    string stop_command;
+    list<pair<unsigned,unsigned>> stop_command_offsets;
+    string working_dir;
+    string pid_file;
+    string env_file;
+
+    bool do_sub_vars = false;
+
+    service_type_t service_type = service_type_t::PROCESS;
+    std::list<dep_type> depends;
+    string logfile;
+    service_flags_t onstart_flags;
+    int term_signal = -1;  // additional termination signal
+    bool auto_restart = false;
+    bool smooth_recovery = false;
+    string socket_path;
+    int socket_perms = 0666;
+    // Note: Posix allows that uid_t and gid_t may be unsigned types, but eg chown uses -1 as an
+    // invalid value, so it's safe to assume that we can do the same:
+    uid_t socket_uid = -1;
+    gid_t socket_gid = -1;
+    // Restart limit interval / count; default is 10 seconds, 3 restarts:
+    timespec restart_interval = { .tv_sec = 10, .tv_nsec = 0 };
+    int max_restarts = 3;
+    timespec restart_delay = { .tv_sec = 0, .tv_nsec = 200000000 };
+    timespec stop_timeout = { .tv_sec = 10, .tv_nsec = 0 };
+    timespec start_timeout = { .tv_sec = 60, .tv_nsec = 0 };
+    std::vector<service_rlimits> rlimits;
+
+    int readiness_fd = -1;      // readiness fd in service process
+    std::string readiness_var;  // environment var to hold readiness fd
+
+    uid_t run_as_uid = -1;
+    gid_t run_as_gid = -1;
+
+    string chain_to_name;
+
+    #if USE_UTMPX
+    char inittab_id[sizeof(utmpx().ut_id)] = {0};
+    char inittab_line[sizeof(utmpx().ut_line)] = {0};
+    #endif
+};
+
+// Process a service description line. In general, parse the setting value and record the parsed value
+// in a service settings wrapper object. Errors will be reported via service_description_exc exception.
+//
+// type parameters:
+//     settings_wrapper : wrapper for service settings
+//     load_service_t   : type of load service function/lambda (see below)
+//     process_dep_dir_t : type of process_dep_dir funciton/lambda (see below)
+//
+// parameters:
+//     settings     : wrapper object for service settings
+//     name         : name of the service being processed
+//     line         : the current line of the service description file
+//     setting      : the name of the setting (from the beginning of line)
+//     i            : iterator at beginning of setting value (including whitespace)
+//     end          : iterator at end of line
+//     load_service : function to load a service
+//                      arguments:  const char *service_name
+//                      return: a value that can be used (with a dependency type) to construct a dependency
+//                              in the 'depends' vector within the 'settings' object
+//     process_dep_dir : function to process a dependency directory
+//                      arguments: decltype(settings.depends) &dependencies
+//                                 const string &waitsford - directory as specified in parameter
+//                                 dependency_type dep_type - type of dependency to add
+template <typename settings_wrapper,
+    typename load_service_t,
+    typename process_dep_dir_t>
+void process_service_line(settings_wrapper &settings, const char *name, string &line, string &setting,
+        string::iterator &i, string::iterator &end, load_service_t load_service,
+        process_dep_dir_t process_dep_dir)
+{
+    if (setting == "command") {
+        settings.command = read_setting_value(i, end, &settings.command_offsets);
+    }
+    else if (setting == "working-dir") {
+        settings.working_dir = read_setting_value(i, end, nullptr);
+    }
+    else if (setting == "env-file") {
+        settings.env_file = read_setting_value(i, end, nullptr);
+    }
+    else if (setting == "socket-listen") {
+        settings.socket_path = read_setting_value(i, end, nullptr);
+    }
+    else if (setting == "socket-permissions") {
+        string sock_perm_str = read_setting_value(i, end, nullptr);
+        std::size_t ind = 0;
+        try {
+            settings.socket_perms = std::stoi(sock_perm_str, &ind, 8);
+            if (ind != sock_perm_str.length()) {
+                throw std::logic_error("");
+            }
+        }
+        catch (std::logic_error &exc) {
+            throw service_description_exc(name, "socket-permissions: Badly-formed or "
+                    "out-of-range numeric value");
+        }
+    }
+    else if (setting == "socket-uid") {
+        string sock_uid_s = read_setting_value(i, end, nullptr);
+        settings.socket_uid = parse_uid_param(sock_uid_s, name, "socket-uid", &settings.socket_gid);
+    }
+    else if (setting == "socket-gid") {
+        string sock_gid_s = read_setting_value(i, end, nullptr);
+        settings.socket_gid = parse_gid_param(sock_gid_s, "socket-gid", name);
+    }
+    else if (setting == "stop-command") {
+        settings.stop_command = read_setting_value(i, end, &settings.stop_command_offsets);
+    }
+    else if (setting == "pid-file") {
+        settings.pid_file = read_setting_value(i, end);
+    }
+    else if (setting == "depends-on") {
+        string dependency_name = read_setting_value(i, end);
+        settings.depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::REGULAR);
+    }
+    else if (setting == "depends-ms") {
+        string dependency_name = read_setting_value(i, end);
+        settings.depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::MILESTONE);
+    }
+    else if (setting == "waits-for") {
+        string dependency_name = read_setting_value(i, end);
+        settings.depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::WAITS_FOR);
+    }
+    else if (setting == "waits-for.d") {
+        string waitsford = read_setting_value(i, end);
+        process_dep_dir(settings.depends, waitsford, dependency_type::WAITS_FOR);
+    }
+    else if (setting == "logfile") {
+        settings.logfile = read_setting_value(i, end);
+    }
+    else if (setting == "restart") {
+        string restart = read_setting_value(i, end);
+        settings.auto_restart = (restart == "yes" || restart == "true");
+    }
+    else if (setting == "smooth-recovery") {
+        string recovery = read_setting_value(i, end);
+        settings.smooth_recovery = (recovery == "yes" || recovery == "true");
+    }
+    else if (setting == "type") {
+        string type_str = read_setting_value(i, end);
+        if (type_str == "scripted") {
+            settings.service_type = service_type_t::SCRIPTED;
+        }
+        else if (type_str == "process") {
+            settings.service_type = service_type_t::PROCESS;
+        }
+        else if (type_str == "bgprocess") {
+            settings.service_type = service_type_t::BGPROCESS;
+        }
+        else if (type_str == "internal") {
+            settings.service_type = service_type_t::INTERNAL;
+        }
+        else {
+            throw service_description_exc(name, "Service type must be one of: \"scripted\","
+                " \"process\", \"bgprocess\" or \"internal\"");
+        }
+    }
+    else if (setting == "options") {
+        std::list<std::pair<unsigned,unsigned>> indices;
+        string onstart_cmds = read_setting_value(i, end, &indices);
+        for (auto indexpair : indices) {
+            string option_txt = onstart_cmds.substr(indexpair.first,
+                    indexpair.second - indexpair.first);
+            if (option_txt == "starts-rwfs") {
+                settings.onstart_flags.rw_ready = true;
+            }
+            else if (option_txt == "starts-log") {
+                settings.onstart_flags.log_ready = true;
+            }
+            else if (option_txt == "no-sigterm") {
+                settings.onstart_flags.no_sigterm = true;
+            }
+            else if (option_txt == "runs-on-console") {
+                settings.onstart_flags.runs_on_console = true;
+                // A service that runs on the console necessarily starts on console:
+                settings.onstart_flags.starts_on_console = true;
+                settings.onstart_flags.shares_console = false;
+            }
+            else if (option_txt == "starts-on-console") {
+                settings.onstart_flags.starts_on_console = true;
+                settings.onstart_flags.shares_console = false;
+            }
+            else if (option_txt == "shares-console") {
+                settings.onstart_flags.shares_console = true;
+                settings.onstart_flags.runs_on_console = false;
+                settings.onstart_flags.starts_on_console = false;
+            }
+            else if (option_txt == "pass-cs-fd") {
+                settings.onstart_flags.pass_cs_fd = true;
+            }
+            else if (option_txt == "start-interruptible") {
+                settings.onstart_flags.start_interruptible = true;
+            }
+            else if (option_txt == "skippable") {
+                settings.onstart_flags.skippable = true;
+            }
+            else if (option_txt == "signal-process-only") {
+                settings.onstart_flags.signal_process_only = true;
+            }
+            else {
+                throw service_description_exc(name, "Unknown option: " + option_txt);
+            }
+        }
+    }
+    else if (setting == "load-options") {
+        std::list<std::pair<unsigned,unsigned>> indices;
+        string load_opts = read_setting_value(i, end, &indices);
+        for (auto indexpair : indices) {
+            string option_txt = load_opts.substr(indexpair.first,
+                    indexpair.second - indexpair.first);
+            if (option_txt == "sub-vars") {
+                // substitute environment variables in command line
+                settings.do_sub_vars = true;
+            }
+            else if (option_txt == "no-sub-vars") {
+                settings.do_sub_vars = false;
+            }
+            else {
+                throw service_description_exc(name, "Unknown load option: " + option_txt);
+            }
+        }
+    }
+    else if (setting == "term-signal" || setting == "termsignal") {
+        // Note: "termsignal" supported for legacy reasons.
+        string signame = read_setting_value(i, end, nullptr);
+        int signo = signal_name_to_number(signame);
+        if (signo == -1) {
+            throw service_description_exc(name, "Unknown/unsupported termination signal: "
+                    + signame);
+        }
+        else {
+            settings.term_signal = signo;
+        }
+    }
+    else if (setting == "restart-limit-interval") {
+        string interval_str = read_setting_value(i, end, nullptr);
+        parse_timespec(interval_str, name, "restart-limit-interval", settings.restart_interval);
+    }
+    else if (setting == "restart-delay") {
+        string rsdelay_str = read_setting_value(i, end, nullptr);
+        parse_timespec(rsdelay_str, name, "restart-delay", settings.restart_delay);
+    }
+    else if (setting == "restart-limit-count") {
+        string limit_str = read_setting_value(i, end, nullptr);
+        settings.max_restarts = parse_unum_param(limit_str, name, std::numeric_limits<int>::max());
+    }
+    else if (setting == "stop-timeout") {
+        string stoptimeout_str = read_setting_value(i, end, nullptr);
+        parse_timespec(stoptimeout_str, name, "stop-timeout", settings.stop_timeout);
+    }
+    else if (setting == "start-timeout") {
+        string starttimeout_str = read_setting_value(i, end, nullptr);
+        parse_timespec(starttimeout_str, name, "start-timeout", settings.start_timeout);
+    }
+    else if (setting == "run-as") {
+        string run_as_str = read_setting_value(i, end, nullptr);
+        settings.run_as_uid = parse_uid_param(run_as_str, name, "run-as", &settings.run_as_gid);
+    }
+    else if (setting == "chain-to") {
+        settings.chain_to_name = read_setting_value(i, end, nullptr);
+    }
+    else if (setting == "ready-notification") {
+        string notify_setting = read_setting_value(i, end, nullptr);
+        if (starts_with(notify_setting, "pipefd:")) {
+            settings.readiness_fd = parse_unum_param(notify_setting.substr(7 /* len 'pipefd:' */),
+                    name, std::numeric_limits<int>::max());
+        }
+        else if (starts_with(notify_setting, "pipevar:")) {
+            settings.readiness_var = notify_setting.substr(8 /* len 'pipevar:' */);
+            if (settings.readiness_var.empty()) {
+                throw service_description_exc(name, "Invalid pipevar variable name "
+                        "in ready-notification");
+            }
+        }
+        else {
+            throw service_description_exc(name, "Unknown ready-notification setting: "
+                    + notify_setting);
+        }
+    }
+    else if (setting == "inittab-id") {
+        string inittab_setting = read_setting_value(i, end, nullptr);
+        #if USE_UTMPX
+        if (inittab_setting.length() > sizeof(settings.inittab_id)) {
+            throw service_description_exc(name, "inittab-id setting is too long");
+        }
+        strncpy(settings.inittab_id, inittab_setting.c_str(), sizeof(settings.inittab_id));
+        #endif
+    }
+    else if (setting == "inittab-line") {
+        string inittab_setting = read_setting_value(i, end, nullptr);
+        #if USE_UTMPX
+        if (inittab_setting.length() > sizeof(settings.inittab_line)) {
+            throw service_description_exc(name, "inittab-line setting is too long");
+        }
+        strncpy(settings.inittab_line, inittab_setting.c_str(), sizeof(settings.inittab_line));
+        #endif
+    }
+    else if (setting == "rlimit-nofile") {
+        string nofile_setting = read_setting_value(i, end, nullptr);
+        service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_NOFILE);
+        parse_rlimit(line, name, "rlimit-nofile", nofile_limits);
+    }
+    else if (setting == "rlimit-core") {
+        string nofile_setting = read_setting_value(i, end, nullptr);
+        service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_CORE);
+        parse_rlimit(line, name, "rlimit-core", nofile_limits);
+    }
+    else if (setting == "rlimit-data") {
+        string nofile_setting = read_setting_value(i, end, nullptr);
+        service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_DATA);
+        parse_rlimit(line, name, "rlimit-data", nofile_limits);
+    }
+    else if (setting == "rlimit-addrspace") {
+        #if defined(RLIMIT_AS)
+            string nofile_setting = read_setting_value(i, end, nullptr);
+            service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_AS);
+            parse_rlimit(line, name, "rlimit-addrspace", nofile_limits);
+        #endif
+    }
+    else {
+        throw service_description_exc(name, "Unknown setting: " + setting);
     }
 }
 
