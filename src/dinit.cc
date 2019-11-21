@@ -256,7 +256,7 @@ int dinit_main(int argc, char **argv)
                             "                              environment variable initialisation file\n"
                             " --services-dir <dir>, -d <dir>\n"
                             "                              set base directory for service description\n"
-                            "                              files (-d <dir>)\n"
+                            "                              files\n"
                             " --system, -s                 run as the system service manager\n"
                             " --user, -u                   run as a user service manager\n"
                             " --socket-path <path>, -p <path>\n"
@@ -392,7 +392,7 @@ int dinit_main(int argc, char **argv)
 
     init_log(services, log_is_syslog);
     if (am_system_init) {
-        log(loglevel_t::INFO, false, "starting system");
+        log(loglevel_t::INFO, false, "Starting system");
     }
     
     // Only try to set up the external log now if we aren't the system init. (If we are the

@@ -54,7 +54,7 @@ via a control socket.
 .SH GENERAL OPTIONS
 .TP
 \fB\-\-help\fR
-display this help and exit
+Display brief help text and then exit.
 .TP
 \fB\-s\fR, \fB\-\-system\fR
 Control the system init process (this is the default unless run as a non-root user). This option

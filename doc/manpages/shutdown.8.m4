@@ -23,10 +23,13 @@ manager daemon to perform a service rollback and then to shutdown the
 system. They can also perform shutdown directly, without service rollback.
 
 Note that for consistency with other packages a "halt" alias is provided,
-however it has no special significance. Note that the default action is to
-power down the system.
+however it has no special significance. The default action is to power down
+the system if called as either "shutdown" or "halt".
 .\"
 .SH OPTIONS
+.TP
+\fB\-\-help\fR
+Display brief help text and then exit.
 .TP
 \fB\-r\fP
 Request a shutdown followed by restart. This is the default if executed as
@@ -42,7 +45,7 @@ as \fBreboot\fR.
 \fB\-\-use\-passed\-cfd\fR
 Instead of attempting to open a socket connection to the service daemon,
 use a pre-opened connection that has been passed to the process from its parent
-via an open file descriptor. The file descriptor with the connection is identifed
+via an open file descriptor. The file descriptor with the connection is identified
 by the DINIT_CS_FD environment variable.
 .TP
 \fB\-\-system\fR
