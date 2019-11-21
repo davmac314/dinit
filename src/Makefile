@@ -53,7 +53,7 @@ $(objects): %.o: %.cc
 check:
 	$(MAKE) -C tests check
 
-check-igr: dinit dinitctl
+check-igr: dinit dinitctl dinitcheck
 	$(MAKE) -C igr-tests check-igr
 
 run-cppcheck:
