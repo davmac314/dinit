@@ -61,7 +61,7 @@ run-cppcheck:
 
 install: all
 	install -d $(DESTDIR)$(SBINDIR)
-	install $(STRIPOPTS) dinit dinitctl $(SHUTDOWN) $(DESTDIR)$(SBINDIR)
+	install $(STRIPOPTS) dinit dinitctl dinitcheck $(SHUTDOWN) $(DESTDIR)$(SBINDIR)
 ifeq ($(BUILD_SHUTDOWN),yes)
 	ln -f $(DESTDIR)$(SBINDIR)/shutdown $(DESTDIR)$(SBINDIR)/halt
 	ln -f $(DESTDIR)$(SBINDIR)/shutdown $(DESTDIR)$(SBINDIR)/reboot
@@ -69,7 +69,7 @@ endif
 
 clean:
 	rm -f *.o *.d
-	rm -f dinit dinitctl shutdown mconfig-gen
+	rm -f dinit dinitctl dinitcheck shutdown mconfig-gen
 	rm -f includes/mconfig.h
 	$(MAKE) -C tests clean
 	$(MAKE) -C igr-tests clean
