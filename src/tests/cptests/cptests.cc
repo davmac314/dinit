@@ -950,7 +950,7 @@ void cptest_restart()
     control_conn_t::handle_t h;
     std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h), reinterpret_cast<char *>(&h));
 
-    bp_sys::extract_written_data(fd, wdata); // DAV
+    bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 0);
 
     // Issue restart:
