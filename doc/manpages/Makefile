@@ -3,11 +3,11 @@ include ../../src/version.conf
 
 all: generate
 
-generate: dinit.8 dinitctl.8 dinit-service.5 shutdown.8
+generate: dinit.8 dinitctl.8 dinitcheck.8 dinit-service.5 shutdown.8
 
 install: generate
 	mkdir -p "$(DESTDIR)$(MANDIR)/man8"
-	install -m644 dinit.8 dinitctl.8 "$(DESTDIR)$(MANDIR)/man8"
+	install -m644 dinit.8 dinitctl.8 dinitcheck.8 "$(DESTDIR)$(MANDIR)/man8"
 	mkdir -p "$(DESTDIR)$(MANDIR)/man5"
 	install -m644 dinit-service.5 "$(DESTDIR)$(MANDIR)/man5"
 ifeq ($(BUILD_SHUTDOWN),yes)
@@ -17,13 +17,16 @@ ifeq ($(BUILD_SHUTDOWN),yes)
 endif
 
 clean:
-	rm -f dinit.8 dinitctl.8 dinit-service.5 shutdown.8
+	rm -f dinit.8 dinitctl.8 dinitcheck.8 dinit-service.5 shutdown.8
 
 dinit.8: dinit.8.m4
 	m4 -DVERSION=$(VERSION) -DMONTH=$(MONTH) -DYEAR=$(YEAR) dinit.8.m4 > dinit.8
 
 dinitctl.8: dinitctl.8.m4
 	m4 -DVERSION=$(VERSION) -DMONTH=$(MONTH) -DYEAR=$(YEAR) dinitctl.8.m4 > dinitctl.8
+
+dinitcheck.8: dinitcheck.8.m4
+	m4 -DVERSION=$(VERSION) -DMONTH=$(MONTH) -DYEAR=$(YEAR) dinitcheck.8.m4 > dinitcheck.8
 
 dinit-service.5: dinit-service.5.m4
 	m4 -DVERSION=$(VERSION) -DMONTH=$(MONTH) -DYEAR=$(YEAR) dinit-service.5.m4 > dinit-service.5
