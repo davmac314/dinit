@@ -61,6 +61,8 @@ template <typename T> bool contains(std::vector<T> vec, const T& elem)
     return std::find(vec.begin(), vec.end(), elem) != vec.end();
 }
 
+static bool errors_found = false;
+
 int main(int argc, char **argv)
 {
     using namespace std;
@@ -133,6 +135,7 @@ int main(int argc, char **argv)
         }
         catch (service_load_exc &exc) {
             std::cerr << "Unable to load service '" << name << "': " << exc.exc_description << "\n";
+            errors_found = true;
         }
     }
 
@@ -191,6 +194,7 @@ int main(int argc, char **argv)
     }
 
     if (!service_chain.empty()) {
+        errors_found = true;
         std::cerr << "Found dependency cycle:\n";
         for (auto chain_link : service_chain) {
             std::cerr << "    " << std::get<0>(chain_link)->name << " ->\n";
@@ -200,23 +204,26 @@ int main(int argc, char **argv)
 
     // TODO additional: check chain-to, other lint
 
-    return 0;
+    return errors_found ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
 static void report_service_description_exc(service_description_exc &exc)
 {
     std::cerr << "Service '" << exc.service_name << "': " << exc.exc_description << "\n";
+    errors_found = true;
 }
 
 static void report_error(std::system_error &exc, const std::string &service_name)
 {
     std::cerr << "Service '" << service_name << "', error reading service description: " << exc.what() << "\n";
+    errors_found = true;
 }
 
 static void report_dir_error(const char *service_name, const std::string &dirpath)
 {
     std::cerr << "Service '" << service_name << "', error reading dependencies from directory " << dirpath
             << ": " << strerror(errno) << "\n";
+    errors_found = true;
 }
 
 // Process a dependency directory - filenames contained within correspond to service names which
