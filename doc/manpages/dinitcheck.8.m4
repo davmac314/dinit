@@ -16,7 +16,15 @@ The \fBdinitcheck\fR utility checks the service configuration for
 \fBDinit\fR services (see \fBdinit\fR(8)), and reports any errors it finds.
 This allows for finding errors before they can cause a service to fail to
 load during system operation.
-
+.LP
+Errors reported by \fBdinitcheck\fR include:
+.IP \(bu
+Syntax errors
+.IP \(bu
+Invalid parameter values
+.IP \(bu
+Service dependency cycles
+.LP
 Unless altered by options specified on the command line, this utility uses the
 same search paths (for service description files) as \fBdinit\fR.
 .\"

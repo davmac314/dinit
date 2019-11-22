@@ -40,11 +40,14 @@ class prelim_dep
 class service_record
 {
 public:
-    service_record(std::string name, std::list<prelim_dep> dependencies_p) : dependencies(dependencies_p) {}
+    service_record(std::string name_p, std::list<prelim_dep> dependencies_p)
+            : name(name_p), dependencies(dependencies_p) {}
 
     std::string name;
-    bool finished_loading = false;  // flag used to detect cyclic dependencies
     std::list<prelim_dep> dependencies;
+
+    bool visited = false;  // flag used to detect cyclic dependencies
+    bool cycle_free = false;
 };
 
 using service_set_t = std::map<std::string, service_record *>;
@@ -107,6 +110,8 @@ int main(int argc, char **argv)
         services_to_check.push_back("boot");
     }
 
+    size_t num_services_to_check = services_to_check.size();
+
     // Load named service(s)
     // - load the service, store dependencies as strings
     // - recurse
@@ -131,7 +136,68 @@ int main(int argc, char **argv)
         }
     }
 
-    // TODO check for circular dependencies
+    // Check for circular dependencies
+    std::vector<std::tuple<service_record *, size_t>> service_chain;
+
+    for (size_t i = 0; i < num_services_to_check; ++i) {
+        service_record *root = service_set[services_to_check[i]];
+        if (root->visited) continue;
+
+        // invariant: service_chain is empty
+        service_chain.emplace_back(root, 0);
+
+        // Depth first traversal. If we find a link (dependency) on a service already visited (but not
+        // marked as cycle-free), we know then that we've found a cycle.
+        while (true) {
+            auto n = service_chain.size() - 1;
+            auto &last = service_chain[n];
+            service_record *last_record = std::get<0>(last);
+            size_t &index = std::get<1>(last);
+            if (index >= last_record->dependencies.size()) {
+                // Processed all dependencies, go back up:
+                last_record->cycle_free = true;
+                service_chain.pop_back();
+                if (n == 0) break;
+                size_t &prev_index = std::get<1>(service_chain[n - 1]);
+                ++prev_index;
+                continue;
+            }
+            // Down the tree:
+            auto dep_it = std::next(last_record->dependencies.begin(), index);
+            service_record *next_link = service_set[dep_it->name];
+            if (next_link == nullptr) {
+                ++index;
+                continue;
+            }
+            if (next_link->visited) {
+                if (! next_link->cycle_free) {
+                    // We've found a cycle. Clear entries before the beginning of the cycle, then
+                    // exit the loop.
+                    auto first = std::find_if(service_chain.begin(), service_chain.end(),
+                            [next_link](std::tuple<service_record *, size_t> &a) -> bool {
+                       return std::get<0>(a) == next_link;
+                    });
+                    service_chain.erase(service_chain.begin(), first);
+                    break;
+                }
+            }
+            next_link->visited = true;
+            service_chain.emplace_back(next_link, 0);
+        }
+
+        // Report only one cycle; otherwise difficult to avoid reporting duplicates or overlapping
+        // cycles.
+        if (!service_chain.empty()) break;
+    }
+
+    if (!service_chain.empty()) {
+        std::cerr << "Found dependency cycle:\n";
+        for (auto chain_link : service_chain) {
+            std::cerr << "    " << std::get<0>(chain_link)->name << " ->\n";
+        }
+        std::cerr << "    " << std::get<0>(service_chain[0])->name << ".\n";
+    }
+
     // TODO additional: check chain-to, other lint
 
     return 0;
@@ -188,7 +254,6 @@ static void process_dep_dir(const char *servicename,
     closedir(depdir);
 }
 
-// TODO: this is pretty much copy-paste from load_service.cc. Need to factor out common structure.
 service_record *load_service(service_set_t &services, const std::string &name,
         const service_dir_pathlist &service_dirs)
 {
