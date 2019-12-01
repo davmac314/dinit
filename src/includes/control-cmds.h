@@ -42,6 +42,9 @@ constexpr static int DINIT_CP_ENABLESERVICE = 14;
 // Find the name of a service (from a handle)
 constexpr static int DINIT_CP_QUERYSERVICENAME = 15;
 
+// Reload a service:
+constexpr static int DINIT_CP_RELOADSERVICE = 16;
+
 // Replies:
 
 // Reply: ACK/NAK to request

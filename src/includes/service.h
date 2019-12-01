@@ -557,9 +557,9 @@ class service_record
     
     // Assuming there is one reference (from a control link), return true if this is the only reference,
     // or false if there are others (including dependents).
-    bool has_lone_ref() noexcept
+    bool has_lone_ref(bool check_deps = true) noexcept
     {
-        if (! dependents.empty()) return false;
+        if (check_deps && ! dependents.empty()) return false;
         auto i = listeners.begin();
         return (++i == listeners.end());
     }

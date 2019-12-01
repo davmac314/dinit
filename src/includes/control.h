@@ -146,6 +146,9 @@ class control_conn_t : private service_listener
     // Process an UNLOADSERVICE packet.
     bool process_unload_service();
 
+    // Process a RELOADSERVICE packet. May throw std::bad_alloc.
+    bool process_reload_service();
+
     // Process a QUERYSERVICENAME packet.
     bool process_query_name();
 

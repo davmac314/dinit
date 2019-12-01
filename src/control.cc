@@ -57,6 +57,9 @@ bool control_conn_t::process_packet()
     if (pktType == DINIT_CP_UNLOADSERVICE) {
         return process_unload_service();
     }
+    if (pktType == DINIT_CP_RELOADSERVICE) {
+        return process_reload_service();
+    }
     if (pktType == DINIT_CP_SHUTDOWN) {
         // Shutdown/reboot
         if (rbuf.get_length() < 2) {
@@ -421,6 +424,75 @@ bool control_conn_t::process_unload_service()
         // send ack
         char ack_buf[] = { (char) DINIT_RP_ACK };
         if (! queue_packet(ack_buf, 1)) return false;
+    }
+
+    // Clear the packet from the buffer
+    rbuf.consume(pkt_size);
+    chklen = 0;
+    return true;
+}
+
+bool control_conn_t::process_reload_service()
+{
+    using std::string;
+
+    constexpr int pkt_size = 1 + sizeof(handle_t);
+
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    // 1 byte: packet type
+    // 4 bytes: service handle
+
+    handle_t handle;
+    rbuf.extract((char *) &handle, 1, sizeof(handle));
+
+    service_record *service = find_service_for_key(handle);
+    if (service == nullptr) {
+        // Service handle is bad
+        char badreq_rep[] = { DINIT_RP_BADREQ };
+        if (! queue_packet(badreq_rep, 1)) return false;
+        bad_conn_close = true;
+        iob.set_watches(OUT_EVENTS);
+        return true;
+    }
+
+    if (! service->has_lone_ref(false)) {
+        // Cannot unload: has other references
+        char nak_rep[] = { DINIT_RP_NAK };
+        if (! queue_packet(nak_rep, 1)) return false;
+    }
+    else {
+        try {
+            // reload
+            auto *new_service = services->reload_service(service);
+            if (new_service != service) {
+                service->prepare_for_unload();
+                services->remove_service(service);
+                delete service;
+            }
+            else {
+                service->remove_listener(this);
+            }
+
+            // drop handle
+            key_service_map.erase(handle);
+            service_key_map.erase(service);
+
+            services->process_queues();
+
+            // send ack
+            char ack_buf[] = { (char) DINIT_RP_ACK };
+            if (! queue_packet(ack_buf, 1)) return false;
+        }
+        catch (service_load_exc &slexc) {
+            log(loglevel_t::ERROR, "Could not reload service ", slexc.service_name, ": ",
+                    slexc.exc_description);
+            char nak_rep[] = { DINIT_RP_NAK };
+            if (! queue_packet(nak_rep, 1)) return false;
+        }
     }
 
     // Clear the packet from the buffer
