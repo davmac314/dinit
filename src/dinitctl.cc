@@ -41,6 +41,7 @@ static int start_stop_service(int socknum, cpbuffer_t &, const char *service_nam
         bool do_pin, bool do_force, bool wait_for_service, bool verbose);
 static int unpin_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
 static int unload_service(int socknum, cpbuffer_t &, const char *service_name);
+static int reload_service(int socknum, cpbuffer_t &, const char *service_name);
 static int list_services(int socknum, cpbuffer_t &);
 static int shutdown_dinit(int soclknum, cpbuffer_t &);
 static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, const char *service_from,
@@ -67,6 +68,7 @@ enum class command_t {
     RELEASE_SERVICE,
     UNPIN_SERVICE,
     UNLOAD_SERVICE,
+    RELOAD_SERVICE,
     LIST_SERVICES,
     SHUTDOWN,
     ADD_DEPENDENCY,
@@ -166,6 +168,9 @@ int main(int argc, char **argv)
             }
             else if (strcmp(argv[i], "unload") == 0) {
                 command = command_t::UNLOAD_SERVICE;
+            }
+            else if (strcmp(argv[i], "reload") == 0) {
+                command = command_t::RELOAD_SERVICE;
             }
             else if (strcmp(argv[i], "list") == 0) {
                 command = command_t::LIST_SERVICES;
@@ -267,6 +272,7 @@ int main(int argc, char **argv)
           "    dinitctl [options] release [options] <service-name>\n"
           "    dinitctl [options] unpin <service-name>\n"
           "    dinitctl [options] unload <service-name>\n"
+          "    dinitctl [options] reload <service-name>\n"
           "    dinitctl [options] list\n"
           "    dinitctl [options] shutdown\n"
           "    dinitctl [options] add-dep <type> <from-service> <to-service>\n"
@@ -353,6 +359,9 @@ int main(int argc, char **argv)
         }
         else if (command == command_t::UNLOAD_SERVICE) {
             return unload_service(socknum, rbuffer, service_name);
+        }
+        else if (command == command_t::RELOAD_SERVICE) {
+            return reload_service(socknum, rbuffer, service_name);
         }
         else if (command == command_t::LIST_SERVICES) {
             return list_services(socknum, rbuffer);
@@ -790,6 +799,51 @@ static int unload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
     }
 
     cout << "Service unloaded." << endl;
+    return 0;
+}
+
+static int reload_service(int socknum, cpbuffer_t &rbuffer, const char *service_name)
+{
+    using namespace std;
+
+    if (issue_load_service(socknum, service_name, true) == 1) {
+        return 1;
+    }
+
+    wait_for_reply(rbuffer, socknum);
+
+    handle_t handle;
+
+    if (rbuffer[0] == DINIT_RP_NOSERVICE) {
+        cerr << "dinitctl: service not loaded." << endl;
+        return 1;
+    }
+
+    if (check_load_reply(socknum, rbuffer, &handle, nullptr) != 0) {
+        return 1;
+    }
+
+    // Issue RELOAD command.
+    {
+        auto m = membuf()
+                .append<char>(DINIT_CP_RELOADSERVICE)
+                .append(handle);
+        write_all_x(socknum, m);
+
+        wait_for_reply(rbuffer, socknum);
+        if (rbuffer[0] == DINIT_RP_NAK) {
+            cerr << "dinitctl: Could not reload service; service in wrong state, incompatible change, "
+                    "or bad service description." << endl;
+            return 1;
+        }
+        if (rbuffer[0] != DINIT_RP_ACK) {
+            cerr << "dinitctl: Protocol error." << endl;
+            return 1;
+        }
+        rbuffer.consume(1);
+    }
+
+    cout << "Service reloaded." << endl;
     return 0;
 }
 

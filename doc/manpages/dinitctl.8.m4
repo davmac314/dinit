@@ -27,6 +27,9 @@ dinitctl \- control services supervised by Dinit
 [\fIoptions\fR] \fBunload\fR \fIservice-name\fR
 .br
 .B dinitctl
+[\fIoptions\fR] \fBreload\fR \fIservice-name\fR
+.br
+.B dinitctl
 [\fIoptions\fR] \fBlist\fR
 .br
 .B dinitctl
@@ -127,6 +130,15 @@ any pending start/stop commands will be carried out.
 \fBunload\fR
 Completely unload a service. This can only be done if the service is stopped and has no loaded dependents
 (i.e. dependents must be unloaded before their dependencies).
+.TP
+\fBreload\fR
+Attempt to reload a service description. This is intended as a convenience for making simple changes to a
+service, without having to stop, remove dependencies to and unload the service. However it is not completely
+equivalent to doing a proper unload/reload; some altered settings may not take effect until the service is
+restarted, and some cannot be changed at all while the service is running.
+
+In particular, the type of a running service cannot be changed; nor can the \fBinittab-id\fR, \fBinittab-line\fR,
+or \fBpid-file\fR settings, or the \fBruns-on-console\fR or \fBshares-console\fR flags.
 .TP
 \fBlist\fR
 List loaded services and their state. Before each service, one of the following state indicators is
