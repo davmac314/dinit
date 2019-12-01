@@ -559,11 +559,6 @@ void service_record::do_stop() noexcept
 
     if (pinned_started) return;
 
-    if (required_by == 0) {
-        prop_release = true;
-        services->add_prop_queue(this);
-    }
-
     service_state = service_state_t::STOPPING;
     waiting_for_deps = true;
     if (all_deps_stopped) {
