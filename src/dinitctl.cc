@@ -320,7 +320,8 @@ int main(int argc, char **argv)
                 control_socket_path = control_socket_str.c_str();
             }
             else {
-                cerr << "Cannot locate user home directory (set HOME or check /etc/passwd file)" << endl;
+                cerr << "dinitctl: Cannot locate user home directory (set HOME, check /etc/passwd file, or "
+                        "specify socket path via -p)" << endl;
                 return 1;
             }
         }
@@ -328,7 +329,7 @@ int main(int argc, char **argv)
     
     int socknum = socket(AF_UNIX, SOCK_STREAM, 0);
     if (socknum == -1) {
-        perror("dinitctl: socket");
+        perror("dinitctl: error opening socket");
         return 1;
     }
 
@@ -345,7 +346,7 @@ int main(int argc, char **argv)
     
     int connr = connect(socknum, (struct sockaddr *) name, sockaddr_size);
     if (connr == -1) {
-        perror("dinitctl: connect");
+        perror((std::string("dinitctl: connecting to socket ") + control_socket_path).c_str());
         return 1;
     }
     
