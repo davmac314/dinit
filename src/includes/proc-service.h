@@ -255,6 +255,20 @@ class base_process_service : public service_record
         restart_timer.deregister(event_loop);
     }
 
+    // Set the command to run this service (executable and arguments, nul separated). The command_parts_p
+    // vector must contain pointers to each part.
+    void set_command(std::string &&command_p, std::vector<const char *> &&command_parts_p) noexcept
+    {
+        program_name = std::move(command_p);
+        exec_arg_parts = std::move(command_parts_p);
+    }
+
+    void get_command(std::string &command_p, std::vector<const char *> &command_parts_p)
+    {
+        command_p = program_name;
+        command_parts_p = exec_arg_parts;
+    }
+
     // Set the stop command and arguments (may throw std::bad_alloc)
     void set_stop_command(const std::string &command,
             std::list<std::pair<unsigned,unsigned>> &stop_command_offsets)
@@ -263,9 +277,24 @@ class base_process_service : public service_record
         stop_arg_parts = separate_args(stop_command, stop_command_offsets);
     }
 
+    // Set the stop command as a sequence of nul-terminated parts (arguments).
+    //   command - the command and arguments, each terminated with nul ('\0')
+    //   command_parts - pointers to the beginning of each command part
+    void set_stop_command(std::string &&command,
+            std::vector<const char *> &&command_parts) noexcept
+    {
+        stop_command = std::move(command);
+        stop_arg_parts = std::move(command_parts);
+    }
+
     void set_env_file(const std::string &env_file_p)
     {
         env_file = env_file_p;
+    }
+
+    void set_env_file(std::string &&env_file_p) noexcept
+    {
+        env_file = std::move(env_file_p);
     }
 
     void set_rlimits(std::vector<service_rlimits> &&rlimits_p)
@@ -311,6 +340,11 @@ class base_process_service : public service_record
     void set_working_dir(const string &working_dir_p)
     {
         working_dir = working_dir_p;
+    }
+
+    void set_working_dir(string &&working_dir_p) noexcept
+    {
+        working_dir = std::move(working_dir_p);
     }
 
     // Set the notification fd number that the service process will use

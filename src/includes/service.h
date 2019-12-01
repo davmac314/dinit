@@ -153,6 +153,11 @@ class service_dep
     {
         return to;
     }
+
+    void set_to(service_record *new_to) noexcept
+    {
+        to = new_to;
+    }
 };
 
 /* preliminary service dependency information */
@@ -454,6 +459,11 @@ class service_record
         this->logfile = logfile;
     }
     
+    void set_log_file(std::string &&logfile) noexcept
+    {
+        this->logfile = std::move(logfile);
+    }
+
     // Set whether this service should automatically restart when it dies
     void set_auto_restart(bool auto_restart) noexcept
     {
@@ -486,7 +496,7 @@ class service_record
     }
 
     // Set the service that this one "chains" to. When this service completes, the named service is started.
-    void set_chain_to(string &&chain_to)
+    void set_chain_to(string &&chain_to) noexcept
     {
         start_on_completion = std::move(chain_to);
     }
@@ -606,23 +616,36 @@ class service_record
     // calling this. May throw std::bad_alloc.
     service_dep & add_dep(service_record *to, dependency_type dep_type)
     {
-        depends_on.emplace_back(this, to, dep_type);
+        return add_dep(to, dep_type, depends_on.end(), false);
+    }
+
+    // Add a dependency. Caller must ensure that the services are in an appropriate state and that
+    // a circular dependency chain is not created. Propagation queues should be processed after
+    // calling this. May throw std::bad_alloc.
+    //   i - where to insert the dependency (in dependencies list)
+    //   reattach - whether to acquire the required service if it and the dependent are started.
+    //             (if false, only REGULAR dependencies will cause acquire if the dependent is started,
+    //              doing so regardless of required service's state).
+    service_dep & add_dep(service_record *to, dependency_type dep_type, dep_list::iterator i, bool reattach)
+    {
+        auto pre_i = depends_on.emplace(i, this, to, dep_type);
         try {
-            to->dependents.push_back(& depends_on.back());
+            to->dependents.push_back(&(*pre_i));
         }
         catch (...) {
-            depends_on.pop_back();
+            depends_on.erase(i);
             throw;
         }
 
-        if (dep_type == dependency_type::REGULAR) {
+        if (dep_type == dependency_type::REGULAR
+                || (reattach && to->get_state() == service_state_t::STARTED)) {
             if (service_state == service_state_t::STARTING || service_state == service_state_t::STARTED) {
                 to->require();
-                depends_on.back().holding_acq = true;
+                pre_i->holding_acq = true;
             }
         }
 
-        return depends_on.back();
+        return *pre_i;
     }
 
     // Remove a dependency, of the given type, to the given service. Propagation queues should be processed
@@ -632,19 +655,25 @@ class service_record
         for (auto i = depends_on.begin(); i != depends_on.end(); i++) {
             auto & dep = *i;
             if (dep.get_to() == to && dep.dep_type == dep_type) {
-                for (auto j = to->dependents.begin(); ; j++) {
-                    if (*j == &dep) {
-                        to->dependents.erase(j);
-                        break;
-                    }
-                }
-                if (dep.holding_acq) {
-                    to->release();
-                }
-                depends_on.erase(i);
+                rm_dep(i);
                 break;
             }
         }
+    }
+
+    dep_list::iterator rm_dep(dep_list::iterator i) noexcept
+    {
+        auto to = i->get_to();
+        for (auto j = to->dependents.begin(); ; j++) {
+            if (*j == &(*i)) {
+                to->dependents.erase(j);
+                break;
+            }
+        }
+        if (i->holding_acq) {
+            to->release();
+        }
+        return depends_on.erase(i);
     }
 
     // Start a speficic dependency of this service. Should only be called if this service is in an
@@ -751,6 +780,16 @@ class service_set
             throw service_not_found(name);
         }
         return r;
+    }
+
+    // Re-load a service description from file. If the service type changes then this returns
+    // a new service instead (the old one should be removed and deleted by the caller).
+    // Throws:
+    //   service_load_exc (or subclass) on problem with service description
+    //   std::bad_alloc on out-of-memory condition
+    virtual service_record *reload_service(service_record *service)
+    {
+        return service;
     }
 
     // Start the service with the given name. The named service will begin
@@ -933,7 +972,14 @@ class dirload_service_set : public service_set
         return service_dirs[n].get_dir();
     }
 
-    service_record *load_service(const char *name) override;
+    service_record *load_service(const char *name) override
+    {
+        return load_service(name, nullptr);
+    }
+
+    service_record *load_service(const char *name, const service_record *avoid_circular);
+
+    service_record *reload_service(service_record *service) override;
 
     int get_set_type_id() override
     {
