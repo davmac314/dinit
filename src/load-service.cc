@@ -488,9 +488,36 @@ service_record * dirload_service_set::reload_service(service_record * service)
                 }
             }
 
-            //    XXX cannot change pid_file
-            //    XXX cannot change service flags: runs_on_console, shares_console
-            //    XXX cannot change inittab_id/inittab_line
+            // Cannot change certain flags
+            auto current_flags = service->get_flags();
+            if (current_flags.starts_on_console != settings.onstart_flags.starts_on_console
+                    || current_flags.shares_console != settings.onstart_flags.shares_console) {
+                throw service_description_exc(name, "Cannot change starts_on_console/"
+                        "shares_console flags for a running service.");
+            }
+
+            // Cannot change pid file
+            if (service->get_type() == service_type_t::BGPROCESS) {
+                auto *bgp_service = static_cast<bgproc_service *>(service);
+                if (bgp_service->get_pid_file() != settings.pid_file) {
+                    throw service_description_exc(name, "Cannot change pid_file for running service.");
+                }
+            }
+
+            // Cannot change inittab_id/inittab_line
+            #if USE_UTMPX
+                if (service->get_type() == service_type_t::PROCESS) {
+                    auto *proc_service = static_cast<process_service *>(service);
+                    auto *svc_utmp_id = proc_service->get_utmp_id();
+                    auto *svc_utmp_ln = proc_service->get_utmp_line();
+                    if (strncmp(svc_utmp_id, settings.inittab_id, proc_service->get_utmp_id_size()) != 0
+                            || strncmp(svc_utmp_ln, settings.inittab_line,
+                                    proc_service->get_utmp_line_size()) != 0) {
+                        throw service_description_exc(name, "Cannot change inittab-id or inittab-line "
+                                "settings for running service.");
+                    }
+                }
+            #endif
 
             // Already started; we must replace settings on existing service record
             create_new_record = false;

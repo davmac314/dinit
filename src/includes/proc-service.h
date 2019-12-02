@@ -434,6 +434,21 @@ class process_service : public base_process_service
         strncpy(inittab_line, line, sizeof(inittab_line));
     }
 
+    // Get the utmp (inittab) id, may not be nul terminated if maximum length!
+    const char *get_utmp_id()
+    {
+        return inittab_id;
+    }
+
+    // Get the utmp (inittab) line, may not be nul terminated if maximum length!
+    const char *get_utmp_line()
+    {
+        return inittab_line;
+    }
+
+    constexpr size_t get_utmp_id_size() { return sizeof(inittab_id); }
+    constexpr size_t get_utmp_line_size() { return sizeof(inittab_line); }
+
 #endif
 
     ~process_service() noexcept
@@ -454,7 +469,9 @@ class bgproc_service : public base_process_service
         TERMINATED   // read pid successfully, but the process already terminated
     };
 
-    // Read the pid-file, return false on failure
+    string pid_file;
+
+    // Read the pid-file contents
     pid_result_t read_pid_file(bp_sys::exit_status *exit_status) noexcept;
 
     public:
@@ -468,6 +485,16 @@ class bgproc_service : public base_process_service
 
     ~bgproc_service() noexcept
     {
+    }
+
+    void set_pid_file(string &&pid_file) noexcept
+    {
+        this->pid_file = std::move(pid_file);
+    }
+
+    const std::string &get_pid_file() noexcept
+    {
+        return pid_file;
     }
 };
 

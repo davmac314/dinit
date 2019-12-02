@@ -196,8 +196,6 @@ class service_record
     service_state_t desired_state = service_state_t::STOPPED;
 
     protected:
-    string pid_file;
-    
     service_flags_t onstart_flags;
 
     string logfile;           // log file name, empty string specifies /dev/null
@@ -481,11 +479,11 @@ class service_record
         this->onstart_flags = flags;
     }
 
-    void set_pid_file(string &&pid_file) noexcept
+    service_flags_t get_flags() noexcept
     {
-        this->pid_file = std::move(pid_file);
+        return onstart_flags;
     }
-    
+
     void set_socket_details(string &&socket_path, int socket_perms, uid_t socket_uid, uid_t socket_gid)
             noexcept
     {
