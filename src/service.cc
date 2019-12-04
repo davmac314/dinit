@@ -493,6 +493,8 @@ void service_record::stop(bool bring_down) noexcept
         bring_down = true;
     }
 
+    desired_state = service_state_t::STOPPED;
+
     if (bring_down && service_state != service_state_t::STOPPED
     		&& service_state != service_state_t::STOPPING) {
     	stop_reason = stopped_reason_t::NORMAL;
