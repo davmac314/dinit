@@ -813,6 +813,12 @@ class service_set
         records.erase(std::find(records.begin(), records.end(), svc));
     }
 
+    void replace_service(service_record *orig, service_record *replacement)
+    {
+        auto i = std::find(records.begin(), records.end(), orig);
+        *i = replacement;
+    }
+
     // Get the list of all loaded services.
     const std::list<service_record *> &list_services() noexcept
     {

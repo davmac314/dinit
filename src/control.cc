@@ -470,7 +470,7 @@ bool control_conn_t::process_reload_service()
             auto *new_service = services->reload_service(service);
             if (new_service != service) {
                 service->prepare_for_unload();
-                services->remove_service(service);
+                services->replace_service(service, new_service);
                 delete service;
             }
             else {
