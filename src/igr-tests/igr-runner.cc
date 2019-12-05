@@ -13,7 +13,7 @@ extern char **environ;
 int main(int argc, char **argv)
 {
     const char * const test_dirs[] = { "basic", "environ", "ps-environ", "chain-to", "force-stop", "restart",
-            "check-basic", "check-cycle", "reload1" };
+            "check-basic", "check-cycle", "reload1", "reload2" };
     constexpr int num_tests = sizeof(test_dirs) / sizeof(test_dirs[0]);
 
     int passed = 0;

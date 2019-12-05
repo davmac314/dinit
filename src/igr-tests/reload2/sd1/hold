@@ -1,0 +1,2 @@
+# extra service to prevent shutdown when we stop boot
+type = internal
