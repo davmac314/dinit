@@ -54,6 +54,9 @@ always be useful, and comes at a certain cost of complexity, I argue that it is 
 least sometimes useful, and that the cost is not so high. However, to be fair,
 many systems have successfully taken the simpler approach.
 
+Now we'll look at some systems which *do* have dependency management: Nosh, OpenRC,
+S6-RC, Systemd, and some others.
+
 
 Nosh suite (http://homepage.ntlworld.com/jonathan.deboynepollard/Softwares/nosh.html)
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -211,11 +214,11 @@ https://github.com/initng/initng.
 Upstart (Ubuntu; http://upstart.ubuntu.com)
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 Upstart does not provide real dependency management; instead "events" (including services
-starting or stopping) can be specified to trigger start/stop of other services. This is
-backwards from the Dinit approach (and that taken by most dependency-managing supervision
-systems) which allow the dependencies of a service to be specified declaratively. That is,
-if service A depends on service B, Upstart is configured so as to start B whenever A starts
-(and it's not possible, or at least not trival, to start A without also starting B).
+starting or stopping) can be specified to trigger start/stop of other services. That is,
+if service A depends on service B, Upstart is configured so as to start A whenever B starts
+(and it's not possible, or at least not trival, to start B without also starting A).
+This is backwards from the Dinit approach (and that taken by most dependency-managing supervision
+systems) which allow the dependencies of a service to be specified declaratively.
 
 Upstart apparently offers a D-Bus interface. Dinit eschews D-Bus in favour of a simple
 custom control protocol.

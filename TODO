@@ -1,5 +1,9 @@
 For version 0.8.0:
 ------------------
+* for non-system init, fail if the control socket exists, with option to override this and re-
+  create the socket instead (as system init does).
+* Check that desired_state is getting set correctly. (Currently we don't decide whether a service
+  will restart until it stops...)
 * provide a way to check configuration for errors (dinitcheck command) [DONE]
 * Easy way to reload service description (including if service is running, where possible).
 * report process launch failure reason (stage & errno) via dinitctl.
@@ -13,11 +17,12 @@ For version 0.9.+:
 * Service description sanity checks:
   - Service type not specified
     - maybe default to 'internal' if command not specified
-  - service command not specified
+    - if command specified but type not, report an error
+    - other checks?
   - errors should also be reported by dinitcheck
 
-For version 1.0:
-----------------
+For version 1.0 (i.e. longer-term plans):
+-----------------------------------------
 * Service description parse errors should report line number
 * dinitcheck should perform lint checks - do named files exist? etc
 * Limit memory use by control connections. Currently clients can queue commands without limit.
@@ -35,8 +40,8 @@ For version 1.0:
 * Chaining of service process input/output?
 * Be able to boot and shutdown Linux and FreeBSD (or OpenBSD).
 
-For later:
-----------
+For later (post 1.0):
+---------------------
 * On linux when running with PID != 1, write PID to /proc/sys/kernel/cad_pid so
   that we still receive SIGINT from ctrl+alt+del (must be done after /proc is
   mounted, possibly could be left to a service script)

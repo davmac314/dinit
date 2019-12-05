@@ -83,7 +83,7 @@ shutdown.cc - shutdown/halt/reboot utility
 Testing
 -------
 
-The tests work by mocking out parts of Dinit, and some system calls, in order to isolate
+The unit tests work by mocking out parts of Dinit, and some system calls, in order to isolate
 functional units. In the src/tests/test-includes directory are three mock headers. When compiling
 tests, the src/tests/includes directory is populated with (linked) copies of the standard headers
 from src/include, but with mocked headers taken from src/tests/test-includes instead.
