@@ -1,3 +1,16 @@
+== Version 0.8.0
+
+This release includes major usability features.
+
+* New command "dinitcheck" checks service descriptions for errors (without attempting to load
+  or start the service). Checks the named service(s) and any dependencies.
+* Service descriptions can now be reloaded, using "dinitctl reload <service-name>". This works
+  for services which are started, with some restrictions, and for services which are stopped,
+  and allows dependencies to be altered.
+* dinitctl now defaults to the system process socket location when run as root. This means that
+  using '-s' is no longer necessary (it is still supported for backwards compatibility). A new
+  '-u' option can be used to communicate with the user daemon, if there is one.
+
 == Version 0.7.0
 
 This release adds a minor feature, and includes a re-work of some base functionality
