@@ -11,4 +11,4 @@ clean:
 	rm -f restart/basic-ran
 	rm -f check-basic/output.txt check-cycle/output.txt
 	rm -rf reload1/sd
-    rm -rf reload2/sd
+	rm -rf reload2/sd
