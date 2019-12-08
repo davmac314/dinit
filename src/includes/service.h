@@ -953,6 +953,25 @@ class dirload_service_set : public service_set
 {
     service_dir_pathlist service_dirs;
 
+    // Implementation of service load/reload.
+    // Find a service record, or load it from file. If the service has dependencies, load those also.
+    //
+    // If reload_svc != nullptr, then reload the specified service (with name specified by name). The return
+    // points to the new service, which may be a new service record, in which case the caller must remove
+    // the original record.
+    //
+    // If avoid_circular != nullptr (but reload_svc == nullptr), and if the service name refers to the
+    // service referred to by avoid_circular, a circular dependency is recognised. (A circular dependency
+    // is otherwise recognised on services as they are loading; this mechanism should be used when
+    // reloading a service, to prevent new dependencies forming on the original service).
+    //
+    // Throws service_load_exc (or subclass) if a dependency cycle is found or if another
+    // problem occurs (I/O error, service description not found etc). Throws std::bad_alloc
+    // if a memory allocation failure occurs.
+    //
+    service_record *load_reload_service(const char *name, service_record *reload_svc,
+            const service_record *avoid_circular);
+
     public:
     dirload_service_set() : service_set()
     {

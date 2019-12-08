@@ -113,186 +113,14 @@ static void process_dep_dir(dirload_service_set &sset,
     closedir(depdir);
 }
 
-// Find a service record, or load it from file. If the service has dependencies, load those also.
-//
-// Throws service_load_exc (or subclass) if a dependency cycle is found or if another
-// problem occurs (I/O error, service description not found etc). Throws std::bad_alloc
-// if a memory allocation failure occurs.
-//
 service_record * dirload_service_set::load_service(const char * name, const service_record *avoid_circular)
 {
-    using std::string;
-    using std::ifstream;
-    using std::ios;
-    using std::ios_base;
-    using std::locale;
-    using std::isspace;
-    
-    using std::list;
-    using std::pair;
-    
-    using namespace dinit_load;
+    return load_reload_service(name, nullptr, avoid_circular);
+}
 
-    // First try and find an existing record...
-    service_record * rval = find_service(string(name));
-    if (rval != nullptr) {
-        if (rval == avoid_circular || rval->is_dummy()) {
-            throw service_cyclic_dependency(name);
-        }
-        return rval;
-    }
-
-    ifstream service_file;
-    string service_filename;
-
-    // Couldn't find one. Have to load it.
-    for (auto &service_dir : service_dirs) {
-        service_filename = service_dir.get_dir();
-        if (*(service_filename.rbegin()) != '/') {
-            service_filename += '/';
-        }
-        service_filename += name;
-
-        service_file.open(service_filename.c_str(), ios::in);
-        if (service_file) break;
-    }
-    
-    if (! service_file) {
-        throw service_not_found(string(name));
-    }
-
-    service_settings_wrapper<prelim_dep> settings;
-
-    string line;
-    // getline can set failbit if it reaches end-of-file, we don't want an exception in that case. There's
-    // no good way to handle an I/O error however, so we'll have exceptions thrown on badbit:
-    service_file.exceptions(ios::badbit);
-    
-    // Add a dummy service record now to prevent infinite recursion in case of cyclic dependency.
-    // We replace this with the real service later (or remove it if we find a configuration error).
-    rval = new service_record(this, string(name));
-    add_service(rval);
-    
-    try {
-        process_service_file(name, service_file,
-                [&](string &line, string &setting, string_iterator &i, string_iterator &end) -> void {
-
-            auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
-                    dependency_type dep_type) -> void {
-                process_dep_dir(*this, name, service_filename, deplist, waitsford, dep_type, avoid_circular);
-            };
-
-            auto load_service_n = [&](const string &dep_name) -> service_record * {
-                return load_service(dep_name.c_str(), avoid_circular);
-            };
-
-            process_service_line(settings, name, line, setting, i, end, load_service_n, process_dep_dir_n);
-        });
-
-        service_file.close();
-        
-        auto service_type = settings.service_type;
-
-        if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS
-                || service_type == service_type_t::SCRIPTED) {
-            if (settings.command.length() == 0) {
-                throw service_description_exc(name, "Service command not specified");
-            }
-        }
-        
-        // Now replace the dummy service record with a real record:
-        for (auto iter = records.begin(); iter != records.end(); iter++) {
-            if (*iter == rval) {
-                // We've found the dummy record
-                delete rval;
-                if (service_type == service_type_t::PROCESS) {
-                    do_env_subst(settings.command, settings.command_offsets, settings.do_sub_vars);
-                    auto rvalps = new process_service(this, string(name), std::move(settings.command),
-                            settings.command_offsets, settings.depends);
-                    rvalps->set_working_dir(settings.working_dir);
-                    rvalps->set_env_file(settings.env_file);
-                    rvalps->set_rlimits(std::move(settings.rlimits));
-                    rvalps->set_restart_interval(settings.restart_interval, settings.max_restarts);
-                    rvalps->set_restart_delay(settings.restart_delay);
-                    rvalps->set_stop_timeout(settings.stop_timeout);
-                    rvalps->set_start_timeout(settings.start_timeout);
-                    rvalps->set_extra_termination_signal(settings.term_signal);
-                    rvalps->set_run_as_uid_gid(settings.run_as_uid, settings.run_as_gid);
-                    rvalps->set_notification_fd(settings.readiness_fd);
-                    rvalps->set_notification_var(std::move(settings.readiness_var));
-                    #if USE_UTMPX
-                    rvalps->set_utmp_id(settings.inittab_id);
-                    rvalps->set_utmp_line(settings.inittab_line);
-                    #endif
-                    rval = rvalps;
-                }
-                else if (service_type == service_type_t::BGPROCESS) {
-                    do_env_subst(settings.command, settings.command_offsets, settings.do_sub_vars);
-                    auto rvalps = new bgproc_service(this, string(name), std::move(settings.command),
-                            settings.command_offsets, settings.depends);
-                    rvalps->set_working_dir(settings.working_dir);
-                    rvalps->set_env_file(settings.env_file);
-                    rvalps->set_rlimits(std::move(settings.rlimits));
-                    rvalps->set_pid_file(std::move(settings.pid_file));
-                    rvalps->set_restart_interval(settings.restart_interval, settings.max_restarts);
-                    rvalps->set_restart_delay(settings.restart_delay);
-                    rvalps->set_stop_timeout(settings.stop_timeout);
-                    rvalps->set_start_timeout(settings.start_timeout);
-                    rvalps->set_extra_termination_signal(settings.term_signal);
-                    rvalps->set_run_as_uid_gid(settings.run_as_uid, settings.run_as_gid);
-                    settings.onstart_flags.runs_on_console = false;
-                    rval = rvalps;
-                }
-                else if (service_type == service_type_t::SCRIPTED) {
-                    do_env_subst(settings.command, settings.command_offsets, settings.do_sub_vars);
-                    auto rvalps = new scripted_service(this, string(name), std::move(settings.command),
-                            settings.command_offsets, settings.depends);
-                    rvalps->set_stop_command(settings.stop_command, settings.stop_command_offsets);
-                    rvalps->set_working_dir(settings.working_dir);
-                    rvalps->set_env_file(settings.env_file);
-                    rvalps->set_rlimits(std::move(settings.rlimits));
-                    rvalps->set_stop_timeout(settings.stop_timeout);
-                    rvalps->set_start_timeout(settings.start_timeout);
-                    rvalps->set_extra_termination_signal(settings.term_signal);
-                    rvalps->set_run_as_uid_gid(settings.run_as_uid, settings.run_as_gid);
-                    rval = rvalps;
-                }
-                else {
-                    rval = new service_record(this, string(name), service_type, settings.depends);
-                }
-                rval->set_log_file(settings.logfile);
-                rval->set_auto_restart(settings.auto_restart);
-                rval->set_smooth_recovery(settings.smooth_recovery);
-                rval->set_flags(settings.onstart_flags);
-                rval->set_socket_details(std::move(settings.socket_path), settings.socket_perms,
-                        settings.socket_uid, settings.socket_gid);
-                rval->set_chain_to(std::move(settings.chain_to_name));
-                *iter = rval;
-                break;
-            }
-        }
-        
-        return rval;
-    }
-    catch (setting_exception &setting_exc)
-    {
-        // Must remove the dummy service record.
-        records.erase(std::find(records.begin(), records.end(), rval));
-        delete rval;
-        throw service_description_exc(name, std::move(setting_exc.get_info()));
-    }
-    catch (std::system_error &sys_err)
-    {
-        records.erase(std::find(records.begin(), records.end(), rval));
-        delete rval;
-        throw service_description_exc(name, sys_err.what());
-    }
-    catch (...) // (should only be std::bad_alloc)
-    {
-        records.erase(std::find(records.begin(), records.end(), rval));
-        delete rval;
-        throw;
-    }
+service_record * dirload_service_set::reload_service(service_record * service)
+{
+    return load_reload_service(service->get_name().c_str(), service, service);
 }
 
 // Update the dependencies of the specified service atomically. May fail with bad_alloc.
@@ -357,9 +185,10 @@ static void update_command_and_dependencies(base_process_service *service,
     }
 }
 
-service_record * dirload_service_set::reload_service(service_record * service)
+service_record * dirload_service_set::load_reload_service(const char *name, service_record *reload_svc,
+        const service_record *avoid_circular)
 {
-    // We have the following problems:
+    // For reload, we have the following problems:
     // - ideally want to allow changing service type, at least for stopped services. That implies creating
     //   a new (replacement) service_record object, at least in cases where the type does change.
     // - dependencies may change (including addition of new dependencies which aren't yet loaded). We need
@@ -407,8 +236,19 @@ service_record * dirload_service_set::reload_service(service_record * service)
 
     using namespace dinit_load;
 
+    if (reload_svc == nullptr) {
+        // First try and find an existing record...
+        service_record * rval = find_service(string(name));
+        if (rval != nullptr) {
+            if (rval == avoid_circular || rval->is_dummy()) {
+                throw service_cyclic_dependency(name);
+            }
+            return rval;
+        }
+    }
+
     service_record *rval = nullptr;
-    const string &name = service->get_name();
+    service_record *dummy = nullptr;
 
     ifstream service_file;
     string service_filename;
@@ -439,19 +279,26 @@ service_record * dirload_service_set::reload_service(service_record * service)
     bool create_new_record = true;
 
     try {
+        if (reload_svc == nullptr) {
+            // Add a dummy service record now to prevent infinite recursion in case of cyclic dependency.
+            // We replace this with the real service later (or remove it if we find a configuration error).
+            dummy = new service_record(this, string(name));
+            add_service(dummy);
+        }
+
         process_service_file(name, service_file,
                 [&](string &line, string &setting, string_iterator &i, string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
                     dependency_type dep_type) -> void {
-                process_dep_dir(*this, name.c_str(), service_filename, deplist, waitsford, dep_type, service);
+                process_dep_dir(*this, name, service_filename, deplist, waitsford, dep_type, reload_svc);
             };
 
             auto load_service_n = [&](const string &dep_name) -> service_record * {
-                return load_service(dep_name.c_str(), service);
+                return load_service(dep_name.c_str(), reload_svc);
             };
 
-            process_service_line(settings, name.c_str(), line, setting, i, end, load_service_n, process_dep_dir_n);
+            process_service_line(settings, name, line, setting, i, end, load_service_n, process_dep_dir_n);
         });
 
         service_file.close();
@@ -465,62 +312,65 @@ service_record * dirload_service_set::reload_service(service_record * service)
             }
         }
 
-        // Make sure settings are able to be changed/are compatible
-        if (service->get_state() != service_state_t::STOPPED) {
-            // Can not change type of a running service.
-            if (service_type != service->get_type()) {
-                throw service_description_exc(name, "Cannot change type of non-stopped service.");
-            }
-            // Can not alter a starting/stopping service, at least for now.
-            if (service->get_state() != service_state_t::STARTED) {
-                throw service_description_exc(name,
-                        "Cannot alter settings for service which is currently starting/stopping.");
-            }
+        if (reload_svc != nullptr) {
+            // Make sure settings are able to be changed/are compatible
+            service_record *service = reload_svc;
+            if (service->get_state() != service_state_t::STOPPED) {
+                // Can not change type of a running service.
+                if (service_type != service->get_type()) {
+                    throw service_description_exc(name, "Cannot change type of non-stopped service.");
+                }
+                // Can not alter a starting/stopping service, at least for now.
+                if (service->get_state() != service_state_t::STARTED) {
+                    throw service_description_exc(name,
+                            "Cannot alter settings for service which is currently starting/stopping.");
+                }
 
-            // Check validity of dependencies (if started, regular deps must be started)
-            for (auto &new_dep : settings.depends) {
-                if (new_dep.dep_type == dependency_type::REGULAR) {
-                    if (new_dep.to->get_state() != service_state_t::STARTED) {
-                        throw service_description_exc(name,
-                                std::string("Cannot add non-started dependency '")
-                                    + new_dep.to->get_name() + "'.");
+                // Check validity of dependencies (if started, regular deps must be started)
+                for (auto &new_dep : settings.depends) {
+                    if (new_dep.dep_type == dependency_type::REGULAR) {
+                        if (new_dep.to->get_state() != service_state_t::STARTED) {
+                            throw service_description_exc(name,
+                                    std::string("Cannot add non-started dependency '")
+                                        + new_dep.to->get_name() + "'.");
+                        }
                     }
                 }
-            }
 
-            // Cannot change certain flags
-            auto current_flags = service->get_flags();
-            if (current_flags.starts_on_console != settings.onstart_flags.starts_on_console
-                    || current_flags.shares_console != settings.onstart_flags.shares_console) {
-                throw service_description_exc(name, "Cannot change starts_on_console/"
-                        "shares_console flags for a running service.");
-            }
-
-            // Cannot change pid file
-            if (service->get_type() == service_type_t::BGPROCESS) {
-                auto *bgp_service = static_cast<bgproc_service *>(service);
-                if (bgp_service->get_pid_file() != settings.pid_file) {
-                    throw service_description_exc(name, "Cannot change pid_file for running service.");
+                // Cannot change certain flags
+                auto current_flags = service->get_flags();
+                if (current_flags.starts_on_console != settings.onstart_flags.starts_on_console
+                        || current_flags.shares_console != settings.onstart_flags.shares_console) {
+                    throw service_description_exc(name, "Cannot change starts_on_console/"
+                            "shares_console flags for a running service.");
                 }
-            }
 
-            // Cannot change inittab_id/inittab_line
-            #if USE_UTMPX
-                if (service->get_type() == service_type_t::PROCESS) {
-                    auto *proc_service = static_cast<process_service *>(service);
-                    auto *svc_utmp_id = proc_service->get_utmp_id();
-                    auto *svc_utmp_ln = proc_service->get_utmp_line();
-                    if (strncmp(svc_utmp_id, settings.inittab_id, proc_service->get_utmp_id_size()) != 0
-                            || strncmp(svc_utmp_ln, settings.inittab_line,
-                                    proc_service->get_utmp_line_size()) != 0) {
-                        throw service_description_exc(name, "Cannot change inittab-id or inittab-line "
-                                "settings for running service.");
+                // Cannot change pid file
+                if (service->get_type() == service_type_t::BGPROCESS) {
+                    auto *bgp_service = static_cast<bgproc_service *>(service);
+                    if (bgp_service->get_pid_file() != settings.pid_file) {
+                        throw service_description_exc(name, "Cannot change pid_file for running service.");
                     }
                 }
-            #endif
 
-            // Already started; we must replace settings on existing service record
-            create_new_record = false;
+                // Cannot change inittab_id/inittab_line
+                #if USE_UTMPX
+                    if (service->get_type() == service_type_t::PROCESS) {
+                        auto *proc_service = static_cast<process_service *>(service);
+                        auto *svc_utmp_id = proc_service->get_utmp_id();
+                        auto *svc_utmp_ln = proc_service->get_utmp_line();
+                        if (strncmp(svc_utmp_id, settings.inittab_id, proc_service->get_utmp_id_size()) != 0
+                                || strncmp(svc_utmp_ln, settings.inittab_line,
+                                        proc_service->get_utmp_line_size()) != 0) {
+                            throw service_description_exc(name, "Cannot change inittab-id or inittab-line "
+                                    "settings for running service.");
+                        }
+                    }
+                #endif
+
+                // Already started; we must replace settings on existing service record
+                create_new_record = false;
+            }
         }
 
         // Note, we need to be very careful to handle exceptions properly and roll back any changes that
@@ -534,7 +384,7 @@ service_record * dirload_service_set::reload_service(service_record * service)
                         settings.command_offsets, settings.depends);
             }
             else {
-                rvalps = static_cast<process_service *>(service);
+                rvalps = static_cast<process_service *>(reload_svc);
                 update_command_and_dependencies(rvalps, settings);
             }
             rval = rvalps;
@@ -563,7 +413,7 @@ service_record * dirload_service_set::reload_service(service_record * service)
                         settings.command_offsets, settings.depends);
             }
             else {
-                rvalps = static_cast<bgproc_service *>(service);
+                rvalps = static_cast<bgproc_service *>(reload_svc);
                 update_command_and_dependencies(rvalps, settings);
             }
             rval = rvalps;
@@ -589,7 +439,7 @@ service_record * dirload_service_set::reload_service(service_record * service)
                         settings.command_offsets, settings.depends);
             }
             else {
-                rvalps = static_cast<scripted_service *>(service);
+                rvalps = static_cast<scripted_service *>(reload_svc);
                 update_command_and_dependencies(rvalps, settings);
             }
             rval = rvalps;
@@ -608,7 +458,7 @@ service_record * dirload_service_set::reload_service(service_record * service)
                 rval = new service_record(this, string(name), service_type, settings.depends);
             }
             else {
-                rval = service;
+                rval = reload_svc;
                 update_depenencies(rval, settings);
             }
         }
@@ -621,7 +471,7 @@ service_record * dirload_service_set::reload_service(service_record * service)
                 settings.socket_uid, settings.socket_gid);
         rval->set_chain_to(std::move(settings.chain_to_name));
 
-        if (create_new_record) {
+        if (create_new_record && reload_svc != nullptr) {
             // switch dependencies to old record so that they refer to the new record
 
             // Add dependent-link for all dependencies. Add to the new service first, so we can rollback
@@ -642,29 +492,48 @@ service_record * dirload_service_set::reload_service(service_record * service)
             }
 
             // Remove dependent-link for all dependencies from the original:
-            service->prepare_for_unload();
+            reload_svc->prepare_for_unload();
 
             // Set links in all dependents to the original to point to the new service:
-            rval->get_dependents() = std::move(service->get_dependents());
+            rval->get_dependents() = std::move(reload_svc->get_dependents());
             for (auto n : rval->get_dependents()) {
                 n->set_to(rval);
             }
+        }
+
+        if (dummy != nullptr) {
+            auto iter = std::find(records.begin(), records.end(), dummy);
+            *iter = rval;
+            delete dummy;
         }
 
         return rval;
     }
     catch (setting_exception &setting_exc)
     {
+        // Must remove the dummy service record.
+        if (dummy != nullptr) {
+            records.erase(std::find(records.begin(), records.end(), rval));
+            delete dummy;
+        }
         if (create_new_record) delete rval;
         throw service_description_exc(name, std::move(setting_exc.get_info()));
     }
     catch (std::system_error &sys_err)
     {
+        if (dummy != nullptr) {
+            records.erase(std::find(records.begin(), records.end(), rval));
+            delete dummy;
+        }
         if (create_new_record) delete rval;
         throw service_description_exc(name, sys_err.what());
     }
     catch (...) // (should only be std::bad_alloc / service_description_exc)
     {
+        if (dummy != nullptr) {
+            records.erase(std::find(records.begin(), records.end(), rval));
+            delete dummy;
+        }
         if (create_new_record) delete rval;
         throw;
     }
