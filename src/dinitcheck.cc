@@ -204,6 +204,13 @@ int main(int argc, char **argv)
 
     // TODO additional: check chain-to, other lint
 
+    if (! errors_found) {
+        std::cout << "No problems found.\n";
+    }
+    else {
+        std::cout << "One or more errors found.\n";
+    }
+
     return errors_found ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 

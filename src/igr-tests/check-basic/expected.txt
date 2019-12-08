@@ -3,3 +3,4 @@ Service 'boot': Unknown setting: 'not-valid'.
 Service 'boot': run-as: Specified user id contains invalid numeric characters or is outside allowed range.
 Checking service: test1...
 Unable to load service 'test1': Service description not found.
+One or more errors found.
