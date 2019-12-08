@@ -40,8 +40,8 @@ static int check_load_reply(int socknum, cpbuffer_t &, handle_t *handle_p, servi
 static int start_stop_service(int socknum, cpbuffer_t &, const char *service_name, command_t command,
         bool do_pin, bool do_force, bool wait_for_service, bool verbose);
 static int unpin_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
-static int unload_service(int socknum, cpbuffer_t &, const char *service_name);
-static int reload_service(int socknum, cpbuffer_t &, const char *service_name);
+static int unload_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
+static int reload_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
 static int list_services(int socknum, cpbuffer_t &);
 static int shutdown_dinit(int soclknum, cpbuffer_t &);
 static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, const char *service_from,
@@ -359,10 +359,10 @@ int main(int argc, char **argv)
             return unpin_service(socknum, rbuffer, service_name, verbose);
         }
         else if (command == command_t::UNLOAD_SERVICE) {
-            return unload_service(socknum, rbuffer, service_name);
+            return unload_service(socknum, rbuffer, service_name, verbose);
         }
         else if (command == command_t::RELOAD_SERVICE) {
-            return reload_service(socknum, rbuffer, service_name);
+            return reload_service(socknum, rbuffer, service_name, verbose);
         }
         else if (command == command_t::LIST_SERVICES) {
             return list_services(socknum, rbuffer);
@@ -758,7 +758,7 @@ static int unpin_service(int socknum, cpbuffer_t &rbuffer, const char *service_n
     return 0;
 }
 
-static int unload_service(int socknum, cpbuffer_t &rbuffer, const char *service_name)
+static int unload_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool verbose)
 {
     using namespace std;
 
@@ -799,11 +799,13 @@ static int unload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
         rbuffer.consume(1);
     }
 
-    cout << "Service unloaded." << endl;
+    if (verbose) {
+        cout << "Service unloaded." << endl;
+    }
     return 0;
 }
 
-static int reload_service(int socknum, cpbuffer_t &rbuffer, const char *service_name)
+static int reload_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool verbose)
 {
     using namespace std;
 
@@ -844,7 +846,9 @@ static int reload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
         rbuffer.consume(1);
     }
 
-    cout << "Service reloaded." << endl;
+    if (verbose) {
+        cout << "Service reloaded." << endl;
+    }
     return 0;
 }
 
