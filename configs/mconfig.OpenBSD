@@ -14,3 +14,6 @@ LDFLAGS=
 BUILD_SHUTDOWN=no
 SANITIZEOPTS=
 # (shutdown command not available for OpenBSD yet).
+
+# Notes:
+#   -fno-rtti (optional) : Dinit does not require C++ Run-time Type Information

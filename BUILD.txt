@@ -5,10 +5,10 @@ Building Dinit should be a straight-forward process. It requires GNU make and a 
 (GCC version 4.9 and later, or Clang ~5.0 and later, should be fine)
 
 On the directly supported operating systems - Linux, OpenBSD, FreeBSD and Darwin (macOS) - a
-suitable build configuration is provided and should be used automatically. For other systems,
-or to fine tune or correct the configuration, create and edit the "mconfig" file (start by
-copying one for a particular OS from the "configs" directory) to choose appropriate values for
-the configuration variables defined within. In particular:
+suitable build configuration is provided and will be used automatically if no manual configuration
+is supplied. For other systems, or to fine tune or correct the configuration, create and edit the
+"mconfig" file (start by copying one for a particular OS from the "configs" directory) to choose
+appropriate values for the configuration variables defined within. In particular:
 
   CXX : should be set to the name of the C++ compiler (and link driver)
   CXXOPTS :  are options passed to the compiler during compilation (see note for GCC below)
@@ -27,6 +27,27 @@ GNU make, such as on most BSD systems):
 If everything goes smoothly this will build dinit, dinitctl, and optionally the shutdown
 utility. Use "make install" to install; you can specify an alternate installation by
 setting the "DESTDIR" variable, eg "make DESTDIR=/tmp/temporary-install-path install".
+
+
+Recommended Compiler options
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+Dinit should generally build fine with no additional options, other than:
+ -std=c++11 :  may be required to select correct C++ standard.
+ -D_GLIBCXX_USE_CXX11_ABI=1 :   see "Special note for GCC/Libstdc++", below. Not needed for
+                                most modern systems.
+
+Recommended options, supported by at least GCC and Clang, are:
+ -Os       : optimise for size
+ -fno-rtti : disable RTTI (run-time type information), it is not required by Dinit.
+             However, on some platforms such as Mac OS (and historically FreeBSD, IIRC), this
+             prevents exceptions working correctly.
+ -fno-plt  : enables better code generation for non-static builds, but may cause unit test
+             failures on some older versions of FreeBSD (11.2-RELEASE-p4 with clang++ 6.0.0).
+ -flto     : perform link-time optimisation (option required at compile and link).
+
+Consult compiler documentation for further information on the above options.
+
 
 Other configuration variables
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=
