@@ -49,14 +49,14 @@ template <int N> class static_membuf
     template <typename T>
     static_membuf(const T &val)
     {
-        static_assert(sizeof(T) == N);
+        static_assert(sizeof(T) == N, "must initialise with object of correct size");
         memcpy(buf, &val, N);
     }
 
     template <int M, typename T>
     static_membuf(char (&prevbuf)[M], const T &val)
     {
-        static_assert(M + sizeof(T) == N);
+        static_assert(M + sizeof(T) == N, "size is not correct");
         memcpy(buf, prevbuf, M);
         memcpy(buf + M, &val, sizeof(val));
     }

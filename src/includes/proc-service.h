@@ -446,8 +446,8 @@ class process_service : public base_process_service
         return inittab_line;
     }
 
-    constexpr size_t get_utmp_id_size() { return sizeof(inittab_id); }
-    constexpr size_t get_utmp_line_size() { return sizeof(inittab_line); }
+    constexpr size_t get_utmp_id_size() const { return sizeof(inittab_id); }
+    constexpr size_t get_utmp_line_size() const { return sizeof(inittab_line); }
 
 #endif
 
