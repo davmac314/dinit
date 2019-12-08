@@ -138,7 +138,8 @@ equivalent to doing a proper unload/reload; some altered settings may not take e
 restarted, and some cannot be changed at all while the service is running.
 
 In particular, the type of a running service cannot be changed; nor can the \fBinittab-id\fR, \fBinittab-line\fR,
-or \fBpid-file\fR settings, or the \fBruns-on-console\fR or \fBshares-console\fR flags.
+or \fBpid-file\fR settings, or the \fBruns-on-console\fR or \fBshares-console\fR flags. If any hard dependencies
+are added to a running service, the dependencies must already be started.
 .TP
 \fBlist\fR
 List loaded services and their state. Before each service, one of the following state indicators is
