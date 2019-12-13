@@ -118,12 +118,12 @@ static inline void log_service_stopped(const std::string &str) noexcept
 
 // It's not intended that methods in this namespace be called directly:
 namespace dinit_log {
-    template <typename A> static inline void log_parts(A a) noexcept
+    template <typename A> static inline void log_parts(const A &a) noexcept
     {
         log_msg_end(a);
     }
 
-    template <typename A, typename ...B> static inline void log_parts(A a, B... b) noexcept
+    template <typename A, typename ...B> static inline void log_parts(const A &a, const B & ...b) noexcept
     {
         log_msg_part(a);
         log_parts(b...);
@@ -131,13 +131,7 @@ namespace dinit_log {
 }
 
 // Variadic 'log' method.
-template <typename A, typename ...B> static inline void log(loglevel_t lvl, bool log_cons, A a, B ...b) noexcept
-{
-    log_msg_begin(lvl, a);
-    dinit_log::log_parts(b...);
-}
-
-template <typename A, typename ...B> static inline void log(loglevel_t lvl, A a, B ...b) noexcept
+template <typename A, typename ...B> static inline void log(loglevel_t lvl, const A &a, const B & ...b) noexcept
 {
     log_msg_begin(lvl, a);
     dinit_log::log_parts(b...);

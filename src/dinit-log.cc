@@ -424,7 +424,7 @@ void log(loglevel_t lvl, bool to_cons, const char *msg) noexcept
 }
 
 // Log part of a message. A series of calls to do_log_part must be followed by a call to do_log_commit.
-template <typename T> static void do_log_part(int idx, T arg) noexcept
+static void do_log_part(int idx, const char *arg) noexcept
 {
     if (log_current_line[idx]) {
         int amount = sum_length(arg);
