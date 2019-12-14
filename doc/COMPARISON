@@ -1,12 +1,74 @@
 Comparison of Dinit with other supervision / init systems
 =========================================================
 
-This is intended to be an objective description of the differences between
-Dinit and several other similar software packages. Due to a myriad of details,
-it is difficult to provide a very meaningful comparison without going into
-great detail (which this document does not). It does, however, serve as a
-short survey of service supervision and init systems, and provides a starting
-point for understanding the unique features of Dinit.
+This is intended to be an objective description of the differences between Dinit and several
+other similar software packages. Due to a myriad of details, it is difficult to provide a very
+meaningful comparison without going into great detail (which this document does not). It does,
+however, serve as a short survey of service supervision and init systems, and provides a starting
+point for understanding the unique features of, and ideas embodied in, the Dinit system.
+
+Tenets of Dinit's design
+=-=-=-=-=-=-=-=-=-=-=-=-
+
+Before comparing with other systems, it's important to understand that Dinit is designed with
+certain basic principles in mind:
+
+
+1. Robustness (including allocation robustness)
+
+Dinit is intended to be able to be used as an "init" process, the special process that runs with
+PID 1 and is the first user-space process launched by the kernel (details may vary according to
+operating system). An important attribute of an init is that it is robust - that is, it doesn't
+crash or otherwise terminate, even in situations where many other programs might. The reason for
+this is that a terminating init process may cause the kernel to panic, and crash the whole system.
+
+One situation that Dinit must be able to handle robustly is memory allocation failure, i.e.
+running out of memory. Many programs do not handle this gracefully, assuming that allocation will
+always succeed, or that immediate termination is a reasonable outcome in the event of allocation
+failure. Dinit instead may fail a particular operation, but should never terminate due to
+allocation failure. 
+
+Exhaustion of resources other than memory (such as file descriptors) needs to be handled
+similarly. Various Dinit operations try to pre-allocate resources, where possible, to avoid
+getting stuck in a situation where an important operation is only partially completed (for
+example: once Dinit starts a service process, it is *always* able to monitor that process). Dinit
+maintains a log buffer to avoid losing log messages when the logging daemon is overloaded or not
+yet started, but gracefully handles the buffer becoming full, making sure to output a message
+indicating that log messages may have been lost, and not outputting partial log lines.
+
+2. Service Dependencies as the Basis of System Management
+
+Dinit has a straight-forward dependency resolution model: services can depend on other
+services, and a service cannot run (or continue running) if its dependencies are not met.
+Managing services is the primary business of Dinit, and since everything Dinit does externally
+is via a service, dependencies are how system management tasks are configured. Booting, for
+example, is configured by having a single "boot" service depend on the various other services that
+should be started at boot time. Various early-boot tasks such as checking and mounting the main
+filesystem hierarchy can be configured as services, which other "long-lived" services depend on.  
+
+There are also soft dependencies ("waits-for" and "depends-ms" in Dinit configuration language)
+which do not impose such requirements, but which are useful for for system management ("start XYZ
+on boot, but do not fail to boot if XYZ cannot be started").
+
+Dependencies are, with only minor exceptions, the only relationship between services. Services
+cannot be configured to conflict with each other, for example; that kind of functionality would
+need to be managed externally (if needed at all).
+
+3. Limited Feature Scope
+
+Dinit aims to provide a basic framework for the most fundamental system management: booting,
+starting and stopping services, and shutting down. Everything else, then, is delegated to the
+services; other aspects of system management should be handled by external (or at least
+separable) packages.
+
+While there should be leeway to add features to Dinit at a later point, the guiding principle is
+that it should always be possible to build and run Dinit as a standalone service manager which
+includes functionality only for the management of services and for simple system tasks
+revolving mainly around service management (basically: boot and shutdown).
+
+
+Having considered those guiding principles, we'll now take a look at some other service managers,
+starting with those that do not perform dependency management.
 
 
 Systems without dependency management
@@ -28,61 +90,60 @@ packages do not:
  * Perp (http://b0llix.net/perp/)
  * Runit (http://smarden.org/runit/)
 
-I've read arguments that suggest dependency management isn't really needed: if a
-service really does require another, then it fail in some way when the dependency
-goes down, and should then go down itself; supervision of the service may try to
-restart it, but should use an increasing delay to avoid continuously bouncing the
-service up and down. In my opinion this could create unnecessary load, unnecessary
-delay, and noise in logs that might make it more difficult to pinpoint the cause
-of problems, though I'll acknowledge that in simpler setups these are unlikely to
-be real problems.
+I've read arguments that suggest dependency management isn't really needed: when a service
+requires another, the command to start the dependency can be included in the dependent's
+startup script; if the dependency goes down, the dependent should presumably fail in some
+way and go down itself. Supervision of the service may try to restart it, but should use an
+increasing delay to avoid continuously bouncing the service up and down. In my opinion this could
+create unnecessary load, unnecessary delay, and noise in logs that might make it more difficult to
+pinpoint the cause of problems, though I'll acknowledge that in simpler setups these are unlikely
+to be real problems. It may also make it much more difficult to see what will else will start
+when some particular service is started (or what will stop when a service is stopped).
 
-Not all services will necessarily behave as is required for this type of service
-management to work properly. An argument could be made that this is a fault of the
-particular service / daemon, but practical considerations may be in play. 
+Not all services will necessarily behave as is required for this type of service management to
+work properly. An argument could be made that this is a fault of the particular service / daemon,
+but practical considerations may be in play. 
 
-The basic problem of starting login sessions only after system initialisation has
-(at least partially) completed is naturally solved with a dependency-managing
-solution; you can have the tty sessions (getty) depend on some other service unit
-which, in turn, depends on the basic system initialisation services. In non-
-dependency-handling managers this must usually be special-cased (eg an "inittab"
-which is processed once all services have started).
+The basic problem of starting login sessions only after system initialisation has (at least
+partially) completed is naturally solved with a dependency-managing solution; you can have the tty
+sessions (getty) depend on some other service unit which, in turn, depends on the basic system
+initialisation services. In non-dependency-handling managers this must usually be special-cased
+(eg an "inittab" which is processed once all services have started).
 
-With all the above in mind, I feel that dependency management allows generally
-greater flexibility and control in how services are managed. While this might not
-always be useful, and comes at a certain cost of complexity, I argue that it is at
-least sometimes useful, and that the cost is not so high. However, to be fair,
-many systems have successfully taken the simpler approach.
+With all the above in mind, I feel that dependency management allows generally greater flexibility
+and control in how services are managed. While this might not always be useful, and comes at a
+certain cost of complexity, I argue that it is at least sometimes useful, and that the cost is not
+so high. However, to be fair, many systems have successfully taken the simpler approach.
 
-Now we'll look at some systems which *do* have dependency management: Nosh, OpenRC,
-S6-RC, Systemd, and some others.
+
+Now, we'll look at some systems which *do* have dependency management: Nosh, OpenRC, S6-RC,
+Systemd, and some others.
 
 
 Nosh suite (http://homepage.ntlworld.com/jonathan.deboynepollard/Softwares/nosh.html)
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-Another seemingly modular init system offering dependency management and socket
-activation, with BSD licensing. Service configuration is expressed through
-directory structure (symbolic links represent service dependencies, etc; 
-"start", "stop" and "run" commands are individual scripts within a service
-directory bundle). It provides a simple shell-like scripting language which can be
-used (via the "nosh" interpreter) to implement service commands without requiring
-the user of a full shell. Several "chain loading" utilities are provided to
-allow running processes in a different directory, with a different user id, with
-resource limits, etc.
+Another seemingly modular init system offering dependency management and socket activation, with
+BSD licensing. Service configuration is expressed through directory structure (symbolic links
+represent service dependencies, etc;  "start", "stop" and "run" commands are individual scripts
+within a service directory bundle). It provides a simple shell-like scripting language which can
+be used (via the "nosh" interpreter) to implement service commands without requiring the user of a
+full shell. Several "chain loading" utilities are provided to allow running processes in a
+different directory, with a different user id, with resource limits, etc.
 
-It was originally designed for BSD systems but works on Linux too (i.e. is
-portable). It does not provide a D-Bus interface. 
+It was originally designed for BSD systems but works on Linux too (i.e. is portable). It does not
+provide a D-Bus interface. 
 
-Compared to Dinit, the two most significant differences appear to be use of a
-directory structure for service configuration (Dinit uses a combination of
-directory structure and ini-style configuration file), and use of small chain
-loading utilities to implement service parameters (Dinit has a wider range of
-direct configuration options via the service description file).
+Compared to Dinit, the two most significant differences appear to be use of a directory structure
+for service configuration (Dinit uses a combination of directory structure and ini-style
+configuration file), and use of small chain loading utilities to implement service parameters
+(Dinit has a wider range of direct configuration options via the service description file).
 
 Nosh seems to be a quite mature system with a range of features that makes it
-appear competitive, feature-wise, in terms of system/servive management, with
+appear competitive, feature-wise, in terms of system/service management, with
 Systemd - though without a lot of the feature-creep extras that can easily be
 implemented separately.
+
+It is not clear to me whether Nosh is robust to allocation failure.
 
 
 OpenRC (Gentoo)
@@ -115,7 +176,9 @@ database. Services are are configured via a directory structure, with a
 one-parameter-per-file style, rather than a single service description file.
 
 As well as services, S6-RC has the concept of service "bundles", named groups
-of services that can be started/stopped as a group.
+of services that can be started/stopped as a group (Dinit also supports this via
+"internal" services, which can group other services via dependencies, though with
+slight functional differences as a result).
 
 New services cannot be added once the system is in operation, and service
 definitions cannot be changed in general, except by re-compiling the database;
@@ -143,6 +206,8 @@ on another then that service must start, and stay running. Dinit supports a numb
 of dependency types including "soft" dependencies which allow the dependency to
 stop or fail without necessarily stopping the dependent.
 
+It seems likely that S6-RC is resilient to allocation failure.
+
 
 Systemd
 -=-=-=-
@@ -161,7 +226,7 @@ Compared to Dinit, Systemd provides a range of functionality such as:
 Some of this functionality can be found in other daemons/packages which can be be used
 to supplement the functionality of Dinit or another service manager, and even in the
 case of Systemd, some of the functionality is not part of the core process (the
-actualy systemd binary).
+actual systemd binary).
 
 In Systemd terminology, it manages "units" of which services are one type. In practice
 this is an issue only of nomenclature; Dinit "services" and Systemd "units" are, I think,
@@ -222,3 +287,15 @@ systems) which allow the dependencies of a service to be specified declaratively
 
 Upstart apparently offers a D-Bus interface. Dinit eschews D-Bus in favour of a simple
 custom control protocol.
+
+
+GNU Shepherd (https://www.gnu.org/software/shepherd/)
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+This is the init system / service manager used in Guix. It is written in Guile, an interpreted
+language which is most likely not robust to allocation failure.
+
+The service descriptions are also written in Guile, though the API is designed to make it easy
+to define services without any programming knowledge.
+
+The documentation for GNU Shepherd is currently somewhat incomplete. It appears to offer full
+dependency management however.
