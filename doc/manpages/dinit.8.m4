@@ -172,7 +172,7 @@ and exit Dinit; SIGQUIT exits Dinit immediately.
 .\"
 .SH SEE ALSO
 .\"
-\fBdinitctl\fR(8), \fBdinit-service\fR(5).
+\fBdinitctl\fR(8), \fBdinit-service\fR(5), \fBdinitcheck\fR(8).
 .\"
 .SH AUTHOR
 Dinit, and this manual, were written by Davin McCall.
