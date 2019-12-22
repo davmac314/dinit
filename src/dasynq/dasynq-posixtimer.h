@@ -1,5 +1,6 @@
 #include <vector>
 #include <utility>
+#include <cstdlib>
 
 #include <sys/time.h>
 #include <time.h>
@@ -70,7 +71,7 @@ class posix_timer_events : public timer_base<Base>
         }
     }
 
-    timer_t &timer_for_clock(clock_type clock)
+    timer_t &timer_for_clock(clock_type clock) noexcept
     {
         switch (clock) {
         case clock_type::MONOTONIC:
@@ -79,6 +80,7 @@ class posix_timer_events : public timer_base<Base>
             return real_timer;
         default:
             DASYNQ_UNREACHABLE;
+            std::abort();
         }
     }
 

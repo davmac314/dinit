@@ -9,6 +9,7 @@
 // The generation counter is a 64-bit integer and can not realistically overflow.
 
 #include <functional>
+#include <utility>
 
 namespace dasynq {
 
@@ -73,7 +74,7 @@ class stable_heap : private H<T,stable_prio<P>,compare_stable_prio<P,C>>
 
     template <typename ...U> void allocate(handle_t & hnd, U&& ...u)
     {
-        Base::allocate(hnd, u...);
+        Base::allocate(hnd, std::forward<U>(u)...);
     }
 
     static void init_handle(handle_t &hndl)

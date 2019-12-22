@@ -1,22 +1,46 @@
-#ifndef DASYNC_DARYHEAP_H_INCLUDED
-#define DASYNC_DARYHEAP_H_INCLUDED
+#ifndef DASYNQ_DARYHEAP_H_INCLUDED
+#define DASYNQ_DARYHEAP_H_INCLUDED
 
-#include "dasynq-svec.h"
 #include <type_traits>
 #include <functional>
+#include <utility>
 #include <limits>
+
+#include "dasynq-svec.h"
+
 
 namespace dasynq {
 
 /**
- * Priority queue implementation based on a binary heap.
+ * Priority queue implementation based on a heap with parameterised fan-out. All nodes are stored
+ * in a vector, with the root at position 0, and each node has N child nodes, at positions
+ * (p * N + 1) through (p * N + N) where p is the (parent) node position.
  *
- * Heap entry "handles" maintain an index into the heap. When the position of a node in the heap
- * changes, its handle must be updated.
+ * With N=2, this is a binary heap. Higher values of N may give better performance due to better
+ * cache locality, but also increase fan-out which will (if too high) also reduce performance.
+ *
+ * The destructor will not clean up (destruct) objects that have been added to the queue. If the
+ * destructor of the element type (T) is non-trivial, all handles should be de-allocated before
+ * destroying the queue.
+ *
+ * Implementation details:
+ *
+ * Adding a node returns a "handle", which maintains an index into the heap. When the position of
+ * a node in the heap changes, its handle must be updated (the advantage is that changing priority
+ * of or removing a node does not require a linear search for the node).
+ *
+ * Node data is actually stored as part of the handle, not in the queue.
+ *
+ * To add a node to the queue, it is inserted at the end and then "bubbled down" to its correct
+ * location according to priority. To removing a node, the node is replaced with the last node in
+ * the vector and then that is "bubbled up" to the correct position.
+ *
+ * Parameters:
  *
  * T : node data type
  * P : priority type (eg int)
  * Compare : functional object type to compare priorities
+ * N : fan out factor (number of child nodes per node)
  */
 template <typename T, typename P, typename Compare = std::less<P>, int N = 4>
 class dary_heap
@@ -27,14 +51,17 @@ class dary_heap
 
     private:
 
+    static_assert(std::is_nothrow_move_assignable<P>::value, "P must be no-except move assignable");
+
     // Actual heap node
     class heap_node
     {
         public:
-        P data;
-        handle_t * hnd_p;
+        P prio;
+        handle_t * hnd;
 
-        heap_node(handle_t * hnd, const P &odata) : data(odata), hnd_p(hnd)
+        heap_node(handle_t * hnd_p, const P &prio_p) noexcept(std::is_nothrow_copy_constructible<P>::value)
+            : prio(prio_p), hnd(hnd_p)
         {
             // nothing to do
         }
@@ -81,31 +108,30 @@ class dary_heap
 
     private:
 
-    // Bubble a newly added timer down to the correct position
+    // Bubble a newly added node down to the correct position
     bool bubble_down(hindex_t pos) noexcept
     {
-        handle_t * ohndl = hvec[pos].hnd_p;
-        P op = hvec[pos].data;
+        handle_t * ohndl = hvec[pos].hnd;
+        P op = hvec[pos].prio;
         return bubble_down(pos, ohndl, op);
     }
 
     bool bubble_down(hindex_t pos, handle_t * ohndl, const P &op) noexcept
     {
-        // int pos = v.size() - 1;
         Compare lt;
         while (pos > 0) {
             hindex_t parent = (pos - 1) / N;
-            if (! lt(op, hvec[parent].data)) {
+            if (! lt(op, hvec[parent].prio)) {
                 break;
             }
 
-            hvec[pos] = hvec[parent];
-            hvec[pos].hnd_p->heap_index = pos;
+            hvec[pos] = std::move(hvec[parent]);
+            hvec[pos].hnd->heap_index = pos;
             pos = parent;
         }
 
-        hvec[pos].hnd_p = ohndl;
-        hvec[pos].data = op;
+        hvec[pos].hnd = ohndl;
+        hvec[pos].prio = std::move(op);
         ohndl->heap_index = pos;
 
         return pos == 0;
@@ -113,8 +139,8 @@ class dary_heap
 
     void bubble_up(hindex_t pos = 0) noexcept
     {
-        P p = hvec[pos].data;
-        handle_t &h = *(hvec[pos].hnd_p);
+        P p = hvec[pos].prio;
+        handle_t &h = *(hvec[pos].hnd);
         bubble_up(pos, h, p);
     }
 
@@ -129,34 +155,35 @@ class dary_heap
         hindex_t max = (rmax - 1) / N;
 
         while (pos <= max) {
+            // Find (select) the smallest child node
             hindex_t lchild = pos * N + 1;
             hindex_t selchild = lchild;
             hindex_t rchild = std::min(lchild + N, rmax);
             for (hindex_t i = lchild + 1; i < rchild; i++) {
-                if (lt(hvec[i].data, hvec[selchild].data)) {
+                if (lt(hvec[i].prio, hvec[selchild].prio)) {
                     selchild = i;
                 }
             }
 
-            if (! lt(hvec[selchild].data, p)) {
+            if (! lt(hvec[selchild].prio, p)) {
                 break;
             }
 
-            hvec[pos] = hvec[selchild];
-            hvec[pos].hnd_p->heap_index = pos;
+            hvec[pos] = std::move(hvec[selchild]);
+            hvec[pos].hnd->heap_index = pos;
             pos = selchild;
         }
 
-        hvec[pos].hnd_p = &h;
-        hvec[pos].data = p;
+        hvec[pos].hnd = &h;
+        hvec[pos].prio = std::move(p);
         h.heap_index = pos;
     }
 
     void remove_h(hindex_t hidx) noexcept
     {
-        hvec[hidx].hnd_p->heap_index = -1;
+        hvec[hidx].hnd->heap_index = -1;
         if (hvec.size() != hidx + 1) {
-            bubble_up(hidx, *(hvec.back().hnd_p), hvec.back().data);
+            bubble_up(hidx, *(hvec.back().hnd), hvec.back().prio);
             hvec.pop_back();
         }
         else {
@@ -173,12 +200,13 @@ class dary_heap
 
     // Allocate a slot, but do not incorporate into the heap:
     //  u... : parameters for data constructor T::T(...)
-    template <typename ...U> void allocate(handle_t & hnd, U... u)
+    template <typename ...U> void allocate(handle_t & hnd, U&&... u)
     {
-        new (& hnd.hd_u.hd) T(u...);
+        new (& hnd.hd_u.hd) T(std::forward<U>(u)...);
         hnd.heap_index = -1;
-        constexpr hindex_t max_allowed = std::numeric_limits<hindex_t>::is_signed ?
-                std::numeric_limits<hindex_t>::max() : ((hindex_t) - 2);
+
+        // largest object size is PTRDIFF_MAX, so we expect the largest vector is that / sizeof node:
+        constexpr hindex_t max_allowed = (std::numeric_limits<ptrdiff_t>::max() - 1) / sizeof(heap_node);
 
         if (num_nodes == max_allowed) {
             throw std::bad_alloc();
@@ -224,57 +252,57 @@ class dary_heap
     bool insert(handle_t & hnd, const P &pval) noexcept
     {
         hnd.heap_index = hvec.size();
-        //hvec.emplace_back(&hnd, pval);
+        // emplace an empty node; data/prio will be stored via bubble_down.
         hvec.emplace_back();
         return bubble_down(hvec.size() - 1, &hnd, pval);
     }
 
     // Get the root node handle. (Returns a handle_t or reference to handle_t).
-    handle_t & get_root()
+    handle_t & get_root() noexcept
     {
-        return * hvec[0].hnd_p;
+        return * hvec[0].hnd;
     }
 
-    P &get_root_priority()
+    P &get_root_priority() noexcept
     {
-        return hvec[0].data;
+        return hvec[0].prio;
     }
 
-    void pull_root()
+    void pull_root() noexcept
     {
         remove_h(0);
     }
 
-    void remove(handle_t & hnd)
+    void remove(handle_t & hnd) noexcept
     {
         remove_h(hnd.heap_index);
     }
 
-    bool empty()
+    bool empty() noexcept
     {
         return hvec.empty();
     }
 
-    bool is_queued(handle_t & hnd)
+    bool is_queued(handle_t & hnd) noexcept
     {
         return hnd.heap_index != (hindex_t) -1;
     }
 
     // Set a node priority. Returns true iff the node becomes the root node (and wasn't before).
-    bool set_priority(handle_t & hnd, const P& p)
+    bool set_priority(handle_t & hnd, const P& p) noexcept
     {
         int heap_index = hnd.heap_index;
 
         Compare lt;
-        if (lt(hvec[heap_index].data, p)) {
+        if (lt(hvec[heap_index].prio, p)) {
             // Increase key
-            hvec[heap_index].data = p;
+            hvec[heap_index].prio = p;
             bubble_up(heap_index);
             return false;
         }
         else {
             // Decrease key
-            hvec[heap_index].data = p;
+            hvec[heap_index].prio = p;
             return bubble_down(heap_index);
         }
     }

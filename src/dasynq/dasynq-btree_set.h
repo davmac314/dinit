@@ -2,6 +2,7 @@
 #define DASYNQ_BTREE_SET_H
 
 #include <functional>
+#include <utility>
 
 namespace dasynq {
 
@@ -87,7 +88,7 @@ class btree_set
     {
         union nodedata_u
         {
-            T data; // TODO this should be obscured to avoid early construction
+            T data;
 
             nodedata_u() {}
         };
@@ -296,10 +297,10 @@ class btree_set
     }
 
     // Allocate a slot, but do not incorporate into the heap:
-    template <typename ...U> void allocate(handle_t &hn, U... u)
+    template <typename ...U> void allocate(handle_t &hn, U&&... u)
     {
         alloc_slot();
-        new (& hn.nodedata.data) T(u...);
+        new (& hn.nodedata.data) T(std::forward<U>(u)...);
     }
 
     void deallocate(handle_t & hn) noexcept

@@ -21,7 +21,6 @@ class svector
         T elem;
 
         vec_node() { }
-        ~vec_node() { }
     };
 
     vec_node * array;

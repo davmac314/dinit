@@ -262,8 +262,7 @@ template <class Base> class pselect_events : public signal_events<Base, false>
                     this->sigmaskf(SIG_SETMASK, &sigmask, &origmask);
                     this->sigmaskf(SIG_SETMASK, &origmask, nullptr);
                 }
-
-                if (r == 0 && do_wait) {
+                else {
                     // timeout:
                     Base::lock.lock();
                     this->process_monotonic_timers();
