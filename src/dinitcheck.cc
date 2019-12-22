@@ -86,7 +86,7 @@ int main(int argc, char **argv)
                         return 1;
                     }
                 }
-                else if (strcmp(argv[i], "--help")) {
+                else if (strcmp(argv[i], "--help") == 0) {
                     cout << "dinitcheck: check dinit service descriptions\n"
                             " --help                       display help\n"
                             " --services-dir <dir>, -d <dir>\n"
