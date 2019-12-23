@@ -71,6 +71,7 @@ int main(int argc, char **argv)
     cout << "\n// Constants\n";
     cout << "constexpr static char SYSCONTROLSOCKET[] = " << stringify(vars["SYSCONTROLSOCKET"]) << ";\n";
     cout << "constexpr static char SBINDIR[] = " << stringify(vars["SBINDIR"]) << ";\n";
+    cout << "constexpr static char SHUTDOWN_PREFIX[] = " << stringify(vars["SHUTDOWN_PREFIX"]) << ";\n";
 
     cout << "\n#endif\n";
     return 0;

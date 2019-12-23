@@ -63,7 +63,12 @@ SYSCONTROLSOCKET=...
 BUILD_SHUTDOWN=yes|no
     Whether to build the "shutdown" (and "halt" etc) utilities. These are only useful
     if dinit is the system init (i.e. the PID 1 process). You probably don't want this
-    unless building for Linux. 
+    unless building for Linux.
+SHUTDOWN_PREFIX=...
+    Name prefix for "shutdown", "halt" and "reboot" commands (if they are built). This affects
+    both the output, and what command dinit will execute as part of system shutdown.
+    If you want to install Dinit alongside another init system with its own shutdown/halt/reboot
+    commands, set this (for eg. to "dinit-").
 USE_UTMPX=1|0
     Whether to build support for manipulating the utmp/utmpx database via the related POSIX
     functions. If not set to any value, support is enabled for certain systems automatically
@@ -71,6 +76,7 @@ USE_UTMPX=1|0
 SANITIZE_OPTS=...
     Any options to enable run-time sanitizers or additional safety checks. This will be used
     only when building tests. It can safely be left blank.
+
 
 Running test suite
 =-=-=-=-=-=-=-=-=-
@@ -95,6 +101,13 @@ If you get this, either disable the address sanitizer or make sure you have over
     echo 1 > /proc/sys/vm/overcommit_memory 
 
 Any test failures will abort the test suite run immediately.
+
+To run the integration tests:
+
+    make check-igr
+    
+(The integration tests are more fragile than the unit tests, but give a better indication that
+Dinit will actually work correctly on your system).
 
 In addition to the standard test suite, there is experimental support for fuzzing the control
 protocol handling using LLVM/clang's fuzzer (libFuzzer). Change to the `src/tests/cptests`

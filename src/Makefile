@@ -6,7 +6,7 @@ HOSTLDFLAGS ?= $(LDFLAGS)
 STRIPOPTS ?= -s
 
 ifeq ($(BUILD_SHUTDOWN),yes)
-  SHUTDOWN=shutdown
+  SHUTDOWN=$(SHUTDOWN_PREFIX)shutdown
 endif
 
 dinit_objects = dinit.o load-service.o service.o proc-service.o baseproc-service.o control.o dinit-log.o \
@@ -27,7 +27,7 @@ all: dinit dinitctl dinitcheck $(SHUTDOWN)
 	fi
 
 includes/mconfig.h: mconfig-gen
-	./mconfig-gen SBINDIR=$(SBINDIR) SYSCONTROLSOCKET=$(SYSCONTROLSOCKET) \
+	./mconfig-gen SBINDIR=$(SBINDIR) SYSCONTROLSOCKET=$(SYSCONTROLSOCKET) SHUTDOWN_PREFIX=$(SHUTDOWN_PREFIX) \
 		$(if $(USE_UTMPX),USE_UTMPX=$(USE_UTMPX),) > includes/mconfig.h
 
 mconfig-gen: mconfig-gen.cc ../mconfig
@@ -44,8 +44,8 @@ dinitctl: dinitctl.o
 dinitcheck: dinitcheck.o options-processing.o
 	$(CXX) -o dinitcheck dinitcheck.o options-processing.o $(LDFLAGS)
 
-shutdown: shutdown.o
-	$(CXX) -o shutdown shutdown.o $(LDFLAGS)
+$(SHUTDOWNPREFIX)shutdown: shutdown.o
+	$(CXX) -o $(SHUTDOWNPREFIX)shutdown shutdown.o $(LDFLAGS)
 
 $(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) -MMD -MP -Iincludes -Idasynq -c $< -o $@
@@ -63,8 +63,8 @@ install: all
 	install -d $(DESTDIR)$(SBINDIR)
 	install $(STRIPOPTS) dinit dinitctl dinitcheck $(SHUTDOWN) $(DESTDIR)$(SBINDIR)
 ifeq ($(BUILD_SHUTDOWN),yes)
-	ln -f $(DESTDIR)$(SBINDIR)/shutdown $(DESTDIR)$(SBINDIR)/halt
-	ln -f $(DESTDIR)$(SBINDIR)/shutdown $(DESTDIR)$(SBINDIR)/reboot
+	ln -f $(DESTDIR)$(SBINDIR)/$(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWNPREFIX)halt
+	ln -f $(DESTDIR)$(SBINDIR)/$(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWNPREFIX)reboot
 endif
 
 clean:

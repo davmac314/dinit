@@ -174,7 +174,7 @@ namespace {
     log_flush_timer_t log_flush_timer;
 
     // These need to be at namespace scope to prevent causing stack allocations when using them:
-    constexpr auto shutdown_exec = literal(SBINDIR) + "/" + "shutdown";
+    constexpr auto shutdown_exec = literal(SBINDIR) + "/" + SHUTDOWN_PREFIX + "shutdown";
     constexpr auto error_exec_sd = literal("Error executing ") + shutdown_exec + ": ";
 }
 
