@@ -172,6 +172,10 @@ namespace {
     control_socket_watcher control_socket_io;
     console_input_watcher console_input_io;
     log_flush_timer_t log_flush_timer;
+
+    // These need to be at namespace scope to prevent causing stack allocations when using them:
+    constexpr auto shutdown_exec = literal(SBINDIR) + "/" + "shutdown";
+    constexpr auto error_exec_sd = literal("Error executing ") + shutdown_exec + ": ";
 }
 
 // Main entry point
@@ -494,10 +498,8 @@ int dinit_main(int argc, char **argv)
         }
         
         // Fork and execute dinit-reboot.
-        constexpr auto shutdown_exec = literal(SBINDIR) + "/shutdown";
         execl(shutdown_exec.c_str(), shutdown_exec.c_str(), "--system", cmd_arg, nullptr);
-        log(loglevel_t::ERROR, (literal("Could not execute ") + SBINDIR + "/shutdown: ").c_str(),
-                strerror(errno));
+        log(loglevel_t::ERROR, error_exec_sd, strerror(errno));
         
         // PID 1 must not actually exit, although we should never reach this point:
         while (true) {
@@ -847,9 +849,8 @@ static void sigquit_cb(eventloop_t &eloop) noexcept
 {
     // This performs an immediate shutdown, without service rollback.
     close_control_socket();
-    constexpr auto shutdown_exec = literal(SBINDIR) + "/shutdown";
     execl(shutdown_exec.c_str(), shutdown_exec.c_str(), "--system", (char *) 0);
-    log(loglevel_t::ERROR, literal("Error executing ") + SBINDIR + "/sbin/shutdown: ", strerror(errno));
+    log(loglevel_t::ERROR, error_exec_sd, strerror(errno));
     sync(); // since a hard poweroff might be required at this point...
 }
 

@@ -20,6 +20,10 @@
 // string, or simply assign or cast to a 'const char *':
 //
 //   const char * cstr = str3; // now points to "onetwo"
+//
+// Note that to be most effective, it is necessary to construct literals at file/namespace scope.
+// If they are constructed as locals, the compiler may reconstruct the object each time the
+// function is called (i.e. it will allocate stack and copy the constant string result into it).
 
 namespace cts {
 
