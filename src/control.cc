@@ -755,8 +755,8 @@ bool control_conn_t::process_query_name()
 
     service_record *service = find_service_for_key(handle);
     if (service == nullptr || service->get_name().length() > std::numeric_limits<uint16_t>::max()) {
-        char ack_rep[] = { DINIT_RP_ACK };
-        if (! queue_packet(ack_rep, 1)) return false;
+        char nak_rep[] = { DINIT_RP_NAK };
+        return queue_packet(nak_rep, 1);
     }
 
     std::vector<char> reply;
