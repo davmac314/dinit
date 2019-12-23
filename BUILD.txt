@@ -71,8 +71,10 @@ SHUTDOWN_PREFIX=...
     commands, set this (for eg. to "dinit-").
 USE_UTMPX=1|0
     Whether to build support for manipulating the utmp/utmpx database via the related POSIX
-    functions. If not set to any value, support is enabled for certain systems automatically
-    and disabled for all others.
+    functions. This may be required (along with appropriate service configuration) for utilities
+    like "who" to work correctly (the service configuration items "inittab-id" and "inittab-line"
+    have no effect if this is disabled). If not set to any value, support is enabled for certain
+    systems automatically and disabled for all others.
 SANITIZE_OPTS=...
     Any options to enable run-time sanitizers or additional safety checks. This will be used
     only when building tests. It can safely be left blank.
