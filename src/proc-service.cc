@@ -241,7 +241,7 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
 void process_service::exec_failed(run_proc_err errcode) noexcept
 {
     log(loglevel_t::ERROR, get_name(), ": execution failed - ",
-            exec_stage_descriptions[static_cast<int>(errcode.stage)], strerror(errcode.st_errno));
+            exec_stage_descriptions[static_cast<int>(errcode.stage)], ": ", strerror(errcode.st_errno));
 
     if (notification_fd != -1) {
         readiness_watcher.deregister(event_loop);
@@ -361,7 +361,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
 void bgproc_service::exec_failed(run_proc_err errcode) noexcept
 {
     log(loglevel_t::ERROR, get_name(), ": execution failed - ",
-            exec_stage_descriptions[static_cast<int>(errcode.stage)], strerror(errcode.st_errno));
+            exec_stage_descriptions[static_cast<int>(errcode.stage)], ": ", strerror(errcode.st_errno));
 
     // Only time we execute is for startup:
     stop_reason = stopped_reason_t::EXECFAILED;
@@ -455,7 +455,7 @@ void scripted_service::handle_exit_status(bp_sys::exit_status exit_status) noexc
 void scripted_service::exec_failed(run_proc_err errcode) noexcept
 {
     log(loglevel_t::ERROR, get_name(), ": execution failed - ",
-            exec_stage_descriptions[static_cast<int>(errcode.stage)], strerror(errcode.st_errno));
+            exec_stage_descriptions[static_cast<int>(errcode.stage)], ": ", strerror(errcode.st_errno));
     auto service_state = get_state();
     if (service_state == service_state_t::STARTING) {
         stop_reason = stopped_reason_t::EXECFAILED;
