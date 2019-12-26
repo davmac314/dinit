@@ -214,10 +214,15 @@ int main(int argc, char **argv)
     return errors_found ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
+static void report_service_description_err(const std::string &service_name, const std::string &what)
+{
+    std::cerr << "Service '" << service_name << "': " << what << "\n";
+    errors_found = true;
+}
+
 static void report_service_description_exc(service_description_exc &exc)
 {
-    std::cerr << "Service '" << exc.service_name << "': " << exc.exc_description << "\n";
-    errors_found = true;
+    report_service_description_err(exc.service_name, exc.exc_description);
 }
 
 static void report_error(std::system_error &exc, const std::string &service_name)
@@ -328,6 +333,10 @@ service_record *load_service(service_set_t &services, const std::string &name,
     {
         report_error(sys_err, name);
         return nullptr;
+    }
+
+    if (settings.service_type != service_type_t::INTERNAL && settings.command.length() == 0) {
+        report_service_description_err(name, "Service command not specified.");
     }
 
     return new service_record(name, settings.depends);
