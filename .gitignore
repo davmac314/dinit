@@ -28,6 +28,7 @@
 /src/igr-tests/check-cycle/output.txt
 /src/igr-tests/reload1/sd
 /src/igr-tests/reload2/sd
+/src/igr-tests/no-command-error/dinit-run.log
 
 # Generated man pages:
 /doc/manpages/*.5
