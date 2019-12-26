@@ -513,7 +513,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
     {
         // Must remove the dummy service record.
         if (dummy != nullptr) {
-            records.erase(std::find(records.begin(), records.end(), rval));
+            records.erase(std::find(records.begin(), records.end(), dummy));
             delete dummy;
         }
         if (create_new_record) delete rval;
@@ -522,7 +522,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
     catch (std::system_error &sys_err)
     {
         if (dummy != nullptr) {
-            records.erase(std::find(records.begin(), records.end(), rval));
+            records.erase(std::find(records.begin(), records.end(), dummy));
             delete dummy;
         }
         if (create_new_record) delete rval;
@@ -531,7 +531,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
     catch (...) // (should only be std::bad_alloc / service_description_exc)
     {
         if (dummy != nullptr) {
-            records.erase(std::find(records.begin(), records.end(), rval));
+            records.erase(std::find(records.begin(), records.end(), dummy));
             delete dummy;
         }
         if (create_new_record) delete rval;
