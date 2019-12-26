@@ -1,4 +1,3 @@
-#include <iostream>
 #include <algorithm>
 
 #include <unistd.h>
@@ -282,7 +281,8 @@ void setup_main_log(int fd)
 
 bool is_log_flushed() noexcept
 {
-    return log_stream[DLOG_CONS].current_index == 0;
+    return log_stream[DLOG_CONS].current_index == 0 &&
+            (log_stream[DLOG_MAIN].fd == -1 || log_stream[DLOG_MAIN].current_index == 0);
 }
 
 // Enable or disable console logging. If disabled, console logging will be disabled on the
