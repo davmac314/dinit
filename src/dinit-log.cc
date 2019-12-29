@@ -25,6 +25,7 @@
 // message (if any) and then assigns the console to a waiting service.
 
 extern eventloop_t event_loop;
+extern bool external_log_open;
 
 static bool log_current_line[2];  // Whether the current line is being logged (for console, main log)
 static bool log_format_syslog[2] = { false, true };
@@ -46,7 +47,7 @@ class buffered_log_stream : public eventloop_t::fd_watcher_impl<buffered_log_str
     // Outgoing:
     bool partway = false;     // if we are partway throught output of a log message
     bool discarded = false;   // if we have discarded a message
-    bool release = true;      // if we should inhibit output and release console
+    bool release = true;      // if we should inhibit output and release console when possible
 
     // A "special message" is not stored in the circular buffer; instead
     // it is delivered from an external buffer not managed by BufferedLogger.
@@ -113,14 +114,15 @@ class buffered_log_stream : public eventloop_t::fd_watcher_impl<buffered_log_str
         discarded = true;
     }
 
+    void watch_removed() noexcept override;
+
     private:
     void release_console();
 };
-}
 
 // Two log streams:
 // (One for main log, one for console)
-static buffered_log_stream log_stream[2];
+buffered_log_stream log_stream[2];
 
 void buffered_log_stream::release_console()
 {
@@ -142,9 +144,13 @@ void buffered_log_stream::flush_for_release()
     
     // Try to flush any messages that are currently buffered. (Console is non-blocking
     // so it will fail gracefully).
-    if (fd_event(event_loop, fd, dasynq::OUT_EVENTS) == rearm::DISARM) {
+    rearm rearm_val = fd_event(event_loop, fd, dasynq::OUT_EVENTS);
+    if (rearm_val == rearm::DISARM) {
         // Console has already been released at this point.
         set_enabled(event_loop, false);
+    }
+    if (rearm_val == rearm::REMOVE) {
+        deregister(event_loop);
     }
     // fd_event didn't want to disarm, so must be partway through a message; will
     // release when it's finished.
@@ -257,6 +263,21 @@ rearm buffered_log_stream::fd_event(eventloop_t &loop, int fd, int flags) noexce
     // let's give other events a chance to be processed by returning now.
     return rearm::REARM;
 }
+
+void buffered_log_stream::watch_removed() noexcept
+{
+    if (fd > STDERR_FILENO) {
+        close(fd);
+        fd = -1;
+    }
+    // Here we rely on there only being two logs, console and "main"; we can check if we are the
+    // main log via identity:
+    if (&log_stream[DLOG_MAIN] == this) {
+        external_log_open = false;
+    }
+}
+
+} // end namespace
 
 // Initialise the logging subsystem
 // Potentially throws std::bad_alloc or std::system_error

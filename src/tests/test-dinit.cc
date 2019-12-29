@@ -6,6 +6,7 @@
 eventloop_t event_loop;
 
 int active_control_conns = 0;
+bool external_log_open = false;
 
 /*
 These are provided in header instead:

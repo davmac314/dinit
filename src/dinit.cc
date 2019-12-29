@@ -73,7 +73,7 @@ static bool am_system_init = false; // true if we are the system init process
 
 static bool did_log_boot = false;
 static bool control_socket_open = false;
-static bool external_log_open = false;
+bool external_log_open = false;
 int active_control_conns = 0;
 
 // Control socket path. We maintain a string (control_socket_str) in case we need

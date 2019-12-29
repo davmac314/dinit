@@ -109,6 +109,8 @@ class eventloop_t
         }
 
         virtual rearm fd_event(eventloop_t & loop, int fd, int flags) = 0;
+
+        virtual void watch_removed() noexcept { }
     };
 
     template <typename Derived> class fd_watcher_impl : public fd_watcher
