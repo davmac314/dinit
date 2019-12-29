@@ -6,6 +6,7 @@
 
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/uio.h>
 
 // Mock system functions for testing.
 
@@ -108,6 +109,7 @@ inline pid_t waitpid(pid_t p, exit_status *statusp, int flags)
 
 ssize_t read(int fd, void *buf, size_t count);
 ssize_t write(int fd, const void *buf, size_t count);
+ssize_t writev (int fd, const struct iovec *iovec, int count);
 
 }
 

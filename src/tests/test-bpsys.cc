@@ -150,4 +150,23 @@ ssize_t write(int fd, const void *buf, size_t count)
 	return count;
 }
 
+ssize_t writev(int fd, const struct iovec *iov, int iovcnt)
+{
+    ssize_t r = 0;
+    for (int i = 0; i < iovcnt; i++) {
+        ssize_t wr = write(fd, iov[i].iov_base, iov[i].iov_len);
+        if (wr < 0) {
+            if (r > 0) {
+                return r;
+            }
+            return wr;
+        }
+        r += wr;
+        if (size_t(wr) < iov[i].iov_len) {
+            return r;
+        }
+    }
+    return r;
+}
+
 }

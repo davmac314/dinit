@@ -8,7 +8,11 @@
 #ifndef BPSYS_INCLUDED
 #define BPSYS_INCLUDED
 
-#include "dasynq.h"
+#include "dasynq.h" // for pipe2
+
+#include <sys/uio.h> // writev
+#include <unistd.h>
+#include <fcntl.h>
 
 namespace bp_sys {
 
@@ -22,6 +26,7 @@ using ::tcsetpgrp;
 using ::getpgrp;
 using ::read;
 using ::write;
+using ::writev;
 
 // Wrapper around a POSIX exit status
 class exit_status

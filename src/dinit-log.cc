@@ -169,7 +169,7 @@ rearm buffered_log_stream::fd_event(eventloop_t &loop, int fd, int flags) noexce
         const char * start = special_buf + msg_index;
         const char * end = start;
         while (*end != '\n') end++;
-        int r = write(fd, start, end - start + 1);
+        int r = bp_sys::write(fd, start, end - start + 1);
         if (r >= 0) {
             if (start + r > end) {
                 // All written: go on to next message in queue
@@ -239,7 +239,7 @@ rearm buffered_log_stream::fd_event(eventloop_t &loop, int fd, int flags) noexce
             iovs_to_write = 2;
         }
         
-        ssize_t r = writev(fd, logiov, iovs_to_write);
+        ssize_t r = bp_sys::writev(fd, logiov, iovs_to_write);
 
         if (r >= 0) {
             bool complete = (r == len) && will_complete;
