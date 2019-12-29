@@ -3,6 +3,7 @@
 
 #include "service.h"
 #include "test_service.h"
+#include "baseproc-sys.h"
 
 constexpr static auto REG = dependency_type::REGULAR;
 constexpr static auto WAITS = dependency_type::WAITS_FOR;
@@ -708,6 +709,41 @@ void test15()
     assert(! tl.got_started);
 }
 
+static void flush_log(int fd)
+{
+    while (! is_log_flushed()) {
+        event_loop.send_fd_event(fd, dasynq::OUT_EVENTS);
+        event_loop.send_fd_event(STDOUT_FILENO, dasynq::OUT_EVENTS);
+    }
+
+    std::vector<char> wdata;
+    bp_sys::extract_written_data(fd, wdata);
+    bp_sys::extract_written_data(0, wdata);
+}
+
+void test_log1()
+{
+    service_set sset;
+    init_log(&sset, true /* syslog format */);
+
+    int logfd = bp_sys::allocfd();
+    setup_main_log(logfd);
+
+    flush_log(logfd);
+
+    log(loglevel_t::ERROR, "test one");
+
+    // flush
+    //event_loop.
+    event_loop.send_fd_event(logfd, dasynq::OUT_EVENTS);
+
+    std::vector<char> wdata;
+    bp_sys::extract_written_data(logfd, wdata);
+
+    std::string wstr {wdata.begin(), wdata.end()};
+
+    assert(wstr == "<27>dinit: test one\n");
+}
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
@@ -734,4 +770,5 @@ int main(int argc, char **argv)
     RUN_TEST(test13, "                    ");
     RUN_TEST(test14, "                    ");
     RUN_TEST(test15, "                    ");
+    RUN_TEST(test_log1, "                 ");
 }

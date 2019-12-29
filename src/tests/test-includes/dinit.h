@@ -18,6 +18,7 @@ namespace bp_sys {
     extern pid_t last_forked_pid;
 }
 
+// This is a mock for a Dasynq-based event loop
 class eventloop_t
 {
     time_val current_time {0, 0};
@@ -39,6 +40,14 @@ class eventloop_t
                 rearm r = t->expired(*this, 1);
                 assert(r == rearm::NOOP); // others not handled
             }
+        }
+    }
+
+    void send_fd_event(int fd, int events)
+    {
+        auto i = regd_fd_watchers.find(fd);
+        if (i != regd_fd_watchers.end()) {
+            i->second->fd_event(*this, fd, events);
         }
     }
 
