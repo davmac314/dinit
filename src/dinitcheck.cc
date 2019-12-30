@@ -144,6 +144,7 @@ int main(int argc, char **argv)
 
     for (size_t i = 0; i < num_services_to_check; ++i) {
         service_record *root = service_set[services_to_check[i]];
+        if (! root) continue;
         if (root->visited) continue;
 
         // invariant: service_chain is empty
@@ -332,7 +333,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
     catch (std::system_error &sys_err)
     {
         report_error(sys_err, name);
-        return nullptr;
+        throw service_description_exc(name, "Error while reading service description.");
     }
 
     if (settings.service_type != service_type_t::INTERNAL && settings.command.length() == 0) {
