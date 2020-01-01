@@ -1,3 +1,15 @@
+== Version 0.8.1
+
+This is a bug-fix release.
+
+* Fixed crash on service load error.
+* Fixed an unchecked allocation leading to possible unexpected termination.
+* Fixed a slow memory leak (in the bundled Dasynq library).
+* Fixed --help option for "dinitcheck" not working.
+* Fixed badly formatted error message from process launch failure.
+* Fixed issue where log file would not always be flushed on exit.
+* Fixed "dinitcheck" crashing if service description could not be found.
+
 == Version 0.8.0
 
 This release includes major usability features.
