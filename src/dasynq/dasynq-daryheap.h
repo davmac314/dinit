@@ -6,6 +6,8 @@
 #include <utility>
 #include <limits>
 
+#include <cstddef>
+
 #include "dasynq-svec.h"
 
 
@@ -206,7 +208,7 @@ class dary_heap
         hnd.heap_index = -1;
 
         // largest object size is PTRDIFF_MAX, so we expect the largest vector is that / sizeof node:
-        constexpr hindex_t max_allowed = (std::numeric_limits<ptrdiff_t>::max() - 1) / sizeof(heap_node);
+        constexpr hindex_t max_allowed = (std::numeric_limits<std::ptrdiff_t>::max() - 1) / sizeof(heap_node);
 
         if (num_nodes == max_allowed) {
             throw std::bad_alloc();
