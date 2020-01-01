@@ -1,18 +1,19 @@
-For version 0.8.0:
+For version 0.9.0:
 ------------------
-* provide a way to check configuration for errors (dinitcheck command) [DONE]
-* Easy way to reload service description (including if service is running, where possible). [DONE]
-
-For version 0.9.+:
-------------------
-* for non-system init, fail if the control socket exists, with option to override this and re-
-  create the socket instead (as system init does).
-* Check that desired_state is getting set correctly. (Currently we don't decide whether a service
-  will restart until it stops...)
-* report process launch failure reason (stage & errno) via dinitctl.
 * "chain-to" can result in an unbreakable loop if the chain is circular. Chained services should not be
   started during shutdown to prevent this (also avoids a race condition where the chained service is left
   running when everything else has shutdown).
+* Check that desired_state is getting set correctly. (Currently we don't decide whether a service
+  will restart until it stops...)
+* Add dinit command line option to run as pid 1 but not as system manager (i.e., in a container).
+  Currently dinit can be used as pid 1 in a container but it may try to shut down the system when
+  it terminates. (This results in a harmless warning, but is not ideal).
+
+For version 0.10.+:
+------------------
+* for non-system init, fail if the control socket exists, with option to override this and re-
+  create the socket instead (as system init does).
+* report process launch failure reason (stage & errno) via dinitctl.
 * Show "activated" state in "dinitctl list" output
 * Service description sanity checks:
   - Service type not specified
