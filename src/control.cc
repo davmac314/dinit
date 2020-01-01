@@ -1014,9 +1014,9 @@ bool control_conn_t::data_ready() noexcept
             return false;
         }
     }
-    else if (rbuf.get_length() == 1024) {
+    else if (rbuf.get_length() == rbuf.get_size()) {
         // Too big packet
-        log(loglevel_t::WARN, "Received too-large control package; dropping connection");
+        log(loglevel_t::WARN, "Received too-large control packet; dropping connection");
         bad_conn_close = true;
         iob.set_watches(OUT_EVENTS);
     }
