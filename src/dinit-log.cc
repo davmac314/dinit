@@ -140,6 +140,8 @@ void buffered_log_stream::release_console()
 
 void buffered_log_stream::flush_for_release()
 {
+    if (release) return;
+
     release = true;
     
     // Try to flush any messages that are currently buffered. (Console is non-blocking
@@ -268,8 +270,10 @@ void buffered_log_stream::watch_removed() noexcept
 {
     if (fd > STDERR_FILENO) {
         bp_sys::close(fd);
-        fd = -1;
     }
+    fd = -1;
+    release = true; // prevent attempt to enable watch
+
     // Here we rely on there only being two logs, console and "main"; we can check if we are the
     // main log via identity:
     if (&log_stream[DLOG_MAIN] == this) {
