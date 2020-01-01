@@ -267,7 +267,7 @@ rearm buffered_log_stream::fd_event(eventloop_t &loop, int fd, int flags) noexce
 void buffered_log_stream::watch_removed() noexcept
 {
     if (fd > STDERR_FILENO) {
-        close(fd);
+        bp_sys::close(fd);
         fd = -1;
     }
     // Here we rely on there only being two logs, console and "main"; we can check if we are the
@@ -290,6 +290,13 @@ void init_log(service_set *sset, bool syslog_format)
     // The main (non-console) log won't be active yet, but we set the format here so that we
     // buffer messages in the correct format:
     log_format_syslog[DLOG_MAIN] = syslog_format;
+}
+
+// Close logging subsystem
+void close_log()
+{
+    if (log_stream[DLOG_CONS].fd != -1) log_stream[DLOG_CONS].deregister(event_loop);
+    if (log_stream[DLOG_MAIN].fd != -1) log_stream[DLOG_MAIN].deregister(event_loop);
 }
 
 // Set up the main log to output to the given file descriptor.

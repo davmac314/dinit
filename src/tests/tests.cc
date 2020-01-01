@@ -1,5 +1,7 @@
-#include <cassert>
 #include <iostream>
+
+#include <cerrno>
+#include <cassert>
 
 #include "service.h"
 #include "test_service.h"
@@ -723,6 +725,7 @@ static void flush_log(int fd)
 
 void test_log1()
 {
+    // Basic test that output to log is written to log file
     service_set sset;
     init_log(&sset, true /* syslog format */);
 
@@ -743,6 +746,50 @@ void test_log1()
     std::string wstr {wdata.begin(), wdata.end()};
 
     assert(wstr == "<27>dinit: test one\n");
+    close_log();
+}
+
+void test_log2()
+{
+    // test that log is closed on write failure.
+    service_set sset;
+    init_log(&sset, true /* syslog format */);
+
+    bool was_closed = false;
+
+    class fail_writer : public bp_sys::write_handler {
+    public:
+        bool *was_closed = nullptr;
+
+        ssize_t write(int fd, const void *buf, size_t count) override
+        {
+            errno = ENOSPC;
+            return -1;
+        }
+
+        ~fail_writer() override
+        {
+            *was_closed = true;
+        }
+    };
+
+    fail_writer *fw = new fail_writer();
+    fw->was_closed = &was_closed;
+
+    int logfd = bp_sys::allocfd(fw);
+    setup_main_log(logfd);
+
+    event_loop.send_fd_event(logfd, dasynq::OUT_EVENTS);
+    event_loop.send_fd_event(STDOUT_FILENO, dasynq::OUT_EVENTS);
+
+    log(loglevel_t::ERROR, "test two");
+
+    // flush
+    //event_loop.
+    event_loop.send_fd_event(logfd, dasynq::OUT_EVENTS);
+
+    assert(was_closed);
+    close_log();
 }
 
 #define RUN_TEST(name, spacing) \
@@ -752,6 +799,8 @@ void test_log1()
 
 int main(int argc, char **argv)
 {
+    bp_sys::init_bpsys();
+
     RUN_TEST(test1, "                     ");
     RUN_TEST(test2, "                     ");
     RUN_TEST(test3, "                     ");
@@ -771,4 +820,5 @@ int main(int argc, char **argv)
     RUN_TEST(test14, "                    ");
     RUN_TEST(test15, "                    ");
     RUN_TEST(test_log1, "                 ");
+    RUN_TEST(test_log2, "                 ");
 }

@@ -34,6 +34,7 @@ extern bool console_service_status;  // show service status messages to console?
 
 void enable_console_log(bool do_enable) noexcept;
 void init_log(service_set *sset, bool syslog_format);
+void close_log();
 void setup_main_log(int fd);
 bool is_log_flushed() noexcept;
 void discard_console_log_buffer() noexcept;
