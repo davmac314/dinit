@@ -1,6 +1,7 @@
 #include <vector>
 #include <utility>
 #include <algorithm>
+#include <memory>
 #include <map>
 
 #include <cstdlib>
@@ -35,8 +36,8 @@ class read_cond : public std::vector<read_result>
 // map of fd to read results to supply for reads of that fd
 std::map<int,read_cond> read_data;
 
-// map of data written to each fd
-std::map<int,std::vector<char>> written_data;
+// map of fd to the handler for writes to that fd
+std::map<int, std::unique_ptr<bp_sys::write_handler>> write_hndlr_map;
 
 } // anon namespace
 
@@ -47,18 +48,33 @@ pid_t last_forked_pid = 1;  // last forked process id (incremented each 'fork')
 
 // Test helper methods:
 
+void init_bpsys()
+{
+    write_hndlr_map[0] = std::unique_ptr<bp_sys::write_handler> { new default_write_handler() };
+    write_hndlr_map[1] = std::unique_ptr<bp_sys::write_handler> { new default_write_handler() };
+    write_hndlr_map[2] = std::unique_ptr<bp_sys::write_handler> { new default_write_handler() };
+}
+
 // Allocate a file descriptor
 int allocfd()
+{
+    return allocfd(new default_write_handler());
+}
+
+int allocfd(write_handler *whndlr)
 {
     auto f = std::find(usedfds.begin(), usedfds.end(), false);
     if (f == usedfds.end()) {
         int r = usedfds.size();
         usedfds.push_back(true);
+        write_hndlr_map[r] = std::unique_ptr<bp_sys::write_handler>(whndlr);
         return r;
     }
 
     *f = true;
-    return f - usedfds.begin();
+    auto r = f - usedfds.begin();
+    write_hndlr_map[r] = std::unique_ptr<bp_sys::write_handler>(whndlr);
+    return r;
 }
 
 // Supply data to be returned by read()
@@ -80,7 +96,10 @@ void set_blocking(int fd)
 // retrieve data written via write()
 void extract_written_data(int fd, std::vector<char> &data)
 {
-	data = std::move(written_data[fd]);
+    auto &whandler = write_hndlr_map[fd];
+    if (whandler == nullptr) abort();
+    default_write_handler *dwhndlr = static_cast<default_write_handler *>(whandler.get());
+	data = std::move(dwhndlr->data);
 }
 
 
@@ -96,8 +115,10 @@ int pipe2(int fds[2], int flags)
 int close(int fd)
 {
     if (size_t(fd) >= usedfds.size()) abort();
+    if (! usedfds[fd]) abort();
 
     usedfds[fd] = false;
+    write_hndlr_map.erase(fd);
     return 0;
 }
 
@@ -145,9 +166,7 @@ ssize_t read(int fd, void *buf, size_t count)
 
 ssize_t write(int fd, const void *buf, size_t count)
 {
-	std::vector<char> &wd = written_data[fd];
-	wd.insert(wd.end(), (char *)buf, (char *)buf + count);
-	return count;
+    return write_hndlr_map[fd]->write(fd, buf, count);
 }
 
 ssize_t writev(int fd, const struct iovec *iov, int iovcnt)

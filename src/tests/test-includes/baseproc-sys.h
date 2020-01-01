@@ -12,10 +12,32 @@
 
 namespace bp_sys {
 
+class write_handler
+{
+public:
+    virtual ssize_t write(int fd, const void *buf, size_t count) = 0;
+    virtual ~write_handler() { }
+};
+
+class default_write_handler : public write_handler
+{
+public:
+    std::vector<char> data;
+
+    virtual ssize_t write(int fd, const void *buf, size_t count)
+    {
+        data.insert(data.end(), (char *)buf, (char *)buf + count);
+        return count;
+    }
+};
+
 // Test helper functions:
+
+void init_bpsys();
 
 // allocate a file descriptor
 int allocfd();
+int allocfd(write_handler *hndlr);
 
 void supply_read_data(int fd, std::vector<char> &data);
 void supply_read_data(int fd, std::vector<char> &&data);

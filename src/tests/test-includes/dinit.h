@@ -47,7 +47,11 @@ class eventloop_t
     {
         auto i = regd_fd_watchers.find(fd);
         if (i != regd_fd_watchers.end()) {
-            i->second->fd_event(*this, fd, events);
+            fd_watcher *watcher = i->second;
+            dasynq::rearm r = watcher->fd_event(*this, fd, events);
+            if (r == dasynq::rearm::REMOVE) {
+                watcher->deregister(*this);
+            }
         }
     }
 
@@ -115,6 +119,7 @@ class eventloop_t
         {
             loop.regd_fd_watchers.erase(watched_fd);
             watched_fd = -1;
+            watch_removed();
         }
 
         virtual rearm fd_event(eventloop_t & loop, int fd, int flags) = 0;
