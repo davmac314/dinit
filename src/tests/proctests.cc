@@ -251,6 +251,7 @@ void test_proc_term_restart2()
     assert(p.get_state() == service_state_t::STARTED);
     assert(event_loop.active_timers.size() == 0);
 
+    // simulate process terminating, should then be restarted:
     base_process_service_test::handle_exit(&p, 0);
     sset.process_queues();
 
@@ -268,10 +269,31 @@ void test_proc_term_restart2()
     assert(p.get_state() == service_state_t::STARTED);
     assert(event_loop.active_timers.size() == 0);
 
+    assert(sset.count_active_services() == 2);
+
+    // Request stop, this time it should not restart:
+    p.stop(true);
+    sset.process_queues();
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
+    assert(sset.count_active_services() == 1);
+
+    // simulate terminate dinit
+    sset.stop_all_services();
+
+    //base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
+    assert(sset.count_active_services() == 0);
+
     sset.remove_service(&p);
     sset.remove_service(&b);
 }
-
 
 // Termination via stop request
 void test_term_via_stop()

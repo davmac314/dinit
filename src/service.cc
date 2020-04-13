@@ -50,8 +50,10 @@ void service_record::stopped() noexcept
 
     force_stop = false;
 
+    // If we are to re-start, restarting should have been set true and desired_state should be STARTED.
+    // (A restart could be cancelled via a separately issued stop, including via a shutdown).
     restarting |= auto_restart;
-    bool will_restart = restarting && required_by > 0;
+    bool will_restart = restarting && desired_state == service_state_t::STARTED;
     if (restarting && ! will_restart) {
         notify_listeners(service_event_t::STARTCANCELLED);
     }
@@ -493,6 +495,8 @@ void service_record::stop(bool bring_down) noexcept
         bring_down = true;
     }
 
+    // Set desired state to STOPPED, this will be set back to STARTED if there any hard dependents
+    // that want to restart.
     desired_state = service_state_t::STOPPED;
 
     if (bring_down && service_state != service_state_t::STOPPED
