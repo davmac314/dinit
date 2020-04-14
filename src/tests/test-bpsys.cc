@@ -39,6 +39,9 @@ std::map<int,read_cond> read_data;
 // map of fd to the handler for writes to that fd
 std::map<int, std::unique_ptr<bp_sys::write_handler>> write_hndlr_map;
 
+// map of path to file content
+std::map<std::string, std::vector<char>> file_content_map;
+
 } // anon namespace
 
 namespace bp_sys {
@@ -102,8 +105,31 @@ void extract_written_data(int fd, std::vector<char> &data)
 	data = std::move(dwhndlr->data);
 }
 
+// Supply a file content
+void supply_file_content(const std::string &path, std::vector<char> &data)
+{
+    file_content_map[path] = data;
+}
+
+void supply_file_content(const std::string &path, std::vector<char> &&data)
+{
+    file_content_map[path] = std::move(data);
+}
 
 // Mock implementations of system calls:
+
+int open(const char *pathname, int flags)
+{
+    auto i = file_content_map.find(pathname);
+    if (i == file_content_map.end()) {
+        errno = ENOENT;
+        return -1;
+    }
+
+    int nfd = allocfd();
+    supply_read_data(nfd, i->second);
+    return nfd;
+}
 
 int pipe2(int fds[2], int flags)
 {

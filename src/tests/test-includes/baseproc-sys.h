@@ -43,10 +43,13 @@ void supply_read_data(int fd, std::vector<char> &data);
 void supply_read_data(int fd, std::vector<char> &&data);
 void set_blocking(int fd);
 void extract_written_data(int fd, std::vector<char> &data);
+void supply_file_content(const std::string &path, const std::vector<char> &data);
+void supply_file_content(const std::string &path, std::vector<char> &&data);
 
 // Mock system calls:
 
 // implementations elsewhere:
+int open(const char *pathname, int flags);
 int pipe2(int pipefd[2], int flags);
 int close(int fd);
 int kill(pid_t pid, int sig);
@@ -126,7 +129,8 @@ class exit_status
 
 inline pid_t waitpid(pid_t p, exit_status *statusp, int flags)
 {
-    throw std::string("not implemented");
+    // throw std::string("not implemented");
+    return 0; // TODO complete mock
 }
 
 ssize_t read(int fd, void *buf, size_t count);

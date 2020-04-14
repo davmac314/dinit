@@ -9,6 +9,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "baseproc-sys.h"
+
 // Complete read - read the specified size until end-of-file or error; continue read if
 // interrupted by signal.
 inline ssize_t complete_read(int fd, void * buf, size_t n)
@@ -16,7 +18,7 @@ inline ssize_t complete_read(int fd, void * buf, size_t n)
     char * cbuf = static_cast<char *>(buf);
     ssize_t r = 0;
     while ((size_t)r < n) {
-        ssize_t res = read(fd, cbuf + r, n - r);
+        ssize_t res = bp_sys::read(fd, cbuf + r, n - r);
         if (res == 0) {
             return r;
         }
