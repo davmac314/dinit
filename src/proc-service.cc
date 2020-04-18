@@ -486,7 +486,7 @@ bgproc_service::pid_result_t
 bgproc_service::read_pid_file(bp_sys::exit_status *exit_status) noexcept
 {
     const char *pid_file_c = pid_file.c_str();
-    int fd = open(pid_file_c, O_CLOEXEC);
+    int fd = bp_sys::open(pid_file_c, O_CLOEXEC);
     if (fd == -1) {
         log(loglevel_t::ERROR, get_name(), ": read pid file: ", strerror(errno));
         return pid_result_t::FAILED;
@@ -497,11 +497,11 @@ bgproc_service::read_pid_file(bp_sys::exit_status *exit_status) noexcept
     if (r < 0) {
         // Could not read from PID file
         log(loglevel_t::ERROR, get_name(), ": could not read from pidfile; ", strerror(errno));
-        close(fd);
+        bp_sys::close(fd);
         return pid_result_t::FAILED;
     }
 
-    close(fd);
+    bp_sys::close(fd);
     pidbuf[r] = 0; // store nul terminator
 
     bool valid_pid = false;
@@ -523,7 +523,7 @@ bgproc_service::read_pid_file(bp_sys::exit_status *exit_status) noexcept
         pid_t wait_r = waitpid(pid, exit_status, WNOHANG);
         if (wait_r == -1 && errno == ECHILD) {
             // We can't track this child - check process exists:
-            if (kill(pid, 0) == 0 || errno != ESRCH) {
+            if (bp_sys::kill(pid, 0) == 0 || errno != ESRCH) {
                 tracking_child = false;
                 return pid_result_t::OK;
             }

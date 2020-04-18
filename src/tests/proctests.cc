@@ -3,6 +3,7 @@
 #include <list>
 #include <utility>
 #include <string>
+#include <sstream>
 
 #include "service.h"
 #include "proc-service.h"
@@ -680,6 +681,122 @@ void test_proc_smooth_recovery2()
     sset.remove_service(&p);
 }
 
+void test_bgproc_smooth_recover()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    bgproc_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_smooth_recovery(true);
+    p.set_restart_delay(time_val {0, 1000});
+    p.set_pid_file("/run/daemon.pid");
+    sset.add_service(&p);
+
+    p.start(true);
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    // pid_t first_instance = bp_sys::last_forked_pid;
+    pid_t daemon_instance = ++bp_sys::last_forked_pid;
+
+    // Set up the pid file content with the pid of the daemon
+    stringstream str;
+    str << daemon_instance << std::flush;
+    string pid_file_content = str.str();
+    vector<char> pid_file_content_v(pid_file_content.begin(), pid_file_content.end());
+    bp_sys::supply_file_content("/run/daemon.pid", std::move(pid_file_content_v));
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::handle_exit(&p, 0); // exit the launch process
+    sset.process_queues();
+
+    // daemon process has been started now, state should be STARTED
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(daemon_instance == bp_sys::last_forked_pid);
+
+    base_process_service_test::handle_exit(&p, 0); // exit the daemon process
+
+    // since time hasn't been changed, we expect that the process has not yet been re-launched:
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(daemon_instance == bp_sys::last_forked_pid);
+
+    event_loop.advance_time(time_val {0, 1000});
+    sset.process_queues();
+
+    // Now a new process should've been launched:
+    assert(event_loop.active_timers.size() == 0);
+    assert(daemon_instance + 1 == bp_sys::last_forked_pid);
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(event_loop.active_timers.size() == 0);
+
+    daemon_instance = ++bp_sys::last_forked_pid;
+    str.str("");
+    str << daemon_instance << std::flush;
+    pid_file_content = str.str();
+    pid_file_content_v = std::vector<char>(pid_file_content.begin(), pid_file_content.end());
+    bp_sys::supply_file_content("/run/daemon.pid", std::move(pid_file_content_v));
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+
+    assert(event_loop.active_timers.size() == 0);
+
+    // Now run through it again
+
+    base_process_service_test::handle_exit(&p, 0); // exit the daemon process
+
+    // since time hasn't been changed, we expect that the process has not yet been re-launched:
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(daemon_instance == bp_sys::last_forked_pid);
+
+    event_loop.advance_time(time_val {0, 1000});
+    sset.process_queues();
+
+    // Now a new process should've been launched:
+    assert(event_loop.active_timers.size() == 0);
+    assert(daemon_instance + 1 == bp_sys::last_forked_pid);
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(event_loop.active_timers.size() == 0);
+
+    daemon_instance = ++bp_sys::last_forked_pid;
+    str.str("");
+    str << daemon_instance << std::flush;
+    pid_file_content = str.str();
+    pid_file_content_v = std::vector<char>(pid_file_content.begin(), pid_file_content.end());
+    bp_sys::supply_file_content("/run/daemon.pid", std::move(pid_file_content_v));
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
 // Test stop timeout
 void test_scripted_stop_timeout()
 {
@@ -1035,6 +1152,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_stop_timeout, "    ");
     RUN_TEST(test_proc_smooth_recovery1, "");
     RUN_TEST(test_proc_smooth_recovery2, "");
+    RUN_TEST(test_bgproc_smooth_recover, "");
     RUN_TEST(test_scripted_stop_timeout, "");
     RUN_TEST(test_scripted_start_fail, "  ");
     RUN_TEST(test_scripted_stop_fail, "   ");
