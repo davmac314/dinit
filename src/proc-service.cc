@@ -262,6 +262,13 @@ void process_service::exec_failed(run_proc_err errcode) noexcept
 
 void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcept
 {
+    // For bgproc services, receiving exit status can mean one of two things:
+    // 1. We were launching the process, and it finished (possibly after forking). If it did fork
+    //    we want to obtain the process id of the process that we should now monitor, the actual
+    //    daemon.
+    // 2. The above has already happened, and we are monitoring the daemon process, which has now
+    //    terminated for some reason.
+
     begin:
     bool did_exit = exit_status.did_exit();
     bool was_signalled = exit_status.was_signalled();
@@ -279,8 +286,10 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
     }
 
     // This may be a "smooth recovery" where we are restarting the process while leaving the
-    // service in the STARTED state.
+    // service in the STARTED state. This must be the case if 'restarting' is set while the state
+    // is currently STARTED.
     if (restarting && service_state == service_state_t::STARTED) {
+        restarting = false;
         bool need_stop = false;
         if ((did_exit && exit_status.get_exit_status() != 0) || was_signalled) {
             need_stop = true;
@@ -345,6 +354,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
     else {
         // we must be STARTED
         if (smooth_recovery && get_target_state() == service_state_t::STARTED) {
+            restarting = true;
             do_smooth_recovery();
             return;
         }
