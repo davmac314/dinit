@@ -980,7 +980,7 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
 
     auto m = membuf()
             .append<char>(add ? (char)DINIT_CP_ADD_DEP : (char)DINIT_CP_REM_DEP)
-            .append(dep_type)
+            .append(static_cast<char>(dep_type))
             .append(from_handle)
             .append(to_handle);
     write_all_x(socknum, m);
