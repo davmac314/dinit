@@ -978,6 +978,11 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
         return 1;
     }
 
+    if (from_handle == to_handle) {
+        cerr << "dinitctl: Can not add/remove a dependency from a service to itself" << endl;
+        return 1;
+    }
+
     auto m = membuf()
             .append<char>(add ? (char)DINIT_CP_ADD_DEP : (char)DINIT_CP_REM_DEP)
             .append(static_cast<char>(dep_type))
