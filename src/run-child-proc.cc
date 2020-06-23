@@ -258,8 +258,9 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
 
     if (uid != uid_t(-1)) {
         err.stage = exec_stage::SET_UIDGID;
-        if (setreuid(uid, uid) != 0) goto failure_out;
+        // We must set group first (i.e. before we drop privileges)
         if (setregid(gid, gid) != 0) goto failure_out;
+        if (setreuid(uid, uid) != 0) goto failure_out;
     }
 
     sigprocmask(SIG_SETMASK, &sigwait_set, nullptr);
