@@ -1,3 +1,12 @@
+== Version 0.8.2
+
+This is a bug-fix release.
+
+* Fixed group not being set correctly when "run-as" or "socket-uid" were used.
+* Fixed "dinitctl rm-dep" command
+* Fixed bug preventing shutdown when auto-restart services were configured
+* Fixed smooth recovery of bgprocess services
+
 == Version 0.8.1
 
 This is a bug-fix release.
