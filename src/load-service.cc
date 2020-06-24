@@ -303,6 +303,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         service_file.close();
 
+        settings.finalise();
         auto service_type = settings.service_type;
 
         if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS

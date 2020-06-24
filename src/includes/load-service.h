@@ -275,8 +275,8 @@ inline string read_setting_value(string_iterator & i, string_iterator end,
 
 // Parse a userid parameter which may be a numeric user ID or a username. If a name, the
 // userid is looked up via the system user database (getpwnam() function). In this case,
-// the associated group is stored in the location specified by the group_p parameter iff
-// it is not null and iff it contains the value -1.
+// the associated group is stored in the location specified by the group_p parameter if
+// it is not null.
 inline uid_t parse_uid_param(const std::string &param, const std::string &service_name, const char *setting_name, gid_t *group_p)
 {
     const char * uid_err_msg = "Specified user id contains invalid numeric characters "
@@ -286,7 +286,7 @@ inline uid_t parse_uid_param(const std::string &param, const std::string &servic
     // a user manages to give themselves a username that parses as a number.
     std::size_t ind = 0;
     try {
-        // POSIX does not specify whether uid_t is an signed or unsigned, but regardless
+        // POSIX does not specify whether uid_t is a signed or unsigned type, but regardless
         // is is probably safe to assume that valid values are positive. We'll also assert
         // that the value range fits within "unsigned long long" since it seems unlikely
         // that would ever not be the case.
@@ -320,7 +320,7 @@ inline uid_t parse_uid_param(const std::string &param, const std::string &servic
         }
     }
 
-    if (group_p && *group_p != (gid_t)-1) {
+    if (group_p) {
         *group_p = pwent->pw_gid;
     }
 
@@ -590,6 +590,7 @@ class service_settings_wrapper
     // Note: Posix allows that uid_t and gid_t may be unsigned types, but eg chown uses -1 as an
     // invalid value, so it's safe to assume that we can do the same:
     uid_t socket_uid = -1;
+    gid_t socket_uid_gid = -1;  // primary group of socket user if known
     gid_t socket_gid = -1;
     // Restart limit interval / count; default is 10 seconds, 3 restarts:
     timespec restart_interval = { .tv_sec = 10, .tv_nsec = 0 };
@@ -603,6 +604,7 @@ class service_settings_wrapper
     std::string readiness_var;  // environment var to hold readiness fd
 
     uid_t run_as_uid = -1;
+    gid_t run_as_uid_gid = -1; // primary group of "run as" uid if known
     gid_t run_as_gid = -1;
 
     string chain_to_name;
@@ -611,6 +613,16 @@ class service_settings_wrapper
     char inittab_id[sizeof(utmpx().ut_id)] = {0};
     char inittab_line[sizeof(utmpx().ut_line)] = {0};
     #endif
+
+    // Finalise settings (after processing all setting lines)
+    void finalise()
+    {
+        // If socket_gid hasn't been explicitly set, but the socket_uid was specified as a name (and
+        // we therefore recovered the primary group), use the primary group of the specified user.
+        if (socket_gid == (gid_t)-1) socket_gid = socket_uid_gid;
+        // likewise for "run as" gid/uid.
+        if (run_as_gid == (gid_t)-1) run_as_gid = run_as_uid_gid;
+    }
 };
 
 // Process a service description line. In general, parse the setting value and record the parsed value
@@ -671,7 +683,7 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
     }
     else if (setting == "socket-uid") {
         string sock_uid_s = read_setting_value(i, end, nullptr);
-        settings.socket_uid = parse_uid_param(sock_uid_s, name, "socket-uid", &settings.socket_gid);
+        settings.socket_uid = parse_uid_param(sock_uid_s, name, "socket-uid", &settings.socket_uid_gid);
     }
     else if (setting == "socket-gid") {
         string sock_gid_s = read_setting_value(i, end, nullptr);
@@ -828,7 +840,7 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
     }
     else if (setting == "run-as") {
         string run_as_str = read_setting_value(i, end, nullptr);
-        settings.run_as_uid = parse_uid_param(run_as_str, name, "run-as", &settings.run_as_gid);
+        settings.run_as_uid = parse_uid_param(run_as_str, name, "run-as", &settings.run_as_uid_gid);
     }
     else if (setting == "chain-to") {
         settings.chain_to_name = read_setting_value(i, end, nullptr);

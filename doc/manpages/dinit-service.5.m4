@@ -91,8 +91,9 @@ Specifies the working directory for this service. For a scripted service, this
 affects both the start command and the stop command.
 .TP
 \fBrun\-as\fR = \fIuser-id\fR
-Specifies which user to run the process(es) for this service as. The group id
-for the process will also be set to the primary group of the specified user.
+Specifies which user to run the process(es) for this service as. Specify as a
+username or numeric ID. If specified by name, the group for the process will
+also be set to the primary group of the specified user.
 .TP
 \fBrestart\fR = {yes | true | no | false}
 Indicates whether the service should automatically restart if it stops for
@@ -205,11 +206,11 @@ Normally this will be 600 (user access only), 660 (user and group
 access), or 666 (all users). The default is 666.
 .TP
 \fBsocket\-uid\fR = {\fInumeric-user-id\fR | \fIusername\fR}
-Specifies the user that should own the activation socket. If
-\fBsocket\-uid\fR is specified without also specifying \fBsocket-gid\fR, then
+Specifies the user (name or numeric ID) that should own the activation socket. If
+\fBsocket\-uid\fR is specified as a name without also specifying \fBsocket-gid\fR, then
 the socket group is the primary group of the specified user (as found in the
-system user database, normally \fI/etc/passwd\fR). If the socket owner is not
-specified, the socket will be owned by the user id of the Dinit process.
+system user database, normally \fI/etc/passwd\fR). If the \fBsocket\-uid\fR setting is
+not provided, the socket will be owned by the user id of the \fBdinit\fR process.
 .TP
 \fBsocket\-gid\fR = {\fInumeric-group-id\fR | \fIgroup-name\fR}
 Specifies the group of the activation socket. See discussion of
