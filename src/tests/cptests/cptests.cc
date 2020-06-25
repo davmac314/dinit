@@ -631,7 +631,7 @@ void cptest_unload()
     // We should receive NAK, as the service has a dependency:
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1);
-    assert(wdata[0] = DINIT_RP_NAK);
+    assert(wdata[0] == DINIT_RP_NAK);
 
     // Get handle for service 2:
     cmd = { DINIT_CP_FINDSERVICE };
@@ -673,7 +673,7 @@ void cptest_unload()
     // We should receive ACK:
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1);
-    assert(wdata[0] = DINIT_RP_NAK);
+    assert(wdata[0] == DINIT_RP_ACK);
 
     // Now try to unload s1 again:
 
@@ -688,7 +688,7 @@ void cptest_unload()
     // We should receive ACK:
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1);
-    assert(wdata[0] = DINIT_RP_NAK);
+    assert(wdata[0] == DINIT_RP_ACK);
 
     // If we try to FIND service 1 now, it should not be there:
     cmd = { DINIT_CP_FINDSERVICE };
@@ -701,7 +701,7 @@ void cptest_unload()
 
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1);
-    assert(wdata[0] = DINIT_RP_NOSERVICE);
+    assert(wdata[0] == DINIT_RP_NOSERVICE);
 
     delete cc;
 }
