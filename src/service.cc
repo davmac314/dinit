@@ -114,7 +114,7 @@ void service_record::stopped() noexcept
         log_service_stopped(service_name);
 
         // If this service chains to another, start the other service now:
-        if (! will_restart && ! start_on_completion.empty()) {
+        if (! will_restart && ! start_on_completion.empty() && ! services->is_shutting_down()) {
             try {
                 auto chain_to = services->load_service(start_on_completion.c_str());
                 chain_to->start();
