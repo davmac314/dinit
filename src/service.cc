@@ -113,8 +113,13 @@ void service_record::stopped() noexcept
     if (! start_failed) {
         log_service_stopped(service_name);
 
-        // If this service chains to another, start the other service now:
-        if (! will_restart && ! start_on_completion.empty() && ! services->is_shutting_down()) {
+        // If this service chains to another, start the chained service now, if:
+        // - this service self-terminated (rather than being stopped),
+        // - ... successfully (i.e. exit code 0)
+        // - this service won't restart, and
+        // - a shutdown isn't in progress
+        if (did_finish(stop_reason) && get_exit_status() == 0 && ! will_restart
+                && ! start_on_completion.empty() && ! services->is_shutting_down()) {
             try {
                 auto chain_to = services->load_service(start_on_completion.c_str());
                 chain_to->start();

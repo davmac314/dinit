@@ -50,9 +50,14 @@ enum class stopped_reason_t
 	EXECFAILED, // failed to start (couldn't launch process)
     TIMEDOUT,  // timed out when starting
 
-    // Failure after starting:
+    // Failure(?) after starting:
     TERMINATED // process terminated
 };
+
+inline bool did_finish(stopped_reason_t reason)
+{
+    return reason == stopped_reason_t::TERMINATED;
+}
 
 enum class dependency_type
 {

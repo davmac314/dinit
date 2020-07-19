@@ -24,9 +24,12 @@ searches \fI/etc/dinit.d\fR, \fI/usr/local/lib/dinit.d\fR and
 All services have a \fItype\fR and a set of \fIdependencies\fR. Service
 types are discussed in the following subsection. If a service depends on
 another service, then starting the first service causes the second to start
-also (and the second service must complete its startup before the first
-is considered started). Similarly, if one service depends on another which
-becomes stopped, the first service must also stop.
+also; depending on the type of dependency, if the second service fails to
+start, the dependent may have its startup aborted. For a service which will
+represent a running process, the process is not generally launched until the
+dependencies are all satisfied. If a service has a hard dependency on another
+which becomes stopped, the dependent service must also stop. A service
+process will not be signaled to terminate until the service's dependents have stopped.
 .\"
 .SS SERVICE TYPES
 .\"
@@ -180,10 +183,10 @@ The directory path, if not absolute, is relative to the directory containing
 the service description file.
 .TP
 \fBchain-to\fR = \fIservice-name\fR
-When this service completes successfully (i.e. starts and then stops), the
-named service should be started. Note that the named service is not loaded
-until that time; naming an invalid service will not cause this service to
-fail to load.
+When this service terminates (i.e. starts successfully, and then stops of its
+own accord), the named service should be started. Note that the named service
+is not loaded until that time; naming an invalid service will not cause this
+service to fail to load.
 
 This can be used for a service that supplies an interactive "recovery mode"
 for another service; once the user exits the recovery shell, the primary
@@ -192,6 +195,11 @@ multi-stage system startup where later service description files reside on
 a separate filesystem that is mounted during the first stage; such service
 descriptions will not be found at initial start, and so cannot be started
 directly, but can be chained via this directive.
+
+The chain is not executed if the initial service was explicitly stopped, stopped
+due to a dependency stopping (for any reason), if it will restart (including due
+to a dependent restarting), or if its process terminates abnormally or with an
+exit status indicating an error.
 .TP
 \fBsocket\-listen\fR = \fIsocket-path\fR
 Pre-open a socket for the service and pass it to the service using the
