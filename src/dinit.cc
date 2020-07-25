@@ -68,7 +68,7 @@ static void control_socket_cb(eventloop_t *loop, int fd);
 
 static dirload_service_set *services;
 
-static bool am_pid_one = false;     // true if we are PID 1
+static bool am_system_mgr = false;     // true if we are PID 1
 static bool am_system_init = false; // true if we are the system init process
 
 static bool did_log_boot = false;
@@ -183,7 +183,7 @@ int dinit_main(int argc, char **argv)
 {
     using namespace std;
     
-    am_pid_one = (getpid() == 1);
+    am_system_mgr = (getpid() == 1);
     am_system_init = (getuid() == 0);
     const char * env_file = nullptr;
     bool control_socket_path_set = false;
@@ -228,6 +228,9 @@ int dinit_main(int argc, char **argv)
                 else if (strcmp(argv[i], "--user") == 0 || strcmp(argv[i], "-u") == 0) {
                     am_system_init = false;
                 }
+                else if (strcmp(argv[i], "--container") == 0 || strcmp(argv[i], "-o") == 0) {
+                    am_system_mgr = false;
+                }
                 else if (strcmp(argv[i], "--socket-path") == 0 || strcmp(argv[i], "-p") == 0) {
                     if (++i < argc) {
                         control_socket_path = argv[i];
@@ -263,11 +266,12 @@ int dinit_main(int argc, char **argv)
                             "                              files\n"
                             " --system, -s                 run as the system service manager\n"
                             " --user, -u                   run as a user service manager\n"
+                            " --container, -o              run in container mode (do not manage system)\n"
                             " --socket-path <path>, -p <path>\n"
                             "                              path to control socket\n"
                             " --log-file <file>, -l <file> log to the specified file\n"
                             " --quiet, -q                  disable output to standard output\n"
-                            " <service-name>               start service with name <service-name>\n";
+                            " <service-name> [...]         start service with name <service-name>\n";
                     return 0;
                 }
                 else {
@@ -281,7 +285,7 @@ int dinit_main(int argc, char **argv)
             else {
 #ifdef __linux__
                 // LILO puts "auto" on the kernel command line for unattended boots; we'll filter it.
-                if (! am_pid_one || strcmp(argv[i], "auto") != 0) {
+                if (! am_system_mgr || strcmp(argv[i], "auto") != 0) {
                     services_to_start.push_back(argv[i]);
                 }
 #else
@@ -318,7 +322,7 @@ int dinit_main(int argc, char **argv)
     sigaddset(&sigwait_set, SIGCHLD);
     sigaddset(&sigwait_set, SIGINT);
     sigaddset(&sigwait_set, SIGTERM);
-    if (am_pid_one) sigaddset(&sigwait_set, SIGQUIT);
+    if (am_system_mgr) sigaddset(&sigwait_set, SIGQUIT);
     sigprocmask(SIG_BLOCK, &sigwait_set, NULL);
 
     // Terminal access control signals - we ignore these so that dinit can't be
@@ -348,7 +352,7 @@ int dinit_main(int argc, char **argv)
     callback_signal_handler sigint_watcher;
     callback_signal_handler sigquit_watcher;
 
-    if (am_pid_one) {
+    if (am_system_mgr) {
         sigint_watcher.set_cb_func(sigint_reboot_cb);
         sigquit_watcher.set_cb_func(sigquit_cb);
     }
@@ -359,7 +363,7 @@ int dinit_main(int argc, char **argv)
     sigint_watcher.add_watch(event_loop, SIGINT);
     sigterm_watcher.add_watch(event_loop, SIGTERM);
     
-    if (am_pid_one) {
+    if (am_system_mgr) {
         // PID 1: we may ask for console input; SIGQUIT exec's shutdown
         console_input_io.add_watch(event_loop, STDIN_FILENO, dasynq::IN_EVENTS, false);
         sigquit_watcher.add_watch(event_loop, SIGQUIT);
@@ -370,7 +374,7 @@ int dinit_main(int argc, char **argv)
     open_control_socket(false);
     
 #ifdef __linux__
-    if (am_system_init) {
+    if (am_system_mgr) {
         // Disable non-critical kernel output to console
         klogctl(6 /* SYSLOG_ACTION_CONSOLE_OFF */, nullptr, 0);
         // Make ctrl+alt+del combination send SIGINT to PID 1 (this process)
@@ -439,7 +443,7 @@ int dinit_main(int argc, char **argv)
         goto run_event_loop;
     }
     
-    if (am_pid_one) {
+    if (am_system_mgr) {
         log_msg_begin(loglevel_t::INFO, "No more active services.");
         
         if (shutdown_type == shutdown_type_t::REBOOT) {
@@ -461,7 +465,7 @@ int dinit_main(int argc, char **argv)
     
     close_control_socket();
     
-    if (am_pid_one) {
+    if (am_system_mgr) {
         if (shutdown_type == shutdown_type_t::NONE) {
             // Services all stopped but there was no shutdown issued. Inform user, wait for ack, and
             // re-start boot sequence.

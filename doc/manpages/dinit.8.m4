@@ -72,6 +72,11 @@ socket path.
 Run as a user. This is the opposite of \fB\-\-system\fR, and is the default if
 not invoked as the root user.
 .TP
+\fB\-o\fR, \fB\-\-container\fR
+Run in "container mode", i.e. do not perform system management functions (such
+as shutdown/reboot). The \fBdinit\fR daemon will simply exit rather than executing
+the \fBshutdown\fR program.
+.TP
 \fB\-q\fR, \fB\-\-quiet\fR
 Run with no output to the terminal/console. This disables service status messages
 and sets the log level for the console log to \fBNONE\fR.
