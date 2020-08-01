@@ -68,6 +68,14 @@ Run as the system service manager. This is the default if invoked as the root
 user. This option affects the default service definition directory and control
 socket path.
 .TP
+\fB\-m\fR, \fB\-\-system\-mgr\fR
+Run as the system manager (perform operations directly related to machine startup
+and shutdown). This is the default when running as process ID 1. The main user-visible
+effect of this option is to invoke the \fBshutdown\fR program when a shutdown is
+requested (and after all services have stopped), and to provide some basic support
+for system recovery in case the \fBboot\fR service (or other specified service)
+cannot be started.
+.TP
 \fB\-u\fR, \fB\-\-user\fR
 Run as a user. This is the opposite of \fB\-\-system\fR, and is the default if
 not invoked as the root user.

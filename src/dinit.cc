@@ -225,6 +225,9 @@ int dinit_main(int argc, char **argv)
                 else if (strcmp(argv[i], "--system") == 0 || strcmp(argv[i], "-s") == 0) {
                     am_system_init = true;
                 }
+                else if (strcmp(argv[i], "--system-mgr") == 0 || strcmp(argv[i], "-m") == 0) {
+                    am_system_mgr = true;
+                }
                 else if (strcmp(argv[i], "--user") == 0 || strcmp(argv[i], "-u") == 0) {
                     am_system_init = false;
                 }
@@ -265,6 +268,7 @@ int dinit_main(int argc, char **argv)
                             "                              set base directory for service description\n"
                             "                              files\n"
                             " --system, -s                 run as the system service manager\n"
+                            " --system-mgr, -m             run as system manager (perform shutdown etc)\n"
                             " --user, -u                   run as a user service manager\n"
                             " --container, -o              run in container mode (do not manage system)\n"
                             " --socket-path <path>, -p <path>\n"
