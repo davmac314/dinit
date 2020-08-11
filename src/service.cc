@@ -153,13 +153,12 @@ void service_record::release(bool issue_stop) noexcept
 {
     if (--required_by == 0) {
         desired_state = service_state_t::STOPPED;
-        prop_require = false;
 
         // Can stop, and can release dependencies now. We don't need to issue a release if
-        // the require was pending though:
-        if (service_state != service_state_t::STOPPED && service_state != service_state_t::STOPPING) {
-            prop_release = !prop_require;
-            prop_require = false;
+        // a require was pending though:
+        prop_release = !prop_require;
+        prop_require = false;
+        if (prop_release) {
             services->add_prop_queue(this);
         }
 
