@@ -154,6 +154,8 @@ void service_record::release(bool issue_stop) noexcept
     if (--required_by == 0) {
         desired_state = service_state_t::STOPPED;
 
+        if (pinned_started) return;
+
         // Can stop, and can release dependencies now. We don't need to issue a release if
         // a require was pending though:
         prop_release = !prop_require;
@@ -639,6 +641,11 @@ void service_record::unpin() noexcept
                 dep.holding_acq = false;
                 dep.get_to()->release();
             }
+        }
+
+        if (required_by == 0) {
+            prop_release = true;
+            services->add_prop_queue(this);
         }
 
         if (desired_state == service_state_t::STOPPED || force_stop) {
