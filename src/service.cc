@@ -637,10 +637,6 @@ void service_record::unpin() noexcept
                     desired_state = service_state_t::STOPPED;
                 }
             }
-            else if (dep.holding_acq) {
-                dep.holding_acq = false;
-                dep.get_to()->release();
-            }
         }
 
         if (required_by == 0) {
