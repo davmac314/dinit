@@ -408,6 +408,32 @@ void test_pin5()
     assert(s1->get_state() == service_state_t::STOPPED);
 }
 
+// Test that unpinning a service has no effect on soft dependencies
+void test_pin6()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, WAITS}});
+    sset.add_service(s1);
+    sset.add_service(s2);
+
+    // Pin s2:
+    s2->pin_start();
+
+    // Start both three services:
+    sset.start_service(s2);
+
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    // Unpin:
+    s2->unpin();
+
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+}
+
 // Test 7: stopping a soft dependency doesn't cause the dependent to stop.
 void test7()
 {
@@ -851,6 +877,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_pin3, "                 ");
     RUN_TEST(test_pin4, "                 ");
     RUN_TEST(test_pin5, "                 ");
+    RUN_TEST(test_pin6, "                 ");
     RUN_TEST(test7, "                     ");
     RUN_TEST(test8, "                     ");
     RUN_TEST(test9, "                     ");
