@@ -97,14 +97,12 @@ void service_record::stopped() noexcept
             // If we were explicitly started, our required_by count must be at least 1. Use
             // release() to correctly release, mark inactive and release dependencies.
             start_explicit = false;
-            release();
+            release(false);
         }
         else if (required_by == 0) {
             // This can only be the case if we didn't have start_explicit, since required_by would
-            // otherwise by non-zero.
-            prop_release = !prop_require;
-            prop_require = false;
-            services->add_prop_queue(this);
+            // otherwise by non-zero. Since our release(s) above were with state != STOPPED, we now
+            // must mark inactive (i.e. it won't have been done as part of the release).
             services->service_inactive(this);
         }
     }
