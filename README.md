@@ -18,18 +18,21 @@ The impatient may wish to check out the [getting started guide](doc/getting_star
 
 ## Introduction
 
-"Dinit" is a service supervisor with dependency support which can also
+_Dinit_ is a service supervisor with dependency support which can also
 act as the system "init" program. It was created with the intention of
-providing a portable init system that could serve as a lighter-weight
-alternative to the Linux-only Systemd.
+providing a portable init system with dependency management, that was
+functionally superior to many extant inits. On Linux it can serve as a
+lighter-weight alternative to Systemd. Development goals include clean design,
+robustness, portability, usability, and avoiding feature bloat (whilst still
+handling a variety of use cases).
 
-Specifically, Dinit can launch multiple services in parallel, with dependency
+To elaborate, Dinit can launch multiple services in parallel, with dependency
 management (i.e. if one service's operation depends on another, the latter
 service will be started first). It  can monitor the process corresponding to a
 service, and re-start it if it dies, and it can do this in an intelligent way,
 first "rolling back" all dependent services, and restarting them when their
 dependencies are satisfied. However, the precise nature of dependency
-relations between services is highly configurable. The "dinitctl" tool can
+relations between services is highly configurable. The _dinitctl_ tool can
 be used to start or stop services and check their state (by issuing commands
 to the "dinit" daemon).
 
@@ -43,9 +46,6 @@ event handling library, which was written especially to support Dinit. (Note
 that a copy of Dasynq is bundled with Dinit, so a separate copy is not
 required for compilation; however, the bundled copy does not include the
 documentation or test suite).
-
-Development goals include clean design, robustness, portability, and
-avoiding feature bloat (whilst still handling a variety of use cases).
 
 See [doc/COMPARISON](doc/COMPARISON) for a comparison of Dinit with similar
 software packages.
@@ -76,14 +76,16 @@ the "foreground" mode should be used for programs registered as process
 services in Dinit; this allows Dinit to monitor the process.
 
 Process services are attractive due to the ease of monitoring (and
-restarting) the service, however, they have one inherent problem, which is
-that Dinit cannot tell when the service is truly started. Once the process
-has been launched, Dinit assumes that the service has started, but in fact
-there will be a short delay before the process sets itself up, starts
-listening on sockets, etc; during this time any other process (including
-one from a service listed as dependent) which tries to contact it will not
-be able to do so. In practice, this is not usually a problem (and external
-solutions, like D-Bus, do exist).
+restarting) the service. After starting a process, there will often be a
+short delay before the process sets itself up, starts listening on sockets, etc;
+during this time any other process (including one from a service configured as
+a dependent) which tries to contact it will not be able to do so. In practice,
+this is not usually an issue (and external solutions, like D-Bus, do exist),
+but Dinit does support startup notification (compatible with S6) to circumvent
+the problem. With startup notification configured - assuming it is supported by
+the process - dependent services will not be started until the service is
+running properly. If startup notification is _not_ configured, Dinit assumes a process
+service is successfully started as soon as the process is launched.
 
 A _scripted_ service has separate commands for startup and (optional)
 shutdown. Scripted services can be used for tasks such as mounting file
@@ -111,19 +113,23 @@ process.
 ### Service description files
 
 Dinit discovers services by reading _service description files_. These files
-reside in a directory (/etc/dinit.d is the default "system" location, with
-"/usr/local/lib/dinit.d" and "/lib/dinit.d" also searched; the default user
-location is "$HOME/dinit.d") and the name of a service description file
-matches the name of the service they configure. Service descriptions are
-loaded lazily, as needed by Dinit.
+reside in a directory (`/etc/dinit.d` is the default "system" location, with
+`/usr/local/lib/dinit.d` and `/lib/dinit.d` also searched; the default user
+location is `$HOME/dinit.d`) and the name of a service description file
+matches the name of the service they configure.
+
+For example, a service named "mysql" might be configured via the service description
+file named `/etc/dinit.d/mysql`. Service descriptions are loaded lazily, as needed
+by Dinit; so, this service description file will usually be read when the mysql
+service is first staretd.
 
 (An example of a complete set of system service descriptions can be found in
 the [doc/linux/services](doc/linux/services) directory).
 
-A service description file consists of a number of parameter settings.
-Settings in the SDF are denoted as a parameter name followed by either an
-equal sign or colon and then the parameter value (all on the same line).
-Comments begin with a hash mark (#) and extend to the end of the line (they
+A service description file has a textual format and consists of a number of
+parameter settings. Settings in the file are denoted as a parameter name followed
+by either an equal sign or colon and then the parameter value (all on the same line).
+Comments begin with a hash mark (`#`) and extend to the end of the line (they
 must be separated from setting values by at least one whitespace character).
 
 Parameter values are interpreted literally, except that:
@@ -214,13 +220,13 @@ starting (or to fail starting) before commencing the start procedure
 for this service. Starting this service will automatically start
 the named service.
 
-    options = ( runs-on-console | nosigterm | starts-rwfs | starts-log ) ...
+    options = ( no-sigterm | runs-on-console | starts-on-console | start-interruptible ) ...
 
-Specifies various options for this service:
+Specifies various options for this service. Some of the possible options include:
 
 `no-sigterm` : specifies that the TERM signal should not be send to the
               process to terminate it. (Another signal can be specified using
-              the "termsignal" setting; if no other signal is specified, NO
+              the `termsignal` setting; if no other signal is specified, *no*
               signal will be sent).
 
 `runs-on-console` : specifies that this service uses the console; its input
@@ -236,16 +242,16 @@ Specifies various options for this service:
               service startup. This is implied by runs-on-console, but can
               be specified separately for services that need the console
               while they start but not afterwards.
-              This setting is not applicable to regular "process" services,
-              but can be used for "scripted" and "bgprocess" services. It
+              This setting is not applicable to regular _process_ services,
+              but can be used for _scripted_ and _bgprocess_ services. It
               allows for interrupting startup via the "interrupt" key
               (normally control-C). This is useful to allow filesystem checks
               to be interrupted/skipped.
 
 `start-interruptible` : this service can have its startup interrupted
               (cancelled) if it becomes inactive while still starting.
-              The SIGINT signal will be sent to the signal to cancel its
-              startup. This is meaningful only for scripted and bgprocess
+              The SIGINT signal will be sent to the process to cancel its
+              startup. This is meaningful only for _scripted_ and _bgprocess_
               services. 
 
 Please see the manual page for a full list of service parameters and options.
@@ -301,19 +307,19 @@ are:
     dinitctl stop <service-name>
     dinitctl release <service-name>
 
-Note that a "start" marks the service active, as well as starting it if it is
-not already started; the opposite of this is actually "release", which clears
-the active mark and stops it if it has no active dependent services. The "stop"
-command by default acts as a "release" that also forces the service to stop
-(although it may then immediately restart, depending on how it and its
-dependents are configured).
+Note that a _start_ marks the service active, as well as starting it if it is
+not already started; the opposite of this is actually _release_, which clears
+the active mark and stops it if it has no active dependent services.
 
-If stopping a service would also require a dependent service to stop, a warning
-will be issued and the `--force` option will be required.
+The _stop_ command by default acts as a release that also forces the service to
+stop (although it may then immediately restart, depending on how it and its
+dependents are configured). If stopping a service would also require a dependent
+service to stop, a warning will be issued; the `--force` option will be required
+to bypass the warning.
 
 When run as root, dinitctl (by default) communicates with the system instance of
 Dinit. Otherwise, it communicates with a user (personal) instance. This can be
-overridden (using "-u" or "-s" for the user or system instance, respectively), but
+overridden (using `-u` or `-s` for the user or system instance, respectively), but
 note that regular users will generally lack the required permission to communicate
 with the system instance. 
 
@@ -369,5 +375,5 @@ which the service is currently transitioning. For example:
     [   <<{ }] mysql     # starting, but will stop after starting
     [{ }>>   ] mysql     # stopping, but will restart once stopped
 
-Remember that a "starting" service may be waiting for its dependencies to
-start, and a "stopping" service may be waiting for its dependencies to stop.
+Remember that a _starting_ service may be waiting for its dependencies to
+start, and a _stopping_ service may be waiting for its dependencies to stop.
