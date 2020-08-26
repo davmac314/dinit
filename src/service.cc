@@ -494,6 +494,14 @@ void service_record::stop(bool bring_down) noexcept
         required_by--;
     }
 
+    // Set desired state to STOPPED, this will be set back to STARTED if there any hard dependents
+    // that want to restart.
+    desired_state = service_state_t::STOPPED;
+
+    if (pinned_started) {
+        return;
+    }
+
     // If our required_by count is 0, we should treat this as a full manual stop regardless
     if (required_by == 0) {
         bring_down = true;
@@ -502,10 +510,6 @@ void service_record::stop(bool bring_down) noexcept
             services->add_prop_queue(this);
         }
     }
-
-    // Set desired state to STOPPED, this will be set back to STARTED if there any hard dependents
-    // that want to restart.
-    desired_state = service_state_t::STOPPED;
 
     if (bring_down && service_state != service_state_t::STOPPED
     		&& service_state != service_state_t::STOPPING) {
