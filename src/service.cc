@@ -497,6 +497,10 @@ void service_record::stop(bool bring_down) noexcept
     // If our required_by count is 0, we should treat this as a full manual stop regardless
     if (required_by == 0) {
         bring_down = true;
+        prop_release = !prop_require;
+        if (prop_release) {
+            services->add_prop_queue(this);
+        }
     }
 
     // Set desired state to STOPPED, this will be set back to STARTED if there any hard dependents
