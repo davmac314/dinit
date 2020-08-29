@@ -70,6 +70,7 @@ void test1()
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
 }
 
 // Test 2: Multiple dependents will hold a dependency active if one of the dependents is
@@ -112,6 +113,7 @@ void test2()
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
 }
 
 // Test 3: stopping a dependency causes its dependents to stop.
@@ -139,6 +141,7 @@ void test3()
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
 }
 
 // Test 4: an explicitly activated service with automatic restart will restart if it
@@ -172,6 +175,7 @@ void test4()
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STARTED);
     assert(s1->get_state() == service_state_t::STARTED);
+    assert(sset.count_active_services() == 2);
 }
 
 // Test 5: test that services which do not start immediately correctly chain start of
@@ -212,6 +216,7 @@ void test5()
     assert(s3->get_state() == service_state_t::STARTED);
     assert(s2->get_state() == service_state_t::STARTED);
     assert(s1->get_state() == service_state_t::STARTED);
+    assert(sset.count_active_services() == 3);
 }
 
 // Test that service pinned in start state is not stopped when its dependency stops.
@@ -253,6 +258,7 @@ void test_pin1()
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
 }
 
 // Test that issuing a stop to a pinned-started service does not stop the service or its dependencies.
@@ -286,6 +292,7 @@ void test_pin2()
     assert(s3->get_state() == service_state_t::STARTED);
     assert(s2->get_state() == service_state_t::STARTED);
     assert(s1->get_state() == service_state_t::STARTED);
+    assert(sset.count_active_services() == 3);
 }
 
 // Test that a STOPPING dependency of a pinned service stops when pin is released, even if pinned
@@ -336,6 +343,7 @@ void test_pin3()
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
 }
 
 // Test that service pinned started is released when stop issued and stops when unpinned
@@ -366,6 +374,7 @@ void test_pin4()
     s1->unpin();
     sset.process_queues();
     assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
 }
 
 // Test that a pinned-started service doesn't stop when released by a dependent
@@ -406,6 +415,7 @@ void test_pin5()
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
 }
 
 // Test that unpinning a service has no effect on soft dependencies
@@ -432,6 +442,7 @@ void test_pin6()
 
     assert(s2->get_state() == service_state_t::STARTED);
     assert(s1->get_state() == service_state_t::STARTED);
+    assert(sset.count_active_services() == 2);
 }
 
 // Test 7: stopping a soft dependency doesn't cause the dependent to stop.
@@ -459,6 +470,7 @@ void test7()
     assert(s3->get_state() == service_state_t::STARTED);
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 1);
 }
 
 // Test 8: stopping a milestone dependency doesn't cause the dependent to stop
@@ -485,6 +497,7 @@ void test8()
 
     assert(s2->get_state() == service_state_t::STARTED);
     assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 1);
 }
 
 // Test 9: a failing milestone dependency causes the dependent to fail
@@ -509,6 +522,7 @@ void test9()
 
     assert(s1->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
 }
 
 // Test 10: if start cancelled, remove from console queue
@@ -568,6 +582,7 @@ void test10()
     assert(s1->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(! sset.is_queued_for_console(s2));
+    assert(sset.count_active_services() == 1); // s3 is still started
 }
 
 // Test 11: if a milestone dependency doesn't start, dependent doesn't start.
@@ -598,6 +613,7 @@ void test11()
 
     assert(s1->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
 }
 
 // Test that active service count reaches 0 when stopping a service with different types of dependency
