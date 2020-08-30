@@ -662,7 +662,7 @@ void service_record::unpin() noexcept
     if (pinned_stopped) {
         pinned_stopped = false;
         if (desired_state == service_state_t::STARTED) {
-            do_start();
+            start(false);
             services->process_queues();
         }
     }
