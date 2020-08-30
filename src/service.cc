@@ -640,30 +640,30 @@ void service_record::unpin() noexcept
 {
     if (pinned_started) {
         pinned_started = false;
+        // We only need special handling here if service was in STARTED state
+        if (service_state == service_state_t::STARTED) {
+            // If any dependents are stopping, then force_stop should already be set.
 
-        for (auto &dep : depends_on) {
-            if (dep.is_hard()) {
-                if (dep.get_to()->get_state() != service_state_t::STARTED) {
-                    desired_state = service_state_t::STOPPED;
-                }
+            // If we reached required_by 0, we need to propagate release now (since it wasn't
+            // propagated as it normally would be when we hit 0, due to the pin)
+            if (required_by == 0) {
+                prop_release = true;
+                services->add_prop_queue(this);
             }
-        }
 
-        if (required_by == 0) {
-            prop_release = true;
-            services->add_prop_queue(this);
-        }
-
-        if (desired_state == service_state_t::STOPPED || force_stop) {
-            do_stop();
-            services->process_queues();
+            if (desired_state == service_state_t::STOPPED || force_stop) {
+                do_stop();
+                services->process_queues();
+            }
         }
     }
     if (pinned_stopped) {
         pinned_stopped = false;
-        if (desired_state == service_state_t::STARTED) {
-            start(false);
-            services->process_queues();
+        if (service_state == service_state_t::STOPPED) {
+            if (desired_state == service_state_t::STARTED) {
+                start(false);
+                services->process_queues();
+            }
         }
     }
 }
