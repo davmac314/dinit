@@ -216,6 +216,10 @@ void service_record::start(bool activate) noexcept
         services->service_active(this);
     }
 
+    if (pinned_stopped) {
+        return;
+    }
+
     start_failed = false;
     start_skipped = false;
     service_state = service_state_t::STARTING;
