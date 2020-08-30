@@ -1,3 +1,19 @@
+== Version 0.9.0
+
+This release includes some new functionality and a rework of the chain-load
+mechanism.
+
+ * The service specified via the "chain-to" setting will now only be started
+   if the initiating service completes successfully, i.e. if it terminates
+   normally (with an exit code of 0) and only if it is not manually stopped.
+ * New option "--container" (-o) inhibits system management functions (such
+   as machine shutdown/restart) that are normally enabled when dinit runs as
+   process ID 1. A complementary "--system-mgr" (-m) option enables system
+   management (even when not running as PID 1).
+ * Fixed pinned-started services stopping when released by a dependent
+   service, instead of remaining in the started state, and some other bugs
+   related to pinning. Some issues may remain to be fixed in a later release.
+
 == Version 0.8.2
 
 This is a bug-fix release.
