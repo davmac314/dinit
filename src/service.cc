@@ -158,7 +158,7 @@ void service_record::release(bool issue_stop) noexcept
         // a require was pending though:
         prop_release = !prop_require;
         prop_require = false;
-        if (prop_release) {
+        if (prop_release && service_state != service_state_t::STOPPED) {
             services->add_prop_queue(this);
         }
 
