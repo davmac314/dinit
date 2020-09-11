@@ -470,6 +470,41 @@ void test_pin7()
     assert(sset.count_active_services() == 1);
 }
 
+// Test that dependents of a pinned-started service are unaffected by a transitive stop issued to the
+// pinned service
+void test_pin8()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
+    s2->set_auto_restart(true);
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    // Pin s3:
+    s2->pin_start();
+
+    // Start all three services:
+    sset.start_service(s3);
+
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    // Issue stop to s1:
+    s1->stop(true);
+    sset.process_queues();
+
+    // s2 should remain started due to pin, s1 stopping, s3 remains started:
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STOPPING);
+    assert(sset.count_active_services() == 3);
+}
+
 // Test 7: stopping a soft dependency doesn't cause the dependent to stop.
 void test7()
 {
@@ -920,6 +955,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_pin5, "                 ");
     RUN_TEST(test_pin6, "                 ");
     RUN_TEST(test_pin7, "                 ");
+    RUN_TEST(test_pin8, "                 ");
     RUN_TEST(test7, "                     ");
     RUN_TEST(test8, "                     ");
     RUN_TEST(test9, "                     ");
