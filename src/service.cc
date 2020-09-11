@@ -542,6 +542,8 @@ void service_record::do_stop() noexcept
     // Called when we should definitely stop. We may need to restart afterwards, but we
     // won't know that for sure until the execution transition.
 
+    if (pinned_started) return;
+
     bool all_deps_stopped = stop_dependents();
 
     if (service_state != service_state_t::STARTED) {
@@ -578,8 +580,6 @@ void service_record::do_stop() noexcept
             return;
         }
     }
-
-    if (pinned_started) return;
 
     service_state = service_state_t::STOPPING;
     waiting_for_deps = true;
