@@ -53,7 +53,7 @@ void service_record::stopped() noexcept
     // If we are to re-start, restarting should have been set true and desired_state should be STARTED.
     // (A restart could be cancelled via a separately issued stop, including via a shutdown).
     restarting |= auto_restart;
-    bool will_restart = restarting && desired_state == service_state_t::STARTED;
+    bool will_restart = restarting && desired_state == service_state_t::STARTED && !pinned_stopped;
     if (restarting && ! will_restart) {
         notify_listeners(service_event_t::STARTCANCELLED);
     }
@@ -88,7 +88,7 @@ void service_record::stopped() noexcept
     if (will_restart) {
         // Desired state is "started".
         restarting = true;
-        start(false);
+        initiate_start();
     }
     else {
         becoming_inactive();
@@ -138,11 +138,11 @@ void service_record::stopped() noexcept
 void service_record::require() noexcept
 {
     if (required_by++ == 0) {
-        prop_require = !prop_release;
-        prop_release = false;
-        services->add_prop_queue(this);
         if (service_state != service_state_t::STARTING && service_state != service_state_t::STARTED) {
             prop_start = true;
+            services->add_prop_queue(this);
+            // Note: pin is checked in start().
+            // Require will be propagated to dependencies if/when the service actually starts.
         }
     }
 }
@@ -187,15 +187,19 @@ void service_record::release_dependencies() noexcept
 
 void service_record::start(bool activate) noexcept
 {
+    bool was_active = service_state != service_state_t::STOPPED;
+    desired_state = service_state_t::STARTED;
+
     if (activate && ! start_explicit) {
-        require();
+        ++required_by;
         start_explicit = true;
     }
 
-    bool was_active = service_state != service_state_t::STOPPED || desired_state != service_state_t::STOPPED;
-    desired_state = service_state_t::STARTED;
+    if (pinned_stopped) {
+        return;
+    }
     
-    if (service_state != service_state_t::STOPPED) {
+    if (was_active) {
         // We're already starting/started, or we are stopping and need to wait for
         // that the complete.
         if (service_state != service_state_t::STOPPING) {
@@ -212,14 +216,20 @@ void service_record::start(bool activate) noexcept
         // STARTING state.
         notify_listeners(service_event_t::STOPCANCELLED);
     }
-    else if (! was_active) {
+    else { // !was_active
         services->service_active(this);
+        prop_require = !prop_release;
+        prop_release = false;
+        if (prop_require) {
+            services->add_prop_queue(this);
+        }
     }
 
-    if (pinned_stopped) {
-        return;
-    }
+    initiate_start();
+}
 
+void service_record::initiate_start() noexcept
+{
     start_failed = false;
     start_skipped = false;
     service_state = service_state_t::STARTING;
@@ -661,7 +671,9 @@ void service_record::unpin() noexcept
         pinned_stopped = false;
         if (service_state == service_state_t::STOPPED) {
             if (desired_state == service_state_t::STARTED) {
-                start(false);
+                prop_require = true;
+                prop_start = true;
+                services->add_prop_queue(this);
                 services->process_queues();
             }
         }

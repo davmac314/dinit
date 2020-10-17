@@ -331,6 +331,9 @@ class service_record
     // Started state reached
     bool process_started() noexcept;
 
+    // Initiate definite startup
+    void initiate_start() noexcept;
+
     // Called on transition of desired state from stopped to started (or unpinned stop)
     void do_start() noexcept;
 
