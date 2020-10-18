@@ -162,10 +162,7 @@ void service_record::release(bool issue_stop) noexcept
             services->add_prop_queue(this);
         }
 
-        if (service_state == service_state_t::STOPPED) {
-            services->service_inactive(this);
-        }
-        else if (issue_stop) {
+        if (service_state != service_state_t::STOPPED && issue_stop) {
         	stop_reason = stopped_reason_t::NORMAL;
             do_stop();
         }
@@ -196,6 +193,9 @@ void service_record::start(bool activate) noexcept
     }
 
     if (pinned_stopped) {
+        if (!was_active) {
+            failed_to_start(false, false);
+        }
         return;
     }
     

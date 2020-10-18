@@ -445,7 +445,7 @@ void test_pin6()
     assert(sset.count_active_services() == 2);
 }
 
-// Test that service pinned stopped starts when unpinned (if start requested while pinned)
+// Test that service pinned stopped does not start when unpinned (does not get marked active)
 void test_pin7()
 {
     service_set sset;
@@ -464,10 +464,9 @@ void test_pin7()
     // Unpin:
     s1->unpin();
 
-    // Service should now start
-    assert(s1->get_state() == service_state_t::STARTED);
-
-    assert(sset.count_active_services() == 1);
+    // Service should remain stopped
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
 }
 
 // Test that dependents of a pinned-started service are unaffected by a transitive stop issued to the
@@ -479,7 +478,6 @@ void test_pin8()
     service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
     service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
     service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
-    s2->set_auto_restart(true);
     sset.add_service(s1);
     sset.add_service(s2);
     sset.add_service(s3);
@@ -503,6 +501,61 @@ void test_pin8()
     assert(s2->get_state() == service_state_t::STARTED);
     assert(s1->get_state() == service_state_t::STOPPING);
     assert(sset.count_active_services() == 3);
+}
+
+// test that a pinned-stopped service can be started via a soft dependency (once unpinned)
+void test_pin9()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, WAITS}});
+    sset.add_service(s1);
+    sset.add_service(s2);
+
+    // Pin s1:
+    s1->pin_stop();
+
+    // Start s2:
+    sset.start_service(s2);
+
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STOPPED);
+
+    // release pin, service should start:
+    s1->unpin();
+
+    // s2 should remain started due to pin, s1 stopping, s3 remains started:
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 1);
+}
+
+// test that starting a service with a stop-pinned dependency fails
+void test_pin10()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
+    s2->set_auto_restart(true);
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    // Pin-stop s2:
+    s2->pin_stop();
+
+    // Try to start all three services:
+    sset.start_service(s3);
+
+    // Start of s3 should fail due to s2
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s1->get_state() == service_state_t::STOPPED);
+
+    assert(sset.count_active_services() == 0);
 }
 
 // Test 7: stopping a soft dependency doesn't cause the dependent to stop.
@@ -956,6 +1009,8 @@ int main(int argc, char **argv)
     RUN_TEST(test_pin6, "                 ");
     RUN_TEST(test_pin7, "                 ");
     RUN_TEST(test_pin8, "                 ");
+    RUN_TEST(test_pin9, "                 ");
+    RUN_TEST(test_pin10, "                ");
     RUN_TEST(test7, "                     ");
     RUN_TEST(test8, "                     ");
     RUN_TEST(test9, "                     ");
