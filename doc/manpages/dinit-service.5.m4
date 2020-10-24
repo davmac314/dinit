@@ -21,15 +21,10 @@ located in a service description directory; by default, the system process
 searches \fI/etc/dinit.d\fR, \fI/usr/local/lib/dinit.d\fR and
 \fI/lib/dinit.d\fR, while a user process searches \fI$HOME/dinit.d\fR.
 .LP
-All services have a \fItype\fR and a set of \fIdependencies\fR. Service
-types are discussed in the following subsection. If a service depends on
-another service, then starting the first service causes the second to start
-also; depending on the type of dependency, if the second service fails to
-start, the dependent may have its startup aborted. For a service which will
-represent a running process, the process is not generally launched until the
-dependencies are all satisfied. If a service has a hard dependency on another
-which becomes stopped, the dependent service must also stop. A service
-process will not be signaled to terminate until the service's dependents have stopped.
+All services have a \fItype\fR and a set of \fIdependencies\fR. These are discussed
+in the following subsections. The type, dependencies, and other attributes are
+specified via property settings, the format of which are documented in the
+\fBSERVICE PROPERTIES\fR subsection, which also lists the available properties.
 .\"
 .SS SERVICE TYPES
 .\"
@@ -52,11 +47,62 @@ not be supervised.
 \fBInternal\fR services do not run as an external process at all. They can
 be started and stopped without any external action. They are useful for
 grouping other services (via service dependencies).
+.LP
+Independent of their type, the state of services can be linked to other
+services via dependency relationships, which are discussed in the next section.
+.\"
+.SS SERVICE DEPENDENCIES
+.\"
+A service dependency relationship, broadly speaking, specifies that for one
+service to run, another must also be running. The first service is the
+\fIdependent\fR service and the latter is the \fIdependency\fR service (we
+will henceforth generally refer to the the dependency relationship as the
+\fIrelationship\fR and use \fIdependency\fR to refer to the service).
+A dependency relationship is specified via the properties of the dependent.
+There are different relationship types, as follows:
+.IP \(bu
+A \fBneed\fR (or "hard") relationship specifies that the dependent must wait
+for the dependency to be started before it starts, and that the dependency
+must remain started while the dependent is started. Starting the dependent
+will start the dependency, and stopping the dependency will stop the
+dependent. This type of relationship is specified using a
+\fBdepends-on\fR property.
+.IP \(bu
+A \fBmilestone\fR relationship specifies that the dependency must
+start successfully before the dependent starts. Starting the dependent will
+therefore start the dependency. Once started, the relationship is satisfied; if the
+dependency then stops, it has no effect on the dependent. However, if the
+dependency fails to start or has its startup cancelled, the dependent will
+not start (and will return to the stopped state). This type of relationship is
+specified using a \fBdepends-ms\fR property.
+.IP \(bu
+A \fBwaits-for\fR relationship specifies that the dependency must
+start successfully, or fail to start, before the dependent starts. Starting
+the dependent will attempt to first start the dependency, but failure will
+not prevent the dependent from starting. If the dependency starts,
+stopping it will have no effect on the dependent. This type of relationship is
+specified using a \fBwaits-for\fR property.
+.LP
+Note that process-based services always wait for their dependency relationships
+to be satisfied (by the dependency starting, or failing to start in case of a waits-for
+relationship) before their process is launched. Conversely, a termination signal
+will not in general be sent to a service process until the service has no active
+dependents.
+.LP
+Since in general dependencies should remain started so long as their dependent
+does, an attachment forms between the two once both are started. This attachment
+is released when the dependent stops, and the dependency will then stop, unless
+it has other attachments or it has been explicitly started independently.
+Attachments between a dependent and dependency are re-created if a dependency
+starts (or starts again) while the dependent is still started.
 .\"
 .SS SERVICE PROPERTIES
 .\"
 This section described the various service properties that can be specified
-in a service description file. Each line of the file can specify a single
+in a service description file. The properties specify the type of the service,
+dependencies of the service, and other service configuration.
+.LP
+Each line of the file can specify a single
 property value, expressed as "\fIproperty-name\fR = \fIvalue\fR". Comments
 begin with a hash mark (#) and extend to the end of the line (they must be
 separated from setting values by at least one whitespace character). Values
@@ -78,7 +124,7 @@ value.
 The following properties can be specified:
 .TP
 \fBtype\fR = {process | bgprocess | scripted | internal}
-Specifies the service type.
+Specifies the service type; see the \fBSERVICE TYPES\fR section.
 .TP
 \fBcommand\fR = \fIcommand-string\fR
 Specifies the command, including command-line arguments, for starting the

@@ -373,7 +373,20 @@ void service_record::all_deps_started() noexcept
 
     bool start_success = bring_up();
     restarting = false;
-    if (! start_success) {
+    if (start_success) {
+        // re-attach any soft dependents, now that we have started again
+        for (auto dept : dependents) {
+            if (!dept->is_hard()) {
+                service_state_t dept_state = dept->get_from()->service_state;
+                if (!dept->holding_acq
+                        && (dept_state == service_state_t::STARTED || dept_state == service_state_t::STARTING)) {
+                    dept->holding_acq = true;
+                    ++required_by;
+                }
+            }
+        }
+    }
+    else {
         failed_to_start();
     }
 }

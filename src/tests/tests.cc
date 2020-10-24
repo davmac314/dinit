@@ -906,6 +906,45 @@ void test15()
     assert(! tl.got_started);
 }
 
+// Test 16: test that soft dependents reattach on starting
+void test16()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, WAITS}});
+    sset.add_service(s1);
+    sset.add_service(s2);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+
+    // Start both services:
+    sset.start_service(s2);
+
+    // Stop s1:
+    sset.stop_service(s1);
+
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STARTED);
+
+    // Start s1:
+    sset.start_service(s1);
+
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+
+    // De-activate but don't force bring down of s1
+    // It should remain running, as the dependency from s2 should be reattached
+    s1->stop(false);
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+
+    assert(sset.count_active_services() == 2);
+}
+
 static void flush_log(int fd)
 {
     while (! is_log_flushed()) {
@@ -1020,6 +1059,7 @@ int main(int argc, char **argv)
     RUN_TEST(test13, "                    ");
     RUN_TEST(test14, "                    ");
     RUN_TEST(test15, "                    ");
+    RUN_TEST(test16, "                    ");
     RUN_TEST(test_log1, "                 ");
     RUN_TEST(test_log2, "                 ");
 }
