@@ -1,3 +1,12 @@
+== Version ??? (upcoming release)
+
+ * Re-worked soft dependency handling slightly. A dependency now (re-)attaches
+   to its dependent if it starts (or starts again) while the dependent is
+   started. This leads to overall more consistent behaviour (and is simpler
+   to implement properly).
+ * Re-worked pinning. A service that is pinned stopped can now prevent dependents
+   from starting (the behaviour is the same as if the service failed to start).
+
 == Version 0.9.0
 
 This release includes some new functionality and a rework of the chain-load
