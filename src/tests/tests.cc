@@ -330,7 +330,7 @@ void test_pin3()
     assert(s1->get_state() == service_state_t::STARTED);
 
     // If we now issue start, s2 still needs to stop (due to force stop):
-    s3->start(true);
+    s3->start();
     sset.process_queues();
 
     assert(s3->get_state() == service_state_t::STARTED);

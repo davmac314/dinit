@@ -84,7 +84,7 @@ void test_proc_service_start()
     init_service_defaults(p);
     sset.add_service(&p);
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTING);
@@ -115,7 +115,7 @@ void test_proc_notify_start()
     p.set_notification_fd(3);
     sset.add_service(&p);
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTING);
@@ -157,7 +157,7 @@ void test_proc_unexpected_term()
     init_service_defaults(p);
     sset.add_service(&p);
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     base_process_service_test::exec_succeeded(&p);
@@ -191,7 +191,7 @@ void test_proc_term_restart()
     p.set_auto_restart(true);
     sset.add_service(&p);
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     base_process_service_test::exec_succeeded(&p);
@@ -241,7 +241,7 @@ void test_proc_term_restart2()
 
     b.add_dep(&p, WAITS);
 
-    b.start(true);
+    b.start();
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTING);
@@ -312,7 +312,7 @@ void test_term_via_stop()
     init_service_defaults(p);
     sset.add_service(&p);
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     base_process_service_test::exec_succeeded(&p);
@@ -353,7 +353,7 @@ void test_term_via_stop2()
     init_service_defaults(p);
     sset.add_service(&p);
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     // first set it up with failure reason:
@@ -366,7 +366,7 @@ void test_term_via_stop2()
 
     // now restart clean:
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     base_process_service_test::exec_succeeded(&p);
@@ -405,7 +405,7 @@ void test_proc_start_timeout()
     p.set_start_timeout(time_val(10,0));
     sset.add_service(&p);
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTING);
@@ -446,7 +446,7 @@ void test_proc_start_timeout2()
     service_record ts {&sset, "test-service-1", service_type_t::INTERNAL,
         {{&p, dependency_type::WAITS_FOR}} };
 
-    ts.start(true);
+    ts.start();
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTING);
@@ -484,7 +484,7 @@ void test_proc_start_execfail()
     init_service_defaults(p);
     sset.add_service(&p);
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTING);
@@ -516,7 +516,7 @@ void test_proc_notify_fail()
     p.set_notification_fd(3);
     sset.add_service(&p);
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTING);
@@ -560,7 +560,7 @@ void test_proc_stop_timeout()
     p.set_stop_timeout(time_val {10, 0});
     sset.add_service(&p);
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTING);
@@ -612,7 +612,7 @@ void test_proc_smooth_recovery1()
     p.set_restart_delay(time_val {0, 1000});
     sset.add_service(&p);
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     base_process_service_test::exec_succeeded(&p);
@@ -659,7 +659,7 @@ void test_proc_smooth_recovery2()
     p.set_restart_delay(time_val(0, 0));
     sset.add_service(&p);
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     base_process_service_test::exec_succeeded(&p);
@@ -699,7 +699,7 @@ void test_bgproc_smooth_recover()
     p.set_pid_file("/run/daemon.pid");
     sset.add_service(&p);
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     base_process_service_test::exec_succeeded(&p);
@@ -816,7 +816,7 @@ void test_scripted_stop_timeout()
     p.set_stop_timeout(time_val {10, 0});
     sset.add_service(&p);
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTING);
@@ -880,7 +880,7 @@ void test_scripted_start_fail()
     sset.add_service(s2);
     sset.add_service(s3);
 
-    s3->start(true);
+    s3->start();
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTING);
@@ -930,7 +930,7 @@ void test_scripted_stop_fail()
     sset.add_service(s3);
     sset.add_service(s4);
 
-    s4->start(true);
+    s4->start();
     sset.process_queues();
 
     base_process_service_test::exec_succeeded(&p);
@@ -986,7 +986,7 @@ void test_scripted_start_skip()
     service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{&p, REG}});
     sset.add_service(s2);
 
-    s2->start(true);
+    s2->start();
     sset.process_queues();
     assert(p.get_state() == service_state_t::STARTING);
 
@@ -1039,7 +1039,7 @@ void test_scripted_start_skip2()
     service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{&p, REG}});
     sset.add_service(s2);
 
-    s2->start(true);
+    s2->start();
     sset.process_queues();
     assert(p.get_state() == service_state_t::STARTING);
 
@@ -1087,7 +1087,7 @@ void test_waitsfor_restart()
 
     // start p:
 
-    p.start(true);
+    p.start();
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTING);
@@ -1107,7 +1107,7 @@ void test_waitsfor_restart()
 
     // start tp (which waits-for p):
 
-    tp.start(true);
+    tp.start();
     sset.process_queues();
 
     assert(tp.get_state() == service_state_t::STARTING);

@@ -182,50 +182,19 @@ void service_record::release_dependencies() noexcept
     }
 }
 
-void service_record::start(bool activate) noexcept
+void service_record::start() noexcept
 {
-    bool was_active = service_state != service_state_t::STOPPED;
-    desired_state = service_state_t::STARTED;
+    if (service_state == service_state_t::STOPPED && pinned_stopped) {
+        // bail out early for this special case
+        return;
+    }
 
-    if (activate && ! start_explicit) {
+    if (!start_explicit) {
         ++required_by;
         start_explicit = true;
     }
 
-    if (pinned_stopped) {
-        if (!was_active) {
-            failed_to_start(false, false);
-        }
-        return;
-    }
-    
-    if (was_active) {
-        // We're already starting/started, or we are stopping and need to wait for
-        // that the complete.
-        if (service_state != service_state_t::STOPPING) {
-            return;
-        }
-
-        if (! can_interrupt_stop()) {
-            restarting = true;
-            return;
-        }
-
-        // We're STOPPING, and that can be interrupted. Our dependencies might be STOPPING,
-        // but if so they are waiting (for us), so they too can be instantly returned to
-        // STARTING state.
-        notify_listeners(service_event_t::STOPCANCELLED);
-    }
-    else { // !was_active
-        services->service_active(this);
-        prop_require = !prop_release;
-        prop_release = false;
-        if (prop_require) {
-            services->add_prop_queue(this);
-        }
-    }
-
-    initiate_start();
+    do_start();
 }
 
 void service_record::initiate_start() noexcept
@@ -264,7 +233,7 @@ void service_record::do_propagation() noexcept
     
     if (prop_start) {
         prop_start = false;
-        start(false);
+        do_start();
     }
 
     if (prop_stop) {
@@ -300,21 +269,44 @@ void service_record::execute_transition() noexcept
 
 void service_record::do_start() noexcept
 {
-    if (pinned_stopped) return;
-    
-    if (service_state != service_state_t::STARTING) {
+    bool was_active = service_state != service_state_t::STOPPED;
+
+    desired_state = service_state_t::STARTED;
+
+    if (pinned_stopped) {
+        if (!was_active) {
+            failed_to_start(false, false);
+        }
         return;
     }
     
-    service_state = service_state_t::STARTING;
+    if (was_active) {
+        // We're already starting/started, or we are stopping and need to wait for
+        // that the complete.
+        if (service_state != service_state_t::STOPPING) {
+            return;
+        }
 
-    waiting_for_deps = true;
+        if (! can_interrupt_stop()) {
+            restarting = true;
+            return;
+        }
 
-    // Ask dependencies to start, mark them as being waited on.
-    if (check_deps_started()) {
-        // Once all dependencies are started, we start properly:
-        all_deps_started();
+        // We're STOPPING, and that can be interrupted. Our dependencies might be STOPPING,
+        // but if so they are waiting (for us), so they too can be instantly returned to
+        // STARTING state.
+        notify_listeners(service_event_t::STOPCANCELLED);
     }
+    else { // !was_active
+        services->service_active(this);
+        prop_require = !prop_release;
+        prop_release = false;
+        if (prop_require) {
+            services->add_prop_queue(this);
+        }
+    }
+
+    initiate_start();
 }
 
 void service_record::dependency_started() noexcept

@@ -505,7 +505,7 @@ class service_record
     const std::string &get_name() const noexcept { return service_name; }
     service_state_t get_state() const noexcept { return service_state; }
     
-    void start(bool activate = true) noexcept;  // start the service
+    void start() noexcept;  // start the service
     void stop(bool bring_down = true) noexcept;   // stop the service
     bool restart() noexcept; // restart the service, returns true iff restart issued
     
