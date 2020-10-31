@@ -708,6 +708,46 @@ void test_softdep5()
     assert(sset.count_active_services() == 2);
 }
 
+// Test that already-started dependencies are correctly attached when starting
+void test_softdep6()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, WAITS}});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s1, WAITS}});
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+    assert(sset.find_service("test-service-3") == s3);
+
+    // Start s1+s2 services:
+    sset.start_service(s2);
+
+    // Start s3:
+    sset.start_service(s3);
+
+    // Stop s2:
+    sset.stop_service(s2);
+
+    // s1 should remain started, due to dependency from s3.
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s3->get_state() == service_state_t::STARTED);
+
+    // Stop s3, all should stop:
+    sset.stop_service(s3);
+
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s3->get_state() == service_state_t::STOPPED);
+
+    assert(sset.count_active_services() == 0);
+}
+
 // If start cancelled, service is removed from console queue
 void test_other1()
 {
@@ -1055,6 +1095,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_softdep3, "             ");
     RUN_TEST(test_softdep4, "             ");
     RUN_TEST(test_softdep5, "             ");
+    RUN_TEST(test_softdep6, "             ");
     RUN_TEST(test_other1, "               ");
     RUN_TEST(test_other2, "               ");
     RUN_TEST(test_other3, "               ");
