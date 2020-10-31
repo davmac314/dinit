@@ -52,8 +52,7 @@ void service_record::stopped() noexcept
 
     // If we are to re-start, restarting should have been set true and desired_state should be STARTED.
     // (A restart could be cancelled via a separately issued stop, including via a shutdown).
-    restarting |= auto_restart;
-    bool will_restart = restarting && desired_state == service_state_t::STARTED && !pinned_stopped;
+    bool will_restart = desired_state == service_state_t::STARTED && !pinned_stopped;
     if (restarting && ! will_restart) {
         notify_listeners(service_event_t::STARTCANCELLED);
     }
@@ -62,7 +61,7 @@ void service_record::stopped() noexcept
     // If we won't restart, break soft dependencies now
     if (! will_restart) {
         for (auto dept : dependents) {
-            if (! dept->is_hard()) {
+            if (!dept->is_hard()) {
                 // waits-for or soft dependency:
                 if (dept->waiting_on) {
                     dept->waiting_on = false;
@@ -637,8 +636,26 @@ bool service_record::stop_dependents() noexcept
             dept->get_from()->prop_stop = true;
             services->add_prop_queue(dept->get_from());
         }
-        // Note that soft dependencies are held (for now). If we restart, we don't want those dependencies
-        // to be broken.
+        // Note that soft dependencies are retained if restarting, but otherwise
+        // they are broken.
+        else if (!auto_restart && !restarting && !dept->is_hard() && dept->holding_acq) {
+            if (dept->waiting_on) {
+                dept->waiting_on = false;
+                if (dept->dep_type == dependency_type::MILESTONE) {
+                    dept->get_from()->prop_stop = true;
+                    services->add_prop_queue(dept->get_from());
+                }
+                else {
+                    dept->get_from()->dependency_started();
+                    dept->holding_acq = false;
+                    release(false);
+                }
+            }
+            else {
+                dept->holding_acq = false;
+                release(false);
+            }
+        }
     }
 
     return all_deps_stopped;
