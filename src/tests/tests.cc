@@ -40,9 +40,9 @@ class test_listener : public service_listener
     }
 };
 
-// Test 1: starting a service starts dependencies; stopping the service releases and
+// Starting a service starts dependencies; stopping the service releases and
 // stops dependencies.
-void test1()
+void basic_test1()
 {
     service_set sset;
 
@@ -73,9 +73,9 @@ void test1()
     assert(sset.count_active_services() == 0);
 }
 
-// Test 2: Multiple dependents will hold a dependency active if one of the dependents is
+// Multiple dependents will hold a dependency active if one of the dependents is
 // stopped/released.
-void test2()
+void basic_test2()
 {
     service_set sset;
 
@@ -116,8 +116,8 @@ void test2()
     assert(sset.count_active_services() == 0);
 }
 
-// Test 3: stopping a dependency causes its dependents to stop.
-void test3()
+// Stopping a dependency causes its dependents to stop.
+void basic_test3()
 {
     service_set sset;
 
@@ -144,9 +144,9 @@ void test3()
     assert(sset.count_active_services() == 0);
 }
 
-// Test 4: an explicitly activated service with automatic restart will restart if it
+// An explicitly activated service with automatic restart will restart if it
 // stops due to a dependency stopping, therefore also causing the dependency to restart.
-void test4()
+void basic_test4()
 {
     service_set sset;
 
@@ -178,9 +178,9 @@ void test4()
     assert(sset.count_active_services() == 2);
 }
 
-// Test 5: test that services which do not start immediately correctly chain start of
+// Test that services which do not start immediately correctly chain start of
 // dependent services.
-void test5()
+void basic_test5()
 {
     service_set sset;
 
@@ -558,8 +558,8 @@ void test_pin10()
     assert(sset.count_active_services() == 0);
 }
 
-// Test 7: stopping a soft dependency doesn't cause the dependent to stop.
-void test7()
+// Stopping a soft dependency doesn't cause the dependent to stop.
+void test_softdep1()
 {
     service_set sset;
 
@@ -586,8 +586,8 @@ void test7()
     assert(sset.count_active_services() == 1);
 }
 
-// Test 8: stopping a milestone dependency doesn't cause the dependent to stop
-void test8()
+// Stopping a milestone dependency doesn't cause the dependent to stop
+void test_softdep2()
 {
     service_set sset;
 
@@ -613,8 +613,8 @@ void test8()
     assert(sset.count_active_services() == 1);
 }
 
-// Test 9: a failing milestone dependency causes the dependent to fail
-void test9()
+// A failing milestone dependency causes the dependent to fail
+void test_softdep3()
 {
     service_set sset;
 
@@ -638,8 +638,78 @@ void test9()
     assert(sset.count_active_services() == 0);
 }
 
-// Test 10: if start cancelled, remove from console queue
-void test10()
+// If a milestone dependency start is cancelled, dependent doesn't start.
+void test_softdep4()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, MS}});
+
+    sset.add_service(s1);
+    sset.add_service(s2);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+
+    // Request start of the s2 service:
+    sset.start_service(s2);
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STARTING);
+    assert(s2->get_state() == service_state_t::STARTING);
+
+    s1->stop();
+    sset.process_queues();
+    s1->bring_down();
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
+}
+
+// Test that soft dependents of a service reattach when service starts
+void test_softdep5()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, WAITS}});
+    sset.add_service(s1);
+    sset.add_service(s2);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+
+    // Start both services:
+    sset.start_service(s2);
+
+    // Stop s1:
+    sset.stop_service(s1);
+
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STARTED);
+
+    // Start s1:
+    sset.start_service(s1);
+
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+
+    // De-activate but don't force bring down of s1
+    // It should remain running, as the dependency from s2 should be reattached
+    s1->stop(false);
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+
+    assert(sset.count_active_services() == 2);
+}
+
+// If start cancelled, service is removed from console queue
+void test_other1()
 {
     service_set sset;
 
@@ -698,39 +768,8 @@ void test10()
     assert(sset.count_active_services() == 1); // s3 is still started
 }
 
-// Test 11: if a milestone dependency doesn't start, dependent doesn't start.
-void test11()
-{
-    service_set sset;
-
-    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
-    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, MS}});
-
-    sset.add_service(s1);
-    sset.add_service(s2);
-
-    assert(sset.find_service("test-service-1") == s1);
-    assert(sset.find_service("test-service-2") == s2);
-
-    // Request start of the s2 service:
-    sset.start_service(s2);
-    sset.process_queues();
-
-    assert(s1->get_state() == service_state_t::STARTING);
-    assert(s2->get_state() == service_state_t::STARTING);
-
-    s1->stop();
-    sset.process_queues();
-    s1->bring_down();
-    sset.process_queues();
-
-    assert(s1->get_state() == service_state_t::STOPPED);
-    assert(s2->get_state() == service_state_t::STOPPED);
-    assert(sset.count_active_services() == 0);
-}
-
 // Test that active service count reaches 0 when stopping a service with different types of dependency
-void test12()
+void test_other2()
 {
     service_set sset;
 
@@ -772,7 +811,7 @@ void test12()
 }
 
 // Tests for "restart" functionality.
-void test13()
+void test_other3()
 {
     service_set sset;
 
@@ -820,7 +859,7 @@ void test13()
 }
 
 // Make sure a service only restarts once (i.e. restart flag doesn't get stuck)
-void test14()
+void test_other4()
 {
     service_set sset;
 
@@ -863,7 +902,7 @@ void test14()
 }
 
 // Test that restart can be cancelled if dependents stop
-void test15()
+void test_other5()
 {
     service_set sset;
 
@@ -904,45 +943,6 @@ void test15()
 
     assert(tl.start_cancelled);
     assert(! tl.got_started);
-}
-
-// Test 16: test that soft dependents reattach on starting
-void test16()
-{
-    service_set sset;
-
-    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
-    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, WAITS}});
-    sset.add_service(s1);
-    sset.add_service(s2);
-
-    assert(sset.find_service("test-service-1") == s1);
-    assert(sset.find_service("test-service-2") == s2);
-
-    // Start both services:
-    sset.start_service(s2);
-
-    // Stop s1:
-    sset.stop_service(s1);
-
-    assert(s1->get_state() == service_state_t::STOPPED);
-    assert(s2->get_state() == service_state_t::STARTED);
-
-    // Start s1:
-    sset.start_service(s1);
-
-    assert(s1->get_state() == service_state_t::STARTED);
-    assert(s2->get_state() == service_state_t::STARTED);
-
-    // De-activate but don't force bring down of s1
-    // It should remain running, as the dependency from s2 should be reattached
-    s1->stop(false);
-    sset.process_queues();
-
-    assert(s1->get_state() == service_state_t::STARTED);
-    assert(s2->get_state() == service_state_t::STARTED);
-
-    assert(sset.count_active_services() == 2);
 }
 
 static void flush_log(int fd)
@@ -1035,11 +1035,11 @@ int main(int argc, char **argv)
 {
     bp_sys::init_bpsys();
 
-    RUN_TEST(test1, "                     ");
-    RUN_TEST(test2, "                     ");
-    RUN_TEST(test3, "                     ");
-    RUN_TEST(test4, "                     ");
-    RUN_TEST(test5, "                     ");
+    RUN_TEST(basic_test1, "               ");
+    RUN_TEST(basic_test2, "               ");
+    RUN_TEST(basic_test3, "               ");
+    RUN_TEST(basic_test4, "               ");
+    RUN_TEST(basic_test5, "               ");
     RUN_TEST(test_pin1, "                 ");
     RUN_TEST(test_pin2, "                 ");
     RUN_TEST(test_pin3, "                 ");
@@ -1050,16 +1050,16 @@ int main(int argc, char **argv)
     RUN_TEST(test_pin8, "                 ");
     RUN_TEST(test_pin9, "                 ");
     RUN_TEST(test_pin10, "                ");
-    RUN_TEST(test7, "                     ");
-    RUN_TEST(test8, "                     ");
-    RUN_TEST(test9, "                     ");
-    RUN_TEST(test10, "                    ");
-    RUN_TEST(test11, "                    ");
-    RUN_TEST(test12, "                    ");
-    RUN_TEST(test13, "                    ");
-    RUN_TEST(test14, "                    ");
-    RUN_TEST(test15, "                    ");
-    RUN_TEST(test16, "                    ");
+    RUN_TEST(test_softdep1, "             ");
+    RUN_TEST(test_softdep2, "             ");
+    RUN_TEST(test_softdep3, "             ");
+    RUN_TEST(test_softdep4, "             ");
+    RUN_TEST(test_softdep5, "             ");
+    RUN_TEST(test_other1, "               ");
+    RUN_TEST(test_other2, "               ");
+    RUN_TEST(test_other3, "               ");
+    RUN_TEST(test_other4, "               ");
+    RUN_TEST(test_other5, "               ");
     RUN_TEST(test_log1, "                 ");
     RUN_TEST(test_log2, "                 ");
 }
