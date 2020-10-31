@@ -748,6 +748,52 @@ void test_softdep6()
     assert(sset.count_active_services() == 0);
 }
 
+// Test that a soft dependency restarts if set to auto-restart and dependent still running
+void test_softdep7()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, WAITS}});
+    s1->set_auto_restart(true);
+    sset.add_service(s1);
+    sset.add_service(s2);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+
+    // Start both services:
+    sset.start_service(s2);
+
+    assert(s1->get_target_state() == service_state_t::STARTED);
+    s1->started();
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+
+    // Unexpected stop:
+    s1->forced_stop();
+    sset.process_queues();
+
+    // since s1 will restart, target state should be STARTED:
+    assert(s1->get_target_state() == service_state_t::STARTED);
+
+    s1->stopped();
+    sset.process_queues();
+
+    // We should see s1 restarting:
+    assert(s1->get_state() == service_state_t::STARTING);
+
+    s1->started();
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+
+    assert(sset.count_active_services() == 2);
+}
+
 // If start cancelled, service is removed from console queue
 void test_other1()
 {
@@ -1096,6 +1142,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_softdep4, "             ");
     RUN_TEST(test_softdep5, "             ");
     RUN_TEST(test_softdep6, "             ");
+    RUN_TEST(test_softdep7, "             ");
     RUN_TEST(test_other1, "               ");
     RUN_TEST(test_other2, "               ");
     RUN_TEST(test_other3, "               ");
