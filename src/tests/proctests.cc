@@ -164,9 +164,11 @@ void test_proc_unexpected_term()
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_target_state() == service_state_t::STARTED);
 
     base_process_service_test::handle_exit(&p, 0);
 
+    assert(p.get_target_state() == service_state_t::STOPPED);
     assert(p.get_state() == service_state_t::STOPPED);
     assert(p.get_stop_reason() == stopped_reason_t::TERMINATED);
     assert(event_loop.active_timers.size() == 0);
