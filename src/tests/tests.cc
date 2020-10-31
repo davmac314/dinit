@@ -503,7 +503,7 @@ void test_pin8()
     assert(sset.count_active_services() == 3);
 }
 
-// test that a pinned-stopped service can be started via a soft dependency (once unpinned)
+// test that a pinned-stopped service is not started via a soft dependency once unpinned
 void test_pin9()
 {
     service_set sset;
@@ -522,10 +522,10 @@ void test_pin9()
     assert(s2->get_state() == service_state_t::STARTED);
     assert(s1->get_state() == service_state_t::STOPPED);
 
-    // release pin, service should start:
+    // release pin, service should not start:
     s1->unpin();
 
-    // s2 should remain started due to pin, s1 stopping, s3 remains started:
+    // s2 should remain started, s1 should remain stopped:
     assert(s2->get_state() == service_state_t::STARTED);
     assert(s1->get_state() == service_state_t::STOPPED);
     assert(sset.count_active_services() == 1);
