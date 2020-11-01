@@ -23,7 +23,7 @@
 void base_process_service::do_smooth_recovery() noexcept
 {
     if (! restart_ps_process()) {
-        emergency_stop();
+        forced_stop();
         services->process_queues();
     }
 }
@@ -371,12 +371,6 @@ void base_process_service::timer_expired() noexcept
         // STARTING / STARTED, and we have a pid: must be restarting (smooth recovery if STARTED)
         do_restart();
     }
-}
-
-void base_process_service::emergency_stop() noexcept
-{
-    forced_stop();
-    stop_dependents();
 }
 
 void base_process_service::becoming_inactive() noexcept

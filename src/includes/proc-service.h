@@ -228,9 +228,6 @@ class base_process_service : public service_record
     // Signal the process group of the service process
     void kill_pg(int signo) noexcept;
 
-    // stop immediately
-    void emergency_stop() noexcept;
-
     // Open the activation socket, return false on failure
     bool open_socket() noexcept;
 

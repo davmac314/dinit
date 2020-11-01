@@ -233,7 +233,7 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
     }
     else {
         stop_reason = stopped_reason_t::TERMINATED;
-        emergency_stop();
+        forced_stop();
     }
     services->process_queues();
 }
@@ -256,7 +256,7 @@ void process_service::exec_failed(run_proc_err errcode) noexcept
     else {
         // Process service in smooth recovery:
         stop_reason = stopped_reason_t::TERMINATED;
-        emergency_stop();
+        forced_stop();
     }
 }
 
@@ -314,7 +314,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
         if (need_stop) {
             // Failed startup: no auto-restart.
             stop_reason = stopped_reason_t::TERMINATED;
-            emergency_stop();
+            forced_stop();
             services->process_queues();
         }
 
