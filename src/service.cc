@@ -161,7 +161,8 @@ void service_record::release(bool issue_stop) noexcept
             services->add_prop_queue(this);
         }
 
-        if (service_state != service_state_t::STOPPED && issue_stop) {
+        if (service_state != service_state_t::STOPPED && service_state != service_state_t::STOPPING
+                && issue_stop) {
         	stop_reason = stopped_reason_t::NORMAL;
             do_stop();
         }
