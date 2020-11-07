@@ -450,6 +450,9 @@ void service_record::failed_to_start(bool depfailed, bool immediate_stop) noexce
         switch (dept->dep_type) {
         case dependency_type::REGULAR:
         case dependency_type::MILESTONE:
+            // If REGULAR and STARTED, we can't have failed to start i.e. we must be started, so
+            // we don't worry about that case. If MILESTONE and started the dependency is already
+            // satisfied so again we don't need to do anything.
             if (dept->get_from()->service_state == service_state_t::STARTING) {
                 dept->get_from()->prop_failure = true;
                 services->add_prop_queue(dept->get_from());
@@ -487,7 +490,7 @@ bool service_record::bring_up() noexcept
     return true;
 }
 
-// Mark this and all dependent services as force-stopped.
+// Mark this and all dependent services to be force-stopped.
 void service_record::forced_stop() noexcept
 {
     if (service_state != service_state_t::STOPPED) {
@@ -508,6 +511,8 @@ void service_record::dependent_stopped() noexcept
 
 void service_record::stop(bool bring_down) noexcept
 {
+    // Stop; remove activation, and don't self-restart.
+
     if (start_explicit) {
         start_explicit = false;
         required_by--;
@@ -618,6 +623,7 @@ bool service_record::stop_check_dependents() noexcept
 
 bool service_record::stop_dependents() noexcept
 {
+    // We are in either STARTED or STARTING states.
     bool all_deps_stopped = true;
     for (auto dept : dependents) {
         if (dept->is_hard() && dept->holding_acq) {
