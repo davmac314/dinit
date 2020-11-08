@@ -53,9 +53,6 @@ void service_record::stopped() noexcept
     // If we are to re-start, restarting should have been set true and desired_state should be STARTED.
     // (A restart could be cancelled via a separately issued stop, including via a shutdown).
     bool will_restart = desired_state == service_state_t::STARTED && !pinned_stopped;
-    if (restarting && ! will_restart) {
-        notify_listeners(service_event_t::STARTCANCELLED);
-    }
     restarting = false;
 
     // If we won't restart, break soft dependencies now
@@ -149,6 +146,14 @@ void service_record::require() noexcept
 void service_record::release(bool issue_stop) noexcept
 {
     if (--required_by == 0) {
+        if (service_state == service_state_t::STOPPING) {
+            // If we are stopping but would have restarted, we now need to notify that the restart
+            // has been cancelled. Other start-cancelled cases are handled by do_stop() (called
+            // below).
+            if (desired_state == service_state_t::STARTED) {
+                notify_listeners(service_event_t::STARTCANCELLED);
+            }
+        }
         desired_state = service_state_t::STOPPED;
 
         if (pinned_started) return;
