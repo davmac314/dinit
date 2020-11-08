@@ -1060,16 +1060,20 @@ void test_other5()
     sset.process_queues();
 
     assert(s1->get_state() == service_state_t::STOPPING);
+    assert(s1->get_target_state() == service_state_t::STARTED);
 
+    // Stop s2, s1 will be released and will therefore not restart
     s2->stop();
     sset.process_queues();
+    assert(s1->get_target_state() == service_state_t::STOPPED);
+    assert(tl.start_cancelled);
+
     s1->stopped();
     sset.process_queues();
 
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(s1->get_state() == service_state_t::STOPPED);
 
-    assert(tl.start_cancelled);
     assert(! tl.got_started);
 }
 
