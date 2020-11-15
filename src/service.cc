@@ -634,7 +634,9 @@ bool service_record::stop_dependents() noexcept
     bool all_deps_stopped = true;
     for (auto dept : dependents) {
         if (dept->is_hard() && dept->holding_acq) {
-            if (! dept->get_from()->is_stopped()) {
+            service_record *dep_from = dept->get_from();
+
+            if (!dep_from->is_stopped()) {
                 // Note we check *first* since if the dependent service is not stopped,
                 // 1. We will issue a stop to it shortly and
                 // 2. It will notify us when stopped, at which point the stop_check_dependents()
@@ -644,11 +646,14 @@ bool service_record::stop_dependents() noexcept
 
             if (force_stop) {
                 // If this service is to be forcefully stopped, dependents must also be.
-                dept->get_from()->forced_stop();
+                dep_from->forced_stop();
             }
 
-            dept->get_from()->prop_stop = true;
-            services->add_prop_queue(dept->get_from());
+            if (dep_from->get_state() != service_state_t::STOPPED
+                    && dep_from->get_state() != service_state_t::STOPPING) {
+                dep_from->prop_stop = true;
+                services->add_prop_queue(dep_from);
+            }
         }
         // Note that soft dependencies are retained if restarting, but otherwise
         // they are broken.
