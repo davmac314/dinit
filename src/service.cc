@@ -523,9 +523,11 @@ void service_record::stop(bool bring_down) noexcept
         required_by--;
     }
 
-    // Set desired state to STOPPED, this will be set back to STARTED if there any hard dependents
-    // that want to restart.
-    desired_state = service_state_t::STOPPED;
+    if (bring_down || required_by == 0) {
+        // Set desired state to STOPPED, this will be set back to STARTED if there any hard dependents
+        // that want to restart.
+        desired_state = service_state_t::STOPPED;
+    }
 
     if (pinned_started) {
         return;
