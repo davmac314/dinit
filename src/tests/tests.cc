@@ -219,6 +219,63 @@ void basic_test5()
     assert(sset.count_active_services() == 3);
 }
 
+// Test that issuing a stop-without-bring-down to a service that is held up by a dependent does not
+// cause the service to stop.
+void basic_test6()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    test_service *s3 = new test_service(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
+
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    sset.start_service(s3);
+
+    // All three should transition to STARTING state:
+    assert(s3->get_state() == service_state_t::STARTING);
+    s1->started();
+    sset.process_queues();
+    assert(s2->get_state() == service_state_t::STARTING);
+    s2->started();
+    sset.process_queues();
+    assert(s3->get_state() == service_state_t::STARTING);
+    s3->started();
+    sset.process_queues();
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    assert(s3->get_target_state() == service_state_t::STARTED);
+    assert(s2->get_target_state() == service_state_t::STARTED);
+    assert(s1->get_target_state() == service_state_t::STARTED);
+
+    // Mark s2 active (it's already started):
+    s2->start();
+    sset.process_queues();
+
+    // Issue stop, *without* bring-down, to s1 and s2.
+    s1->stop(false);
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    s2->stop(false);
+    sset.process_queues();
+    assert(s2->get_state() == service_state_t::STARTED);
+
+    assert(s3->get_target_state() == service_state_t::STARTED);
+    assert(s2->get_target_state() == service_state_t::STARTED);
+    assert(s1->get_target_state() == service_state_t::STARTED);
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    assert(sset.count_active_services() == 3);
+}
+
 // Test that service pinned in start state is not stopped when its dependency stops.
 void test_pin1()
 {
@@ -1077,6 +1134,46 @@ void test_other5()
     assert(! tl.got_started);
 }
 
+// Test interrupted startup.
+void test_other6()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, WAITS}});
+    test_service *s3 = new test_service(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, MS}});
+
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    // Begin to start all services via s3
+    sset.start_service(s3);
+
+    assert(s1->get_state() == service_state_t::STARTING);
+    assert(s2->get_state() == service_state_t::STARTING);
+    assert(s3->get_state() == service_state_t::STARTING);
+
+    // Stop s2, s3 should stop, s1 is no longer required but still STARTING
+    // Note s2 is waiting for dependencies (s1) so start should be interruptible.
+    s2->stop();
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STARTING);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s3->get_state() == service_state_t::STOPPED);
+
+    // Once s1 starts, it is no longer required and so should stop.
+    s1->started();
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s3->get_state() == service_state_t::STOPPED);
+
+    assert(sset.count_active_services() == 0);
+}
+
 static void flush_log(int fd)
 {
     while (! is_log_flushed()) {
@@ -1172,6 +1269,7 @@ int main(int argc, char **argv)
     RUN_TEST(basic_test3, "               ");
     RUN_TEST(basic_test4, "               ");
     RUN_TEST(basic_test5, "               ");
+    RUN_TEST(basic_test6, "               ");
     RUN_TEST(test_pin1, "                 ");
     RUN_TEST(test_pin2, "                 ");
     RUN_TEST(test_pin3, "                 ");
@@ -1195,6 +1293,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_other3, "               ");
     RUN_TEST(test_other4, "               ");
     RUN_TEST(test_other5, "               ");
+    RUN_TEST(test_other6, "               ");
     RUN_TEST(test_log1, "                 ");
     RUN_TEST(test_log2, "                 ");
 }
