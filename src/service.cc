@@ -633,7 +633,10 @@ bool service_record::stop_dependents() noexcept
     // We are in either STARTED or STARTING states.
     bool all_deps_stopped = true;
     for (auto dept : dependents) {
-        if (dept->is_hard() && dept->holding_acq) {
+        if (!dept->holding_acq) {
+            continue;
+        }
+        if (dept->is_hard()) {
             service_record *dep_from = dept->get_from();
 
             if (!dep_from->is_stopped()) {
@@ -657,18 +660,15 @@ bool service_record::stop_dependents() noexcept
         }
         // Note that soft dependencies are retained if restarting, but otherwise
         // they are broken.
-        else if (!auto_restart && !restarting && !dept->is_hard() && dept->holding_acq) {
+        else if (!auto_restart && !restarting && !dept->is_hard()) {
             if (dept->waiting_on) {
+                // Note, milestone which is still waiting is considered a hard dependency and
+                // is handled above. This is therefore a true soft dependency, and we can just
+                // break the dependency link.
                 dept->waiting_on = false;
-                if (dept->dep_type == dependency_type::MILESTONE) {
-                    dept->get_from()->prop_stop = true;
-                    services->add_prop_queue(dept->get_from());
-                }
-                else {
-                    dept->get_from()->dependency_started();
-                    dept->holding_acq = false;
-                    release(false);
-                }
+                dept->get_from()->dependency_started();
+                dept->holding_acq = false;
+                release(false);
             }
             else {
                 dept->holding_acq = false;
