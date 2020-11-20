@@ -137,12 +137,12 @@ Compiling against the newer (C++11 and later) ABI can be achieved by adding
 extension to differently mangle symbol names in order to link against the new ABI versions.
 
 (Some systems may be configured to build with the new ABI by default, and in that case you
-build against the old ABI using D_GLIBCXX_USE_CXX11_ABI=1).
+build against the old ABI using -D_GLIBCXX_USE_CXX11_ABI=0).
 
 This is problematic for several reasons. First, it prevents linking against the new ABI with
 other compilers that do not understand the language extension (LLVM i.e. clang++ does so
 in recent versions, so this is perhaps no longer much of a problem in practice). Secondly,
-some aspects of library behavior are ABI-dependent but cannot be changed using the ABI
+some aspects of library behaviour are ABI-dependent but cannot be changed using the ABI
 macro; in particular, exceptions thrown as a result of failed I/O operations are, in GCC
 versions 5.x and 6.x, always "old ABI" exceptions which cannot be caught by code compiled
 against the new ABI, and in GCC version 7.x they are always "new ABI" exceptions which cannot
