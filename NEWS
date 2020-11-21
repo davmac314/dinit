@@ -16,6 +16,13 @@
    could cause output of "dinitctl list" to incorrectly show that a service would
    restart after stopping, when in fact it would remain stopped.
 
+== Version 0.9.1
+
+This is a bug-fix release.
+
+ * Fix a service getting stuck in the "stopping" state, if a dependent is
+   set to auto-restart ("restart = true").
+
 == Version 0.9.0
 
 This release includes some new functionality and a rework of the chain-load
