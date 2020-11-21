@@ -659,6 +659,14 @@ bool service_record::stop_dependents() noexcept
             if (dep_from->get_state() != service_state_t::STOPPED
                     && dep_from->get_state() != service_state_t::STOPPING) {
                 dep_from->prop_stop = true;
+                if (desired_state == service_state_t::STOPPED) {
+                    // if we don't want to restart, don't restart dependent
+                    dep_from->desired_state = service_state_t::STOPPED;
+                    if (dep_from->start_explicit) {
+                        dep_from->start_explicit = false;
+                        dep_from->release(true);
+                    }
+                }
                 services->add_prop_queue(dep_from);
             }
         }

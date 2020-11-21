@@ -291,6 +291,45 @@ void basic_test6()
     assert(sset.count_active_services() == 3);
 }
 
+// An explicitly activated service with automatic restart will restart if it
+// stops due to a dependency stopping, therefore also causing the dependency to restart.
+void basic_test7()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
+    s2->set_auto_restart(true);
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+    assert(sset.find_service("test-service-3") == s3);
+
+    // Start all three services:
+    sset.start_service(s3);
+
+    // Also explicitly activate s2:
+    sset.start_service(s2);
+
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    // Now stop s1, which should also force s2 and s3 to stop.
+    // s2 should not restart, since this was an explicit forced stop which
+    // inhibits restart, and so s1 should also remain stopped.
+    sset.stop_service(s1);
+
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
+}
+
 // Test that service pinned in start state is not stopped when its dependency stops.
 void test_pin1()
 {
@@ -1285,6 +1324,7 @@ int main(int argc, char **argv)
     RUN_TEST(basic_test4, "               ");
     RUN_TEST(basic_test5, "               ");
     RUN_TEST(basic_test6, "               ");
+    RUN_TEST(basic_test7, "               ");
     RUN_TEST(test_pin1, "                 ");
     RUN_TEST(test_pin2, "                 ");
     RUN_TEST(test_pin3, "                 ");

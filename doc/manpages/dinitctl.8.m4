@@ -99,11 +99,9 @@ to stop before it is then restarted.
 Stop the specified service, and remove explicit activation. If the service has (non-soft) dependents, an
 error will be displayed unless the \fB\-\-force\fR option is used.
 
-A service with any dependents via soft dependencies will have these dependency links broken when it stops.
-
-The \fBrestart\fR option applied to the stopped service will not by itself cause the service to restart
-when it is stopped via this command. However, a dependent which is configured to restart may
-cause the service itself to restart as a result.
+The \fBrestart\fR option (see \fBdinit-service\fR(5)) applied to the stopped service will not cause the
+service to restart when it is stopped via this command (that is, this command inhibits automatic restart).
+This also applies to dependents that must also be stopped.
 
 Any pending \fBstart\fR orders are cancelled,
 though a service which is starting will continue its startup before then stopping (unless the service is
@@ -210,7 +208,7 @@ automatically, or with a dependent service configured to do so, will restart imm
 unless pinned.
 .\"
 .SH SEE ALSO
-\fBdinit\fR(8).
+\fBdinit\fR(8), \fBdinit-service\fR(5).
 .\"
 .SH AUTHOR
 Dinit, and this manual, were written by Davin McCall.
