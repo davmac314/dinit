@@ -81,8 +81,15 @@ Suppress status output, except for errors.
 Do not wait for issued command to complete; exit immediately.
 .TP
 \fB\-\-pin\fR
-Pin the service in the requested state. The service will not leave the state until it is unpinned, although
-start/stop commands will be "remembered" while the service is pinned.
+Pin the service in the requested state. The service will not leave the state until it is unpinned.
+
+A service that is pinned stopped cannot be marked active, that is, start commands issued to the
+service have no effect. Dependents (via hard dependency relationships) of the pinned service will
+be unable to start.
+
+A service that is pinned started cannot be stopped, however its explicit activation can be removed
+(eg via the \fBstop\fR or \fBrelease\fR commands). Once unpinned, a service which is not explicitly
+activated, and which has no active dependents, will automatically stop.
 .TP
 \fB\-\-force\fR
 Stop the service even if it will require stopping other services which depend on the specified service.
@@ -101,7 +108,7 @@ error will be displayed unless the \fB\-\-force\fR option is used.
 
 The \fBrestart\fR option (see \fBdinit-service\fR(5)) applied to the stopped service will not cause the
 service to restart when it is stopped via this command (that is, this command inhibits automatic restart).
-This also applies to dependents that must also be stopped.
+This also applies to any dependents that must also be stopped at the same time.
 
 Any pending \fBstart\fR orders are cancelled,
 though a service which is starting will continue its startup before then stopping (unless the service is
@@ -114,7 +121,7 @@ activation status or dependency links from dependents.
 .TP
 \fBwake\fR
 Start the specified service after reattaching dependency links from all active dependents of the specified
-service. The service will not be marked explicitly activated, and so will stop if the dependents stop.
+service. The service will not be marked explicitly activated, and so will stop if all the dependents stop.
 .TP
 \fBrelease\fR
 Clear the explicit activation mark from a service (the service will then stop if it has no active dependents).
