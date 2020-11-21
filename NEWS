@@ -1,11 +1,20 @@
 == Version ??? (upcoming release)
 
+ * Re-worked manual service stop (via command). Previously, manually stopping
+   a service would inhibit automatic restart of the service, but not of its
+   dependents; this meant that the service might still restart due to a
+   dependent. In this version, manually stopping a service inhibits restart
+   of the service and all dependents (note that the --force option is required,
+   as previously, in order to stop a service which has active dependents).
  * Re-worked soft dependency handling slightly. A dependency now (re-)attaches
    to its dependent if it starts (or starts again) while the dependent is
    started. This leads to overall more consistent behaviour (and is simpler
    to implement properly).
  * Re-worked pinning. A service that is pinned stopped can now prevent dependents
    from starting (the behaviour is the same as if the service failed to start).
+ * Fixed some cases where service target state would not be set correctly. This
+   could cause output of "dinitctl list" to incorrectly show that a service would
+   restart after stopping, when in fact it would remain stopped.
 
 == Version 0.9.0
 
