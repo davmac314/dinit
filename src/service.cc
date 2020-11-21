@@ -592,7 +592,7 @@ bool service_record::stop_check_dependents() noexcept
 {
     bool all_deps_stopped = true;
     for (auto dept : dependents) {
-        if (dept->is_hard() && dept->holding_acq) {
+        if (dept->is_hard() && dept->holding_acq && !dept->waiting_on) {
             all_deps_stopped = false;
             break;
         }
