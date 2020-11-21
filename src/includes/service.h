@@ -307,8 +307,9 @@ class service_record
     void release(bool issue_stop = true) noexcept;
     void release_dependencies() noexcept;
     
-    // Check if service is, fundamentally, stopped.
-    bool is_stopped() noexcept
+    // Check if service is, fundamentally, stopped. It is either in the stopped state, or
+    // starting but waiting for dependents, i.e. it can be trivially set to stopped state.
+    bool is_fundamentally_stopped() noexcept
     {
         return service_state == service_state_t::STOPPED
             || (service_state == service_state_t::STARTING && waiting_for_deps);

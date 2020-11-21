@@ -619,7 +619,11 @@ bool service_record::stop_check_dependents() noexcept
 {
     bool all_deps_stopped = true;
     for (auto dept : dependents) {
-        if (dept->is_hard() && dept->holding_acq) {
+        // Note if the dependent is waiting on us, it must be restarting (since the
+        // waiting_on flag gets cleared when we stop, and would only be set if the
+        // service tries to restart). We can treat that as "stopped" for purposes of
+        // checking whether we can transition to stopped state.
+        if (dept->is_hard() && dept->holding_acq && !dept->waiting_on) {
             all_deps_stopped = false;
             break;
         }
@@ -639,7 +643,7 @@ bool service_record::stop_dependents() noexcept
         if (dept->is_hard()) {
             service_record *dep_from = dept->get_from();
 
-            if (!dep_from->is_stopped()) {
+            if (!dep_from->is_fundamentally_stopped()) {
                 // Note we check *first* since if the dependent service is not stopped,
                 // 1. We will issue a stop to it shortly and
                 // 2. It will notify us when stopped, at which point the stop_check_dependents()

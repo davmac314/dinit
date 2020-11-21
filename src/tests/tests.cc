@@ -150,7 +150,7 @@ void basic_test4()
 {
     service_set sset;
 
-    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
     service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
     service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
     s2->set_auto_restart(true);
@@ -168,9 +168,24 @@ void basic_test4()
     // Also explicitly activate s2:
     sset.start_service(s2);
 
+    s1->started();
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+
     // Now stop s1, which should also force s2 and s3 to stop.
     // s2 (and therefore s1) should restart:
-    sset.stop_service(s1);
+    s1->forced_stop();
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STARTING);
+    assert(s1->get_state() == service_state_t::STARTING);
+
+    s1->started();
+    sset.process_queues();
 
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STARTED);
