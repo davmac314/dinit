@@ -360,7 +360,6 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
         }
         stop_reason = stopped_reason_t::TERMINATED;
         forced_stop();
-        stop_dependents();
         stopped();
     }
     services->process_queues();

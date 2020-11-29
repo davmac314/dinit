@@ -564,17 +564,20 @@ void service_record::do_stop() noexcept
 
     if (pinned_started) return;
 
-    // If desired_state != STARTED, auto-restart is inhibited. If auto-restart is not set or is
-    // inhibited, and a restart is not specifically requested (restarting = true), release
-    // explicit activation:
-    if (!restarting && (!auto_restart || desired_state != service_state_t::STARTED)) {
+    // Will we restart? desired state of STOPPED inhibits auto-restart
+    bool for_restart = restarting || (auto_restart && desired_state == service_state_t::STARTED);
+
+    // If we won't restart, release explicit activation:
+    if (!for_restart) {
         if (start_explicit) {
             start_explicit = false;
             release(false);
         }
     }
 
-    bool all_deps_stopped = stop_dependents();
+    bool all_deps_stopped = stop_dependents(for_restart);
+
+    restarting = false;
 
     if (service_state != service_state_t::STARTED) {
         if (service_state == service_state_t::STARTING) {
@@ -635,7 +638,7 @@ bool service_record::stop_check_dependents() noexcept
     return all_deps_stopped;
 }
 
-bool service_record::stop_dependents() noexcept
+bool service_record::stop_dependents(bool for_restart) noexcept
 {
     // We are in either STARTED or STARTING states.
     bool all_deps_stopped = true;
@@ -675,7 +678,7 @@ bool service_record::stop_dependents() noexcept
         }
         // Note that soft dependencies are retained if restarting, but otherwise
         // they are broken.
-        else if (!auto_restart && !restarting && !dept->is_hard()) {
+        else if (!for_restart && !dept->is_hard()) {
             if (dept->waiting_on) {
                 // Note, milestone which is still waiting is considered a hard dependency and
                 // is handled above. This is therefore a true soft dependency, and we can just

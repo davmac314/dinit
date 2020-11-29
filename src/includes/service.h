@@ -301,7 +301,7 @@ class service_record
     bool stop_check_dependents() noexcept;
     
     // issue a stop to all dependents, return true if they are all already stopped
-    bool stop_dependents() noexcept;
+    bool stop_dependents(bool for_restart) noexcept;
     
     void require() noexcept;
     void release(bool issue_stop = true) noexcept;
