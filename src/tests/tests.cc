@@ -330,6 +330,65 @@ void basic_test7()
     assert(sset.count_active_services() == 0);
 }
 
+// A dependent service which stops due to a dependency should have target state STOPPED
+// if it won't restart.
+void basic_test8()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    test_service *s3 = new test_service(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
+    s2->auto_stop = false;
+    s3->auto_stop = false;
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+    assert(sset.find_service("test-service-3") == s3);
+
+    // Start all three services:
+    sset.start_service(s3);
+
+    // Also explicitly activate s2:
+    sset.start_service(s2);
+
+    s1->started();
+    sset.process_queues();
+    s2->started();
+    sset.process_queues();
+    s3->started();
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    // Now stop s1, which should also force s2 and s3 to stop.
+    // s2 (and therefore s1) should restart:
+    s1->forced_stop();
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STOPPING);
+    assert(s2->get_state() == service_state_t::STOPPING);
+    assert(s1->get_state() == service_state_t::STOPPING);
+
+    assert(s3->get_target_state() == service_state_t::STOPPED);
+    assert(s2->get_target_state() == service_state_t::STOPPED);
+
+    s3->stopped();
+    sset.process_queues();
+    s2->stopped();
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
+}
+
 // Test that service pinned in start state is not stopped when its dependency stops.
 void test_pin1()
 {
@@ -1325,6 +1384,7 @@ int main(int argc, char **argv)
     RUN_TEST(basic_test5, "               ");
     RUN_TEST(basic_test6, "               ");
     RUN_TEST(basic_test7, "               ");
+    RUN_TEST(basic_test8, "               ");
     RUN_TEST(test_pin1, "                 ");
     RUN_TEST(test_pin2, "                 ");
     RUN_TEST(test_pin3, "                 ");

@@ -35,6 +35,7 @@ class test_service : public service_record
 
     void stopped() noexcept
     {
+        assert(get_state() != service_state_t::STOPPED);
         service_record::stopped();
     }
 
