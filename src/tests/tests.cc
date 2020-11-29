@@ -291,8 +291,8 @@ void basic_test6()
     assert(sset.count_active_services() == 3);
 }
 
-// An explicitly activated service with automatic restart will restart if it
-// stops due to a dependency stopping, therefore also causing the dependency to restart.
+// An explicitly activated service with automatic restart will not restart if it
+// stops due to a dependency stopping from a manual stop (which inhibits restart).
 void basic_test7()
 {
     service_set sset;
