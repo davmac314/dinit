@@ -4,6 +4,7 @@
 #include <csignal>
 #include <cstring>
 #include <utility>
+#include <vector>
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -13,6 +14,7 @@
 
 #include "dinit-utmp.h"
 #include "dinit-util.h"
+#include "service-constants.h"
 
 struct service_flags_t
 {

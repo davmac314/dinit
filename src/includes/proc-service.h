@@ -1,3 +1,7 @@
+#include <vector>
+#include <string>
+#include <list>
+
 #include <sys/types.h>
 #include <sys/resource.h>
 
