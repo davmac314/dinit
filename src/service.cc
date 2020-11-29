@@ -259,14 +259,6 @@ void service_record::execute_transition() noexcept
     else if (service_state == service_state_t::STOPPING) {
         if (stop_check_dependents()) {
             waiting_for_deps = false;
-
-            // A service that does actually stop for any reason should have its explicit activation released, unless
-            // it will restart:
-            if (start_explicit && !auto_restart && !restarting) {
-                start_explicit = false;
-                release(false);
-            }
-
             bring_down();
         }
     }
@@ -524,8 +516,8 @@ void service_record::stop(bool bring_down) noexcept
     }
 
     if (bring_down || required_by == 0) {
-        // Set desired state to STOPPED, this will be set back to STARTED if there any hard dependents
-        // that want to restart.
+        // Set desired state to STOPPED, this will inhibit automatic restart (and will be
+        // propagated to dependents)
         desired_state = service_state_t::STOPPED;
     }
 
@@ -570,6 +562,16 @@ void service_record::do_stop() noexcept
     // won't know that for sure until the execution transition.
 
     if (pinned_started) return;
+
+    // If desired_state != STARTED, auto-restart is inhibited. If auto-restart is not set or is
+    // inhibited, and a restart is not specifically requested (restarting = true), release
+    // explicit activation:
+    if (!restarting && (!auto_restart || desired_state != service_state_t::STARTED)) {
+        if (start_explicit) {
+            start_explicit = false;
+            release(false);
+        }
+    }
 
     bool all_deps_stopped = stop_dependents();
 
