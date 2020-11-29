@@ -548,6 +548,7 @@ bool service_record::restart() noexcept
     if (service_state == service_state_t::STARTED) {
         restarting = true;
         stop_reason = stopped_reason_t::NORMAL;
+        force_stop = true;
         do_stop();
         return true;
     }

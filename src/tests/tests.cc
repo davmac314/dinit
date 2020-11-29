@@ -1139,7 +1139,6 @@ void test_other3()
     s1->add_listener(&tl);
 
     s1->restart();
-    s1->forced_stop();
     sset.process_queues();
 
     assert(s3->get_state() == service_state_t::STARTED);
@@ -1178,7 +1177,6 @@ void test_other4()
     assert(s1->get_state() == service_state_t::STARTED);
 
     s1->restart();
-    s1->forced_stop();
     sset.process_queues();
 
     assert(s2->get_state() == service_state_t::STARTED);
@@ -1226,7 +1224,6 @@ void test_other5()
     s1->auto_stop = false;
 
     s1->restart();
-    s1->forced_stop();
     sset.process_queues();
 
     assert(s1->get_state() == service_state_t::STOPPING);
