@@ -288,10 +288,8 @@ bool control_conn_t::process_start_stop(int pktType)
             else {
                 if (do_pin) service->pin_stop();
                 service->stop(true);
-                wanted_state = service_state_t::STOPPED;
-            }
-            if (!do_restart) {
                 service->forced_stop();
+                wanted_state = service_state_t::STOPPED;
             }
             services->process_queues();
             if (service->get_state() == wanted_state && !do_restart) ack_buf[0] = DINIT_RP_ALREADYSS;
