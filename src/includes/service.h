@@ -339,7 +339,7 @@ class service_record
     void do_start() noexcept;
 
     // Begin stopping, release activation.
-    void do_stop() noexcept;
+    void do_stop(bool with_restart = false) noexcept;
 
     // Set the service state
     void set_state(service_state_t new_state) noexcept

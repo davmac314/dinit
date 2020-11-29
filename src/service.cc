@@ -546,10 +546,9 @@ bool service_record::restart() noexcept
     // Re-start without affecting dependency links/activation.
 
     if (service_state == service_state_t::STARTED) {
-        restarting = true;
         stop_reason = stopped_reason_t::NORMAL;
         force_stop = true;
-        do_stop();
+        do_stop(true);
         return true;
     }
 
@@ -557,7 +556,7 @@ bool service_record::restart() noexcept
     return false;
 }
 
-void service_record::do_stop() noexcept
+void service_record::do_stop(bool with_restart) noexcept
 {
     // Called when we should definitely stop. We may need to restart afterwards, but we
     // won't know that for sure until the execution transition.
@@ -565,7 +564,7 @@ void service_record::do_stop() noexcept
     if (pinned_started) return;
 
     // Will we restart? desired state of STOPPED inhibits auto-restart
-    bool for_restart = restarting || (auto_restart && desired_state == service_state_t::STARTED);
+    bool for_restart = with_restart || (auto_restart && desired_state == service_state_t::STARTED);
 
     // If we won't restart, release explicit activation:
     if (!for_restart) {
