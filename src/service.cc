@@ -480,6 +480,12 @@ void service_record::failed_to_start(bool depfailed, bool immediate_stop) noexce
     }
 }
 
+void service_record::unrecoverable_stop() noexcept
+{
+    desired_state = service_state_t::STOPPED;
+    forced_stop();
+}
+
 bool service_record::bring_up() noexcept
 {
     // default implementation: there is no process, so we are started.

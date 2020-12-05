@@ -277,6 +277,9 @@ class service_record
     //   immediate_stop: whether to set state as STOPPED and handle complete stop.
     void failed_to_start(bool dep_failed = false, bool immediate_stop = true) noexcept;
     
+    // Service stopped (failed), unrecoverably; dependents should not auto-restart
+    void unrecoverable_stop() noexcept;
+
     // A dependency has reached STARTED state
     void dependency_started() noexcept;
     

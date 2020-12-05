@@ -23,7 +23,7 @@
 void base_process_service::do_smooth_recovery() noexcept
 {
     if (! restart_ps_process()) {
-        forced_stop();
+        unrecoverable_stop();
         services->process_queues();
     }
 }
@@ -253,8 +253,7 @@ void base_process_service::do_restart() noexcept
             failed_to_start();
         }
         else {
-            // desired_state = service_state_t::STOPPED;
-            forced_stop();
+            unrecoverable_stop();
         }
         services->process_queues();
     }
@@ -368,7 +367,7 @@ void base_process_service::timer_expired() noexcept
         failed_to_start(false, false);
     }
     else {
-        // STARTING / STARTED, and we have a pid: must be restarting (smooth recovery if STARTED)
+        // STARTING / STARTED, and we have no pid: must be restarting (smooth recovery if STARTED)
         do_restart();
     }
 }
