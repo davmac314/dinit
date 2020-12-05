@@ -34,6 +34,7 @@ class base_process_service_test
         err.stage = exec_stage::DO_EXEC;
         err.st_errno = errcode;
     	bsp->waiting_for_execstat = false;
+    	bsp->pid = -1;
     	bsp->exec_failed(err);
     }
 
@@ -157,7 +158,10 @@ void test_proc_unexpected_term()
     init_service_defaults(p);
     sset.add_service(&p);
 
-    p.start();
+    service_record d1 {&sset, "test-service-2", service_type_t::INTERNAL, {{&p, REG}}};
+    sset.add_service(&d1);
+
+    d1.start();
     sset.process_queues();
 
     base_process_service_test::exec_succeeded(&p);
@@ -165,6 +169,8 @@ void test_proc_unexpected_term()
 
     assert(p.get_state() == service_state_t::STARTED);
     assert(p.get_target_state() == service_state_t::STARTED);
+    assert(d1.get_state() == service_state_t::STARTED);
+    assert(d1.get_target_state() == service_state_t::STARTED);
 
     base_process_service_test::handle_exit(&p, 0);
 
@@ -173,6 +179,10 @@ void test_proc_unexpected_term()
     assert(p.get_stop_reason() == stopped_reason_t::TERMINATED);
     assert(event_loop.active_timers.size() == 0);
 
+    assert(d1.get_state() == service_state_t::STOPPED);
+    assert(d1.get_target_state() == service_state_t::STOPPED);
+
+    sset.remove_service(&d1);
     sset.remove_service(&p);
 }
 
@@ -287,7 +297,6 @@ void test_proc_term_restart2()
     // simulate terminate dinit
     sset.stop_all_services();
 
-    //base_process_service_test::handle_exit(&p, 0);
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPED);
@@ -296,6 +305,52 @@ void test_proc_term_restart2()
 
     sset.remove_service(&p);
     sset.remove_service(&b);
+}
+
+// Restart due to dependent, after unexpected termination
+void test_proc_term_restart3()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    sset.add_service(&p);
+
+    service_record d1 {&sset, "test-service-2", service_type_t::INTERNAL, {{&p, REG}}};
+    d1.set_auto_restart(true);
+    sset.add_service(&d1);
+
+    d1.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_target_state() == service_state_t::STARTED);
+    assert(d1.get_state() == service_state_t::STARTED);
+    assert(d1.get_target_state() == service_state_t::STARTED);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(p.get_target_state() == service_state_t::STARTED);
+    assert(p.get_state() == service_state_t::STARTING);
+    assert(p.get_stop_reason() == stopped_reason_t::TERMINATED);
+
+    assert(d1.get_state() == service_state_t::STARTING);
+    assert(d1.get_target_state() == service_state_t::STARTED);
+
+    sset.remove_service(&d1);
+    sset.remove_service(&p);
+    event_loop.active_timers.clear();
 }
 
 // Termination via stop request
@@ -680,6 +735,61 @@ void test_proc_smooth_recovery2()
     assert(p.get_state() == service_state_t::STARTED);
     assert(event_loop.active_timers.size() == 0);
 
+    sset.remove_service(&p);
+}
+
+// failure during smooth recovery is non-recoverable
+void test_proc_smooth_recovery3()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_smooth_recovery(true);
+    p.set_restart_delay(time_val(0, 0));
+    sset.add_service(&p);
+
+    service_record d1 {&sset, "test-service-2", service_type_t::INTERNAL, {{&p, REG}}};
+    d1.set_auto_restart(true);
+    sset.add_service(&d1);
+
+    d1.start();
+    //p.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    pid_t first_instance = bp_sys::last_forked_pid;
+
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    // no restart delay, process should attempt restart immediately:
+    assert(first_instance + 1 == bp_sys::last_forked_pid);
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    base_process_service_test::exec_failed(&p, ENOENT);
+
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(p.get_target_state() == service_state_t::STOPPED);
+    assert(d1.get_state() == service_state_t::STOPPED);
+    assert(d1.get_target_state() == service_state_t::STOPPED);
+
+    sset.remove_service(&d1);
     sset.remove_service(&p);
 }
 
@@ -1145,6 +1255,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_unexpected_term, " ");
     RUN_TEST(test_proc_term_restart, "    ");
     RUN_TEST(test_proc_term_restart2, "   ");
+    RUN_TEST(test_proc_term_restart3, "   ");
     RUN_TEST(test_term_via_stop, "        ");
     RUN_TEST(test_term_via_stop2, "       ");
     RUN_TEST(test_proc_start_timeout, "   ");
@@ -1154,6 +1265,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_stop_timeout, "    ");
     RUN_TEST(test_proc_smooth_recovery1, "");
     RUN_TEST(test_proc_smooth_recovery2, "");
+    RUN_TEST(test_proc_smooth_recovery3, "");
     RUN_TEST(test_bgproc_smooth_recover, "");
     RUN_TEST(test_scripted_stop_timeout, "");
     RUN_TEST(test_scripted_start_fail, "  ");
