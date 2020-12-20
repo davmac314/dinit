@@ -205,6 +205,8 @@ class base_process_service : public service_record
     // the "wait" system call.
     virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept = 0;
 
+    void handle_unexpected_termination() noexcept;
+
     // Called if an exec fails.
     virtual void exec_failed(run_proc_err errcode) noexcept = 0;
 

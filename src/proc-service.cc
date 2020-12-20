@@ -226,14 +226,13 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
         }
         stopped();
     }
-    else if (smooth_recovery && service_state == service_state_t::STARTED
-            && get_target_state() == service_state_t::STARTED) {
+    else if (smooth_recovery && service_state == service_state_t::STARTED) {
+        // unexpected termination, with smooth recovery
         do_smooth_recovery();
         return;
     }
     else {
-        stop_reason = stopped_reason_t::TERMINATED;
-        forced_stop();
+        handle_unexpected_termination();
     }
     services->process_queues();
 }
@@ -358,9 +357,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
             do_smooth_recovery();
             return;
         }
-        stop_reason = stopped_reason_t::TERMINATED;
-        forced_stop();
-        stopped();
+        handle_unexpected_termination();
     }
     services->process_queues();
 }

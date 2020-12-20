@@ -30,35 +30,66 @@ void base_process_service::do_smooth_recovery() noexcept
 
 bool base_process_service::bring_up() noexcept
 {
-    if (restarting) {
-        if (pid == -1) {
-            return restart_ps_process();
+    if (!open_socket()) {
+        return false;
+    }
+
+    restart_interval_count = 0;
+    if (start_ps_process(exec_arg_parts,
+            onstart_flags.starts_on_console || onstart_flags.shares_console)) {
+        // start_ps_process updates last_start_time, use it also for restart_interval_time:
+        restart_interval_time = last_start_time;
+        // Note: we don't set a start timeout for PROCESS services.
+        if (start_timeout != time_val(0,0) && get_type() != service_type_t::PROCESS) {
+            restart_timer.arm_timer_rel(event_loop, start_timeout);
+            stop_timer_armed = true;
+        }
+        else if (stop_timer_armed) {
+            restart_timer.stop_timer(event_loop);
+            stop_timer_armed = false;
         }
         return true;
     }
-    else {
-        if (! open_socket()) {
-            return false;
-        }
+    restart_interval_time = last_start_time;
+    return false;
+}
 
-        restart_interval_count = 0;
-        if (start_ps_process(exec_arg_parts,
-                onstart_flags.starts_on_console || onstart_flags.shares_console)) {
-            // start_ps_process updates last_start_time, use it also for restart_interval_time:
-            restart_interval_time = last_start_time;
-            // Note: we don't set a start timeout for PROCESS services.
-            if (start_timeout != time_val(0,0) && get_type() != service_type_t::PROCESS) {
-                restart_timer.arm_timer_rel(event_loop, start_timeout);
-                stop_timer_armed = true;
-            }
-            else if (stop_timer_armed) {
-                restart_timer.stop_timer(event_loop);
-                stop_timer_armed = false;
-            }
-            return true;
+void base_process_service::handle_unexpected_termination() noexcept
+{
+    // unexpected termination, with possible restart
+    stop_reason = stopped_reason_t::TERMINATED;
+
+    // We want to circumvent the normal process of waiting for dependents to stop before we
+    // attempt to restart, for two reasons:
+    // 1) we can restart more quickly
+    // 2) we can use the restart rate-limiting logic from restart_ps_process rather than
+    //    the usual start_ps_process (the usual bring-up).
+    // But we need to issue a forced stop and process queues, to discover our eventual target
+    // state (so we know whether we actually want to restart or not).
+
+    waiting_restart_timer = true; // inhibit bring-up temporarily
+
+    forced_stop();
+    services->process_queues();
+
+    waiting_restart_timer = false;
+
+    // It's possible we have no dependents or they stopped immediately, in which case we
+    // either are STOPPED or STARTING. Otherwise, let's stop immediately (and potentially
+    // restart immediately):
+
+    service_state_t service_state = get_state();
+    if (service_state == service_state_t::STOPPING) {
+        stopped();
+        service_state = get_state();
+    }
+
+    // Finally, if we're now STARTING, that means we should restart
+
+    if (get_state() == service_state_t::STARTING) {
+        if (!restart_ps_process()) {
+            failed_to_start();
         }
-        restart_interval_time = last_start_time;
-        return false;
     }
 }
 
@@ -234,18 +265,12 @@ base_process_service::base_process_service(service_set *sset, string name,
 
 void base_process_service::do_restart() noexcept
 {
+    // Actually perform process restart. We may be in smooth recovery (state = STARTED) or this may
+    // be a regular restart.
+
     waiting_restart_timer = false;
     restart_interval_count++;
     auto service_state = get_state();
-
-    if (service_state == service_state_t::STARTING) {
-        // for a smooth recovery, we want to check dependencies are available before actually
-        // starting:
-        if (! check_deps_started()) {
-            waiting_for_deps = true;
-            return;
-        }
-    }
 
     if (! start_ps_process(exec_arg_parts, have_console || onstart_flags.shares_console)) {
         restarting = false;
@@ -253,6 +278,7 @@ void base_process_service::do_restart() noexcept
             failed_to_start();
         }
         else {
+            // smooth recovery failure
             unrecoverable_stop();
         }
         services->process_queues();

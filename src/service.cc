@@ -249,7 +249,6 @@ void service_record::do_propagation() noexcept
 
 void service_record::execute_transition() noexcept
 {
-    // state is STARTED with restarting set true if we are running a smooth recovery.
     if (service_state == service_state_t::STARTING || (service_state == service_state_t::STARTED
             && restarting)) {
         if (check_deps_started()) {
