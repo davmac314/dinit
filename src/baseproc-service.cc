@@ -39,8 +39,7 @@ bool base_process_service::bring_up() noexcept
             onstart_flags.starts_on_console || onstart_flags.shares_console)) {
         // start_ps_process updates last_start_time, use it also for restart_interval_time:
         restart_interval_time = last_start_time;
-        // Note: we don't set a start timeout for PROCESS services.
-        if (start_timeout != time_val(0,0) && get_type() != service_type_t::PROCESS) {
+        if (start_timeout != time_val(0,0)) {
             restart_timer.arm_timer_rel(event_loop, start_timeout);
             stop_timer_armed = true;
         }

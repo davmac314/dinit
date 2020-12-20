@@ -67,14 +67,18 @@ void process_service::exec_succeeded() noexcept
             readiness_watcher.set_enabled(event_loop, true);
         }
         else {
+            if (stop_timer_armed) {
+                restart_timer.stop_timer(event_loop);
+                stop_timer_armed = false;
+            }
             started();
         }
     }
     else if (get_state() == service_state_t::STOPPING) {
         // stopping, but smooth recovery was in process. That's now over so we can
-        // commence normal stop. Note that if pid == -1 the process already stopped(!),
-        // that's handled below.
-        if (pid != -1 && stop_check_dependents()) {
+        // commence normal stop. Note that if pid == -1 the process already stopped,
+        // that is correctly handled by bring_down().
+        if (stop_check_dependents()) {
             bring_down();
         }
     }
@@ -130,9 +134,17 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
         // can we actually read anything from the notification pipe?
         int r = bp_sys::read(fd, buf, sizeof(buf));
         if (r > 0) {
+            if (service->stop_timer_armed) {
+                service->restart_timer.stop_timer(event_loop);
+                service->stop_timer_armed = false;
+            }
             service->started();
         }
         else if (r == 0 || errno != EAGAIN) {
+            if (service->stop_timer_armed) {
+                service->restart_timer.stop_timer(event_loop);
+                service->stop_timer_armed = false;
+            }
             service->failed_to_start(false, false);
             service->set_state(service_state_t::STOPPING);
             service->bring_down();
@@ -206,6 +218,11 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
         }
     }
 
+    if (stop_timer_armed) {
+        restart_timer.stop_timer(event_loop);
+        stop_timer_armed = false;
+    }
+
 #if USE_UTMPX
     if (*inittab_id || *inittab_line) {
         clear_utmp_entry(inittab_id, inittab_line);
@@ -241,6 +258,11 @@ void process_service::exec_failed(run_proc_err errcode) noexcept
 {
     log(loglevel_t::ERROR, get_name(), ": execution failed - ",
             exec_stage_descriptions[static_cast<int>(errcode.stage)], ": ", strerror(errcode.st_errno));
+
+    if (stop_timer_armed) {
+        restart_timer.stop_timer(event_loop);
+        stop_timer_armed = false;
+    }
 
     if (notification_fd != -1) {
         readiness_watcher.deregister(event_loop);
