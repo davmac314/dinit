@@ -35,7 +35,7 @@ class eventloop_t
         current_time += amount;
         auto active_copy = active_timers;
         for (timer * t : active_copy) {
-            if (t->expiry_time >= current_time) {
+            if (t->expiry_time <= current_time) {
                 t->stop_timer(*this);
                 rearm r = t->expired(*this, 1);
                 assert(r == rearm::NOOP); // others not handled
