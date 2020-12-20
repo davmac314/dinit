@@ -221,7 +221,7 @@ class base_process_service : public service_record
 
     virtual bool can_proceed_to_start() noexcept override
     {
-        return ! waiting_restart_timer;
+        return !waiting_restart_timer;
     }
 
     virtual bool interrupt_start() noexcept override;

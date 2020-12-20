@@ -47,6 +47,14 @@
  * in the STARTING state when waiting for dependencies to start or for the exec() call in
  * the forked child to complete and return a status.
  *
+ * Interrupted transitions
+ * -----------------------
+ * A service that is STOPPING may be issued a start order, or a service that is STARTING may be
+ * issued a stop. In some cases a STOPPING or STARTING transition can be interrupted and immediately
+ * switch to the other kind of transition. We don't normally want to do this if we're waiting on an
+ * external process, since simply killing that process might leave a mess. However, if a service is
+ * waiting for its dependencies or dependents, its start or stop can usually be interrupted.
+ *
  * Acquisition/release:
  * ------------------
  * Each service has a dependent-count ("required_by"). This starts at 0, adds 1 if the
@@ -55,31 +63,49 @@
  * When required_by transitions to 0, the service is stopped (unless it is pinned). When
  * require_by transitions from 0, the service is started (unless pinned).
  *
- * So, in general, the dependent-count determines the desired state (STARTED if the count
- * is greater than 0, otherwise STOPPED). However, a service can be issued a stop-and-take
- * down order (via `stop(true)'); this will first stop dependent services, which may restart
- * and cancel the stop of the former service. Finally, a service can be force-stopped, which
- * means that its stop process cannot be cancelled (though it may still be put in a desired
- * state of STARTED, meaning it will start immediately upon stopping).
+ * In general, the dependent-count determines the desired state (STARTED if the count
+ * is greater than 0, otherwise STOPPED). Explicit activation counts effectively
+ * increments the count and sets the desired state as STARTED.
+ *
+ * When a service stops, any soft dependency links to its dependents must be broken, or otherwise
+ * the desired state will remain as STARTED and the service will always restart. If the
+ * auto-restart option is enabled for the service, or if the service is explicitly being restarted
+ * (restart == true), this is actually the desired behaviour, and so in these cases the dependency
+ * links are not broken.
+ *
+ * Force stop
+ * ----------
+ * A service can be issued a stop-and-take down order (via `stop(true)'); this will first stop
+ * dependent services, which may restart and cancel the stop of the former service. However, a
+ * service can be force-stopped, which means that its stop process cannot be cancelled (though
+ * it may still be put in a desired state of STARTED, meaning it will start immediately upon
+ * stopping). Force-stop is achieved via a flag in the service record which is checked before
+ * interrupting a stop operation.
  *
  * Pinning
  * -------
  * A service may be "pinned" in either STARTED or STOPPED states (or even both). Once it
- * reaches a pinned state, a service will not leave that state, though its desired state
- * may still be set. (Note that pinning prevents, but never causes, state transition).
+ * reaches a pinned state, a service will not leave that state. A service that is pinned
+ * STOPPED cannot be started or marked active and any attempt to start it will fail. A service
+ * that is pinned STARTED remains started even if the service is not marked active and no other
+ * active service depends on it; this is the only scenario in which a service with a required_by
+ * count of 0 will remain started. Once unpinned the service will stop.
+ *
+ * (Note that pinning prevents, but never causes, state transition).
  *
  * The priority of the different state deciders is:
  *  - pins
  *  - force stop flag
  *  - desired state (which is manipulated by require/release operations)
  *
- * So a forced stop cannot occur until the service is not pinned started, for instance.
+ * So a forced stop cannot occur until the service is not pinned started, for instance. (if
+ * pinned, the forced stop remains pending until the pin is released).
  *
  * Two-phase transition
  * --------------------
  * Transition between states occurs in two phases: propagation and execution. In both phases
  * a linked-list queue is used to keep track of which services need processing; this avoids
- * recursion (which would be of unknown depth and therefore liable to stack overflow).
+ * recursion (which would be of unknown depth and therefore liable to cause stack overflow).
  *
  * In the propagation phase, acquisition/release messages are processed, and desired state may be
  * altered accordingly. Start and stop requests are also propagated in this phase. The state may
@@ -351,24 +377,28 @@ class service_record
 
     // Virtual functions, to be implemented by service implementations:
 
-    // Do any post-dependency startup; return false on failure
+    // Whether a STARTING service can transition to its STARTED state, once all
+    // dependencies have started. This should return false only if the start is interruptible
+    // at this point.
+    virtual bool can_proceed_to_start() noexcept
+    {
+        return true;
+    }
+
+    // Do any post-dependency startup; return false on failure. Should return true if service
+    // has started or is in the process of starting. Will only be called once can_proceed_to_start()
+    // returns true.
     virtual bool bring_up() noexcept;
 
     // All dependents have stopped, and this service should proceed to stop.
     virtual void bring_down() noexcept;
 
     // Whether a STARTING service can immediately transition to STOPPED (as opposed to
-    // having to wait for it reach STARTED and then go through STOPPING).
+    // having to wait for it reach STARTED and then go through STOPPING). Note that the
+    // waiting_for_deps flag being set may override this check.
     virtual bool can_interrupt_start() noexcept
     {
         return waiting_for_deps;
-    }
-
-    // Whether a STARTING service can transition to its STARTED state, once all
-    // dependencies have started.
-    virtual bool can_proceed_to_start() noexcept
-    {
-        return true;
     }
 
     // Interrupt startup. Returns true if service start is fully cancelled; returns false if cancel order
