@@ -272,7 +272,21 @@ void service_record::do_start() noexcept
         }
         return;
     }
-    
+
+    // re-attach any soft dependents, now that we are starting again
+    if (!was_active) {
+        for (auto dept : dependents) {
+            if (!dept->is_hard()) {
+                service_state_t dept_state = dept->get_from()->service_state;
+                if (!dept->holding_acq
+                        && (dept_state == service_state_t::STARTED || dept_state == service_state_t::STARTING)) {
+                    dept->holding_acq = true;
+                    ++required_by;
+                }
+            }
+        }
+    }
+
     if (was_active) {
         // We're already starting/started, or we are stopping and need to wait for
         // that the complete.
@@ -318,10 +332,7 @@ bool service_record::start_check_dependencies() noexcept
     for (auto & dep : depends_on) {
         service_record * to = dep.get_to();
         if (to->service_state != service_state_t::STARTED) {
-            if (to->service_state != service_state_t::STARTING) {
-                to->prop_start = true;
-                services->add_prop_queue(to);
-            }
+            // We don't actually have to issue a start; the require will do that
             dep.waiting_on = true;
             all_deps_started = false;
         }
@@ -355,21 +366,7 @@ void service_record::all_deps_started() noexcept
         return;
     }
 
-    bool start_success = bring_up();
-    if (start_success) {
-        // re-attach any soft dependents, now that we have started again
-        for (auto dept : dependents) {
-            if (!dept->is_hard()) {
-                service_state_t dept_state = dept->get_from()->service_state;
-                if (!dept->holding_acq
-                        && (dept_state == service_state_t::STARTED || dept_state == service_state_t::STARTING)) {
-                    dept->holding_acq = true;
-                    ++required_by;
-                }
-            }
-        }
-    }
-    else {
+    if (!bring_up()) {
         failed_to_start();
     }
 }
