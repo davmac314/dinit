@@ -208,6 +208,7 @@ void service_record::initiate_start() noexcept
     waiting_for_deps = true;
 
     if (start_check_dependencies()) {
+        waiting_for_deps = false;
         services->add_transition_queue(this);
     }
 }
@@ -609,7 +610,7 @@ void service_record::do_stop(bool with_restart) noexcept
     }
 
     service_state = service_state_t::STOPPING;
-    waiting_for_deps = true;
+    waiting_for_deps = !all_deps_stopped;
     if (all_deps_stopped) {
         services->add_transition_queue(this);
     }
@@ -722,14 +723,8 @@ void service_record::unpin() noexcept
     }
     if (pinned_stopped) {
         pinned_stopped = false;
-        if (service_state == service_state_t::STOPPED) {
-            if (desired_state == service_state_t::STARTED) {
-                prop_require = true;
-                prop_start = true;
-                services->add_prop_queue(this);
-                services->process_queues();
-            }
-        }
+        // We don't need to check state. If we're pinned stopped we can't be required and so desired
+        // state should always be stopped.
     }
 }
 
