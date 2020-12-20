@@ -1,16 +1,9 @@
-For version 0.9.1
------------------
-* [DONE] update docs re pinning
-* control protocol: START: add response case for not starting because pinned in stopped
-* make sure process/bgprocess correctly handle stop when the process has already died
-  (i.e. when pinned-started but process died)
-* [DONE] pinned-stopped service should prevent dependent from starting (like failure)
-
 For version 0.10.0:
 -------------------
 * [DONE] Check that desired_state is getting set correctly. (Currently we don't decide whether a
   service will restart until it stops...)
 * for non-system init, fail to start if the control socket exists
+* control protocol: START: add response case for not starting because pinned in stopped
 
 For version 0.11.+:
 ------------------

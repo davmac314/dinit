@@ -1,5 +1,8 @@
 == Version ??? (upcoming release)
 
+ * If a process-based service fails to restart, restart of dependent services
+   will be inhibited. This should prevent repeated attempts to launch a failing
+   process caused by a restarting dependent service.
  * Re-worked manual service stop (via command). Previously, manually stopping
    a service would inhibit automatic restart of the service, but not of its
    dependents; this meant that the service might still restart due to a
