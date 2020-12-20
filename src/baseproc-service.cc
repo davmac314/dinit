@@ -273,7 +273,6 @@ void base_process_service::do_restart() noexcept
     auto service_state = get_state();
 
     if (! start_ps_process(exec_arg_parts, have_console || onstart_flags.shares_console)) {
-        restarting = false;
         if (service_state == service_state_t::STARTING) {
             failed_to_start();
         }

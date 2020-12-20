@@ -218,7 +218,6 @@ class service_record
     bool prop_start   : 1;
     bool prop_stop    : 1;
 
-    bool restarting   : 1;      // re-start after stopping
     bool start_failed : 1;      // failed to start (reset when begins starting)
     bool start_skipped : 1;     // start was skipped by interrupt
     
@@ -388,8 +387,8 @@ class service_record
             pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
             waiting_for_console(false), have_console(false), waiting_for_execstat(false),
             start_explicit(false), prop_require(false), prop_release(false), prop_failure(false),
-            prop_start(false), prop_stop(false), restarting(false), start_failed(false),
-            start_skipped(false), force_stop(false)
+            prop_start(false), prop_stop(false), start_failed(false), start_skipped(false),
+            force_stop(false)
     {
         services = set;
         record_type = service_type_t::DUMMY;

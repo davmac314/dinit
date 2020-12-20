@@ -477,6 +477,8 @@ class bgproc_service : public base_process_service
     // Read the pid-file contents
     pid_result_t read_pid_file(bp_sys::exit_status *exit_status) noexcept;
 
+    bool doing_smooth_recovery = false; // if we are performing smooth recovery
+
     public:
     bgproc_service(service_set *sset, const string &name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
