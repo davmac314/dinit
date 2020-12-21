@@ -57,21 +57,29 @@
  *
  * Acquisition/release:
  * ------------------
- * Each service has a dependent-count ("required_by"). This starts at 0, adds 1 if the
- * service has explicitly been started (i.e. "start_explicit" is true), and adds 1 for
- * each dependent service which is not STOPPED (including dependents with a soft dependency).
- * When required_by transitions to 0, the service is stopped (unless it is pinned). When
- * require_by transitions from 0, the service is started (unless pinned).
+ * Each service has a dependent-count ("required_by"). This starts at 0, adds 1 if the service has
+ * explicitly been started (i.e. "start_explicit" is true), and adds 1 for each dependent service
+ * which is not STOPPED/STOPPING (including dependents via a "soft" dependency relationship).
+ * When required_by transitions to 0, the service is stopped and it will release its own dependencies
+ * (unless it is pinned started). Conversely, when required_by transitions from 0 to 1, the service is
+ * started and dependencies will be required (unless pinned stopped).
  *
- * In general, the dependent-count determines the desired state (STARTED if the count
- * is greater than 0, otherwise STOPPED). Explicit activation counts effectively
- * increments the count and sets the desired state as STARTED.
+ * In general, therefore, the dependent-count determines the target state (STARTED if the count is greater
+ * than 0, otherwise STOPPED). Explicit activation counts effectively increments the count and sets the
+ * target state as STARTED.
  *
- * When a service stops, any soft dependency links to its dependents must be broken, or otherwise
- * the desired state will remain as STARTED and the service will always restart. If the
- * auto-restart option is enabled for the service, or if the service is explicitly being restarted
- * (restart == true), this is actually the desired behaviour, and so in these cases the dependency
- * links are not broken.
+ * An exception is that setting the target state to STOPPED is used to inhibit restart. This is propagated
+ * to dependent services (i.e. their target state will also be set to STOPPED). The required_by count for a
+ * service in this scenario will settle to 0 anyway (because dependents will be stopped).
+ *
+ * Another exception is that a service may become STOPPED while it is still required (for example if a
+ * process terminates unexpectedly). This will force hard dependents to stop also, so again, the required_by
+ * count will settle to 0, unless the service is active and set to auto-restart (or a dependent is).
+ *
+ * When a service stops, any soft dependency links to its dependents must be broken, or otherwise the
+ * target state will remain as STARTED and the service will always restart. If the auto-restart option is
+ * enabled for the service, or if the service is explicitly being restarted (restart == true), this is
+ * actually the desired behaviour, and so in these cases the dependency links are not broken.
  *
  * Force stop
  * ----------
@@ -116,7 +124,7 @@
  * an incorrect acquisition count, which may cause it to restart when it should not. The
  * propagation phase allows the acquisition count to settle before the transition to the STOPPED
  * state occurs, and the decision whether to restart can then be made based on the (correct)
- * acquisition count.
+ * acquisition count. See "acquisition/release" above for details of when this can occur.
  *
  * Propagation variables:
  *   prop_acquire:  the service has transitioned to an acquired state and must issue an acquire
@@ -132,10 +140,7 @@
  *
  * In the execution phase, actions are taken to achieve the desired state. Actual state may
  * transition according to the current and desired states. Processes can be sent signals, etc
- * in order to stop them. A process can restart if it stops, but it does so by raising prop_start
- * which needs to be processed in a second transition phase. Seeing as starting never causes
- * another process to stop, the transition-execute-transition cycle always ends at the 2nd
- * transition stage, at the latest.
+ * in order to stop them.
  */
 
 class service_record;
