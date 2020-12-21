@@ -67,9 +67,9 @@ void process_service::exec_succeeded() noexcept
             readiness_watcher.set_enabled(event_loop, true);
         }
         else {
-            if (stop_timer_armed) {
-                restart_timer.stop_timer(event_loop);
-                stop_timer_armed = false;
+            if (waiting_stopstart_timer) {
+                process_timer.stop_timer(event_loop);
+                waiting_stopstart_timer = false;
             }
             started();
         }
@@ -105,9 +105,9 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
         if (sr->pid != -1) {
             sr->child_listener.deregister(event_loop, sr->pid);
             sr->reserved_child_watch = false;
-            if (sr->stop_timer_armed) {
-                sr->restart_timer.stop_timer(loop);
-                sr->stop_timer_armed = false;
+            if (sr->waiting_stopstart_timer) {
+                sr->process_timer.stop_timer(loop);
+                sr->waiting_stopstart_timer = false;
             }
         }
         sr->pid = -1;
@@ -134,16 +134,16 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
         // can we actually read anything from the notification pipe?
         int r = bp_sys::read(fd, buf, sizeof(buf));
         if (r > 0) {
-            if (service->stop_timer_armed) {
-                service->restart_timer.stop_timer(event_loop);
-                service->stop_timer_armed = false;
+            if (service->waiting_stopstart_timer) {
+                service->process_timer.stop_timer(event_loop);
+                service->waiting_stopstart_timer = false;
             }
             service->started();
         }
         else if (r == 0 || errno != EAGAIN) {
-            if (service->stop_timer_armed) {
-                service->restart_timer.stop_timer(event_loop);
-                service->stop_timer_armed = false;
+            if (service->waiting_stopstart_timer) {
+                service->process_timer.stop_timer(event_loop);
+                service->waiting_stopstart_timer = false;
             }
             service->failed_to_start(false, false);
             service->set_state(service_state_t::STOPPING);
@@ -186,9 +186,9 @@ dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t chil
     // (stop_watch instead of deregister, so that we hold watch reservation).
     stop_watch(loop);
 
-    if (sr->stop_timer_armed) {
-        sr->restart_timer.stop_timer(loop);
-        sr->stop_timer_armed = false;
+    if (sr->waiting_stopstart_timer) {
+        sr->process_timer.stop_timer(loop);
+        sr->waiting_stopstart_timer = false;
     }
 
     sr->handle_exit_status(bp_sys::exit_status(status));
@@ -218,9 +218,9 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
         }
     }
 
-    if (stop_timer_armed) {
-        restart_timer.stop_timer(event_loop);
-        stop_timer_armed = false;
+    if (waiting_stopstart_timer) {
+        process_timer.stop_timer(event_loop);
+        waiting_stopstart_timer = false;
     }
 
 #if USE_UTMPX
@@ -238,8 +238,8 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
     else if (service_state == service_state_t::STOPPING) {
         // We won't log a non-zero exit status or termination due to signal here -
         // we assume that the process died because we signalled it.
-        if (stop_timer_armed) {
-            restart_timer.stop_timer(event_loop);
+        if (waiting_stopstart_timer) {
+            process_timer.stop_timer(event_loop);
         }
         stopped();
     }
@@ -259,9 +259,9 @@ void process_service::exec_failed(run_proc_err errcode) noexcept
     log(loglevel_t::ERROR, get_name(), ": execution failed - ",
             exec_stage_descriptions[static_cast<int>(errcode.stage)], ": ", strerror(errcode.st_errno));
 
-    if (stop_timer_armed) {
-        restart_timer.stop_timer(event_loop);
-        stop_timer_armed = false;
+    if (waiting_stopstart_timer) {
+        process_timer.stop_timer(event_loop);
+        waiting_stopstart_timer = false;
     }
 
     if (notification_fd != -1) {
@@ -412,9 +412,9 @@ void scripted_service::handle_exit_status(bp_sys::exit_status exit_status) noexc
         // We might be running the stop script, or we might be running the start script and have issued
         // a cancel order via SIGINT:
         if (interrupting_start) {
-            if (stop_timer_armed) {
-                restart_timer.stop_timer(event_loop);
-                stop_timer_armed = false;
+            if (waiting_stopstart_timer) {
+                process_timer.stop_timer(event_loop);
+                waiting_stopstart_timer = false;
             }
             // We issued a start interrupt, so we expected this failure:
             if (did_exit && exit_status.get_exit_status() != 0) {
@@ -593,14 +593,18 @@ void process_service::bring_down() noexcept
 
         // If there's a stop timeout, arm the timer now:
         if (stop_timeout != time_val(0,0)) {
-            restart_timer.arm_timer_rel(event_loop, stop_timeout);
-            stop_timer_armed = true;
+            process_timer.arm_timer_rel(event_loop, stop_timeout);
+            waiting_stopstart_timer = true;
         }
 
         // The rest is done in handle_exit_status.
     }
     else {
         // The process is already dead.
+        if (waiting_restart_timer) {
+            process_timer.stop_timer(event_loop);
+            waiting_restart_timer = false;
+        }
         stopped();
     }
 }
@@ -625,8 +629,8 @@ void bgproc_service::bring_down() noexcept
             stopped();
         }
         else if (stop_timeout != time_val(0,0)) {
-            restart_timer.arm_timer_rel(event_loop, stop_timeout);
-            stop_timer_armed = true;
+            process_timer.arm_timer_rel(event_loop, stop_timeout);
+            waiting_stopstart_timer = true;
         }
     }
     else {
@@ -652,8 +656,8 @@ void scripted_service::bring_down() noexcept
     else {
         // successfully started stop script: start kill timer:
         if (stop_timeout != time_val(0,0)) {
-            restart_timer.arm_timer_rel(event_loop, stop_timeout);
-            stop_timer_armed = true;
+            process_timer.arm_timer_rel(event_loop, stop_timeout);
+            waiting_stopstart_timer = true;
         }
     }
 }

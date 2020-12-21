@@ -40,12 +40,12 @@ bool base_process_service::bring_up() noexcept
         // start_ps_process updates last_start_time, use it also for restart_interval_time:
         restart_interval_time = last_start_time;
         if (start_timeout != time_val(0,0)) {
-            restart_timer.arm_timer_rel(event_loop, start_timeout);
-            stop_timer_armed = true;
+            process_timer.arm_timer_rel(event_loop, start_timeout);
+            waiting_stopstart_timer = true;
         }
-        else if (stop_timer_armed) {
-            restart_timer.stop_timer(event_loop);
-            stop_timer_armed = false;
+        else if (waiting_stopstart_timer) {
+            process_timer.stop_timer(event_loop);
+            waiting_stopstart_timer = false;
         }
         return true;
     }
@@ -66,12 +66,12 @@ void base_process_service::handle_unexpected_termination() noexcept
     // But we need to issue a forced stop and process queues, to discover our eventual target
     // state (so we know whether we actually want to restart or not).
 
-    waiting_restart_timer = true; // inhibit bring-up temporarily
+    delay_start = true; // inhibit bring-up temporarily
 
     forced_stop();
     services->process_queues();
 
-    waiting_restart_timer = false;
+    delay_start = false;
 
     // It's possible we have no dependents or they stopped immediately, in which case we
     // either are STOPPED or STARTING. Otherwise, let's stop immediately (and potentially
@@ -241,15 +241,15 @@ base_process_service::base_process_service(service_set *sset, string name,
         const std::list<std::pair<unsigned,unsigned>> &command_offsets,
         const std::list<prelim_dep> &deplist_p)
      : service_record(sset, name, service_type_p, deplist_p), child_listener(this),
-       child_status_listener(this), restart_timer(this)
+       child_status_listener(this), process_timer(this)
 {
     program_name = std::move(command);
     exec_arg_parts = separate_args(program_name, command_offsets);
 
     restart_interval_count = 0;
     restart_interval_time = {0, 0};
-    restart_timer.service = this;
-    restart_timer.add_timer(event_loop);
+    process_timer.service = this;
+    process_timer.add_timer(event_loop);
 
     // By default, allow a maximum of 3 restarts within 10.0 seconds:
     restart_interval.seconds() = 10;
@@ -257,9 +257,10 @@ base_process_service::base_process_service(service_set *sset, string name,
     max_restart_interval_count = 3;
 
     waiting_restart_timer = false;
+    waiting_stopstart_timer = false;
+    delay_start = false;
     reserved_child_watch = false;
     tracking_child = false;
-    stop_timer_armed = false;
 }
 
 void base_process_service::do_restart() noexcept
@@ -313,7 +314,7 @@ bool base_process_service::restart_ps_process() noexcept
     }
     else {
         time_val timeout = restart_delay - tdiff;
-        restart_timer.arm_timer_rel(event_loop, timeout);
+        process_timer.arm_timer_rel(event_loop, timeout);
         waiting_restart_timer = true;
     }
     return true;
@@ -322,7 +323,7 @@ bool base_process_service::restart_ps_process() noexcept
 bool base_process_service::interrupt_start() noexcept
 {
     if (waiting_restart_timer) {
-        restart_timer.stop_timer(event_loop);
+        process_timer.stop_timer(event_loop);
         waiting_restart_timer = false;
         return service_record::interrupt_start();
     }
@@ -332,12 +333,12 @@ bool base_process_service::interrupt_start() noexcept
         kill_pg(SIGINT);
 
         if (stop_timeout != time_val(0,0)) {
-            restart_timer.arm_timer_rel(event_loop, stop_timeout);
-            stop_timer_armed = true;
+            process_timer.arm_timer_rel(event_loop, stop_timeout);
+            waiting_stopstart_timer = true;
         }
-        else if (stop_timer_armed) {
-            restart_timer.stop_timer(event_loop);
-            stop_timer_armed = false;
+        else if (waiting_stopstart_timer) {
+            process_timer.stop_timer(event_loop);
+            waiting_stopstart_timer = false;
         }
 
         set_state(service_state_t::STOPPING);
@@ -373,7 +374,7 @@ void base_process_service::kill_pg(int signo) noexcept
 
 void base_process_service::timer_expired() noexcept
 {
-    stop_timer_armed = false;
+    waiting_stopstart_timer = false;
 
     // Timer expires if:
     // We are stopping, including after having startup cancelled (stop timeout, state is STOPPING); We are

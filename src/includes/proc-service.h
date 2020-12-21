@@ -144,7 +144,7 @@ class base_process_service : public service_record
 
     service_child_watcher child_listener;
     exec_status_pipe_watcher child_status_listener;
-    process_restart_timer restart_timer;
+    process_restart_timer process_timer; // timer is used for start, stop and restart
     time_val last_start_time;
 
     // Restart interval time and restart count are used to track the number of automatic restarts
@@ -176,8 +176,13 @@ class base_process_service : public service_record
                          // descriptor for the socket.
     int notification_fd = -1;  // If readiness notification is via fd
 
+    // Only one of waiting_restart_timer and waiting_stopstart_timer should be set at any time.
+    // They indicate that the process timer is armed (and why).
     bool waiting_restart_timer : 1;
-    bool stop_timer_armed : 1;
+    bool waiting_stopstart_timer : 1;
+
+    bool delay_start : 1; // delay bring-up in case of unexpected termination
+
     bool reserved_child_watch : 1;
     bool tracking_child : 1;  // whether we expect to see child process status
 
@@ -221,7 +226,7 @@ class base_process_service : public service_record
 
     virtual bool can_proceed_to_start() noexcept override
     {
-        return !waiting_restart_timer;
+        return !waiting_restart_timer && !delay_start;
     }
 
     virtual bool interrupt_start() noexcept override;
@@ -255,7 +260,7 @@ class base_process_service : public service_record
         if (reserved_child_watch) {
             child_listener.unreserve(event_loop);
         }
-        restart_timer.deregister(event_loop);
+        process_timer.deregister(event_loop);
     }
 
     // Set the command to run this service (executable and arguments, nul separated). The command_parts_p

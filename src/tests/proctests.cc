@@ -793,6 +793,54 @@ void test_proc_smooth_recovery3()
     sset.remove_service(&p);
 }
 
+void test_proc_smooth_recovery4()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_smooth_recovery(true);
+    p.set_restart_delay(time_val(2, 0)); // 2 second restart delay
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    pid_t first_instance = bp_sys::last_forked_pid;
+
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    // smooth recovery should have begun
+    event_loop.advance_time(time_val(1, 0));
+
+    assert(p.get_state() == service_state_t::STARTED);
+
+    // If we stop now, timer should be cancelled
+    p.stop(true);
+
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(first_instance == bp_sys::last_forked_pid);  // no more processes launched
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
 void test_bgproc_smooth_recover()
 {
     using namespace std;
@@ -1266,6 +1314,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_smooth_recovery1, "");
     RUN_TEST(test_proc_smooth_recovery2, "");
     RUN_TEST(test_proc_smooth_recovery3, "");
+    RUN_TEST(test_proc_smooth_recovery4, "");
     RUN_TEST(test_bgproc_smooth_recover, "");
     RUN_TEST(test_scripted_stop_timeout, "");
     RUN_TEST(test_scripted_start_fail, "  ");
