@@ -306,6 +306,11 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
         }
     }
 
+    if (waiting_stopstart_timer) {
+        process_timer.stop_timer(event_loop);
+        waiting_stopstart_timer = false;
+    }
+
     // This may be a "smooth recovery" where we are restarting the process while leaving the
     // service in the STARTED state. This must be the case if 'restarting' is set while the state
     // is currently STARTED.
