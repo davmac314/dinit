@@ -313,6 +313,12 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             }
         }
 
+        if (service_type == service_type_t::BGPROCESS) {
+            if (settings.pid_file.empty()) {
+                throw service_description_exc(name, "Process ID file ('pid-file') not specified for bgprocess service.");
+            }
+        }
+
         if (reload_svc != nullptr) {
             // Make sure settings are able to be changed/are compatible
             service_record *service = reload_svc;
