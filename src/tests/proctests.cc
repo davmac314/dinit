@@ -841,6 +841,49 @@ void test_proc_smooth_recovery4()
     sset.remove_service(&p);
 }
 
+void test_bgproc_start()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    bgproc_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_pid_file("/run/daemon.pid");
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    pid_t daemon_instance = ++bp_sys::last_forked_pid;
+
+    // Set up the pid file content with the pid of the daemon
+    stringstream str;
+    str << daemon_instance << std::flush;
+    string pid_file_content = str.str();
+    vector<char> pid_file_content_v(pid_file_content.begin(), pid_file_content.end());
+    bp_sys::supply_file_content("/run/daemon.pid", std::move(pid_file_content_v));
+
+    base_process_service_test::handle_exit(&p, 0);
+
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
 void test_bgproc_smooth_recover()
 {
     using namespace std;
@@ -865,7 +908,6 @@ void test_bgproc_smooth_recover()
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
 
-    // pid_t first_instance = bp_sys::last_forked_pid;
     pid_t daemon_instance = ++bp_sys::last_forked_pid;
 
     // Set up the pid file content with the pid of the daemon
@@ -1315,6 +1357,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_smooth_recovery2, "");
     RUN_TEST(test_proc_smooth_recovery3, "");
     RUN_TEST(test_proc_smooth_recovery4, "");
+    RUN_TEST(test_bgproc_start, "         ");
     RUN_TEST(test_bgproc_smooth_recover, "");
     RUN_TEST(test_scripted_stop_timeout, "");
     RUN_TEST(test_scripted_start_fail, "  ");
