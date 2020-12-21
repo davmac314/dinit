@@ -884,6 +884,64 @@ void test_bgproc_start()
     sset.remove_service(&p);
 }
 
+void test_bgproc_unexpected_term()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    bgproc_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_pid_file("/run/daemon.pid");
+    sset.add_service(&p);
+
+    service_record d1 {&sset, "test-service-2", service_type_t::INTERNAL, {{&p, REG}}};
+    sset.add_service(&d1);
+
+    d1.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+
+    assert(p.get_state() == service_state_t::STARTING);
+    assert(d1.get_state() == service_state_t::STARTING);
+
+    pid_t daemon_instance = ++bp_sys::last_forked_pid;
+
+    // Set up the pid file content with the pid of the daemon
+    stringstream str;
+    str << daemon_instance << std::flush;
+    string pid_file_content = str.str();
+    vector<char> pid_file_content_v(pid_file_content.begin(), pid_file_content.end());
+    bp_sys::supply_file_content("/run/daemon.pid", std::move(pid_file_content_v));
+
+    base_process_service_test::handle_exit(&p, 0);
+
+    assert(p.get_target_state() == service_state_t::STARTED);
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(d1.get_target_state() == service_state_t::STARTED);
+    assert(d1.get_state() == service_state_t::STARTED);
+
+    // Now the backgrounded daemon itself terminates:
+    base_process_service_test::handle_exit(&p, 0);
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(p.get_target_state() == service_state_t::STOPPED);
+    assert(p.get_stop_reason() == stopped_reason_t::TERMINATED);
+    assert(event_loop.active_timers.size() == 0);
+
+    assert(d1.get_state() == service_state_t::STOPPED);
+    assert(d1.get_target_state() == service_state_t::STOPPED);
+
+    sset.remove_service(&d1);
+    sset.remove_service(&p);
+}
+
 void test_bgproc_smooth_recover()
 {
     using namespace std;
@@ -1340,29 +1398,30 @@ void test_waitsfor_restart()
 
 int main(int argc, char **argv)
 {
-    RUN_TEST(test_proc_service_start, "   ");
-    RUN_TEST(test_proc_notify_start, "    ");
-    RUN_TEST(test_proc_unexpected_term, " ");
-    RUN_TEST(test_proc_term_restart, "    ");
-    RUN_TEST(test_proc_term_restart2, "   ");
-    RUN_TEST(test_proc_term_restart3, "   ");
-    RUN_TEST(test_term_via_stop, "        ");
-    RUN_TEST(test_term_via_stop2, "       ");
-    RUN_TEST(test_proc_start_timeout, "   ");
-    RUN_TEST(test_proc_start_timeout2, "  ");
-    RUN_TEST(test_proc_start_execfail, "  ");
-    RUN_TEST(test_proc_notify_fail, "     ");
-    RUN_TEST(test_proc_stop_timeout, "    ");
-    RUN_TEST(test_proc_smooth_recovery1, "");
-    RUN_TEST(test_proc_smooth_recovery2, "");
-    RUN_TEST(test_proc_smooth_recovery3, "");
-    RUN_TEST(test_proc_smooth_recovery4, "");
-    RUN_TEST(test_bgproc_start, "         ");
-    RUN_TEST(test_bgproc_smooth_recover, "");
-    RUN_TEST(test_scripted_stop_timeout, "");
-    RUN_TEST(test_scripted_start_fail, "  ");
-    RUN_TEST(test_scripted_stop_fail, "   ");
-    RUN_TEST(test_scripted_start_skip, "  ");
-    RUN_TEST(test_scripted_start_skip2, " ");
-    RUN_TEST(test_waitsfor_restart, "     ");
+    RUN_TEST(test_proc_service_start, "    ");
+    RUN_TEST(test_proc_notify_start, "     ");
+    RUN_TEST(test_proc_unexpected_term, "  ");
+    RUN_TEST(test_proc_term_restart, "     ");
+    RUN_TEST(test_proc_term_restart2, "    ");
+    RUN_TEST(test_proc_term_restart3, "    ");
+    RUN_TEST(test_term_via_stop, "         ");
+    RUN_TEST(test_term_via_stop2, "        ");
+    RUN_TEST(test_proc_start_timeout, "    ");
+    RUN_TEST(test_proc_start_timeout2, "   ");
+    RUN_TEST(test_proc_start_execfail, "   ");
+    RUN_TEST(test_proc_notify_fail, "      ");
+    RUN_TEST(test_proc_stop_timeout, "     ");
+    RUN_TEST(test_proc_smooth_recovery1, " ");
+    RUN_TEST(test_proc_smooth_recovery2, " ");
+    RUN_TEST(test_proc_smooth_recovery3, " ");
+    RUN_TEST(test_proc_smooth_recovery4, " ");
+    RUN_TEST(test_bgproc_start, "          ");
+    RUN_TEST(test_bgproc_unexpected_term, "");
+    RUN_TEST(test_bgproc_smooth_recover, " ");
+    RUN_TEST(test_scripted_stop_timeout, " ");
+    RUN_TEST(test_scripted_start_fail, "   ");
+    RUN_TEST(test_scripted_stop_fail, "    ");
+    RUN_TEST(test_scripted_start_skip, "   ");
+    RUN_TEST(test_scripted_start_skip2, "  ");
+    RUN_TEST(test_waitsfor_restart, "      ");
 }
