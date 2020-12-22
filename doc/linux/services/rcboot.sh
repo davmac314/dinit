@@ -12,6 +12,7 @@ if [ "$1" != "stop" ]; then
   # create state directories
   : > /var/run/utmp
   mkdir /var/run/dbus
+  chmod og+rx /var/run/dbus
 
   # Configure random number generator
   cat /var/state/random-seed > /dev/urandom
