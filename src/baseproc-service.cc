@@ -77,10 +77,8 @@ void base_process_service::handle_unexpected_termination() noexcept
     // either are STOPPED or STARTING. Otherwise, let's stop immediately (and potentially
     // restart immediately):
 
-    service_state_t service_state = get_state();
-    if (service_state == service_state_t::STOPPING) {
-        stopped();
-        service_state = get_state();
+    if (get_state() == service_state_t::STOPPING) {
+        stopped();  // this might cause us to restart, i.e. state may be STARTING
     }
 
     // Finally, if we're now STARTING, that means we should restart
