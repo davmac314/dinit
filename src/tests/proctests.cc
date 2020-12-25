@@ -841,6 +841,26 @@ void test_proc_smooth_recovery4()
     sset.remove_service(&p);
 }
 
+// simulate the launcher process forking a daemon process, and supply the process ID of that
+// daemon process in a pid file.
+static void supply_pid_contents(const char *pid_file, pid_t *daemon_instance_p = nullptr)
+{
+    using namespace std;
+
+    pid_t daemon_instance = ++bp_sys::last_forked_pid;
+
+    // Set up the pid file content with the pid of the daemon
+    stringstream str;
+    str << daemon_instance << std::flush;
+    string pid_file_content = str.str();
+    vector<char> pid_file_content_v(pid_file_content.begin(), pid_file_content.end());
+    bp_sys::supply_file_content(pid_file, std::move(pid_file_content_v));
+
+    if (daemon_instance_p != nullptr) {
+        *daemon_instance_p = daemon_instance;
+    }
+}
+
 void test_bgproc_start()
 {
     using namespace std;
@@ -867,18 +887,80 @@ void test_bgproc_start()
 
     assert(p.get_state() == service_state_t::STARTING);
 
-    pid_t daemon_instance = ++bp_sys::last_forked_pid;
-
-    // Set up the pid file content with the pid of the daemon
-    stringstream str;
-    str << daemon_instance << std::flush;
-    string pid_file_content = str.str();
-    vector<char> pid_file_content_v(pid_file_content.begin(), pid_file_content.end());
-    bp_sys::supply_file_content("/run/daemon.pid", std::move(pid_file_content_v));
+    supply_pid_contents("/run/daemon.pid");
 
     base_process_service_test::handle_exit(&p, 0);
 
     assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
+void test_bgproc_start_fail()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    bgproc_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_pid_file("/run/daemon.pid");
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::handle_exit(&p, 0x1); // fail status
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
+void test_bgproc_start_fail_pid()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    bgproc_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_pid_file("/run/no-exist-daemon.pid");
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    // launcher returns success, but no pid file exists:
+    base_process_service_test::handle_exit(&p, 0x0);
+
+    assert(p.get_state() == service_state_t::STOPPED);
     assert(event_loop.active_timers.size() == 0);
 
     sset.remove_service(&p);
@@ -911,14 +993,7 @@ void test_bgproc_unexpected_term()
     assert(p.get_state() == service_state_t::STARTING);
     assert(d1.get_state() == service_state_t::STARTING);
 
-    pid_t daemon_instance = ++bp_sys::last_forked_pid;
-
-    // Set up the pid file content with the pid of the daemon
-    stringstream str;
-    str << daemon_instance << std::flush;
-    string pid_file_content = str.str();
-    vector<char> pid_file_content_v(pid_file_content.begin(), pid_file_content.end());
-    bp_sys::supply_file_content("/run/daemon.pid", std::move(pid_file_content_v));
+    supply_pid_contents("/run/daemon.pid");
 
     base_process_service_test::handle_exit(&p, 0);
 
@@ -966,14 +1041,8 @@ void test_bgproc_smooth_recover()
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
 
-    pid_t daemon_instance = ++bp_sys::last_forked_pid;
-
-    // Set up the pid file content with the pid of the daemon
-    stringstream str;
-    str << daemon_instance << std::flush;
-    string pid_file_content = str.str();
-    vector<char> pid_file_content_v(pid_file_content.begin(), pid_file_content.end());
-    bp_sys::supply_file_content("/run/daemon.pid", std::move(pid_file_content_v));
+    pid_t daemon_instance;
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
 
     assert(p.get_state() == service_state_t::STARTING);
 
@@ -1004,12 +1073,7 @@ void test_bgproc_smooth_recover()
 
     assert(event_loop.active_timers.size() == 0);
 
-    daemon_instance = ++bp_sys::last_forked_pid;
-    str.str("");
-    str << daemon_instance << std::flush;
-    pid_file_content = str.str();
-    pid_file_content_v = std::vector<char>(pid_file_content.begin(), pid_file_content.end());
-    bp_sys::supply_file_content("/run/daemon.pid", std::move(pid_file_content_v));
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
 
     base_process_service_test::handle_exit(&p, 0);
     sset.process_queues();
@@ -1024,6 +1088,7 @@ void test_bgproc_smooth_recover()
 
     // since time hasn't been changed, we expect that the process has not yet been re-launched:
     assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_pid() == -1);
     assert(daemon_instance == bp_sys::last_forked_pid);
 
     event_loop.advance_time(time_val {0, 1000});
@@ -1040,18 +1105,178 @@ void test_bgproc_smooth_recover()
 
     assert(event_loop.active_timers.size() == 0);
 
-    daemon_instance = ++bp_sys::last_forked_pid;
-    str.str("");
-    str << daemon_instance << std::flush;
-    pid_file_content = str.str();
-    pid_file_content_v = std::vector<char>(pid_file_content.begin(), pid_file_content.end());
-    bp_sys::supply_file_content("/run/daemon.pid", std::move(pid_file_content_v));
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
 
     base_process_service_test::handle_exit(&p, 0);
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_pid() == daemon_instance);
 
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
+// Unexpected termination with restart
+void test_bgproc_term_restart()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    bgproc_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_auto_restart(true);
+    p.set_restart_delay(time_val {0, 1000});
+    p.set_pid_file("/run/daemon.pid");
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    pid_t daemon_instance;
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
+
+    // Launch process completes:
+    base_process_service_test::handle_exit(&p, 0); // exit the launch process
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_pid() == daemon_instance);
+
+    // Unexpected termination of daemon:
+    base_process_service_test::handle_exit(&p, 1);
+
+    // Should re-start:
+    assert(p.get_state() == service_state_t::STARTING);
+
+    // Starting, restart timer should be armed:
+    assert(p.get_state() == service_state_t::STARTING);
+    assert(p.get_pid() == -1);
+    assert(event_loop.active_timers.size() == 1);
+
+    event_loop.advance_time(time_val(0, 1000));
+    assert(event_loop.active_timers.size() == 0);
+
+    assert(p.get_pid() != -1);
+
+    // Supply new pid
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
+
+    // Launch process completes again
+    base_process_service_test::handle_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_pid() == daemon_instance);
+
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
+void test_bgproc_stop()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    bgproc_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_auto_restart(true);
+    p.set_pid_file("/run/daemon.pid");
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    pid_t daemon_instance;
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
+
+    // Launch process completes:
+    base_process_service_test::handle_exit(&p, 0); // exit the launch process
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_pid() == daemon_instance);
+
+    // Issue stop:
+    p.stop();
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    base_process_service_test::handle_exit(&p, 1);
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
+// If launch process completes successfully (exit code 0) after "stop" issued during startup,
+// make sure the pid file is read and the daemon process is signalled.
+void test_bgproc_stop2()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    bgproc_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_auto_restart(true);
+    p.set_pid_file("/run/daemon.pid");
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    pid_t daemon_instance;
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
+
+    // Now issue stop
+    p.stop();
+    // doesn't really matter if state is STARTING or STOPPING
+    assert(p.get_state() == service_state_t::STARTING || p.get_state() == service_state_t::STOPPING);
+
+    // Launch process completes:
+    bp_sys::last_sig_sent = -1;
+    base_process_service_test::handle_exit(&p, 0); // exit the launch process
+
+    // What should happen now: read the pid file, immediately signal the daemon, and go STOPPING
+    assert(p.get_pid() == daemon_instance);
+    assert(bp_sys::last_sig_sent = SIGTERM);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    // daemon exits:
+    base_process_service_test::handle_exit(&p, 1);
+
+    assert(p.get_state() == service_state_t::STOPPED);
     assert(event_loop.active_timers.size() == 0);
 
     sset.remove_service(&p);
@@ -1416,8 +1641,13 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_smooth_recovery3, " ");
     RUN_TEST(test_proc_smooth_recovery4, " ");
     RUN_TEST(test_bgproc_start, "          ");
+    RUN_TEST(test_bgproc_start_fail, "     ");
+    RUN_TEST(test_bgproc_start_fail_pid, " ");
     RUN_TEST(test_bgproc_unexpected_term, "");
     RUN_TEST(test_bgproc_smooth_recover, " ");
+    RUN_TEST(test_bgproc_term_restart, "   ");
+    RUN_TEST(test_bgproc_stop, "           ");
+    RUN_TEST(test_bgproc_stop2, "          ");
     RUN_TEST(test_scripted_stop_timeout, " ");
     RUN_TEST(test_scripted_start_fail, "   ");
     RUN_TEST(test_scripted_stop_fail, "    ");
