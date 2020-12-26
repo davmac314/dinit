@@ -311,20 +311,48 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
         waiting_stopstart_timer = false;
     }
 
-    // This may be a "smooth recovery" where we are restarting the process while leaving the
-    // service in the STARTED state. This must be the case if 'restarting' is set while the state
-    // is currently STARTED.
-    if (doing_smooth_recovery && service_state == service_state_t::STARTED) {
+    if (doing_smooth_recovery) {
         doing_smooth_recovery = false;
-        bool need_stop = false;
-        if ((did_exit && exit_status.get_exit_status() != 0) || was_signalled) {
-            need_stop = true;
+
+        // We're either started, or stopping (i.e. we were requested to stop during smooth recovery).
+
+        if (service_state == service_state_t::STOPPING) {
+            // Stop was issued during smooth recovery
+            if ((did_exit && exit_status.get_exit_status() != 0) || was_signalled) {
+                stopped();
+            }
+            else {
+                // We need to re-read the PID, since it has now changed.
+                if (pid_file.length() != 0) {
+                    auto pid_result = read_pid_file(&exit_status);
+
+                    switch (pid_result) {
+                    case pid_result_t::FAILED:
+                    case pid_result_t::TERMINATED:
+                        // Failed startup: no auto-restart.
+                        stopped();
+                        break;
+                    case pid_result_t::OK:
+                        // We now need to bring down the daemon process
+                        bring_down();
+                        return;
+                    }
+                }
+            }
+            services->process_queues();
+            return;
         }
-        else {
-            // We need to re-read the PID, since it has now changed.
-            if (pid_file.length() != 0) {
-                auto pid_result = read_pid_file(&exit_status);
-                switch (pid_result) {
+        else /* if (service_state == service_state_t::STARTED) */ {
+            bool need_stop = false;
+            if ((did_exit && exit_status.get_exit_status() != 0) || was_signalled) {
+                need_stop = true;
+            }
+            else {
+                // We need to re-read the PID, since it has now changed.
+                if (pid_file.length() != 0) {
+                    auto pid_result = read_pid_file(&exit_status);
+
+                    switch (pid_result) {
                     case pid_result_t::FAILED:
                         // Failed startup: no auto-restart.
                         need_stop = true;
@@ -333,18 +361,19 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
                         goto begin;
                     case pid_result_t::OK:
                         break;
+                    }
                 }
             }
-        }
 
-        if (need_stop) {
-            // Failed startup: no auto-restart.
-            stop_reason = stopped_reason_t::TERMINATED;
-            unrecoverable_stop();
-            services->process_queues();
-        }
+            if (need_stop) {
+                // Failed startup: no auto-restart.
+                stop_reason = stopped_reason_t::TERMINATED;
+                unrecoverable_stop();
+                services->process_queues();
+            }
 
-        return;
+            return;
+        }
     }
 
     if (service_state == service_state_t::STARTING) {

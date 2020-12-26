@@ -1282,6 +1282,86 @@ void test_bgproc_stop2()
     sset.remove_service(&p);
 }
 
+// Stop issued during smooth recovery
+void test_bgproc_stop3()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    bgproc_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_smooth_recovery(true);
+    p.set_restart_delay(time_val {0, 1000});
+    p.set_pid_file("/run/daemon.pid");
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    pid_t daemon_instance;
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::handle_exit(&p, 0); // exit the launch process
+    sset.process_queues();
+
+    // daemon process has been started now, state should be STARTED
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(daemon_instance == bp_sys::last_forked_pid);
+
+    base_process_service_test::handle_exit(&p, 0); // exit the daemon process
+
+    // since time hasn't been changed, we expect that the process has not yet been re-launched:
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(daemon_instance == bp_sys::last_forked_pid);
+
+    event_loop.advance_time(time_val {0, 1000});
+    sset.process_queues();
+
+    // Now a new process should've been launched:
+    assert(event_loop.active_timers.size() == 0);
+    assert(daemon_instance + 1 == bp_sys::last_forked_pid);
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    base_process_service_test::exec_succeeded(&p);
+
+    assert(event_loop.active_timers.size() == 0);
+
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
+
+    // Now, we are in smooth recovery (state = STARTED), launch process is running.
+
+    p.stop();
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    base_process_service_test::handle_exit(&p, 0);
+
+    // The launch process terminated, but *successfully*. So the PID file should be read and the
+    // daemon process killed also.
+
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(p.get_pid() == daemon_instance);
+
+    base_process_service_test::handle_exit(&p, 0); // exit the daemon process
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(daemon_instance == bp_sys::last_forked_pid);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
 // Test stop timeout
 void test_scripted_stop_timeout()
 {
@@ -1648,6 +1728,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_bgproc_term_restart, "   ");
     RUN_TEST(test_bgproc_stop, "           ");
     RUN_TEST(test_bgproc_stop2, "          ");
+    RUN_TEST(test_bgproc_stop3, "          ");
     RUN_TEST(test_scripted_stop_timeout, " ");
     RUN_TEST(test_scripted_start_fail, "   ");
     RUN_TEST(test_scripted_stop_fail, "    ");
