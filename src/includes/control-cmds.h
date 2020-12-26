@@ -61,8 +61,9 @@ constexpr static int DINIT_RP_OOM = 53;
 constexpr static int DINIT_RP_SERVICELOADERR = 54;
 constexpr static int DINIT_RP_SERVICEOOM = 55; // couldn't start due to out-of-memory
 
-constexpr static int DINIT_RP_SSISSUED = 56;  // service start/stop was issued (includes 4-byte service handle)
-constexpr static int DINIT_RP_SSREDUNDANT = 57;  // service was already started/stopped (or for stop, not loaded)
+// Not (any longer?) used
+//constexpr static int DINIT_RP_SSISSUED = 56;  // service start/stop was issued (includes 4-byte service handle)
+//constexpr static int DINIT_RP_SSREDUNDANT = 57;  // service was already started/stopped (or for stop, not loaded)
 
 // Query version response:
 constexpr static int DINIT_RP_CPVERSION = 58;
@@ -89,6 +90,11 @@ constexpr static int DINIT_RP_DEPENDENTS = 65;
 
 // Service name:
 constexpr static int DINIT_RP_SERVICENAME = 66;
+
+// Service is pinned stopped/started:
+constexpr static int DINIT_RP_PINNEDSTOPPED = 67;
+constexpr static int DINIT_RP_PINNEDSTARTED = 68;
+
 
 // Information:
 

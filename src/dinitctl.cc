@@ -566,8 +566,16 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             }
             return 0; // success!
         }
+        if (reply_pkt_h == DINIT_RP_PINNEDSTARTED) {
+            cerr << "dinitctl: cannot stop service '" << service_name << "' as it is pinned started\n";
+            return 1;
+        }
+        if (reply_pkt_h == DINIT_RP_PINNEDSTOPPED) {
+            cerr << "dinitctl: cannot start service '" << service_name << "' as it is pinned stopped\n";
+            return 1;
+        }
         if (reply_pkt_h == DINIT_RP_DEPENDENTS && pcommand == DINIT_CP_STOPSERVICE) {
-            cerr << "dinitctl: cannot stop service due to the following dependents:\n";
+            cerr << "dinitctl: cannot stop service '" << service_name << "' due to the following dependents:\n";
             if (command != command_t::RESTART_SERVICE) {
                 cerr << "(Only direct dependents are listed. Exercise caution before using '--force' !!)\n";
             }
@@ -594,7 +602,7 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             return 1;
         }
         if (reply_pkt_h == DINIT_RP_NAK && command == command_t::RESTART_SERVICE) {
-            cerr << "dinitctl: cannot restart service; service not started.\n";
+            cerr << "dinitctl: cannot restart service; service not started (or system is shutting down).\n";
             return 1;
         }
         if (reply_pkt_h == DINIT_RP_NAK && command == command_t::START_SERVICE) {

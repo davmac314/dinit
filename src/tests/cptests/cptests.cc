@@ -421,6 +421,66 @@ void cptest_startstop()
     delete cc;
 }
 
+void cptest_start_pinned()
+{
+    service_set sset;
+
+    const char * const service_name = "test-service-1";
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    sset.add_service(s1);
+
+    int fd = bp_sys::allocfd();
+    auto *cc = new control_conn_t(event_loop, &sset, fd);
+
+    s1->pin_stop();
+
+    // Get a service handle:
+    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
+    uint16_t name_len = strlen(service_name);
+    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
+    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
+    cmd.insert(cmd.end(), service_name, service_name + name_len);
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    // We expect:
+    // (1 byte)   DINIT_RP_SERVICERECORD
+    // (1 byte)   state
+    // (handle_t) handle
+    // (1 byte)   target state
+
+    std::vector<char> wdata;
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
+    assert(wdata[0] == DINIT_RP_SERVICERECORD);
+    service_state_t s = static_cast<service_state_t>(wdata[1]);
+    assert(s == service_state_t::STOPPED);
+    service_state_t ts = static_cast<service_state_t>(wdata[6]);
+    assert(ts == service_state_t::STOPPED);
+
+    control_conn_t::handle_t h;
+    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h), reinterpret_cast<char *>(&h));
+
+    // Issue start:
+    cmd = { DINIT_CP_STARTSERVICE, 0 /* don't pin */ };
+    char * h_cp = reinterpret_cast<char *>(&h);
+    cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    bp_sys::extract_written_data(fd, wdata);
+    assert(wdata.size() == 1 /* DINIT_RP_PINNEDSTOPPED */);
+    assert(wdata[0] == DINIT_RP_PINNEDSTOPPED);
+
+    delete cc;
+}
+
 void cptest_gentlestop()
 {
     service_set sset;
@@ -1117,6 +1177,7 @@ int main(int argc, char **argv)
     RUN_TEST(cptest_findservice3, "       ");
     RUN_TEST(cptest_loadservice, "        ");
     RUN_TEST(cptest_startstop, "          ");
+    RUN_TEST(cptest_start_pinned, "       ");
     RUN_TEST(cptest_gentlestop, "         ");
     RUN_TEST(cptest_queryname, "          ");
     RUN_TEST(cptest_unload, "             ");

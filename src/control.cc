@@ -252,6 +252,12 @@ bool control_conn_t::process_start_stop(int pktType)
                 ack_buf[0] = DINIT_RP_NAK;
                 break;
             }
+            if ((service->get_state() == service_state_t::STOPPED
+                    || service->get_state() == service_state_t::STOPPING)
+                    && service->is_stop_pinned()) {
+                ack_buf[0] = DINIT_RP_PINNEDSTOPPED;
+                break;
+            }
             if (do_pin) service->pin_start();
             service->start();
             services->process_queues();
@@ -264,6 +270,12 @@ bool control_conn_t::process_start_stop(int pktType)
             bool gentle = ((rbuf[1] & 2) == 2) || do_restart;  // restart is always "gentle"
             if (do_restart && services->is_shutting_down()) {
                 ack_buf[0] = DINIT_RP_NAK;
+                break;
+            }
+            if ((service->get_state() == service_state_t::STARTED
+                    || service->get_state() == service_state_t::STARTING)
+                    && service->is_start_pinned()) {
+                ack_buf[0] = DINIT_RP_PINNEDSTARTED;
                 break;
             }
             if (gentle) {
@@ -300,6 +312,12 @@ bool control_conn_t::process_start_stop(int pktType)
             // re-attach a service to its (started) dependents, causing it to start.
             if (services->is_shutting_down()) {
                 ack_buf[0] = DINIT_RP_NAK;
+                break;
+            }
+            if ((service->get_state() == service_state_t::STOPPED
+                    || service->get_state() == service_state_t::STOPPING)
+                    && service->is_stop_pinned()) {
+                ack_buf[0] = DINIT_RP_PINNEDSTOPPED;
                 break;
             }
             bool found_dpt = false;

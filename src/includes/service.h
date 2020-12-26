@@ -566,6 +566,16 @@ class service_record
     // commence starting/stopping.
     void unpin() noexcept;
     
+    bool is_start_pinned() noexcept
+    {
+        return pinned_started;
+    }
+
+    bool is_stop_pinned() noexcept
+    {
+        return pinned_stopped;
+    }
+
     // Is this a dummy service (used only when loading a new service)?
     bool is_dummy() noexcept
     {
