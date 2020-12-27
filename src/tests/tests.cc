@@ -494,7 +494,7 @@ void test_pin3()
     s2->forced_stop();
     sset.process_queues();
 
-    // s3 should remain started due to pin, but s1 and s2 are released and go STOPPING:
+    // s3 should remain started due to pin, but s2 should now be STOPPING:
     assert(s3->get_state() == service_state_t::STARTED);
     assert(s2->get_state() == service_state_t::STOPPING);
     assert(s1->get_state() == service_state_t::STARTED);
