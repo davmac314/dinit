@@ -187,8 +187,8 @@ void service_record::release_dependencies() noexcept
 
 void service_record::start() noexcept
 {
-    if (service_state == service_state_t::STOPPED && pinned_stopped) {
-        // bail out early for this special case
+    if (pinned_stopped) {
+        // bail out early for this case, we don't want to set start_explicit
         return;
     }
 
