@@ -452,14 +452,14 @@ void scripted_service::handle_exit_status(bp_sys::exit_status exit_status) noexc
             }
             // We issued a start interrupt, so we expected this failure:
             if (did_exit && exit_status.get_exit_status() != 0) {
-                log(loglevel_t::INFO, "Service ", get_name(), " start cancelled; exit code ",
+                log(loglevel_t::NOTICE, "Service ", get_name(), " start cancelled; exit code ",
                         exit_status.get_exit_status());
                 // Assume that a command terminating normally (with failure status) requires no cleanup:
                 stopped();
             }
             else {
                 if (was_signalled) {
-                    log(loglevel_t::INFO, "Service ", get_name(), " start cancelled from signal ",
+                    log(loglevel_t::NOTICE, "Service ", get_name(), " start cancelled from signal ",
                             exit_status.get_term_sig());
                 }
                 // If the start script completed successfully, or was interrupted via our signal,

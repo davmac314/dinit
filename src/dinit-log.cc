@@ -32,7 +32,7 @@ static bool log_format_syslog[2] = { false, true };
 
 static service_set *services = nullptr;  // Reference to service set
 
-loglevel_t log_level[2] = { loglevel_t::INFO, loglevel_t::WARN };
+loglevel_t log_level[2] = { loglevel_t::NOTICE, loglevel_t::WARN };
 bool console_service_status = true;  // show service status messages to console?
 
 dasynq::time_val release_time; // time the log was released
@@ -380,8 +380,8 @@ static int log_level_to_syslog_level(loglevel_t l)
     switch (l) {
     case loglevel_t::DEBUG:
         return LOG_DEBUG;
-    case loglevel_t::INFO:
-        return LOG_INFO;
+    case loglevel_t::NOTICE:
+        return LOG_NOTICE;
     case loglevel_t::WARN:
         return LOG_WARNING;
     case loglevel_t::ERROR:

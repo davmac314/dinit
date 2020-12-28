@@ -19,7 +19,7 @@ class service_set;
 
 enum class loglevel_t {
     DEBUG,
-    INFO,
+    NOTICE,
     WARN,
     ERROR,
     ZERO    // log absolutely nothing

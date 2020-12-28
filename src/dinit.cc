@@ -412,7 +412,7 @@ int dinit_main(int argc, char **argv)
     setup_log_console_handoff(services);
 
     if (am_system_init) {
-        log(loglevel_t::INFO, false, "Starting system");
+        log(loglevel_t::NOTICE, false, "Starting system");
     }
     
     // Only try to set up the external log now if we aren't the system init. (If we are the
@@ -456,7 +456,7 @@ int dinit_main(int argc, char **argv)
     }
     
     if (am_system_mgr) {
-        log_msg_begin(loglevel_t::INFO, "No more active services.");
+        log_msg_begin(loglevel_t::NOTICE, "No more active services.");
         
         if (shutdown_type == shutdown_type_t::REBOOT) {
             log_msg_end(" Will reboot.");
