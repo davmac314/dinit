@@ -60,6 +60,7 @@ static void sigterm_cb(eventloop_t &eloop) noexcept;
 static void open_control_socket(bool report_ro_failure = true) noexcept;
 static void close_control_socket() noexcept;
 static void confirm_restart_boot() noexcept;
+static void flush_log() noexcept;
 
 static void control_socket_cb(eventloop_t *loop, int fd);
 
@@ -374,8 +375,14 @@ int dinit_main(int argc, char **argv)
         // (If not PID 1, we instead just let SIGQUIT perform the default action.)
     }
 
+    log_flush_timer.add_timer(event_loop, dasynq::clock_type::MONOTONIC);
+
     // Try to open control socket (may fail due to readonly filesystem)
-    open_control_socket(false);
+    open_control_socket(!am_system_init);
+    if (!am_system_init && !control_socket_open) {
+        flush_log();
+        return EXIT_FAILURE;
+    }
     
 #ifdef __linux__
     if (am_system_mgr) {
@@ -389,14 +396,12 @@ int dinit_main(int argc, char **argv)
     // orphaned child will re-parent to us rather than to PID 1 (although that could be us too).
     prctl(PR_SET_CHILD_SUBREAPER, 1);
 #elif defined(__FreeBSD__) || defined(__DragonFly__)
-    // Documentation (man page) for this kind of sucks. PROC_REAP_ACQUIRE "acquires the reaper status for
+    // Documentation (man page) for this kind-of sucks. PROC_REAP_ACQUIRE "acquires the reaper status for
     // the current process" but does that mean the first two arguments still need valid values to be
     // supplied? We'll play it safe and explicitly target our own process:
     procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL);
 #endif
     
-    log_flush_timer.add_timer(event_loop, dasynq::clock_type::MONOTONIC);
-
     service_dir_opts.build_paths(am_system_init);
 
     /* start requested services */
@@ -409,7 +414,7 @@ int dinit_main(int argc, char **argv)
     
     // Only try to set up the external log now if we aren't the system init. (If we are the
     // system init, wait until the log service starts).
-    if (! am_system_init && log_specified) setup_external_log();
+    if (!am_system_init && log_specified) setup_external_log();
 
     if (env_file != nullptr) {
         read_env_file(env_file);
@@ -460,13 +465,8 @@ int dinit_main(int argc, char **argv)
             log_msg_end(" Will power down.");
         }
     }
-    
-    log_flush_timer.reset();
-    log_flush_timer.arm_timer_rel(event_loop, timespec{5,0}); // 5 seconds
-    while (! is_log_flushed() && ! log_flush_timer.has_expired()) {
-        event_loop.run();
-    }
-    
+
+    flush_log();
     close_control_socket();
     
     if (am_system_mgr) {
@@ -843,6 +843,15 @@ void setup_external_log() noexcept
                 log(loglevel_t::ERROR, "Setting up log failed: ", strerror(errno));
             }
         }
+    }
+}
+
+static void flush_log() noexcept
+{
+    log_flush_timer.reset();
+    log_flush_timer.arm_timer_rel(event_loop, timespec{5,0}); // 5 seconds
+    while (!is_log_flushed() && !log_flush_timer.has_expired()) {
+        event_loop.run();
     }
 }
 
