@@ -15,6 +15,8 @@ For version 0.11.+:
     - if command specified but type not, report an error
     - other checks?
   - errors should also be reported by dinitcheck
+* if service file exists but can't be opened, error rather than continuing search
+  - also in dinitcheck
 
 For version 1.0 (i.e. longer-term plans):
 -----------------------------------------

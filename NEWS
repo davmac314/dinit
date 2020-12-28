@@ -1,8 +1,8 @@
 == Version ??? (upcoming release)
 
- * If a process-based service fails to restart, restart of dependent services
-   will be inhibited. This should prevent repeated attempts to launch a failing
-   process caused by a restarting dependent service.
+ * Services of type bgproc will no longer load if the pid-file setting is not
+   supplied. Previously such services could be started, but stopping them would
+   leave the process running.
  * Re-worked manual service stop (via command). Previously, manually stopping
    a service would inhibit automatic restart of the service, but not of its
    dependents; this meant that the service might still restart due to a
@@ -15,9 +15,17 @@
    to implement properly).
  * Re-worked pinning. A service that is pinned stopped can now prevent dependents
    from starting (the behaviour is the same as if the service failed to start).
+ * Support start-timeout setting for process services. Previously this setting
+   was ignored for such services. It is mostly useful for services which also
+   have readiness notification configured (since otherwise, a process service is
+   considered started as soon as it begins execution).
+ * If a process-based service fails to restart, restart of dependent services
+   will be inhibited. This should prevent repeated attempts to launch a failing
+   process caused by a restarting dependent service.
  * Fixed some cases where service target state would not be set correctly. This
    could cause output of "dinitctl list" to incorrectly show that a service would
    restart after stopping, when in fact it would remain stopped.
+ * Fixed various corner-case bugs in service management.
 
 == Version 0.9.1
 
