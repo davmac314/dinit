@@ -303,9 +303,12 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         service_file.close();
 
-        settings.finalise(name);
-        auto service_type = settings.service_type;
+        auto report_err = [&](const char *msg){
+            throw service_description_exc(name, msg);
+        };
 
+        settings.finalise(report_err);
+        auto service_type = settings.service_type;
 
         if (reload_svc != nullptr) {
             // Make sure settings are able to be changed/are compatible

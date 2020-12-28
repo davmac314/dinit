@@ -617,24 +617,23 @@ class service_settings_wrapper
     #endif
 
     // Finalise settings (after processing all setting lines); may throw service_description_exc
-    void finalise(const std::string &servicename)
+    template <typename T>
+    void finalise(T &report_error)
     {
         if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS
                 || service_type == service_type_t::SCRIPTED) {
             if (command.length() == 0) {
-                throw service_description_exc(servicename, "Service command not specified.");
+                report_error("Service command not specified.");
             }
         }
 
         if (service_type == service_type_t::BGPROCESS) {
             if (pid_file.empty()) {
-                throw service_description_exc(servicename,
-                        "Process ID file ('pid-file') not specified for bgprocess service.");
+                report_error("Process ID file ('pid-file') not specified for bgprocess service.");
             }
 
             if (readiness_fd != -1 || !readiness_var.empty()) {
-                throw service_description_exc(servicename,
-                        "Readiness notification ('ready-notification') is not supported "
+                report_error("Readiness notification ('ready-notification') is not supported "
                         "for bgprocess services.");
             }
         }

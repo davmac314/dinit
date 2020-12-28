@@ -336,7 +336,11 @@ service_record *load_service(service_set_t &services, const std::string &name,
         throw service_description_exc(name, "Error while reading service description.");
     }
 
-    settings.finalise(name);
+    auto report_err = [&](const char *msg) {
+        report_service_description_err(name, msg);
+    };
+
+    settings.finalise(report_err);
 
     return new service_record(name, settings.depends);
 }
