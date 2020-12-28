@@ -89,7 +89,12 @@ be unable to start.
 
 A service that is pinned started cannot be stopped, however its explicit activation can be removed
 (eg via the \fBstop\fR or \fBrelease\fR commands). Once unpinned, a service which is not explicitly
-activated, and which has no active dependents, will automatically stop.
+activated, and which has no active dependents, will automatically stop. If a pinned-started service
+fails to start, the pin is removed.
+
+Note that a pin takes effect while the service is starting/stopping, before it reaches the target
+state. For example, issuing a stop command to a service which is starting and which is pinned
+started will have no effect other than removing explicit activation.
 .TP
 \fB\-\-force\fR
 Stop the service even if it will require stopping other services which depend on the specified service.

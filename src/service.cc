@@ -148,7 +148,7 @@ void service_record::release(bool issue_stop) noexcept
             // If we are stopping but would have restarted, we now need to notify that the restart
             // has been cancelled. Other start-cancelled cases are handled by do_stop() (called
             // below).
-            if (desired_state == service_state_t::STARTED) {
+            if (desired_state == service_state_t::STARTED && !pinned_started) {
                 notify_listeners(service_event_t::STARTCANCELLED);
             }
         }
@@ -466,6 +466,7 @@ void service_record::failed_to_start(bool depfailed, bool immediate_stop) noexce
     start_failed = true;
     log_service_failed(get_name());
     notify_listeners(service_event_t::FAILEDSTART);
+    pinned_started = false;
 
     if (immediate_stop) {
         stopped();
