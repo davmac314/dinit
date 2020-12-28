@@ -320,7 +320,7 @@ int main(int argc, char **argv)
                 control_socket_path = control_socket_str.c_str();
             }
             else {
-                cerr << "dinitctl: Cannot locate user home directory (set HOME, check /etc/passwd file, or "
+                cerr << "dinitctl: cannot locate user home directory (set HOME, check /etc/passwd file, or "
                         "specify socket path via -p)" << endl;
                 return 1;
             }
@@ -337,7 +337,7 @@ int main(int argc, char **argv)
     uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + strlen(control_socket_path) + 1;
     name = (struct sockaddr_un *) malloc(sockaddr_size);
     if (name == nullptr) {
-        cerr << "dinitctl: Out of memory" << endl;
+        cerr << "dinitctl: out of memory" << endl;
         return 1;
     }
     
@@ -577,7 +577,7 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
         if (reply_pkt_h == DINIT_RP_DEPENDENTS && pcommand == DINIT_CP_STOPSERVICE) {
             cerr << "dinitctl: cannot stop service '" << service_name << "' due to the following dependents:\n";
             if (command != command_t::RESTART_SERVICE) {
-                cerr << "(Only direct dependents are listed. Exercise caution before using '--force' !!)\n";
+                cerr << "(only direct dependents are listed. Exercise caution before using '--force' !!)\n";
             }
             // size_t number, N * handle_t handles
             size_t number;
@@ -796,12 +796,12 @@ static int unload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
 
         wait_for_reply(rbuffer, socknum);
         if (rbuffer[0] == DINIT_RP_NAK) {
-            cerr << "dinitctl: Could not unload service; service not stopped, or is a dependency of "
+            cerr << "dinitctl: could not unload service; service not stopped, or is a dependency of "
                     "other service." << endl;
             return 1;
         }
         if (rbuffer[0] != DINIT_RP_ACK) {
-            cerr << "dinitctl: Protocol error." << endl;
+            cerr << "dinitctl: protocol error." << endl;
             return 1;
         }
         rbuffer.consume(1);
@@ -843,12 +843,12 @@ static int reload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
 
         wait_for_reply(rbuffer, socknum);
         if (rbuffer[0] == DINIT_RP_NAK) {
-            cerr << "dinitctl: Could not reload service; service in wrong state, incompatible change, "
+            cerr << "dinitctl: could not reload service; service in wrong state, incompatible change, "
                     "or bad service description." << endl;
             return 1;
         }
         if (rbuffer[0] != DINIT_RP_ACK) {
-            cerr << "dinitctl: Protocol error." << endl;
+            cerr << "dinitctl: protocol error." << endl;
             return 1;
         }
         rbuffer.consume(1);
@@ -966,7 +966,7 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
     }
 
     if (rbuffer[0] != DINIT_RP_LISTDONE) {
-        cerr << "dinitctl: Control socket protocol error" << endl;
+        cerr << "dinitctl: control socket protocol error" << endl;
         return 1;
     }
 
@@ -987,7 +987,7 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
     }
 
     if (from_handle == to_handle) {
-        cerr << "dinitctl: Can not add/remove a dependency from a service to itself" << endl;
+        cerr << "dinitctl: can not add/remove a dependency from a service to itself" << endl;
         return 1;
     }
 
@@ -1002,11 +1002,11 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
 
     // check reply
     if (rbuffer[0] == DINIT_RP_NAK) {
-        cerr << "dinitctl: Could not add dependency: circular dependency or wrong state" << endl;
+        cerr << "dinitctl: could not add dependency: circular dependency or wrong state" << endl;
         return 1;
     }
     if (rbuffer[0] != DINIT_RP_ACK) {
-        cerr << "dinitctl: Control socket protocol error" << endl;
+        cerr << "dinitctl: control socket protocol error" << endl;
         return 1;
     }
 
@@ -1026,7 +1026,7 @@ static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer)
     wait_for_reply(rbuffer, socknum);
 
     if (rbuffer[0] != DINIT_RP_ACK) {
-        cerr << "dinitctl: Control socket protocol error" << endl;
+        cerr << "dinitctl: control socket protocol error" << endl;
         return 1;
     }
 
@@ -1069,7 +1069,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
     wait_for_reply(rbuffer, socknum);
 
     if (rbuffer[0] != DINIT_RP_LOADER_MECH) {
-        cerr << "dinitctl: Control socket protocol error" << endl;
+        cerr << "dinitctl: control socket protocol error" << endl;
         return 1;
     }
 
@@ -1206,28 +1206,28 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
 
     // check reply
     if (enable && rbuffer[0] == DINIT_RP_NAK) {
-        cerr << "dinitctl: Could not enable service: possible circular dependency" << endl;
+        cerr << "dinitctl: could not enable service: possible circular dependency" << endl;
         return 1;
     }
     if (rbuffer[0] != DINIT_RP_ACK) {
-        cerr << "dinitctl: Control socket protocol error" << endl;
+        cerr << "dinitctl: control socket protocol error" << endl;
         return 1;
     }
 
     // create link
     if (enable) {
         if (symlink((string("../") + to).c_str(), dep_link_path.c_str()) == -1) {
-            cerr << "dinitctl: Could not create symlink at " << dep_link_path << ": " << strerror(errno)
-                    << "\n" "dinitctl: Note: service was activated, but will not be enabled on restart."
+            cerr << "dinitctl: could not create symlink at " << dep_link_path << ": " << strerror(errno)
+                    << "\n" "dinitctl: note: service was activated, but will not be enabled on restart."
                     << endl;
             return 1;
         }
     }
     else {
         if (unlink(dep_link_path.c_str()) == -1) {
-            cerr << "dinitctl: Could not unlink dependency entry " << dep_link_path << ": "
+            cerr << "dinitctl: could not unlink dependency entry " << dep_link_path << ": "
                     << strerror(errno) << "\n"
-                    "dinitctl: Note: service was disabled, but will be re-enabled on restart." << endl;
+                    "dinitctl: note: service was disabled, but will be re-enabled on restart." << endl;
             return 1;
         }
     }

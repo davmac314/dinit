@@ -68,7 +68,7 @@ class service_not_found : public service_load_exc
 {
     public:
     service_not_found(const std::string &serviceName) noexcept
-        : service_load_exc(serviceName, "Service description not found.")
+        : service_load_exc(serviceName, "service description not found.")
     {
     }
 };
@@ -77,7 +77,7 @@ class service_cyclic_dependency : public service_load_exc
 {
     public:
     service_cyclic_dependency(const std::string &serviceName) noexcept
-        : service_load_exc(serviceName, "Has cyclic dependency.")
+        : service_load_exc(serviceName, "has cyclic dependency.")
     {
     }
 };
@@ -214,7 +214,7 @@ inline string read_setting_value(string_iterator & i, string_iterator end,
                         rval += c;
                     }
                     else {
-                        throw setting_exception("Line end follows backslash escape character (`\\')");
+                        throw setting_exception("line end follows backslash escape character (`\\')");
                     }
                 }
                 else {
@@ -224,7 +224,7 @@ inline string read_setting_value(string_iterator & i, string_iterator end,
             }
             if (i == end) {
                 // String wasn't terminated
-                throw setting_exception("Unterminated quoted string");
+                throw setting_exception("unterminated quoted string");
             }
         }
         else if (c == '\\') {
@@ -238,7 +238,7 @@ inline string read_setting_value(string_iterator & i, string_iterator end,
                 rval += *i;
             }
             else {
-                throw setting_exception("Backslash escape (`\\') not followed by character");
+                throw setting_exception("backslash escape (`\\') not followed by character");
             }
         }
         else if (isspace(c, locale::classic())) {
@@ -281,7 +281,7 @@ inline string read_setting_value(string_iterator & i, string_iterator end,
 // it is not null.
 inline uid_t parse_uid_param(const std::string &param, const std::string &service_name, const char *setting_name, gid_t *group_p)
 {
-    const char * uid_err_msg = "Specified user id contains invalid numeric characters "
+    const char * uid_err_msg = "specified user id contains invalid numeric characters "
             "or is outside allowed range.";
 
     // Could be a name or a numeric id. But we should assume numeric first, just in case
@@ -313,11 +313,11 @@ inline uid_t parse_uid_param(const std::string &param, const std::string &servic
     if (pwent == nullptr) {
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
-            throw service_description_exc(service_name, std::string(setting_name) + ": Specified user \"" + param
+            throw service_description_exc(service_name, std::string(setting_name) + ": specified user \"" + param
                     + "\" does not exist in system database.");
         }
         else {
-            throw service_description_exc(service_name, std::string("Error accessing user database: ")
+            throw service_description_exc(service_name, std::string("error accessing user database: ")
                     + strerror(errno));
         }
     }
@@ -331,7 +331,7 @@ inline uid_t parse_uid_param(const std::string &param, const std::string &servic
 
 inline gid_t parse_gid_param(const std::string &param, const char *setting_name, const std::string &service_name)
 {
-    const char * gid_err_msg = "Specified group id contains invalid numeric characters or is "
+    const char * gid_err_msg = "specified group id contains invalid numeric characters or is "
             "outside allowed range.";
 
     // Could be a name or a numeric id. But we should assume numeric first, just in case
@@ -363,11 +363,11 @@ inline gid_t parse_gid_param(const std::string &param, const char *setting_name,
     if (grent == nullptr) {
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
-            throw service_description_exc(service_name, std::string(setting_name) + ": Specified group \"" + param
+            throw service_description_exc(service_name, std::string(setting_name) + ": specified group \"" + param
                     + "\" does not exist in system database.");
         }
         else {
-            throw service_description_exc(service_name, std::string("Error accessing group database: ")
+            throw service_description_exc(service_name, std::string("error accessing group database: ")
                     + strerror(errno));
         }
     }
@@ -392,11 +392,11 @@ inline void parse_timespec(const std::string &paramval, const std::string &servi
             break;
         }
         if (ch < '0' || ch > '9') {
-            throw service_description_exc(servicename, std::string("Bad value for ") + paramname);
+            throw service_description_exc(servicename, std::string("bad value for ") + paramname);
         }
         // check for overflow
         if (isec >= max_secs) {
-           throw service_description_exc(servicename, std::string("Too-large value for ") + paramname);
+           throw service_description_exc(servicename, std::string("too-large value for ") + paramname);
         }
         isec *= 10;
         isec += ch - '0';
@@ -405,7 +405,7 @@ inline void parse_timespec(const std::string &paramval, const std::string &servi
     for ( ; i < len; i++) {
         char ch = paramval[i];
         if (ch < '0' || ch > '9') {
-            throw service_description_exc(servicename, std::string("Bad value for ") + paramname);
+            throw service_description_exc(servicename, std::string("bad value for ") + paramname);
         }
         insec += (ch - '0') * insec_m;
         insec_m /= 10;
@@ -418,7 +418,7 @@ inline void parse_timespec(const std::string &paramval, const std::string &servi
 inline unsigned long long parse_unum_param(const std::string &param, const std::string &service_name,
         unsigned long long max = std::numeric_limits<unsigned long long>::max())
 {
-    const char * num_err_msg = "Specified value contains invalid numeric characters or is outside "
+    const char * num_err_msg = "specified value contains invalid numeric characters or is outside "
             "allowed range.";
 
     std::size_t ind = 0;
@@ -461,7 +461,7 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
     // 4     soft and hard limit set to same limit
 
     if (line.empty()) {
-        throw service_description_exc(service_name, std::string(param_name) + ": Bad value.");
+        throw service_description_exc(service_name, std::string(param_name) + ": bad value.");
     }
 
     const char *cline = line.c_str();
@@ -492,7 +492,7 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
             }
 
             if (*index != ':') {
-                throw service_description_exc(service_name, std::string(param_name) + ": Bad value.");
+                throw service_description_exc(service_name, std::string(param_name) + ": bad value.");
             }
         }
 
@@ -502,7 +502,7 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
         if (*index == '-') {
             rlimit.limits.rlim_max = RLIM_INFINITY;
             if (index[1] != 0) {
-                throw service_description_exc(service_name, std::string(param_name) + ": Bad value.");
+                throw service_description_exc(service_name, std::string(param_name) + ": bad value.");
             }
         }
         else {
@@ -516,10 +516,10 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
         }
     }
     catch (std::invalid_argument &exc) {
-        throw service_description_exc(service_name, std::string(param_name) + ": Bad value.");
+        throw service_description_exc(service_name, std::string(param_name) + ": bad value.");
     }
     catch (std::out_of_range &exc) {
-        throw service_description_exc(service_name, std::string(param_name) + ": Too-large value.");
+        throw service_description_exc(service_name, std::string(param_name) + ": too-large value.");
     }
 }
 
@@ -552,7 +552,7 @@ void process_service_file(string name, std::istream &service_file, T func)
             string setting = read_setting_name(i, end);
             i = skipws(i, end);
             if (i == end || (*i != '=' && *i != ':')) {
-                throw service_description_exc(name, "Badly formed line.");
+                throw service_description_exc(name, "badly formed line.");
             }
             i = skipws(++i, end);
 
@@ -623,17 +623,17 @@ class service_settings_wrapper
         if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS
                 || service_type == service_type_t::SCRIPTED) {
             if (command.length() == 0) {
-                report_error("Service command not specified.");
+                report_error("service command not specified.");
             }
         }
 
         if (service_type == service_type_t::BGPROCESS) {
             if (pid_file.empty()) {
-                report_error("Process ID file ('pid-file') not specified for bgprocess service.");
+                report_error("process ID file ('pid-file') not specified for bgprocess service.");
             }
 
             if (readiness_fd != -1 || !readiness_var.empty()) {
-                report_error("Readiness notification ('ready-notification') is not supported "
+                report_error("readiness notification ('ready-notification') is not supported "
                         "for bgprocess services.");
             }
         }
@@ -698,7 +698,7 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
             }
         }
         catch (std::logic_error &exc) {
-            throw service_description_exc(name, "socket-permissions: Badly-formed or "
+            throw service_description_exc(name, "socket-permissions: badly-formed or "
                     "out-of-range numeric value");
         }
     }
@@ -758,7 +758,7 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
             settings.service_type = service_type_t::INTERNAL;
         }
         else {
-            throw service_description_exc(name, "Service type must be one of: \"scripted\","
+            throw service_description_exc(name, "service type must be one of: \"scripted\","
                 " \"process\", \"bgprocess\" or \"internal\"");
         }
     }
@@ -823,7 +823,7 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
                 settings.do_sub_vars = false;
             }
             else {
-                throw service_description_exc(name, "Unknown load option: " + option_txt);
+                throw service_description_exc(name, "unknown load option: " + option_txt);
             }
         }
     }
@@ -832,7 +832,7 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         string signame = read_setting_value(i, end, nullptr);
         int signo = signal_name_to_number(signame);
         if (signo == -1) {
-            throw service_description_exc(name, "Unknown/unsupported termination signal: "
+            throw service_description_exc(name, "unknown/unsupported termination signal: "
                     + signame);
         }
         else {
@@ -875,12 +875,12 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         else if (starts_with(notify_setting, "pipevar:")) {
             settings.readiness_var = notify_setting.substr(8 /* len 'pipevar:' */);
             if (settings.readiness_var.empty()) {
-                throw service_description_exc(name, "Invalid pipevar variable name "
+                throw service_description_exc(name, "invalid pipevar variable name "
                         "in ready-notification");
             }
         }
         else {
-            throw service_description_exc(name, "Unknown ready-notification setting: "
+            throw service_description_exc(name, "unknown ready-notification setting: "
                     + notify_setting);
         }
     }
@@ -925,7 +925,7 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         #endif
     }
     else {
-        throw service_description_exc(name, "Unknown setting: '" + setting + "'.");
+        throw service_description_exc(name, "unknown setting: '" + setting + "'.");
     }
 }
 

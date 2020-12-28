@@ -316,12 +316,12 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             if (service->get_state() != service_state_t::STOPPED) {
                 // Can not change type of a running service.
                 if (service_type != service->get_type()) {
-                    throw service_description_exc(name, "Cannot change type of non-stopped service.");
+                    throw service_description_exc(name, "cannot change type of non-stopped service.");
                 }
                 // Can not alter a starting/stopping service, at least for now.
                 if (service->get_state() != service_state_t::STARTED) {
                     throw service_description_exc(name,
-                            "Cannot alter settings for service which is currently starting/stopping.");
+                            "cannot alter settings for service which is currently starting/stopping.");
                 }
 
                 // Check validity of dependencies (if started, regular deps must be started)
@@ -339,7 +339,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 auto current_flags = service->get_flags();
                 if (current_flags.starts_on_console != settings.onstart_flags.starts_on_console
                         || current_flags.shares_console != settings.onstart_flags.shares_console) {
-                    throw service_description_exc(name, "Cannot change starts_on_console/"
+                    throw service_description_exc(name, "cannot change starts_on_console/"
                             "shares_console flags for a running service.");
                 }
 
@@ -347,7 +347,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 if (service->get_type() == service_type_t::BGPROCESS) {
                     auto *bgp_service = static_cast<bgproc_service *>(service);
                     if (bgp_service->get_pid_file() != settings.pid_file) {
-                        throw service_description_exc(name, "Cannot change pid_file for running service.");
+                        throw service_description_exc(name, "cannot change pid_file for running service.");
                     }
                 }
 
@@ -360,7 +360,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                         if (strncmp(svc_utmp_id, settings.inittab_id, proc_service->get_utmp_id_size()) != 0
                                 || strncmp(svc_utmp_ln, settings.inittab_line,
                                         proc_service->get_utmp_line_size()) != 0) {
-                            throw service_description_exc(name, "Cannot change inittab-id or inittab-line "
+                            throw service_description_exc(name, "cannot change inittab-id or inittab-line "
                                     "settings for running service.");
                         }
                     }

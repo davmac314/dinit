@@ -175,7 +175,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         reserved_child_watch = true;
     }
     catch (std::exception &e) {
-        log(loglevel_t::ERROR, get_name(), ": Could not fork: ", e.what());
+        log(loglevel_t::ERROR, get_name(), ": could not fork: ", e.what());
         goto out_cs_h;
     }
 
@@ -417,13 +417,13 @@ bool base_process_service::open_socket() noexcept
     if (stat(saddrname, &stat_buf) == 0) {
         if ((stat_buf.st_mode & S_IFSOCK) == 0) {
             // Not a socket
-            log(loglevel_t::ERROR, get_name(), ": Activation socket file exists (and is not a socket)");
+            log(loglevel_t::ERROR, get_name(), ": activation socket file exists (and is not a socket)");
             return false;
         }
     }
     else if (errno != ENOENT) {
         // Other error
-        log(loglevel_t::ERROR, get_name(), ": Error checking activation socket: ", strerror(errno));
+        log(loglevel_t::ERROR, get_name(), ": error checking activation socket: ", strerror(errno));
         return false;
     }
 
@@ -435,7 +435,7 @@ bool base_process_service::open_socket() noexcept
     uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + socket_path.length() + 1;
     struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
     if (name == nullptr) {
-        log(loglevel_t::ERROR, get_name(), ": Opening activation socket: out of memory");
+        log(loglevel_t::ERROR, get_name(), ": opening activation socket: out of memory");
         return false;
     }
 
@@ -444,13 +444,13 @@ bool base_process_service::open_socket() noexcept
 
     int sockfd = dinit_socket(AF_UNIX, SOCK_STREAM, 0, SOCK_NONBLOCK | SOCK_CLOEXEC);
     if (sockfd == -1) {
-        log(loglevel_t::ERROR, get_name(), ": Error creating activation socket: ", strerror(errno));
+        log(loglevel_t::ERROR, get_name(), ": error creating activation socket: ", strerror(errno));
         free(name);
         return false;
     }
 
     if (bind(sockfd, (struct sockaddr *) name, sockaddr_size) == -1) {
-        log(loglevel_t::ERROR, get_name(), ": Error binding activation socket: ", strerror(errno));
+        log(loglevel_t::ERROR, get_name(), ": error binding activation socket: ", strerror(errno));
         close(sockfd);
         free(name);
         return false;
@@ -461,7 +461,7 @@ bool base_process_service::open_socket() noexcept
     // POSIX (1003.1, 2013) says that fchown and fchmod don't necessarily work on sockets. We have to
     // use chown and chmod instead.
     if (chown(saddrname, socket_uid, socket_gid)) {
-        log(loglevel_t::ERROR, get_name(), ": Error setting activation socket owner/group: ",
+        log(loglevel_t::ERROR, get_name(), ": error setting activation socket owner/group: ",
                 strerror(errno));
         close(sockfd);
         return false;
@@ -475,7 +475,7 @@ bool base_process_service::open_socket() noexcept
     }
 
     if (listen(sockfd, 128) == -1) { // 128 "seems reasonable".
-        log(loglevel_t::ERROR, ": Error listening on activation socket: ", strerror(errno));
+        log(loglevel_t::ERROR, ": error listening on activation socket: ", strerror(errno));
         close(sockfd);
         return false;
     }

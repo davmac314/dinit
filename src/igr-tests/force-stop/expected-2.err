@@ -1,3 +1,3 @@
 dinitctl: cannot stop service 'critical' due to the following dependents:
-(Only direct dependents are listed. Exercise caution before using '--force' !!)
+(only direct dependents are listed. Exercise caution before using '--force' !!)
   intermediary boot

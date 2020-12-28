@@ -282,7 +282,7 @@ int dinit_main(int argc, char **argv)
                 else {
                     // unrecognized
                     if (! am_system_init) {
-                        cerr << "dinit: Unrecognized option: " << argv[i] << endl;
+                        cerr << "dinit: unrecognized option: " << argv[i] << endl;
                         return 1;
                     }
                 }
@@ -429,7 +429,7 @@ int dinit_main(int argc, char **argv)
             // exit if user process).
         }
         catch (service_not_found &snf) {
-            log(loglevel_t::ERROR, snf.service_name, ": Could not find service description.");
+            log(loglevel_t::ERROR, snf.service_name, ": could not find service description.");
         }
         catch (service_load_exc &sle) {
             log(loglevel_t::ERROR, sle.service_name, ": ", sle.exc_description);
@@ -529,7 +529,7 @@ int dinit_main(int argc, char **argv)
 // Log a parse error when reading the environment file.
 static void log_bad_env(int linenum)
 {
-    log(loglevel_t::ERROR, "invalid environment variable setting in environment file (line ", linenum, ")");
+    log(loglevel_t::ERROR, "Invalid environment variable setting in environment file (line ", linenum, ")");
 }
 
 // Read and set environment variables from a file. May throw std::bad_alloc, std::system_error.
@@ -670,7 +670,7 @@ static void control_socket_cb(eventloop_t *loop, int sockfd)
             new control_conn_t(*loop, services, newfd);  // will delete itself when it's finished
         }
         catch (std::exception &exc) {
-            log(loglevel_t::ERROR, "Accepting control connection: ", exc.what());
+            log(loglevel_t::ERROR, "Error accepting control connection: ", exc.what());
             close(newfd);
         }
     }
