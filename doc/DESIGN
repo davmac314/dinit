@@ -59,14 +59,19 @@ Source code organisation
 Most function comments and general documentation can be found in header files rather than in the
 corresponding source files.
 
-dinit.cc - main event loop handling, command line parsing, general initialisation
+dinit-main.cc - just a wrapper around the entry point; reports exceptions
 
-service.cc, proc-service.cc, baseproc-service.cc -
-    service logic (see service.h, proc-service.h)
+dinit.cc - main entry point, command line parsing, general initialisation, event loop processing,
+        system management (shutdown / reboot etc)
+
+service.cc - base service logic (see service.h)
+
+proc-service.cc, baseproc-service.cc - process-based service logic (see service.h, proc-service.h)
+        This builds on functionality in service.cc
     
 run-child-proc.cc - contains service_record::run_child_proc(), used to run child processes.
 
-load-service.cc - service loading
+load-service.cc - service loading (see load-service.h)
 
 control.cc - control protocol handling
 

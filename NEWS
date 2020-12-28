@@ -1,4 +1,9 @@
-== Version ??? (upcoming release)
+== Version 0.10.0
+
+This release is a major step towards a version 1.0 release. It should be
+considered an Alpha release; core functionality is complete but some
+ancillary functionality is still unimplemented. It is believed to be of
+good quality but bugs may be present.
 
  * When not running as system init, dinit will now fail to start if the control
    socket cannot be opened. In particular this should prevent accidentally

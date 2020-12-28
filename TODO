@@ -1,10 +1,3 @@
-For version 0.10.0:
--------------------
-* [DONE] Check that desired_state is getting set correctly. (Currently we don't decide whether a
-  service will restart until it stops...)
-* [DONE] control protocol: START: add response case for not starting because pinned in stopped
-* [DONE] for non-system init, fail to start if the control socket exists
-
 For version 0.11.+:
 ------------------
 * report process launch failure reason (stage & errno) via dinitctl.
