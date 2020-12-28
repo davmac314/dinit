@@ -300,7 +300,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
         if (service_file) break;
     }
 
-    if (! service_file) {
+    if (!service_file) {
         throw service_not_found(string(name));
     }
 
@@ -336,11 +336,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
         throw service_description_exc(name, "Error while reading service description.");
     }
 
-    settings.finalise();
-
-    if (settings.service_type != service_type_t::INTERNAL && settings.command.length() == 0) {
-        report_service_description_err(name, "Service command not specified.");
-    }
+    settings.finalise(name);
 
     return new service_record(name, settings.depends);
 }

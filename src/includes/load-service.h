@@ -616,9 +616,29 @@ class service_settings_wrapper
     char inittab_line[sizeof(utmpx().ut_line)] = {0};
     #endif
 
-    // Finalise settings (after processing all setting lines)
-    void finalise()
+    // Finalise settings (after processing all setting lines); may throw service_description_exc
+    void finalise(const std::string &servicename)
     {
+        if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS
+                || service_type == service_type_t::SCRIPTED) {
+            if (command.length() == 0) {
+                throw service_description_exc(servicename, "Service command not specified.");
+            }
+        }
+
+        if (service_type == service_type_t::BGPROCESS) {
+            if (pid_file.empty()) {
+                throw service_description_exc(servicename,
+                        "Process ID file ('pid-file') not specified for bgprocess service.");
+            }
+
+            if (readiness_fd != -1 || !readiness_var.empty()) {
+                throw service_description_exc(servicename,
+                        "Readiness notification ('ready-notification') is not supported "
+                        "for bgprocess services.");
+            }
+        }
+
         // If socket_gid hasn't been explicitly set, but the socket_uid was specified as a name (and
         // we therefore recovered the primary group), use the primary group of the specified user.
         if (socket_gid == (gid_t)-1) socket_gid = socket_uid_gid;

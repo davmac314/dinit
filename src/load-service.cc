@@ -303,21 +303,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         service_file.close();
 
-        settings.finalise();
+        settings.finalise(name);
         auto service_type = settings.service_type;
 
-        if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS
-                || service_type == service_type_t::SCRIPTED) {
-            if (settings.command.length() == 0) {
-                throw service_description_exc(name, "Service command not specified.");
-            }
-        }
-
-        if (service_type == service_type_t::BGPROCESS) {
-            if (settings.pid_file.empty()) {
-                throw service_description_exc(name, "Process ID file ('pid-file') not specified for bgprocess service.");
-            }
-        }
 
         if (reload_svc != nullptr) {
             // Make sure settings are able to be changed/are compatible
