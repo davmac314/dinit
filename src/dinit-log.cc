@@ -129,7 +129,9 @@ void buffered_log_stream::release_console()
     if (release) {
         int flags = fcntl(1, F_GETFL, 0);
         fcntl(1, F_SETFL, flags & ~O_NONBLOCK);
-        services->pull_console_queue();
+        if (services != nullptr) {
+            services->pull_console_queue();
+        }
         if (release) {
             // release still set, we didn't immediately get the console back; record the
             // time at which we released:
@@ -285,15 +287,19 @@ void buffered_log_stream::watch_removed() noexcept
 
 // Initialise the logging subsystem
 // Potentially throws std::bad_alloc or std::system_error
-void init_log(service_set *sset, bool syslog_format)
+void init_log(bool syslog_format)
 {
-    services = sset;
     log_stream[DLOG_CONS].add_watch(event_loop, STDOUT_FILENO, dasynq::OUT_EVENTS, false);
     enable_console_log(true);
 
     // The main (non-console) log won't be active yet, but we set the format here so that we
     // buffer messages in the correct format:
     log_format_syslog[DLOG_MAIN] = syslog_format;
+}
+
+void setup_log_console_handoff(service_set *sset)
+{
+    services = sset;
 }
 
 // Close logging subsystem

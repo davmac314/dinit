@@ -1300,7 +1300,8 @@ void test_log1()
 {
     // Basic test that output to log is written to log file
     service_set sset;
-    init_log(&sset, true /* syslog format */);
+    init_log(true /* syslog format */);
+    setup_log_console_handoff(&sset);
 
     int logfd = bp_sys::allocfd();
     setup_main_log(logfd);
@@ -1326,7 +1327,8 @@ void test_log2()
 {
     // test that log is closed on write failure.
     service_set sset;
-    init_log(&sset, true /* syslog format */);
+    init_log(true /* syslog format */);
+    setup_log_console_handoff(&sset);
 
     bool was_closed = false;
 

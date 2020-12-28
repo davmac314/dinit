@@ -339,7 +339,7 @@ int dinit_main(int argc, char **argv)
     
     signal(SIGPIPE, SIG_IGN);
     
-    if (! am_system_init && ! control_socket_path_set) {
+    if (!am_system_init && !control_socket_path_set) {
         const char * userhome = service_dir_opt::get_user_home();
         if (userhome != nullptr) {
             control_socket_str = userhome;
@@ -375,6 +375,7 @@ int dinit_main(int argc, char **argv)
         // (If not PID 1, we instead just let SIGQUIT perform the default action.)
     }
 
+    init_log(log_is_syslog);
     log_flush_timer.add_timer(event_loop, dasynq::clock_type::MONOTONIC);
 
     // Try to open control socket (may fail due to readonly filesystem)
@@ -404,10 +405,12 @@ int dinit_main(int argc, char **argv)
     
     service_dir_opts.build_paths(am_system_init);
 
-    /* start requested services */
+    // Start requested services
+
     services = new dirload_service_set(std::move(service_dir_opts.get_paths()));
 
-    init_log(services, log_is_syslog);
+    setup_log_console_handoff(services);
+
     if (am_system_init) {
         log(loglevel_t::INFO, false, "Starting system");
     }
