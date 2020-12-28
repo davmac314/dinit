@@ -50,7 +50,7 @@ $(SHUTDOWNPREFIX)shutdown: shutdown.o
 $(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) -MMD -MP -Iincludes -Idasynq -c $< -o $@
 
-check:
+check: includes/mconfig.h
 	$(MAKE) -C tests check
 
 check-igr: dinit dinitctl dinitcheck
