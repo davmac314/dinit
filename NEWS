@@ -1,5 +1,8 @@
 == Version ??? (upcoming release)
 
+ * When not running as system init, dinit will now fail to start if the control
+   socket cannot be opened. In particular this should prevent accidentally
+   starting multiple instances of dinit (and all services).
  * Services of type bgproc will no longer load if the pid-file setting is not
    supplied. Previously such services could be started, but stopping them would
    leave the process running.
