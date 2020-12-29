@@ -4,6 +4,41 @@ Contributing to Dinit's development
 At the time of writing there have been only minimal outside contributions, but I'm writing this
 contribution guide in readiness for contributions being made by other persons.
 
+Before making a contribution
+----------------------------
+
+Many open-source project have limited resources, in particular people-power. While this might seem
+to make any outside contribution desirable, that's not always the case. Before making a
+contribution, you should consider:
+ - whether or not the contribution is generally useful (is it just scratching a personal itch?).
+ - whether the contribution being accepted will create a maintenance/development burden going
+   forward, and whether you are prepared to assist with that burden (or whether the benefit
+   outweighs the cost generally).
+ - whether the change fits in with the philosophy and design direction of the project. For
+   contribution of new features, the only way for sure is often to ask the maintainers - preferably
+   before you've done the work, since it isn't so nice to put work into someone else's project only
+   to be told it's not wanted!
+ - whether the change will be convenient for users and other developers. Introducing build-time
+   dependencies, for example, may cause inconvenience. Does the benefit of the change really
+   outweigh this?
+ 
+Documentation contributions are often appreciated, though you should be careful to ensure that the
+style and conventions used match those of the existing documentation.
+
+Bugfixes, likewise, are usually appreciated. However, it's important to understand whether what you
+are fixing really is a bug, or whether it's intended behaviour - if there's any doubt at all, you
+should ask the maintainers. Also, if the proposed fix is not completely straight-forward or is
+"hacky", you should consider discussing it with maintainers first.
+
+Remember:
+ - submitting a merge request is an act that, by itself, creates work for the maintainer(s)!
+ - always talk to the maintainers before doing a significant amount of work on a project, and
+   consider doing so before commencing even minor work
+ - if you disagree with a maintainer, you need to consider who has invested more in the project.
+   Maintainers will often have a good "feel" for how their software should work, and they may have
+   a philosophy that doesn't align with your own. Arguing over subjective issues may frustrate both
+   parties. It may be better to let it go!
+
 
 Code contributions
 ------------------
