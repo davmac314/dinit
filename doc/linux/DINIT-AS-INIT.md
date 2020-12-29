@@ -1,4 +1,4 @@
-## Dinit as init: using Dinit as your Linux system's init
+# Dinit as init: using Dinit as your Linux system's init
 
 You can use Dinit, in conjunction with other software, to boot your system and
 replace your current init system (which on most main distributions is now
@@ -10,8 +10,8 @@ system based on a typical Linux distribution that uses some particular init
 system and make it instead boot with Dinit. You need to set up suitable
 service description files for your system; at present there are no automated
 conversion tools for converting service descriptions or startup scripts from
-other systems. For example service files, please check the `services`
-subdirectory.
+other systems. For example service files, please check the [services](services)
+subdirectory (and see descriptions of all of them below).
 
 Once you have service descriptions ready, you can test Dinit by adding
 "init=/sbin/dinit" (for example) to the kernel command line when booting. 
@@ -28,7 +28,7 @@ The additional software required can be broken into _essential_ and
 _optional_ packages, which are detailed in following sections. 
 
 
-# General notes
+## General notes
 
 It is common to use "devtmpfs" on /dev, and the kernel can actually mount it
 there before it even starts the init process, which can be quite handy; for
@@ -99,7 +99,7 @@ provide a template for accomplishing the above, but may need some adjustment
 for your particular configuration.
 
 
-# Essential packages for building a Dinit-based system
+## Essential packages for building a Dinit-based system
 
 Other than the obvious system C library and C++ library, you'll need a range
 of packages to create a functional Dinit-based system.
@@ -131,7 +131,7 @@ boot time).
 - Dash: http://gondor.apana.org.au/~herbert/dash
 
 
-# Optional packages for building a Dinit-based system
+## Optional packages for building a Dinit-based system
 
 **elogind**, to act as seat/session manager (extracted from Systemd's logind):
 https://github.com/elogind/elogind
@@ -149,3 +149,104 @@ kernels will render it obsolete).
 
 The above use **Dbus**:
 https://dbus.freedesktop.org/
+
+
+## Explanation of example services
+
+A set of example service description files can be found in the [services](services)
+subdirectory; these can be used to boot a real system, assuming the appropriate
+package dependencies are in place. Here are explanations for each package:
+
+- `boot` - the internal service which is started on boot. Its dependencies are mostly
+  listed in the `boot.d` directory. However, the ttyX services are directly listed
+  as _depends-ms_ type dependencies in the service description file. The `boot.d`
+  directory simplifies enabling services for the package manager, and enables the
+  use of `dinitctl enable` and `dinitclt disable` commands to enable or disable
+  particular services.
+  
+Having covered `boot`, we'll go through the other services in roughly the order in
+which they are expected to start:
+  
+- `early-filesystems` - this service has no dependencies and so is one of the earliest
+  to start. It mounts virtual filesystems including _sysfs_, _devtmpfs_ (on `/dev`)
+  and _proc_, via the `early-filesystems.sh` shell script.
+- `udevd` - this services starts the device node manager, udevd (from the eudev package).
+  This daemon receives notification of hotplug events from the kernel, and creates
+  device nodes (in `/dev`) according to its configuration.
+- `udev-trigger` - this is a scripted service which triggers device add actions
+  for all currently present devices. This is required for `udevd` to process devices
+  which already existed when it started.
+- `udev-settle` - this is a scripted service which waits until udevd judges that the
+  device list has "settled", that is, there are no more attached devices which are still
+  potentially to be found and reported by the kernel. This is something of a hack, and
+  should not really be relied on, but is convenient to keep our example scripts
+  reasonably simple.
+- `hwclock` - this sets the current time (according to the kernel) from the hardware
+  clock. It depends on `udevd` as it needs the hardware clock device node to be present.
+- `modules` - this service runs the `modules.sh` script, which checks whether the kernel
+  supports modules via the proc filesystem, so it depends-on the `early-filesystems`
+  service. If modules are supported by the kernel, the `/etc/modules` file is read;
+  each line can contain the name of a kernel module (which will then be loaded) and
+  arguments.
+- `rootfscheck` - via the `rootfscheck.sh` script, this service runs a filesystem check
+  on the root filesystem (if it is marked dirty). The script runs "on the console" so
+  that output is visible during boot, and is marked `starts-interruptible` and `skippable`
+  so that pressing Ctrl+C can skip the check. The default `start-timeout` of 60 seconds is
+  overridden to 0 (no start timeout), since a filesystem check may take some time. If the
+  filesystem check requires manual intervention, the user is prompted to enter the root
+  password and a maintenance shell is spawned (once it is exited, the system is rebooted).
+  The system is also rebooted if the filesystem check makes automatic changes that require
+  it.
+- `rootrw` - one the root filesystem has been checked, it can be mounted read-write (the
+  kernel normally mounts root as read-only).
+- `auxfscheck` - runs fsck for the auxillary filesystems (apart from the root filesystem)
+  which are needed for general system operation. Any filesystems listed in `/etc/fstab`
+  will be checked, depending on how they are configured.
+- `filesystems` - this service mounts any auxillary filesystems. It also enables the swap
+  (the example script expects a swapfile at `/swapfile`). It depends on `auxfscheck`, i.e.
+  it does not mount filesystems before they have been checked.
+- `rcboot` - this service runs the `rcboot.sh` script, which performs a number of basic
+  functions:
+  - cleans up the `/tmp` directory, the `/var/lock` directory and the `/var/run` directory
+  - creates directories that may be needed under `/var/run`
+  - copies saved entropy to the `/dev/urandom` device
+  - configures the "lo" (loopback) network device (relies on `ifconfig` from the GNU
+    inetutils package)
+  - sets the hostname
+  On shutdown, it saves entropy from `/dev/urandom` so that it can be restored next boot.
+  
+By the time `rcboot` has started, the system is quite functional. The following additional
+services can then start:
+
+- `syslogd` - the logging daemon. This service has the `starts-log` option set, so that
+  Dinit will commence logging (from its buffer) once the service starts. The service relies
+  on syslogd from GNU inetutils. Unfortunately it must be a `bgprocess` as it does not
+  support signalling readiness via a file descriptor.
+- `late-filesystems` - check and mount any filesystems which are not needed for general
+  system operation (i.e. "user" filesystems). It's not expected that other services will
+  depend on this service.
+- `dbusd` - starts the DBus daemon (system instance), which is used by other services to
+  provide an interface to user processes
+- `dhcpcd` - starts a DHCP client daemon on a network interface (the example uses `enp3s0`).
+- `sshd` - starts the SSH daemon.
+
+We want most of the preceding services to be started before we allow a user to login. To that
+end, we have:
+
+- `loginready` - an internal service, which depends on `rcboot`, `dbusd`, `udevd` and `syslogd`.
+- `ttyX` where X is 1-6 - a service which starts a login prompt on the corresponding virtual
+  terminal (and which depends on `loginready`).
+  
+There are two additional services, which are not depended on by any other service, and so do
+not normally start at all:
+
+- `recovery` - this service is started by Dinit if boot fails (and if the user when prompted
+  then chooses the recovery option). It prompts for the root password and then provides a
+  shell.
+- `single` - this is a "single user mode" startup service which simply runs a shell. An
+  unprivileged user cannot normally start this; doing so requires putting "single" on the
+  kernel command line. When the shell exits, the `chain-to` setting will cause normal
+  startup to resume (i.e. via the `boot` service).
+
+While they are a little rough around the edges, these service definitions demonstrate roughly
+what is necessary to get a "normal" system up and running.
