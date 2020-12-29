@@ -209,15 +209,13 @@ Permanently disable a \fBwaits-for\fR dependency between two services. This is t
 Normally, services are only started if they have been explicitly activated (\fBstart\fR command) or if
 a started service depends on them. Therefore, starting a service also starts all services that the first
 depends on; stopping the same service then also stops the dependency services, unless they are also
-required by another explicitly activated service.
+required by another explicitly activated service or have been explicitly activated themselves.
 .LP
 A service can be pinned in either the started or stopped state. This is mainly intended to be used to
 prevent automated stop or start of a service, including via a dependency or dependent service, during
 a manual administrative procedure.
 .LP
-Stopping a service does not in general prevent it from restarting. A service configured to restart
-automatically, or with a dependent service configured to do so, will restart immediately after stopping
-unless pinned.
+Stopping a service manually will prevent it (and its dependents) from automatically restarting.
 .\"
 .SH SEE ALSO
 \fBdinit\fR(8), \fBdinit-service\fR(5).
