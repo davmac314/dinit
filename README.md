@@ -31,10 +31,9 @@ management (i.e. if one service's operation depends on another, the latter
 service will be started first). It  can monitor the process corresponding to a
 service, and re-start it if it dies, and it can do this in an intelligent way,
 first "rolling back" all dependent services, and restarting them when their
-dependencies are satisfied. However, the precise nature of dependency
-relations between services is highly configurable. The _dinitctl_ tool can
-be used to start or stop services and check their state (by issuing commands
-to the "dinit" daemon).
+dependencies are satisfied. The precise nature of dependency relations between
+services is highly configurable. The _dinitctl_ tool can be used to start or
+stop services and check their state (by issuing commands to the "dinit" daemon).
 
 Dinit is designed to run as either as a system service manager (runs as root,
 uses system paths for configuration etc) or a user process (runs as a user,
@@ -116,12 +115,12 @@ Dinit discovers services by reading _service description files_. These files
 reside in a directory (`/etc/dinit.d` is the default "system" location, with
 `/usr/local/lib/dinit.d` and `/lib/dinit.d` also searched; the default user
 location is `$HOME/dinit.d`) and the name of a service description file
-matches the name of the service they configure.
+matches the name of the service it configures.
 
 For example, a service named "mysql" might be configured via the service description
 file named `/etc/dinit.d/mysql`. Service descriptions are loaded lazily, as needed
 by Dinit; so, this service description file will usually be read when the mysql
-service is first staretd.
+service is first started.
 
 (An example of a complete set of system service descriptions can be found in
 the [doc/linux/services](doc/linux/services) directory).
@@ -306,44 +305,40 @@ are:
     dinitctl start <service-name>
     dinitctl stop <service-name>
     dinitctl release <service-name>
+    dinitctl list
 
 Note that a _start_ marks the service active, as well as starting it if it is
 not already started; the opposite of this is actually _release_, which clears
 the active mark and stops it if it has no active dependent services.
 
 The _stop_ command by default acts as a release that also forces the service to
-stop (although it may then immediately restart, depending on how it and its
-dependents are configured). If stopping a service would also require a dependent
-service to stop, a warning will be issued; the `--force` option will be required
-to bypass the warning.
+stop. If stopping a service would also require a dependent service to stop, a
+warning will be issued; the `--force` option will be required to bypass the
+warning, though it is generally advisable to stop the dependent systems manually
+one-by-one - indirectly force-stopping the boot service may cause every service
+to stop, killing user sessions!
 
 When run as root, dinitctl (by default) communicates with the system instance of
 Dinit. Otherwise, it communicates with a user (personal) instance. This can be
 overridden (using `-u` or `-s` for the user or system instance, respectively), but
 note that regular users will generally lack the required permission to communicate
-with the system instance. 
+with the system instance, which is intended to be controlled only by the root user. 
 
 Here is an example command for starting a service:
 
     dinitctl start mysql   # start mysql service
-
-For complete details on the command line, use:
-
-    dinitctl --help
 
 You can "pin" a service in either the stopped or started state, which prevents
 it from changing state either due to a dependency/dependent or a direct
 command:
 
     dinitctl start --pin mysql  # start mysql service, pin it as "started"
-    dinitctl stop mysql  # issues stop, but doesn't take effect due to pin
+    dinitctl stop mysql  # removes activation, service doesn't stop due to pin
     dinitctl unpin mysql # release pin; service will now stop
 
 You can pin a service in the stopped state in order to make sure it doesn't
-get started accidentally (either via a dependency or directly). You can also
-use it to temporarily keep stopped a service that would otherwise restart
-immediately when you stopped it (because it, or a dependent, is configured
-to restart automatically).
+get started accidentally (either via a dependency or directly) when you are
+performing administration or maintenance.
 
 Finally, you can list the state of all loaded services:
 
@@ -377,3 +372,9 @@ which the service is currently transitioning. For example:
 
 Remember that a _starting_ service may be waiting for its dependencies to
 start, and a _stopping_ service may be waiting for its dependencies to stop.
+
+For a complete summary of `dinitctl` command line options, use:
+
+    dinitctl --help
+
+Or, for more detailed help, check the manual page (`man dinitctl`).
