@@ -126,6 +126,22 @@ This will auto-generate test data as it finds input which triggers new execution
 libFuzzer documentation for further details.
 
 
+Installation
+=-=-=-=-=-=-
+
+You can install using the "install" target:
+
+    make install
+
+If you want to install to an alternate root (eg for packaging purposes), specify that root via
+DESTDIR:
+
+    make DESTDIR=/some/path install
+
+The dinit executable will be put in /sbin (or rather, in $DESTDIR/sbin), which may not be on the
+path for normal users. Consider making a symbolic link to /usr/sbin/dinit.
+
+
 Special note for GCC/Libstdc++
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
