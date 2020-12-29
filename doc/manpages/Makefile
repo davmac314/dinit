@@ -19,6 +19,9 @@ endif
 clean:
 	rm -f dinit.8 dinitctl.8 dinitcheck.8 dinit-service.5 shutdown.8
 
+html: generate
+	./generate-html.sh
+
 dinit.8: dinit.8.m4
 	m4 -DVERSION=$(VERSION) -DMONTH=$(MONTH) -DYEAR=$(YEAR) dinit.8.m4 > dinit.8
 
