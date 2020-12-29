@@ -1,20 +1,22 @@
 # Getting Started with Dinit
 
 In this guide we will go through the steps required to set up a tiny user-mode
-dinit instance. When run as a regular user, Dinit can be used to supervise,
+Dinit instance. When run as a regular user, Dinit can be used to supervise,
 start, and stop other processes (services) also running under the same user ID.
 
-We assume that dinit has already been installed; i.e. we only cover
-configuration here.
+We assume that Dinit has already been installed; i.e. we will only cover
+configuration here. See [../BUILD.txt](../BUILD.txt) for information on how to
+build Dinit from source and install it.
 
 We don't cover how to set up Dinit as a system "init". See [linux/DINIT-AS-INIT.md](linux/DINIT-AS-INIT.md)
 if you're interested in using Dinit as your system "init" or system-level service manager.
 
 ## Starting Dinit
 
-Let's start by running dinit with the bare minimum configuration. First we need
-to choose a place for our service descriptions to live. For this guide we are
-going to use the default location (for user-mode), which is `~/dinit.d`.
+The main component of Dinit is the `dinit` daemon. Let's start by running dinit
+with the bare minimum configuration. First we need to choose a place for our
+service descriptions to live. For this guide we are going to use the default
+location (for user-mode), which is `~/dinit.d`.
 
 ```
 $ mkdir ~/dinit.d
@@ -24,46 +26,74 @@ $ cd ~/dinit.d
 Next we need a service description for the `boot` service. This is the service
 that dinit will bring up upon starting.
 
-In a file called `boot` (under the directory we just made) put:
+Create (using your preferred text editor) a file called `boot` (under the
+directory we just made) and put as its contents:
 ```
 type = internal
 waits-for.d = boot.d
 ```
 
-The first line tells dinit that this is not a service which will run anything
-directly.
+The first line (`type = internal`) tells dinit that this is not a service which
+will run any external process directly.
 
-The second line specifies a directory which will be used to keep track of which
-services should be enabled at dinit start time. Here we've made it a `boot.d`
-sub-directory under our main dinit directory, but it can be anywhere you like.
+The second line (`waits-for.d = boot.d`) specifies a directory which will be
+used to keep track of which services should be started when dinit starts (or
+more specifically, which services should be started before the `boot` service).
+Here we've made it a `boot.d` sub-directory under our main `dinit.d` directory,
+but it can be anywhere you like so long as you adjust the `waits-for.d` setting
+appropriately.
 
-Now let's make the aforementioned directory and start dinit for the first time.
+Now, let's create the aforementioned directory and start dinit for the first time.
 Assuming you are still in `~/dinit.d`:
-
 ```
 $ mkdir boot.d
-$ dinit -d .
+$ dinit
 [  OK  ] boot
 ```
 
+Note: you may need to specify the full path to `dinit`, such as `/sbin/dinit`,
+depending on details of your system and how Dinit was installed.
+
 Dinit lives!
 
+The `[  OK  ] boot` message tells us that the `boot` service we created has
+been started. Note that dinit always starts the boot service by default,
+unless you specify a different service or services on the command line.
+
 In the long run, you'll want to find a way to invoke dinit at boot time, but
-that's an exercise for the reader.
+that's an exercise for the reader. For the moment, leave dinit running and
+switch to another terminal. Or, if you would prefer to stick to one terminal,
+press Ctrl+C (or the interrupt combination for your terminal) and dinit should
+gracefully exit, then start dinit again, this time in the background:
+```
+$ dinit -q & 
+```
+
+Because `-q` suppresses service status messages, you won't see `[  OK  ] boot` as
+you did when running dinit the first time.
 
 ## Adding Service Descriptions
 
 So we have dinit running, but it currently has no services to supervise. Let's
 give it something to do.
 
-Suppose we want to run mpd under dinit. Put the following in ` ~/dinit.d/mpd`:
+Suppose we want to run mpd, the music player daemon, under dinit. Put the
+following in ` ~/dinit.d/mpd`:
 ```
 type = process
 command = /usr/local/sbin/mpd --no-daemon
 restart = true
 ```
 
-Now run `dinitctl list`:
+This assumes, of course, that you have a suitable `mpd` at the specified path.
+If you don't have mpd installed, you can use "sleep" for testing purposes;
+change the `command` line above to:
+```
+command = /usr/bin/sleep 600
+```
+(you should double check the location of 'sleep' first; it may be in '/bin'!)
+
+Now run `dinitctl list` (or `/sbin/dinitctl list`):
 ```
 $ dinitctl list
 [{+}     ] boot
@@ -112,37 +142,48 @@ that it has been switched off.
 ## Starting Services at Startup
 
 So far we've configured a service which can be brought up and down in an ad-hoc
-fashion. This would be ideal for (for example) SSH tunnels, but mpd is the kind
-of daemon you want to *always* run.
+fashion. This would be ideal for SSH tunnels, for example, but mpd is the kind
+of daemon you want to *always* run; we want it to start when dinit itself
+starts.
 
-To that end, to start a service at the time dinit starts, we can use `dinitctl
-enable`. This will start the service immediately *and* make sure it starts by
-default:
+To that end, we can use `dinitctl enable mpd`. This will start the service
+immediately *and* make sure it starts by default:
 ```
 $ dinitctl list
 [{+}     ] boot
+[     {-}] mpd
 $ dinitctl enable mpd
 $ dinitctl list
 [{+}     ] boot
 [{+}     ] mpd (pid: 49921)
 ```
 
-If we now restart dinit:
+We now want to restart dinit, to see that the mpd service does indeed start
+automatically. First, stop dinit:
+```
+$ dinitctl shutdown
+```
+(you could also send it the TERM signal using the `kill` command, or press Ctrl+C
+in the terminal where it is running in the foreground).
+
+If we now restart dinit (see instructions under "Starting Dinit" above), and then
+list services:
 ```
 $ dinitctl list
 [{+}     ] boot
 [{+}     ] mpd (pid: 17601)
 ```
 
-mpd was started when dinit started.
+Success! - mpd was started when dinit started.
 
-And if you look in the `waits-for.d` directory we configured earlier you will
+If you look in the `waits-for.d` directory we configured earlier, you will
 find a symlink to the mpd service description file. This is how dinit keeps
 track of what should be started by default.
 
 ## Further Reading
 
-In this guide, we've really only scratched the surface of what dinit can do.
+In this guide, we've really only scratched the surface of what Dinit can do.
 For example, we've not even touched on dependencies (where one service depends
-upon another to function). Next it'd be good to read the `dinit-service(5)` and
-`dinitctl(8)` manual pages.
+upon another to function). For full details about service configuration, read
+the `dinit-service(5)` manual page. The `dinit`, `dinitctl` and `dinitcheck`
+commands also have manual pages.
