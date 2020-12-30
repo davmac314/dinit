@@ -209,7 +209,7 @@ int main(int argc, char **argv)
         std::cout << "No problems found.\n";
     }
     else {
-        std::cout << "One or more errors found.\n";
+        std::cout << "One or more errors/warnings issued.\n";
     }
 
     return errors_found ? EXIT_FAILURE : EXIT_SUCCESS;
@@ -340,7 +340,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
         report_service_description_err(name, msg);
     };
 
-    settings.finalise(report_err);
+    settings.finalise(report_err, report_err);
 
     return new service_record(name, settings.depends);
 }

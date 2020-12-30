@@ -1,0 +1,5 @@
+Checking service: boot...
+Service 'boot': 'working-dir' specified, but 'type' is internal (or not specified).
+Service 'boot': 'run-as' specified, but 'type' is internal (or not specified).
+Service 'boot': 'socket-listen' specified, but 'type' is internal (or not specified).
+One or more errors/warnings issued.

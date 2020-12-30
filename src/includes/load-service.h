@@ -561,6 +561,9 @@ void process_service_file(string name, std::istream &service_file, T func)
     }
 }
 
+// A dummy lint-reporting "function".
+static auto dummy_lint = [](const char *){};
+
 // A wrapper type for service parameters. It is parameterised by dependency type.
 template <class dep_type>
 class service_settings_wrapper
@@ -580,7 +583,7 @@ class service_settings_wrapper
 
     bool do_sub_vars = false;
 
-    service_type_t service_type = service_type_t::PROCESS;
+    service_type_t service_type = service_type_t::INTERNAL;
     std::list<dep_type> depends;
     string logfile;
     service_flags_t onstart_flags;
@@ -616,15 +619,53 @@ class service_settings_wrapper
     char inittab_line[sizeof(utmpx().ut_line)] = {0};
     #endif
 
-    // Finalise settings (after processing all setting lines); may throw service_description_exc
-    template <typename T>
-    void finalise(T &report_error)
+    // Finalise settings (after processing all setting lines), perform some basic sanity checks and
+    // optionally some additional lint checks. May throw service_description_exc
+    //
+    // Note: we have the do_report_lint parameter to prevent code (and strings) being emitted for lint
+    // checks even when the dummy_lint function is used. (Ideally the compiler would optimise them away).
+    template <typename T, typename U = decltype(dummy_lint),
+            bool do_report_lint = !std::is_same<U, decltype(dummy_lint)>::value>
+    void finalise(T &report_error, U &report_lint = dummy_lint)
     {
         if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS
                 || service_type == service_type_t::SCRIPTED) {
-            if (command.length() == 0) {
-                report_error("service command not specified.");
+            if (command.empty()) {
+                report_error("'command' setting not specified.");
             }
+        }
+
+        if (do_report_lint && service_type == service_type_t::INTERNAL) {
+            if (!command.empty()) {
+                report_lint("'command' specified, but 'type' is internal (or not specified).");
+            }
+            if (!working_dir.empty()) {
+                report_lint("'working-dir' specified, but 'type' is internal (or not specified).");
+            }
+            if (run_as_uid != (uid_t)-1) {
+                report_lint("'run-as' specified, but 'type' is internal (or not specified).");
+            }
+            if (!socket_path.empty()) {
+                report_lint("'socket-listen' specified, but 'type' is internal (or not specified).");
+            }
+            #if USE_UTMPX
+            if (inittab_id[0] != 0 || inittab_line[0] != 0) {
+                report_lint("'inittab_line' or 'inittab_id' specified, but 'type' is internal (or not specified).");
+            }
+            #endif
+            if (onstart_flags.no_sigterm || onstart_flags.signal_process_only || onstart_flags.start_interruptible) {
+                report_lint("signal options were specified, but 'type' is internal (or not specified).");
+            }
+            if (onstart_flags.pass_cs_fd) {
+                report_lint("option 'pass_cs_fd' was specified, but 'type' is internal (or not specified).");
+            }
+            if (onstart_flags.skippable) {
+                report_lint("option 'skippable' was specified, but 'type' is internal (or not specified).");
+            }
+        }
+
+        if (!stop_command.empty() && service_type != service_type_t::SCRIPTED) {
+            report_error("'stop-command' specified, but 'type' is not scripted.");
         }
 
         if (service_type == service_type_t::BGPROCESS) {

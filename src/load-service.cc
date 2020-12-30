@@ -329,7 +329,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                     if (new_dep.dep_type == dependency_type::REGULAR) {
                         if (new_dep.to->get_state() != service_state_t::STARTED) {
                             throw service_description_exc(name,
-                                    std::string("Cannot add non-started dependency '")
+                                    std::string("cannot add non-started dependency '")
                                         + new_dep.to->get_name() + "'.");
                         }
                     }

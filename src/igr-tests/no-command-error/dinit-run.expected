@@ -1,1 +1,1 @@
-dinit: no-command: service command not specified.
+dinit: no-command: 'command' setting not specified.

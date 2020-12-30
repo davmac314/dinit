@@ -1,0 +1,5 @@
+type = internal
+run-as = 0
+options = runs-on-console
+working-dir = /
+socket-listen = /socket
