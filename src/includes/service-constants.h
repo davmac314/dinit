@@ -59,6 +59,29 @@ inline bool did_finish(stopped_reason_t reason)
     return reason == stopped_reason_t::TERMINATED;
 }
 
+/* Execution stage */
+enum class exec_stage {
+    ARRANGE_FDS, READ_ENV_FILE, SET_NOTIFYFD_VAR, SETUP_ACTIVATION_SOCKET, SETUP_CONTROL_SOCKET,
+    CHDIR, SETUP_STDINOUTERR, SET_RLIMITS, SET_UIDGID, /* must be last: */ DO_EXEC
+};
+
+/* Strings describing the execution stages (failure points). */
+const char * const exec_stage_descriptions[/* static_cast<int>(exec_stage::DO_EXEC) + 1 */] = {
+        "arranging file descriptors",   // ARRANGE_FDS
+        "reading environment file",     // READ_ENV_FILE
+        "setting environment variable", // SET_NOTIFYFD_VAR
+        "setting up activation socket", // SETUP_ACTIVATION_SOCKET
+        "setting up control socket",    // SETUP_CONTROL_SOCKET
+        "changing directory",           // CHDIR
+        "setting up standard input/output descriptors", // SETUP_STDINOUTERR
+        "setting resource limits",      // SET_RLIMITS
+        "setting user/group ID",        // SET_UIDGID
+        "executing command"             // DO_EXEC
+};
+
+static_assert(sizeof(exec_stage_descriptions) == (sizeof(char *) * (static_cast<int>(exec_stage::DO_EXEC) + 1)),
+        "exec_stage_descriptions missing a stage description");
+
 enum class dependency_type
 {
     REGULAR,

@@ -46,11 +46,6 @@ struct run_proc_params
     { }
 };
 
-enum class exec_stage {
-    ARRANGE_FDS, READ_ENV_FILE, SET_NOTIFYFD_VAR, SETUP_ACTIVATION_SOCKET, SETUP_CONTROL_SOCKET,
-    CHDIR, SETUP_STDINOUTERR, SET_RLIMITS, SET_UIDGID, /* must be last: */ DO_EXEC
-};
-
 extern const char * const exec_stage_descriptions[static_cast<int>(exec_stage::DO_EXEC) + 1];
 
 // Error information from process execution transferred via this struct

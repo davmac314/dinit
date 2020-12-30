@@ -16,20 +16,6 @@
  * See proc-service.h header for interface details.
  */
 
-// Strings describing the execution stages (failure points).
-const char * const exec_stage_descriptions[static_cast<int>(exec_stage::DO_EXEC) + 1] = {
-        "arranging file descriptors",   // ARRANGE_FDS
-        "reading environment file",     // READ_ENV_FILE
-        "setting environment variable", // SET_NOTIFYFD_VAR
-        "setting up activation socket", // SETUP_ACTIVATION_SOCKET
-        "setting up control socket",    // SETUP_CONTROL_SOCKET
-        "changing directory",           // CHDIR
-        "setting up standard input/output descriptors", // SETUP_STDINOUTERR
-        "setting resource limits",      // SET_RLIMITS
-        "setting user/group ID",        // SET_UIDGID
-        "executing command"             // DO_EXEC
-};
-
 // Given a string and a list of pairs of (start,end) indices for each argument in that string,
 // store a null terminator for the argument. Return a `char *` vector containing the beginning
 // of each argument and a trailing nullptr. (The returned array is invalidated if the string is
