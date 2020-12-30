@@ -163,12 +163,11 @@ class base_process_service : public service_record
     int force_notification_fd = -1;  // if set, notification fd for service process is set to this fd
     string notification_var; // if set, name of an environment variable for notification fd
 
-    pid_t pid = -1;  // PID of the process. If state is STARTING or STOPPING,
-                     //   this is PID of the service script; otherwise it is the
-                     //   PID of the process itself (process service).
+    pid_t pid = -1;  // PID of the process. For a scripted service which is STARTING or STOPPING,
+                     // this is PID of the service script; otherwise it is the PID of the process
+                     // itself (process service).
     bp_sys::exit_status exit_status; // Exit status, if the process has exited (pid == -1).
-    int socket_fd = -1;  // For socket-activation services, this is the file
-                         // descriptor for the socket.
+    int socket_fd = -1;  // For socket-activation services, this is the file descriptor for the socket.
     int notification_fd = -1;  // If readiness notification is via fd
 
     // Only one of waiting_restart_timer and waiting_stopstart_timer should be set at any time.
