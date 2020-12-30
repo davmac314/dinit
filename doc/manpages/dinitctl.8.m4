@@ -166,10 +166,12 @@ displayed:
 .fi
 
 The << and >> symbols represent a transition state (starting and stopping respectively); curly braces
-indicate the desired state (left: started, right: stopped). An 's' in place of '+' means that service
-startup was skipped (possible only if the service is configured as skippable). An 'X' in place of '-'
-means that the service failed to start, or that the service process unexpectedly terminated with an
-error status or signal while running.
+indicate the target state (left: started, right: stopped); square brackets are used if the service
+is marked active (target state will always be started if this is the case).
+
+An 's' in place of '+' means that the service startup was skipped (possible only if the service is
+configured as skippable). An 'X' in place of '-' means that the service failed to start, or that the
+service process unexpectedly terminated with an error status or signal while running.
 
 Additional information, if available, will be printed after the service name: whether the service owns,
 or is waiting to acquire, the console; the process ID; the exit status or signal that caused termination.

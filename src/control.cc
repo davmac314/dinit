@@ -543,6 +543,7 @@ bool control_conn_t::list_services()
             char b0 = sptr->is_waiting_for_console() ? 1 : 0;
             b0 |= sptr->has_console() ? 2 : 0;
             b0 |= sptr->was_start_skipped() ? 4 : 0;
+            b0 |= sptr->is_marked_active() ? 8 : 0;
             pkt_buf[4] = b0;
             pkt_buf[5] = static_cast<char>(sptr->get_stop_reason());
 

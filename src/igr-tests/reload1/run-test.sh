@@ -12,8 +12,10 @@ sleep 0.2
 
 STATUS=PASS
 
-if [ "$(../../dinitctl -p socket list)" != "$(cat initial.expected)" ]; then
-   STATUS=FAIL
+DINITCTLOUT="$(../../dinitctl -p socket list)"
+if [ "$DINITCTLOUT" != "$(cat initial.expected)" ]; then
+    echo "$DINITCTLOUT" > initial.actual
+    STATUS=FAIL
 fi
 
 # Put alternate descriptions in place: boot depends on b, c
@@ -21,8 +23,10 @@ if [ "$STATUS" = PASS ]; then
     rm -rf sd
     cp -R sd2 sd
 
-    # First attempt should fail, c not started    
-    if [ "$(../../dinitctl --quiet -p socket reload boot 2>&1)" != "$(cat output2.expected)" ]; then
+    # First attempt should fail, c not started
+    DINITCTLOUT="$(../../dinitctl --quiet -p socket reload boot 2>&1)"
+    if [ "$DINITCTLOUT" != "$(cat output2.expected)" ]; then
+        echo "$DINITCTLOUT" > output2.actual
         STATUS=FAIL
     fi
     
@@ -31,7 +35,9 @@ fi
 if [ "$STATUS" = PASS ]; then
     ../../dinitctl --quiet -p socket start c
     ../../dinitctl --quiet -p socket reload boot
-    if [ "$(../../dinitctl --quiet -p socket list)" != "$(cat output3.expected)" ]; then
+    DINITCTLOUT="$(../../dinitctl --quiet -p socket list)"
+    if [ "$DINITCTLOUT" != "$(cat output3.expected)" ]; then
+        echo "$DINITCTLOUT" > output3.actual
         STATUS=FAIL
     fi
 fi

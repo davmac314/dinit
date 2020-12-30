@@ -346,7 +346,7 @@ Finally, you can list the state of all loaded services:
 
 This may result in something like the following:
 
-    [{+}     ] boot
+    [[+]     ] boot
     [{+}     ] tty1 (pid: 300)
     [{+}     ] tty2 (pid: 301)
     [{+}     ] tty3 (pid: 302)
@@ -358,14 +358,16 @@ This may result in something like the following:
     [     {-}] mysql
 
 The above represents a number of started services and one stopped service
-(mysql). Services transitioning state (starting or stopping) are displayed
-with an arrow indicating the transition direction:
+(mysql). Only the boot service is marked active (`[+]` rather than `{+}`); all
+other services are running only because they are (directly or indirectly)
+dependencies of boot. Services transitioning state (starting or stopping) are
+displayed with an arrow indicating the transition direction:
 
-    [{ }<<   ] mysql     # starting
+    [[ ]<<   ] mysql     # starting (and marked active)
     [   >>{ }] mysql     # stopping
     
-The curly brackets indicate the desired state, which may not be the state to
-which the service is currently transitioning. For example:
+The brackets indicate the target state, which may not be the state to which
+the service is currently transitioning. For example:
 
     [   <<{ }] mysql     # starting, but will stop after starting
     [{ }>>   ] mysql     # stopping, but will restart once stopped

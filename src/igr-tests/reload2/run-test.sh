@@ -16,8 +16,10 @@ sleep 0.2
 
 STATUS=PASS
 
-if [ "$(../../dinitctl -p socket list)" != "$(cat initial.expected)" ]; then
-   STATUS=FAIL
+DINITCTLOUT="$(../../dinitctl -p socket list)"
+if [ "$DINITCTLOUT" != "$(cat initial.expected)" ]; then
+    echo "$DINITCTLOUT" > initial.actual
+    STATUS=FAIL
 fi
 
 ../../dinitctl --quiet -p socket stop boot
@@ -28,7 +30,9 @@ if [ "$STATUS" = PASS ]; then
     cp -R sd2 sd
 
     # This should succeed since boot is stopped
-    if [ "$(../../dinitctl -p socket reload boot 2>&1)" != "$(cat output2.expected)" ]; then
+    DINITCTLOUT="$(../../dinitctl -p socket reload boot 2>&1)"
+    if [ "$DINITCTLOUT" != "$(cat output2.expected)" ]; then
+        echo "$DINITCTLOUT" > output2.actual
         STATUS=FAIL
     fi
     
@@ -36,7 +40,9 @@ fi
 
 if [ "$STATUS" = PASS ]; then
     ../../dinitctl --quiet -p socket start boot
-    if [ "$(../../dinitctl -p socket list)" != "$(cat output3.expected)" ]; then
+    DINITCTLOUT="$(../../dinitctl -p socket list)"
+    if [ "$DINITCTLOUT" != "$(cat output3.expected)" ]; then
+        echo "$DINITCTLOUT" > output3.actual
         STATUS=FAIL
     fi
 fi

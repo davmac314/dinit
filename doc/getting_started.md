@@ -96,7 +96,7 @@ command = /usr/bin/sleep 600
 Now run `dinitctl list` (or `/sbin/dinitctl list`):
 ```
 $ dinitctl list
-[{+}     ] boot
+[[+]     ] boot
 ```
 
 The mpd service isn't visible yet because dinit lazily loads services. If we
@@ -105,8 +105,8 @@ start the service, we will see it in the list:
 $ dinitctl start mpd
 Service started.
 $ dinitctl list
-[{+}     ] boot
-[{+}     ] mpd (pid: 14823)
+[[+]     ] boot
+[[+]     ] mpd (pid: 14823)
 ```
 
 Now let's simulate mpd crashing and check dinit brings it back up:
@@ -123,16 +123,18 @@ On the dinit log, we see:
 And if we query dinit for its status, we see:
 ```
 $ dinitctl list
-[{+}     ] boot
-[{+}     ] mpd (pid: 1667)
+[[+]     ] boot
+[[+]     ] mpd (pid: 1667)
 ```
 
 Notice that a new instance of mpd is running; it has a different pid.
 
 You can stop a service using `dinitctl stop`:
 ```
+$ dinitctl stop mpd
+Service stopped.
 $ dinitctl list
-[{+}     ] boot
+[[+]     ] boot
 [     {-}] mpd
 ```
 
@@ -150,13 +152,19 @@ To that end, we can use `dinitctl enable mpd`. This will start the service
 immediately *and* make sure it starts by default:
 ```
 $ dinitctl list
-[{+}     ] boot
+[[+]     ] boot
 [     {-}] mpd
 $ dinitctl enable mpd
 $ dinitctl list
-[{+}     ] boot
+[[+]     ] boot
 [{+}     ] mpd (pid: 49921)
 ```
+
+Notice that the mpd status is shown as `{+}` rather than `[+]` as it was
+earlier. This is because it is now started only as a dependency of boot -
+we haven't explicitly marked it active (as is done via `dinitctl start`).
+This means that if boot stops, mpd will also stop (and dinit will also
+stop, seeing as it has no services left running).
 
 We now want to restart dinit, to see that the mpd service does indeed start
 automatically. First, stop dinit:
@@ -164,13 +172,14 @@ automatically. First, stop dinit:
 $ dinitctl shutdown
 ```
 (you could also send it the TERM signal using the `kill` command, or press Ctrl+C
-in the terminal where it is running in the foreground).
+in the terminal where it is running in the foreground; or, as alluded earlier, you
+could stop the boot service via `dinitctl stop boot`).
 
 If we now restart dinit (see instructions under "Starting Dinit" above), and then
 list services:
 ```
 $ dinitctl list
-[{+}     ] boot
+[[+]     ] boot
 [{+}     ] mpd (pid: 17601)
 ```
 

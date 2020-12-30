@@ -879,6 +879,7 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
         bool has_console = (console_flags & 2) != 0;
         bool waiting_console = (console_flags & 1) != 0;
         bool was_skipped = (console_flags & 4) != 0;
+        bool marked_active = (console_flags & 8) != 0;
 
         stopped_reason_t stop_reason = static_cast<stopped_reason_t>(rbuffer[5]);
 
@@ -901,14 +902,18 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
 
         cout << "[";
 
-        cout << (target  == service_state_t::STARTED ? "{" : " ");
+        // [ ] if marked active; otherwise, { } if target state is STARTED
+        //  +  if started, 's' if skipped, space otherwise
+        char lbracket = target == service_state_t::STARTED ? '{' : ' ';
+        char rbracket = target == service_state_t::STARTED ? '}' : ' ';
+        cout << (marked_active ? '[' : lbracket);
         if (current == service_state_t::STARTED) {
-            cout << (was_skipped ? "s" : "+");
+            cout << (was_skipped ? 's' : '+');
         }
         else {
-            cout << " ";
+            cout << ' ';
         }
-        cout << (target  == service_state_t::STARTED ? "}" : " ");
+        cout << (marked_active ? ']' : rbracket);
         
         if (current == service_state_t::STARTING) {
             cout << "<<";
@@ -920,7 +925,7 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
             cout << "  ";
         }
         
-        cout << (target  == service_state_t::STOPPED ? "{" : " ");
+        cout << (target == service_state_t::STOPPED ? '{' : ' ');
         if (current == service_state_t::STOPPED) {
             bool did_fail = false;
             if (stop_reason == stopped_reason_t::TERMINATED) {
@@ -930,12 +935,12 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
             }
             else did_fail = (stop_reason != stopped_reason_t::NORMAL);
 
-            cout << (did_fail ? "X" : "-");
+            cout << (did_fail ? 'X' : '-');
         }
         else {
-        	cout << " ";
+        	cout << ' ';
         }
-        cout << (target == service_state_t::STOPPED ? "}" : " ");
+        cout << (target == service_state_t::STOPPED ? '}' : ' ');
 
         cout << "] " << name;
 
