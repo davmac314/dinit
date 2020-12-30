@@ -25,6 +25,8 @@
 using string = std::string;
 using string_iterator = std::string::iterator;
 
+static void report_service_description_err(const std::string &service_name, const std::string &what);
+
 // prelim_dep: A preliminary (unresolved) service dependency
 class prelim_dep
 {
@@ -41,10 +43,12 @@ class prelim_dep
 class service_record
 {
 public:
-    service_record(std::string name_p, std::list<prelim_dep> dependencies_p)
-            : name(name_p), dependencies(dependencies_p) {}
+    service_record(const std::string &name_p, const std::string &chain_to_p,
+            std::list<prelim_dep> dependencies_p)
+                : name(name_p), dependencies(dependencies_p) {}
 
     std::string name;
+    std::string chain_to;
     std::list<prelim_dep> dependencies;
 
     bool visited = false;  // flag used to detect cyclic dependencies
@@ -133,6 +137,10 @@ int main(int argc, char **argv)
                     services_to_check.push_back(dep.name);
                 }
             }
+            // add chain_to to services_to_check
+            if (!sr->chain_to.empty() && !contains(services_to_check, sr->chain_to)) {
+                services_to_check.push_back(sr->chain_to);
+            }
         }
         catch (service_load_exc &exc) {
             std::cerr << "Unable to load service '" << name << "': " << exc.exc_description << "\n";
@@ -203,8 +211,6 @@ int main(int argc, char **argv)
         }
         std::cerr << "    " << std::get<0>(service_chain[0])->name << ".\n";
     }
-
-    // TODO additional: check chain-to service exists
 
     if (! errors_found) {
         std::cout << "No problems found.\n";
@@ -374,5 +380,5 @@ service_record *load_service(service_set_t &services, const std::string &name,
                 settings.stop_command.substr(offset_start, offset_end - offset_start).c_str());
     }
 
-    return new service_record(name, settings.depends);
+    return new service_record(name, settings.chain_to_name, settings.depends);
 }
