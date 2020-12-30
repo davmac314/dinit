@@ -421,7 +421,7 @@ static std::string read_string(int socknum, cpbuffer_t &rbuffer, uint32_t length
     uint32_t clen;
     do {
         rbuffer.reset();
-        rbuffer.fill(socknum);
+        fill_some(rbuffer, socknum);
         char *bptr = rbuffer.get_ptr(0);
         clen = rbuffer.get_length();
         clen = std::min(clen, rlen);
@@ -484,7 +484,7 @@ static std::string get_service_name(int socknum, cpbuffer_t &rbuffer, handle_t h
 
     do {
         if (rbuffer.get_length() == 0) {
-            rbuffer.fill(socknum);
+            fill_some(rbuffer, socknum);
         }
 
         size_t to_extract = std::min(size_t(rbuffer.get_length()), namesize - name.length());

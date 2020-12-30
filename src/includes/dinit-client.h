@@ -117,6 +117,30 @@ inline void fill_buffer_to(cpbuffer_t &buf, int fd, int rlength)
     while (true);
 }
 
+// Fill a circular buffer from a file descriptor, until it contains at least some more data
+// then it did. Throws cp_read_exception if no more bytes can be read, with:
+//     errcode = 0   if end of stream (remote end closed)
+//     errcode = errno   if another error occurred
+// Note that EINTR is ignored (i.e. the read will be re-tried).
+inline void fill_some(cpbuffer_t &buf, int fd)
+{
+    while(true) {
+        int r = buf.fill(fd);
+        if (r == 0) {
+            throw cp_read_exception(0);
+        }
+        else if (r > 0) {
+            return;
+        }
+
+        if (errno != EINTR) {
+            throw cp_read_exception(errno);
+        }
+
+        // if EINTR, just try again
+    }
+}
+
 // Wait for a reply packet, skipping over any information packets that are received in the meantime.
 inline void wait_for_reply(cpbuffer_t &rbuffer, int fd)
 {
