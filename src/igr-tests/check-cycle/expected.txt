@@ -9,4 +9,4 @@ Found dependency cycle:
     d ->
     e ->
     b.
-One or more errors found.
+One or more errors/warnings issued.

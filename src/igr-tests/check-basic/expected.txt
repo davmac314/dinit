@@ -4,4 +4,4 @@ Service 'boot': run-as: specified user id contains invalid numeric characters or
 Service 'boot': 'command' setting not specified.
 Checking service: test1...
 Unable to load service 'test1': service description not found.
-One or more errors found.
+One or more errors/warnings issued.

@@ -1,5 +1,7 @@
 Checking service: boot...
+Service 'boot': 'command' specified, but 'type' is internal (or not specified).
 Service 'boot': 'working-dir' specified, but 'type' is internal (or not specified).
 Service 'boot': 'run-as' specified, but 'type' is internal (or not specified).
 Service 'boot': 'socket-listen' specified, but 'type' is internal (or not specified).
+Service 'boot': could not stat command executable '/this/command/does/not/exist': No such file or directory
 One or more errors/warnings issued.

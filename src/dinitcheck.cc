@@ -9,6 +9,7 @@
 
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <pwd.h>
@@ -203,7 +204,7 @@ int main(int argc, char **argv)
         std::cerr << "    " << std::get<0>(service_chain[0])->name << ".\n";
     }
 
-    // TODO additional: check chain-to, other lint
+    // TODO additional: check chain-to service exists
 
     if (! errors_found) {
         std::cout << "No problems found.\n";
@@ -341,6 +342,37 @@ service_record *load_service(service_set_t &services, const std::string &name,
     };
 
     settings.finalise(report_err, report_err);
+
+    auto check_command = [&](const char *setting_name, const char *command) {
+        struct stat command_stat;
+        if (stat(command, &command_stat) == -1) {
+            report_service_description_err(name,
+                    std::string("could not stat ") + setting_name + " executable '" + command
+                    + "': " + strerror(errno));
+        }
+        else {
+            if ((command_stat.st_mode & S_IFMT) != S_IFREG) {
+                report_service_description_err(name, std::string(setting_name) + " executable '"
+                        + command + "' is not a regular file.");
+            }
+            else if ((command_stat.st_mode & S_IXUSR) == 0) {
+                report_service_description_err(name, std::string(setting_name) + " executable '" + command
+                        + "' is not executable by owner.");
+            }
+        }
+    };
+
+    if (!settings.command.empty()) {
+        int offset_start = settings.command_offsets.front().first;
+        int offset_end = settings.command_offsets.front().second;
+        check_command("command", settings.command.substr(offset_start, offset_end - offset_start).c_str());
+    }
+    if (!settings.stop_command.empty()) {
+        int offset_start = settings.stop_command_offsets.front().first;
+        int offset_end = settings.stop_command_offsets.front().second;
+        check_command("stop command",
+                settings.stop_command.substr(offset_start, offset_end - offset_start).c_str());
+    }
 
     return new service_record(name, settings.depends);
 }
