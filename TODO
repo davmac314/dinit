@@ -25,7 +25,7 @@ For version 1.0 (i.e. longer-term plans):
     tool/daemon.
 * on shutdown, after a long interval with no activity, display information about
   services we are waiting on (and/or, do this when prompted via ^C or C-A-D?)
-* Documentation must be complete (see section below).
+* Documentation must be complete (mostly done; will need updates as other items are completed).
 * Proper support for socket activation?
 * Chaining of service process input/output?
 * Be able to boot and shutdown Linux and FreeBSD (or OpenBSD).
@@ -74,8 +74,3 @@ Even later / Maybe never:
 * SystemD-like handling of filesystem mounts (see autofs documentation in kernel)
   i.e. a mount point gets an autofs attached, and lazily gets mounted when accessed
   (or is mounted in parallel). Probably put the functionality in a separate daemon.
-
-
-Documentation:
---------------
-* Design philosophy/rationale document
