@@ -13,6 +13,20 @@ INST_PATH_OPTS=$(
 test_compiler_arg() {
   "$1" -c "$2" testfile.cc -o testfile.o > /dev/null 2>&1
   if test $? = 0; then
+    rm testfile.o
+    supported_opts="$supported_opts $2"
+    supported_opts=${supported_opts# }
+    return 0
+  else
+    return 1
+  fi
+}
+
+# test argument is supported by compiler at both compile and link
+test_compile_link_arg() {
+  "$1" "$2" testfile.cc -o testfile > /dev/null 2>&1
+  if test $? = 0; then
+    rm testfile
     supported_opts="$supported_opts $2"
     supported_opts=${supported_opts# }
     return 0
@@ -38,7 +52,7 @@ fi
 
 echo "Compiler found          : $compiler"
 
-touch testfile.cc
+echo "int main(int argc, char **argv) { return 0; }" > testfile.cc
 supported_opts=""
 test_compiler_arg "$compiler" -flto
 HAS_LTO=$?
@@ -54,7 +68,7 @@ fi
 echo "Using build options     : $supported_opts"
 
 supported_opts=""
-test_compiler_arg "$compiler" -fsanitize=address,undefined
+test_compile_link_arg "$compiler" -fsanitize=address,undefined
 SANITIZE_OPTS="$supported_opts"
 
 echo "Sanitize options        : $SANITIZE_OPTS"
