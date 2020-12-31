@@ -9,7 +9,9 @@ configuration here. See [../BUILD.txt](../BUILD.txt) for information on how to
 build Dinit from source and install it.
 
 We don't cover how to set up Dinit as a system "init". See [linux/DINIT-AS-INIT.md](linux/DINIT-AS-INIT.md)
-if you're interested in using Dinit as your system "init" or system-level service manager.
+if you're interested in using Dinit as your system "init" or service manager.
+However, you may still wish to read through this guide first, as it will give
+an overview of Dinit's configuration and operation.
 
 ## Starting Dinit
 

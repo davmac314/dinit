@@ -1,20 +1,20 @@
 For version 0.11.+:
 ------------------
-* report process launch failure reason (stage & errno) via dinitctl.
-* Show "activated" state in "dinitctl list" output
-* Service description sanity checks:
-  - Service type not specified
-    - maybe default to 'internal' if command not specified
-    - if command specified but type not, report an error
-    - other checks?
+* [DONE] Show "activated" state in "dinitctl list" output
+* [DONE] Service description sanity checks:
+  - Service 'type' defaults to 'internal'
+  - process-based service types require 'command' setting
+  - only scripted service supports 'stop-command' 
   - errors should also be reported by dinitcheck
+* [DONE] dinitcheck should perform lint checks - do named files exist? etc
+* report process launch failure reason (stage & errno) via dinitctl.
 * if service file exists but can't be opened, error rather than continuing search
   - also in dinitcheck
+* successful "dinitctl enable servicename" should give feedback
 
 For version 1.0 (i.e. longer-term plans):
 -----------------------------------------
 * Service description parse errors should report line number
-* dinitcheck should perform lint checks - do named files exist? etc
 * Limit memory use by control connections. Currently clients can queue commands without limit.
 * Consider using mlockall (if system process).
 * Dinitctl command to get full status of a service.
@@ -23,8 +23,8 @@ For version 1.0 (i.e. longer-term plans):
   - key thing is we want some way to eg mount filesystem once the disk comes up,
     configure network when device comes up, etc, potentially relying an an external
     tool/daemon.
-* on shutdown, after repeated intervals with no activity, display information
-  about services we are waiting on (or, do this when prompted via ^C or C-A-D).
+* on shutdown, after a long interval with no activity, display information about
+  services we are waiting on (and/or, do this when prompted via ^C or C-A-D?)
 * Documentation must be complete (see section below).
 * Proper support for socket activation?
 * Chaining of service process input/output?
@@ -79,4 +79,3 @@ Even later / Maybe never:
 Documentation:
 --------------
 * Design philosophy/rationale document
-* More system integration documentation?

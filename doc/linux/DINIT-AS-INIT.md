@@ -234,9 +234,14 @@ We want most of the preceding services to be started before we allow a user to l
 end, we have:
 
 - `loginready` - an internal service, which depends on `rcboot`, `dbusd`, `udevd` and `syslogd`.
+  This service has option `runs-on-console` set, to prevent Dinit from outputting service
+  status messages to the console once login is possible.
 - `ttyX` where X is 1-6 - a service which starts a login prompt on the corresponding virtual
-  terminal (and which depends on `loginready`).
-  
+  terminal (and which depends on `loginready`). Note that the tty services do _not_ have the
+  `runs-on-console` option, since that would conflict with `loginready` (and with each other)
+  and ultimately prevent the tty services running, as only one service can run on the console
+  at a time.
+
 There are two additional services, which are not depended on by any other service, and so do
 not normally start at all:
 
@@ -248,5 +253,20 @@ not normally start at all:
   kernel command line. When the shell exits, the `chain-to` setting will cause normal
   startup to resume (i.e. via the `boot` service).
 
-While they are a little rough around the edges, these service definitions demonstrate roughly
-what is necessary to get a "normal" system up and running.
+While they are a little rough around the edges, these service definitions demonstrate the
+essentials of getting a system up and running.
+
+## Testing and debugging tips
+
+You can pass arbitrary arguments to dinit by using a shell script in the place of `/sbin/init`,
+which should `exec` dinit (so as to give it the same PID). Don't forget to make the script
+executable and to include the shebang line (`#!/bin/sh` or similar).
+
+You can run a shell directly on a virtual terminal by adding a `ttyN` service or modifying one
+of the existing ones (see the example services). You can remove most or all dependencies from
+this service so that it starts early, and set the `no-sigterm` option, as well as setting
+`stop-timeout = 0` (i.e. disabling stop timeout), so that it will not be killed at shutdown
+(you will need to manually exit the shell to complete shutdown). This means you always have a
+shell available to check system state when something is going wrong. While this is not something
+you want to enable permanently, it can be a good tool to debug a reproducable boot issue or
+shutdown issue.
