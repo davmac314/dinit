@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 if [ "$1" = start ]; then
 
     PATH=/usr/bin:/usr/sbin:/bin:/sbin

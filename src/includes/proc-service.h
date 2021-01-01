@@ -180,6 +180,9 @@ class base_process_service : public service_record
     bool reserved_child_watch : 1;
     bool tracking_child : 1;  // whether we expect to see child process status
 
+    // If executing child process failed, information about the error
+    run_proc_err exec_err_info;
+
     // Run a child process (call after forking). Note that some parameters specify file descriptors,
     // but in general file descriptors may be moved before the exec call.
     void run_child_proc(run_proc_params params) noexcept;

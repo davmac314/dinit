@@ -224,7 +224,8 @@ services can then start:
   support signalling readiness via a file descriptor.
 - `late-filesystems` - check and mount any filesystems which are not needed for general
   system operation (i.e. "user" filesystems). It's not expected that other services will
-  depend on this service.
+  depend on this service. This service uses the `late-filesystems.sh` script; configure
+  late filesystems via that script.
 - `dbusd` - starts the DBus daemon (system instance), which is used by other services to
   provide an interface to user processes
 - `dhcpcd` - starts a DHCP client daemon on a network interface (the example uses `enp3s0`).
@@ -263,10 +264,14 @@ which should `exec` dinit (so as to give it the same PID). Don't forget to make 
 executable and to include the shebang line (`#!/bin/sh` or similar).
 
 You can run a shell directly on a virtual terminal by adding a `ttyN` service or modifying one
-of the existing ones (see the example services). You can remove most or all dependencies from
-this service so that it starts early, and set the `no-sigterm` option, as well as setting
-`stop-timeout = 0` (i.e. disabling stop timeout), so that it will not be killed at shutdown
-(you will need to manually exit the shell to complete shutdown). This means you always have a
-shell available to check system state when something is going wrong. While this is not something
-you want to enable permanently, it can be a good tool to debug a reproducable boot issue or
-shutdown issue.
+of the existing ones (see the example services). You'll still need getty to setup the
+terminal for the shell; an example setting:
+```
+command = /sbin/agetty tty6 linux-c -n -l /bin/bash
+```
+You can remove most or all dependencies from this service so that it starts early, and set the
+`no-sigterm` option, as well as setting `stop-timeout = 0` (i.e. disabling stop timeout), so that
+it will not be killed at shutdown (you will need to manually exit the shell to complete shutdown).
+This means you always have a shell available to check system state when something is going wrong.
+While this is not something you want to enable permanently, it can be a good tool to debug a
+reproducable boot issue or shutdown issue.

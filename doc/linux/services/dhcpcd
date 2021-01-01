@@ -2,5 +2,6 @@
 
 type = process
 command = /usr/sbin/dhcpcd -B -M --logfile /var/log/dhcpcd-service.log enp3s0
+logfile = /var/log/dhcpcd.log
 restart = false
 depends-on = rcboot

@@ -2,6 +2,8 @@
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin
 umask 0077
 
+set -e
+
 if [ "$1" != "stop" ]; then
   
   # cleanup
