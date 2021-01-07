@@ -1,8 +1,9 @@
 #ifndef DASYNQ_UTIL_H_INCLUDED
 #define DASYNQ_UTIL_H_INCLUDED 1
 
-#include <dasynq-config.h>
 #include <unistd.h>
+
+#include "dasynq-config.h"
 
 namespace dasynq {
 

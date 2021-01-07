@@ -122,6 +122,16 @@ template <class Base> class select_events : public signal_events<Base, true>
      */
     select_events()
     {
+        init();
+    }
+
+    select_events(typename Base::delayed_init d) noexcept
+    {
+        // delayed initialisation
+    }
+
+    void init()
+    {
         FD_ZERO(&read_set);
         FD_ZERO(&write_set);
         Base::init(this);

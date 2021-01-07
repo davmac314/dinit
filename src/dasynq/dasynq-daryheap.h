@@ -309,6 +309,11 @@ class dary_heap
         }
     }
 
+    size_t size() noexcept
+    {
+        return hvec.size();
+    }
+
     dary_heap() { }
 
     dary_heap(const dary_heap &) = delete;

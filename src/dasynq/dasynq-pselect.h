@@ -62,12 +62,22 @@ template <class Base> class pselect_events : public signal_events<Base, false>
      */
     pselect_events()
     {
+        init();
+    }
+
+    pselect_events(typename Base::delayed_init d) noexcept
+    {
+        // delayed initialisation
+    }
+
+    void init()
+    {
         FD_ZERO(&read_set);
         FD_ZERO(&write_set);
         Base::init(this);
     }
 
-    ~pselect_events()
+    ~pselect_events() noexcept
     {
     }
 

@@ -279,14 +279,30 @@ template <class Base> class kqueue_loop : public Base
      */
     kqueue_loop()
     {
+        init();
+    }
+
+    kqueue_loop(typename Base::delayed_init d) noexcept
+    {
+        // delayed initialisation
+    }
+
+    void init()
+    {
         kqfd = kqueue();
         if (kqfd == -1) {
             throw std::system_error(errno, std::system_category());
         }
-        Base::init(this);
+        try {
+            Base::init(this);
+        }
+        catch (...) {
+            close(kqfd);
+            throw;
+        }
     }
     
-    ~kqueue_loop()
+    ~kqueue_loop() noexcept
     {
         close(kqfd);
     }
@@ -325,7 +341,7 @@ template <class Base> class kqueue_loop : public Base
             // We can't request poll semantics, so check for regular file:
             struct stat statbuf;
             if (fstat(fd, &statbuf) == -1) {
-                throw new std::system_error(errno, std::system_category());
+                throw std::system_error(errno, std::system_category());
             }
             if ((statbuf.st_mode & S_IFMT) == S_IFREG) {
                 // Regular file: emulation required
@@ -342,7 +358,7 @@ template <class Base> class kqueue_loop : public Base
             if (filter == EVFILT_WRITE && errno == EINVAL && emulate) {
                 return false; // emulate
             }
-            throw new std::system_error(errno, std::system_category());
+            throw std::system_error(errno, std::system_category());
         }
         return true;
     }
@@ -363,7 +379,7 @@ template <class Base> class kqueue_loop : public Base
         int r = kevent(kqfd, kev, 2, kev_r, 2, nullptr);
 
         if (r == -1) {
-            throw new std::system_error(errno, std::system_category());
+            throw std::system_error(errno, std::system_category());
         }
 
         // Some possibilities:
@@ -374,7 +390,7 @@ template <class Base> class kqueue_loop : public Base
 
         if (kev_r[0].data != 0) {
             // read failed
-            throw new std::system_error(kev_r[0].data, std::system_category());
+            throw std::system_error(kev_r[0].data, std::system_category());
         }
 
         if (kev_r[1].data != 0) {
@@ -394,7 +410,7 @@ template <class Base> class kqueue_loop : public Base
             EV_SET(&kev[0], fd, EVFILT_READ, EV_DELETE, 0, 0, userdata);
             kevent(kqfd, kev, 1, nullptr, 0, nullptr);
             // throw exception
-            throw new std::system_error(kev_r[1].data, std::system_category());
+            throw std::system_error(kev_r[1].data, std::system_category());
         }
 
         return 0;
@@ -409,7 +425,7 @@ template <class Base> class kqueue_loop : public Base
         int r = kevent(kqfd, kev, 1, nullptr, 0, nullptr);
 
         if (r == -1) {
-            throw new std::system_error(errno, std::system_category());
+            throw std::system_error(errno, std::system_category());
         }
 
         EV_SET(&kev[0], fd, EVFILT_WRITE, wflags, 0, 0, userdata);
@@ -424,7 +440,7 @@ template <class Base> class kqueue_loop : public Base
             EV_SET(&kev[0], fd, EVFILT_READ, EV_DELETE, 0, 0, userdata);
             kevent(kqfd, kev, 1, nullptr, 0, nullptr);
             // throw exception
-            throw new std::system_error(errno, std::system_category());
+            throw std::system_error(errno, std::system_category());
         }
 
         return 0;
@@ -489,7 +505,7 @@ template <class Base> class kqueue_loop : public Base
         struct kevent evt;
         EV_SET(&evt, signo, EVFILT_SIGNAL, EV_ADD | EV_DISABLE, 0, 0, userdata);
         if (kevent(kqfd, &evt, 1, nullptr, 0, nullptr) == -1) {
-            throw new std::system_error(errno, std::system_category());
+            throw std::system_error(errno, std::system_category());
         }
         // TODO use EV_DISPATCH if available (not on OpenBSD/OS X)
         
@@ -502,7 +518,7 @@ template <class Base> class kqueue_loop : public Base
         if (enable_filt) {
             evt.flags = EV_ENABLE;
             if (kevent(kqfd, &evt, 1, nullptr, 0, nullptr) == -1) {
-                throw new std::system_error(errno, std::system_category());
+                throw std::system_error(errno, std::system_category());
             }
         }
     }

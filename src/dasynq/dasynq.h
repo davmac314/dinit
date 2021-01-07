@@ -76,7 +76,7 @@
 //   full_timer_support
 //              - boolean indicating that the monotonic and system clocks are actually different clocks and
 //                that timers against the system clock will work correctly if the system clock time is
-//                adjusted. If false, the monotic clock may not be present at all (monotonic clock will map
+//                adjusted. If false, the monotonic clock may not be present at all (monotonic clock will map
 //                to system clock), and timers against either clock are not guaranteed to work correctly if
 //                the system clock is adjusted.
 
@@ -169,6 +169,11 @@ enum class rearm
     REQUEUE
 };
 
+// Tag type to specify that initialisation should be delayed
+class delayed_init {
+    DASYNQ_EMPTY_BODY
+};
+
 namespace dprivate {
 
     // Classes for implementing a fair(ish) wait queue.
@@ -205,7 +210,7 @@ namespace dprivate {
         void wait(std::unique_lock<null_mutex> &ul) { }
         void signal() { }
         
-        DASYNQ_EMPTY_BODY;
+        DASYNQ_EMPTY_BODY
     };
 
     template <typename T_Mutex> class waitqueue_node
@@ -425,6 +430,7 @@ namespace dprivate {
         public:
         using mutex_t = typename LoopTraits::mutex_t;
         using traits_t = Traits;
+        using delayed_init = dasynq::delayed_init;
 
         private:
 
@@ -545,7 +551,7 @@ namespace dprivate {
         
         // Pull a single event from the queue; returns nullptr if the queue is empty.
         // Call with lock held.
-        base_watcher * pull_event() noexcept
+        base_watcher * pull_queued_event() noexcept
         {
             if (event_queue.empty()) {
                 return nullptr;
@@ -557,6 +563,11 @@ namespace dprivate {
             return r;
         }
         
+        size_t num_queued_events() noexcept
+        {
+            return event_queue.size();
+        }
+
         // Queue a watcher for removal, or issue "removed" callback to it.
         // Call with lock free.
         void issue_delete(base_watcher *watcher) noexcept
@@ -1410,7 +1421,15 @@ class event_loop
             return false;
         }
         
-        base_watcher * pqueue = loop_mech.pull_event();
+        // limit processing to the number of events currently queued, to avoid prolonged processing
+        // of watchers which requeueu themselves immediately (including file watchers which are using
+        // emulation for watching regular files)
+        //
+        // If limit is -1 (no limit) we rely on this being always larger than/equal to the number of
+        // queued events when cast to size_t (which is unsigned).
+        limit = std::min(size_t(limit), loop_mech.num_queued_events());
+
+        base_watcher * pqueue = loop_mech.pull_queued_event();
         bool active = false;
         
         while (pqueue != nullptr) {
@@ -1438,16 +1457,16 @@ class event_loop
 
                 // issue a secondary dispatch:
                 bbfw->dispatch_second(this);
-                pqueue = loop_mech.pull_event();
-                continue;
+            }
+            else {
+                pqueue->dispatch(this);
             }
 
-            pqueue->dispatch(this);
             if (limit > 0) {
                 limit--;
                 if (limit == 0) break;
             }
-            pqueue = loop_mech.pull_event();
+            pqueue = loop_mech.pull_queued_event();
         }
         
         loop_mech.lock.unlock();
@@ -1515,7 +1534,14 @@ class event_loop
     }
 
     event_loop() { }
+    event_loop(delayed_init d) noexcept : loop_mech(d) { }
     event_loop(const event_loop &other) = delete;
+
+    // Perform delayed initialisation, if constructed with delayed_init
+    void init()
+    {
+        loop_mech.init();
+    }
 };
 
 typedef event_loop<null_mutex> event_loop_n;
