@@ -52,7 +52,7 @@ using namespace cts;
 
 using eventloop_t = dasynq::event_loop<dasynq::null_mutex>;
 
-eventloop_t event_loop;
+eventloop_t event_loop(dasynq::delayed_init {});
 
 static void sigint_reboot_cb(eventloop_t &eloop) noexcept;
 static void sigquit_cb(eventloop_t &eloop) noexcept;
@@ -339,6 +339,8 @@ int dinit_main(int argc, char **argv)
     
     signal(SIGPIPE, SIG_IGN);
     
+    event_loop.init();
+
     if (!am_system_init && !control_socket_path_set) {
         const char * userhome = service_dir_opt::get_user_home();
         if (userhome != nullptr) {
