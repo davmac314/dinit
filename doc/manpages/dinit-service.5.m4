@@ -109,7 +109,8 @@ separated from setting values by at least one whitespace character). Values
 are interpreted literally, except that:
 .\"
 .IP \(bu
-White space (comprised of spaces, tabs, etc) is collapsed to a single space.
+White space (comprised of spaces, tabs, etc) is collapsed to a single space, except
+leading or trailing white space around the property value, which is stripped.
 .IP \(bu
 Double quotes (") can be used around all or part of a property value, to
 prevent whitespace collapse and prevent interpretation of other special
