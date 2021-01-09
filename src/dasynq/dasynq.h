@@ -470,6 +470,7 @@ namespace dprivate {
         mutex_t lock;
 
         template <typename T> void init(T *loop) noexcept { }
+        void cleanup() noexcept { }
         
         void sigmaskf(int how, const sigset_t *set, sigset_t *oset)
         {

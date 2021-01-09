@@ -162,7 +162,7 @@ inline bool get_siginfo(int signo, siginfo_t *siginfo)
 
 template <class Base> class kqueue_loop : public Base
 {
-    int kqfd; // kqueue fd
+    int kqfd = -1; // kqueue fd
 
     // The kqueue signal reporting mechanism *coexists* with the regular signal
     // delivery mechanism without having any connection to it. Whereas regular signals can be
@@ -304,7 +304,10 @@ template <class Base> class kqueue_loop : public Base
     
     ~kqueue_loop() noexcept
     {
-        close(kqfd);
+        if (kqfd != -1) {
+            Base::cleanup();
+            close(kqfd);
+        }
     }
     
     void set_filter_enabled(short filterType, uintptr_t ident, void *udata, bool enable)

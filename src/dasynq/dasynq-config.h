@@ -24,6 +24,9 @@
 // If the epoll family of system calls are available:
 //     #define DASYNQ_HAVE_EPOLL 1
 //
+// If the eventfd syscall is available:
+//     #define DASYNQ_HAVE_EVENTFD 1
+//
 // If the pipe2 system call is available:
 //     #define HAVE_PIPE2 1
 //
@@ -46,7 +49,7 @@
 // Part 2: Automatic configuration begins here; you should not need to edit beyond this point.
 // ---------------------------------------------------------------------------------------------------------
 
-#if ! defined(DASYNQ_HAVE_KQUEUE)
+#if !defined(DASYNQ_HAVE_KQUEUE)
 #if defined(__OpenBSD__) || defined(__APPLE__) || defined(__FreeBSD__)
 #define DASYNQ_HAVE_KQUEUE 1
 #endif
@@ -58,13 +61,19 @@
 #define DASYNQ_KQUEUE_MACOS_WORKAROUND 1
 #endif
 
-#if ! defined(DASYNQ_HAVE_EPOLL)
+#if !defined(DASYNQ_HAVE_EPOLL)
 #if defined(__linux__)
 #define DASYNQ_HAVE_EPOLL 1
 #endif
 #endif
 
-#if ! defined(DASYNQ_HAVE_PSELECT)
+#if !defined(DASYNQ_HAVE_EVENTFD)
+#if defined(__linux__)
+#define DASYNQ_HAVE_EVENTFD 1
+#endif
+#endif
+
+#if !defined(DASYNQ_HAVE_PSELECT)
 #if defined(__sortix__)
 // Sortix doesn't have pselect yet (but has select):
 #define DASYNQ_HAVE_PSELECT 0

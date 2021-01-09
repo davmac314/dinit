@@ -181,9 +181,12 @@ template <class Base> class epoll_loop : public Base
     
     ~epoll_loop() noexcept
     {
-        close(epfd);
-        if (sigfd != -1) {
-            close(sigfd);
+        if (epfd != -1) {
+            Base::cleanup();
+            close(epfd);
+            if (sigfd != -1) {
+                close(sigfd);
+            }
         }
     }
     

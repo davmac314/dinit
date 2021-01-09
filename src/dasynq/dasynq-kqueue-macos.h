@@ -155,7 +155,10 @@ template <class Base> class macos_kqueue_loop : public signal_events<Base, true>
 
     ~macos_kqueue_loop() noexcept
     {
-        close(kqfd);
+        if (kqfd != -1) {
+            Base::cleanup();
+            close(kqfd);
+        }
     }
 
     void set_filter_enabled(short filterType, uintptr_t ident, void *udata, bool enable) noexcept

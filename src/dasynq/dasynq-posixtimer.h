@@ -23,7 +23,7 @@ class posix_timer_events : public timer_base<Base>
 
     // Set the timeout to match the first timer in the queue (disable the timer if there are no
     // active timers).
-    void set_timer_from_queue(timer_t &timer, timer_queue_t &timer_queue)
+    void set_timer_from_queue(timer_t &timer, timer_queue_t &timer_queue) noexcept
     {
         struct itimerspec newalarm;
 
@@ -115,7 +115,22 @@ class posix_timer_events : public timer_base<Base>
             throw std::system_error(errno, std::system_category());
         }
 
-        Base::init(loop_mech);
+        try {
+            Base::init(loop_mech);
+        }
+        catch (...) {
+            cleanup();
+            throw;
+        }
+    }
+
+    void cleanup() noexcept
+    {
+        Base::cleanup();
+        if (provide_mono_timer) {
+            timer_delete(mono_timer);
+        }
+        timer_delete(real_timer);
     }
 
     // starts (if not started) a timer to timeout at the given time. Resets the expiry count to 0.
@@ -185,13 +200,7 @@ class posix_timer_events : public timer_base<Base>
         }
     }
 
-    ~posix_timer_events()
-    {
-        if (provide_mono_timer) {
-            timer_delete(mono_timer);
-        }
-        timer_delete(real_timer);
-    }
+    ~posix_timer_events() noexcept { }
 };
 
 }
