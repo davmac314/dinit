@@ -58,7 +58,7 @@ class service_load_exc
     std::string exc_description;
 
     protected:
-    service_load_exc(const std::string &serviceName, std::string &&desc) noexcept
+    service_load_exc(const std::string &serviceName, std::string &&desc)
         : service_name(serviceName), exc_description(std::move(desc))
     {
     }
@@ -67,7 +67,7 @@ class service_load_exc
 class service_not_found : public service_load_exc
 {
     public:
-    service_not_found(const std::string &serviceName) noexcept
+    service_not_found(const std::string &serviceName)
         : service_load_exc(serviceName, "service description not found.")
     {
     }
@@ -76,7 +76,7 @@ class service_not_found : public service_load_exc
 class service_cyclic_dependency : public service_load_exc
 {
     public:
-    service_cyclic_dependency(const std::string &serviceName) noexcept
+    service_cyclic_dependency(const std::string &serviceName)
         : service_load_exc(serviceName, "has cyclic dependency.")
     {
     }
@@ -85,7 +85,7 @@ class service_cyclic_dependency : public service_load_exc
 class service_description_exc : public service_load_exc
 {
     public:
-    service_description_exc(const std::string &serviceName, std::string &&extraInfo) noexcept
+    service_description_exc(const std::string &serviceName, std::string &&extraInfo)
         : service_load_exc(serviceName, std::move(extraInfo))
     {
     }
