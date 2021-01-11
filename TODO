@@ -7,9 +7,9 @@ For version 0.11.+:
   - only scripted service supports 'stop-command' 
   - errors should also be reported by dinitcheck
 * [DONE] dinitcheck should perform lint checks - do named files exist? etc
+* [DONE] if service file exists but can't be opened, report suitable error rather than
+         "service not found" (dinit and dinitcheck)
 * report process launch failure reason (stage & errno) via dinitctl.
-* if service file exists but can't be opened, error rather than continuing search
-  - also in dinitcheck
 * successful "dinitctl enable servicename" should give feedback
 
 For version 1.0 (i.e. longer-term plans):

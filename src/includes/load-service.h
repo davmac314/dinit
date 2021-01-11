@@ -73,6 +73,15 @@ class service_not_found : public service_load_exc
     }
 };
 
+class service_load_error : public service_load_exc
+{
+    public:
+    service_load_error(const std::string &serviceName, std::string &&path, int fail_errno)
+        : service_load_exc(serviceName, std::move(path + ": " + strerror(fail_errno)))
+    {
+    }
+};
+
 class service_cyclic_dependency : public service_load_exc
 {
     public:

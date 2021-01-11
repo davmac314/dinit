@@ -253,6 +253,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
     ifstream service_file;
     string service_filename;
 
+    int fail_load_errno = 0;
+    std::string fail_load_path;
+
     // Couldn't find one. Have to load it.
     for (auto &service_dir : service_dirs) {
         service_filename = service_dir.get_dir();
@@ -263,10 +266,20 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         service_file.open(service_filename.c_str(), ios::in);
         if (service_file) break;
+
+        if (errno != ENOENT && fail_load_errno == 0) {
+            fail_load_errno = errno;
+            fail_load_path = std::move(service_filename);
+        }
     }
 
-    if (! service_file) {
-        throw service_not_found(string(name));
+    if (!service_file) {
+        if (fail_load_errno == 0) {
+            throw service_not_found(string(name));
+        }
+        else {
+            throw service_load_error(name, std::move(fail_load_path), fail_load_errno);
+        }
     }
 
     service_settings_wrapper<prelim_dep> settings;
