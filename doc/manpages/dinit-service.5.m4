@@ -436,7 +436,7 @@ parameters and options described above.
 .\"
 .SS RESOURCE LIMITS
 .\"
-There are several settings for specifying process resource limits: \fBrlmit-nofile\fR,
+There are several settings for specifying process resource limits: \fBrlimit-nofile\fR,
 \fBrlimit-core\fR, \fBrlimit-data\fR and \fBrlimit-addrspace\fR. See the descriptions
 of each above. These settings place a limit on resource usage directly by the process.
 Note that resource limits are inherited by subprocesses, but that usage of a resource
