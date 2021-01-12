@@ -486,6 +486,7 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
                 index = cline + 1;
             }
             else {
+                errno = 0;
                 char *nindex;
                 unsigned long long limit = std::strtoull(cline, &nindex, 0);
                 index = nindex;
@@ -508,6 +509,8 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
         index++;
         if (*index == 0) return;
 
+        rlimit.hard_set = true;
+
         if (*index == '-') {
             rlimit.limits.rlim_max = RLIM_INFINITY;
             if (index[1] != 0) {
@@ -517,7 +520,8 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
         else {
             const char *hard_start = index;
             char *nindex;
-            unsigned long long limit = std::strtoull(cline, &nindex, 0);
+            errno = 0;
+            unsigned long long limit = std::strtoull(hard_start, &nindex, 0);
             index = nindex;
             if (errno == ERANGE || limit > std::numeric_limits<rlim_t>::max()) throw std::out_of_range("");
             if (index == hard_start) throw std::invalid_argument("");
@@ -955,23 +959,23 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
     else if (setting == "rlimit-nofile") {
         string nofile_setting = read_setting_value(i, end, nullptr);
         service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_NOFILE);
-        parse_rlimit(line, name, "rlimit-nofile", nofile_limits);
+        parse_rlimit(nofile_setting, name, "rlimit-nofile", nofile_limits);
     }
     else if (setting == "rlimit-core") {
-        string nofile_setting = read_setting_value(i, end, nullptr);
+        string core_setting = read_setting_value(i, end, nullptr);
         service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_CORE);
-        parse_rlimit(line, name, "rlimit-core", nofile_limits);
+        parse_rlimit(core_setting, name, "rlimit-core", nofile_limits);
     }
     else if (setting == "rlimit-data") {
-        string nofile_setting = read_setting_value(i, end, nullptr);
+        string data_setting = read_setting_value(i, end, nullptr);
         service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_DATA);
-        parse_rlimit(line, name, "rlimit-data", nofile_limits);
+        parse_rlimit(data_setting, name, "rlimit-data", nofile_limits);
     }
     else if (setting == "rlimit-addrspace") {
         #if defined(RLIMIT_AS)
-            string nofile_setting = read_setting_value(i, end, nullptr);
+            string addrspace_setting = read_setting_value(i, end, nullptr);
             service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_AS);
-            parse_rlimit(line, name, "rlimit-addrspace", nofile_limits);
+            parse_rlimit(addrspace_setting, name, "rlimit-addrspace", nofile_limits);
         #endif
     }
     else {
