@@ -96,6 +96,13 @@ Display brief help text and then exit.
 Specifies the name of a service that should be started (along with its
 dependencies). If none are specified, defaults to \fIboot\fR (which requires
 that a suitable service description for the \fIboot\fR service exists).
+
+\fBNote:\fR on Linux, if \fBdinit\fR is running as PID 1 and with UID 0, it will ignore
+service names provided on the command line, other than "single", unless they appear
+after a "-o" or "-m" options (or their long forms). This is to filter arguments
+that were intended for the kernel and not for \fBinit\fR. If running in a container,
+the "-o" option should be used regardless and will inhibit this filtering for any
+subsequent service names. 
 .\"
 .SH SERVICE DESCRIPTION FILES
 .\"

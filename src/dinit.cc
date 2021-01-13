@@ -179,6 +179,155 @@ namespace {
     constexpr auto error_exec_sd = literal("Error executing ") + shutdown_exec + ": ";
 }
 
+// Options handled in dinit_main
+struct options {
+    const char * env_file = nullptr;
+    bool control_socket_path_set = false;
+    bool env_file_set = false;
+    bool log_specified = false;
+
+    bool process_sys_args = false;
+
+    service_dir_opt service_dir_opts;
+
+    // list of services to start
+    std::list<const char *> services_to_start;
+};
+
+
+static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
+{
+    using std::cerr;
+    using std::cout;
+    using std::endl;
+    using std::list;
+
+    const char * &env_file = opts.env_file;
+    bool &control_socket_path_set = opts.control_socket_path_set;
+    bool &env_file_set = opts.env_file_set;
+    bool &log_specified = opts.log_specified;
+    service_dir_opt &service_dir_opts = opts.service_dir_opts;
+    list<const char *> &services_to_start = opts.services_to_start;
+
+    if (argv[i][0] == '-') {
+        // An option...
+        if (strcmp(argv[i], "--env-file") == 0 || strcmp(argv[i], "-e") == 0) {
+            if (++i < argc) {
+                env_file_set = true;
+                env_file = argv[i];
+            }
+            else {
+                cerr << "dinit: '--env-file' (-e) requires an argument" << endl;
+            }
+        }
+        else if (strcmp(argv[i], "--services-dir") == 0 || strcmp(argv[i], "-d") == 0) {
+            if (++i < argc) {
+                service_dir_opts.set_specified_service_dir(argv[i]);
+            }
+            else {
+                cerr << "dinit: '--services-dir' (-d) requires an argument" << endl;
+                return 1;
+            }
+        }
+        else if (strcmp(argv[i], "--system") == 0 || strcmp(argv[i], "-s") == 0) {
+            am_system_init = true;
+        }
+        else if (strcmp(argv[i], "--system-mgr") == 0 || strcmp(argv[i], "-m") == 0) {
+            am_system_mgr = true;
+            opts.process_sys_args = false;
+        }
+        else if (strcmp(argv[i], "--user") == 0 || strcmp(argv[i], "-u") == 0) {
+            am_system_init = false;
+        }
+        else if (strcmp(argv[i], "--container") == 0 || strcmp(argv[i], "-o") == 0) {
+            am_system_mgr = false;
+            opts.process_sys_args = false;
+        }
+        else if (strcmp(argv[i], "--socket-path") == 0 || strcmp(argv[i], "-p") == 0) {
+            if (++i < argc) {
+                control_socket_path = argv[i];
+                control_socket_path_set = true;
+            }
+            else {
+                cerr << "dinit: '--socket-path' (-p) requires an argument" << endl;
+                return 1;
+            }
+        }
+        else if (strcmp(argv[i], "--log-file") == 0 || strcmp(argv[i], "-l") == 0) {
+            if (++i < argc) {
+                log_path = argv[i];
+                log_is_syslog = false;
+                log_specified = true;
+            }
+            else {
+                cerr << "dinit: '--log-file' (-l) requires an argument" << endl;
+                return 1;
+            }
+        }
+        else if (strcmp(argv[i], "--quiet") == 0 || strcmp(argv[i], "-q") == 0) {
+            console_service_status = false;
+            log_level[DLOG_CONS] = loglevel_t::ZERO;
+        }
+        else if (strcmp(argv[i], "--help") == 0) {
+            cout << "dinit, an init with dependency management\n"
+                    " --help                       display help\n"
+                    " --env-file <file>, -e <file>\n"
+                    "                              environment variable initialisation file\n"
+                    " --services-dir <dir>, -d <dir>\n"
+                    "                              set base directory for service description\n"
+                    "                              files\n"
+                    " --system, -s                 run as the system service manager\n"
+                    " --system-mgr, -m             run as system manager (perform shutdown etc)\n"
+                    " --user, -u                   run as a user service manager\n"
+                    " --container, -o              run in container mode (do not manage system)\n"
+                    " --socket-path <path>, -p <path>\n"
+                    "                              path to control socket\n"
+                    " --log-file <file>, -l <file> log to the specified file\n"
+                    " --quiet, -q                  disable output to standard output\n"
+                    " <service-name> [...]         start service with name <service-name>\n";
+            return 0;
+        }
+        else {
+            // unrecognized
+            if (!opts.process_sys_args) {
+                cerr << "dinit: unrecognized option: " << argv[i] << endl;
+                return 1;
+            }
+        }
+    }
+    else {
+#ifdef __linux__
+        // If we are running as init (PID=1), the Linux kernel gives us all command line arguments it was
+        // given but didn't recognize, and, uh, *some* that it did recognize, which means we can't assume
+        // that anything is a service name (for example "nopti" seems to get passed through to init).
+        // However, we can look for special names that we know aren't kernel parameters, such as "single".
+        //
+        // LILO puts "auto" on the command line for unattended boots, but we don't care about that and want
+        // it filtered.
+        //
+        // We don't expect to see options beginning with '-' appear on the kernel command line either, so we
+        // can interpret those as dinit arguments. In particular if we see -m or -o, we assume that every
+        // name we see from then is a service name (i.e. process_sys_args is set false when we seem them,
+        // see above).
+        //
+        // (Note, you can give "--" on the kernel command line to pass every option from that point to init
+        // directly, but init doesn't see the "--" itself, which makes it less useful, since we still can't
+        // tell whether a "name" was intended as a kernel parameter or init parameter).
+
+        // So, long story short: if we think we're PID 1 and we haven't seen -m or -c options yet, only
+        // recognise "single" as a service name and ignore everything else.
+
+        if (!opts.process_sys_args || strcmp(argv[i], "single") == 0) {
+            services_to_start.push_back(argv[i]);
+        }
+#else
+        services_to_start.push_back(argv[i]);
+#endif
+    }
+
+    return 0;
+}
+
 // Main entry point
 int dinit_main(int argc, char **argv)
 {
@@ -186,118 +335,22 @@ int dinit_main(int argc, char **argv)
     
     am_system_mgr = (getpid() == 1);
     am_system_init = (getuid() == 0);
-    const char * env_file = nullptr;
-    bool control_socket_path_set = false;
-    bool env_file_set = false;
-    bool log_specified = false;
-
-    service_dir_opt service_dir_opts;
-
-    // list of services to start
-    list<const char *> services_to_start;
     
-    // Arguments, if given, specify a list of services to start.
-    // If we are running as init (PID=1), the Linux kernel gives us any command line arguments it was given
-    // but didn't recognize, including "single" (usually for "boot to single user mode" aka just start the
-    // shell). We can treat them as service names. In the worst case we can't find any of the named
-    // services, and so we'll start the "boot" service by default.
-    if (argc > 1) {
-        for (int i = 1; i < argc; i++) {
-            if (argv[i][0] == '-') {
-                // An option...
-                if (strcmp(argv[i], "--env-file") == 0 || strcmp(argv[i], "-e") == 0) {
-                    if (++i < argc) {
-                        env_file_set = true;
-                        env_file = argv[i];
-                    }
-                    else {
-                        cerr << "dinit: '--env-file' (-e) requires an argument" << endl;
-                    }
-                }
-                else if (strcmp(argv[i], "--services-dir") == 0 || strcmp(argv[i], "-d") == 0) {
-                    if (++i < argc) {
-                        service_dir_opts.set_specified_service_dir(argv[i]);
-                    }
-                    else {
-                        cerr << "dinit: '--services-dir' (-d) requires an argument" << endl;
-                        return 1;
-                    }
-                }
-                else if (strcmp(argv[i], "--system") == 0 || strcmp(argv[i], "-s") == 0) {
-                    am_system_init = true;
-                }
-                else if (strcmp(argv[i], "--system-mgr") == 0 || strcmp(argv[i], "-m") == 0) {
-                    am_system_mgr = true;
-                }
-                else if (strcmp(argv[i], "--user") == 0 || strcmp(argv[i], "-u") == 0) {
-                    am_system_init = false;
-                }
-                else if (strcmp(argv[i], "--container") == 0 || strcmp(argv[i], "-o") == 0) {
-                    am_system_mgr = false;
-                }
-                else if (strcmp(argv[i], "--socket-path") == 0 || strcmp(argv[i], "-p") == 0) {
-                    if (++i < argc) {
-                        control_socket_path = argv[i];
-                        control_socket_path_set = true;
-                    }
-                    else {
-                        cerr << "dinit: '--socket-path' (-p) requires an argument" << endl;
-                        return 1;
-                    }
-                }
-                else if (strcmp(argv[i], "--log-file") == 0 || strcmp(argv[i], "-l") == 0) {
-                    if (++i < argc) {
-                        log_path = argv[i];
-                        log_is_syslog = false;
-                        log_specified = true;
-                    }
-                    else {
-                        cerr << "dinit: '--log-file' (-l) requires an argument" << endl;
-                        return 1;
-                    }
-                }
-                else if (strcmp(argv[i], "--quiet") == 0 || strcmp(argv[i], "-q") == 0) {
-                    console_service_status = false;
-                    log_level[DLOG_CONS] = loglevel_t::ZERO;
-                }
-                else if (strcmp(argv[i], "--help") == 0) {
-                    cout << "dinit, an init with dependency management\n"
-                            " --help                       display help\n"
-                            " --env-file <file>, -e <file>\n"
-                            "                              environment variable initialisation file\n"
-                            " --services-dir <dir>, -d <dir>\n"
-                            "                              set base directory for service description\n"
-                            "                              files\n"
-                            " --system, -s                 run as the system service manager\n"
-                            " --system-mgr, -m             run as system manager (perform shutdown etc)\n"
-                            " --user, -u                   run as a user service manager\n"
-                            " --container, -o              run in container mode (do not manage system)\n"
-                            " --socket-path <path>, -p <path>\n"
-                            "                              path to control socket\n"
-                            " --log-file <file>, -l <file> log to the specified file\n"
-                            " --quiet, -q                  disable output to standard output\n"
-                            " <service-name> [...]         start service with name <service-name>\n";
-                    return 0;
-                }
-                else {
-                    // unrecognized
-                    if (! am_system_init) {
-                        cerr << "dinit: unrecognized option: " << argv[i] << endl;
-                        return 1;
-                    }
-                }
-            }
-            else {
-#ifdef __linux__
-                // LILO puts "auto" on the kernel command line for unattended boots; we'll filter it.
-                if (! am_system_mgr || strcmp(argv[i], "auto") != 0) {
-                    services_to_start.push_back(argv[i]);
-                }
-#else
-                services_to_start.push_back(argv[i]);
-#endif
-            }
-        }
+    struct options opts;
+
+    // if we are PID 1 and user id 0, we are *most probably* the system init. (Or on linux at least, we
+    // could instead be in a container; then we expect -o argument and unset this then).
+    opts.process_sys_args = am_system_mgr && am_system_init;
+
+    const char * &env_file = opts.env_file;
+    bool &control_socket_path_set = opts.control_socket_path_set;
+    bool &env_file_set = opts.env_file_set;
+    bool &log_specified = opts.log_specified;
+    service_dir_opt &service_dir_opts = opts.service_dir_opts;
+    list<const char *> &services_to_start = opts.services_to_start;
+
+    for (int i = 1; i < argc; i++) {
+        process_commandline_arg(argv, argc, i, opts);
     }
     
     if (am_system_init) {
