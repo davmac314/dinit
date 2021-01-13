@@ -43,11 +43,11 @@ static int unpin_service(int socknum, cpbuffer_t &, const char *service_name, bo
 static int unload_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
 static int reload_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
 static int list_services(int socknum, cpbuffer_t &);
-static int shutdown_dinit(int soclknum, cpbuffer_t &);
+static int shutdown_dinit(int soclknum, cpbuffer_t &, bool verbose);
 static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, const char *service_from,
-        const char *service_to, dependency_type dep_type);
+        const char *service_to, dependency_type dep_type, bool verbose);
 static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to,
-        bool enable);
+        bool enable, bool verbose);
 
 static const char * describeState(bool stopped)
 {
@@ -368,11 +368,11 @@ int main(int argc, char **argv)
             return list_services(socknum, rbuffer);
         }
         else if (command == command_t::SHUTDOWN) {
-            return shutdown_dinit(socknum, rbuffer);
+            return shutdown_dinit(socknum, rbuffer, verbose);
         }
         else if (command == command_t::ADD_DEPENDENCY || command == command_t::RM_DEPENDENCY) {
             return add_remove_dependency(socknum, rbuffer, command == command_t::ADD_DEPENDENCY,
-                    service_name, to_service_name, dep_type);
+                    service_name, to_service_name, dep_type, verbose);
         }
         else if (command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE) {
             // If only one service specified, assume that we enable for 'boot' service:
@@ -380,7 +380,7 @@ int main(int argc, char **argv)
                 service_name = "boot";
             }
             return enable_disable_service(socknum, rbuffer, service_name, to_service_name,
-                    command == command_t::ENABLE_SERVICE);
+                    command == command_t::ENABLE_SERVICE, verbose);
         }
         else {
             return start_stop_service(socknum, rbuffer, service_name, command, do_pin, do_force,
@@ -621,7 +621,8 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
 
     if (! wait_for_service) {
         if (verbose) {
-            cout << "Issued " << describeVerb(do_stop) << " command successfully." << endl;
+            cout << "Issued " << describeVerb(do_stop) << " command successfully for service '"
+                    <<  service_name <<  "'." << endl;
         }
         return 0;
     }
@@ -652,19 +653,19 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
                 if (ev_handle == handle) {
                     if (event == completionEvent) {
                         if (verbose) {
-                            cout << "Service " << describeState(do_stop) << "." << endl;
+                            cout << "Service '" << service_name << "' " << describeState(do_stop) << "." << endl;
                         }
                         return 0;
                     }
                     else if (event == cancelledEvent) {
                         if (verbose) {
-                            cout << "Service " << describeVerb(do_stop) << " cancelled." << endl;
+                            cout << "Service '" << service_name << "' " << describeVerb(do_stop) << " cancelled." << endl;
                         }
                         return 1;
                     }
                     else if (! do_stop && event == service_event_t::FAILEDSTART) {
                         if (verbose) {
-                            cout << "Service failed to start." << endl;
+                            cout << "Service '" << service_name << "' failed to start." << endl;
                         }
                         return 1;
                     }
@@ -761,7 +762,7 @@ static int unpin_service(int socknum, cpbuffer_t &rbuffer, const char *service_n
     }
 
     if (verbose) {
-        cout << "Service unpinned." << endl;
+        cout << "Service '" << service_name << "' unpinned." << endl;
     }
     return 0;
 }
@@ -808,7 +809,7 @@ static int unload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
     }
 
     if (verbose) {
-        cout << "Service unloaded." << endl;
+        cout << "Service '" << service_name << "' unloaded." << endl;
     }
     return 0;
 }
@@ -855,7 +856,7 @@ static int reload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
     }
 
     if (verbose) {
-        cout << "Service reloaded." << endl;
+        cout << "Service '" << service_name << "' reloaded." << endl;
     }
     return 0;
 }
@@ -979,7 +980,7 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
 }
 
 static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
-        const char *service_from, const char *service_to, dependency_type dep_type)
+        const char *service_from, const char *service_to, dependency_type dep_type, bool verbose)
 {
     using namespace std;
 
@@ -1015,10 +1016,14 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
         return 1;
     }
 
+    if (verbose) {
+        std::cout << "Service '" << service_from << "': dependency '" << service_to << "' " << (add ? "added" : "removed") << endl;
+    }
+
     return 0;
 }
 
-static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer)
+static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer, bool verbose)
 {
     // TODO support no-wait option.
     using namespace std;
@@ -1035,6 +1040,10 @@ static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer)
         return 1;
     }
 
+    if (verbose) {
+        std::cout << "Shutting down dinit..." << std::endl;
+    }
+
     // Now wait for rollback complete, by waiting for the connection to close:
     try {
         while (true) {
@@ -1046,6 +1055,10 @@ static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer)
         // Assume that the connection closed.
     }
 
+    if (verbose) {
+        std::cout << "Connection closed." << std::endl;
+    }
+
     return 0;
 }
 
@@ -1053,7 +1066,7 @@ static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer)
 class service_op_cancel { };
 
 static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to,
-        bool enable)
+        bool enable, bool verbose)
 {
     using namespace std;
 
@@ -1235,6 +1248,10 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
                     "dinitctl: note: service was disabled, but will be re-enabled on restart." << endl;
             return 1;
         }
+    }
+
+    if (verbose) {
+        cout << "Service '" << to << "' has been " << (enable ? "enabled" : "disabled") << "." << endl;
     }
 
     return 0;

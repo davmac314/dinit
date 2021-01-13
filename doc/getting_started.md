@@ -105,7 +105,7 @@ The mpd service isn't visible yet because dinit lazily loads services. If we
 start the service, we will see it in the list:
 ```
 $ dinitctl start mpd
-Service started.
+Service 'mpd' started.
 $ dinitctl list
 [[+]     ] boot
 [[+]     ] mpd (pid: 14823)
@@ -134,7 +134,7 @@ Notice that a new instance of mpd is running; it has a different pid.
 You can stop a service using `dinitctl stop`:
 ```
 $ dinitctl stop mpd
-Service stopped.
+Service 'mpd' stopped.
 $ dinitctl list
 [[+]     ] boot
 [     {-}] mpd
@@ -157,6 +157,7 @@ $ dinitctl list
 [[+]     ] boot
 [     {-}] mpd
 $ dinitctl enable mpd
+Service 'mpd' has been enabled.
 $ dinitctl list
 [[+]     ] boot
 [{+}     ] mpd (pid: 49921)
@@ -172,13 +173,15 @@ We now want to restart dinit, to see that the mpd service does indeed start
 automatically. First, stop dinit:
 ```
 $ dinitctl shutdown
+Shutting down dinit...
+Connection closed.
 ```
 (you could also send it the TERM signal using the `kill` command, or press Ctrl+C
 in the terminal where it is running in the foreground; or, as alluded earlier, you
 could stop the boot service via `dinitctl stop boot`).
 
-If we now restart dinit (see instructions under "Starting Dinit" above), and then
-list services:
+Start dinit again (`dinit` in the other terminal, or `dinit -q &`, as before).
+Then list services to make sure mpd started:
 ```
 $ dinitctl list
 [[+]     ] boot
@@ -194,7 +197,7 @@ track of what should be started by default.
 ## Further Reading
 
 In this guide, we've really only scratched the surface of what Dinit can do.
-For example, we've not even touched on dependencies (where one service depends
+For example, we've hardly touched on dependencies (where one service depends
 upon another to function). For full details about service configuration, read
 the `dinit-service(5)` manual page. The `dinit`, `dinitctl` and `dinitcheck`
 commands also have manual pages.
