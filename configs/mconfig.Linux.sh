@@ -7,7 +7,7 @@ INST_PATH_OPTS=$(
   echo "";
   echo "SBINDIR=/sbin";
   echo "MANDIR=/usr/share/man";
-  echo "SYSCONTROLSOCKET=/dev/dinitctl"
+  echo "SYSCONTROLSOCKET=/run/dinitctl"
 )
 
 test_compiler_arg() {

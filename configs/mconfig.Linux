@@ -7,7 +7,7 @@
 
 SBINDIR=/sbin
 MANDIR=/usr/share/man
-SYSCONTROLSOCKET=/dev/dinitctl
+SYSCONTROLSOCKET=/run/dinitctl
 
 
 # General build options.
