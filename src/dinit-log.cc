@@ -14,26 +14,23 @@
 // Dinit logging subsystem.
 //
 // Note that most actual functions for logging messages are found in the header, dinit-log.h.
-//
-// We have two separate log "streams": one for the console/stdout, one for the syslog facility (or log
-// file). Both have a circular buffer. Log messages are appended to the circular buffer (for a syslog
-// stream, the messages are prepended with a syslog priority indicator). Both streams start out inactive
-// (release = true in buffered_log_stream), which means they will buffer messages but not write them.
-//
-// The console log stream needs to be able to release the console, if a service is waiting to acquire it.
-// This is accomplished by calling flush_for_release() which then completes the output of the current
-// message (if any) and then assigns the console to a waiting service.
+// See documentation there also.
 
 extern eventloop_t event_loop;
 extern bool external_log_open;
 
-static bool log_current_line[2];  // Whether the current line is being logged (for console, main log)
-static bool log_format_syslog[2] = { false, true };
+static bool log_current_line[DLOG_NUM];  // Whether the current line is being logged (for console, main log)
+static bool log_format_syslog[DLOG_NUM] = { true, false };
+static_assert(DLOG_NUM == 2, "number of log streams has changed");
+static_assert(DLOG_MAIN == 0, "main log index has changed");
 
 static service_set *services = nullptr;  // Reference to service set
 
-loglevel_t log_level[2] = { loglevel_t::NOTICE, loglevel_t::WARN };
+loglevel_t log_level[DLOG_NUM] = { loglevel_t::NOTICE, loglevel_t::WARN };
+static_assert(DLOG_NUM == 2, "number of log streams has changed");
+
 bool console_service_status = true;  // show service status messages to console?
+
 
 dasynq::time_val release_time; // time the log was released
 
@@ -122,7 +119,7 @@ class buffered_log_stream : public eventloop_t::fd_watcher_impl<buffered_log_str
 
 // Two log streams:
 // (One for main log, one for console)
-buffered_log_stream log_stream[2];
+buffered_log_stream log_stream[DLOG_NUM];
 
 void buffered_log_stream::release_console()
 {
@@ -470,6 +467,7 @@ static void do_log_part(int idx, const char *arg) noexcept
             append(log_stream[idx], arg);
         }
         else {
+            // we have to discard the message
             log_stream[idx].rollback_msg();
             log_current_line[idx] = false;
             log_stream[idx].mark_discarded();
@@ -500,7 +498,7 @@ void log_msg_begin(loglevel_t lvl, const char *msg) noexcept
         }
     }
 
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < DLOG_NUM; i++) {
         do_log_part(i, "dinit: ");
         do_log_part(i, msg);
     }
@@ -516,7 +514,7 @@ void log_msg_part(const char *msg) noexcept
 // Complete a multi-part log message
 void log_msg_end(const char *msg) noexcept
 {
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < DLOG_NUM; i++) {
         do_log_part(i, msg);
         do_log_part(i, "\n");
         do_log_commit(i);
