@@ -9,15 +9,15 @@ if [ "$1" != "stop" ]; then
   # cleanup
   # (delete /tmp etc)
   rm -rf /tmp/* /tmp/.[!.]* /tmp/..?*
-  rm -rf /var/lock/* /var/lock/.[!.]* /var/lock/..?*
-  rm -rf /var/run/* /var/run/.[!.]* /var/run/..?*
-  # create state directories
+  
+  # empty utmp, create needed directories
   : > /var/run/utmp
-  mkdir /var/run/dbus
-  chmod og+rx /var/run/dbus
+  mkdir -m og-w /var/run/dbus
 
   # Configure random number generator
-  cat /var/state/random-seed > /dev/urandom
+  if [ -e /var/state/random-seed ]; then
+    cat /var/state/random-seed > /dev/urandom;
+  fi
   
   # Configure network
   /sbin/ifconfig lo 127.0.0.1
