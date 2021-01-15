@@ -91,6 +91,8 @@ and sets the log level for the console log to \fBNONE\fR.
 .TP
 \fB\-\-help\fR
 Display brief help text and then exit.
+\fB\-\-version\fR
+Display version number and then exit.
 .TP
 \fIservice-name\fR
 Specifies the name of a service that should be started (along with its

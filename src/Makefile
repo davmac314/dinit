@@ -1,4 +1,5 @@
 include ../mconfig
+include version.conf
 
 HOSTCXX ?= $(CXX)
 HOSTCXXFLAGS ?= $(CXXFLAGS)
@@ -32,7 +33,7 @@ all: dinit dinitctl dinitcheck $(SHUTDOWN)
 
 includes/mconfig.h: mconfig-gen
 	./mconfig-gen SBINDIR=$(SBINDIR) SYSCONTROLSOCKET=$(SYSCONTROLSOCKET) SHUTDOWN_PREFIX=$(SHUTDOWN_PREFIX) \
-		$(if $(USE_UTMPX),USE_UTMPX=$(USE_UTMPX),) > includes/mconfig.h
+		VERSION=$(VERSION) $(if $(USE_UTMPX),USE_UTMPX=$(USE_UTMPX),) > includes/mconfig.h
 
 mconfig-gen: mconfig-gen.cc ../mconfig
 	$(HOSTCXX) $(HOSTCXXOPTS) -o mconfig-gen mconfig-gen.cc $(HOSTLDFLAGS)

@@ -194,7 +194,8 @@ struct options {
     std::list<const char *> services_to_start;
 };
 
-
+// Process a command line argument (and possibly its follow-up value)
+// Returns -1 for clean exit required, 0 for success, 1 for error exit required
 static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 {
     using std::cerr;
@@ -268,9 +269,14 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             console_service_status = false;
             log_level[DLOG_CONS] = loglevel_t::ZERO;
         }
+        else if (strcmp(argv[i], "--version") == 0) {
+            cout << "Dinit version " << DINIT_VERSION << '.' << endl;
+            return -1;
+        }
         else if (strcmp(argv[i], "--help") == 0) {
-            cout << "dinit, an init with dependency management\n"
-                    " --help                       display help\n"
+            cout << "dinit: init/service manager daemon\n"
+                    " --help                       display (this) help\n"
+                    " --version                    display version\n"
                     " --env-file <file>, -e <file>\n"
                     "                              environment variable initialisation file\n"
                     " --services-dir <dir>, -d <dir>\n"
@@ -285,7 +291,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                     " --log-file <file>, -l <file> log to the specified file\n"
                     " --quiet, -q                  disable output to standard output\n"
                     " <service-name> [...]         start service with name <service-name>\n";
-            return 0;
+            return -1;
         }
         else {
             // unrecognized
@@ -350,7 +356,15 @@ int dinit_main(int argc, char **argv)
     list<const char *> &services_to_start = opts.services_to_start;
 
     for (int i = 1; i < argc; i++) {
-        process_commandline_arg(argv, argc, i, opts);
+        int p = process_commandline_arg(argv, argc, i, opts);
+        if (p == -1) {
+            // clean exit
+            return 0;
+        }
+        if (p == 1) {
+            // error exit
+            return 1;
+        }
     }
     
     if (am_system_init) {

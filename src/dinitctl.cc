@@ -106,6 +106,10 @@ int main(int argc, char **argv)
                 show_help = true;
                 break;
             }
+            else if (strcmp(argv[i], "--version") == 0) {
+                cout << "Dinit version " << DINIT_VERSION << ".\n";
+                return 0;
+            }
             else if (strcmp(argv[i], "--no-wait") == 0) {
                 wait_for_service = false;
             }

@@ -68,6 +68,8 @@ int main(int argc, char **argv)
         cout << "#define USE_UTMPX " << vars["USE_UTMPX"] << "\n";
     }
 
+    cout << "\nconstexpr static char DINIT_VERSION[] = " << stringify(vars["VERSION"]) << ";\n";
+
     cout << "\n// Constants\n";
     cout << "constexpr static char SYSCONTROLSOCKET[] = " << stringify(vars["SYSCONTROLSOCKET"]) << ";\n";
     cout << "constexpr static char SBINDIR[] = " << stringify(vars["SBINDIR"]) << ";\n";

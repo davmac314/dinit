@@ -59,15 +59,18 @@ via a control socket.
 \fB\-\-help\fR
 Display brief help text and then exit.
 .TP
+\fB\-\-version\fR
+Display version and then exit.
+.TP
 \fB\-s\fR, \fB\-\-system\fR
-Control the system init process (this is the default unless run as a non-root user). This option
-determines the default path to the control socket used to communicate with the \fBdinit\fR daemon
-process (it does not override the \fB\-s\fR option).
+Control the system init process (this is the default when run as root). This option determines
+the default path to the control socket used to communicate with the \fBdinit\fR daemon
+process (it does not override the \fB\-p\fR option).
 .TP
 \fB\-u\fR, \fB\-\-user\fR
 Control the user init process (this is the default when not run as root). This option determines
 the default path to the control socket used to communicate with the \fBdinit\fR daemon process
-(it does not override the \fB\-s\fR option).
+(it does not override the \fB\-p\fR option).
 .TP
 \fB\-\-socket\-path\fR \fIsocket-path\fR, \fB\-p\fR \fIsocket-path\fR
 Specify the path to the socket used for communicating with the service manager daemon.
