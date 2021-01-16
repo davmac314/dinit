@@ -23,7 +23,6 @@ struct service_flags_t
     bool log_ready : 1; // syslog should be available once this service starts
 
     // Other service options flags:
-    bool no_sigterm : 1;  // do not send SIGTERM
     bool runs_on_console : 1;  // run "in the foreground"
     bool starts_on_console : 1; // starts in the foreground
     bool shares_console : 1;    // run on console, but not exclusively
@@ -32,7 +31,7 @@ struct service_flags_t
     bool skippable : 1;   // if interrupted the service is skipped (scripted services)
     bool signal_process_only : 1;  // signal the session process, not the whole group
 
-    service_flags_t() noexcept : rw_ready(false), log_ready(false), no_sigterm(false),
+    service_flags_t() noexcept : rw_ready(false), log_ready(false),
             runs_on_console(false), starts_on_console(false), shares_console(false),
             pass_cs_fd(false), start_interruptible(false), skippable(false), signal_process_only(false)
     {
@@ -141,8 +140,10 @@ inline string_iterator skipws(string_iterator i, string_iterator end)
 // Convert a signal name to the corresponding signal number
 inline int signal_name_to_number(std::string &signame)
 {
+    if (signame == "none" || signame == "NONE") return 0;
     if (signame == "HUP") return SIGHUP;
     if (signame == "INT") return SIGINT;
+    if (signame == "TERM") return SIGTERM;
     if (signame == "QUIT") return SIGQUIT;
     if (signame == "USR1") return SIGUSR1;
     if (signame == "USR2") return SIGUSR2;
@@ -600,7 +601,7 @@ class service_settings_wrapper
     std::list<dep_type> depends;
     string logfile;
     service_flags_t onstart_flags;
-    int term_signal = -1;  // additional termination signal
+    int term_signal = SIGTERM;  // termination signal
     bool auto_restart = false;
     bool smooth_recovery = false;
     string socket_path;
@@ -666,7 +667,7 @@ class service_settings_wrapper
                 report_lint("'inittab_line' or 'inittab_id' specified, but 'type' is internal (or not specified).");
             }
             #endif
-            if (onstart_flags.no_sigterm || onstart_flags.signal_process_only || onstart_flags.start_interruptible) {
+            if (onstart_flags.signal_process_only || onstart_flags.start_interruptible) {
                 report_lint("signal options were specified, but 'type' is internal (or not specified).");
             }
             if (onstart_flags.pass_cs_fd) {
@@ -827,9 +828,6 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
             }
             else if (option_txt == "starts-log") {
                 settings.onstart_flags.log_ready = true;
-            }
-            else if (option_txt == "no-sigterm") {
-                settings.onstart_flags.no_sigterm = true;
             }
             else if (option_txt == "runs-on-console") {
                 settings.onstart_flags.runs_on_console = true;

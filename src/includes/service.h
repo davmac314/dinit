@@ -272,7 +272,7 @@ class service_record
                      // case if for example the process dies; the service,
                      // and all its dependencies, MUST be stopped.
     
-    int term_signal = -1;  // signal to use for process termination
+    int term_signal = SIGTERM;  // signal to use for process termination
     
     string socket_path; // path to the socket for socket-activation service
     int socket_perms;   // socket permissions ("mode")

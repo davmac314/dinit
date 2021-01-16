@@ -271,11 +271,10 @@ not provided, the socket will be owned by the user id of the \fBdinit\fR process
 Specifies the group of the activation socket. See discussion of
 \fBsocket\-uid\fR.
 .TP
-\fBterm\-signal\fR = {HUP | INT | QUIT | USR1 | USR2 | KILL}
-Specifies an additional signal to send to the process when requesting it
-to terminate (applies to 'process' services only). SIGTERM is always
-sent along with the specified signal, unless the \fBno\-sigterm\fR option is
-specified via the \fBoptions\fR parameter.
+\fBterm\-signal\fR = {none | HUP | INT | TERM | QUIT | USR1 | USR2 | KILL}
+Specifies the signal to send to the process when requesting it
+to terminate (applies to 'process' and 'bgprocess' services only). The default is SIGTERM.
+See also \fBstop\-timeout\fR.
 .TP
 \fBready\-notification\fR = {\fBpipefd:\fR\fIfd-number\fR | \fBpipevar:\fR\fIenv-var-name\fR}
 Specifies the mechanism, if any, by which a process service will notify that it is ready
@@ -356,12 +355,6 @@ setting will be ignored on such systems.
 .\"
 These options are specified via the \fBoptions\fR parameter. 
 .\"
-.TP
-\fBno\-sigterm\fR
-Specifies that the TERM signal should not be send to the process to terminate
-it. (Another signal can be specified using the \fBtermsignal\fR setting; if no
-other signal is specified, no signal will be sent, which usually means that
-the service will not terminate).
 .TP
 \fBruns\-on\-console\fR
 Specifies that this service uses the console; its input and output should be

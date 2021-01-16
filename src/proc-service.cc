@@ -604,10 +604,7 @@ void process_service::bring_down() noexcept
         // The process is still kicking on - must actually kill it. We signal the process
         // group (-pid) rather than just the process as there's less risk then of creating
         // an orphaned process group:
-        if (! onstart_flags.no_sigterm) {
-            kill_pg(SIGTERM);
-        }
-        if (term_signal != -1) {
+        if (term_signal != 0) {
             kill_pg(term_signal);
         }
 
@@ -635,11 +632,8 @@ void bgproc_service::bring_down() noexcept
         // The process is still kicking on - must actually kill it. We signal the process
         // group (-pid) rather than just the process as there's less risk then of creating
         // an orphaned process group:
-        if (! onstart_flags.no_sigterm) {
+        if (term_signal != 0) {
             kill_pg(SIGTERM);
-        }
-        if (term_signal != -1) {
-            kill_pg(term_signal);
         }
 
         // In most cases, the rest is done in handle_exit_status.
