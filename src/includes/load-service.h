@@ -76,7 +76,7 @@ class service_load_error : public service_load_exc
 {
     public:
     service_load_error(const std::string &serviceName, std::string &&path, int fail_errno)
-        : service_load_exc(serviceName, std::move(path + ": " + strerror(fail_errno)))
+        : service_load_exc(serviceName, path + ": " + strerror(fail_errno))
     {
     }
 };
