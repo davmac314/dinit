@@ -1,5 +1,5 @@
 include ../../mconfig
-include ../../src/version.conf
+include ../../build/version.conf
 
 all: generate
 

@@ -1,5 +1,5 @@
 include ../mconfig
-include version.conf
+include ../build/version.conf
 
 HOSTCXX ?= $(CXX)
 HOSTCXXFLAGS ?= $(CXXFLAGS)
