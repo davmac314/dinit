@@ -1,3 +1,30 @@
+== Version XXX
+
+XXX add introduction here
+
+Important: the default system socket location has changed. If version 0.11 of
+shutdown, halt etc are installed, they may not be able to communicate with the
+already-running dinit daemon. In this case, to shut the system down, use:
+
+    dinitctl -p /dev/dinitctl shutdown
+     
+Changes:
+ * dinit and dinitctl now support --version command line argument.
+ * Improved diagnostic message if a service description file exists but
+   can't be opened.
+ * Default system socket location has changed from /dev/dinitctl to
+   /run/dinitctl (see note above).
+ * Active status is indicated in "dinitctl list" output. Square brackets
+   indicate a service is marked active (i.e. it has been explicitly started)
+   and curly brackets indicate a service that has started due to being the
+   dependent of an active service.
+ * The "dinitcheck" utility now performs a number of additional checks.
+ * Better feedback is provided for various "dinitctl" commands. The affected
+   service name is reported for any status update.
+ * Fixed bug processing rlimit settings.
+ * Fixed issue with interpreting unwanted command line parameters passed from
+   linux kernel as service names.
+
 == Version 0.10.0
 
 This release is a major step towards a version 1.0 release. It should be
