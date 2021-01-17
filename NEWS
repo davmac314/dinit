@@ -1,13 +1,22 @@
-== Version XXX
+== Version 0.11.0
 
-XXX add introduction here
+This is a second Alpha release, issued as a follow-up to the previous Alpha
+release. It contains some minor bugfixes and a number of other improvements
+(all detailed below).
 
 Important: the default system socket location has changed. If version 0.11 of
 shutdown, halt etc are installed, they may not be able to communicate with the
-already-running dinit daemon. In this case, to shut the system down, use:
+already-running (v0.10.0 or prior) dinit daemon. In this case, to shut the
+system down, use:
 
     dinitctl -p /dev/dinitctl shutdown
-     
+
+Important: the "no-sigterm" option has been removed. To specify that no
+SIGTERM signal should be sent to a process to stop it, specify a different
+signal (or "none") via the "term-signal" setting. It is no longer possible to
+have both SIGTERM and an additional signal sent, but the settings should be
+less confusing.
+
 Changes:
  * dinit and dinitctl now support --version command line argument.
  * Improved diagnostic message if a service description file exists but
