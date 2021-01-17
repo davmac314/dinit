@@ -23,10 +23,10 @@ cptests: cptests.o $(parent_objs) $(parent_test_objs)
 	$(CXX) $(SANITIZEOPTS) -o cptests cptests.o $(parent_test_objects) $(parent_objs) $(LDFLAGS)
 
 $(objects): %.o: %.cc
-	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../dasynq -c $< -o $@
+	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../dasynq -I../../../build/includes -c $< -o $@
 
 $(parent_objs): %.o: ../../%.cc
-	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../dasynq -c $< -o $@
+	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../dasynq -I../../../build/includes -c $< -o $@
 
 clean:
 	rm -f *.o *.d cptests

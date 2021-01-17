@@ -31,10 +31,10 @@ loadtests: $(parent_objs) loadtests.o test-dinit.o test-bpsys.o test-run-child-p
 	$(CXX) $(SANITIZEOPTS) -o loadtests $(parent_objs) loadtests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(LDFLAGS)
 
 $(objects): %.o: %.cc
-	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../dasynq -c $< -o $@
+	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../dasynq -I../../build/includes -c $< -o $@
 
 $(parent_objs): %.o: ../%.cc
-	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../dasynq -c $< -o $@
+	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../dasynq -I../../build/includes -c $< -o $@
 
 clean:
 	$(MAKE) -C cptests clean
