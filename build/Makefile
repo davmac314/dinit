@@ -1,3 +1,6 @@
+-include ../mconfig
+-include version.conf
+
 all: ../mconfig includes/mconfig.h
 
 # Look for a suitable build config file and use it.
