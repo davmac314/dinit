@@ -1,6 +1,7 @@
 # Makefile for Dinit.
 
 all:
+	$(MAKE) -C build all
 	$(MAKE) -C src all
 	$(MAKE) -C doc/manpages all
 	@echo "***"

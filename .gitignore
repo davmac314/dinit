@@ -5,8 +5,6 @@
 /src/dinitctl
 /src/dinitcheck
 /src/shutdown
-/src/mconfig-gen
-/src/includes/mconfig.h
 /src/tests/tests
 /src/tests/proctests
 /src/tests/loadtests
@@ -17,6 +15,9 @@
 /src/tests/cptests/fuzz
 /src/igr-tests/igr-runner
 /mconfig
+
+/build/includes/*.h
+/build/tools/mconfig-gen
 
 # Integration test output:
 /src/igr-tests/basic/basic-ran

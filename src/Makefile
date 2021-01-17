@@ -1,9 +1,6 @@
 include ../mconfig
 include ../build/version.conf
 
-HOSTCXX ?= $(CXX)
-HOSTCXXFLAGS ?= $(CXXFLAGS)
-HOSTLDFLAGS ?= $(LDFLAGS)
 STRIPOPTS ?= -s
 
 ifeq ($(BUILD_SHUTDOWN),yes)
@@ -31,14 +28,10 @@ all: dinit dinitctl dinitcheck $(SHUTDOWN)
 	    exit 1; \
 	fi
 
-includes/mconfig.h: mconfig-gen
-	./mconfig-gen SBINDIR=$(SBINDIR) SYSCONTROLSOCKET=$(SYSCONTROLSOCKET) SHUTDOWN_PREFIX=$(SHUTDOWN_PREFIX) \
-		VERSION=$(VERSION) $(if $(USE_UTMPX),USE_UTMPX=$(USE_UTMPX),) > includes/mconfig.h
-
 mconfig-gen: mconfig-gen.cc ../mconfig
 	$(HOSTCXX) $(HOSTCXXOPTS) -o mconfig-gen mconfig-gen.cc $(HOSTLDFLAGS)
 
-$(objects): includes/mconfig.h
+$(objects): ../build/includes/mconfig.h
 
 dinit: $(dinit_objects)
 	$(CXX) -o dinit $(dinit_objects) $(LDFLAGS)
@@ -53,7 +46,7 @@ $(SHUTDOWNPREFIX)shutdown: shutdown.o
 	$(CXX) -o $(SHUTDOWNPREFIX)shutdown shutdown.o $(LDFLAGS)
 
 $(objects): %.o: %.cc
-	$(CXX) $(CXXOPTS) -MMD -MP -Iincludes -Idasynq -c $< -o $@
+	$(CXX) $(CXXOPTS) -MMD -MP -Iincludes -Idasynq -I../build/includes -c $< -o $@
 
 check: includes/mconfig.h
 	$(MAKE) -C tests check
