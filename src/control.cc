@@ -249,7 +249,7 @@ bool control_conn_t::process_start_stop(int pktType)
         case DINIT_CP_STARTSERVICE:
             // start service, mark as required
             if (services->is_shutting_down()) {
-                ack_buf[0] = DINIT_RP_NAK;
+                ack_buf[0] = DINIT_RP_SHUTTINGDOWN;
                 break;
             }
             if ((service->get_state() == service_state_t::STOPPED
@@ -269,7 +269,7 @@ bool control_conn_t::process_start_stop(int pktType)
             bool do_restart = ((rbuf[1] & 4) == 4);
             bool gentle = ((rbuf[1] & 2) == 2) || do_restart;  // restart is always "gentle"
             if (do_restart && services->is_shutting_down()) {
-                ack_buf[0] = DINIT_RP_NAK;
+                ack_buf[0] = DINIT_RP_SHUTTINGDOWN;
                 break;
             }
             if ((service->get_state() == service_state_t::STARTED
@@ -311,7 +311,7 @@ bool control_conn_t::process_start_stop(int pktType)
         {
             // re-attach a service to its (started) dependents, causing it to start.
             if (services->is_shutting_down()) {
-                ack_buf[0] = DINIT_RP_NAK;
+                ack_buf[0] = DINIT_RP_SHUTTINGDOWN;
                 break;
             }
             if ((service->get_state() == service_state_t::STOPPED

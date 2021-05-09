@@ -36,9 +36,10 @@ static constexpr uint16_t max_cp_version = 1;
 enum class command_t;
 
 static int issue_load_service(int socknum, const char *service_name, bool find_only = false);
-static int check_load_reply(int socknum, cpbuffer_t &, handle_t *handle_p, service_state_t *state_p);
+static int check_load_reply(int socknum, cpbuffer_t &, handle_t *handle_p, service_state_t *state_p,
+        bool write_error=true);
 static int start_stop_service(int socknum, cpbuffer_t &, const char *service_name, command_t command,
-        bool do_pin, bool do_force, bool wait_for_service, bool verbose);
+        bool do_pin, bool do_force, bool wait_for_service, bool ignore_unstarted, bool verbose);
 static int unpin_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
 static int unload_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
 static int reload_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
@@ -77,6 +78,10 @@ enum class command_t {
     DISABLE_SERVICE
 };
 
+class dinit_protocol_error
+{
+    // no body
+};
 
 // Entry point.
 int main(int argc, char **argv)
@@ -97,6 +102,7 @@ int main(int argc, char **argv)
     bool wait_for_service = true;
     bool do_pin = false;
     bool do_force = false;
+    bool ignore_unstarted = false;
     
     command_t command = command_t::NONE;
         
@@ -112,6 +118,9 @@ int main(int argc, char **argv)
             }
             else if (strcmp(argv[i], "--no-wait") == 0) {
                 wait_for_service = false;
+            }
+            else if (strcmp(argv[i], "--ignore-unstarted") == 0) {
+                ignore_unstarted = true;
             }
             else if (strcmp(argv[i], "--quiet") == 0) {
                 verbose = false;
@@ -388,7 +397,7 @@ int main(int argc, char **argv)
         }
         else {
             return start_stop_service(socknum, rbuffer, service_name, command, do_pin, do_force,
-                    wait_for_service, verbose);
+                    wait_for_service, ignore_unstarted, verbose);
         }
     }
     catch (cp_old_client_exception &e) {
@@ -405,6 +414,10 @@ int main(int argc, char **argv)
     }
     catch (cp_write_exception &e) {
         cerr << "dinitctl: control socket write error: " << std::strerror(e.errcode) << endl;
+        return 1;
+    }
+    catch (dinit_protocol_error &e) {
+        cerr << "dinitctl: protocol error" << endl;
         return 1;
     }
 }
@@ -445,8 +458,9 @@ static std::string read_string(int socknum, cpbuffer_t &rbuffer, uint32_t length
 //      name     - the name of the service to load
 //      handle   - where to store the handle of the loaded service
 //      state    - where to store the state of the loaded service (may be null).
+//      write_error - whether to write an error message if the service can't be loaded
 static bool load_service(int socknum, cpbuffer_t &rbuffer, const char *name, handle_t *handle,
-        service_state_t *state)
+        service_state_t *state, bool write_error=true)
 {
     // Load 'to' service:
     if (issue_load_service(socknum, name)) {
@@ -455,7 +469,7 @@ static bool load_service(int socknum, cpbuffer_t &rbuffer, const char *name, han
 
     wait_for_reply(rbuffer, socknum);
 
-    if (check_load_reply(socknum, rbuffer, handle, state) != 0) {
+    if (check_load_reply(socknum, rbuffer, handle, state, write_error) != 0) {
         return false;
     }
 
@@ -512,7 +526,8 @@ static std::string get_service_name(int socknum, cpbuffer_t &rbuffer, handle_t h
 
 // Start/stop a service
 static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *service_name,
-        command_t command, bool do_pin, bool do_force, bool wait_for_service, bool verbose)
+        command_t command, bool do_pin, bool do_force, bool wait_for_service, bool ignore_unstarted,
+        bool verbose)
 {
     using namespace std;
 
@@ -521,8 +536,13 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
     service_state_t state;
     handle_t handle;
     
-    if (! load_service(socknum, rbuffer, service_name, &handle, &state)) {
-        return 1;
+    if (command != command_t::RESTART_SERVICE && command != command_t::STOP_SERVICE
+            && command != command_t::RELEASE_SERVICE) {
+        ignore_unstarted = false;
+    }
+
+    if (! load_service(socknum, rbuffer, service_name, &handle, &state, !ignore_unstarted)) {
+        return ignore_unstarted ? 0 : 1;
     }
 
     service_state_t wanted_state = do_stop ? service_state_t::STOPPED : service_state_t::STARTED;
@@ -606,15 +626,21 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             return 1;
         }
         if (reply_pkt_h == DINIT_RP_NAK && command == command_t::RESTART_SERVICE) {
-            cerr << "dinitctl: cannot restart service; service not started (or system is shutting down).\n";
-            return 1;
-        }
-        if (reply_pkt_h == DINIT_RP_NAK && command == command_t::START_SERVICE) {
-            cerr << "dinitctl: cannot start service (during shut down).\n";
+            if (ignore_unstarted) {
+                if (verbose) {
+                    cout << "Service '" << service_name << "' is not currently started.\n";
+                }
+                return 0;
+            }
+            cerr << "dinitctl: cannot restart service; service not started.\n";
             return 1;
         }
         if (reply_pkt_h == DINIT_RP_NAK && command == command_t::WAKE_SERVICE) {
-            cerr << "dinitctl: service has no active dependents (or system is shutting down), cannot wake.\n";
+            cerr << "dinitctl: service has no active dependents, cannot wake.\n";
+            return 1;
+        }
+        if (reply_pkt_h == DINIT_RP_SHUTTINGDOWN) {
+            cerr << "dinitctl: cannot start/restart/wake service, shutdown is in progress.\n";
             return 1;
         }
         if (reply_pkt_h != DINIT_RP_ACK && reply_pkt_h != DINIT_RP_ALREADYSS) {
@@ -717,7 +743,7 @@ static int issue_load_service(int socknum, const char *service_name, bool find_o
 
 // Check that a "load service" reply was received, and that the requested service was found.
 //   state_p may be null.
-static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p, service_state_t *state_p)
+static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p, service_state_t *state_p, bool write_error)
 {
     using namespace std;
     
@@ -730,12 +756,13 @@ static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p
         return 0;
     }
     else if (rbuffer[0] == DINIT_RP_NOSERVICE) {
-        cerr << "dinitctl: failed to find/load service." << endl;
+        if (write_error) {
+            cerr << "dinitctl: failed to find/load service." << endl;
+        }
         return 1;
     }
     else {
-        cerr << "dinitctl: protocol error." << endl;
-        return 1;
+        throw dinit_protocol_error();
     }
 }
 

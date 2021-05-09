@@ -9,16 +9,16 @@ dinitctl \- control services supervised by Dinit
 [\fIoptions\fR] \fBstart\fR [\fB\-\-no\-wait\fR] [\fB\-\-pin\fR] \fIservice-name\fR
 .br
 .B dinitctl
-[\fIoptions\fR] \fBstop\fR [\fB\-\-no\-wait\fR] [\fB\-\-pin\fR] \fIservice-name\fR
+[\fIoptions\fR] \fBstop\fR [\fB\-\-no\-wait\fR] [\fB\-\-pin\fR] [\fB\-\-ignore\-unstarted\fR] \fIservice-name\fR
 .br
 .B dinitctl
-[\fIoptions\fR] \fBrestart\fR [\fB\-\-no\-wait\fR] \fIservice-name\fR
+[\fIoptions\fR] \fBrestart\fR [\fB\-\-no\-wait\fR] [\fB\-\-ignore\-unstarted\fR] \fIservice-name\fR
 .br
 .B dinitctl
 [\fIoptions\fR] \fBwake\fR [\fB\-\-no\-wait\fR] \fIservice-name\fR
 .br
 .B dinitctl
-[\fIoptions\fR] \fBrelease\fR \fIservice-name\fR
+[\fIoptions\fR] \fBrelease\fR [\fB\-\-ignore\-unstarted\fR] \fIservice-name\fR
 .br
 .B dinitctl
 [\fIoptions\fR] \fBunpin\fR \fIservice-name\fR
@@ -101,6 +101,10 @@ started will have no effect other than removing explicit activation.
 .TP
 \fB\-\-force\fR
 Stop the service even if it will require stopping other services which depend on the specified service.
+.TP
+\fB\-\-ignore\-unstarted\fR
+If the service is not started or doesn't exist, ignore the command and return an exit code indicating
+success.
 .TP
 \fIservice-name\fR
 Specifies the name of the service to which the command applies.

@@ -95,6 +95,8 @@ constexpr static int DINIT_RP_SERVICENAME = 66;
 constexpr static int DINIT_RP_PINNEDSTOPPED = 67;
 constexpr static int DINIT_RP_PINNEDSTARTED = 68;
 
+// Shutdown is in progress, can't start/restart/wake service:
+constexpr static int DINIT_RP_SHUTTINGDOWN = 69;
 
 // Information:
 
