@@ -7,7 +7,7 @@ rm -f ./recorded-output
 
 STATUS=FAIL
 if [ -e recorded-output ]; then
-   if [ "$(cat recorded-output)" = "$(echo part1; echo part2; echo part3)" ]; then
+   if [ "$(cat recorded-output)" = "$(echo part1; echo part2; echo part3; echo part4)" ]; then
        STATUS=PASS
    fi
 fi

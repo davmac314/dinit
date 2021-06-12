@@ -243,10 +243,12 @@ a separate filesystem that is mounted during the first stage; such service
 descriptions will not be found at initial start, and so cannot be started
 directly, but can be chained via this directive.
 
-The chain is not executed if the initial service was explicitly stopped, stopped
-due to a dependency stopping (for any reason), if it will restart (including due
-to a dependent restarting), or if its process terminates abnormally or with an
-exit status indicating an error.
+The chain is not executed if the initial service was explicitly stopped,
+stopped due to a dependency stopping (for any reason), if it will restart
+(including due to a dependent restarting), or if its process terminates
+abnormally or with an exit status indicating an error. However, if
+\fBalways-chain\fR option is set the chain is started regardless of the
+reason and the status of this service termination.
 .TP
 \fBsocket\-listen\fR = \fIsocket-path\fR
 Pre-open a socket for the service and pass it to the service using the
@@ -422,6 +424,10 @@ will instead be considered stopped.
 \fBsignal-process-only\fR
 Signal the service process only, rather than its entire process group, whenever
 sending it a signal for any reason.
+.TP
+\fBalways-chain\fR
+Alters behavior of \fBchains-to\fR property forcing the chained service to
+always start on termination of this service.
 .RE
 .LP
 The next section contains example service descriptions including some of the

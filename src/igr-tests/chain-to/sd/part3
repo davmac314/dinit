@@ -1,2 +1,4 @@
 type = process
+options = always-chain
 command = ./record-param.sh part3
+chain-to = part4
