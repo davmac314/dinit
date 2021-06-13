@@ -31,9 +31,9 @@ same search paths (for service description files) as \fBdinit\fR.
 .SH OPTIONSs
 .TP
 \fB\-d\fR \fIdir\fP, \fB\-\-services\-dir\fR \fIdir\fP
-Specifies \fIdir\fP as the directory containing service definition files.
-The directory specified will be the only directory searched for service
-definitions.
+Specifies \fIdir\fP as the directory containing service definition files, can
+be set multiple times. Default directories are not searched for services when
+this option is provided.
 
 If not specified, the default is \fI$HOME/dinit.d\fR or, for the
 system service manager, each of \fI/etc/dinit.d/fR, \fI/usr/local/lib/dinit.d\fR,

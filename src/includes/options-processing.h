@@ -78,9 +78,7 @@ public:
 
 class service_dir_opt
 {
-    const char *service_dir = nullptr;;
-    bool service_dir_dynamic = false;
-
+    std::vector<const char *> service_dirs;
     static const char *user_home_path;
 
     service_dir_pathlist service_dir_paths;
@@ -92,7 +90,7 @@ public:
 
     void set_specified_service_dir(const char *specified_dir)
     {
-        service_dir = specified_dir;
+        service_dirs.push_back(specified_dir);
     }
 
     // Build the set of service directory paths, as per configuration specified thus far. This might be a

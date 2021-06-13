@@ -96,7 +96,7 @@ int main(int argc, char **argv)
                             " --help                       display help\n"
                             " --services-dir <dir>, -d <dir>\n"
                             "                              set base directory for service description\n"
-                            "                              files\n"
+                            "                              files, can be specified multiple times\n"
                             " <service-name>               check service with name <service-name>\n";
                     return EXIT_SUCCESS;
                 }
