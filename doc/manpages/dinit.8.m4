@@ -38,9 +38,9 @@ DESCRIPTION FILES\fR for details of the service description format.
 .SH OPTIONS
 .TP
 \fB\-d\fR \fIdir\fP, \fB\-\-services\-dir\fR \fIdir\fP
-Specifies \fIdir\fP as the directory containing service definition files.
-The directory specified will be the only directory searched for service
-definitions.
+Specifies \fIdir\fP as the directory containing service definition files, can
+be set multiple times. Default directories are not searched for services when
+this option is provided.
 
 If not specified, the default is \fI$HOME/dinit.d\fR or, for the
 system service manager, each of \fI/etc/dinit.d/fR, \fI/usr/local/lib/dinit.d\fR,
@@ -104,7 +104,7 @@ service names provided on the command line, other than "single", unless they app
 after a "-o" or "-m" options (or their long forms). This is to filter arguments
 that were intended for the kernel and not for \fBinit\fR. If running in a container,
 the "-o" option should be used regardless and will inhibit this filtering for any
-subsequent service names. 
+subsequent service names.
 .\"
 .SH SERVICE DESCRIPTION FILES
 .\"
@@ -144,7 +144,7 @@ changes. See \fBdinitctl\fR(8) for details.
 
 Process-based services are monitored and, if the process terminates, the
 service may be stopped or the process may be re-started, according to the
-configuration in the service description.  
+configuration in the service description.
 
 Once all services stop, the \fBdinit\fR daemon will itself terminate (or, if
 running as PID 1, will perform the appropriate type of system shutdown).

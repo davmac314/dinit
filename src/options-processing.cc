@@ -27,32 +27,35 @@ const char * service_dir_opt::get_user_home()
 
 void service_dir_opt::build_paths(bool am_system_init)
 {
-    /* service directory name */
-    if (service_dir == nullptr && ! am_system_init) {
-        const char * user_home = get_user_home();
-        if (user_home != nullptr) {
-            size_t user_home_len = strlen(user_home);
-            size_t dinit_d_len = strlen("/dinit.d");
-            size_t full_len = user_home_len + dinit_d_len + 1;
-            char *service_dir_w = new char[full_len];
-            std::memcpy(service_dir_w, user_home, user_home_len);
-            std::memcpy(service_dir_w + user_home_len, "/dinit.d", dinit_d_len);
-            service_dir_w[full_len - 1] = 0;
+    if (service_dirs.empty()) {
+        bool home_service_dir_set = false;
 
-            service_dir = service_dir_w;
-            service_dir_dynamic = true;
+        /* service directory name */
+        if (! am_system_init) {
+            const char * user_home = get_user_home();
+            if (user_home != nullptr) {
+                size_t user_home_len = strlen(user_home);
+                size_t dinit_d_len = strlen("/dinit.d");
+                size_t full_len = user_home_len + dinit_d_len + 1;
+                char *service_dir_w = new char[full_len];
+                std::memcpy(service_dir_w, user_home, user_home_len);
+                std::memcpy(service_dir_w + user_home_len, "/dinit.d", dinit_d_len);
+                service_dir_w[full_len - 1] = 0;
+
+                service_dir_paths.add_dir(service_dir_w, /*dyn_allocd=*/true);
+                home_service_dir_set = true;
+            }
+        }
+
+        if (! home_service_dir_set) {
+            service_dir_paths.add_dir("/etc/dinit.d", /*dyn_allocd=*/false);
+            service_dir_paths.add_dir("/usr/local/lib/dinit.d", false);
+            service_dir_paths.add_dir("/lib/dinit.d", false);
         }
     }
-
-    bool add_all_service_dirs = false;
-    if (service_dir == nullptr) {
-        service_dir = "/etc/dinit.d";
-        add_all_service_dirs = true;
-    }
-
-    service_dir_paths.add_dir(service_dir, service_dir_dynamic);
-    if (add_all_service_dirs) {
-        service_dir_paths.add_dir("/usr/local/lib/dinit.d", false);
-        service_dir_paths.add_dir("/lib/dinit.d", false);
+    else {
+        for (const char * dir : service_dirs) {
+            service_dir_paths.add_dir(dir, /*dyn_allocd=*/false);
+        }
     }
 }

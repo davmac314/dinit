@@ -281,7 +281,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                     "                              environment variable initialisation file\n"
                     " --services-dir <dir>, -d <dir>\n"
                     "                              set base directory for service description\n"
-                    "                              files\n"
+                    "                              files, can be specified multiple times\n"
                     " --system, -s                 run as the system service manager\n"
                     " --system-mgr, -m             run as system manager (perform shutdown etc)\n"
                     " --user, -u                   run as a user service manager\n"
