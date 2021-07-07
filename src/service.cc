@@ -86,7 +86,7 @@ void service_record::stopped() noexcept
     }
     else {
         becoming_inactive();
-        
+
         if (start_explicit) {
             // If we were explicitly started, our required_by count must be at least 1. Use
             // release() to correctly release, mark inactive and release dependencies.
@@ -110,7 +110,7 @@ void service_record::stopped() noexcept
         // - ... successfully (i.e. exit code 0)
         // - this service won't restart, and
         // - a shutdown isn't in progress
-        if (did_finish(stop_reason) && get_exit_status() == 0 && ! will_restart
+        if ((onstart_flags.always_chain || (did_finish(stop_reason) && get_exit_status() == 0 && ! will_restart))
                 && ! start_on_completion.empty() && ! services->is_shutting_down()) {
             try {
                 auto chain_to = services->load_service(start_on_completion.c_str());
@@ -223,18 +223,18 @@ void service_record::do_propagation() noexcept
         }
         prop_require = false;
     }
-    
+
     if (prop_release) {
         release_dependencies();
         prop_release = false;
     }
-    
+
     if (prop_failure) {
         prop_failure = false;
         stop_reason = stopped_reason_t::DEPFAILED;
         failed_to_start(true);
     }
-    
+
     if (prop_start) {
         prop_start = false;
         do_start();
@@ -338,7 +338,7 @@ bool service_record::start_check_dependencies() noexcept
             all_deps_started = false;
         }
     }
-    
+
     return all_deps_started;
 }
 
@@ -359,7 +359,7 @@ void service_record::all_deps_started() noexcept
         queue_for_console();
         return;
     }
-    
+
     waiting_for_deps = false;
 
     if (! can_proceed_to_start()) {

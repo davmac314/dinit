@@ -30,10 +30,12 @@ struct service_flags_t
     bool start_interruptible : 1; // the startup of this service process is ok to interrupt with SIGINT
     bool skippable : 1;   // if interrupted the service is skipped (scripted services)
     bool signal_process_only : 1;  // signal the session process, not the whole group
+    bool always_chain : 1; // always start chain-to service on exit
 
     service_flags_t() noexcept : rw_ready(false), log_ready(false),
             runs_on_console(false), starts_on_console(false), shares_console(false),
-            pass_cs_fd(false), start_interruptible(false), skippable(false), signal_process_only(false)
+            pass_cs_fd(false), start_interruptible(false), skippable(false), signal_process_only(false),
+            always_chain(false)
     {
     }
 };
@@ -855,6 +857,9 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
             }
             else if (option_txt == "signal-process-only") {
                 settings.onstart_flags.signal_process_only = true;
+            }
+            else if (option_txt == "always-chain") {
+                settings.onstart_flags.always_chain = true;
             }
             else {
                 throw service_description_exc(name, "Unknown option: " + option_txt);
