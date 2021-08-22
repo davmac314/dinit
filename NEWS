@@ -1,3 +1,28 @@
+== Version 0.12.0
+
+This is the third Alpha release, issued as a follow-up to the previous Alpha
+releases. It contains a number of minor improvements.
+
+Changes:
+ * A new "--ignore-unstarted" option to dinitctl, causing it to return success
+   when attempting to restart a service which is not started (including when
+   no service description for it exists).
+ * Add an "always-chain" service option, so that chaining to another service
+   (as specified via the "chain-to" setting) becomes unconditional.
+   Feature contributed by Alexander Sherikov.
+ * Add support for multiple service directories to be specified (via multiple
+   --services-dir options).
+   Feature contributed by Alexander Sherikov.
+ * Improve control socket creation / stale socket removal. Previously, a
+   system instance would unconditionally unlink a pre-existing socket file,
+   and non-system instances would fail if a pre-existing socket file existed
+   (even if it was not active, i.e. no dinit instance was accepting
+   connections on it). Now, if there is an existing socket file, dinit will
+   attempt to connect to it, and will refuse to start if this succeeds, or
+   unlink it otherwise. Unfortunately this cannot be done atomically, so it
+   should not be relied on as a general means to prevent more than one
+   instance of dinit from starting.
+
 == Version 0.11.0
 
 This is a second Alpha release, issued as a follow-up to the previous Alpha
