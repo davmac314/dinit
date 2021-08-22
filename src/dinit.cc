@@ -57,7 +57,7 @@ eventloop_t event_loop(dasynq::delayed_init {});
 static void sigint_reboot_cb(eventloop_t &eloop) noexcept;
 static void sigquit_cb(eventloop_t &eloop) noexcept;
 static void sigterm_cb(eventloop_t &eloop) noexcept;
-static void open_control_socket(bool report_ro_failure = true) noexcept;
+static bool open_control_socket(bool report_ro_failure = true) noexcept;
 static void close_control_socket() noexcept;
 static void confirm_restart_boot() noexcept;
 static void flush_log() noexcept;
@@ -447,9 +447,9 @@ int dinit_main(int argc, char **argv)
     init_log(log_is_syslog);
     log_flush_timer.add_timer(event_loop, dasynq::clock_type::MONOTONIC);
 
-    // Try to open control socket (may fail due to readonly filesystem)
-    open_control_socket(!am_system_init);
-    if (!am_system_init && !control_socket_open) {
+    // Try to open control socket (may fail due to readonly filesystem, we ignore that if we are
+    // system init)
+    if (!open_control_socket(!am_system_init)) {
         flush_log();
         return EXIT_FAILURE;
     }
@@ -759,8 +759,9 @@ void rootfs_is_rw() noexcept
 
 // Open/create the control socket, normally /dev/dinitctl, used to allow client programs to connect
 // and issue service orders and shutdown commands etc. This can safely be called multiple times;
-// once the socket has been successfully opened, further calls have no effect.
-static void open_control_socket(bool report_ro_failure) noexcept
+// once the socket has been successfully opened, further calls will check the socket file is still
+// present and re-create it if not.
+static bool open_control_socket(bool report_ro_failure) noexcept
 {
     if (control_socket_open) {
         struct stat stat_buf;
@@ -781,13 +782,7 @@ static void open_control_socket(bool report_ro_failure) noexcept
         struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
         if (name == nullptr) {
             log(loglevel_t::ERROR, "Opening control socket: out of memory");
-            return;
-        }
-
-        if (am_system_init) {
-            // Unlink any stale control socket file, but only if we are system init, since otherwise
-            // the 'stale' file may not be stale at all:
-            unlink(saddrname);
+            return false;
         }
 
         name->sun_family = AF_UNIX;
@@ -797,8 +792,33 @@ static void open_control_socket(bool report_ro_failure) noexcept
         if (sockfd == -1) {
             log(loglevel_t::ERROR, "Error creating control socket: ", strerror(errno));
             free(name);
-            return;
+            return false;
         }
+
+        // Check if there is already an active control socket (from another instance).
+        // Unfortunately, there's no way to check atomically if a socket file is stale. Still, we
+        // will try to check, since the consequences of running a system dinit instance twice are
+        // potentially severe.
+        int connr = connect(sockfd, (struct sockaddr *) name, sockaddr_size);
+        if (connr != -1 || errno == EAGAIN) {
+            log(loglevel_t::ERROR, "Control socket is already active"
+                    " (another instance already running?)");
+
+            close(connr);
+            close(sockfd);
+            free(name);
+
+            return false;
+        }
+
+        // Unlink any stale control socket file.
+        //
+        // In the worst case, this potentially removes a socket which was not active at the time
+        // we checked (just above) but has since become active; there's just no good API to avoid
+        // this (we'd have to use a file lock, on yet another file). Since that's unlikely to
+        // occur in practice, and because a stale socket will prevent communication with dinit (or
+        // prevent it starting), then we'll take the chance on unlinking here.
+        unlink(saddrname);
 
         if (bind(sockfd, (struct sockaddr *) name, sockaddr_size) == -1) {
             if (errno != EROFS || report_ro_failure) {
@@ -806,7 +826,7 @@ static void open_control_socket(bool report_ro_failure) noexcept
             }
             close(sockfd);
             free(name);
-            return;
+            return (errno != EROFS || report_ro_failure);
         }
         
         free(name);
@@ -816,13 +836,13 @@ static void open_control_socket(bool report_ro_failure) noexcept
         if (chmod(saddrname, S_IRUSR | S_IWUSR) == -1) {
             log(loglevel_t::ERROR, "Error setting control socket permissions: ", strerror(errno));
             close(sockfd);
-            return;
+            return false;
         }
 
         if (listen(sockfd, 10) == -1) {
             log(loglevel_t::ERROR, "Error listening on control socket: ", strerror(errno));
             close(sockfd);
-            return;
+            return false;
         }
 
         try {
@@ -835,6 +855,8 @@ static void open_control_socket(bool report_ro_failure) noexcept
             close(sockfd);
         }
     }
+
+    return control_socket_open;
 }
 
 static void close_control_socket() noexcept

@@ -140,7 +140,10 @@ services.
 During execution, Dinit accepts commands via a control socket which is created
 by Dinit when it starts. This can be used to order that a service be started
 or stopped, to determine service status, or to make certain configuration
-changes. See \fBdinitctl\fR(8) for details.
+changes. See \fBdinitctl\fR(8) for details. Dinit attempts to check for the
+existence of an already-active socket first, and will refuse to start if one
+exists. Unfortunately, this check cannot be done atomically, and should not be
+relied upon generally as a means to avoid starting two instances of dinit.
 
 Process-based services are monitored and, if the process terminates, the
 service may be stopped or the process may be re-started, according to the
