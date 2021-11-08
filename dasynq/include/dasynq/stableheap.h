@@ -1,5 +1,5 @@
-#ifndef DASYNQ_STABLE_HEAP_INCLUDED
-#define DASYNQ_STABLE_HEAP_INCLUDED 1
+#ifndef DASYNQ_STABLEHEAP_H_
+#define DASYNQ_STABLEHEAP_H_
 
 // Convert an "unstable" priority queue (which doesn't use FIFO ordering for same-priority elements)
 // into a "stable" queue (which does deliver same-priority elements in FIFO order). This is done by
@@ -127,4 +127,4 @@ class stable_heap : private H<T,stable_prio<P>,compare_stable_prio<P,C>>
 
 } // namespace dasynq
 
-#endif
+#endif /* DASYNQ_STABLEHEAP_H_ */

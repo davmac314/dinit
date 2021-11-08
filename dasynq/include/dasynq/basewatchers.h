@@ -1,3 +1,6 @@
+#ifndef DASYNQ_BASEWATCHERS_H_
+#define DASYNQ_BASEWATCHERS_H_
+
 // Dasynq: early declarations and base watchers.
 //
 // Here we define watcher functionality that is not dependent on the event loop type. In particular,
@@ -23,7 +26,7 @@ namespace dprivate {
     {
         sigprocmask(how, set, oset);
     }
-}
+} // namespace dprivate
 
 // A template to generate suitable default loop traits for a given type of mutex:
 template <typename T_Mutex> class default_traits
@@ -47,7 +50,7 @@ class event_loop;
 
 inline namespace {
     constexpr int DEFAULT_PRIORITY = 50;
-}
+} // namespace
 
 namespace dprivate {
     // (non-public API)
@@ -72,7 +75,7 @@ namespace dprivate {
                 typename heap_def<empty_node, int>::handle_t &>::value;
 
         using node_type = std::conditional<use_empty_node, empty_node, base_watcher *>::type;
-    }
+    } // namespace
 
     using prio_queue = heap_def<node_type, int>;
 
@@ -274,5 +277,9 @@ namespace dprivate {
             init_timer_handle(timer_handle);
         }
     };
-} // dprivate
-} // dasynq
+
+} // namespace dprivate
+
+} // namespace dasynq
+
+#endif /* DASYNQ_BASEWATCHERS_H_ */

@@ -1,7 +1,7 @@
 #ifndef DINIT_H_INCLUDED
 #define DINIT_H_INCLUDED 1
 
-#include "dasynq.h"
+#include <dasynq.h>
 
 /*
  * General Dinit definitions.

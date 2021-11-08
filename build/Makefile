@@ -22,3 +22,7 @@ includes/mconfig.h: ../mconfig tools/mconfig-gen.cc
 	./tools/mconfig-gen SBINDIR=$(SBINDIR) SYSCONTROLSOCKET=$(SYSCONTROLSOCKET) \
 		SHUTDOWN_PREFIX=$(SHUTDOWN_PREFIX) VERSION=$(VERSION) \
 		$(if $(USE_UTMPX),USE_UTMPX=$(USE_UTMPX),) > includes/mconfig.h
+
+clean:
+	rm -f includes/mconfig.h
+	$(MAKE) -C tools clean

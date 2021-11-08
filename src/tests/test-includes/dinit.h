@@ -8,7 +8,7 @@
 #include <string>
 #include <cassert>
 
-#include "dasynq.h"
+#include <dasynq.h>
 
 using clock_type = dasynq::clock_type;
 using rearm = dasynq::rearm;

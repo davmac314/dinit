@@ -1,9 +1,12 @@
+#ifndef DASYNQ_CHILDPROC_H_
+#define DASYNQ_CHILDPROC_H_
+
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include <signal.h>
+#include <csignal>
 
-#include "dasynq-btree_set.h"
+#include "btree_set.h"
 
 namespace dasynq {
 
@@ -82,7 +85,7 @@ inline void sigchld_handler(int signum)
     // hurt in any case).
 }
 
-} // dprivate namespace
+} // namespace dprivate
 
 using pid_watch_handle_t = dprivate::pid_map::pid_handle_t;
 
@@ -206,5 +209,6 @@ template <class Base> class child_proc_events : public Base
     }
 };
 
+} // namespace dasynq
 
-} // end namespace
+#endif /* DASYNQ_CHILDPROC_H_ */

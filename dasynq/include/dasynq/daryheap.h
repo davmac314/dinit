@@ -1,5 +1,5 @@
-#ifndef DASYNQ_DARYHEAP_H_INCLUDED
-#define DASYNQ_DARYHEAP_H_INCLUDED
+#ifndef DASYNQ_DARYHEAP_H_
+#define DASYNQ_DARYHEAP_H_
 
 #include <type_traits>
 #include <functional>
@@ -8,8 +8,7 @@
 
 #include <cstddef>
 
-#include "dasynq-svec.h"
-
+#include "svec.h"
 
 namespace dasynq {
 
@@ -319,6 +318,6 @@ class dary_heap
     dary_heap(const dary_heap &) = delete;
 };
 
-}
+} // namespace dasynq
 
-#endif
+#endif /* DASYNQ_DARYHEAP_H_ */

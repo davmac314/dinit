@@ -1,5 +1,5 @@
-#ifndef DASYNQ_CONFIG_H_INCLUDED
-#define DASYNQ_CONFIG_H_INCLUDED
+#ifndef DASYNQ_CONFIG_H_
+#define DASYNQ_CONFIG_H_
 
 // You can customise Dasynq's build options in this file. Typically, you won't need to do anything; the
 // defaults are sensible for a range of operating systems, though for some BSD family OSes you may need
@@ -106,4 +106,4 @@
 #endif
 #endif /* __GNUC__ */
 
-#endif
+#endif /* DASYNQ_CONFIG_H_ */

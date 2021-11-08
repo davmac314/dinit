@@ -1,5 +1,5 @@
-#ifndef DASYNQ_BTREE_SET_H
-#define DASYNQ_BTREE_SET_H
+#ifndef DASYNQ_BTREE_SET_H_
+#define DASYNQ_BTREE_SET_H_
 
 #include <functional>
 #include <utility>
@@ -588,6 +588,6 @@ class btree_set
     }
 };
 
-}
+} // namespace dasynq
 
-#endif
+#endif /* DASYNQ_BTREE_SET_H_ */

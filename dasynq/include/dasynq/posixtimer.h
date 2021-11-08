@@ -1,13 +1,16 @@
+#ifndef DASYNQ_POSIXTIMER_H_
+#define DASYNQ_POSIXTIMER_H_
+
 #include <vector>
 #include <utility>
 #include <cstdlib>
 
 #include <sys/time.h>
-#include <time.h>
-#include <signal.h>
+#include <ctime>
+#include <csignal>
 
-#include "dasynq-config.h"
-#include "dasynq-timerbase.h"
+#include "config.h"
+#include "timerbase.h"
 
 namespace dasynq {
 
@@ -203,4 +206,6 @@ class posix_timer_events : public timer_base<Base>
     ~posix_timer_events() noexcept { }
 };
 
-}
+} // namespace dasynq
+
+#endif /* DASYNQ_POSIXTIMER_H_ */

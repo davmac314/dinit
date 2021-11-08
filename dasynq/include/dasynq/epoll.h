@@ -1,3 +1,6 @@
+#ifndef DASYNQ_EPOLL_H_
+#define DASYNQ_EPOLL_H_
+
 #include <system_error>
 #include <mutex>
 #include <type_traits>
@@ -10,7 +13,7 @@
 #include <sys/wait.h>
 
 #include <unistd.h>
-#include <signal.h>
+#include <csignal>
 
 namespace dasynq {
 
@@ -378,4 +381,6 @@ template <class Base> class epoll_loop : public Base
     }
 };
 
-} // end namespace
+} // namespace dasynq
+
+#endif /* DASYNQ_EPOLL_H_ */

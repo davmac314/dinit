@@ -1,9 +1,9 @@
-#ifndef DASYNQ_UTIL_H_INCLUDED
-#define DASYNQ_UTIL_H_INCLUDED 1
+#ifndef DASYNQ_UTIL_H_
+#define DASYNQ_UTIL_H_
 
 #include <unistd.h>
 
-#include "dasynq-config.h"
+#include "config.h"
 
 namespace dasynq {
 
@@ -36,7 +36,6 @@ using ::pipe2;
 
 #endif
 
+} // namespace dasynq
 
-}
-
-#endif
+#endif /* DASYNQ_UTIL_H_ */

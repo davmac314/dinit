@@ -1,5 +1,5 @@
-#ifndef DASYNQ_INTERRUPT_H_INCLUDED
-#define DASYNQ_INTERRUPT_H_INCLUDED
+#ifndef DASYNQ_INTERRUPT_H_
+#define DASYNQ_INTERRUPT_H_
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -8,9 +8,9 @@
 #include <sys/eventfd.h>
 #endif
 
-#include "dasynq-config.h"
-#include "dasynq-mutex.h"
-#include "dasynq-util.h"
+#include "config.h"
+#include "mutex.h"
+#include "util.h"
 
 /*
  * Mechanism for interrupting an event loop wait.
@@ -117,6 +117,6 @@ template <typename Base, typename Mutex> class interrupt_channel : public Base
     }
 };
 
-}
+} // namespace dasynq
 
-#endif /* DASYNQ_INTERRUPT_H_INCLUDED */
+#endif /* DASYNQ_INTERRUPT_H_ */

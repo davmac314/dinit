@@ -18,18 +18,15 @@ all: dinit dinitctl dinitcheck $(SHUTDOWN)
 ../mconfig:
 	@UNAME=`uname`;\
 	if [ -f "../configs/mconfig.$$UNAME.sh" ]; then \
-	    echo "Found auto-configuration script for OS: $$UNAME"; \
+	    echo "*** Found auto-configuration script for OS: $$UNAME"; \
 	    ( cd ../configs; sh "mconfig.$$UNAME.sh" ) \
 	elif [ -f "../configs/mconfig.$$UNAME" ]; then \
-	    echo "Found configuration for OS: $$UNAME"; \
+	    echo "*** Found configuration for OS: $$UNAME"; \
 	    ln -sf "configs/mconfig.$$UNAME" ../mconfig; \
 	else \
-	    echo "No config available. Please create suitable mconfig file."; \
+	    echo "*** No config available. Please create suitable mconfig file."; \
 	    exit 1; \
 	fi
-
-mconfig-gen: mconfig-gen.cc ../mconfig
-	$(HOSTCXX) $(HOSTCXXOPTS) -o mconfig-gen mconfig-gen.cc $(HOSTLDFLAGS)
 
 $(objects): ../build/includes/mconfig.h
 
@@ -46,7 +43,7 @@ $(SHUTDOWNPREFIX)shutdown: shutdown.o
 	$(CXX) -o $(SHUTDOWNPREFIX)shutdown shutdown.o $(LDFLAGS)
 
 $(objects): %.o: %.cc
-	$(CXX) $(CXXOPTS) -MMD -MP -Iincludes -Idasynq -I../build/includes -c $< -o $@
+	$(CXX) $(CXXOPTS) -MMD -MP -Iincludes -I../dasynq/include -I../build/includes -c $< -o $@
 
 check: ../build/includes/mconfig.h
 	$(MAKE) -C tests check
@@ -67,8 +64,7 @@ endif
 
 clean:
 	rm -f *.o *.d
-	rm -f dinit dinitctl dinitcheck shutdown mconfig-gen
-	rm -f includes/mconfig.h
+	rm -f dinit dinitctl dinitcheck shutdown
 	$(MAKE) -C tests clean
 	$(MAKE) -C igr-tests clean
 

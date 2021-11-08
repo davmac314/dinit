@@ -1,9 +1,69 @@
-#include "dasynq-select.h"
-#include "dasynq-signal.h"
+#ifndef DASYNQ_SELECT_H_
+#define DASYNQ_SELECT_H_
+
+#include <system_error>
+#include <vector>
+#include <atomic>
+
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <sys/select.h>
+
+#include <unistd.h>
+#include <csignal>
+#include <csetjmp>
+
+#include "config.h"
+#include "signal.h"
+
+// "pselect"-based event loop mechanism.
+//
 
 namespace dasynq {
 
-template <class Base> class pselect_events : public signal_events<Base, false>
+template <class Base> class select_events;
+
+class select_traits : public signal_traits
+{
+    public:
+
+    class fd_r;
+
+    // File descriptor optional storage. If the mechanism can return the file descriptor, this
+    // class will be empty, otherwise it can hold a file descriptor.
+    class fd_s {
+        public:
+        fd_s(int fd) noexcept { }
+
+        DASYNQ_EMPTY_BODY
+    };
+
+    // File descriptor reference (passed to event callback). If the mechanism can return the
+    // file descriptor, this class holds the file descriptor. Otherwise, the file descriptor
+    // must be stored in an fd_s instance.
+    class fd_r {
+        int fd;
+        public:
+        int getFd(fd_s ss)
+        {
+            return fd;
+        }
+        fd_r(int nfd) : fd(nfd)
+        {
+        }
+    };
+
+    constexpr static bool has_bidi_fd_watch = false;
+    constexpr static bool has_separate_rw_fd_watches = true;
+    // requires interrupt after adding/enabling an fd:
+    constexpr static bool interrupt_after_fd_add = true;
+    constexpr static bool interrupt_after_signal_add = true;
+    constexpr static bool supports_non_oneshot_fd = false;
+};
+
+template <class Base> class select_events : public signal_events<Base, true>
 {
     fd_set read_set;
     fd_set write_set;
@@ -56,16 +116,16 @@ template <class Base> class pselect_events : public signal_events<Base, false>
     public:
 
     /**
-     * pselect_events constructor.
+     * select_events constructor.
      *
      * Throws std::system_error or std::bad_alloc if the event loop cannot be initialised.
      */
-    pselect_events()
+    select_events()
     {
         init();
     }
 
-    pselect_events(typename Base::delayed_init d) noexcept
+    select_events(typename Base::delayed_init d) noexcept
     {
         // delayed initialisation
     }
@@ -78,7 +138,7 @@ template <class Base> class pselect_events : public signal_events<Base, false>
         Base::init(this);
     }
 
-    ~pselect_events() noexcept
+    ~select_events() noexcept
     {
         if (max_fd != -1) {
             Base::cleanup();
@@ -218,11 +278,12 @@ template <class Base> class pselect_events : public signal_events<Base, false>
     //            pending.
     void pull_events(bool do_wait) noexcept
     {
-        struct timespec ts;
-        struct timespec *wait_ts = nullptr;
+        struct timeval ts;
+        struct timeval *wait_ts = nullptr;
 
         Base::lock.lock();
 
+        // Check whether any timers are pending, and what the next timeout is.
         // Check whether any timers are pending, and what the next timeout is.
         this->process_monotonic_timers(do_wait, ts, wait_ts);
 
@@ -236,53 +297,37 @@ template <class Base> class pselect_events : public signal_events<Base, false>
 
         const sigset_t &active_sigmask = this->get_active_sigmask();
 
-        sigset_t sigmask;
-        this->sigmaskf(SIG_UNBLOCK, nullptr, &sigmask);
-
-        // This is horrible, but hopefully will be optimised well. POSIX gives no way to combine signal
-        // sets other than this.
-        for (int i = 1; i < NSIG; i++) {
-            if (! sigismember(&active_sigmask, i)) {
-                sigdelset(&sigmask, i);
-            }
-        }
         int nfds = max_fd + 1;
         Base::lock.unlock();
 
         // using sigjmp/longjmp is ugly, but there is no other way. If a signal that we're watching is
         // received during polling, it will longjmp back to here:
         if (sigsetjmp(this->get_sigreceive_jmpbuf(), 1) != 0) {
-            this->process_signal(sigmask);
+            this->process_signal();
             do_wait = false;
         }
 
         if (! do_wait) {
             ts.tv_sec = 0;
-            ts.tv_nsec = 0;
+            ts.tv_usec = 0;
             wait_ts = &ts;
         }
 
-        std::atomic_signal_fence(std::memory_order_release);
-
-        int r = pselect(nfds, &read_set_c, &write_set_c, &err_set, wait_ts, &sigmask);
+        this->sigmaskf(SIG_UNBLOCK, &active_sigmask, nullptr);
+        int r = select(nfds, &read_set_c, &write_set_c, &err_set, wait_ts);
+        // Note, a signal may be received here and the handler may perform siglongjmp to the above
+        // established jmpbuf; that means we will execute the select statement again, but that's fine.
+        this->sigmaskf(SIG_BLOCK, &active_sigmask, nullptr);
 
         if (r == -1 || r == 0) {
             // signal or no events
-            if (r == 0) {
-                if (! do_wait) {
-                    // At least on Mac OS, pselect doesn't seem to give us a pending signal
-                    // if we have a zero timeout. Force detection using sigmask:
-                    sigset_t origmask;
-                    this->sigmaskf(SIG_SETMASK, &sigmask, &origmask);
-                    this->sigmaskf(SIG_SETMASK, &origmask, nullptr);
-                }
-                else {
-                    // timeout:
-                    Base::lock.lock();
-                    this->process_monotonic_timers();
-                    Base::lock.unlock();
-                }
+            if (r == 0 && do_wait) {
+                // timeout:
+                Base::lock.lock();
+                this->process_monotonic_timers();
+                Base::lock.unlock();
             }
+
             return;
         }
 
@@ -290,4 +335,6 @@ template <class Base> class pselect_events : public signal_events<Base, false>
     }
 };
 
-} // end namespace
+} // namespace dasynq
+
+#endif /* DASYNQ_SELECT_H_ */

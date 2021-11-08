@@ -24,4 +24,5 @@ install:
 
 clean:
 	$(MAKE) -C src clean
+	$(MAKE) -C build clean
 	$(MAKE) -C doc/manpages clean

@@ -1,11 +1,14 @@
+#ifndef DASYNQ_ITIMER_H_
+#define DASYNQ_ITIMER_H_
+
 #include <vector>
 #include <utility>
 
-#include <signal.h>
+#include <csignal>
 #include <sys/time.h>
-#include <time.h>
+#include <ctime>
 
-#include "dasynq-timerbase.h"
+#include "timerbase.h"
 
 namespace dasynq {
 
@@ -282,4 +285,6 @@ class itimer_events : public timer_base<Base>
     }
 };
 
-}
+} // namespace dasynq
+
+#endif /* DASYNQ_ITIMER_H_ */

@@ -1,17 +1,33 @@
-#ifndef DASYNQ_SIGNAL_INCLUDED
-#define DASYNQ_SIGNAL_INCLUDED 1
+#ifndef DASYNQ_SIGNAL_H_
+#define DASYNQ_SIGNAL_H_
 
 #include <atomic>
 
-#include <signal.h>
-#include <setjmp.h>
+#include <csignal>
+#include <csetjmp>
 #include <sys/types.h>
 
 // Support for the standard POSIX signal mechanisms. This can be used by backends that don't
-// otherwise support receiving signals. It is not particularly nice (it involves using longjmp
+// otherwise support receiving signals. It is not particularly nice (it involves using siglongjmp
 // out of a signal handler, which POSIX mildly frowns upon) but it's really the only viable way
 // to process signals together with file descriptor / other events and obtain the full siginfo_t
 // data passed to the signal handler.
+
+// Use:
+// - extend the signal_events class below
+// - when wanting to poll for events:
+//   - establish a landing pad via sigsetjmp, to the jmpbuf returned by get_sigreceive_jmpbuf()
+//   - sigsetjmp will return again with non-zero if a signal is received; in this case,
+//     call process_signal(...) and set timeout to zero, since an event has been received
+//   - unmask the signal
+//   - poll the backend (eg call select())
+//   - mask the signal
+
+// sigsetjmp/siglongjmp are used rather than plain setjmp/longjmp to ensure that the signal mask is
+// restored, and avoid the possibility of the signal handler being executed multiple times (there
+// is a single-entry buffer for siginfo data, so if the handler executed multiple times, data would
+// be lost).
+
 
 namespace dasynq {
 
@@ -100,7 +116,8 @@ inline siginfo_t * get_siginfo()
     return &sig_capture::siginfo_cap;
 }
 
-} } // namespace dprivate :: signal_mech
+} // namespace signal_mech
+} // namespace dprivate
 
 // signal_events template.
 //
@@ -141,11 +158,21 @@ template <class Base, bool mask_enables = false> class signal_events : public Ba
         return dprivate::signal_mech::get_sigreceive_jmpbuf();
     }
 
-    // process a received signal
+    // Process a received signal
+    // Called when we have received a signal and its handler has been dispatched, at which point the
+    // handler has (a) stored the siginfo received and (b) performed a siglongjmp to a landing pad
+    // established just before the signal was unmasked. This function retrieves the stored siginfo
+    // and passes the signal to the base class (via Base::receive_signal).
     void process_signal()
     {
         using namespace dprivate::signal_mech;
+
+        // We want to prevent the following read of siginfo from moving forward - it must not move
+        // forward prior to the point where the signal was unmasked - so use a fence with acquire semantics:
         std::atomic_signal_fence(std::memory_order_acquire);
+        // (this is probably unnecessary, due to the setjmp/longjmp combination that should precede the call
+        // to this function, but we play it safe).
+
         auto * sinfo = get_siginfo();
         sigdata_t sigdata;
         sigdata.info = *sinfo;
@@ -163,12 +190,18 @@ template <class Base, bool mask_enables = false> class signal_events : public Ba
         Base::lock.unlock();
     }
 
-    // process a received signal, and update sigmask - which should reflect the inverse of the
-    // active signal mask.
+    // Process a received signal, and update sigmask - which should reflect the inverse of the
+    // active signal mask. See comments for process_signal() above.
     void process_signal(sigset_t &sigmask)
     {
         using namespace dprivate::signal_mech;
+
+        // We want to prevent the following read of siginfo from moving forward - it must not move
+        // forward prior to the point where the signal was unmasked - so use a fence with acquire semantics:
         std::atomic_signal_fence(std::memory_order_acquire);
+        // (this is probably unnecessary, due to the setjmp/longjmp combination that should precede the call
+        // to this function, but we play it safe).
+
         auto * sinfo = get_siginfo();
         sigdata_t sigdata;
         sigdata.info = *sinfo;
@@ -243,6 +276,6 @@ template <class Base, bool mask_enables = false> class signal_events : public Ba
 
 };
 
-}
+} // namespace dasynq
 
-#endif
+#endif /* DASYNQ_SIGNAL_H_ */

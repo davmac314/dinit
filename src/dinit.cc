@@ -23,8 +23,9 @@
 #include <sys/procctl.h>
 #endif
 
+#include <dasynq.h>
+
 #include "dinit.h"
-#include "dasynq.h"
 #include "service.h"
 #include "control.h"
 #include "dinit-log.h"
