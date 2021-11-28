@@ -42,20 +42,20 @@ void service_dir_opt::build_paths(bool am_system_init)
                 std::memcpy(service_dir_w + user_home_len, "/dinit.d", dinit_d_len);
                 service_dir_w[full_len - 1] = 0;
 
-                service_dir_paths.add_dir(service_dir_w, /*dyn_allocd=*/true);
+                service_dir_paths.emplace_back(service_dir_w, /*dyn_allocd=*/true);
                 home_service_dir_set = true;
             }
         }
 
         if (! home_service_dir_set) {
-            service_dir_paths.add_dir("/etc/dinit.d", /*dyn_allocd=*/false);
-            service_dir_paths.add_dir("/usr/local/lib/dinit.d", false);
-            service_dir_paths.add_dir("/lib/dinit.d", false);
+            service_dir_paths.emplace_back("/etc/dinit.d", /*dyn_allocd=*/false);
+            service_dir_paths.emplace_back("/usr/local/lib/dinit.d", false);
+            service_dir_paths.emplace_back("/lib/dinit.d", false);
         }
     }
     else {
         for (const char * dir : service_dirs) {
-            service_dir_paths.add_dir(dir, /*dyn_allocd=*/false);
+            service_dir_paths.emplace_back(dir, /*dyn_allocd=*/false);
         }
     }
 }

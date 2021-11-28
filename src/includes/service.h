@@ -17,7 +17,7 @@
 #include "load-service.h"
 #include "dinit-ll.h"
 #include "dinit-log.h"
-#include "options-processing.h" // TODO maybe remove, service_dir_pathlist can be moved?
+#include "service-dir.h"
 
 /*
  * This header defines service_record, a data record maintaining information about a service,
