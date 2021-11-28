@@ -1034,6 +1034,11 @@ class dirload_service_set : public service_set
         // nothing to do.
     }
 
+    dirload_service_set(const char *path, bool dyn_alloc = false)
+    {
+        service_dirs.emplace_back(path, dyn_alloc);
+    }
+
     dirload_service_set(const dirload_service_set &) = delete;
 
     int get_service_dir_count()
