@@ -200,11 +200,11 @@ Remove a dependency between two services. The \fIdependency-type\fR must be one 
 as a result of removing the dependency.  
 .TP
 \fBenable\fR
-Permanently enable a \fBwaits-for\fR dependency between two services. This is much like \fBadd-dep\fR
+Persistently enable a \fBwaits-for\fR dependency between two services. This is much like \fBadd-dep\fR
 but it also starts the dependency if the dependent is started (without explicit activation, so the
 dependency will stop if the dependent stops), and it creates a symbolic link in the directory
 specified via the \fBwaits-for.d\fR directive in the service description (there must be only one such
-directive). The dependency should therefore be persistent.
+directive) so that the dependency will survive between sessions.
 
 If the \fB--from\fR option is not used to specify the dependent, the dependency is created from the
 \fBboot\fR service by default.
@@ -212,6 +212,10 @@ If the \fB--from\fR option is not used to specify the dependent, the dependency 
 \fBdisable\fR
 Permanently disable a \fBwaits-for\fR dependency between two services. This is the complement of the
 \fBenable\fR command; see the description above for more information.
+
+Note that the \fBdisable\fR command affects only the dependency specified (or implied). It has no
+other effect, and a service that is "disabled" may still be started if it is a dependency of
+another started service.
 .\"
 .SH SERVICE OPERATION
 .\"

@@ -134,7 +134,7 @@ services.
 .TP
 \fBstop\-command\fR = \fIcommand-string\fR
 Specifies the command to stop the service. Applicable only to \fBscripted\fR
-services.
+services (and optional for such services).
 .TP
 \fBworking-dir\fR = \fIdirectory\fR
 Specifies the working directory for this service. For a scripted service, this
@@ -146,9 +146,9 @@ username or numeric ID. If specified by name, the group for the process will
 also be set to the primary group of the specified user.
 .TP
 \fBrestart\fR = {yes | true | no | false}
-Indicates whether the service should automatically restart if it stops for
-any reason (including unexpected process termination, service dependency
-stopping, or user-initiated service stop).
+Indicates whether the service should automatically restart if it stops, including due to
+unexpected process termination or a dependency stopping. Note that if a service stops due to
+user request, automatic restart is inhibited.
 .TP
 \fBsmooth\-recovery\fR = {yes | true | no | false}
 Applies only to \fBprocess\fR and \fBbgprocess\fR services. When set true/yes,
@@ -157,21 +157,21 @@ dependent services. This setting is meaningless if the \fBrestart\fR setting
 is set to false.
 .TP
 \fBrestart\-delay\fR = \fIXXX.YYYY\fR
-Specifies the minimum time between automatic restarts. Enforcing a sensible
+Specifies the minimum time (in seconds) between automatic restarts. Enforcing a sensible
 minimum prevents Dinit from consuming a large number of process cycles in
 case a process continuously fails immediately after it is started. The
 default is 0.2 (200 milliseconds).
 .TP
 \fBrestart\-limit\-interval\fR = \fIXXX.YYYY\fR
-Sets the interval, in seconds, over which restarts are limited. If a process
+Sets the interval (in seconds) over which restarts are limited. If a process
 automatically restarts more than a certain number of times (specified by the
-\fBrestart-limit-count\fR setting) in this time interval, it will not restart
+\fBrestart-limit-count\fR setting) in this time interval, it will not be restarted
 again. The default value is 10 seconds.
 .TP
 \fBrestart\-limit\-count\fR = \fINNN\fR
 Specifies the maximum number of times that a service can automatically restart
 over the interval specified by \fBrestart\-limit\-interval\fR. Specify a value
-of 0 to disable the restart limit.
+of 0 to disable the restart limit. The default value is 3.
 .TP
 \fBstart\-timeout\fR = \fIXXX.YYY\fR
 Specifies the time in seconds allowed for the service to start. If the
@@ -246,7 +246,7 @@ directly, but can be chained via this directive.
 The chain is not executed if the initial service was explicitly stopped,
 stopped due to a dependency stopping (for any reason), if it will restart
 (including due to a dependent restarting), or if its process terminates
-abnormally or with an exit status indicating an error. However, if
+abnormally or with an exit status indicating an error. However, if the
 \fBalways-chain\fR option is set the chain is started regardless of the
 reason and the status of this service termination.
 .TP
@@ -294,8 +294,10 @@ execution to a file descriptor (chosen arbitrarily) attached to the write end of
 .RE
 .TP
 \fBlogfile\fR = \fIlog-file-path\fR
-Specifies the log file for the service. Output from the service process
-will go this file.
+Specifies the log file for the service. Output from the service process (standard output and
+standard error streams) will be appended to this file. This setting has no effect if the service
+is set to run on the console (via the \fBruns\-on\-console\fR, \fBstarts\-on\-console\fR, or
+\fBshares\-console\fR options).
 .TP
 \fBoptions\fR = \fIoption\fR...
 Specifies various options for this service. See the \fBOPTIONS\fR section. This
@@ -364,31 +366,33 @@ directed to the console (or precisely, to the device to which Dinit's standard
 output stream is connected). A service running on the console prevents other
 services from running on the console (they will queue for the console).
 
+Proper operation of this option (and related options) assumes that \fBdinit\fR
+is itself attached correctly to the console device (or a terminal, in which case
+that terminal will be used as the "console").
+
 The \fIinterrupt\fR key (normally control-C) will be active for process / scripted
 services that run on the console. Handling of an interrupt is determined by
 the service process, but typically will cause it to terminate.
 .TP
 \fBstarts\-on\-console\fR
-Specifies that this service uses the console during service startup. This is
-implied by \fBruns-on-console\fR, but can be specified separately for services
-that need the console while they start but not afterwards.
+Specifies that this service uses the console during service startup. This is identical
+to \fBruns\-on\-console\fR except that the console will be released (available for running
+other services) once the service has started. It is applicable only for \fBbgprocess\fR
+and \fBscripted\fR services.
 
-This setting is not applicable to regular \fBprocess\fR services, but can be
-used for \fBscripted\fR and \fBbgprocess\fR services. It allows for
-interrupting startup via the \fIinterrupt\fR key (normally control-C). This is
-useful to allow filesystem checks to be interrupted/skipped.
-
-This option is implied by \fBruns\-on\-console\fR, and is mutually exclusive
-with \fBshares\-console\fR; setting this option, or setting \fBruns\-on\-console\fR,
-unsets \fBshares\-console\fR.
+As for the \fBruns\-on\-console\fR option, the \fIinterrupt\fR key will be enabled
+while the service has the console.
 .TP
 \fBshares\-console\fR
 Specifies that this service should be given access to the console (input and output
 will be connected to the console), but that it should not exclusively hold the
-console and not delay the start of services with \fBstarts\-on\-console\fR.
+console. A service given access to the console in this way will not delay the startup of services
+which require exclusive access to the console (see \fBstarts\-on\-console\fR,
+\fBruns\-on\-console\fR) nor will it be delayed if such services are already running.
 
 This is mutually exclusive with both \fBstarts\-on\-console\fR and \fBruns\-on\-console\fR;
-setting this option unsets both those options.
+setting this option unsets both those options, and setting either of those options unsets
+this option.
 .TP
 \fBstarts-rwfs\fR
 This service mounts the root filesystem read/write (or at least mounts the
@@ -420,14 +424,19 @@ For scripted services, indicates that if the service startup process terminates
 via an interrupt signal (SIGINT), then the service should be considered started.
 Note that if the interrupt was issued by Dinit to cancel startup, the service
 will instead be considered stopped.
+
+This can be combined with options such as \fBstarts\-on\-console\fR to allow
+skipping certain non-essential services (such as filesystem checks) using the
+\fIinterrupt\fR key (typically control-C).
 .TP
 \fBsignal-process-only\fR
 Signal the service process only, rather than its entire process group, whenever
 sending it a signal for any reason.
 .TP
 \fBalways-chain\fR
-Alters behavior of \fBchains-to\fR property forcing the chained service to
-always start on termination of this service.
+Alters behaviour of the \fBchain-to\fR property, forcing the chained service to
+always start on termination of this service (instead of only when this service
+terminates with an exit status indicating success).
 .RE
 .LP
 The next section contains example service descriptions including some of the
