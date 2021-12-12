@@ -163,6 +163,12 @@ inline string read_setting_name(string_iterator & i, string_iterator end)
     const ctype<char> & facet = use_facet<ctype<char> >(locale::classic());
 
     string rval;
+
+    // Don't allow dash/dot at start of setting name
+    if (i == end || (*i == '-' || *i == '.')) {
+        return {};
+    }
+
     // Allow alphabetical characters, and dash (-) in setting name
     while (i != end && (*i == '-' || *i == '.' || facet.is(ctype<char>::alpha, *i))) {
         rval += *i;
@@ -567,7 +573,7 @@ void process_service_file(string name, std::istream &service_file, T func)
             }
             string setting = read_setting_name(i, end);
             i = skipws(i, end);
-            if (i == end || (*i != '=' && *i != ':')) {
+            if (setting.empty() || i == end || (*i != '=' && *i != ':')) {
                 throw service_description_exc(name, "badly formed line.");
             }
             i = skipws(++i, end);
