@@ -145,6 +145,13 @@ Specifies which user to run the process(es) for this service as. Specify as a
 username or numeric ID. If specified by name, the group for the process will
 also be set to the primary group of the specified user.
 .TP
+\fBenv\-file\fR = \fIfile\fR
+Specifies a file containing value assignments for environment variables, in the same
+format recognised by the \fBdinit\fR command's \fB\-\-env\-file\fR option. The file is
+read (or re-read) whenever the service is started. Note that the values read do not
+affect for the processing performed for the \fBsub\-vars\fR load option, which is done
+when the service description is loaded.
+.TP
 \fBrestart\fR = {yes | true | no | false}
 Indicates whether the service should automatically restart if it stops, including due to
 unexpected process termination or a dependency stopping. Note that if a service stops due to
