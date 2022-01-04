@@ -1267,7 +1267,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
     if (enable) {
         if (symlink((string("../") + to).c_str(), dep_link_path.c_str()) == -1) {
             cerr << "dinitctl: could not create symlink at " << dep_link_path << ": " << strerror(errno)
-                    << "\n" "dinitctl: note: service was activated, but will not be enabled on restart."
+                    << "\n" "dinitctl: note: service was enabled for now; persistent enable failed."
                     << endl;
             return 1;
         }
@@ -1276,7 +1276,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
         if (unlink(dep_link_path.c_str()) == -1) {
             cerr << "dinitctl: could not unlink dependency entry " << dep_link_path << ": "
                     << strerror(errno) << "\n"
-                    "dinitctl: note: service was disabled, but will be re-enabled on restart." << endl;
+                    "dinitctl: note: service was disabled for now; persistent disable failed." << endl;
             return 1;
         }
     }
