@@ -313,11 +313,14 @@ directive can be specified multiple times to set additional options.
 \fBload\-options\fR = \fIload_option\fR...
 Specifies options for interpreting other settings when loading this service
 description. Currently there is only one available option, \fBsub\-vars\fR,
-which specifies that command line arguments in the form of \fB$NAME\fR should
+which specifies that complete command-line arguments in the form of \fB$NAME\fR should
 be replaced with the contents of the environment variable with the specified
-name. Note that no word-splitting is performed and the variable value always
-becomes a single argument; if the variable is not defined, it is replaced with
-an empty (zero-length) argument.
+name. No word-splitting is performed and the variable value always becomes a single
+argument; if the variable is not defined, it is replaced with an empty (zero-length)
+argument. Environment variable variables are taken from the environment of the \fBdinit\fR
+process, and values specified via \fBenv\-file\fR or \fBready\-notification\fR are not available.
+This functionality is likely to be re-worked or removed in the future; use of this option should
+be avoided if possible.
 .TP
 \fBinittab\-id\fR = \fIid-string\fR
 When this service is started, if this setting (or the \fBinittab\-line\fR setting) has a
