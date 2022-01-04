@@ -50,23 +50,25 @@ void test_nonexistent()
     assert(got_service_not_found);
 }
 
+// test_prelim_dep: A preliminary (unresolved) service dependency
+class test_prelim_dep
+{
+    public:
+    std::string name;
+    dependency_type dep_type;
+
+    test_prelim_dep(const std::string &name_p, dependency_type dep_type_p)
+        : name(name_p), dep_type(dep_type_p) { }
+    test_prelim_dep(std::string &&name_p, dependency_type dep_type_p)
+        : name(std::move(name_p)), dep_type(dep_type_p) { }
+};
+
 void test_settings()
 {
     using string = std::string;
     using string_iterator = std::string::iterator;
 
-    // prelim_dep: A preliminary (unresolved) service dependency
-    class prelim_dep
-    {
-        public:
-        std::string name;
-        dependency_type dep_type;
-
-        prelim_dep(const std::string &name_p, dependency_type dep_type_p)
-            : name(name_p), dep_type(dep_type_p) { }
-        prelim_dep(std::string &&name_p, dependency_type dep_type_p)
-            : name(std::move(name_p)), dep_type(dep_type_p) { }
-    };
+    using prelim_dep = test_prelim_dep;
 
     dinit_load::service_settings_wrapper<prelim_dep> settings;
 
@@ -129,6 +131,60 @@ void test_settings()
     assert(settings.depends.front().name == "abc");
 }
 
+void test_path_env_subst()
+{
+    using string = std::string;
+    using string_iterator = std::string::iterator;
+
+    using prelim_dep = test_prelim_dep;
+
+    dinit_load::service_settings_wrapper<prelim_dep> settings;
+
+    std::stringstream ss;
+
+    ss << "type = process\n"
+            "command = /something/test\n"
+            "logfile = /some/$username/dir\n";
+
+    try {
+        process_service_file("test-service", ss,
+                [&](string &line, string &setting, string_iterator &i, string_iterator &end) -> void {
+
+            auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
+                    dependency_type dep_type) -> void {
+                //process_dep_dir(name.c_str(), service_filename, deplist, waitsford, dep_type);
+            };
+
+            auto load_service_n = [&](const string &dep_name) -> const string & {
+                return dep_name;
+            };
+
+            try {
+                process_service_line(settings, "test-service", line, setting, i, end, load_service_n, process_dep_dir_n);
+            }
+            catch (service_description_exc &exc) {
+                //report_service_description_exc(exc);
+            }
+        });
+    }
+    catch (std::system_error &sys_err)
+    {
+        throw service_description_exc("", "error while reading service description.");
+    }
+
+    auto report_error = [](const char *msg) {};
+
+    auto resolve_var = [](const std::string &name) {
+        if (name == "username") return "testsuccess";
+        return "";
+    };
+
+    settings.finalise(report_error, report_error /* lint */, resolve_var);
+
+    assert(settings.service_type == service_type_t::PROCESS);
+    assert(settings.command == "/something/test");
+    assert(settings.logfile == "/some/testsuccess/dir");
+}
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
@@ -142,5 +198,6 @@ int main(int argc, char **argv)
     RUN_TEST(test_env_subst, "            ");
     RUN_TEST(test_nonexistent, "          ");
     RUN_TEST(test_settings, "             ");
+    RUN_TEST(test_path_env_subst, "       ");
     return 0;
 }

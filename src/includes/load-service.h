@@ -1,10 +1,13 @@
 #include <iostream>
 #include <list>
 #include <limits>
-#include <csignal>
-#include <cstring>
 #include <utility>
 #include <vector>
+#include <iterator>
+
+#include <csignal>
+#include <cstring>
+#include <cstdlib>
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -125,7 +128,7 @@ class setting_exception
 
 // Utility function to skip white space. Returns an iterator at the
 // first non-white-space position (or at end).
-inline string_iterator skipws(string_iterator i, string_iterator end)
+inline string_iterator skipws(string_iterator i, string_iterator end) noexcept
 {
     using std::locale;
     using std::isspace;
@@ -140,7 +143,7 @@ inline string_iterator skipws(string_iterator i, string_iterator end)
 }
 
 // Convert a signal name to the corresponding signal number
-inline int signal_name_to_number(std::string &signame)
+inline int signal_name_to_number(std::string &signame) noexcept
 {
     if (signame == "none" || signame == "NONE") return 0;
     if (signame == "HUP") return SIGHUP;
@@ -153,18 +156,18 @@ inline int signal_name_to_number(std::string &signame)
     return -1;
 }
 
-// Read a setting name.
-inline string read_setting_name(string_iterator & i, string_iterator end)
+// Read a setting name; return empty string if no valid name
+inline string read_setting_name(string_iterator & i, string_iterator end) noexcept
 {
     using std::locale;
     using std::ctype;
     using std::use_facet;
 
-    const ctype<char> & facet = use_facet<ctype<char> >(locale::classic());
+    const ctype<char> & facet = use_facet<ctype<char>>(locale::classic());
 
     string rval;
 
-    // Don't allow dash/dot at start of setting name
+    // Don't allow empty name, or dash/dot at start of setting name
     if (i == end || (*i == '-' || *i == '.')) {
         return {};
     }
@@ -586,6 +589,58 @@ void process_service_file(string name, std::istream &service_file, T func)
 // A dummy lint-reporting "function".
 static auto dummy_lint = [](const char *){};
 
+// Resolve leading variables in paths using the environment
+static auto resolve_env_var_path = [](const string &name){
+    const char *r = getenv(name.c_str());
+    if (r == nullptr) {
+        return "";
+    }
+    return r;
+};
+
+// Resolve a path with variable substitutions ($varname). '$$' resolves to a single '$'.
+// Throws setting_exception on failure.
+//    p           - path to resolve
+//    var_resolve - function to translate names to values; returning string or const char *;
+//                  may throw setting_exception
+template <class T>
+inline std::string resolve_path(std::string &&p, T &var_resolve)
+{
+    auto dpos = p.find('$');
+    if (dpos == string::npos) {
+        // shortcut the case where there are no substitutions:
+        return std::move(p);
+    }
+
+    string r;
+    string::size_type last_pos = 0;
+
+    do {
+        r.append(p, last_pos, dpos - last_pos); // non-substituted portion
+        ++dpos;
+        if (dpos < p.size() && p[dpos] == '$') {
+            // double '$' resolves to a single '$' in output
+            r += '$';
+            last_pos = dpos + 1;
+            dpos = p.find('$', last_pos);
+            continue;
+        }
+        auto i = std::next(p.begin(), dpos);
+        string name = read_setting_name(i, p.end());
+        if (name.empty()) {
+            throw setting_exception("invalid/missing variable name after '$'");
+        }
+        string value = var_resolve(name);
+        r.append(value);
+        last_pos = i - p.begin();
+        dpos = p.find('$', last_pos);
+    } while (dpos != string::npos);
+
+    r.append(p, last_pos, string::npos);
+
+    return r;
+}
+
 // A wrapper type for service parameters. It is parameterised by dependency type.
 template <class dep_type>
 class service_settings_wrapper
@@ -646,9 +701,9 @@ class service_settings_wrapper
     //
     // Note: we have the do_report_lint parameter to prevent code (and strings) being emitted for lint
     // checks even when the dummy_lint function is used. (Ideally the compiler would optimise them away).
-    template <typename T, typename U = decltype(dummy_lint),
+    template <typename T, typename U = decltype(dummy_lint), typename V = decltype(resolve_env_var_path),
             bool do_report_lint = !std::is_same<U, decltype(dummy_lint)>::value>
-    void finalise(T &report_error, U &report_lint = dummy_lint)
+    void finalise(T &report_error, U &report_lint = dummy_lint, V &var_subst = resolve_env_var_path)
     {
         if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS
                 || service_type == service_type_t::SCRIPTED) {
@@ -699,6 +754,24 @@ class service_settings_wrapper
                 report_error("readiness notification ('ready-notification') is not supported "
                         "for bgprocess services.");
             }
+        }
+
+        // Resolve paths via variable substitution
+        {
+            auto do_resolve = [&](const char *setting_name, string &setting_value) {
+                try {
+                    setting_value = resolve_path(std::move(setting_value), var_subst);
+                }
+                catch (setting_exception &exc) {
+                    report_error((string() + setting_name + ": " + exc.get_info()).c_str());
+                }
+            };
+
+            do_resolve("socket_path", socket_path);
+            do_resolve("logfile", logfile);
+            do_resolve("env_file", env_file);
+            do_resolve("working_dir", working_dir);
+            do_resolve("pid_file", pid_file);
         }
 
         // If socket_gid hasn't been explicitly set, but the socket_uid was specified as a name (and
