@@ -156,24 +156,32 @@ inline int signal_name_to_number(std::string &signame) noexcept
     return -1;
 }
 
-// Read a setting name; return empty string if no valid name
-inline string read_setting_name(string_iterator & i, string_iterator end) noexcept
+// Read a setting/variable name; return empty string if no valid name
+inline string read_config_name(string_iterator & i, string_iterator end) noexcept
 {
     using std::locale;
     using std::ctype;
     using std::use_facet;
 
+    // To avoid the horror of locales, we'll use the classic facet only, to identify digits, control
+    // characters and punctuation. (Unless something is totally crazy, we are talking about ASCII or
+    // a superset of it, but using the facet allows us to avoid that assumption). However, we're only
+    // working with "narrow" char type so accuracy is limited. In general, that's not going to matter
+    // much, but may allow certain unicode punctuation characters to be used as part of a name for example.
     const ctype<char> & facet = use_facet<ctype<char>>(locale::classic());
 
     string rval;
 
-    // Don't allow empty name, or dash/dot at start of setting name
-    if (i == end || (*i == '-' || *i == '.')) {
+    // Don't allow empty name, numeric digit, or dash/dot at start of setting name
+    if (i == end || (*i == '-' || *i == '.' || facet.is(ctype<char>::digit, *i))) {
         return {};
     }
 
-    // Allow alphabetical characters, and dash (-) in setting name
-    while (i != end && (*i == '-' || *i == '.' || facet.is(ctype<char>::alpha, *i))) {
+    // Within the setting name, allow dash and dot; also allow any non-control, non-punctuation,
+    // non-space character.
+    while (i != end && (*i == '-' || *i == '.'
+            || (!facet.is(ctype<char>::cntrl, *i) && !facet.is(ctype<char>::punct, *i)
+                    && !facet.is(ctype<char>::space, *i)))) {
         rval += *i;
         ++i;
     }
@@ -574,7 +582,7 @@ void process_service_file(string name, std::istream &service_file, T func)
             if (*i == '#') {
                 continue;  // comment line
             }
-            string setting = read_setting_name(i, end);
+            string setting = read_config_name(i, end);
             i = skipws(i, end);
             if (setting.empty() || i == end || (*i != '=' && *i != ':')) {
                 throw service_description_exc(name, "badly formed line.");
@@ -626,7 +634,7 @@ inline std::string resolve_path(std::string &&p, T &var_resolve)
             continue;
         }
         auto i = std::next(p.begin(), dpos);
-        string name = read_setting_name(i, p.end());
+        string name = read_config_name(i, p.end());
         if (name.empty()) {
             throw setting_exception("invalid/missing variable name after '$'");
         }
