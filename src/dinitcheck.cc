@@ -360,7 +360,18 @@ service_record *load_service(service_set_t &services, const std::string &name,
         report_service_description_err(name, msg);
     };
 
-    settings.finalise(report_err, report_err);
+    bool issued_var_subst_warning = false;
+
+    auto resolve_var = [&](const string &name) {
+        if (!issued_var_subst_warning) {
+            report_service_description_err(name, "warning: variable substitution performed by dinitcheck "
+                    "for file paths may not match dinitd (environment may differ)");
+            issued_var_subst_warning = true;
+        }
+        return resolve_env_var_path(name);
+    };
+
+    settings.finalise(report_err, report_err, resolve_var);
 
     auto check_command = [&](const char *setting_name, const char *command) {
         struct stat command_stat;
