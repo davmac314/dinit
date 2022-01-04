@@ -75,7 +75,7 @@ Systems without dependency management
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 A variety of init/supervision packages do not perform proper dependency management
-of supervisions. By this I mean that, broadly speaking:
+of supervisions. By "proper dependency management" I mean that, broadly speaking:
  - starting a service should automatically start any services that the former
    requires (and wait, if appropriate, until they have started)
  - likewise, stopping a service should automatically stop any dependent services.
@@ -120,8 +120,8 @@ Now, we'll look at some systems which *do* have dependency management: Nosh, Ope
 Systemd, and some others.
 
 
-Nosh suite (http://homepage.ntlworld.com/jonathan.deboynepollard/Softwares/nosh.html)
--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+Nosh suite (https://jdebp.uk/Softwares/nosh/)
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 Another seemingly modular init system offering dependency management and socket activation, with
 BSD licensing. Service configuration is expressed through directory structure (symbolic links
 represent service dependencies, etc;  "start", "stop" and "run" commands are individual scripts
