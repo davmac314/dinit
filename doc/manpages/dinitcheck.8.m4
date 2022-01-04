@@ -47,6 +47,14 @@ Specifies the name of a service that should be checked (along with its
 dependencies). If none are specified, defaults to \fIboot\fR (which requires
 that a suitable service description for the \fIboot\fR service exists).
 .\"
+.SH NOTES
+.\"
+For service properties that are subject to environment variable substitution, including
+\fBsocket\-listen\fR, \fBlogfile\fR, \fBenv\-file\fR, \fBworking\-dir\fR and \fBpid\-file\fR, the
+substitution may have a different result when performed by \fBdinitcheck\fR than when performed by
+\fBdinit\fR if the two processes have a different environment. For this reason \fBdinitcheck\fR will issue a
+warning whenever substitution is used.
+.\"
 .SH SEE ALSO
 .\"
 \fBdinit\fR(8), \fBdinit-service\fR(5).

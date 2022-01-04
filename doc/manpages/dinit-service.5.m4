@@ -103,7 +103,7 @@ in a service description file. The properties specify the type of the service,
 dependencies of the service, and other service configuration.
 .LP
 Each line of the file can specify a single
-property value, expressed as "\fIproperty-name\fR = \fIvalue\fR". Comments
+property value, expressed as `\fIproperty-name\fR = \fIvalue\fR'. Comments
 begin with a hash mark (#) and extend to the end of the line (they must be
 separated from setting values by at least one whitespace character). Values
 are interpreted literally, except that:
@@ -115,12 +115,16 @@ leading or trailing white space around the property value, which is stripped.
 Double quotes (") can be used around all or part of a property value, to
 prevent whitespace collapse and prevent interpretation of other special
 characters (such as "#") inside the quotes. The quote characters are not
-considered part of the parameter value.
+considered part of the property value.
 .IP \(bu
 A backslash (\\) can be used to escape the next character, causing it to
 lose any special meaning and become part of the property value. A double
 backslash (\\\\) is collapsed to a single backslash within the parameter
 value.
+.LP
+Setting a property generally overrides any previous setting (from prior lines). However
+some properties are set additively; these include dependency relationships and \fBoptions\fR
+properties.
 .LP
 The following properties can be specified:
 .TP
@@ -136,9 +140,10 @@ services.
 Specifies the command to stop the service. Applicable only to \fBscripted\fR
 services (and optional for such services).
 .TP
-\fBworking-dir\fR = \fIdirectory\fR
+\fBworking\-dir\fR = \fIdirectory\fR
 Specifies the working directory for this service. For a scripted service, this
-affects both the start command and the stop command.
+affects both the start command and the stop command. The value is subject to
+variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBrun\-as\fR = \fIuser-id\fR
 Specifies which user to run the process(es) for this service as. Specify as a
@@ -148,9 +153,13 @@ also be set to the primary group of the specified user.
 \fBenv\-file\fR = \fIfile\fR
 Specifies a file containing value assignments for environment variables, in the same
 format recognised by the \fBdinit\fR command's \fB\-\-env\-file\fR option. The file is
-read (or re-read) whenever the service is started. Note that the values read do not
+read (or re-read) whenever the service is started; the values read do not
 affect for the processing performed for the \fBsub\-vars\fR load option, which is done
 when the service description is loaded.
+The precise behaviour of this setting may change in the future. It is recommended to avoid
+depending on the specified file contents being reloaded whenever the service process starts.
+
+The path specified is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBrestart\fR = {yes | true | no | false}
 Indicates whether the service should automatically restart if it stops, including due to
@@ -200,10 +209,12 @@ timeout is 10 seconds. Specify a value of 0 to allow unlimited stop time.
 For \fBbgprocess\fR type services only; specifies the path of the file where
 daemon will write its process ID before detaching. Dinit will read the
 contents of this file when starting the service, once the initial process
-exits, will supervise the process with the discovered process ID, and may
-send signals to the process ID to stop the service; if Dinit runs as a
+exits, and will supervise the process with the discovered process ID. Dinit may also
+send signals to the process ID to stop the service; if \fBdinit\fR runs as a
 privileged user the path should therefore not be writable by unprivileged
 users.
+
+The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBdepends\-on\fR = \fIservice-name\fR
 This service depends on the named service. Starting this service will start
@@ -260,12 +271,14 @@ reason and the status of this service termination.
 \fBsocket\-listen\fR = \fIsocket-path\fR
 Pre-open a socket for the service and pass it to the service using the
 \fBsystemd\fR activation protocol. This by itself does not give so called
-"socket activation", but does allow that any process trying to connect to the
-specified socket will be able to do so, even before the service is properly
-prepared to accept connections.
+"socket activation", but does allow any process trying to connect to the
+specified socket to do so immediately after the service is started
+(even before the service process is properly prepared to accept connections).
+
+The path value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBsocket\-permissions\fR = \fIoctal-permissions-mask\fR
-Gives the permissions for the socket specified using \fBsocket-listen\fR.
+Gives the permissions for the socket specified using \fBsocket\-listen\fR.
 Normally this will be 600 (user access only), 660 (user and group
 access), or 666 (all users). The default is 666.
 .TP
@@ -282,7 +295,7 @@ Specifies the group of the activation socket. See discussion of
 .TP
 \fBterm\-signal\fR = {none | HUP | INT | TERM | QUIT | USR1 | USR2 | KILL}
 Specifies the signal to send to the process when requesting it
-to terminate (applies to 'process' and 'bgprocess' services only). The default is SIGTERM.
+to terminate (applies to `process' and `bgprocess' services only). The default is SIGTERM.
 See also \fBstop\-timeout\fR.
 .TP
 \fBready\-notification\fR = {\fBpipefd:\fR\fIfd-number\fR | \fBpipevar:\fR\fIenv-var-name\fR}
@@ -304,7 +317,8 @@ execution to a file descriptor (chosen arbitrarily) attached to the write end of
 Specifies the log file for the service. Output from the service process (standard output and
 standard error streams) will be appended to this file. This setting has no effect if the service
 is set to run on the console (via the \fBruns\-on\-console\fR, \fBstarts\-on\-console\fR, or
-\fBshares\-console\fR options).
+\fBshares\-console\fR options). The value is subject to variable substitution
+(see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBoptions\fR = \fIoption\fR...
 Specifies various options for this service. See the \fBOPTIONS\fR section. This
@@ -473,8 +487,20 @@ Resource limits are specified in the following format:
 .RE
 
 Either the soft limit or the hard limit can be omitted (in which case it will be unchanged).
-A limit can be specified as a dash, `\fB-\fR', in which case the limit will be removed. If
+A limit can be specified as a dash, `\fB\-\fR', in which case the limit will be removed. If
 only one value is specified with no colon separator, it affects both the soft and hard limit.
+.\"
+.SS VARIABLE SUBSTITUTION
+.\"
+Some service properties specify a path to a file or directory. For these properties, the specified
+value may contain an environment variable name, preceded by a single `\fB$\fR' character, as in `\fB$NAME\fR'.
+The value of the named environment variable will be substituted. The name must begin with a non-punctuation,
+non-space, non-digit character, and ends before the first control character, space, or punctuation
+character other than `\fB.\fR' or `\fB\-\fR'. To avoid substitution, a single `\fB$\fR' can be escaped with a
+second, as in `\fB$$\fR'.
+
+Variables for substitution come from the \fBdinit\fR environment at the time the service is loaded.
+In particular, variables set via \fBenv\-file\fR are not visible to the substitution function.
 .\"
 .SS EXAMPLES
 .LP
