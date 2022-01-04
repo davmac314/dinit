@@ -775,11 +775,11 @@ class service_settings_wrapper
                 }
             };
 
-            do_resolve("socket_path", socket_path);
+            do_resolve("socket-listen", socket_path);
             do_resolve("logfile", logfile);
-            do_resolve("env_file", env_file);
-            do_resolve("working_dir", working_dir);
-            do_resolve("pid_file", pid_file);
+            do_resolve("env-file", env_file);
+            do_resolve("working-dir", working_dir);
+            do_resolve("pid-file", pid_file);
         }
 
         // If socket_gid hasn't been explicitly set, but the socket_uid was specified as a name (and
