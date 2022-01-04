@@ -236,7 +236,7 @@ any of the services named within, is not considered fatal.
 The directory path, if not absolute, is relative to the directory containing
 the service description file.
 .TP
-\fBchain-to\fR = \fIservice-name\fR
+\fBchain\-to\fR = \fIservice-name\fR
 When this service terminates (i.e. starts successfully, and then stops of its
 own accord), the named service should be started. Note that the named service
 is not loaded until that time; naming an invalid service will not cause this
@@ -310,54 +310,54 @@ is set to run on the console (via the \fBruns\-on\-console\fR, \fBstarts\-on\-co
 Specifies various options for this service. See the \fBOPTIONS\fR section. This
 directive can be specified multiple times to set additional options.
 .TP
-\fBload-options\fR = \fIload_option\fR...
+\fBload\-options\fR = \fIload_option\fR...
 Specifies options for interpreting other settings when loading this service
-description. Currently there is only one available option, \fBsub-vars\fR,
+description. Currently there is only one available option, \fBsub\-vars\fR,
 which specifies that command line arguments in the form of \fB$NAME\fR should
 be replaced with the contents of the environment variable with the specified
 name. Note that no word-splitting is performed and the variable value always
 becomes a single argument; if the variable is not defined, it is replaced with
 an empty (zero-length) argument.
 .TP
-\fBinittab-id\fR = \fIid-string\fR
-When this service is started, if this setting (or the \fBinittab-line\fR setting) has a
+\fBinittab\-id\fR = \fIid-string\fR
+When this service is started, if this setting (or the \fBinittab\-line\fR setting) has a
 specified value, an entry will be created in the system "utmp" database which tracks
 processes and logged-in users. Typically this database is used by the "who" command to
 list logged-in users. The entry will be cleared when the service terminates.
 
-The \fBinittab-id\fR setting specifies the "inittab id" to be written in the entry for
+The \fBinittab\-id\fR setting specifies the "inittab id" to be written in the entry for
 the process. The value is normally quite meaningless. However, it should be distinct
 (or unset) for separate processes. It is typically limited to a very short length.
 
 The "utmp" database is mostly a historical artifact. Access to it on some systems is
 prone to denial-of-service by unprivileged users. It is therefore recommended that this
 setting not be used. However, "who" and similar utilities may not work correctly without
-this setting (or \fBinittab-line\fR) enabled appropriately.
+this setting (or \fBinittab\-line\fR) enabled appropriately.
 
 This setting has no effect if Dinit was not built with support for writing to the "utmp"
 database.
 .TP
-\fBinittab-line\fR = \fItty-name-string\fR
+\fBinittab\-line\fR = \fItty-name-string\fR
 This specifies the tty line that will be written to the "utmp" database when this service
 is started. Normally, for a terminal login service, it would match the terminal device name
 on which the login process runs, without the "/dev/" prefix.
 
-See the description of the \fBinittab-id\fR setting for details.
+See the description of the \fBinittab\-id\fR setting for details.
 .TP
-\fBrlimit-nofile\fR = \fIresource-limits\fR
+\fBrlimit\-nofile\fR = \fIresource-limits\fR
 Specifies the number of file descriptors that a process may have open simultaneously. See the
 \fBRESOURCE LIMITS\fR section.
 .TP
-\fBrlimit-core\fR = \fIresource-limits\fR
+\fBrlimit\-core\fR = \fIresource-limits\fR
 Specifies the maximum size of the core dump file that will be generated for the process if it
 crashes (in a way that would result in a core dump). See the \fBRESOURCE LIMITS\fR section.
 .TP
-\fBrlimit-data\fR = \fIresource-limits\fR
+\fBrlimit\-data\fR = \fIresource-limits\fR
 Specifies the maximum size of the data segment for the process, including statically allocated
 data and heap allocations. Precise meaning may vary between operating systems. See the
 \fBRESOURCE LIMITS\fR section.
 .TP
-\fBrlimit-addrspace\fR = \fIresource-limits\fR
+\fBrlimit\-addrspace\fR = \fIresource-limits\fR
 Specifies the maximum size of the address space of the process. See the \fBRESOURCE LIMITS\fR
 section. Note that some operating systems (notably OpenBSD) do not support this limit; the
 setting will be ignored on such systems.
@@ -401,16 +401,16 @@ This is mutually exclusive with both \fBstarts\-on\-console\fR and \fBruns\-on\-
 setting this option unsets both those options, and setting either of those options unsets
 this option.
 .TP
-\fBstarts-rwfs\fR
+\fBstarts\-rwfs\fR
 This service mounts the root filesystem read/write (or at least mounts the
 normal writable filesystems for the system). This prompts Dinit to create its
 control socket, if it has not already managed to do so.
 .TP
-\fBstarts-log\fR
+\fBstarts\-log\fR
 This service starts the system log daemon. Dinit will begin logging via the
 \fI/dev/log\fR socket.
 .TP
-\fBpass-cs-fd\fR
+\fBpass\-cs\-fd\fR
 Pass an open Dinit control socket to the process when launching it (the
 \fIDINIT_CS_FD\fR environment variable will be set to the file descriptor of
 the socket). This allows the service to issue commands to Dinit even if the
@@ -421,7 +421,7 @@ control socket must close it before launching any untrusted processes. You
 should not use this option unless the service is designed to receive a Dinit
 control socket.
 .TP
-\fBstart-interruptible\fR
+\fBstart\-interruptible\fR
 This service can have its startup interrupted (cancelled) if it becomes inactive
 while still starting, by sending it the SIGINT signal. This is meaningful only
 for \fBbgprocess\fR and \fBscripted\fR services.
@@ -436,11 +436,11 @@ This can be combined with options such as \fBstarts\-on\-console\fR to allow
 skipping certain non-essential services (such as filesystem checks) using the
 \fIinterrupt\fR key (typically control-C).
 .TP
-\fBsignal-process-only\fR
+\fBsignal\-process-only\fR
 Signal the service process only, rather than its entire process group, whenever
 sending it a signal for any reason.
 .TP
-\fBalways-chain\fR
+\fBalways\-chain\fR
 Alters behaviour of the \fBchain-to\fR property, forcing the chained service to
 always start on termination of this service (instead of only when this service
 terminates with an exit status indicating success).
@@ -451,8 +451,8 @@ parameters and options described above.
 .\"
 .SS RESOURCE LIMITS
 .\"
-There are several settings for specifying process resource limits: \fBrlimit-nofile\fR,
-\fBrlimit-core\fR, \fBrlimit-data\fR and \fBrlimit-addrspace\fR. See the descriptions
+There are several settings for specifying process resource limits: \fBrlimit\-nofile\fR,
+\fBrlimit\-core\fR, \fBrlimit\-data\fR and \fBrlimit\-addrspace\fR. See the descriptions
 of each above. These settings place a limit on resource usage directly by the process.
 Note that resource limits are inherited by subprocesses, but that usage of a resource
 and subprocess are counted separately (in other words, a process can effectively bypass
