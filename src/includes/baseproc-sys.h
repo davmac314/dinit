@@ -47,6 +47,8 @@ class exit_status
 
     bool did_exit_clean() noexcept
     {
+        // POSIX requires that if the process exited clearly with a status code of 0,
+        // the exit status value will be 0:
         return status == 0;
     }
 

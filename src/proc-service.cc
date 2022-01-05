@@ -363,8 +363,6 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
     }
 
     if (service_state == service_state_t::STARTING) {
-        // POSIX requires that if the process exited clearly with a status code of 0,
-        // the exit status value will be 0:
         if (exit_status.did_exit_clean()) {
             auto pid_result = read_pid_file(&exit_status);
             switch (pid_result) {
