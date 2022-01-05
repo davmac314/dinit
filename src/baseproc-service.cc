@@ -74,15 +74,13 @@ void base_process_service::handle_unexpected_termination() noexcept
     delay_start = false;
 
     // It's possible we have no dependents or they stopped immediately, in which case we
-    // either are STOPPED or STARTING. Otherwise, let's stop immediately (and potentially
+    // either are STOPPED or STARTING (i.e. restarting). Otherwise, let's stop immediately (and potentially
     // restart immediately):
-
     if (get_state() == service_state_t::STOPPING) {
         stopped();  // this might cause us to restart, i.e. state may be STARTING
     }
 
-    // Finally, if we're now STARTING, that means we should restart
-
+    // Finally, if we've returned to STARTING, that means we should restart
     if (get_state() == service_state_t::STARTING) {
         if (!restart_ps_process()) {
             failed_to_start();
