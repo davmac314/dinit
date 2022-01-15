@@ -227,7 +227,12 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
         if (waiting_stopstart_timer) {
             process_timer.stop_timer(event_loop);
         }
-        stopped();
+        if (!waiting_for_deps) {
+            stopped();
+        }
+        else if (get_target_state() == service_state_t::STARTED && !pinned_stopped) {
+            initiate_start();
+        }
     }
     else if (smooth_recovery && service_state == service_state_t::STARTED) {
         // unexpected termination, with smooth recovery
@@ -305,7 +310,12 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
         if (service_state == service_state_t::STOPPING) {
             // Stop was issued during smooth recovery
             if ((did_exit && exit_status.get_exit_status() != 0) || was_signalled) {
-                stopped();
+                if (!waiting_for_deps) {
+                    stopped();
+                }
+                else if (get_target_state() == service_state_t::STARTED && !pinned_stopped) {
+                    initiate_start();
+                }
             }
             else {
                 // We need to re-read the PID, since it has now changed.

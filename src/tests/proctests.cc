@@ -206,6 +206,8 @@ void test_proc_term_restart()
     p.start();
     sset.process_queues();
 
+    pid_t first_pid = bp_sys::last_forked_pid;
+
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
 
@@ -218,11 +220,15 @@ void test_proc_term_restart()
     // Starting, restart timer should be armed:
     assert(p.get_state() == service_state_t::STARTING);
     assert(event_loop.active_timers.size() == 1);
+    assert(bp_sys::last_forked_pid == first_pid);
 
     event_loop.advance_time(time_val(0, 200000000));
     assert(event_loop.active_timers.size() == 0);
 
     sset.process_queues();
+
+    assert(bp_sys::last_forked_pid == (first_pid + 1));
+
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
 
@@ -232,6 +238,7 @@ void test_proc_term_restart()
     sset.remove_service(&p);
 }
 
+// Unexpected termination with restart, with dependent
 void test_proc_term_restart2()
 {
     using namespace std;
@@ -253,16 +260,20 @@ void test_proc_term_restart2()
 
     b.add_dep(&p, WAITS);
 
+    pid_t first_pid = bp_sys::last_forked_pid;
+
     b.start();
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTING);
+    assert(bp_sys::last_forked_pid == first_pid + 1);
 
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STARTED);
     assert(event_loop.active_timers.size() == 0);
+    assert(bp_sys::last_forked_pid == first_pid + 1);
 
     // simulate process terminating, should then be restarted:
     base_process_service_test::handle_exit(&p, 0);
@@ -271,11 +282,14 @@ void test_proc_term_restart2()
     // Starting, restart timer should be armed:
     assert(p.get_state() == service_state_t::STARTING);
     assert(event_loop.active_timers.size() == 1);
+    assert(bp_sys::last_forked_pid == first_pid + 1);
 
     event_loop.advance_time(time_val(0, 200000000));
     assert(event_loop.active_timers.size() == 0);
 
     sset.process_queues();
+    assert(bp_sys::last_forked_pid == first_pid + 2);
+
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
 
@@ -293,6 +307,7 @@ void test_proc_term_restart2()
     assert(p.get_state() == service_state_t::STOPPED);
     assert(event_loop.active_timers.size() == 0);
     assert(sset.count_active_services() == 1);
+    assert(bp_sys::last_forked_pid == first_pid + 2);
 
     // simulate terminate dinit
     sset.stop_all_services();

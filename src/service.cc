@@ -362,11 +362,6 @@ void service_record::all_deps_started() noexcept
 
     waiting_for_deps = false;
 
-    if (! can_proceed_to_start()) {
-        waiting_for_deps = true;
-        return;
-    }
-
     if (!bring_up()) {
         failed_to_start();
     }
@@ -561,6 +556,8 @@ void service_record::do_stop(bool with_restart) noexcept
     // won't know that for sure until the execution transition.
 
     if (pinned_started) return;
+
+    in_auto_restart = false;
 
     // Will we restart? desired state of STOPPED inhibits auto-restart
     bool for_restart = with_restart || (auto_restart && desired_state == service_state_t::STARTED);

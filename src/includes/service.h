@@ -252,6 +252,8 @@ class service_record
     bool start_failed : 1;      // failed to start (reset when begins starting)
     bool start_skipped : 1;     // start was skipped by interrupt
     
+    bool in_auto_restart : 1;
+
     int required_by = 0;        // number of dependents wanting this service to be started
 
     // list of dependencies
@@ -382,14 +384,6 @@ class service_record
 
     // Virtual functions, to be implemented by service implementations:
 
-    // Whether a STARTING service can transition to its STARTED state, once all
-    // dependencies have started. This should return false only if the start is interruptible
-    // at this point.
-    virtual bool can_proceed_to_start() noexcept
-    {
-        return true;
-    }
-
     // Do any post-dependency startup; return false on failure. Should return true if service
     // has started or is in the process of starting. Will only be called once can_proceed_to_start()
     // returns true.
@@ -423,7 +417,7 @@ class service_record
             waiting_for_console(false), have_console(false), waiting_for_execstat(false),
             start_explicit(false), prop_require(false), prop_release(false), prop_failure(false),
             prop_start(false), prop_stop(false), start_failed(false), start_skipped(false),
-            force_stop(false)
+            in_auto_restart(false), force_stop(false)
     {
         services = set;
         record_type = service_type_t::DUMMY;

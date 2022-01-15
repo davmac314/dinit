@@ -175,8 +175,6 @@ class base_process_service : public service_record
     bool waiting_restart_timer : 1;
     bool waiting_stopstart_timer : 1;
 
-    bool delay_start : 1; // delay bring-up in case of unexpected termination
-
     bool reserved_child_watch : 1;
     bool tracking_child : 1;  // whether we expect to see child process status
 
@@ -219,11 +217,6 @@ class base_process_service : public service_record
     {
         return waiting_restart_timer || onstart_flags.start_interruptible
                 || service_record::can_interrupt_start();
-    }
-
-    virtual bool can_proceed_to_start() noexcept override
-    {
-        return !waiting_restart_timer && !delay_start;
     }
 
     virtual bool interrupt_start() noexcept override;

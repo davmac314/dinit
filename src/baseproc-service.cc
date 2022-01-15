@@ -34,6 +34,10 @@ bool base_process_service::bring_up() noexcept
         return false;
     }
 
+    if (in_auto_restart) {
+        return restart_ps_process();
+    }
+
     restart_interval_count = 0;
     if (start_ps_process(exec_arg_parts,
             onstart_flags.starts_on_console || onstart_flags.shares_console)) {
@@ -65,25 +69,20 @@ void base_process_service::handle_unexpected_termination() noexcept
     //    the usual start_ps_process (the usual bring-up).
     // But we need to issue a forced stop and process queues, to discover our eventual target
     // state (so we know whether we actually want to restart or not).
+    // Note we can't call forced_stop() directly here, because we need to set in_auto_restart in
+    // between do_stop() and processing queues (so that it is set correctly if restart occurs):
 
-    delay_start = true; // inhibit bring-up temporarily
-
-    forced_stop();
+    force_stop = true;
+    do_stop();
+    in_auto_restart = true;
     services->process_queues();
 
-    delay_start = false;
-
-    // It's possible we have no dependents or they stopped immediately, in which case we
-    // either are STOPPED or STARTING (i.e. restarting). Otherwise, let's stop immediately (and potentially
-    // restart immediately):
     if (get_state() == service_state_t::STOPPING) {
-        stopped();  // this might cause us to restart, i.e. state may be STARTING
-    }
-
-    // Finally, if we've returned to STARTING, that means we should restart
-    if (get_state() == service_state_t::STARTING) {
-        if (!restart_ps_process()) {
-            failed_to_start();
+        // We must be waiting for dependents;
+        // If we're going to restart, we can kick that off now:
+        if (get_target_state() == service_state_t::STARTED && !pinned_stopped) {
+            initiate_start();
+            services->process_queues();
         }
     }
 }
@@ -254,7 +253,6 @@ base_process_service::base_process_service(service_set *sset, string name,
 
     waiting_restart_timer = false;
     waiting_stopstart_timer = false;
-    delay_start = false;
     reserved_child_watch = false;
     tracking_child = false;
 }

@@ -45,7 +45,7 @@ $(SHUTDOWNPREFIX)shutdown: shutdown.o
 $(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) -MMD -MP -Iincludes -I../dasynq/include -I../build/includes -c $< -o $@
 
-check: ../build/includes/mconfig.h
+check: ../build/includes/mconfig.h $(dinit_objects)
 	$(MAKE) -C tests check
 
 check-igr: dinit dinitctl dinitcheck
