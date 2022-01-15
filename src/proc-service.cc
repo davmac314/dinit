@@ -322,6 +322,11 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
                 if (pid_file.length() != 0) {
                     auto pid_result = read_pid_file(&exit_status);
 
+                    if (waiting_for_deps) {
+                        // don't do anything else until dependents have stopped
+                        return;
+                    }
+
                     switch (pid_result) {
                     case pid_result_t::FAILED:
                     case pid_result_t::TERMINATED:
@@ -331,7 +336,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
                     case pid_result_t::OK:
                         // We now need to bring down the daemon process
                         bring_down();
-                        return;
+                        break;
                     }
                 }
             }

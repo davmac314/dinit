@@ -1133,6 +1133,93 @@ void test_bgproc_smooth_recover()
     sset.remove_service(&p);
 }
 
+// stop issued during smooth recovery, with dependent
+void test_bgproc_smooth_recove2()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+
+    bgproc_service p {&sset, "testproc", string(command), command_offsets, {}};
+    init_service_defaults(p);
+    p.set_smooth_recovery(true);
+    p.set_restart_delay(time_val {0, 1000});
+    p.set_pid_file("/run/daemon.pid");
+    sset.add_service(&p);
+
+    process_service d1 {&sset, "testproc-d1", std::move(command), command_offsets, {{&p, REG}}};
+    init_service_defaults(d1);
+    sset.add_service(&d1);
+
+    d1.start();
+    sset.process_queues();
+
+    // process for p exec succeds, reads pid file, starts
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    pid_t daemon_instance;
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
+    assert(p.get_state() == service_state_t::STARTING);
+    base_process_service_test::handle_exit(&p, 0); // exit the launch process
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+
+    // dependent has been forked already:
+    assert(bp_sys::last_forked_pid == daemon_instance + 1);
+
+    // dependent then starts
+    base_process_service_test::exec_succeeded(&d1);
+    assert(bp_sys::last_forked_pid == daemon_instance + 1);
+
+    // exit daemon process unexpectedly:
+    base_process_service_test::handle_exit(&p, 0);
+
+    // since time hasn't been changed, we expect that the process has not yet been re-launched:
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(bp_sys::last_forked_pid == daemon_instance + 1);
+
+    event_loop.advance_time(time_val {0, 1000});
+
+    // Now a new process should've been launched:
+    assert(event_loop.active_timers.size() == 0);
+    assert(bp_sys::last_forked_pid == daemon_instance + 2);
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    // We tell the service to stop, before the smooth recovery completes:
+    p.stop(true);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(d1.get_state() == service_state_t::STOPPING);
+
+    // Now the bgprocess launcher completes but with a bogus pid file contents:
+    string pid_file_content_str = "";
+    vector<char> pid_file_content_v(pid_file_content_str.begin(), pid_file_content_str.end());
+    bp_sys::supply_file_content("/run/daemon.pid", std::move(pid_file_content_v));
+    base_process_service_test::handle_exit(&p, 0); // exit the launch process
+
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(d1.get_state() == service_state_t::STOPPING);
+
+    // Now the dependent stops:
+    base_process_service_test::handle_exit(&d1, 0);
+    assert(d1.get_state() == service_state_t::STOPPED);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    // And now the bgprocess daemon stops:
+    base_process_service_test::handle_exit(&p, 0);
+    assert(d1.get_state() == service_state_t::STOPPED);
+    assert(p.get_state() == service_state_t::STOPPED);
+
+    sset.remove_service(&p);
+    sset.remove_service(&d1);
+}
+
 // Unexpected termination with restart
 void test_bgproc_term_restart()
 {
@@ -1740,6 +1827,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_bgproc_start_fail_pid, " ");
     RUN_TEST(test_bgproc_unexpected_term, "");
     RUN_TEST(test_bgproc_smooth_recover, " ");
+    RUN_TEST(test_bgproc_smooth_recove2, " ");
     RUN_TEST(test_bgproc_term_restart, "   ");
     RUN_TEST(test_bgproc_stop, "           ");
     RUN_TEST(test_bgproc_stop2, "          ");
