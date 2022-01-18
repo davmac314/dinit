@@ -179,7 +179,7 @@ inline string read_config_name(string_iterator & i, string_iterator end) noexcep
 
     // Within the setting name, allow dash and dot; also allow any non-control, non-punctuation,
     // non-space character.
-    while (i != end && (*i == '-' || *i == '.'
+    while (i != end && (*i == '-' || *i == '.' || *i == '_'
             || (!facet.is(ctype<char>::cntrl, *i) && !facet.is(ctype<char>::punct, *i)
                     && !facet.is(ctype<char>::space, *i)))) {
         rval += *i;
@@ -598,7 +598,7 @@ void process_service_file(string name, std::istream &service_file, T func)
 static auto dummy_lint = [](const char *){};
 
 // Resolve leading variables in paths using the environment
-static auto resolve_env_var_path = [](const string &name){
+static auto resolve_env_var = [](const string &name){
     const char *r = getenv(name.c_str());
     if (r == nullptr) {
         return "";
@@ -709,9 +709,9 @@ class service_settings_wrapper
     //
     // Note: we have the do_report_lint parameter to prevent code (and strings) being emitted for lint
     // checks even when the dummy_lint function is used. (Ideally the compiler would optimise them away).
-    template <typename T, typename U = decltype(dummy_lint), typename V = decltype(resolve_env_var_path),
+    template <typename T, typename U = decltype(dummy_lint), typename V = decltype(resolve_env_var),
             bool do_report_lint = !std::is_same<U, decltype(dummy_lint)>::value>
-    void finalise(T &report_error, U &report_lint = dummy_lint, V &var_subst = resolve_env_var_path)
+    void finalise(T &report_error, U &report_lint = dummy_lint, V &var_subst = resolve_env_var)
     {
         if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS
                 || service_type == service_type_t::SCRIPTED) {

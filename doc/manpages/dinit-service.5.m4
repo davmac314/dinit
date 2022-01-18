@@ -496,7 +496,7 @@ Some service properties specify a path to a file or directory. For these propert
 value may contain an environment variable name, preceded by a single `\fB$\fR' character, as in `\fB$NAME\fR'.
 The value of the named environment variable will be substituted. The name must begin with a non-punctuation,
 non-space, non-digit character, and ends before the first control character, space, or punctuation
-character other than `\fB.\fR' or `\fB\-\fR'. To avoid substitution, a single `\fB$\fR' can be escaped with a
+character other than `\fB.\fR', `\fB\-\fR' or `\fB_\fR'. To avoid substitution, a single `\fB$\fR' can be escaped with a
 second, as in `\fB$$\fR'.
 
 Variables for substitution come from the \fBdinit\fR environment at the time the service is loaded.

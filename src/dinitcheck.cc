@@ -368,7 +368,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
                     "for file paths may not match dinitd (environment may differ)");
             issued_var_subst_warning = true;
         }
-        return resolve_env_var_path(name);
+        return resolve_env_var(name);
     };
 
     settings.finalise(report_err, report_err, resolve_var);
