@@ -325,13 +325,14 @@ Specifies various options for this service. See the \fBOPTIONS\fR section. This
 directive can be specified multiple times to set additional options.
 .TP
 \fBload\-options\fR = \fIload_option\fR...
-Specifies options for interpreting other settings when loading this service
-description. Currently there is only one available option, \fBsub\-vars\fR,
-which specifies that complete command-line arguments in the form of \fB$NAME\fR should
-be replaced with the contents of the environment variable with the specified
-name. No word-splitting is performed and the variable value always becomes a single
-argument; if the variable is not defined, it is replaced with an empty (zero-length)
-argument. Environment variable variables are taken from the environment of the \fBdinit\fR
+Specifies options for interpreting other settings when loading this service description. Currently
+there is only one available option, \fBsub\-vars\fR, which specifies that command-line arguments
+(or parts thereof) in the form of \fB$NAME\fR should be replaced with the contents of the
+environment variable with the specified name. See \fBVARIABLE SUBSTITUTION\fR for details. Note
+command-line variable substitution occurs after splitting the line into separate arguments and so
+a single environment cannot be used to add multiple arguments to a command line. If a designated
+variable is not defined, it is replaced with an empty (zero-length) string, possibly producing a
+zero-length argument. Environment variable variables are taken from the environment of the \fBdinit\fR
 process, and values specified via \fBenv\-file\fR or \fBready\-notification\fR are not available.
 This functionality is likely to be re-worked or removed in the future; use of this option should
 be avoided if possible.
@@ -492,12 +493,12 @@ only one value is specified with no colon separator, it affects both the soft an
 .\"
 .SS VARIABLE SUBSTITUTION
 .\"
-Some service properties specify a path to a file or directory. For these properties, the specified
-value may contain an environment variable name, preceded by a single `\fB$\fR' character, as in `\fB$NAME\fR'.
-The value of the named environment variable will be substituted. The name must begin with a non-punctuation,
+Some service properties specify a path to a file or directory, or a command line. For these properties, the specified
+value may contain one or more environment variable names, each preceded by a single `\fB$\fR' character, as in `\fB$NAME\fR'.
+In each case the value of the named environment variable will be substituted. The name must begin with a non-punctuation,
 non-space, non-digit character, and ends before the first control character, space, or punctuation
-character other than `\fB.\fR', `\fB\-\fR' or `\fB_\fR'. To avoid substitution, a single `\fB$\fR' can be escaped with a
-second, as in `\fB$$\fR'.
+character other than `\fB.\fR', `\fB\-\fR' or `\fB_\fR'. To avoid substitution, a single `\fB$\fR'
+can be escaped with a second, as in `\fB$$\fR'.
 
 Variables for substitution come from the \fBdinit\fR environment at the time the service is loaded.
 In particular, variables set via \fBenv\-file\fR are not visible to the substitution function.

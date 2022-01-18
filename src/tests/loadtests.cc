@@ -37,6 +37,31 @@ void test_env_subst()
     assert(strcmp("", exec_parts[3]) == 0);
 }
 
+void test_env_subst2()
+{
+    auto resolve_env_var = [](const std::string &name){
+        if (name == "ONE_VAR") return "a";
+        if (name == "TWOVAR") return "hellohello";
+        return "";
+    };
+
+    std::string line = "test x$ONE_VAR~ y$TWOVAR$$ONE_VAR";
+    std::list<std::pair<unsigned,unsigned>> offsets;
+    std::string::iterator li = line.begin();
+    std::string::iterator le = line.end();
+    dinit_load::read_setting_value(li, le, &offsets);
+
+    dinit_load::cmdline_var_subst(line, offsets, resolve_env_var);
+
+    //std::cout << "line = " << line << std::endl; // XXX
+    assert(line == "test xa~ yhellohello$ONE_VAR");
+
+    assert(offsets.size() == 3);
+    assert((*std::next(offsets.begin(), 0) == std::pair<unsigned,unsigned>{0, 4}));
+    assert((*std::next(offsets.begin(), 1) == std::pair<unsigned,unsigned>{5, 8}));
+    assert((*std::next(offsets.begin(), 2) == std::pair<unsigned,unsigned>{9, 28}));
+}
+
 void test_nonexistent()
 {
     bool got_service_not_found = false;
@@ -196,6 +221,7 @@ int main(int argc, char **argv)
     init_test_service_dir();
     RUN_TEST(test_basic, "                ");
     RUN_TEST(test_env_subst, "            ");
+    RUN_TEST(test_env_subst2, "           ");
     RUN_TEST(test_nonexistent, "          ");
     RUN_TEST(test_settings, "             ");
     RUN_TEST(test_path_env_subst, "       ");

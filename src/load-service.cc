@@ -29,40 +29,9 @@ using string_iterator = std::string::iterator;
 static void do_env_subst(std::string &line, std::list<std::pair<unsigned,unsigned>> &offsets,
         bool do_sub_vars)
 {
+    using namespace dinit_load;
     if (do_sub_vars) {
-        auto i = offsets.begin();
-        std::string r_line = line.substr(i->first, i->second - i->first); // copy command part
-        for (++i; i != offsets.end(); ++i) {
-            auto &offset_pair = *i;
-            if (line[offset_pair.first] == '$') {
-                // Do subsitution for this part:
-                auto env_name = line.substr(offset_pair.first + 1,
-                        offset_pair.second - offset_pair.first - 1);
-                char *env_val = getenv(env_name.c_str());
-                if (env_val != nullptr) {
-                    auto val_len = strlen(env_val);
-                    r_line += " ";
-                    offset_pair.first = r_line.length();
-                    offset_pair.second = offset_pair.first + val_len;
-                    r_line += env_val;
-                }
-                else {
-                    // specified enironment variable not set: treat as an empty string
-                    offset_pair.first = r_line.length();
-                    offset_pair.second = offset_pair.first;
-                }
-            }
-            else {
-                // No subsitution for this part:
-                r_line += " ";
-                auto new_offs = r_line.length();
-                auto len = offset_pair.second - offset_pair.first;
-                r_line += line.substr(offset_pair.first, len);
-                offset_pair.first = new_offs;
-                offset_pair.second = new_offs + len;
-            }
-        }
-        line = std::move(r_line);
+        cmdline_var_subst(line, offsets, resolve_env_var);
     }
 }
 

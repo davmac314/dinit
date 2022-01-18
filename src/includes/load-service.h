@@ -611,7 +611,7 @@ static auto resolve_env_var = [](const string &name){
 //    p           - path to resolve
 //    var_resolve - function to translate names to values; returning string or const char *;
 //                  may throw setting_exception
-template <class T>
+template <typename T>
 inline std::string resolve_path(std::string &&p, T &var_resolve)
 {
     auto dpos = p.find('$');
@@ -647,6 +647,83 @@ inline std::string resolve_path(std::string &&p, T &var_resolve)
     r.append(p, last_pos, string::npos);
 
     return r;
+}
+
+// Substitute variable references in a command line with their values. Specified offsets must give
+// the location of separate arguments after word splitting and are adjusted appropriately.
+//
+// throws: setting_exception if a $-substitution is ill-formed, or if the command line is too long;
+//         bad_alloc on allocation failure
+template <typename T>
+static void cmdline_var_subst(std::string &line, std::list<std::pair<unsigned,unsigned>> &offsets,
+        T &var_resolve)
+{
+    auto dindx = line.find('$');
+    if (dindx == string::npos) {
+        return;
+    }
+
+    if (line.length() > (size_t)std::numeric_limits<int>::max()) {
+        // (avoid potential for overflow later)
+        throw setting_exception("command line too long");
+    }
+
+    auto i = offsets.begin();
+    unsigned xpos = 0; // position to copy from
+    std::string r_line;
+    int offadj = 0;
+
+    while (i != offsets.end()) {
+
+        i->first += offadj; // don't adjust end yet
+
+        while (i->second > dindx) {
+            r_line.append(line, xpos, dindx - xpos); // copy unmatched part
+
+            if (line[dindx + 1] == '$') {
+                // double dollar, collapse to single
+                r_line += '$';
+                xpos = dindx + 2;
+                --offadj;
+            }
+            else {
+                // variable
+                auto i = std::next(line.begin(), dindx + 1);
+                string name = read_config_name(i, line.end());
+                if (name.empty()) {
+                    throw setting_exception("invalid/missing variable name after '$'");
+                }
+                size_t line_len_before = r_line.size();
+                r_line.append(var_resolve(name));
+                size_t line_len_after = r_line.size();
+
+                if (line_len_after > (size_t)std::numeric_limits<int>::max()) {
+                    // (avoid potential overflow)
+                    throw setting_exception("command line too long (after substitution)");
+                }
+
+                xpos = i - line.begin();
+                int name_len = xpos - dindx;
+
+                offadj += (int)line_len_after - (int)line_len_before - name_len;
+            }
+
+            dindx = line.find('$', xpos);
+        }
+
+        i->second += offadj;
+        ++i;
+
+        while (i != offsets.end() && i->second < dindx) {
+            i->first += offadj;
+            i->second += offadj;
+            ++i;
+        }
+    }
+
+    r_line.append(line, xpos); // copy final unmatched part
+    line = std::move(r_line);
+    return;
 }
 
 // A wrapper type for service parameters. It is parameterised by dependency type.
