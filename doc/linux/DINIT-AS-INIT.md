@@ -274,4 +274,4 @@ You can remove most or all dependencies from this service so that it starts earl
 it will not be killed at shutdown (you will need to manually exit the shell to complete shutdown).
 This means you always have a shell available to check system state when something is going wrong.
 While this is not something you want to enable permanently, it can be a good tool to debug a
-reproducable boot issue or shutdown issue.
+reproducible boot issue or shutdown issue.
