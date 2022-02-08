@@ -239,11 +239,11 @@ in a more complex package.
 
 The Systemd interdependence graph is more complex than for Dinit and most other
 dependency-handling service managers: a service can conflict with another service, meaning
-that starting one causes the other to stop and vice versa. Systemd implements shutdown
-via a special "shutdown" unit which conflicts with other services so that they stop
-when the shutdown is "started". Other service managers typically do not implement shutdown
-as a service but as a special action; they then don't need to support conflicting
-services.
+that starting one causes the other to stop and vice versa. This allows Systemd to
+implement shutdown via a special "shutdown" unit which conflicts with other services so
+that they stop when the shutdown is "started".
+Other service managers typically need to implement shutdown as a special action because
+they don't support conflicting services.
 
 The "shutdown" unit is just one example of a "special" service. Systemd has several such
 services, for various purposes, including for tight integration with D-Bus (Systemd
