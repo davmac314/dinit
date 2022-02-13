@@ -14,6 +14,7 @@ ifeq ($(BUILD_SHUTDOWN),yes)
 	install -m644 shutdown.8 "$(DESTDIR)$(MANDIR)/man8"
 	ln -sf "shutdown.8" "$(DESTDIR)$(MANDIR)/man8/halt.8"
 	ln -sf "shutdown.8" "$(DESTDIR)$(MANDIR)/man8/reboot.8"
+	ln -sf "shutdown.8" "$(DESTDIR)$(MANDIR)/man8/poweroff.8"
 endif
 
 clean:

@@ -1,7 +1,7 @@
 changequote(`@@@',`$$$')dnl
 @@@.TH SHUTDOWN "8" "$$$MONTH YEAR@@@" "Dinit $$$VERSION@@@" "Dinit \- service management system"
 .SH NAME
-shutdown, halt, reboot \- system shutdown 
+shutdown, halt, poweroff, reboot \- system shutdown 
 .\"
 .SH SYNOPSIS
 .\"
@@ -11,6 +11,8 @@ shutdown, halt, reboot \- system shutdown
 .br
 \fBhalt\fR [\fIoptions...\fR]
 .br
+\fBpoweroff\fR [\fIoptions...\fR]
+.br
 \fBreboot\fR [\fIoptions...\fR]
 .\"
 .SH DESCRIPTION
@@ -18,13 +20,14 @@ shutdown, halt, reboot \- system shutdown
 This manual page is for the shutdown utility included with the \fBDinit\fR
 service manager package. See \fBdinit\fR(8).
 
-The shutdown, reboot and halt commands can be used to instruct the service
-manager daemon to perform a service rollback and then to shutdown the
+The shutdown, reboot, poweroff and halt commands can be used to instruct the
+service manager daemon to perform a service rollback and then to shutdown the
 system. They can also perform shutdown directly, without service rollback.
 
-Note that for consistency with other packages a "halt" alias is provided,
-however it has no special significance. The default action is to power down
-the system if called as either "shutdown" or "halt".
+Note that for consistency with other packages "halt" and "poweroff" aliases
+are provided, however they have no special significance. The default action
+is to power down the system if called as either "shutdown", "halt", or
+"poweroff".
 .\"
 .SH OPTIONS
 .TP

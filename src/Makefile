@@ -60,6 +60,7 @@ install: all
 ifeq ($(BUILD_SHUTDOWN),yes)
 	ln -sf $(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWNPREFIX)halt
 	ln -sf $(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWNPREFIX)reboot
+	ln -sf $(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWNPREFIX)poweroff
 endif
 
 clean:
