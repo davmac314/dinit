@@ -11,7 +11,7 @@ SYSCONTROLSOCKET=/var/run/dinitctl
 # Cannot use -fno-rtti: apparently prevents exception handling from working properly.
 CXX=g++
 CXXOPTS=-std=c++11 -Os -Wall -flto
-LDFLAGS=-flto
+LDFLAGS=
 BUILD_SHUTDOWN=no
 SANITIZEOPTS=-fsanitize=address,undefined
 
