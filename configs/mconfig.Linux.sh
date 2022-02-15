@@ -59,11 +59,6 @@ HAS_LTO=$?
 test_compiler_arg "$compiler" -fno-rtti
 test_compiler_arg "$compiler" -fno-plt
 BUILD_OPTS="-D_GLIBCXX_USE_CXX11_ABI=1 -std=c++11 -Os -Wall $supported_opts"
-if test $HAS_LTO = 0; then
-  LD_OPTS="-flto -Os"
-else
-  LD_OPTS=""
-fi
 
 echo "Using build options     : $supported_opts"
 
@@ -84,7 +79,7 @@ GENERAL_BUILD_SETTINGS=$(
   echo "# the new ABI. See BUILD.txt file for more information."
   echo "CXX=$compiler"
   echo "CXXOPTS=$BUILD_OPTS"
-  echo "LDFLAGS=$LD_OPTS"
+  echo "LDFLAGS="
   echo "BUILD_SHUTDOWN=yes"
   echo "SANITIZEOPTS=$SANITIZE_OPTS"
   echo ""

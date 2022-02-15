@@ -22,13 +22,13 @@ prepare-incdir:
 	cd includes; ln -f ../test-includes/*.h .
 
 tests: $(parent_objs) tests.o test-dinit.o test-bpsys.o test-run-child-proc.o
-	$(CXX) $(SANITIZEOPTS) -o tests $(parent_objs) tests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(LDFLAGS)
+	$(CXX) $(SANITIZEOPTS) -o tests $(parent_objs) tests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(CXXOPTS) $(LDFLAGS)
 
 proctests: $(parent_objs) proctests.o test-dinit.o test-bpsys.o test-run-child-proc.o
-	$(CXX) $(SANITIZEOPTS) -o proctests $(parent_objs) proctests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(LDFLAGS)
+	$(CXX) $(SANITIZEOPTS) -o proctests $(parent_objs) proctests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(CXXOPTS) $(LDFLAGS)
 	
 loadtests: $(parent_objs) loadtests.o test-dinit.o test-bpsys.o test-run-child-proc.o
-	$(CXX) $(SANITIZEOPTS) -o loadtests $(parent_objs) loadtests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(LDFLAGS)
+	$(CXX) $(SANITIZEOPTS) -o loadtests $(parent_objs) loadtests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(CXXOPTS) $(LDFLAGS)
 
 $(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../dasynq/include -I../../build/includes -c $< -o $@

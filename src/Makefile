@@ -31,16 +31,16 @@ all: dinit dinitctl dinitcheck $(SHUTDOWN)
 $(objects): ../build/includes/mconfig.h
 
 dinit: $(dinit_objects)
-	$(CXX) -o dinit $(dinit_objects) $(LDFLAGS)
+	$(CXX) -o dinit $(dinit_objects) $(CXXOPTS) $(LDFLAGS)
 
 dinitctl: dinitctl.o
-	$(CXX) -o dinitctl dinitctl.o $(LDFLAGS)
+	$(CXX) -o dinitctl dinitctl.o $(CXXOPTS) $(LDFLAGS)
 
 dinitcheck: dinitcheck.o options-processing.o
-	$(CXX) -o dinitcheck dinitcheck.o options-processing.o $(LDFLAGS)
+	$(CXX) -o dinitcheck dinitcheck.o options-processing.o $(CXXOPTS) $(LDFLAGS)
 
 $(SHUTDOWNPREFIX)shutdown: shutdown.o
-	$(CXX) -o $(SHUTDOWNPREFIX)shutdown shutdown.o $(LDFLAGS)
+	$(CXX) -o $(SHUTDOWNPREFIX)shutdown shutdown.o $(CXXOPTS) $(LDFLAGS)
 
 $(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) -MMD -MP -Iincludes -I../dasynq/include -I../build/includes -c $< -o $@
