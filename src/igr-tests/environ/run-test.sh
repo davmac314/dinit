@@ -10,9 +10,12 @@ rm -f ./env-record
         -e environment2 \
 	checkenv
 
+../../dinit -d sd -u -p socket -q \
+	setenv1
+
 STATUS=FAIL
 if [ -e env-record ]; then
-   if [ "$(cat env-record)" = "$(echo hello; echo goodbye)" ]; then
+   if [ "$(cat env-record)" = "$(echo hello; echo goodbye; echo 3; echo 2; echo 1)" ]; then
        STATUS=PASS
    fi
 fi

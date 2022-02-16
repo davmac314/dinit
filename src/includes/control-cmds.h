@@ -45,6 +45,9 @@ constexpr static int DINIT_CP_QUERYSERVICENAME = 15;
 // Reload a service:
 constexpr static int DINIT_CP_RELOADSERVICE = 16;
 
+// Export a set of environment variables into activation environment:
+constexpr static int DINIT_CP_SETENV = 17;
+
 // Replies:
 
 // Reply: ACK/NAK to request
