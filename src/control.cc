@@ -101,6 +101,9 @@ bool control_conn_t::process_packet()
     if (pktType == DINIT_CP_QUERYSERVICENAME) {
         return process_query_name();
     }
+    if (pktType == DINIT_CP_SETENV) {
+        return process_setenv();
+    }
 
     // Unrecognized: give error response
     char outbuf[] = { DINIT_RP_BADREQ };
@@ -787,6 +790,65 @@ bool control_conn_t::process_query_name()
     memcpy(reply.data() + 2 + sizeof(uint16_t), name.c_str(), name_length);
 
     return queue_packet(std::move(reply));
+}
+
+bool control_conn_t::process_setenv()
+{
+    using std::string;
+
+    string envVar;
+    typename string::size_type eq;
+
+    constexpr int pkt_size = 4;
+    char badreqRep[] = { DINIT_RP_BADREQ };
+    char okRep[] = { DINIT_RP_ACK };
+
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    uint16_t envSize;
+    rbuf.extract((char *)&envSize, 1, 2);
+    if (envSize <= 0 || envSize > (1024 - 3)) {
+        goto badreq;
+    }
+    chklen = envSize + 3; // packet type + (2 byte) length + envvar
+
+    if (rbuf.get_length() < chklen) {
+        // packet not complete yet; read more
+        return true;
+    }
+
+    envVar = rbuf.extract_string(3, envSize);
+
+    eq = envVar.find('=');
+    if (!eq || eq == envVar.npos) {
+        // not found or at the beginning of the string
+        goto badreq;
+    }
+
+    envVar[eq] = '\0';
+
+    if (setenv(envVar.c_str(), &envVar[eq + 1], 1) != 0) {
+        // failed to set the var
+        goto badreq;
+    }
+
+    // success response
+    if (! queue_packet(okRep, 1)) return false;
+
+    // Clear the packet from the buffer
+    rbuf.consume(chklen);
+    chklen = 0;
+    return true;
+
+badreq:
+    // Queue error response / mark connection bad
+    if (! queue_packet(badreqRep, 1)) return false;
+    bad_conn_close = true;
+    iob.set_watches(OUT_EVENTS);
+    return true;
 }
 
 bool control_conn_t::query_load_mech()

@@ -46,6 +46,9 @@ dinitctl \- control services supervised by Dinit
 .br
 .B dinitctl
 [\fIoptions\fR] \fBdisable\fR [\fB\-\-from\fR \fIfrom-service\fR] \fIto-service\fR
+.br
+.B dinitctl
+[\fIoptions\fR] \fBsetenv\fR [\fIname\fR[=\fIvalue\fR] \fI...\fR]
 .\"
 .SH DESCRIPTION
 .\"
@@ -216,6 +219,12 @@ Permanently disable a \fBwaits-for\fR dependency between two services. This is t
 Note that the \fBdisable\fR command affects only the dependency specified (or implied). It has no
 other effect, and a service that is "disabled" may still be started if it is a dependency of
 another started service.
+.TP
+\fBsetenv\fR
+Export one or more variables into the activation environment. The value can be provided on the command line
+or retrieved from the environment \fBdinitctl\fR is called in. Any subsequently started or restarted
+service will have these environment variables available. This is particularly useful for user services
+that need access to session information.
 .\"
 .SH SERVICE OPERATION
 .\"

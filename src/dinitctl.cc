@@ -49,6 +49,7 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, con
         const char *service_to, dependency_type dep_type, bool verbose);
 static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to,
         bool enable, bool verbose);
+static int do_setenv(int socknum, cpbuffer_t &rbuffer, char **env_names);
 
 static const char * describeState(bool stopped)
 {
@@ -75,7 +76,8 @@ enum class command_t {
     ADD_DEPENDENCY,
     RM_DEPENDENCY,
     ENABLE_SERVICE,
-    DISABLE_SERVICE
+    DISABLE_SERVICE,
+    SETENV,
 };
 
 class dinit_protocol_error
@@ -91,6 +93,7 @@ int main(int argc, char **argv)
     bool show_help = argc < 2;
     const char *service_name = nullptr;
     const char *to_service_name = nullptr;
+    char **env_names = nullptr;
     dependency_type dep_type;
     bool dep_type_set = false;
     
@@ -203,6 +206,12 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "disable") == 0) {
                 command = command_t::DISABLE_SERVICE;
             }
+            else if (strcmp(argv[i], "setenv") == 0) {
+                command = command_t::SETENV;
+                if ((i + 1) < argc) {
+                    env_names = &argv[i + 1];
+                }
+            }
             else {
                 cerr << "dinitctl: unrecognized command: " << argv[i] << " (use --help for help)\n";
                 return 1;
@@ -246,7 +255,7 @@ int main(int argc, char **argv)
                 to_service_name = argv[i];
             }
             else {
-                if (service_name != nullptr) {
+                if (service_name != nullptr && (command != command_t::SETENV)) {
                     show_help = true;
                     break;
                 }
@@ -274,6 +283,10 @@ int main(int argc, char **argv)
         show_help = true;
     }
 
+    if ((command == command_t::SETENV) && ! env_names) {
+        show_help = true;
+    }
+
     if (show_help) {
         cout << "dinitctl:   control Dinit services\n"
           "\n"
@@ -292,6 +305,7 @@ int main(int argc, char **argv)
           "    dinitctl [options] rm-dep <type> <from-service> <to-service>\n"
           "    dinitctl [options] enable [--from <from-service>] <to-service>\n"
           "    dinitctl [options] disable [--from <from-service>] <to-service>\n"
+          "    dinitctl [options] setenv [name[=value] ...]\n"
           "\n"
           "Note: An activated service continues running when its dependents stop.\n"
           "\n"
@@ -394,6 +408,9 @@ int main(int argc, char **argv)
             }
             return enable_disable_service(socknum, rbuffer, service_name, to_service_name,
                     command == command_t::ENABLE_SERVICE, verbose);
+        }
+        else if (command == command_t::SETENV) {
+            return do_setenv(socknum, rbuffer, env_names);
         }
         else {
             return start_stop_service(socknum, rbuffer, service_name, command, do_pin, do_force,
@@ -1283,6 +1300,55 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
 
     if (verbose) {
         cout << "Service '" << to << "' has been " << (enable ? "enabled" : "disabled") << "." << endl;
+    }
+
+    return 0;
+}
+
+static int do_setenv(int socknum, cpbuffer_t &rbuffer, char **env_names)
+{
+    using namespace std;
+
+    string buf;
+
+    while (*env_names) {
+        const char *envp = *env_names++;
+        buf.clear();
+        buf.reserve(6);
+        // protocol message and size space
+        buf.push_back(DINIT_CP_SETENV);
+        buf.append(2, 0);
+        // either full var or name
+        auto elen = strlen(envp);
+        buf.append(envp, elen);
+        // = not found, get value from environment
+        if (!memchr(envp, '=', elen)) {
+            buf.push_back('=');
+            auto *envv = getenv(envp);
+            if (envv) {
+                buf.append(envv);
+            }
+        }
+        uint16_t bufs = buf.size() - 3;
+        // sanitize length early on
+        if (bufs > (1024 - 3)) {
+            auto eq = buf.find('=', 3);
+            auto name = buf.substr(3, eq - 3);
+            cerr << "dinitctl: environment variable '" << name << "' too long." << endl;
+            return 1;
+        }
+        // set size in protocol message
+        memcpy(&buf[1], &bufs, 2);
+        // send
+        write_all_x(socknum, buf.data(), bufs + 3);
+        wait_for_reply(rbuffer, socknum);
+        if (rbuffer[0] == DINIT_RP_BADREQ) {
+            cerr << "dinitctl: failed to export environment." << endl;
+            return 1;
+        } else if (rbuffer[0] != DINIT_RP_ACK) {
+            throw dinit_protocol_error();
+        }
+        rbuffer.consume(1);
     }
 
     return 0;

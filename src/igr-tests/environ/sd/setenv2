@@ -1,0 +1,3 @@
+type = scripted
+command = ./setenv.sh setenv2
+depends-on = setenv3

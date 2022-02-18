@@ -152,6 +152,9 @@ class control_conn_t : private service_listener
     // Process a QUERYSERVICENAME packet.
     bool process_query_name();
 
+    // Process a SETENV packet.
+    bool process_setenv();
+
     // List all loaded services and their state.
     bool list_services();
 
