@@ -1,5 +1,7 @@
 #!/bin/sh
 
+export DINIT_SOCKET_PATH="$(pwd)/socket"
+
 rm -f ./env-record
 
 ../../dinit -d sd -u -p socket -q \
@@ -15,7 +17,7 @@ rm -f ./env-record
 
 STATUS=FAIL
 if [ -e env-record ]; then
-   if [ "$(cat env-record)" = "$(echo hello; echo goodbye; echo 3; echo 2; echo 1)" ]; then
+   if [ "$(cat env-record)" = "$(echo $DINIT_SOCKET_PATH; echo hello; echo goodbye; echo 3; echo 2; echo 1)" ]; then
        STATUS=PASS
    fi
 fi

@@ -331,8 +331,12 @@ int main(int argc, char **argv)
         control_socket_path = control_socket_str.c_str();
     }
     else {
-        control_socket_path = SYSCONTROLSOCKET; // default to system
-        if (user_dinit) {
+        const char * sockpath = getenv("DINIT_SOCKET_PATH");
+        if (sockpath) {
+            control_socket_str = sockpath;
+            control_socket_path = control_socket_str.c_str();
+        }
+        else if (user_dinit) {
             char * userhome = getenv("HOME");
             if (userhome == nullptr) {
                 struct passwd * pwuid_p = getpwuid(getuid());
@@ -351,6 +355,9 @@ int main(int argc, char **argv)
                         "specify socket path via -p)" << endl;
                 return 1;
             }
+        }
+        else {
+            control_socket_path = SYSCONTROLSOCKET; // default to system
         }
     }
     

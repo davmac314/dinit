@@ -77,6 +77,8 @@ the default path to the control socket used to communicate with the \fBdinit\fR 
 .TP
 \fB\-\-socket\-path\fR \fIsocket-path\fR, \fB\-p\fR \fIsocket-path\fR
 Specify the path to the socket used for communicating with the service manager daemon.
+When not specified, the \fIDINIT_SOCKET_PATH\fR environment variable is read, otherwise
+Dinit's default values are used.
 .TP
 \fB\-\-quiet\fR
 Suppress status output, except for errors. 
