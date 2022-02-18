@@ -337,21 +337,27 @@ int main(int argc, char **argv)
             control_socket_path = control_socket_str.c_str();
         }
         else if (user_dinit) {
-            char * userhome = getenv("HOME");
-            if (userhome == nullptr) {
-                struct passwd * pwuid_p = getpwuid(getuid());
-                if (pwuid_p != nullptr) {
-                    userhome = pwuid_p->pw_dir;
+            const char * rundir = getenv("XDG_RUNTIME_DIR");
+            const char * sockname = "dinitctl";
+            if (rundir == nullptr) {
+                sockname = ".dinitctl";
+                rundir = getenv("HOME");
+                if (rundir == nullptr) {
+                    struct passwd * pwuid_p = getpwuid(getuid());
+                    if (pwuid_p != nullptr) {
+                        rundir = pwuid_p->pw_dir;
+                    }
                 }
             }
 
-            if (userhome != nullptr) {
-                control_socket_str = userhome;
-                control_socket_str += "/.dinitctl";
+            if (rundir != nullptr) {
+                control_socket_str = rundir;
+                control_socket_str.push_back('/');
+                control_socket_str += sockname;
                 control_socket_path = control_socket_str.c_str();
             }
             else {
-                cerr << "dinitctl: cannot locate user home directory (set HOME, check /etc/passwd file, or "
+                cerr << "dinitctl: cannot locate user home directory (set XDG_RUNTIME_DIR, HOME, check /etc/passwd file, or "
                         "specify socket path via -p)" << endl;
                 return 1;
             }
