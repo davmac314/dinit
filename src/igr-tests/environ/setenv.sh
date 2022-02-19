@@ -10,11 +10,11 @@ case "$1" in
         if [ "$FOO" = "foo" ]; then
             echo 2 >> ./env-record
             export BAR=bar
-            ../../dinitctl -p socket setenv BAR BAZ=baz
+            ../../dinitctl setenv BAR BAZ=baz
         fi
         ;;
     setenv3)
-        ../../dinitctl -p socket setenv FOO=foo
+        ../../dinitctl setenv FOO=foo
         echo 3 >> ./env-record
         ;;
     *) ;;

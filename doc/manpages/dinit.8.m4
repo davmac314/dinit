@@ -54,7 +54,8 @@ default is \fI/etc/dinit/environment\fR; see \fBFILES\fR.
 Specifies \fIpath\fP as the path to the control socket used to listen for
 commands from the \fBdinitctl\fR program. The default for the system service
 manager is usually \fI/dev/dinitctl\fR (but can be configured at build time).
-For a user service manager the default is \fI$HOME/.dinitctl\fR.
+For a user service manager the default is either \fI$XDG_RUNTIME_DIR/dinitctl\fR
+or \fI$HOME/.dinitctl\fR, depending on whether \fI$XDG_RUNTIME_DIR\fR is set.
 .TP
 \fB\-l\fR \fIpath\fP, \fB\-\-log\-file\fR \fIpath\fP
 Species \fIpath\fP as the path to the log file, to which Dinit will log status

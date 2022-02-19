@@ -410,10 +410,16 @@ int dinit_main(int argc, char **argv)
     event_loop.init();
 
     if (!am_system_init && !control_socket_path_set) {
-        const char * userhome = service_dir_opt::get_user_home();
-        if (userhome != nullptr) {
-            control_socket_str = userhome;
-            control_socket_str += "/.dinitctl";
+        const char * rundir = getenv("XDG_RUNTIME_DIR");
+        const char * sockname = "dinitctl";
+        if (rundir == nullptr) {
+            rundir = service_dir_opt::get_user_home();
+            sockname = ".dinitctl";
+        }
+        if (rundir != nullptr) {
+            control_socket_str = rundir;
+            control_socket_str.push_back('/');
+            control_socket_str += sockname;
             control_socket_path = control_socket_str.c_str();
         }
     }
