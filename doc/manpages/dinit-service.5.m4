@@ -6,7 +6,7 @@ Dinit service description files
 .SH SYNOPSIS
 .\"
 .ft CR
-/etc/dinit.d/\fIservice-name\fR, $HOME/dinit.d/\fIservice-name\fR
+/etc/dinit.d/\fIservice-name\fR, $HOME/.config/dinit.d/\fIservice-name\fR
 .ft
 .\"
 .SH DESCRIPTION
@@ -19,7 +19,7 @@ service description file is named after the service it represents, and is
 a plain-text file with simple key-value format. The description files are
 located in a service description directory; by default, the system process
 searches \fI/etc/dinit.d\fR, \fI/usr/local/lib/dinit.d\fR and
-\fI/lib/dinit.d\fR, while a user process searches \fI$HOME/dinit.d\fR.
+\fI/lib/dinit.d\fR, while a user process searches \fI$HOME/.config/dinit.d\fR.
 .LP
 All services have a \fItype\fR and a set of \fIdependencies\fR. These are discussed
 in the following subsections. The type, dependencies, and other attributes are

@@ -32,7 +32,7 @@ certain signals). This is currently fully supported only on Linux. See
 Dinit reads service descriptions from files located in a service
 description directory, normally one of \fI/etc/dinit.d\fR,
 \fI/usr/local/lib/dinit.d\fR or \fI/lib/dinit.d\fR for the system instance
-or just \fI$HOME/dinit.d\fR when run as a user process. See \fBSERVICE
+or just \fI$HOME/.config/dinit.d\fR when run as a user process. See \fBSERVICE
 DESCRIPTION FILES\fR for details of the service description format.
 .\"
 .SH OPTIONS
@@ -42,7 +42,7 @@ Specifies \fIdir\fP as the directory containing service definition files, can
 be set multiple times. Default directories are not searched for services when
 this option is provided.
 
-If not specified, the default is \fI$HOME/dinit.d\fR or, for the
+If not specified, the default is \fI$HOME/.config/dinit.d\fR or, for the
 system service manager, each of \fI/etc/dinit.d\fR, \fI/usr/local/lib/dinit.d\fR,
 and \fI/lib/dinit.d\fR (searched in that order).
 .TP
@@ -111,7 +111,7 @@ subsequent service names.
 .\"
 Service description files specify the parameters of each service. They are
 named for the service they describe, and are found in \fI/etc/dinit.d\fR
-for a system instance or \fI$HOME/dinit.d\fR for a user instance.
+for a system instance or \fI$HOME/.config/dinit.d\fR for a user instance.
 
 Service description files are read by Dinit on an "as needed" basis. Once a
 service description has been read the configuration can be altered in limited
