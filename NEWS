@@ -1,3 +1,10 @@
+== Version ?
+
+Changes:
+ * The default directory for user services has moved to ~/.config/dinit.d
+   (rather than ~/dinit.d).
+ * (this list of changes is incomplete and needs to be updated before release)
+
 == Version 0.12.0
 
 This is the third Alpha release, issued as a follow-up to the previous Alpha
