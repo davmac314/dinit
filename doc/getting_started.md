@@ -18,11 +18,11 @@ an overview of Dinit's configuration and operation.
 The main component of Dinit is the `dinit` daemon. Let's start by running dinit
 with the bare minimum configuration. First we need to choose a place for our
 service descriptions to live. For this guide we are going to use the default
-location (for user-mode), which is `~/dinit.d`.
+location (for user-mode), which is `~/.config/dinit.d`.
 
 ```
-$ mkdir ~/dinit.d
-$ cd ~/dinit.d
+$ mkdir ~/.config/dinit.d
+$ cd ~/.config/dinit.d
 ```
 
 Next we need a service description for the `boot` service. This is the service
@@ -46,7 +46,7 @@ but it can be anywhere you like so long as you adjust the `waits-for.d` setting
 appropriately.
 
 Now, let's create the aforementioned directory and start dinit for the first time.
-Assuming you are still in `~/dinit.d`:
+Assuming you are still in `~/.config/dinit.d`:
 ```
 $ mkdir boot.d
 $ dinit
@@ -80,7 +80,7 @@ So we have dinit running, but it currently has no services to supervise. Let's
 give it something to do.
 
 Suppose we want to run mpd, the music player daemon, under dinit. Put the
-following in ` ~/dinit.d/mpd`:
+following in ` ~/.config/dinit.d/mpd`:
 ```
 type = process
 command = /usr/local/sbin/mpd --no-daemon
