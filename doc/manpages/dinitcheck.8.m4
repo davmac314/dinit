@@ -35,7 +35,7 @@ Specifies \fIdir\fP as the directory containing service definition files, can
 be set multiple times. Default directories are not searched for services when
 this option is provided.
 
-If not specified, the default is \fI$HOME/dinit.d\fR or, for the
+If not specified, the default is \fI$HOME/.config/dinit.d\fR or, for the
 system service manager, each of \fI/etc/dinit.d/fR, \fI/usr/local/lib/dinit.d\fR,
 and \fI/lib/dinit.d\fR (searched in that order).
 .TP
