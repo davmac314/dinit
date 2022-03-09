@@ -694,7 +694,6 @@ bool service_record::stop_dependents(bool for_restart) noexcept
 // All dependents have stopped; we can stop now, too. Only called when STOPPING.
 void service_record::bring_down() noexcept
 {
-    waiting_for_deps = false;
     stopped();
 }
 
