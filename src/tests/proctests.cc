@@ -708,6 +708,9 @@ void test_proc_smooth_recovery1()
     assert(first_instance + 1 == bp_sys::last_forked_pid);
     assert(p.get_state() == service_state_t::STARTED);
 
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
     assert(event_loop.active_timers.size() == 0);
 
     sset.remove_service(&p);
@@ -851,6 +854,122 @@ void test_proc_smooth_recovery4()
 
     assert(p.get_state() == service_state_t::STOPPED);
     assert(first_instance == bp_sys::last_forked_pid);  // no more processes launched
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
+// stop during smooth recovery
+void test_proc_smooth_recovery5()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_smooth_recovery(true);
+    p.set_restart_delay(time_val {0, 1000});
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    pid_t first_instance = bp_sys::last_forked_pid;
+
+    assert(p.get_state() == service_state_t::STARTED);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    // since time hasn't been changed, we expect that the process has not yet been re-launched:
+    assert(first_instance == bp_sys::last_forked_pid);
+    assert(p.get_state() == service_state_t::STARTED);
+
+    event_loop.advance_time(time_val {0, 1000});
+    sset.process_queues();
+
+    // Now a new process should've been launched:
+    assert(first_instance + 1 == bp_sys::last_forked_pid);
+    assert(p.get_state() == service_state_t::STARTED);
+
+    // However, at this stage the exec has not succeeded. If we issue a stop, we shouldn't see a signal sent yet,
+    // since it's not clear what signal to send (term signal might not be SIGTERM, but if it's something else, the
+    // process before exec() may not respond correctly)
+    bp_sys::last_sig_sent = -1;
+    p.stop(true);
+
+    assert(bp_sys::last_sig_sent == -1);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    // Once the exec succeeds, then we should:
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(bp_sys::last_sig_sent == SIGTERM);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
+// stop during smooth recovery (while waiting on restart timer)
+void test_proc_smooth_recovery6()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_smooth_recovery(true);
+    p.set_restart_delay(time_val {0, 1000});
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    pid_t first_instance = bp_sys::last_forked_pid;
+
+    assert(p.get_state() == service_state_t::STARTED);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    // since time hasn't been changed, we expect that the process has not yet been re-launched:
+    assert(first_instance == bp_sys::last_forked_pid);
+    assert(p.get_state() == service_state_t::STARTED);
+
+    bp_sys::last_sig_sent = -1;
+
+    // Now issue a stop:
+    p.stop(true);
+    sset.process_queues();
+
+    // since we were waiting on the restart timer, there should be no process signalled and the
+    // state should now be stopped:
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(bp_sys::last_sig_sent == -1);
     assert(event_loop.active_timers.size() == 0);
 
     sset.remove_service(&p);
@@ -1822,6 +1941,8 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_smooth_recovery2, " ");
     RUN_TEST(test_proc_smooth_recovery3, " ");
     RUN_TEST(test_proc_smooth_recovery4, " ");
+    RUN_TEST(test_proc_smooth_recovery5, " ");
+    RUN_TEST(test_proc_smooth_recovery6, " ");
     RUN_TEST(test_bgproc_start, "          ");
     RUN_TEST(test_bgproc_start_fail, "     ");
     RUN_TEST(test_bgproc_start_fail_pid, " ");
