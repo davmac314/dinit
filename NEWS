@@ -1,8 +1,25 @@
 == Version ?
 
+NOTE: This release has some minor backwards-incompatible changes. Please read
+these notes carefully.
+
+This release includes changes contributed by Daniel Kolesa.
+
 Changes:
  * The default directory for user services has moved to ~/.config/dinit.d
    (rather than ~/dinit.d).
+ * Some service settings now expand environment variables (given in the form
+   $VARNAME, in any location that it appears within the setting value). The
+   affected settings are: socket_path, logfile, env_file, working_dir and
+   pid_file.
+ * The variable substitution in command lines (which remains dependent on the
+   'sub-vars' load option, for now) uses the same substitution rules and logic
+   as for other settings. In particular, this means that a variable expansion
+   can occur as part of a command line argument (previously it always replaced
+   whole arguments). 
+ * The dinitctl program now uses the value of the DINIT_SOCKET_PATH
+   environment variable, if set, as the default control socket path. (If not
+   set, behaviour is the same as for previous versions).
  * (this list of changes is incomplete and needs to be updated before release)
 
 == Version 0.12.0
