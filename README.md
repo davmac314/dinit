@@ -114,7 +114,7 @@ process.
 Dinit discovers services by reading _service description files_. These files
 reside in a directory (`/etc/dinit.d` is the default "system" location, with
 `/usr/local/lib/dinit.d` and `/lib/dinit.d` also searched; the default user
-location is `$HOME/dinit.d`) and the name of a service description file
+location is `$HOME/.config/dinit.d`) and the name of a service description file
 matches the name of the service it configures.
 
 For example, a service named "mysql" might be configured via the service description
