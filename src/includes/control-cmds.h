@@ -48,6 +48,10 @@ constexpr static int DINIT_CP_RELOADSERVICE = 16;
 // Export a set of environment variables into activation environment:
 constexpr static int DINIT_CP_SETENV = 17;
 
+// Query status of an individual service
+constexpr static int DINIT_CP_SERVICESTATUS = 18;
+
+
 // Replies:
 
 // Reply: ACK/NAK to request
@@ -101,7 +105,11 @@ constexpr static int DINIT_RP_PINNEDSTARTED = 68;
 // Shutdown is in progress, can't start/restart/wake service:
 constexpr static int DINIT_RP_SHUTTINGDOWN = 69;
 
-// Information:
+// Service status:
+constexpr static int DINIT_RP_SERVICESTATUS = 70;
+
+
+// Information (out-of-band):
 
 // Service event occurred (4-byte service handle, 1 byte event code)
 constexpr static int DINIT_IP_SERVICEEVENT = 100;

@@ -44,6 +44,7 @@ static int unpin_service(int socknum, cpbuffer_t &, const char *service_name, bo
 static int unload_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
 static int reload_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
 static int list_services(int socknum, cpbuffer_t &);
+static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_name);
 static int shutdown_dinit(int soclknum, cpbuffer_t &, bool verbose);
 static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, const char *service_from,
         const char *service_to, dependency_type dep_type, bool verbose);
@@ -72,6 +73,7 @@ enum class command_t {
     UNLOAD_SERVICE,
     RELOAD_SERVICE,
     LIST_SERVICES,
+    SERVICE_STATUS,
     SHUTDOWN,
     ADD_DEPENDENCY,
     RM_DEPENDENCY,
@@ -191,6 +193,9 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "list") == 0) {
                 command = command_t::LIST_SERVICES;
             }
+            else if (strcmp(argv[i], "status") == 0) {
+                command = command_t::SERVICE_STATUS;
+            }
             else if (strcmp(argv[i], "shutdown") == 0) {
                 command = command_t::SHUTDOWN;
             }
@@ -254,8 +259,12 @@ int main(int argc, char **argv)
                 }
                 to_service_name = argv[i];
             }
+            else if (command == command_t::SETENV) {
+                // ignore, specifies a variable/value to set
+            }
             else {
-                if (service_name != nullptr && (command != command_t::SETENV)) {
+                if (service_name != nullptr) {
+                    // service name was already specified
                     show_help = true;
                     break;
                 }
@@ -265,7 +274,8 @@ int main(int argc, char **argv)
         }
     }
     
-    bool no_service_cmd = (command == command_t::LIST_SERVICES || command == command_t::SHUTDOWN);
+    bool no_service_cmd = (command == command_t::LIST_SERVICES || command == command_t::SHUTDOWN
+            || command == command_t::SETENV);
 
     if (command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE) {
         show_help |= (to_service_name == nullptr);
@@ -291,6 +301,7 @@ int main(int argc, char **argv)
         cout << "dinitctl:   control Dinit services\n"
           "\n"
           "Usage:\n"
+          "    dinitctl [options] status <service-name>\n"
           "    dinitctl [options] start [options] <service-name>\n"
           "    dinitctl [options] stop [options] <service-name>\n"
           "    dinitctl [options] restart [options] <service-name>\n"
@@ -406,6 +417,9 @@ int main(int argc, char **argv)
         }
         else if (command == command_t::LIST_SERVICES) {
             return list_services(socknum, rbuffer);
+        }
+        else if (command == command_t::SERVICE_STATUS) {
+            return service_status(socknum, rbuffer, service_name);
         }
         else if (command == command_t::SHUTDOWN) {
             return shutdown_dinit(socknum, rbuffer, verbose);
@@ -1035,6 +1049,160 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
     if (rbuffer[0] != DINIT_RP_LISTDONE) {
         cerr << "dinitctl: control socket protocol error" << endl;
         return 1;
+    }
+
+    return 0;
+}
+
+static void print_termination_details(int exit_status)
+{
+    using namespace std;
+
+    if (WIFSIGNALED(exit_status)) {
+        cout << "signalled - signal ";
+        cout << WTERMSIG(exit_status);
+    }
+    else if (WIFEXITED(exit_status)) {
+        cout << "exited - status ";
+        cout << WEXITSTATUS(exit_status);
+    }
+    else {
+        cout << "unknown";
+    }
+}
+
+static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_name)
+{
+    using namespace std;
+
+    if (issue_load_service(socknum, service_name, true) == 1) {
+        return 1;
+    }
+
+    wait_for_reply(rbuffer, socknum);
+
+    handle_t handle;
+
+    if (rbuffer[0] == DINIT_RP_NOSERVICE) {
+        cerr << "dinitctl: service not loaded." << endl;
+        return 1;
+    }
+
+    if (check_load_reply(socknum, rbuffer, &handle, nullptr) != 0) {
+        return 1;
+    }
+
+    // Issue STATUS request
+    {
+        auto m = membuf()
+                .append<char>(DINIT_CP_SERVICESTATUS)
+                .append(handle);
+        write_all_x(socknum, m);
+
+        wait_for_reply(rbuffer, socknum);
+        if (rbuffer[0] != DINIT_RP_SERVICESTATUS) {
+            cerr << "dinitctl: protocol error." << endl;
+            return 1;
+        }
+        rbuffer.consume(1);
+
+        int statussize = 6 + std::max(sizeof(pid_t), sizeof(int));;
+        fill_buffer_to(rbuffer, socknum, statussize + 1 /* reserved */);
+        rbuffer.consume(1);
+
+        service_state_t current = static_cast<service_state_t>(rbuffer[0]);
+        service_state_t target = static_cast<service_state_t>(rbuffer[1]);
+
+        int console_flags = rbuffer[2];
+        bool has_console = (console_flags & 2) != 0;
+        bool waiting_console = (console_flags & 1) != 0;
+        bool was_skipped = (console_flags & 4) != 0;
+        bool marked_active = (console_flags & 8) != 0;
+
+        stopped_reason_t stop_reason = static_cast<stopped_reason_t>(rbuffer[3]);
+
+        pid_t service_pid = -1;
+        int exit_status = 0;
+        if (current != service_state_t::STOPPED) {
+            rbuffer.extract((char *)&service_pid, 6, sizeof(service_pid));
+        }
+        else {
+            rbuffer.extract((char *)&exit_status, 6, sizeof(exit_status));
+        }
+
+        cout << "Service: " << service_name << "\n"
+                "    State: ";
+
+        switch (current) {
+        case service_state_t::STOPPED:
+            cout << "STOPPED";
+            if (stop_reason == stopped_reason_t::DEPFAILED) {
+                cout << " (dependency failed/terminated)";
+            }
+            else if (stop_reason == stopped_reason_t::FAILED) {
+                cout << " (failed to start";
+                if (exit_status != 0) {
+                    cout << "; ";
+                    print_termination_details(exit_status);
+                }
+                cout << ")";
+            }
+            else if (stop_reason == stopped_reason_t::EXECFAILED) {
+                cout << " (could not be launched)";
+            }
+            if (stop_reason == stopped_reason_t::TERMINATED) {
+                cout << " (terminated";
+                if (exit_status != 0) {
+                    cout << "; ";
+                    print_termination_details(exit_status);
+                }
+                cout << ")";
+            }
+            break;
+        case service_state_t::STARTING:
+            cout << "STARTING";
+            if (target == service_state_t::STOPPED) {
+                cout << " (target state: STOPPED)";
+            }
+            break;
+        case service_state_t::STARTED:
+            cout << "STARTED";
+            if (was_skipped) {
+                cout << " (startup skipped)";
+            }
+            break;
+        case service_state_t::STOPPING:
+            cout << "STOPPING";
+            if (target == service_state_t::STARTED) {
+                cout << " (target state: STARTED)";
+            }
+            if (exit_status != 0) {
+                cout << "(terminated ;";
+                print_termination_details(exit_status);
+                cout << ")";
+            }
+        }
+        if (has_console) {
+            cout << " (holding console)";
+        }
+        if (waiting_console) {
+            cout << " (waiting for console)";
+        }
+        cout << "\n";
+
+        if (target == service_state_t::STARTED) {
+            cout << "    Activation: ";
+            if (marked_active) {
+                cout << "explicitly started\n";
+            }
+            else {
+                cout << "start due to dependent(s)\n";
+            }
+        }
+
+        if (service_pid != -1) {
+            cout << "    Process ID: " << service_pid << "\n";
+        }
     }
 
     return 0;

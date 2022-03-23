@@ -86,6 +86,9 @@ bool control_conn_t::process_packet()
     if (pktType == DINIT_CP_LISTSERVICES) {
         return list_services();
     }
+    if (pktType == DINIT_CP_SERVICESTATUS) {
+        return process_service_status();
+    }
     if (pktType == DINIT_CP_ADD_DEP) {
         return add_service_dep();
     }
@@ -522,6 +525,34 @@ bool control_conn_t::process_reload_service()
     return true;
 }
 
+constexpr static int STATUS_BUFFER_SIZE = 6 + ((sizeof(pid_t) > sizeof(int)) ? sizeof(pid_t) : sizeof(int));
+
+static void fill_status_buffer(char *buffer, service_record *service)
+{
+    buffer[0] = static_cast<char>(service->get_state());
+    buffer[1] = static_cast<char>(service->get_target_state());
+
+    char b0 = service->is_waiting_for_console() ? 1 : 0;
+    b0 |= service->has_console() ? 2 : 0;
+    b0 |= service->was_start_skipped() ? 4 : 0;
+    b0 |= service->is_marked_active() ? 8 : 0;
+    buffer[2] = b0;
+    buffer[3] = static_cast<char>(service->get_stop_reason());
+
+    buffer[4] = 0; // reserved
+    buffer[5] = 0;
+
+    // Next: either the exit status, or the process ID
+    if (service->get_state() != service_state_t::STOPPED) {
+        pid_t proc_pid = service->get_pid();
+        memcpy(buffer + 6, &proc_pid, sizeof(proc_pid));
+    }
+    else {
+        int exit_status = service->get_exit_status();
+        memcpy(buffer + 6, &exit_status, sizeof(exit_status));
+    }
+}
+
 bool control_conn_t::list_services()
 {
     rbuf.consume(1); // clear request packet
@@ -532,7 +563,7 @@ bool control_conn_t::list_services()
         for (auto sptr : slist) {
             std::vector<char> pkt_buf;
             
-            int hdrsize = 8 + std::max(sizeof(int), sizeof(pid_t));
+            int hdrsize = 2 + STATUS_BUFFER_SIZE;
 
             const std::string &name = sptr->get_name();
             int nameLen = std::min((size_t)256, name.length());
@@ -540,34 +571,14 @@ bool control_conn_t::list_services()
             
             pkt_buf[0] = DINIT_RP_SVCINFO;
             pkt_buf[1] = nameLen;
-            pkt_buf[2] = static_cast<char>(sptr->get_state());
-            pkt_buf[3] = static_cast<char>(sptr->get_target_state());
             
-            char b0 = sptr->is_waiting_for_console() ? 1 : 0;
-            b0 |= sptr->has_console() ? 2 : 0;
-            b0 |= sptr->was_start_skipped() ? 4 : 0;
-            b0 |= sptr->is_marked_active() ? 8 : 0;
-            pkt_buf[4] = b0;
-            pkt_buf[5] = static_cast<char>(sptr->get_stop_reason());
-
-            pkt_buf[6] = 0; // reserved
-            pkt_buf[7] = 0;
-            
-            // Next: either the exit status, or the process ID
-            if (sptr->get_state() != service_state_t::STOPPED) {
-                pid_t proc_pid = sptr->get_pid();
-                memcpy(pkt_buf.data() + 8, &proc_pid, sizeof(proc_pid));
-            }
-            else {
-                int exit_status = sptr->get_exit_status();
-                memcpy(pkt_buf.data() + 8, &exit_status, sizeof(exit_status));
-            }
+            fill_status_buffer(&pkt_buf[2], sptr);
 
             for (int i = 0; i < nameLen; i++) {
                 pkt_buf[hdrsize+i] = name[i];
             }
             
-            if (! queue_packet(std::move(pkt_buf))) return false;
+            if (!queue_packet(std::move(pkt_buf))) return false;
         }
         
         char ack_buf[] = { (char) DINIT_RP_LISTDONE };
@@ -580,6 +591,38 @@ bool control_conn_t::list_services()
         do_oom_close();
         return true;
     }
+}
+
+bool control_conn_t::process_service_status()
+{
+    constexpr int pkt_size = 1 + sizeof(handle_t);
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    handle_t handle;
+    rbuf.extract(&handle, 2, sizeof(handle));
+    rbuf.consume(pkt_size);
+    chklen = 0;
+
+    service_record *service = find_service_for_key(handle);
+    if (service == nullptr || service->get_name().length() > std::numeric_limits<uint16_t>::max()) {
+        char nak_rep[] = { DINIT_RP_NAK };
+        return queue_packet(nak_rep, 1);
+    }
+
+    // Reply:
+    // 1 byte packet type = DINIT_RP_SERVICESTATUS
+    // 1 byte reserved ( = 0)
+    // STATUS_BUFFER_SIZE bytes status
+
+    std::vector<char> pkt_buf(2 + STATUS_BUFFER_SIZE);
+    pkt_buf[0] = DINIT_RP_SERVICESTATUS;
+    pkt_buf[1] = 0;
+    fill_status_buffer(pkt_buf.data() + 2, service);
+
+    return queue_packet(std::move(pkt_buf));
 }
 
 bool control_conn_t::add_service_dep(bool do_enable)
@@ -764,12 +807,6 @@ bool control_conn_t::process_query_name()
         return true;
     }
 
-    // Reply:
-    // 1 byte packet type = DINIT_RP_SERVICENAME
-    // 1 byte reserved
-    // uint16_t length
-    // N bytes name
-
     handle_t handle;
     rbuf.extract(&handle, 2, sizeof(handle));
     rbuf.consume(pkt_size);
@@ -780,6 +817,12 @@ bool control_conn_t::process_query_name()
         char nak_rep[] = { DINIT_RP_NAK };
         return queue_packet(nak_rep, 1);
     }
+
+    // Reply:
+    // 1 byte packet type = DINIT_RP_SERVICENAME
+    // 1 byte reserved
+    // uint16_t length
+    // N bytes name
 
     std::vector<char> reply;
     const std::string &name = service->get_name();
