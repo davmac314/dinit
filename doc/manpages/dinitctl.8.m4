@@ -12,6 +12,9 @@ dinitctl \- control services supervised by Dinit
 [\fIoptions\fR] \fBstop\fR [\fB\-\-no\-wait\fR] [\fB\-\-pin\fR] [\fB\-\-ignore\-unstarted\fR] \fIservice-name\fR
 .br
 .B dinitctl
+[\fIoptions\fR] \fBstatus\fR \fIservice-name\fR
+.br
+.B dinitctl
 [\fIoptions\fR] \fBrestart\fR [\fB\-\-no\-wait\fR] [\fB\-\-ignore\-unstarted\fR] \fIservice-name\fR
 .br
 .B dinitctl
@@ -131,6 +134,12 @@ Any pending \fBstart\fR orders are cancelled,
 though a service which is starting will continue its startup before then stopping (unless the service is
 configured to have an interruptible startup or is otherwise at a stage of startup which can be safely
 interrupted).
+.TP
+\fBstatus\fR
+Give a status report on the specified service. This will show the current state (and target state, if
+different), and information such as process ID (pid) if applicable. If the service is stopped for any reason
+other than a normal stop, the reason for the service stopping will be displayed (along with any further
+relevant information, if available).
 .TP
 \fBrestart\fR
 Restart the specified service. The service will be stopped and then restarted, without affecting explicit
