@@ -1136,27 +1136,34 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
         switch (current) {
         case service_state_t::STOPPED:
             cout << "STOPPED";
-            if (stop_reason == stopped_reason_t::DEPFAILED) {
+            switch (stop_reason) {
+            case stopped_reason_t::DEPFAILED:
                 cout << " (dependency failed/terminated)";
-            }
-            else if (stop_reason == stopped_reason_t::FAILED) {
+                break;
+            case stopped_reason_t::FAILED:
                 cout << " (failed to start";
                 if (exit_status != 0) {
                     cout << "; ";
                     print_termination_details(exit_status);
                 }
                 cout << ")";
-            }
-            else if (stop_reason == stopped_reason_t::EXECFAILED) {
+                break;
+            case stopped_reason_t::EXECFAILED:
                 cout << " (could not be launched)";
-            }
-            if (stop_reason == stopped_reason_t::TERMINATED) {
+                break;
+            case stopped_reason_t::TERMINATED:
                 cout << " (terminated";
                 if (exit_status != 0) {
                     cout << "; ";
                     print_termination_details(exit_status);
                 }
                 cout << ")";
+                break;
+            case stopped_reason_t::TIMEDOUT:
+                cout << " (start timed out)";
+                break;
+            case stopped_reason_t::NORMAL:
+                break;
             }
             break;
         case service_state_t::STARTING:
