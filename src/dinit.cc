@@ -367,8 +367,8 @@ int dinit_main(int argc, char **argv)
             return 1;
         }
     }
-    
-    if (am_system_init) {
+
+    if (am_system_mgr) {
         // setup STDIN, STDOUT, STDERR so that we can use them
         int onefd = open("/dev/console", O_RDONLY, 0);
         if (onefd != -1) {
