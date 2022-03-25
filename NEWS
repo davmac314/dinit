@@ -6,6 +6,8 @@ these notes carefully.
 This release includes changes contributed by Daniel Kolesa.
 
 Changes:
+ * A new dinitctl subcommand, "status", can be used to query extended status
+   information for an individual service.
  * The default directory for user services has moved to ~/.config/dinit.d
    (rather than ~/dinit.d).
  * Some service settings now expand environment variables (given in the form
@@ -20,7 +22,9 @@ Changes:
  * The dinitctl program now uses the value of the DINIT_SOCKET_PATH
    environment variable, if set, as the default control socket path. (If not
    set, behaviour is the same as for previous versions).
- * (this list of changes is incomplete and needs to be updated before release)
+ * A "poweroff" symlink for shutdown will be installed alongside other symlinks
+   ("reboot", "halt" etc). This allows integration in environments that expect
+   such a command to be available.
 
 == Version 0.12.0
 

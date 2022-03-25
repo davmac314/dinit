@@ -1,5 +1,5 @@
 # Dinit
-v0.12.0 (3rd alpha release)
+v0.13.0 (4th alpha release)
 
 This is the README for Dinit, the service manager and init system. It is
 intended to provide an overview; For full documentation please check the manual pages. 
@@ -52,7 +52,8 @@ software packages.
 Dinit is licensed under the Apache License, version 2.0. A copy of this
 license can be found in the LICENSE file.
 
-Dinit was written by Davin McCall <davmac@davmac.org>.
+This software was written by Davin McCall <davmac@davmac.org> with contributions
+from many others. See CONTRIBUTORS.
 
 See BUILD.txt for information on how to build Dinit.
 
@@ -99,10 +100,6 @@ read. Many existing daemons can operate in this way. The process can only be
 supervised if Dinit runs as the system "init" (PID 1), or can otherwise mark
 itself as a subreaper (which is possible on Linux, FreeBSD and DragonFlyBSD) -
 otherwise Dinit can not reliably know when the process has terminated.
-
-(Note, use of bgprocess services type requires care. The file from which the
-PID is read is trusted; Dinit may send signals to the specified PID. It
-should not be possible for unauthorised users to modify the file contents!)
 
 An _internal_ service is just a placeholder service that can be used to
 describe a set of dependencies. An internal service has no corresponding
@@ -195,7 +192,9 @@ will go this file.
     pid-file = (path to file)
 
 For "bgprocess" type services only; specifies the path of the file where
-daemon will write its process ID before detaching.
+the daemon will write its process ID before detaching (this file is trusted;
+Dinit may send signals to the specified PID. It should not be possible for
+unauthorised users to modify the file contents!).
 
     depends-on = (service name)
 
@@ -216,8 +215,9 @@ time this service is started.
 
 When this service is started, wait for the named service to finish
 starting (or to fail starting) before commencing the start procedure
-for this service. Starting this service will automatically start
-the named service.
+for this service. Starting this service (the dependent) will automatically
+start the named service. This is similar to "depends-ms" but allows the
+dependency to fail to start without causing the dependent to also fail.
 
     options = ( no-sigterm | runs-on-console | starts-on-console | start-interruptible ) ...
 
@@ -339,6 +339,18 @@ command:
 You can pin a service in the stopped state in order to make sure it doesn't
 get started accidentally (either via a dependency or directly) when you are
 performing administration or maintenance.
+
+Check the state of an individual service using the "status" subcommand:
+
+    dinitctl status mysql
+
+The output will tell you the current service state; for a running service, it
+may look something like the following:
+
+    Service: mysql
+        State: STARTED
+        Activation: explicitly started
+        Process ID: 3393
 
 Finally, you can list the state of all loaded services:
 
