@@ -5,10 +5,14 @@ dinitcheck \- check service configuration
 .\"
 .SH SYNOPSIS
 .\"
-.HP \w'\ 'u
+.nh
+.\"
+.HP
 .B dinitcheck
 [\fB\-d\fR|\fB\-\-services\-dir\fR \fIdir\fR]
 [\fIservice-name\fR...]
+.\"
+.hy
 .\"
 .SH DESCRIPTION
 .\"
@@ -28,12 +32,12 @@ Service dependency cycles
 Unless altered by options specified on the command line, this utility uses the
 same search paths (for service description files) as \fBdinit\fR.
 .\"
-.SH OPTIONSs
+.SH OPTIONS
 .TP
 \fB\-d\fR \fIdir\fP, \fB\-\-services\-dir\fR \fIdir\fP
-Specifies \fIdir\fP as the directory containing service definition files, can
-be set multiple times. Default directories are not searched for services when
-this option is provided.
+Specifies \fIdir\fP as the directory containing service definition files (can
+be given multiple times to specify multiple service directories).
+Default directories are not searched for services when this option is provided.
 
 If not specified, the default is \fI$HOME/.config/dinit.d\fR or, for the
 system service manager, each of \fI/etc/dinit.d/fR, \fI/usr/local/lib/dinit.d\fR,

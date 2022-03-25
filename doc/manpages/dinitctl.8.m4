@@ -5,53 +5,59 @@ dinitctl \- control services supervised by Dinit
 .\"
 .SH SYNOPSIS
 .\"
+.PD 0
+.nh
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBstart\fR [\fB\-\-no\-wait\fR] [\fB\-\-pin\fR] \fIservice-name\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBstop\fR [\fB\-\-no\-wait\fR] [\fB\-\-pin\fR] [\fB\-\-ignore\-unstarted\fR] \fIservice-name\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBstatus\fR \fIservice-name\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBrestart\fR [\fB\-\-no\-wait\fR] [\fB\-\-ignore\-unstarted\fR] \fIservice-name\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBwake\fR [\fB\-\-no\-wait\fR] \fIservice-name\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBrelease\fR [\fB\-\-ignore\-unstarted\fR] \fIservice-name\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBunpin\fR \fIservice-name\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBunload\fR \fIservice-name\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBreload\fR \fIservice-name\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBlist\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBshutdown\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBadd-dep\fR \fIdependency-type\fR \fIfrom-service\fR \fIto-service\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBrm-dep\fR \fIdependency-type\fR \fIfrom-service\fR \fIto-service\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBenable\fR [\fB\-\-from\fR \fIfrom-service\fR] \fIto-service\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBdisable\fR [\fB\-\-from\fR \fIfrom-service\fR] \fIto-service\fR
-.br
+.HP
 .B dinitctl
 [\fIoptions\fR] \fBsetenv\fR [\fIname\fR[=\fIvalue\fR] \fI...\fR]
+.\"
+.PD
+.hy
 .\"
 .SH DESCRIPTION
 .\"

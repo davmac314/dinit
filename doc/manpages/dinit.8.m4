@@ -5,12 +5,16 @@ dinit \- supervise processes and manage services
 .\"
 .SH SYNOPSIS
 .\"
-.HP \w'\ 'u
+.nh
+.\"
+.HP
 .B dinit
 [\fB\-s\fR|\fB\-\-system\fR|\fB\-u\fR|\fB\-\-user\fR] [\fB\-d\fR|\fB\-\-services\-dir\fR \fIdir\fR]
 [\fB\-p\fR|\fB\-\-socket\-path\fR \fIpath\fR] [\fB\-e\fR|\fB\-\-env\-file\fR \fIpath\fR]
 [\fB\-l\fR|\fB\-\-log\-file\fR \fIpath\fR]
 [\fIservice-name\fR...]
+.\"
+.hy
 .\"
 .SH DESCRIPTION
 .\"
