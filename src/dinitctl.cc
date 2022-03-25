@@ -50,7 +50,7 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, con
         const char *service_to, dependency_type dep_type, bool verbose);
 static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to,
         bool enable, bool verbose);
-static int do_setenv(int socknum, cpbuffer_t &rbuffer, char **env_names);
+static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names);
 
 static const char * describeState(bool stopped)
 {
@@ -95,7 +95,6 @@ int main(int argc, char **argv)
     bool show_help = argc < 2;
     const char *service_name = nullptr;
     const char *to_service_name = nullptr;
-    char **env_names = nullptr;
     dependency_type dep_type;
     bool dep_type_set = false;
     
@@ -110,6 +109,8 @@ int main(int argc, char **argv)
     bool ignore_unstarted = false;
     
     command_t command = command_t::NONE;
+
+    std::vector<const char *> cmd_args;
         
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -213,9 +214,6 @@ int main(int argc, char **argv)
             }
             else if (strcmp(argv[i], "setenv") == 0) {
                 command = command_t::SETENV;
-                if ((i + 1) < argc) {
-                    env_names = &argv[i + 1];
-                }
             }
             else {
                 cerr << "dinitctl: unrecognized command: " << argv[i] << " (use --help for help)\n";
@@ -259,42 +257,50 @@ int main(int argc, char **argv)
                 }
                 to_service_name = argv[i];
             }
-            else if (command == command_t::SETENV) {
-                // ignore, specifies a variable/value to set
-            }
             else {
-                if (service_name != nullptr) {
-                    // service name was already specified
-                    show_help = true;
-                    break;
-                }
-                service_name = argv[i];
-                // TODO support multiple services
+                cmd_args.push_back(argv[i]);
             }
         }
     }
     
-    bool no_service_cmd = (command == command_t::LIST_SERVICES || command == command_t::SHUTDOWN
-            || command == command_t::SETENV);
+    // Additional argument checks for various commands:
 
-    if (command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE) {
+    if (command == command_t::NONE) {
+        show_help = true;
+    }
+    else if (command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE) {
         show_help |= (to_service_name == nullptr);
     }
-    else if ((service_name == nullptr && ! no_service_cmd) || command == command_t::NONE) {
-        show_help = true;
+    else if (command == command_t::SETENV) {
+        // Handle SETENV specially, since it needs arguments but they are not service names
+        if (cmd_args.empty()) {
+            show_help = true;
+        }
     }
-
-    if (service_name != nullptr && no_service_cmd) {
-        show_help = true;
-    }
-
-    if ((command == command_t::ADD_DEPENDENCY || command == command_t::RM_DEPENDENCY)
-            && (! dep_type_set || service_name == nullptr || to_service_name == nullptr)) {
-        show_help = true;
-    }
-
-    if ((command == command_t::SETENV) && ! env_names) {
-        show_help = true;
+    else {
+        bool no_service_cmd = (command == command_t::LIST_SERVICES || command == command_t::SHUTDOWN);
+        if (no_service_cmd) {
+            if (!cmd_args.empty()) {
+                show_help = true;
+            }
+        }
+        else {
+            if (command == command_t::ADD_DEPENDENCY || command == command_t::RM_DEPENDENCY) {
+                if (! dep_type_set || service_name == nullptr || to_service_name == nullptr) {
+                    show_help = true;
+                }
+            }
+            else if (cmd_args.empty()) {
+                show_help = true;
+            }
+            else {
+                // No command can currently accept more than one service argument:
+                if (cmd_args.size() > 1) {
+                    show_help = true;
+                }
+                service_name = cmd_args.front();
+            }
+        }
     }
 
     if (show_help) {
@@ -335,6 +341,8 @@ int main(int argc, char **argv)
         return 1;
     }
     
+    // Begin the real work: connect to dinit
+
     signal(SIGPIPE, SIG_IGN);
     
     // Locate control socket
@@ -437,7 +445,7 @@ int main(int argc, char **argv)
                     command == command_t::ENABLE_SERVICE, verbose);
         }
         else if (command == command_t::SETENV) {
-            return do_setenv(socknum, rbuffer, env_names);
+            return do_setenv(socknum, rbuffer, cmd_args);
         }
         else {
             return start_stop_service(socknum, rbuffer, service_name, command, do_pin, do_force,
@@ -1493,14 +1501,13 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
     return 0;
 }
 
-static int do_setenv(int socknum, cpbuffer_t &rbuffer, char **env_names)
+static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names)
 {
     using namespace std;
 
     string buf;
 
-    while (*env_names) {
-        const char *envp = *env_names++;
+    for (const char *envp : env_names) {
         buf.clear();
         buf.reserve(6);
         // protocol message and size space
