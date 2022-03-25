@@ -560,7 +560,7 @@ bgproc_service::read_pid_file(bp_sys::exit_status *exit_status) noexcept
 
     bool valid_pid = false;
     try {
-        unsigned long long v = std::stoull(pidbuf, nullptr, 0);
+        unsigned long long v = std::strtoull(pidbuf, nullptr, 0);
         if (v <= make_unsigned_val(std::numeric_limits<pid_t>::max())) {
             pid = (pid_t) v;
             valid_pid = true;
