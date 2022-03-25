@@ -1,5 +1,7 @@
+-include ../../mconfig
+
 HOSTCXX ?= $(CXX)
-HOSTCXXFLAGS ?= $(CXXFLAGS)
+HOSTCXXOPTS ?= $(CXXOPTS)
 HOSTLDFLAGS ?= $(LDFLAGS)
 
 mconfig-gen: mconfig-gen.cc

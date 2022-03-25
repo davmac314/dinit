@@ -3,19 +3,9 @@
 
 all: ../mconfig includes/mconfig.h
 
-# Look for a suitable build config file and use it.
 ../mconfig:
-	@UNAME=`uname`;\
-	if [ -f "../configs/mconfig.$$UNAME.sh" ]; then \
-	    echo "Found auto-configuration script for OS: $$UNAME"; \
-	    ( cd ../configs; sh "mconfig.$$UNAME.sh" ) \
-	elif [ -f "../configs/mconfig.$$UNAME" ]; then \
-	    echo "Found configuration for OS: $$UNAME"; \
-	    ln -sf "configs/mconfig.$$UNAME" ../mconfig; \
-	else \
-	    echo "No config available. Please create suitable mconfig file."; \
-	    exit 1; \
-	fi
+	@echo "*** No mconfig, please run make from top level"
+	@false
 
 includes/mconfig.h: ../mconfig tools/mconfig-gen.cc
 	$(MAKE) -C tools mconfig-gen
