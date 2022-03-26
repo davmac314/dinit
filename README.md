@@ -8,11 +8,15 @@ The impatient may wish to check out the [getting started guide](doc/getting_star
 ## Contents
 
 1. [Introduction](#introduction)
-2. [Configuring services](#configuring-services)
+    1. [Features](#features)
+    2. [Target platforms](#target-platforms)
+    3. [Other information](#other-information)
+2. [Reporting issues](#reporting-issues)
+3. [Configuring services](#configuring-services)
     1. [Service types](#service-types)
     2. [Service description files](#service-description-files)
-3. [Running Dinit](#running-dinit)
-4. [Controlling services](#controlling-services)
+4. [Running Dinit](#running-dinit)
+5. [Controlling services](#controlling-services)
     1. [Service hierarchy and states](#service-hierarchy-and-states)
     2. [Using dinitctl](#using-dinitctl)
 
@@ -21,23 +25,27 @@ The impatient may wish to check out the [getting started guide](doc/getting_star
 _Dinit_ is a service supervisor with dependency support which can also
 act as the system "init" program. It was created with the intention of
 providing a portable init system with dependency management, that was
-functionally superior to many extant inits. On Linux it can serve as a
-lighter-weight alternative to Systemd. Development goals include clean design,
+functionally superior to many extant inits. Development goals include clean design,
 robustness, portability, usability, and avoiding feature bloat (whilst still
-handling a variety of use cases).
+handling common - and some less-common - use cases). Dinit is designed to
+_integrate with_ rather than _subsume_ other system software.
 
-To elaborate, Dinit can launch multiple services in parallel, with dependency
-management (i.e. if one service's operation depends on another, the latter
-service will be started first). It  can monitor the process corresponding to a
-service, and re-start it if it dies, and it can do this in an intelligent way,
-first "rolling back" all dependent services, and restarting them when their
-dependencies are satisfied. The precise nature of dependency relations between
-services is highly configurable. The _dinitctl_ tool can be used to start or
-stop services and check their state (by issuing commands to the "dinit" daemon).
+### Features
+
+Dinit can launch multiple services in parallel, with dependency management
+(i.e. if one service's operation depends on another, the latter service will be
+started first). It  can monitor the process corresponding to a service, and re-start it
+if it dies, and it can do this in an intelligent way - first "rolling back" all dependent
+services, and restarting them when their dependencies are satisfied. The precise nature
+of dependency relations between services is highly configurable. The _dinitctl_ tool can
+be used to start or stop services and check their state (by issuing commands to the
+_dinit_ daemon).
 
 Dinit is designed to run as either as a system service manager (runs as root,
-uses system paths for configuration etc) or a user process (runs as a user,
-uses paths in the user's home directory by default).
+uses system paths for configuration) or a user process (runs as a user,
+uses paths in the user's home directory for configuration).
+
+### Target platforms
 
 Dinit is designed to work on POSIXy operating systems such as Linux and
 OpenBSD. It is written in C++ and uses the [Dasynq](http://davmac.org/projects/dasynq/)
@@ -46,19 +54,38 @@ that a copy of Dasynq is bundled with Dinit, so a separate copy is not
 required for compilation; however, the bundled copy does not include the
 documentation or test suite).
 
+### Other information
+
 See [doc/COMPARISON](doc/COMPARISON) for a comparison of Dinit with similar
 software packages.
 
 Dinit is licensed under the Apache License, version 2.0. A copy of this
-license can be found in the LICENSE file.
+license can be found in the [LICENSE](LICENSE) file.
 
 This software was written by Davin McCall <davmac@davmac.org> with contributions
-from many others. See CONTRIBUTORS.
+from many others. See [CONTRIBUTORS](CONTRIBUTORS).
 
-See BUILD.txt for information on how to build Dinit.
+See [BUILD.txt](BUILD.txt) for information on how to build Dinit. See the [doc](doc)
+directory for information on design, code style, guidelines for contributions, and
+end-user-oriented documentation.
 
+## Reporting issues
+
+Please use [Github issues](https://github.com/davmac314/dinit/issues) to report bugs,
+and provide as much information as is necessary to reliably reproduce the issue.
+
+Please do not file feature requests unless you are working on system integration (eg. you
+are a package maintainer for a distribution that supports Dinit, or you are working to
+provide Dinit support for a particular distribution) and need to solve a real problem, or
+unless you are willing to provide patches (in this case you can open an issue for discussion -
+in which case please also see the [CONTRIBUTING](doc/CONTRIBUTING) file).
 
 ## Configuring services
+
+This section and the following sections are intended as an introductory guide, and to give
+a feel for what using Dinit is like. For a complete reference, see the _man_ pages:
+[dinit(8)](https://davmac.org/projects/dinit/man-pages-html/dinit.8.html) and
+[dinit-service(5)](https://davmac.org/projects/dinit/man-pages-html/dinit-service.5.html).
 
 ### Service types
 
@@ -81,11 +108,15 @@ short delay before the process sets itself up, starts listening on sockets, etc;
 during this time any other process (including one from a service configured as
 a dependent) which tries to contact it will not be able to do so. In practice,
 this is not usually an issue (and external solutions, like D-Bus, do exist),
-but Dinit does support startup notification (compatible with S6) to circumvent
-the problem. With startup notification configured - assuming it is supported by
+but Dinit does support startup notification (compatible with S6) to avoid the
+problem of a dependent process relying on not-quite-yet-ready services provided
+by its dependency. With startup notification configured - assuming it is supported by
 the process - dependent services will not be started until the service is
 running properly. If startup notification is _not_ configured, Dinit assumes a process
 service is successfully started as soon as the process is launched.
+
+As well as _process_ services, as outlined above, there are _scripted_ services,
+_bgprocess_ services, and _internal_ services.
 
 A _scripted_ service has separate commands for startup and (optional)
 shutdown. Scripted services can be used for tasks such as mounting file
@@ -94,12 +125,13 @@ for daemon processes (although Dinit will not be able to supervise a
 process that is registered as a scripted service).
 
 A _bgprocess_ service is a mix between a process service and a scripted
-service. A command is used to start the service, and once started, the
-process ID is expected to be available in a file which Dinit can then
-read. Many existing daemons can operate in this way. The process can only be
+service. A command is used to start the service, which then forks to create
+the daemon process; the process ID of this daemon process is expected to be made
+available in a file which Dinit can then read, before the original process terminates.
+Many existing daemons can operate in this way. The process can only be
 supervised if Dinit runs as the system "init" (PID 1), or can otherwise mark
 itself as a subreaper (which is possible on Linux, FreeBSD and DragonFlyBSD) -
-otherwise Dinit can not reliably know when the process has terminated.
+otherwise Dinit cannot reliably notice the process terminating.
 
 An _internal_ service is just a placeholder service that can be used to
 describe a set of dependencies. An internal service has no corresponding

@@ -5,7 +5,9 @@ This is intended to be an objective description of the differences between Dinit
 other similar software packages. Due to a myriad of details, it is difficult to provide a very
 meaningful comparison without going into great detail (which this document does not). It does,
 however, serve as a short survey of service supervision and init systems, and provides a starting
-point for understanding the unique features of, and ideas embodied in, the Dinit system.
+point for understanding the unique features of, and ideas embodied in, the Dinit system and some
+of its alternatives.
+
 
 Tenets of Dinit's design
 =-=-=-=-=-=-=-=-=-=-=-=-
@@ -34,7 +36,15 @@ getting stuck in a situation where an important operation is only partially comp
 example: once Dinit starts a service process, it is *always* able to monitor that process). Dinit
 maintains a log buffer to avoid losing log messages when the logging daemon is overloaded or not
 yet started, but gracefully handles the buffer becoming full, making sure to output a message
-indicating that log messages may have been lost, and not outputting partial log lines.
+indicating that log messages may have been lost, and not outputting partial log lines. Dinit will
+not block and become unresponsive if log output or console output block.
+
+Many alternative service managers do not clearly document the robustness strategies and principles
+they adhere to. While I'd like to think no service manager (and particularly no init system) would
+ever disregard the issues just outlined, there are clearly exceptions.  In particular, software
+written in more dynamic languages often cannot claim allocation robustness since it is not even
+necessary clear when allocations are made, and failure will typically result in process
+termination or at best services being in an unknown state.
 
 2. Service Dependencies as the Basis of System Management
 
@@ -65,6 +75,9 @@ While there should be leeway to add features to Dinit at a later point, the guid
 that it should always be possible to build and run Dinit as a standalone service manager which
 includes functionality only for the management of services and for simple system tasks
 revolving mainly around service management (basically: boot and shutdown).
+
+In general, Dinit aims to integrate with pre-existing system software, such as logging daemons,
+device managers and network managers, rather than to replace such software.
 
 
 Having considered those guiding principles, we'll now take a look at some other service managers,
@@ -149,10 +162,10 @@ It is not clear to me whether Nosh is robust to allocation failure.
 OpenRC (Gentoo)
 -=-=-=-=-=-=-=-
 The OpenRC system used in Gentoo Linux is a dependency-managing service supervision
-system with functionality that may similar in some respects to Dinit. According to
+system with functionality that is similar in some respects to Dinit. According to
 Wikipedia, it provides parallel startup of services (like Dinit), though this is
 disabled by default. It is designed to be used in conjunction with a primary init
-which handles system management and which defers to openrc at boot or shutdown to
+which handles system management and which defers to OpenRC at boot or shutdown to
 bring services up or down.
 
 Unusually, OpenRC does not run as a daemon itself; it terminates once it has
@@ -162,7 +175,7 @@ supervisors such as S6.
 Service configuration is specified via a shell script, with the 'openrc-run'
 interpreter (which makes certain special shell functions available, and interprets
 shell variables once the service script completes. For performance reasons
-metatdata extracted from the service scripts is cached in an alternative format.
+metatdata extracted from the service scripts is cached in an alternative format).
 
 Although the build system seems to have some support for BSD OSes, it did not
 build successfully on OpenBSD when tested (revision 33d3f33).
@@ -194,7 +207,7 @@ In contrast to S6-RC, Dinit does not requires compiling service definitions, ins
 loading and parsing them on-the-fly. Also, Dinit incorporates service
 supervision and management into a single process (and does not require one
 supervisory process per service). On the other hand, the Dinit process is
-somewhat more complex than any of the individual S6-RC components.
+probably more complex than any of the individual S6-RC components.
 
 S6-RC nicely manages chaining of service standard input/output, facilitating
 setting up a logging chain where a logging process consumes the output of a
@@ -206,7 +219,12 @@ on another then that service must start, and stay running. Dinit supports a numb
 of dependency types including "soft" dependencies which allow the dependency to
 stop or fail without necessarily stopping the dependent.
 
-It seems likely that S6-RC is resilient to allocation failure.
+It seems likely that S6-RC is resilient to allocation failure (documentation indicates
+that various components do not use malloc(), i.e. they do not perform dynamic allocation
+at all).
+
+There's an email discussion thread about S6-RC, and an alternative, "anopa", here:
+https://www.mail-archive.com/skaware@list.skarnet.org/msg00325.html
 
 
 Systemd
@@ -214,7 +232,7 @@ Systemd
 Systemd is probably the most widely used init system on Linux as in recent years.
 Compared to Dinit, Systemd provides a range of functionality such as:
    - setting priority and various other attributes of the service process that
-     Dinit does not support [yet].
+     Dinit does not support [yet]
    - seat/session management
    - syslogd replacement (or at least, partial replacement)
    - ability to run tasks at certain times
