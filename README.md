@@ -65,7 +65,7 @@ license can be found in the [LICENSE](LICENSE) file.
 This software was written by Davin McCall <davmac@davmac.org> with contributions
 from many others. See [CONTRIBUTORS](CONTRIBUTORS).
 
-See [BUILD.txt](BUILD.txt) for information on how to build Dinit. See the [doc](doc)
+See [BUILD](BUILD) for information on how to build Dinit. See the [doc](doc)
 directory for information on design, code style, guidelines for contributions, and
 end-user-oriented documentation.
 
