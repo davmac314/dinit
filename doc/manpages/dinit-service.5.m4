@@ -527,7 +527,7 @@ To avoid substitution, a single `\fB$\fR' can be escaped with a second, as in `\
 Variables for substitution come from the \fBdinit\fR environment at the time the service is loaded.
 In particular, variables set via \fBenv\-file\fR are not visible to the substitution function.
 .\"
-.SS EXAMPLES
+.SH EXAMPLES
 .LP
 Here is an example service description for the \fBmysql\fR database server.
 It has a dependency on the \fBrcboot\fR service (not shown) which is
