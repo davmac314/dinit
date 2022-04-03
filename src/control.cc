@@ -602,7 +602,7 @@ bool control_conn_t::process_service_status()
     }
 
     handle_t handle;
-    rbuf.extract(&handle, 2, sizeof(handle));
+    rbuf.extract(&handle, 1, sizeof(handle));
     rbuf.consume(pkt_size);
     chklen = 0;
 
