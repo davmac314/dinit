@@ -104,6 +104,41 @@ void cptest_listservices()
 	delete cc;
 }
 
+static control_conn_t::handle_t  find_service(int fd, const char *service_name,
+        service_state_t expected_state, service_state_t expected_target_state)
+{
+    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
+    uint16_t name_len = strlen(service_name);
+    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
+    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
+    cmd.insert(cmd.end(), service_name, service_name + name_len);
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    std::vector<char> wdata;
+    bp_sys::extract_written_data(fd, wdata);
+
+    // We expect:
+    // (1 byte)   DINIT_RP_SERVICERECORD
+    // (1 byte)   state
+    // (handle_t) handle
+    // (1 byte)   target state
+
+    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
+    assert(wdata[0] == DINIT_RP_SERVICERECORD);
+    service_state_t s = static_cast<service_state_t>(wdata[1]);
+    assert(s == expected_state);
+    service_state_t ts = static_cast<service_state_t>(wdata[6]);
+    assert(ts == expected_target_state);
+
+    control_conn_t::handle_t h1;
+    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h1), reinterpret_cast<char *>(&h1));
+
+    return h1;
+}
+
 void cptest_findservice1()
 {
     service_set sset;
@@ -120,31 +155,7 @@ void cptest_findservice1()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
-    uint16_t name_len = strlen(service_name_2);
-    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
-    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
-    cmd.insert(cmd.end(), service_name_2, service_name_2 + name_len);
-
-    bp_sys::supply_read_data(fd, std::move(cmd));
-
-    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
-
-    // We expect:
-    // (1 byte)   DINIT_RP_SERVICERECORD
-    // (1 byte)   state
-    // (handle_t) handle
-    // (1 byte)   target state
-
-    std::vector<char> wdata;
-    bp_sys::extract_written_data(fd, wdata);
-
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
-    service_state_t s = static_cast<service_state_t>(wdata[1]);
-    assert(s == service_state_t::STOPPED);
-    service_state_t ts = static_cast<service_state_t>(wdata[6]);
-    assert(ts == service_state_t::STOPPED);
+    find_service(fd, service_name_2, service_state_t::STOPPED, service_state_t::STOPPED);
 
     delete cc;
 }
@@ -168,31 +179,7 @@ void cptest_findservice2()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
-    uint16_t name_len = strlen(service_name_2);
-    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
-    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
-    cmd.insert(cmd.end(), service_name_2, service_name_2 + name_len);
-
-    bp_sys::supply_read_data(fd, std::move(cmd));
-
-    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
-
-    // We expect:
-    // (1 byte)   DINIT_RP_SERVICERECORD
-    // (1 byte)   state
-    // (handle_t) handle
-    // (1 byte)   target state
-
-    std::vector<char> wdata;
-    bp_sys::extract_written_data(fd, wdata);
-
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
-    service_state_t s = static_cast<service_state_t>(wdata[1]);
-    assert(s == service_state_t::STARTED);
-    service_state_t ts = static_cast<service_state_t>(wdata[6]);
-    assert(ts == service_state_t::STARTED);
+    find_service(fd, service_name_2, service_state_t::STARTED, service_state_t::STARTED);
 
     delete cc;
 }
@@ -347,37 +334,11 @@ void cptest_startstop()
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
     // Get a service handle:
-    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
-    uint16_t name_len = strlen(service_name);
-    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
-    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
-    cmd.insert(cmd.end(), service_name, service_name + name_len);
-
-    bp_sys::supply_read_data(fd, std::move(cmd));
-
-    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
-
-    // We expect:
-    // (1 byte)   DINIT_RP_SERVICERECORD
-    // (1 byte)   state
-    // (handle_t) handle
-    // (1 byte)   target state
-
-    std::vector<char> wdata;
-    bp_sys::extract_written_data(fd, wdata);
-
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
-    service_state_t s = static_cast<service_state_t>(wdata[1]);
-    assert(s == service_state_t::STOPPED);
-    service_state_t ts = static_cast<service_state_t>(wdata[6]);
-    assert(ts == service_state_t::STOPPED);
-
-    control_conn_t::handle_t h;
-    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h), reinterpret_cast<char *>(&h));
+    control_conn_t::handle_t h = find_service(fd, service_name, service_state_t::STOPPED,
+            service_state_t::STOPPED);
 
     // Issue start:
-    cmd = { DINIT_CP_STARTSERVICE, 0 /* don't pin */ };
+    std::vector<char> cmd = { DINIT_CP_STARTSERVICE, 0 /* don't pin */ };
     char * h_cp = reinterpret_cast<char *>(&h);
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
 
@@ -385,6 +346,7 @@ void cptest_startstop()
 
     event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
 
+    std::vector<char> wdata;
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1 + 7 /* ACK reply + info packet */);
     assert(wdata[0] == DINIT_IP_SERVICEEVENT);
@@ -436,37 +398,11 @@ void cptest_start_pinned()
     s1->pin_stop();
 
     // Get a service handle:
-    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
-    uint16_t name_len = strlen(service_name);
-    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
-    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
-    cmd.insert(cmd.end(), service_name, service_name + name_len);
-
-    bp_sys::supply_read_data(fd, std::move(cmd));
-
-    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
-
-    // We expect:
-    // (1 byte)   DINIT_RP_SERVICERECORD
-    // (1 byte)   state
-    // (handle_t) handle
-    // (1 byte)   target state
-
-    std::vector<char> wdata;
-    bp_sys::extract_written_data(fd, wdata);
-
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
-    service_state_t s = static_cast<service_state_t>(wdata[1]);
-    assert(s == service_state_t::STOPPED);
-    service_state_t ts = static_cast<service_state_t>(wdata[6]);
-    assert(ts == service_state_t::STOPPED);
-
-    control_conn_t::handle_t h;
-    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h), reinterpret_cast<char *>(&h));
+    control_conn_t::handle_t h = find_service(fd, service_name, service_state_t::STOPPED,
+            service_state_t::STOPPED);
 
     // Issue start:
-    cmd = { DINIT_CP_STARTSERVICE, 0 /* don't pin */ };
+    std::vector<char> cmd = { DINIT_CP_STARTSERVICE, 0 /* don't pin */ };
     char * h_cp = reinterpret_cast<char *>(&h);
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
 
@@ -474,6 +410,7 @@ void cptest_start_pinned()
 
     event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
 
+    std::vector<char> wdata;
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1 /* DINIT_RP_PINNEDSTOPPED */);
     assert(wdata[0] == DINIT_RP_PINNEDSTOPPED);
@@ -502,46 +439,20 @@ void cptest_gentlestop()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    // Get a service handle:
-    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
-    uint16_t name_len = strlen(test1_name);
-    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
-    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
-    cmd.insert(cmd.end(), test1_name, test1_name + name_len);
-
-    bp_sys::supply_read_data(fd, std::move(cmd));
-
-    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
-
-    // We expect:
-    // (1 byte)   DINIT_RP_SERVICERECORD
-    // (1 byte)   state
-    // (handle_t) handle
-    // (1 byte)   target state
-
-    std::vector<char> wdata;
-    bp_sys::extract_written_data(fd, wdata);
-
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
-    service_state_t s = static_cast<service_state_t>(wdata[1]);
-    assert(s == service_state_t::STARTED);
-    service_state_t ts = static_cast<service_state_t>(wdata[6]);
-    assert(ts == service_state_t::STARTED);
-
-    control_conn_t::handle_t h;
-    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h), reinterpret_cast<char *>(&h));
+    control_conn_t::handle_t h = find_service(fd, test1_name, service_state_t::STARTED,
+            service_state_t::STARTED);
 
     char * h_cp = reinterpret_cast<char *>(&h);
 
     // Issue stop:
-    cmd = { DINIT_CP_STOPSERVICE, 2 /* don't pin, gentle */ };
+    std::vector<char> cmd = { DINIT_CP_STOPSERVICE, 2 /* don't pin, gentle */ };
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
 
     bp_sys::supply_read_data(fd, std::move(cmd));
 
     event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
 
+    std::vector<char> wdata;
     bp_sys::extract_written_data(fd, wdata);
 
     // We expect:
@@ -578,41 +489,20 @@ void cptest_queryname()
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
     // Get a service handle:
-    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
-    uint16_t name_len = strlen(test1_name);
-    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
-    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
-    cmd.insert(cmd.end(), test1_name, test1_name + name_len);
-
-    bp_sys::supply_read_data(fd, std::move(cmd));
-
-    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
-
-    // We expect:
-    // (1 byte)   DINIT_RP_SERVICERECORD
-    // (1 byte)   state
-    // (handle_t) handle
-    // (1 byte)   target state
-
-    std::vector<char> wdata;
-    bp_sys::extract_written_data(fd, wdata);
-
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
-
-    control_conn_t::handle_t h;
-    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h), reinterpret_cast<char *>(&h));
+    control_conn_t::handle_t h = find_service(fd, test1_name, service_state_t::STOPPED,
+            service_state_t::STOPPED);
 
     char * h_cp = reinterpret_cast<char *>(&h);
 
     // Issue name query:
-    cmd = { DINIT_CP_QUERYSERVICENAME, 0 /* reserved */ };
+    std::vector<char> cmd = { DINIT_CP_QUERYSERVICENAME, 0 /* reserved */ };
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
 
     bp_sys::supply_read_data(fd, std::move(cmd));
 
     event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
 
+    std::vector<char> wdata;
     bp_sys::extract_written_data(fd, wdata);
 
     // We expect:
@@ -649,38 +539,11 @@ void cptest_unload()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    // Get a service handle:
-    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
-    uint16_t name_len = strlen(service_name1);
-    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
-    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
-    cmd.insert(cmd.end(), service_name1, service_name1 + name_len);
-
-    bp_sys::supply_read_data(fd, std::move(cmd));
-
-    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
-
-    // We expect:
-    // (1 byte)   DINIT_RP_SERVICERECORD
-    // (1 byte)   state
-    // (handle_t) handle
-    // (1 byte)   target state
-
-    std::vector<char> wdata;
-    bp_sys::extract_written_data(fd, wdata);
-
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
-    service_state_t s = static_cast<service_state_t>(wdata[1]);
-    assert(s == service_state_t::STOPPED);
-    service_state_t ts = static_cast<service_state_t>(wdata[6]);
-    assert(ts == service_state_t::STOPPED);
-
-    control_conn_t::handle_t h1;
-    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h1), reinterpret_cast<char *>(&h1));
+    control_conn_t::handle_t h1 = find_service(fd, service_name1, service_state_t::STOPPED,
+            service_state_t::STOPPED);
 
     // Issue unload:
-    cmd = { DINIT_CP_UNLOADSERVICE };
+    std::vector<char> cmd = { DINIT_CP_UNLOADSERVICE };
     char * h_cp = reinterpret_cast<char *>(&h1);
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h1));
 
@@ -689,36 +552,14 @@ void cptest_unload()
     event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
 
     // We should receive NAK, as the service has a dependency:
+    std::vector<char> wdata;
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1);
     assert(wdata[0] == DINIT_RP_NAK);
 
-    // Get handle for service 2:
-    cmd = { DINIT_CP_FINDSERVICE };
-    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
-    cmd.insert(cmd.end(), service_name2, service_name2 + name_len);
 
-    bp_sys::supply_read_data(fd, std::move(cmd));
-
-    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
-
-    // We expect:
-    // (1 byte)   DINIT_RP_SERVICERECORD
-    // (1 byte)   state
-    // (handle_t) handle
-    // (1 byte)   target state
-
-    bp_sys::extract_written_data(fd, wdata);
-
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
-    s = static_cast<service_state_t>(wdata[1]);
-    assert(s == service_state_t::STOPPED);
-    ts = static_cast<service_state_t>(wdata[6]);
-    assert(ts == service_state_t::STOPPED);
-
-    control_conn_t::handle_t h2;
-    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h2), reinterpret_cast<char *>(&h2));
+    control_conn_t::handle_t h2 = find_service(fd, service_name2, service_state_t::STOPPED,
+            service_state_t::STOPPED);
 
     // Issue unload for s2:
 
@@ -752,6 +593,8 @@ void cptest_unload()
 
     // If we try to FIND service 1 now, it should not be there:
     cmd = { DINIT_CP_FINDSERVICE };
+    uint16_t name_len = strlen(service_name1);
+    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
     cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
     cmd.insert(cmd.end(), service_name1, service_name1 + name_len);
 
@@ -781,53 +624,13 @@ void cptest_addrmdeps()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    // Get a service handle:
-    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
-    uint16_t name_len = strlen(service_name1);
-    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
-    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
-    cmd.insert(cmd.end(), service_name1, service_name1 + name_len);
-
-    bp_sys::supply_read_data(fd, std::move(cmd));
-
-    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
-
-    std::vector<char> wdata;
-    bp_sys::extract_written_data(fd, wdata);
-
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
-    service_state_t s = static_cast<service_state_t>(wdata[1]);
-    assert(s == service_state_t::STOPPED);
-    service_state_t ts = static_cast<service_state_t>(wdata[6]);
-    assert(ts == service_state_t::STOPPED);
-
-    control_conn_t::handle_t h1;
-    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h1), reinterpret_cast<char *>(&h1));
-
-    // Get handle for service 2:
-    cmd = { DINIT_CP_FINDSERVICE };
-    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
-    cmd.insert(cmd.end(), service_name2, service_name2 + name_len);
-
-    bp_sys::supply_read_data(fd, std::move(cmd));
-
-    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
-
-    bp_sys::extract_written_data(fd, wdata);
-
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
-    s = static_cast<service_state_t>(wdata[1]);
-    assert(s == service_state_t::STOPPED);
-    ts = static_cast<service_state_t>(wdata[6]);
-    assert(ts == service_state_t::STOPPED);
-
-    control_conn_t::handle_t h2;
-    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h2), reinterpret_cast<char *>(&h2));
+    control_conn_t::handle_t h1 = find_service(fd, service_name1, service_state_t::STOPPED,
+            service_state_t::STOPPED);
+    control_conn_t::handle_t h2 = find_service(fd, service_name2, service_state_t::STOPPED,
+            service_state_t::STOPPED);
 
     // Add dep from s1 -> s2:
-    cmd = { DINIT_CP_ADD_DEP, static_cast<char>(dependency_type::REGULAR) };
+    std::vector<char> cmd = { DINIT_CP_ADD_DEP, static_cast<char>(dependency_type::REGULAR) };
     char * h1cp = reinterpret_cast<char *>(&h1);
     char * h2cp = reinterpret_cast<char *>(&h2);
     cmd.insert(cmd.end(), h1cp, h1cp + sizeof(h1));
@@ -835,6 +638,7 @@ void cptest_addrmdeps()
 
     bp_sys::supply_read_data(fd, std::move(cmd));
     event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+    std::vector<char> wdata;
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == 1);
@@ -885,53 +689,11 @@ void cptest_enableservice()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    // Get a service handle:
-    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
-    uint16_t name_len = strlen(service_name1);
-    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
-    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
-    cmd.insert(cmd.end(), service_name1, service_name1 + name_len);
-
-    bp_sys::supply_read_data(fd, std::move(cmd));
-
-    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
-
-    std::vector<char> wdata;
-    bp_sys::extract_written_data(fd, wdata);
-
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
-    service_state_t s = static_cast<service_state_t>(wdata[1]);
-    assert(s == service_state_t::STARTED);
-    service_state_t ts = static_cast<service_state_t>(wdata[6]);
-    assert(ts == service_state_t::STARTED);
-
-    control_conn_t::handle_t h1;
-    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h1), reinterpret_cast<char *>(&h1));
-
-    // Get handle for service 2:
-    cmd = { DINIT_CP_FINDSERVICE };
-    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
-    cmd.insert(cmd.end(), service_name2, service_name2 + name_len);
-
-    bp_sys::supply_read_data(fd, std::move(cmd));
-
-    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
-
-    bp_sys::extract_written_data(fd, wdata);
-
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
-    s = static_cast<service_state_t>(wdata[1]);
-    assert(s == service_state_t::STOPPED);
-    ts = static_cast<service_state_t>(wdata[6]);
-    assert(ts == service_state_t::STOPPED);
-
-    control_conn_t::handle_t h2;
-    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h2), reinterpret_cast<char *>(&h2));
+    control_conn_t::handle_t h1 = find_service(fd, service_name1, service_state_t::STARTED, service_state_t::STARTED);
+    control_conn_t::handle_t h2 = find_service(fd, service_name2, service_state_t::STOPPED, service_state_t::STOPPED);
 
     // Enable from s1 -> s2:
-    cmd = { DINIT_CP_ENABLESERVICE, static_cast<char>(dependency_type::WAITS_FOR) };
+    std::vector<char> cmd = { DINIT_CP_ENABLESERVICE, static_cast<char>(dependency_type::WAITS_FOR) };
     char * h1cp = reinterpret_cast<char *>(&h1);
     char * h2cp = reinterpret_cast<char *>(&h2);
     cmd.insert(cmd.end(), h1cp, h1cp + sizeof(h1));
@@ -939,6 +701,8 @@ void cptest_enableservice()
 
     bp_sys::supply_read_data(fd, std::move(cmd));
     event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    std::vector<char> wdata;
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == 1 + 7 /* ACK reply + info packet */);
@@ -981,40 +745,15 @@ void cptest_restart()
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
     // Get a service handle:
-    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
-    uint16_t name_len = strlen(service_name);
-    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
-    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
-    cmd.insert(cmd.end(), service_name, service_name + name_len);
-
-    bp_sys::supply_read_data(fd, std::move(cmd));
-
-    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
-
-    // We expect:
-    // (1 byte)   DINIT_RP_SERVICERECORD
-    // (1 byte)   state
-    // (handle_t) handle
-    // (1 byte)   target state
+    control_conn_t::handle_t h = find_service(fd, service_name, service_state_t::STOPPED,
+            service_state_t::STOPPED);
 
     std::vector<char> wdata;
-    bp_sys::extract_written_data(fd, wdata);
-
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
-    service_state_t s = static_cast<service_state_t>(wdata[1]);
-    assert(s == service_state_t::STOPPED);
-    service_state_t ts = static_cast<service_state_t>(wdata[6]);
-    assert(ts == service_state_t::STOPPED);
-
-    control_conn_t::handle_t h;
-    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h), reinterpret_cast<char *>(&h));
-
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 0);
 
     // Issue restart:
-    cmd = { DINIT_CP_STOPSERVICE, 4 /* restart */ };
+    std::vector<char> cmd = { DINIT_CP_STOPSERVICE, 4 /* restart */ };
     char * h_cp = reinterpret_cast<char *>(&h);
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
 
@@ -1094,36 +833,16 @@ void cptest_wake()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    // Get a service handle:
-    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
-    uint16_t name_len = strlen(service_name1);
-    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
-    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
-    cmd.insert(cmd.end(), service_name1, service_name1 + name_len);
-
-    bp_sys::supply_read_data(fd, std::move(cmd));
-
-    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
-
-    std::vector<char> wdata;
-    bp_sys::extract_written_data(fd, wdata);
-
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
-    service_state_t s = static_cast<service_state_t>(wdata[1]);
-    assert(s == service_state_t::STOPPED);
-    service_state_t ts = static_cast<service_state_t>(wdata[6]);
-    assert(ts == service_state_t::STOPPED);
-
-    control_conn_t::handle_t h1;
-    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h1), reinterpret_cast<char *>(&h1));
+    control_conn_t::handle_t h1 = find_service(fd, service_name1, service_state_t::STOPPED,
+            service_state_t::STOPPED);
 
     // Wake s1:
-    cmd = { DINIT_CP_WAKESERVICE, 0 /* don't pin */ };
+    std::vector<char> cmd = { DINIT_CP_WAKESERVICE, 0 /* don't pin */ };
     char * h_cp = reinterpret_cast<char *>(&h1);
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h1));
     bp_sys::supply_read_data(fd, std::move(cmd));
 
+    std::vector<char> wdata;
     event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
     bp_sys::extract_written_data(fd, wdata);
 
@@ -1162,6 +881,71 @@ void cptest_wake()
     delete cc;
 }
 
+void cptest_servicestatus()
+{
+    service_set sset;
+
+    service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    sset.add_service(s1);
+    service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {});
+    sset.add_service(s2);
+    service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {});
+    sset.add_service(s3);
+
+    s2->start();
+    sset.process_queues();
+
+    int fd = bp_sys::allocfd();
+    auto *cc = new control_conn_t(event_loop, &sset, fd);
+
+    auto STOPPED = service_state_t::STOPPED;
+    auto STARTED = service_state_t::STARTED;
+    control_conn_t::handle_t h1 = find_service(fd, "test-service-1", STOPPED, STOPPED);
+    control_conn_t::handle_t h2 = find_service(fd, "test-service-2", STARTED, STARTED);
+    control_conn_t::handle_t h3 = find_service(fd, "test-service-3", STOPPED, STOPPED);
+
+    std::vector<char> cmd = { DINIT_CP_SERVICESTATUS };
+    char * h_cp = reinterpret_cast<char *>(&h1);
+    cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h1));
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    std::vector<char> wdata;
+    bp_sys::extract_written_data(fd, wdata);
+
+    constexpr static int STATUS_BUFFER_SIZE = 6 + ((sizeof(pid_t) > sizeof(int)) ? sizeof(pid_t) : sizeof(int));
+
+    // 1 byte: DINIT_RP_SERVICESTATUS
+    // 1 byte: reserved
+    // STATUS_BUFFER_SIZE bytes: status
+    assert(wdata.size() == (2 + STATUS_BUFFER_SIZE));
+    assert(wdata[0] == DINIT_RP_SERVICESTATUS);
+    assert(wdata[2] == (int)service_state_t::STOPPED); // state
+    assert(wdata[3] == (int)service_state_t::STOPPED); // target state
+    assert(wdata[4] == 0); // various flags
+
+    cmd.clear();
+    cmd.push_back(DINIT_CP_SERVICESTATUS);
+    h_cp = reinterpret_cast<char *>(&h2);
+    cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h1));
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == (2 + STATUS_BUFFER_SIZE));
+    assert(wdata[0] == DINIT_RP_SERVICESTATUS);
+    assert(wdata[2] == (int)service_state_t::STARTED); // state
+    assert(wdata[3] == (int)service_state_t::STARTED); // target state
+    assert(wdata[4] == 8); // various flags; 8 = marked active
+
+    (void)h3; // silence warning
+
+    delete cc;
+}
+
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
@@ -1185,5 +969,6 @@ int main(int argc, char **argv)
     RUN_TEST(cptest_enableservice, "      ");
     RUN_TEST(cptest_restart, "            ");
     RUN_TEST(cptest_wake, "               ");
+    RUN_TEST(cptest_servicestatus, "      ");
     return 0;
 }
