@@ -425,9 +425,16 @@ void bgproc_service::exec_failed(run_proc_err errcode) noexcept
     log(loglevel_t::ERROR, get_name(), ": execution failed - ",
             exec_stage_descriptions[static_cast<int>(errcode.stage)], ": ", strerror(errcode.st_errno));
 
-    // Only time we execute is for startup:
-    stop_reason = stopped_reason_t::EXECFAILED;
-    failed_to_start();
+    if (doing_smooth_recovery) {
+        doing_smooth_recovery = false;
+        stop_reason = stopped_reason_t::TERMINATED;
+        unrecoverable_stop();
+    }
+    else {
+        // Only time we execute is for startup:
+        stop_reason = stopped_reason_t::EXECFAILED;
+        failed_to_start();
+    }
 }
 
 void scripted_service::handle_exit_status(bp_sys::exit_status exit_status) noexcept

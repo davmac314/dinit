@@ -1339,6 +1339,62 @@ void test_bgproc_smooth_recove2()
     sset.remove_service(&d1);
 }
 
+void test_bgproc_smooth_recove3()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+
+    bgproc_service p {&sset, "testproc", string(command), command_offsets, {}};
+    init_service_defaults(p);
+    p.set_smooth_recovery(true);
+    p.set_restart_delay(time_val {0, 1000});
+    p.set_pid_file("/run/daemon.pid");
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    // process for p exec succeds, reads pid file, starts
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    pid_t daemon_instance;
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
+    assert(p.get_state() == service_state_t::STARTING);
+    base_process_service_test::handle_exit(&p, 0); // exit the launch process
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+
+    // exit daemon process unexpectedly:
+    base_process_service_test::handle_exit(&p, 0);
+
+    // since time hasn't been changed, we expect that the process has not yet been re-launched:
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(bp_sys::last_forked_pid == daemon_instance);
+
+    event_loop.advance_time(time_val {0, 1000});
+
+    // Now a new process should've been launched:
+    assert(event_loop.active_timers.size() == 0);
+    assert(bp_sys::last_forked_pid == daemon_instance + 1);
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    // Let the new process fail to executable:
+    base_process_service_test::exec_failed(&p, ENOMEM);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(p.get_stop_reason() == stopped_reason_t::TERMINATED);
+
+    sset.remove_service(&p);
+
+}
+
 // Unexpected termination with restart
 void test_bgproc_term_restart()
 {
@@ -1491,7 +1547,7 @@ void test_bgproc_stop2()
 
     // What should happen now: read the pid file, immediately signal the daemon, and go STOPPING
     assert(p.get_pid() == daemon_instance);
-    assert(bp_sys::last_sig_sent = SIGTERM);
+    assert(bp_sys::last_sig_sent == SIGTERM);
     assert(p.get_state() == service_state_t::STOPPING);
 
     // daemon exits:
@@ -1949,6 +2005,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_bgproc_unexpected_term, "");
     RUN_TEST(test_bgproc_smooth_recover, " ");
     RUN_TEST(test_bgproc_smooth_recove2, " ");
+    RUN_TEST(test_bgproc_smooth_recove3, " ");
     RUN_TEST(test_bgproc_term_restart, "   ");
     RUN_TEST(test_bgproc_stop, "           ");
     RUN_TEST(test_bgproc_stop2, "          ");
