@@ -654,6 +654,15 @@ void bgproc_service::bring_down() noexcept
         // status, and then act appropriately.
         return;
     }
+    else if (doing_smooth_recovery) {
+        // Otherwise if we are doing smooth recovery, we must be waiting for the restart timer
+        if (waiting_restart_timer) {
+            waiting_restart_timer = false;
+            process_timer.stop_timer(event_loop);
+        }
+        doing_smooth_recovery = false;
+        stopped();
+    }
     else if (pid != -1) {
         // The process is still kicking on - must actually kill it. We signal the process
         // group (-pid) rather than just the process as there's less risk then of creating

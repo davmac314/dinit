@@ -1339,6 +1339,7 @@ void test_bgproc_smooth_recove2()
     sset.remove_service(&d1);
 }
 
+// bgproc smooth recovery failure
 void test_bgproc_smooth_recove3()
 {
     using namespace std;
@@ -1393,6 +1394,75 @@ void test_bgproc_smooth_recove3()
 
     sset.remove_service(&p);
 
+}
+
+// stop while in smooth recovery - waiting for restart timer
+void test_bgproc_smooth_recove4()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+
+    bgproc_service p {&sset, "testproc", string(command), command_offsets, {}};
+    init_service_defaults(p);
+    p.set_smooth_recovery(true);
+    p.set_restart_delay(time_val {0, 1000});
+    p.set_pid_file("/run/daemon.pid");
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    // process for p exec succeds, reads pid file, starts
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    pid_t daemon_instance;
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
+    assert(p.get_state() == service_state_t::STARTING);
+    base_process_service_test::handle_exit(&p, 0); // exit the launch process
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+
+    // exit daemon process unexpectedly:
+    base_process_service_test::handle_exit(&p, 0);
+
+    // since time hasn't been changed, we expect that the process has not yet been re-launched:
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(bp_sys::last_forked_pid == daemon_instance);
+
+    // Now issue stop:
+    p.stop();
+
+    sset.process_queues();
+
+    // since process was not running, shouldn't need to wait for it to end:
+    assert(p.get_state() == service_state_t::STOPPED);
+
+    assert(event_loop.active_timers.size() == 0);
+    assert(bp_sys::last_forked_pid == daemon_instance);
+
+    // now start again:
+    p.start();
+    sset.process_queues();
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
+    assert(p.get_state() == service_state_t::STARTING);
+    base_process_service_test::handle_exit(&p, 0); // exit the launch process
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+
+    // and terminate:
+    p.stop();
+    sset.process_queues();
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+
+    sset.remove_service(&p);
 }
 
 // Unexpected termination with restart
@@ -2006,6 +2076,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_bgproc_smooth_recover, " ");
     RUN_TEST(test_bgproc_smooth_recove2, " ");
     RUN_TEST(test_bgproc_smooth_recove3, " ");
+    RUN_TEST(test_bgproc_smooth_recove4, " ");
     RUN_TEST(test_bgproc_term_restart, "   ");
     RUN_TEST(test_bgproc_stop, "           ");
     RUN_TEST(test_bgproc_stop2, "          ");
