@@ -676,7 +676,7 @@ class service_record
             to->dependents.push_back(&(*pre_i));
         }
         catch (...) {
-            depends_on.erase(i);
+            depends_on.erase(pre_i);
             throw;
         }
 
