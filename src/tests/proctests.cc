@@ -460,6 +460,73 @@ void test_term_via_stop2()
     sset.remove_service(&p);
 }
 
+// stop twice
+void test_term_via_stop3()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    p.stop(true);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(event_loop.active_timers.size() == 1);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
+    assert(event_loop.active_timers.size() == 0);
+
+    p.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    bp_sys::last_sig_sent = 0; // make sure signal is re-sent
+
+    p.stop(true);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(event_loop.active_timers.size() == 1);
+
+    assert(bp_sys::last_sig_sent == SIGTERM);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
 // Time-out during start
 void test_proc_start_timeout()
 {
@@ -2058,6 +2125,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_term_restart3, "    ");
     RUN_TEST(test_term_via_stop, "         ");
     RUN_TEST(test_term_via_stop2, "        ");
+    RUN_TEST(test_term_via_stop3, "        ");
     RUN_TEST(test_proc_start_timeout, "    ");
     RUN_TEST(test_proc_start_timeout2, "   ");
     RUN_TEST(test_proc_start_execfail, "   ");
