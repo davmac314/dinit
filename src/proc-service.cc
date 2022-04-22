@@ -476,7 +476,9 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
     else if (service_state == service_state_t::STOPPING) {
         // We won't log a non-zero exit status or termination due to signal here -
         // we assume that the process died because we signalled it.
-        stopped();
+        if (stop_pid == -1 && !waiting_for_execstat) {
+            stopped();
+        }
     }
     else {
         // we must be STARTED
@@ -725,9 +727,9 @@ void process_service::bring_down() noexcept
             return;
         }
 
-        stop_issued = true; // (don't try again)
-
         arm_timer:
+
+        stop_issued = true; // (don't try again)
 
         // If there's a stop timeout, arm the timer now:
         if (stop_timeout != time_val(0,0)) {
