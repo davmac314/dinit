@@ -358,6 +358,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         if (service_type == service_type_t::PROCESS) {
             do_env_subst(settings.command, settings.command_offsets, settings.do_sub_vars);
+            std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             process_service *rvalps;
             if (create_new_record) {
                 rvalps = new process_service(this, string(name), std::move(settings.command),
@@ -369,6 +370,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             }
             rval = rvalps;
             // All of the following should be noexcept or must perform rollback on exception
+            rvalps->set_stop_command(std::move(settings.stop_command), std::move(stop_arg_parts));
             rvalps->set_working_dir(std::move(settings.working_dir));
             rvalps->set_env_file(std::move(settings.env_file));
             rvalps->set_rlimits(std::move(settings.rlimits));
@@ -452,7 +454,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         rval->set_chain_to(std::move(settings.chain_to_name));
 
         if (create_new_record && reload_svc != nullptr) {
-            // switch dependencies to old record so that they refer to the new record
+            // switch dependencies on old record so that they refer to the new record
 
             // Add dependent-link for all dependencies. Add to the new service first, so we can rollback
             // on failure:

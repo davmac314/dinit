@@ -826,7 +826,7 @@ class service_settings_wrapper
             }
         }
 
-        if (!stop_command.empty() && service_type != service_type_t::SCRIPTED) {
+        if (!stop_command.empty() && service_type != service_type_t::SCRIPTED && service_type != service_type_t::PROCESS) {
             report_error("'stop-command' specified, but 'type' is not scripted.");
         }
 

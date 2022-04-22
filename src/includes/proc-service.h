@@ -12,6 +12,8 @@
 // This header defines base_proc_service (base process service) and several derivatives, as well as some
 // utility functions and classes. See service.h for full details of services.
 
+class process_service;
+
 // Given a string and a list of pairs of (start,end) indices for each argument in that string,
 // store a null terminator for the argument. Return a `char *` vector containing the beginning
 // of each argument and a trailing nullptr. (The returned array is invalidated if the string is later
@@ -85,6 +87,19 @@ class exec_status_pipe_watcher : public eventloop_t::fd_watcher_impl<exec_status
     void operator=(const exec_status_pipe_watcher &) = delete;
 };
 
+// Like exec_status_pipe_watcher, but for watching status when exec'ing the stop command
+class stop_status_pipe_watcher : public eventloop_t::fd_watcher_impl<stop_status_pipe_watcher>
+{
+    public:
+    process_service * service;
+    dasynq::rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
+
+    stop_status_pipe_watcher(process_service * sr) noexcept : service(sr) { }
+
+    stop_status_pipe_watcher(const exec_status_pipe_watcher &) = delete;
+    void operator=(const exec_status_pipe_watcher &) = delete;
+};
+
 // Watcher for readiness notification pipe
 class ready_notify_watcher : public eventloop_t::fd_watcher_impl<ready_notify_watcher>
 {
@@ -98,7 +113,7 @@ class ready_notify_watcher : public eventloop_t::fd_watcher_impl<ready_notify_wa
     void operator=(const ready_notify_watcher &) = delete;
 };
 
-
+// watcher for main child process
 class service_child_watcher : public eventloop_t::child_proc_watcher_impl<service_child_watcher>
 {
     public:
@@ -108,6 +123,19 @@ class service_child_watcher : public eventloop_t::child_proc_watcher_impl<servic
     service_child_watcher(base_process_service * sr) noexcept : service(sr) { }
 
     service_child_watcher(const service_child_watcher &) = delete;
+    void operator=(const service_child_watcher &) = delete;
+};
+
+// watcher for the "stop-command" for process services
+class stop_child_watcher : public eventloop_t::child_proc_watcher_impl<stop_child_watcher>
+{
+    public:
+    process_service * service;
+    dasynq::rearm status_change(eventloop_t &eloop, pid_t child, int status) noexcept;
+
+    stop_child_watcher(process_service * sr) noexcept : service(sr) { }
+
+    stop_child_watcher(const service_child_watcher &) = delete;
     void operator=(const service_child_watcher &) = delete;
 };
 
@@ -224,7 +252,7 @@ class base_process_service : public service_record
     void becoming_inactive() noexcept override;
 
     // Kill with SIGKILL
-    void kill_with_fire() noexcept;
+    virtual void kill_with_fire() noexcept;
 
     // Signal the process group of the service process
     void kill_pg(int signo) noexcept;
@@ -381,12 +409,28 @@ class base_process_service : public service_record
 // Standard process service.
 class process_service : public base_process_service
 {
+    friend class stop_child_watcher;
+    friend class stop_status_pipe_watcher;
+
     virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept override;
     virtual void exec_failed(run_proc_err errcode) noexcept override;
     virtual void exec_succeeded() noexcept override;
     virtual void bring_down() noexcept override;
+    virtual void kill_with_fire() noexcept override;
+
+    bool start_stop_process(const std::vector<const char *> &cmd) noexcept;
+
+    bool reserved_stop_watch : 1;
+    bool stop_issued : 1;
+
+    pid_t stop_pid = -1;
+    bp_sys::exit_status stop_status = {};
 
     ready_notify_watcher readiness_watcher;
+    stop_child_watcher stop_watcher;
+    stop_status_pipe_watcher stop_pipe_watcher;
+
+    bool doing_smooth_recovery = false; // if we are performing smooth recovery
 
 #if USE_UTMPX
 
@@ -409,48 +453,72 @@ class process_service : public base_process_service
         return &readiness_watcher;
     }
 
+    void handle_stop_exit() noexcept
+    {
+        if (!stop_status.did_exit_clean()) {
+            if (stop_status.did_exit()) {
+                log(loglevel_t::ERROR, "Service ", get_name(), " stop command terminated with exit code ",
+                        stop_status.get_exit_status());
+            }
+            else if (stop_status.was_signalled()) {
+                log(loglevel_t::ERROR, "Service ", get_name(), " stop command terminated due to signal ",
+                        stop_status.get_term_sig());
+            }
+        }
+
+        if (pid == -1) {
+            // If service process has already finished, we were just waiting for the stop command
+            // process:
+            stopped();
+        }
+    }
+
     public:
     process_service(service_set *sset, const string &name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             const std::list<prelim_dep> &depends_p)
          : base_process_service(sset, name, service_type_t::PROCESS, std::move(command), command_offsets,
-             depends_p), readiness_watcher(this)
+             depends_p), reserved_stop_watch(false), stop_issued(false),
+             readiness_watcher(this), stop_watcher(this), stop_pipe_watcher(this)
     {
     }
 
 #if USE_UTMPX
 
     // Set the id of the process in utmp (the "inittab" id)
-    void set_utmp_id(const char *id)
+    void set_utmp_id(const char *id) noexcept
     {
         strncpy(inittab_id, id, sizeof(inittab_id));
     }
 
     // Set the device line of the process in utmp database
-    void set_utmp_line(const char *line)
+    void set_utmp_line(const char *line) noexcept
     {
         strncpy(inittab_line, line, sizeof(inittab_line));
     }
 
     // Get the utmp (inittab) id, may not be nul terminated if maximum length!
-    const char *get_utmp_id()
+    const char *get_utmp_id() noexcept
     {
         return inittab_id;
     }
 
     // Get the utmp (inittab) line, may not be nul terminated if maximum length!
-    const char *get_utmp_line()
+    const char *get_utmp_line() noexcept
     {
         return inittab_line;
     }
 
-    constexpr size_t get_utmp_id_size() const { return sizeof(inittab_id); }
-    constexpr size_t get_utmp_line_size() const { return sizeof(inittab_line); }
+    constexpr size_t get_utmp_id_size() const noexcept { return sizeof(inittab_id); }
+    constexpr size_t get_utmp_line_size() const noexcept { return sizeof(inittab_line); }
 
 #endif
 
     ~process_service() noexcept
     {
+        if (reserved_stop_watch) {
+            stop_watcher.unreserve(event_loop);
+        }
     }
 };
 
