@@ -126,7 +126,7 @@ rearm stop_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
     if (r > 0) {
         // We read an errno code; exec() failed, and the service startup failed.
         if (sr->stop_pid != -1) {
-            sr->stop_watcher.deregister(event_loop, sr->pid);
+            sr->stop_watcher.deregister(event_loop, sr->stop_pid);
             sr->reserved_child_watch = false;
             log(loglevel_t::ERROR, "Service ", sr->get_name(), ": could not fork for stop command: ",
                     exec_stage_descriptions[static_cast<int>(exec_status.stage)], ": ",
