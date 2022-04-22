@@ -801,6 +801,9 @@ class service_settings_wrapper
             if (!command.empty()) {
                 report_lint("'command' specified, but 'type' is internal (or not specified).");
             }
+            if (!stop_command.empty()) {
+                report_lint("'stop-command' specified, but 'type' is internal (or not specified).");
+            }
             if (!working_dir.empty()) {
                 report_lint("'working-dir' specified, but 'type' is internal (or not specified).");
             }
@@ -824,10 +827,6 @@ class service_settings_wrapper
             if (onstart_flags.skippable) {
                 report_lint("option 'skippable' was specified, but 'type' is internal (or not specified).");
             }
-        }
-
-        if (!stop_command.empty() && service_type != service_type_t::SCRIPTED && service_type != service_type_t::PROCESS) {
-            report_error("'stop-command' specified, but 'type' is not scripted.");
         }
 
         if (service_type == service_type_t::BGPROCESS) {
