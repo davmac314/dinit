@@ -411,6 +411,7 @@ class process_service : public base_process_service
 {
     friend class stop_child_watcher;
     friend class stop_status_pipe_watcher;
+    friend class base_process_service_test;
 
     protected:
     virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept override;
