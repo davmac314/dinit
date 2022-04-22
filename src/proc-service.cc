@@ -145,6 +145,8 @@ rearm stop_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
         }
     }
 
+    sr->services->process_queues();
+
     return rearm::REMOVED;
 }
 
@@ -170,6 +172,7 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
             service->set_state(service_state_t::STOPPING);
             service->bring_down();
         }
+        service->services->process_queues();
     }
     else {
         // Just keep consuming data from the pipe:
@@ -182,7 +185,6 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
         }
     }
 
-    service->services->process_queues();
     return rearm::REARM;
 }
 
@@ -222,6 +224,7 @@ dasynq::rearm stop_child_watcher::status_change(eventloop_t &loop, pid_t child, 
 
     sr->stop_pid = -1;
     sr->stop_status = bp_sys::exit_status(status);
+    stop_watch(loop);
 
     if (sr->waiting_for_execstat) {
         // no exec status yet, wait for that first
@@ -229,7 +232,7 @@ dasynq::rearm stop_child_watcher::status_change(eventloop_t &loop, pid_t child, 
     }
 
     sr->handle_stop_exit();
-
+    sr->services->process_queues();
     return dasynq::rearm::NOOP;
 }
 
@@ -280,7 +283,7 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
             process_timer.stop_timer(event_loop);
         }
         if (!waiting_for_deps) {
-            if (stop_pid == -1) {
+            if (stop_pid == -1 && !waiting_for_execstat) {
                 stop_issued = false; // reset for next time
                 stopped();
             }
@@ -678,8 +681,8 @@ void process_service::bring_down() noexcept
     }
     if (waiting_for_execstat) {
         // The process is still starting. This should be uncommon, but can occur during
-        // smooth recovery. We can't do much now; we have to wait until we get the
-        // status, and then act appropriately.
+        // smooth recovery (or it may mean the stop command process is still starting). We can't
+        // do much now; we have to wait until we get the status, and then act appropriately.
         return;
     }
     else if (pid != -1) {

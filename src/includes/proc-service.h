@@ -469,6 +469,7 @@ class process_service : public base_process_service
         if (pid == -1) {
             // If service process has already finished, we were just waiting for the stop command
             // process:
+            stop_issued = false; // reset for next time
             stopped();
         }
     }
