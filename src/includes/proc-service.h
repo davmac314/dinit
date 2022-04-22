@@ -239,7 +239,7 @@ class base_process_service : public service_record
     virtual void exec_failed(run_proc_err errcode) noexcept = 0;
 
     // Called if exec succeeds.
-    virtual void exec_succeeded() noexcept { };
+    virtual void exec_succeeded() noexcept { }
 
     virtual bool can_interrupt_start() noexcept override
     {
@@ -412,6 +412,7 @@ class process_service : public base_process_service
     friend class stop_child_watcher;
     friend class stop_status_pipe_watcher;
 
+    protected:
     virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept override;
     virtual void exec_failed(run_proc_err errcode) noexcept override;
     virtual void exec_succeeded() noexcept override;
@@ -430,10 +431,12 @@ class process_service : public base_process_service
     stop_child_watcher stop_watcher;
     stop_status_pipe_watcher stop_pipe_watcher;
 
+    protected:
     bool doing_smooth_recovery = false; // if we are performing smooth recovery
 
 #if USE_UTMPX
 
+    private:
     char inittab_id[sizeof(utmpx().ut_id)];
     char inittab_line[sizeof(utmpx().ut_line)];
 
@@ -466,12 +469,21 @@ class process_service : public base_process_service
             }
         }
 
-        if (pid == -1) {
+        if (pid == -1 || !tracking_child) {
             // If service process has already finished, we were just waiting for the stop command
             // process:
             stop_issued = false; // reset for next time
             stopped();
         }
+    }
+
+    process_service(service_set *sset, const string &name, service_type_t s_type, string &&command,
+            std::list<std::pair<unsigned,unsigned>> &command_offsets,
+            const std::list<prelim_dep> &depends_p)
+         : base_process_service(sset, name, s_type, std::move(command), command_offsets,
+             depends_p), reserved_stop_watch(false), stop_issued(false),
+             readiness_watcher(this), stop_watcher(this), stop_pipe_watcher(this)
+    {
     }
 
     public:
@@ -524,11 +536,10 @@ class process_service : public base_process_service
 };
 
 // Bgproc (self-"backgrounding", i.e. double-forking) process service
-class bgproc_service : public base_process_service
+class bgproc_service : public process_service
 {
     virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept override;
     virtual void exec_failed(run_proc_err errcode) noexcept override;
-    virtual void bring_down() noexcept override;
 
     enum class pid_result_t {
         OK,
@@ -541,13 +552,11 @@ class bgproc_service : public base_process_service
     // Read the pid-file contents
     pid_result_t read_pid_file(bp_sys::exit_status *exit_status) noexcept;
 
-    bool doing_smooth_recovery = false; // if we are performing smooth recovery
-
     public:
     bgproc_service(service_set *sset, const string &name, string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             const std::list<prelim_dep> &depends_p)
-         : base_process_service(sset, name, service_type_t::BGPROCESS, std::move(command), command_offsets,
+         : process_service(sset, name, service_type_t::BGPROCESS, std::move(command), command_offsets,
              depends_p)
     {
     }

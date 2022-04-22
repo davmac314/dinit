@@ -44,9 +44,15 @@ std::vector<const char *> separate_args(std::string &s,
 
 void process_service::exec_succeeded() noexcept
 {
-    // This could be a smooth recovery (state already STARTED). Even more, the process
-    // might be stopped (and killed via a signal) during smooth recovery.  We don't to
-    // process startup again in either case, so we check for state STARTING:
+    if (get_type() != service_type_t::PROCESS) {
+        return;
+    }
+
+    tracking_child = true;
+
+    // This could be a smooth recovery (state already STARTED). No need to do anything here in
+    // that case. Otherwise, we are STARTING or STOPPING:
+
     if (get_state() == service_state_t::STARTING) {
         if (force_notification_fd != -1 || !notification_var.empty()) {
             // Wait for readiness notification:
@@ -126,16 +132,23 @@ rearm stop_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
     if (r > 0) {
         // We read an errno code; exec() failed, and the service startup failed.
         if (sr->stop_pid != -1) {
-            sr->stop_watcher.deregister(event_loop, sr->stop_pid);
-            sr->reserved_child_watch = false;
             log(loglevel_t::ERROR, "Service ", sr->get_name(), ": could not fork for stop command: ",
                     exec_stage_descriptions[static_cast<int>(exec_status.stage)], ": ",
                     strerror(exec_status.st_errno));
-            if (sr->pid != -1 && sr->term_signal != 0) {
-                sr->kill_pg(sr->term_signal);
+
+            sr->stop_watcher.deregister(event_loop, sr->stop_pid);
+            sr->reserved_child_watch = false;
+            sr->stop_pid = -1;
+            if (sr->pid != -1) {
+                if (sr->term_signal != 0) {
+                    sr->kill_pg(sr->term_signal);
+                }
+                if (!sr->tracking_child) {
+                    sr->stop_issued = false;
+                    sr->stopped();
+                }
             }
         }
-        sr->stop_pid = -1;
     }
     else {
         // Nothing to do really but wait for termination - unless it's already happened, so let's
@@ -337,7 +350,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
     // For bgproc services, receiving exit status can mean one of two things:
     // 1. We were launching the process, and it finished (possibly after forking). If it did fork
     //    we want to obtain the process id of the process that we should now monitor, the actual
-    //    daemon.
+    //    daemon. Or,
     // 2. The above has already happened, and we are monitoring the daemon process, which has now
     //    terminated for some reason.
 
@@ -706,6 +719,12 @@ void process_service::bring_down() noexcept
             kill_pg(term_signal);
         }
 
+        if (stop_pid == -1 && !tracking_child) {
+            // If we have no way of tracking when the child terminates, assume stopped now
+            stopped();
+            return;
+        }
+
         stop_issued = true; // (don't try again)
 
         arm_timer:
@@ -743,48 +762,6 @@ void process_service::kill_with_fire() noexcept
             pgid = stop_pid;
         }
         bp_sys::kill(-pgid, SIGKILL);
-    }
-}
-
-void bgproc_service::bring_down() noexcept
-{
-    if (waiting_for_execstat) {
-        // The process is still starting. This should be uncommon, but can occur during
-        // smooth recovery. We can't do much now; we have to wait until we get the
-        // status, and then act appropriately.
-        return;
-    }
-    else if (doing_smooth_recovery) {
-        // Otherwise if we are doing smooth recovery, we must be waiting for the restart timer
-        if (waiting_restart_timer) {
-            waiting_restart_timer = false;
-            process_timer.stop_timer(event_loop);
-        }
-        doing_smooth_recovery = false;
-        stopped();
-    }
-    else if (pid != -1) {
-        // The process is still kicking on - must actually kill it. We signal the process
-        // group (-pid) rather than just the process as there's less risk then of creating
-        // an orphaned process group:
-        if (term_signal != 0) {
-            kill_pg(term_signal);
-        }
-
-        // In most cases, the rest is done in handle_exit_status.
-        // If we are a BGPROCESS and the process is not our immediate child, however, that
-        // won't work - check for this now:
-        if (! tracking_child) {
-            stopped();
-        }
-        else if (stop_timeout != time_val(0,0)) {
-            process_timer.arm_timer_rel(event_loop, stop_timeout);
-            waiting_stopstart_timer = true;
-        }
-    }
-    else {
-        // The process is already dead.
-        stopped();
     }
 }
 
