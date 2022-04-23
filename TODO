@@ -1,25 +1,24 @@
 Soon:
 -------------------
-* dinitctl status should reporting process launch failure reason
-  (i.e. when stop reason is EXECFAILED, report why dinit couldn't exec).
-  (This info is already available in the log).
 * better environment handling, way to restrict which variables get passed through
   Note that "XXX=YYYY" settings on Linux kernel command line sometimes get set as environment
   variables (and sometimes don't) even if the kernel should understand them (eg "pti=off",
   but not "root=/dev/sda1").
   * Version 0.13 includes dinitctl setenv to set environment variables, this is a good start
+* start timeout may not be being used for restarts, check and fix
 
 
-For version 0.14:
+For version 0.15:
 -----------------
-* support "stop-command" setting for process and bgprocess services (issue #38)
 * basic support for cgroups (at least: run service processes in a specified cgroup)
+* Service description parse errors should report line number
+* Limit memory use by control connections. Currently clients have command responses queued without
+  limit; it would be better to stop accepting new commands once a certain amount of response is
+  buffered. 
 
 
 For version 1.0 (release requirements):
 ---------------------------------------
-* Service description parse errors should report line number
-* Limit memory use by control connections. Currently clients can queue commands without limit.
 * "triggered" service type: external process notifies Dinit when the service
   has started. (maybe?)
   - key thing is we want some way to eg mount filesystem once the disk comes up,

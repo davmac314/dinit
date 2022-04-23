@@ -1,3 +1,26 @@
+== Version 0.14.0
+
+(Alpha release #5)
+
+This release contains bug fixes and a new feature.
+
+Changes:
+ * "stop-command" service parameter can now be applied to process and bgprocess services. If
+   specified for these service types, the specified command is used to stop the service.
+ * "dinitctl status" now reports launch stage and error for services which failed to execute.
+   Exammple output:
+   
+       $ src/dinitctl status mpd
+       Service: mpd
+           State: STOPPED (could not be launched)
+               Stage: executing command
+               Error: No such file or directory
+   
+ * Fixes bug where "dinitctl status" command would sometimes report an error.
+ * Fixes a (situational, unlikely) bug where a bgprocess state could get stuck.
+ * Fixes a potential memory corruption / crash bug occurring in out-of-memory situations when
+   adding a dependency to a service (via "dinitctl reload" or "dinitctl add-dep").
+
 == Version 0.13.0
 
 NOTE: This release has some minor backwards-incompatible changes. Please read
