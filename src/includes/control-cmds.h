@@ -1,3 +1,6 @@
+#ifndef DINIT_CONTROL_CMDS_H_INCLUDED
+#define DINIT_CONTROL_CMDS_H_INCLUDED 1
+
 // Dinit control command packet types
 
 // Requests:
@@ -113,3 +116,5 @@ constexpr static int DINIT_RP_SERVICESTATUS = 70;
 
 // Service event occurred (4-byte service handle, 1 byte event code)
 constexpr static int DINIT_IP_SERVICEEVENT = 100;
+
+#endif

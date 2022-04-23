@@ -10,9 +10,9 @@ endif
 dinit_objects = dinit.o load-service.o service.o proc-service.o baseproc-service.o control.o dinit-log.o \
 		dinit-main.o run-child-proc.o options-processing.o
 
-objects = $(dinit_objects) dinitctl.o dinitcheck.o shutdown.o
+objects = $(dinit_objects) dinitctl.o dinitcheck.o shutdown.o dinit-monitor.o
 
-all: dinit dinitctl dinitcheck $(SHUTDOWN)
+all: dinit dinitctl dinitcheck dinit-monitor $(SHUTDOWN)
 
 ../mconfig:
 	@echo "*** No mconfig, please run make from top level"
@@ -28,6 +28,9 @@ dinitctl: dinitctl.o
 
 dinitcheck: dinitcheck.o options-processing.o
 	$(CXX) -o dinitcheck dinitcheck.o options-processing.o $(CXXOPTS) $(LDFLAGS)
+
+dinit-monitor: dinit-monitor.o
+	$(CXX) -o dinit-monitor dinit-monitor.o $(CXXOPTS) $(LDFLAGS)
 
 $(SHUTDOWNPREFIX)shutdown: shutdown.o
 	$(CXX) -o $(SHUTDOWNPREFIX)shutdown shutdown.o $(CXXOPTS) $(LDFLAGS)

@@ -1,7 +1,12 @@
 #include <cstdint>
 #include <cstring>
 
+#include <sys/types.h>
+#include <pwd.h>
+
+#include "mconfig.h"
 #include "cpbuffer.h"
+#include "control-cmds.h"
 
 // Client library for Dinit clients
 
@@ -240,4 +245,45 @@ inline uint16_t check_protocol_version(int minversion, int version, cpbuffer_t &
     }
 
     return cpversion;
+}
+
+// Get the default socket path (i.e. the path to use if no path is explicitly specified).
+// 'control_socket_str' *may* be used for storage for the returned path.
+// 'user_dinit' should be true if getuid() == 0.
+inline const char *get_default_socket_path(std::string &control_socket_str, bool user_dinit)
+{
+    const char *control_socket_path;
+    const char *sockpath = getenv("DINIT_SOCKET_PATH");
+    if (sockpath) {
+        control_socket_str = sockpath;
+        control_socket_path = control_socket_str.c_str();
+    }
+    else if (user_dinit) {
+        const char * rundir = getenv("XDG_RUNTIME_DIR");
+        const char * sockname = "dinitctl";
+        if (rundir == nullptr) {
+            sockname = ".dinitctl";
+            rundir = getenv("HOME");
+            if (rundir == nullptr) {
+                struct passwd * pwuid_p = getpwuid(getuid());
+                if (pwuid_p != nullptr) {
+                    rundir = pwuid_p->pw_dir;
+                }
+            }
+        }
+
+        if (rundir != nullptr) {
+            control_socket_str = rundir;
+            control_socket_str.push_back('/');
+            control_socket_str += sockname;
+            control_socket_path = control_socket_str.c_str();
+        }
+        else {
+            return nullptr;
+        }
+    }
+    else {
+        control_socket_path = SYSCONTROLSOCKET; // default to system
+    }
+    return control_socket_path;
 }

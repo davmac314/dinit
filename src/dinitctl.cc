@@ -350,39 +350,11 @@ int main(int argc, char **argv)
         control_socket_path = control_socket_str.c_str();
     }
     else {
-        const char * sockpath = getenv("DINIT_SOCKET_PATH");
-        if (sockpath) {
-            control_socket_str = sockpath;
-            control_socket_path = control_socket_str.c_str();
-        }
-        else if (user_dinit) {
-            const char * rundir = getenv("XDG_RUNTIME_DIR");
-            const char * sockname = "dinitctl";
-            if (rundir == nullptr) {
-                sockname = ".dinitctl";
-                rundir = getenv("HOME");
-                if (rundir == nullptr) {
-                    struct passwd * pwuid_p = getpwuid(getuid());
-                    if (pwuid_p != nullptr) {
-                        rundir = pwuid_p->pw_dir;
-                    }
-                }
-            }
-
-            if (rundir != nullptr) {
-                control_socket_str = rundir;
-                control_socket_str.push_back('/');
-                control_socket_str += sockname;
-                control_socket_path = control_socket_str.c_str();
-            }
-            else {
-                cerr << "dinitctl: cannot locate user home directory (set XDG_RUNTIME_DIR, HOME, check /etc/passwd file, or "
-                        "specify socket path via -p)" << endl;
-                return 1;
-            }
-        }
-        else {
-            control_socket_path = SYSCONTROLSOCKET; // default to system
+        control_socket_path = get_default_socket_path(control_socket_str, user_dinit);
+        if (control_socket_path == nullptr) {
+            cerr << "dinitctl: cannot locate user home directory (set XDG_RUNTIME_DIR, HOME, check /etc/passwd file, or "
+                    "specify socket path via -p)" << endl;
+            return 1;
         }
     }
     
