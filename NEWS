@@ -8,7 +8,7 @@ Changes:
  * "stop-command" service parameter can now be applied to process and bgprocess services. If
    specified for these service types, the specified command is used to stop the service.
  * "dinitctl status" now reports launch stage and error for services which failed to execute.
-   Exammple output:
+   Example output:
    
        $ src/dinitctl status mpd
        Service: mpd
