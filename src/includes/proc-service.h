@@ -395,14 +395,20 @@ class base_process_service : public service_record
         return exec_arg_parts;
     }
 
-    pid_t get_pid() override
+    pid_t get_pid() noexcept override
     {
         return pid;
     }
 
-    int get_exit_status() override
+    int get_exit_status() noexcept override
     {
         return exit_status.as_int();
+    }
+
+    // Get reason for failure to exec process (if stop reason indicates exec failure)
+    run_proc_err get_exec_err_info()
+    {
+        return exec_err_info;
     }
 };
 

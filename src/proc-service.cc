@@ -103,6 +103,7 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
             }
         }
         sr->pid = -1;
+        sr->exec_err_info = exec_status;
         sr->exec_failed(exec_status);
     }
     else {
