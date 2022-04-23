@@ -1157,7 +1157,11 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
                 cout << ")";
                 break;
             case stopped_reason_t::EXECFAILED:
-                cout << " (could not be launched)";
+                uint16_t launch_stage;
+                rbuffer.extract((char *)&launch_stage, 4, 2);
+                cout << " (could not be launched)\n";
+                cout << "        Stage: " << exec_stage_descriptions[launch_stage] << "\n";
+                cout << "        Error: " << strerror(exit_status);
                 break;
             case stopped_reason_t::TERMINATED:
                 cout << " (terminated";

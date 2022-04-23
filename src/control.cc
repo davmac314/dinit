@@ -4,6 +4,7 @@
 
 #include "control.h"
 #include "service.h"
+#include "proc-service.h"
 
 // Server-side control protocol implementation. This implements the functionality that allows
 // clients (such as dinitctl) to query service state and issue commands to control services.
@@ -539,7 +540,7 @@ static void fill_status_buffer(char *buffer, service_record *service)
     buffer[2] = b0;
     buffer[3] = static_cast<char>(service->get_stop_reason());
 
-    buffer[4] = 0; // reserved
+    buffer[4] = 0; // (if exec failed, these are replaced with stage)
     buffer[5] = 0;
 
     // Next: either the exit status, or the process ID
@@ -548,8 +549,18 @@ static void fill_status_buffer(char *buffer, service_record *service)
         memcpy(buffer + 6, &proc_pid, sizeof(proc_pid));
     }
     else {
-        int exit_status = service->get_exit_status();
-        memcpy(buffer + 6, &exit_status, sizeof(exit_status));
+        // If exec failed,
+        if (buffer[3] == (char)stopped_reason_t::EXECFAILED) {
+            base_process_service *bsp = (base_process_service *)service;
+            run_proc_err exec_err = bsp->get_exec_err_info();
+            uint16_t stage = (uint16_t)exec_err.stage;
+            memcpy(buffer + 4, &stage, 2);
+            memcpy(buffer + 6, &exec_err.st_errno, sizeof(int));
+        }
+        else {
+            int exit_status = service->get_exit_status();
+            memcpy(buffer + 6, &exit_status, sizeof(exit_status));
+        }
     }
 }
 
