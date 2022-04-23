@@ -136,8 +136,9 @@ Specifies the command, including command-line arguments, for starting the proces
 Applies only to \fBprocess\fR, \fBbgprocess\fR and \fBscripted\fR services.
 .TP
 \fBstop\-command\fR = \fIcommand-string\fR
-Specifies the command to stop the service. Applicable only to \fBscripted\fR
-services (and optional for such services).
+Specifies the command to stop the service (optional). Applicable to \fBprocess\fR, \fBbgprocess\fR and
+\fBscripted\fR services.  If specified for \fBprocess\fR or \fBbgprocess\fR services, the "stop
+command" will be executed in order to stop the service, instead of signalling the service process. 
 .TP
 \fBworking\-dir\fR = \fIdirectory\fR
 Specifies the working directory for this service. For a scripted service, this
