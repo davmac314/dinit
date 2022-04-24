@@ -38,7 +38,25 @@ class cp_old_server_exception
     // no body
 };
 
+class general_error
+{
+    int err; // related errno (or 0)
+    const char *action; // may be nullptr if err != 0
+    std::string arg; // may be empty, must be empty if action == nullptr
 
+public:
+    general_error(int err) : err(err), action(nullptr), arg()
+    {
+    }
+
+    general_error(int err, const char *action, std::string arg = {}) : err(err), action(action), arg(std::move(arg))
+    {
+    }
+
+    int get_err() { return err; }
+    const char *get_action() { return action; }
+    std::string &get_arg() { return arg; }
+};
 
 // static_membuf: a buffer of a fixed size (N) with one additional value (of type T). Don't use this
 // directly, construct via membuf.
@@ -286,4 +304,33 @@ inline const char *get_default_socket_path(std::string &control_socket_str, bool
         control_socket_path = SYSCONTROLSOCKET; // default to system
     }
     return control_socket_path;
+}
+
+// Connect to the dinit daemon, return the connected socket fd.
+// Throws general_error on error.
+inline int connect_to_daemon(const char *control_socket_path)
+{
+    int socknum = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (socknum == -1) {
+        throw general_error(errno, "opening socket");
+    }
+
+    struct sockaddr_un * name;
+    uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + strlen(control_socket_path) + 1;
+    name = (struct sockaddr_un *) malloc(sockaddr_size);
+    if (name == nullptr) {
+        throw general_error(ENOMEM);
+    }
+
+    name->sun_family = AF_UNIX;
+    strcpy(name->sun_path, control_socket_path);
+
+    int connr = connect(socknum, (struct sockaddr *) name, sockaddr_size);
+    free(name);
+
+    if (connr == -1) {
+        throw general_error(errno, "connecting to socket", control_socket_path);
+    }
+
+    return socknum;
 }

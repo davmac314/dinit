@@ -358,30 +358,9 @@ int main(int argc, char **argv)
         }
     }
     
-    int socknum = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (socknum == -1) {
-        perror("dinitctl: error opening socket");
-        return 1;
-    }
-
-    struct sockaddr_un * name;
-    uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + strlen(control_socket_path) + 1;
-    name = (struct sockaddr_un *) malloc(sockaddr_size);
-    if (name == nullptr) {
-        cerr << "dinitctl: out of memory" << endl;
-        return 1;
-    }
-    
-    name->sun_family = AF_UNIX;
-    strcpy(name->sun_path, control_socket_path);
-    
-    int connr = connect(socknum, (struct sockaddr *) name, sockaddr_size);
-    if (connr == -1) {
-        perror((std::string("dinitctl: connecting to socket ") + control_socket_path).c_str());
-        return 1;
-    }
-    
     try {
+        int socknum = connect_to_daemon(control_socket_path);
+
         // Start by querying protocol version:
         cpbuffer_t rbuffer;
         check_protocol_version(min_cp_version, max_cp_version, rbuffer, socknum);
@@ -426,24 +405,34 @@ int main(int argc, char **argv)
     }
     catch (cp_old_client_exception &e) {
         std::cerr << "dinitctl: too old (server reports newer protocol version)" << std::endl;
-        return 1;
     }
     catch (cp_old_server_exception &e) {
         std::cerr << "dinitctl: server too old or protocol error" << std::endl;
-        return 1;
     }
     catch (cp_read_exception &e) {
         cerr << "dinitctl: control socket read failure or protocol error" << endl;
-        return 1;
     }
     catch (cp_write_exception &e) {
         cerr << "dinitctl: control socket write error: " << std::strerror(e.errcode) << endl;
-        return 1;
     }
     catch (dinit_protocol_error &e) {
         cerr << "dinitctl: protocol error" << endl;
-        return 1;
     }
+    catch (general_error &ge) {
+        std::cerr << "dinit-client";
+        if (ge.get_action() != nullptr) {
+            std::cerr << ": " << ge.get_action();
+            std::string &arg = ge.get_arg();
+            if (!arg.empty()) {
+                std::cerr << " " << arg;
+            }
+        }
+        if (ge.get_err() != 0) {
+            std::cerr << ": " << strerror(ge.get_err());
+        }
+        std::cerr << '\n';
+    }
+    return 1;
 }
 
 // Extract/read a string of specified length from the buffer/socket. The string is consumed
