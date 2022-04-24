@@ -275,15 +275,9 @@ int main(int argc, char **argv)
                             }
                         }
 
-                        // Clear SIGCHLD (check it's pending first; it should be, but this is a
-                        // fuzzy area in POSIX):
-                        sigset_t pending_sigs;
-                        sigpending(&pending_sigs);
-                        if (sigismember(&pending_sigs, SIGCHLD)) {
-                            sigfillset(&pending_sigs);
-                            sigdelset(&pending_sigs, SIGCHLD);
-                            sigsuspend(&pending_sigs);
-                        }
+                        // Don't bother clearing any pending SIGCHLD. POSIX says that:
+                        // - either SIGCHLD doesn't queue, in which case we're only leaving one pending signal
+                        // - or, it does queue, but wait() removes it from the queue.
                     }
                 }
 
