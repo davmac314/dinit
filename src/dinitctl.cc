@@ -88,7 +88,7 @@ class dinit_protocol_error
 };
 
 // Entry point.
-int main(int argc, char **argv)
+int dinitctl_main(int argc, char **argv)
 {
     using namespace std;
     
@@ -434,6 +434,18 @@ int main(int argc, char **argv)
     }
     return 1;
 }
+
+int main(int argc, char **argv)
+{
+    try {
+        return dinitctl_main(argc, argv);
+    }
+    catch (std::bad_alloc &e) {
+        std::cerr << "dinitctl: out of memory\n";
+    }
+    return 1;
+}
+
 
 // Extract/read a string of specified length from the buffer/socket. The string is consumed
 // from the buffer.

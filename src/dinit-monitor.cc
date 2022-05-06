@@ -34,7 +34,7 @@ static bool load_service(int socknum, cpbuffer_t &rbuffer, const char *name, han
 // dummy handler, so we can wait for children
 static void sigchld_handler(int) { }
 
-int main(int argc, char **argv)
+int dinit_monitor_main(int argc, char **argv)
 {
     bool show_help = argc < 2;
     std::string control_socket_str;
@@ -310,6 +310,16 @@ int main(int argc, char **argv)
         std::cerr << '\n';
     }
 
+    return 1;
+}
+
+int main(int argc, char **argv) {
+    try {
+        return dinit_monitor_main(argc, argv);
+    }
+    catch (std::bad_alloc &e) {
+        std::cerr << "dinit-monitor: out of memory\n";
+    }
     return 1;
 }
 
