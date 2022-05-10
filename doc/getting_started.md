@@ -5,7 +5,7 @@ Dinit instance. When run as a regular user, Dinit can be used to supervise,
 start, and stop other processes (services) also running under the same user ID.
 
 We assume that Dinit has already been installed; i.e. we will only cover
-configuration here. See [../BUILD.txt](../BUILD.txt) for information on how to
+configuration here. See [../BUILD](../BUILD) for information on how to
 build Dinit from source and install it.
 
 We don't cover how to set up Dinit as a system "init". See [linux/DINIT-AS-INIT.md](linux/DINIT-AS-INIT.md)
