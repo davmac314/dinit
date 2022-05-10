@@ -13,7 +13,7 @@ SYSCONTROLSOCKET=/run/dinitctl
 # General build options.
 
 # Linux (GCC). Note with GCC 5.x/6.x you must use the old ABI, with GCC 7.x you must use
-# the new ABI. See BUILD.txt file for more information.
+# the new ABI. See BUILD file for more information.
 CXX=g++
 CXXOPTS=-D_GLIBCXX_USE_CXX11_ABI=1 -std=c++11 -Os -Wall -fno-rtti -fno-plt -flto
 LDFLAGS=
@@ -21,7 +21,7 @@ BUILD_SHUTDOWN=yes
 SANITIZEOPTS=-fsanitize=address,undefined
 
 # Notes:
-#   -D_GLIBCXX_USE_CXX11_ABI=1 : force use of new ABI, see above / BUILD.txt
+#   -D_GLIBCXX_USE_CXX11_ABI=1 : force use of new ABI, see above / BUILD
 #   -fno-rtti (optional) : Dinit does not require C++ Run-time Type Information
 #   -fno-plt  (optional) : Recommended optimisation
 #   -flto     (optional) : Perform link-time optimisation
