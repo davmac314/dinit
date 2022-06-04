@@ -1,7 +1,7 @@
 changequote(`@@@',`$$$')dnl
 @@@.TH DINIT\-MONITOR "8" "$$$MONTH YEAR@@@" "Dinit $$$VERSION@@@" "Dinit \- service management system"
 .SH NAME
-dinit\-monitor \- control services supervised by Dinit
+dinit\-monitor \- monitor services supervised by Dinit
 .\"
 .SH SYNOPSIS
 .\"
