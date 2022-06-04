@@ -4,6 +4,7 @@
 /src/dinit
 /src/dinitctl
 /src/dinitcheck
+/src/dinit-monitor
 /src/shutdown
 /src/tests/tests
 /src/tests/proctests
@@ -36,3 +37,4 @@
 # Generated man pages:
 /doc/manpages/*.5
 /doc/manpages/*.8
+/doc/manpages/html/*

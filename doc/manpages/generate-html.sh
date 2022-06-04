@@ -22,4 +22,5 @@ EOM
 cat dinit.8         | mandoc -man -Thtml -Ostyle=style.css > html/dinit.8.html
 cat dinitcheck.8    | mandoc -man -Thtml -Ostyle=style.css > html/dinitcheck.8.html
 cat dinitctl.8      | mandoc -man -Thtml -Ostyle=style.css > html/dinitctl.8.html
+cat dinit-monitor.8 | mandoc -man -Thtml -Ostyle=style.css > html/dinit-monitor.8.html
 cat dinit-service.5 | mandoc -man -Thtml -Ostyle=style.css > html/dinit-service.5.html
