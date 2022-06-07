@@ -26,3 +26,8 @@ SANITIZEOPTS=-fsanitize=address,undefined
 #   -fno-plt  (optional) : Recommended optimisation
 #   -flto     (optional) : Perform link-time optimisation
 #   -fsanitize=address,undefined :  Apply sanitizers (during unit tests)
+
+
+# Features.
+
+SUPPORT_CGROUPS=1

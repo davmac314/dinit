@@ -373,6 +373,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             rvalps->set_stop_command(std::move(settings.stop_command), std::move(stop_arg_parts));
             rvalps->set_working_dir(std::move(settings.working_dir));
             rvalps->set_env_file(std::move(settings.env_file));
+            #if SUPPORT_CGROUPS
+            rvalps->set_cgroup(std::move(settings.run_in_cgroup));
+            #endif
             rvalps->set_rlimits(std::move(settings.rlimits));
             rvalps->set_restart_interval(settings.restart_interval, settings.max_restarts);
             rvalps->set_restart_delay(settings.restart_delay);
@@ -404,6 +407,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             rvalps->set_stop_command(std::move(settings.stop_command), std::move(stop_arg_parts));
             rvalps->set_working_dir(std::move(settings.working_dir));
             rvalps->set_env_file(std::move(settings.env_file));
+            #if SUPPORT_CGROUPS
+            rvalps->set_cgroup(std::move(settings.run_in_cgroup));
+            #endif
             rvalps->set_rlimits(std::move(settings.rlimits));
             rvalps->set_pid_file(std::move(settings.pid_file));
             rvalps->set_restart_interval(settings.restart_interval, settings.max_restarts);
@@ -431,6 +437,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             rvalps->set_stop_command(std::move(settings.stop_command), std::move(stop_arg_parts));
             rvalps->set_working_dir(std::move(settings.working_dir));
             rvalps->set_env_file(std::move(settings.env_file));
+            #if SUPPORT_CGROUPS
+            rvalps->set_cgroup(std::move(settings.run_in_cgroup));
+            #endif
             rvalps->set_rlimits(std::move(settings.rlimits));
             rvalps->set_stop_timeout(settings.stop_timeout);
             rvalps->set_start_timeout(settings.start_timeout);

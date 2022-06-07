@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <cstring>
+#include <cstdio>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -12,6 +13,11 @@
 
 #include "service.h"
 #include "proc-service.h"
+
+#ifdef SUPPORT_CGROUPS
+extern std::string cgroups_path;
+extern bool have_cgroups_path;
+#endif
 
 // Move an fd, if necessary, to another fd. The destination fd must be available (not open).
 // if fd is specified as -1, returns -1 immediately. Returns 0 on success.
@@ -132,10 +138,9 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         if (notify_fd == -1) goto failure_out;
     }
 
-    err.stage = exec_stage::READ_ENV_FILE;
-
     // Read environment from file
-    if (params.env_file != nullptr) {
+    if (params.env_file != nullptr && *params.env_file != 0) {
+        err.stage = exec_stage::READ_ENV_FILE;
         try {
             read_env_file(params.env_file);
         }
@@ -255,6 +260,59 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         if (limit.soft_set) setlimits.rlim_cur = limit.limits.rlim_cur;
         if (setrlimit(limit.resource_id, &setlimits) != 0) goto failure_out;
     }
+
+    #if SUPPORT_CGROUPS
+    if (params.run_in_cgroup != nullptr && *params.run_in_cgroup != 0) {
+        err.stage = exec_stage::ENTER_CGROUP;
+
+        int sys_fs_cgroup_fd = open("/sys/fs/cgroup", O_RDONLY | O_DIRECTORY | O_PATH);
+        if (sys_fs_cgroup_fd == -1) goto failure_out;
+
+        const char *run_cgroup_path = params.run_in_cgroup;
+        if (run_cgroup_path[0] != '/') {
+            // A relative cgroup path must be resolved against our own path (cgroups_path)
+            if (!have_cgroups_path) {
+                errno = ENOENT;
+                goto failure_out;
+            }
+            if (!cgroups_path.empty()) {
+                int cgrp_root_path = openat(sys_fs_cgroup_fd, cgroups_path.c_str(), O_RDONLY | O_DIRECTORY | O_PATH);
+                if (cgrp_root_path == -1) goto failure_out;
+                close(sys_fs_cgroup_fd);
+                sys_fs_cgroup_fd = cgrp_root_path;
+            }
+        }
+        else {
+            ++run_cgroup_path; // skip leading slash
+        }
+
+        int cgroup_dir_fd = openat(sys_fs_cgroup_fd, run_cgroup_path, O_RDONLY | O_DIRECTORY | O_PATH);
+        if (cgroup_dir_fd == -1) goto failure_out;
+        close(sys_fs_cgroup_fd);
+
+        int cgroup_procs_fd = openat(cgroup_dir_fd, "cgroup.procs", O_WRONLY);
+        if (cgroup_procs_fd == -1) goto failure_out;
+        close(cgroup_dir_fd);
+
+        // We need to write our own pid into the cgroup.procs file
+        char pidbuf[std::numeric_limits<pid_t>::digits10 + 3];
+        // +1 for most significant digit, +1 for '\n', +1 for nul terminator
+        int num_chars;
+        if (sizeof(pid_t) <= sizeof(unsigned)) {
+            num_chars = sprintf(pidbuf, "%u\n", (unsigned)getpid());
+        }
+        else if (sizeof(pid_t) <= sizeof(unsigned long)) {
+            num_chars = sprintf(pidbuf, "%lu\n", (unsigned long)getpid());
+        }
+        else {
+            static_assert(sizeof(pid_t) <= sizeof(unsigned long long));
+            num_chars = sprintf(pidbuf, "%llu\n", (unsigned long long)getpid());
+        }
+
+        if (write(cgroup_procs_fd, pidbuf, num_chars) == -1) goto failure_out;
+        close(cgroup_procs_fd);
+    }
+    #endif
 
     if (uid != uid_t(-1)) {
         err.stage = exec_stage::SET_UIDGID;

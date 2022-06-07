@@ -63,8 +63,11 @@ static void close_control_socket() noexcept;
 static void confirm_restart_boot() noexcept;
 static void flush_log() noexcept;
 
-static void control_socket_cb(eventloop_t *loop, int fd);
+static void control_socket_cb(eventloop_t *loop, int fd) noexcept;
 
+#ifdef SUPPORT_CGROUPS
+static void find_cgroup_path() noexcept;
+#endif
 
 // Variables
 
@@ -91,6 +94,11 @@ static bool log_is_syslog = true; // if false, log is a file
 // Set to true (when console_input_watcher is active) if console input becomes available
 static bool console_input_ready = false;
 
+#ifdef SUPPORT_CGROUPS
+// Path of the root cgroup according to dinit. This will be dinit's own cgroup path.
+std::string cgroups_path;
+bool have_cgroups_path = false;
+#endif
 
 namespace {
     // Event-loop handler for a signal, which just delegates to a function (pointer).
@@ -386,10 +394,22 @@ int dinit_main(int argc, char **argv)
         if (! env_file_set) {
             env_file = env_file_path;
         }
+
+        // we will assume an empty cgroups root path
+        #if SUPPORT_CGROUPS
+        have_cgroups_path = true;
+        #endif
     }
 
+    #if SUPPORT_CGROUPS
+    if (!have_cgroups_path) {
+        find_cgroup_path();
+        // We will press on if the cgroup root path could not be identified, since services might
+        // not require cgroups anyway.
+    }
+    #endif
+
     /* Set up signal handlers etc */
-    /* SIG_CHILD is ignored by default: good */
     sigset_t sigwait_set;
     sigemptyset(&sigwait_set);
     sigaddset(&sigwait_set, SIGCHLD);
@@ -734,7 +754,7 @@ static void confirm_restart_boot() noexcept
 }
 
 // Callback for control socket
-static void control_socket_cb(eventloop_t *loop, int sockfd)
+static void control_socket_cb(eventloop_t *loop, int sockfd) noexcept
 {
     // Considered keeping a limit the number of active connections, however, there doesn't
     // seem much to be gained from that. Only root can create connections and not being
@@ -955,6 +975,102 @@ static void flush_log() noexcept
         event_loop.run();
     }
 }
+
+#ifdef SUPPORT_CGROUPS
+
+static void find_cgroup_path() noexcept
+{
+    if (have_cgroups_path) {
+        return;
+    }
+
+    int pfd = open("/proc/self/cgroup", O_RDONLY);
+    if (pfd == -1) {
+        return;
+    }
+
+    try {
+        size_t cgroup_line_sz = 64;
+        size_t cur_read = 0;
+        size_t line_end_pos = (size_t)-1;
+        size_t colon_count = 0; // how many colons have we seen?
+        size_t second_colon_pos = 0;
+        std::vector<char, default_init_allocator<char>> cgroup_line(cgroup_line_sz);
+
+        while (true) {
+            ssize_t r = read(pfd, cgroup_line.data() + cur_read, cgroup_line_sz - cur_read);
+            if (r == 0) {
+                if (line_end_pos == (size_t)-1) {
+                    line_end_pos = cur_read + 1;
+                }
+                break;
+            }
+            if (r == -1) {
+                close(pfd);
+                return;
+            }
+
+            size_t rr = (size_t)r;
+            for (size_t i = 0; i < rr; ++i) {
+                if (cgroup_line[cur_read + i] == '\n') {
+                    line_end_pos = cur_read + i;
+                }
+                else if (line_end_pos != (size_t)-1) {
+                    log(loglevel_t::WARN, "In multiple cgroups, cannot determine cgroup root path");
+                    close(pfd);
+                    return;
+                }
+                else if (cgroup_line[cur_read + i] == ':') {
+                    if (++colon_count == 2) {
+                        second_colon_pos = cur_read + i;
+                    }
+                }
+            }
+
+            cur_read += rr;
+            if (line_end_pos != 0) {
+                break;
+            }
+
+            if (cur_read == cgroup_line_sz) {
+                cgroup_line.resize(cgroup_line_sz * 2);
+                cgroup_line_sz *= 2;
+            }
+        };
+
+        close(pfd);
+        pfd = -1;
+
+        // Now extract the path
+        // The group line should look something like:
+        //
+        //    0::/some/path
+        //
+        // We want "some/path", i.e. we'll skip the leading slash.
+        if (colon_count < 2 || (line_end_pos - second_colon_pos) == 1
+                || cgroup_line[second_colon_pos+1] != '/') {
+            // path is from 2nd colon to end
+            log(loglevel_t::WARN, "Could not determine cgroup root path");
+            return;
+        }
+
+        cgroups_path.clear();
+        size_t first_char_pos = second_colon_pos + 2;
+        size_t root_path_len = line_end_pos - first_char_pos;
+        cgroups_path.append(cgroup_line.data() + first_char_pos, root_path_len);
+        have_cgroups_path = true;
+        return;
+    }
+    catch (std::bad_alloc &b) {
+        if (pfd != -1) {
+            close(pfd);
+        }
+        log(loglevel_t::WARN, "Out-of-memory reading cgroup root path");
+        return;
+    }
+}
+
+#endif // SUPPORT_CGROUPS
 
 /* handle SIGINT signal (generated by Linux kernel when ctrl+alt+del pressed) */
 static void sigint_reboot_cb(eventloop_t &eloop) noexcept

@@ -853,6 +853,9 @@ bool process_service::start_stop_process(const std::vector<const char *> &cmd) n
         run_params.force_notify_fd = force_notification_fd;
         run_params.notify_var = nullptr;
         run_params.env_file = env_file.c_str();
+        #if SUPPORT_CGROUPS
+        run_params.run_in_cgroup = run_in_cgroup.c_str();
+        #endif
         run_child_proc(run_params);
     }
     else {

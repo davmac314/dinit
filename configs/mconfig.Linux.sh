@@ -91,10 +91,16 @@ GENERAL_BUILD_SETTINGS=$(
   echo "#   -fsanitize=address,undefined :  Apply sanitizers (during unit tests)"
 )
 
-#echo "$INST_PATH_OPTS"
-#echo "$GENERAL_BUILD_SETTINGS"
+FEATURE_SETTINGS=$(
+  echo ""
+  echo ""
+  echo "# Feature settings"
+  echo ""
+  echo "SUPPORT_CGROUPS=1"
+)
 
 (
   echo "$INST_PATH_OPTS"
   echo "$GENERAL_BUILD_SETTINGS" 
+  echo "$FEATURE_SETTINGS"
 ) >> ../mconfig

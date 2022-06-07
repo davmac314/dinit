@@ -88,4 +88,31 @@ inline bool starts_with(const std::string &s, const char *prefix)
     return *prefix == 0;
 }
 
+// An allocator that doesn't value-initialise for construction
+template <typename T>
+class default_init_allocator : public std::allocator<T>
+{
+    using std::allocator<T>::allocator;
+
+public:
+    template <typename U>
+    struct rebind {
+        using other = default_init_allocator<U>;
+    };
+
+    // Note this is only a template so that if there is no suitable constructor for T, we won't
+    // error out here
+    template <typename U>
+    void construct(U *obj)
+    {
+        ::new(obj) U;
+    }
+
+    template <typename ...Args>
+    void construct(T *obj, Args... args)
+    {
+        std::allocator<T>::construct(obj, args...);
+    }
+};
+
 #endif

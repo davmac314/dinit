@@ -28,6 +28,9 @@ struct run_proc_params
     const char *working_dir;  // working directory
     const char *logfile;      // log file or nullptr (stdout/stderr); must be valid if !on_console
     const char *env_file;     // file with environment settings (or nullptr)
+    #if SUPPORT_CGROUPS
+    const char *run_in_cgroup; //  cgroup path
+    #endif
     bool on_console;          // whether to run on console
     bool in_foreground;       // if on console: whether to run in foreground
     int wpipefd;              // pipe to which error status will be sent (if error occurs)
@@ -164,6 +167,10 @@ class base_process_service : public service_record
     string env_file;          // file with environment settings for this service
 
     std::vector<service_rlimits> rlimits; // resource limits
+
+#if SUPPORT_CGROUPS
+    string run_in_cgroup;
+#endif
 
     service_child_watcher child_listener;
     exec_status_pipe_watcher child_status_listener;
@@ -322,6 +329,13 @@ class base_process_service : public service_record
     {
         env_file = std::move(env_file_p);
     }
+
+    #if SUPPORT_CGROUPS
+    void set_cgroup(std::string &&run_in_cgroup_p) noexcept
+    {
+        run_in_cgroup = std::move(run_in_cgroup_p);
+    }
+    #endif
 
     void set_rlimits(std::vector<service_rlimits> &&rlimits_p)
     {

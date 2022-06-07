@@ -62,7 +62,10 @@ inline bool did_finish(stopped_reason_t reason)
 /* Execution stage */
 enum class exec_stage {
     ARRANGE_FDS, READ_ENV_FILE, SET_NOTIFYFD_VAR, SETUP_ACTIVATION_SOCKET, SETUP_CONTROL_SOCKET,
-    CHDIR, SETUP_STDINOUTERR, SET_RLIMITS, SET_UIDGID, /* must be last: */ DO_EXEC
+    CHDIR, SETUP_STDINOUTERR, ENTER_CGROUP, SET_RLIMITS, SET_UIDGID,
+    /* values for future expansion: */
+    SPARE1, SPARE2, SPARE3, SPARE4, SPARE5, SPARE6, SPARE7, SPARE8,
+    /* must be last: */ DO_EXEC
 };
 
 /* Strings describing the execution stages (failure points). */
@@ -74,8 +77,21 @@ const char * const exec_stage_descriptions[/* static_cast<int>(exec_stage::DO_EX
         "setting up control socket",    // SETUP_CONTROL_SOCKET
         "changing directory",           // CHDIR
         "setting up standard input/output descriptors", // SETUP_STDINOUTERR
+        #if SUPPORT_CGROUPS
+        "entering cgroup",              // ENTER_CGROUP
+        #else
+        "",                             // ENTER_CGROUP (placeholder)
+        #endif
         "setting resource limits",      // SET_RLIMITS
         "setting user/group ID",        // SET_UIDGID
+        nullptr,                        // SPARE1
+        nullptr,                        // SPARE2
+        nullptr,                        // SPARE3
+        nullptr,                        // SPARE4
+        nullptr,                        // SPARE5
+        nullptr,                        // SPARE6
+        nullptr,                        // SPARE7
+        nullptr,                        // SPARE8
         "executing command"             // DO_EXEC
 };
 

@@ -18,6 +18,7 @@
 #include "dinit-utmp.h"
 #include "dinit-util.h"
 #include "service-constants.h"
+#include "mconfig.h"
 
 struct service_flags_t
 {
@@ -746,7 +747,7 @@ class service_settings_wrapper
     bool do_sub_vars = false;
 
     service_type_t service_type = service_type_t::INTERNAL;
-    std::list<dep_type> depends;
+    list<dep_type> depends;
     string logfile;
     service_flags_t onstart_flags;
     int term_signal = SIGTERM;  // termination signal
@@ -768,13 +769,17 @@ class service_settings_wrapper
     std::vector<service_rlimits> rlimits;
 
     int readiness_fd = -1;      // readiness fd in service process
-    std::string readiness_var;  // environment var to hold readiness fd
+    string readiness_var;  // environment var to hold readiness fd
 
     uid_t run_as_uid = -1;
     gid_t run_as_uid_gid = -1; // primary group of "run as" uid if known
     gid_t run_as_gid = -1;
 
     string chain_to_name;
+
+    #if SUPPORT_CGROUPS
+    string run_in_cgroup;
+    #endif
 
     #if USE_UTMPX
     char inittab_id[sizeof(utmpx().ut_id)] = {0};
@@ -807,6 +812,11 @@ class service_settings_wrapper
             if (!working_dir.empty()) {
                 report_lint("'working-dir' specified, but 'type' is internal (or not specified).");
             }
+            #if SUPPORT_CGROUPS
+            if (!run_in_cgroup.empty()) {
+                report_lint("'run-in-cgroup' specified, but 'type' is internal (or not specified).");
+            }
+            #endif
             if (run_as_uid != (uid_t)-1) {
                 report_lint("'run-as' specified, but 'type' is internal (or not specified).");
             }
@@ -905,6 +915,11 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
     else if (setting == "env-file") {
         settings.env_file = read_setting_value(i, end, nullptr);
     }
+    #if SUPPORT_CGROUPS
+    else if (setting == "run-in-cgroup") {
+        settings.run_in_cgroup = read_setting_value(i, end, nullptr);
+    }
+    #endif
     else if (setting == "socket-listen") {
         settings.socket_path = read_setting_value(i, end, nullptr);
     }
