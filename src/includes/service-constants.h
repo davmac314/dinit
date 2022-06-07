@@ -1,6 +1,8 @@
 #ifndef SERVICE_CONSTANTS_H
 #define SERVICE_CONSTANTS_H
 
+#include "mconfig.h"
+
 /* Service states */
 enum class service_state_t {
     STOPPED,    // service is not running.
