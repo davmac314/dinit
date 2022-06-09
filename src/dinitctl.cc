@@ -549,6 +549,79 @@ static std::string get_service_name(int socknum, cpbuffer_t &rbuffer, handle_t h
     return name;
 }
 
+// Wait for a service to reached stopped (do_stop == true) or started (do_stop == false) state.
+// Returns 0 if the service started/stopped, 1 if start/stop was cancelled or failed.
+static int wait_service_state(int socknum, cpbuffer_t &rbuffer, handle_t handle,
+        const std::string &service_name, bool do_stop, bool verbose)
+{
+    using std::cout;
+    using std::cerr;
+    using std::endl;
+
+    service_event_t completionEvent;
+    service_event_t cancelledEvent;
+
+    if (do_stop) {
+        completionEvent = service_event_t::STOPPED;
+        cancelledEvent = service_event_t::STOPCANCELLED;
+    }
+    else {
+        completionEvent = service_event_t::STARTED;
+        cancelledEvent = service_event_t::STARTCANCELLED;
+    }
+
+    // Wait until service started:
+    int r = rbuffer.fill_to(socknum, 2);
+    while (r > 0) {
+        if (rbuffer[0] >= 100) {
+            int pktlen = (unsigned char) rbuffer[1];
+            fill_buffer_to(rbuffer, socknum, pktlen);
+
+            if (rbuffer[0] == DINIT_IP_SERVICEEVENT) {
+                handle_t ev_handle;
+                rbuffer.extract((char *) &ev_handle, 2, sizeof(ev_handle));
+                service_event_t event = static_cast<service_event_t>(rbuffer[2 + sizeof(ev_handle)]);
+                if (ev_handle == handle) {
+                    if (event == completionEvent) {
+                        if (verbose) {
+                            cout << "Service '" << service_name << "' " << describeState(do_stop) << "." << endl;
+                        }
+                        return 0;
+                    }
+                    else if (event == cancelledEvent) {
+                        if (verbose) {
+                            cout << "Service '" << service_name << "' " << describeVerb(do_stop) << " cancelled." << endl;
+                        }
+                        return 1;
+                    }
+                    else if (! do_stop && event == service_event_t::FAILEDSTART) {
+                        if (verbose) {
+                            cout << "Service '" << service_name << "' failed to start." << endl;
+                        }
+                        return 1;
+                    }
+                }
+            }
+
+            rbuffer.consume(pktlen);
+            r = rbuffer.fill_to(socknum, 2);
+        }
+        else {
+            // Not an information packet?
+            throw dinit_protocol_error();
+        }
+    }
+
+    if (r == -1) {
+        perror("dinitctl: read");
+    }
+    else {
+        throw dinit_protocol_error();
+    }
+
+    return 1;
+}
+
 // Start/stop a service
 static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *service_name,
         command_t command, bool do_pin, bool do_force, bool wait_for_service, bool ignore_unstarted,
@@ -682,68 +755,7 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
         return 0;
     }
 
-    service_event_t completionEvent;
-    service_event_t cancelledEvent;
-
-    if (do_stop) {
-        completionEvent = service_event_t::STOPPED;
-        cancelledEvent = service_event_t::STOPCANCELLED;
-    }
-    else {
-        completionEvent = service_event_t::STARTED;
-        cancelledEvent = service_event_t::STARTCANCELLED;
-    }
-
-    // Wait until service started:
-    int r = rbuffer.fill_to(socknum, 2);
-    while (r > 0) {
-        if (rbuffer[0] >= 100) {
-            int pktlen = (unsigned char) rbuffer[1];
-            fill_buffer_to(rbuffer, socknum, pktlen);
-
-            if (rbuffer[0] == DINIT_IP_SERVICEEVENT) {
-                handle_t ev_handle;
-                rbuffer.extract((char *) &ev_handle, 2, sizeof(ev_handle));
-                service_event_t event = static_cast<service_event_t>(rbuffer[2 + sizeof(ev_handle)]);
-                if (ev_handle == handle) {
-                    if (event == completionEvent) {
-                        if (verbose) {
-                            cout << "Service '" << service_name << "' " << describeState(do_stop) << "." << endl;
-                        }
-                        return 0;
-                    }
-                    else if (event == cancelledEvent) {
-                        if (verbose) {
-                            cout << "Service '" << service_name << "' " << describeVerb(do_stop) << " cancelled." << endl;
-                        }
-                        return 1;
-                    }
-                    else if (! do_stop && event == service_event_t::FAILEDSTART) {
-                        if (verbose) {
-                            cout << "Service '" << service_name << "' failed to start." << endl;
-                        }
-                        return 1;
-                    }
-                }
-            }
-
-            rbuffer.consume(pktlen);
-            r = rbuffer.fill_to(socknum, 2);
-        }
-        else {
-            // Not an information packet?
-            cerr << "dinitctl: protocol error" << endl;
-            return 1;
-        }
-    }
-
-    if (r == -1) {
-        perror("dinitctl: read");
-    }
-    else {
-        cerr << "protocol error (connection closed by server)" << endl;
-    }
-    return 1;
+    return wait_service_state(socknum, rbuffer, handle, service_name, do_stop, verbose);
 }
 
 // Issue a "load service" command (DINIT_CP_LOADSERVICE), without waiting for
@@ -1229,7 +1241,12 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
 
     // check reply
     if (rbuffer[0] == DINIT_RP_NAK) {
-        cerr << "dinitctl: could not add dependency: circular dependency or wrong state" << endl;
+        if (add) {
+            cerr << "dinitctl: could not add dependency: circular dependency or wrong state" << endl;
+        }
+        else {
+            cerr << "dinitctl: no such dependency to remove" << endl;
+        }
         return 1;
     }
     if (rbuffer[0] != DINIT_RP_ACK) {
@@ -1296,8 +1313,8 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
 
     handle_t to_handle;
 
-    if (! load_service(socknum, rbuffer, from, &from_handle, &from_state)
-            || ! load_service(socknum, rbuffer, to, &to_handle, nullptr)) {
+    if (!load_service(socknum, rbuffer, from, &from_handle, &from_state)
+            || !load_service(socknum, rbuffer, to, &to_handle, nullptr)) {
         return 1;
     }
 
@@ -1340,7 +1357,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
 
     // dinit daemon base directory against which service paths are resolved is in dinit_cwd
 
-    for (int i = 0; i < (int)path_entries; i++) {
+    for (uint32_t i = 0; i < path_entries; ++i) {
         uint32_t plen;
         fill_buffer_to(rbuffer, socknum, sizeof(uint32_t));
         rbuffer.extract(&plen, 0, sizeof(uint32_t));
@@ -1444,14 +1461,20 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
     wait_for_reply(rbuffer, socknum);
 
     // check reply
-    if (enable && rbuffer[0] == DINIT_RP_NAK) {
-        cerr << "dinitctl: could not enable service: possible circular dependency" << endl;
+    if (rbuffer[0] == DINIT_RP_NAK) {
+        if (enable) {
+            cerr << "dinitctl: could not enable service: possible circular dependency" << endl;
+        }
+        else {
+            cerr << "dinitctl: service not currently enabled" << endl;
+        }
         return 1;
     }
     if (rbuffer[0] != DINIT_RP_ACK) {
         cerr << "dinitctl: control socket protocol error" << endl;
         return 1;
     }
+    rbuffer.consume(1);
 
     // create link
     if (enable) {
@@ -1471,8 +1494,39 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
         }
     }
 
+    // Check status of the service now
+    auto m = membuf()
+            .append<char>(DINIT_CP_SERVICESTATUS)
+            .append(to_handle);
+    write_all_x(socknum, m);
+
+    wait_for_reply(rbuffer, socknum);
+    if (rbuffer[0] != DINIT_RP_SERVICESTATUS) {
+        cerr << "dinitctl: protocol error." << endl;
+        return 1;
+    }
+    rbuffer.consume(1);
+
+    int statussize = 6 + std::max(sizeof(pid_t), sizeof(int));;
+    fill_buffer_to(rbuffer, socknum, statussize + 1 /* reserved */);
+    rbuffer.consume(1);
+    service_state_t current = static_cast<service_state_t>(rbuffer[0]);
+    service_state_t target = static_cast<service_state_t>(rbuffer[1]);
+    rbuffer.consume(statussize);
+
     if (verbose) {
         cout << "Service '" << to << "' has been " << (enable ? "enabled" : "disabled") << "." << endl;
+    }
+
+    if (enable) {
+        if (current != service_state_t::STARTED) {
+            wait_service_state(socknum, rbuffer, to_handle, to, false /* start */, verbose);
+        }
+    }
+    else {
+        if (target != service_state_t::STOPPED) {
+            std::cerr << "dinitctl: note: disabled service may have other dependents\n";
+        }
     }
 
     return 0;

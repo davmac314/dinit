@@ -165,6 +165,7 @@ inline void fill_some(cpbuffer_t &buf, int fd)
 }
 
 // Wait for a reply packet, skipping over any information packets that are received in the meantime.
+// Note the reply packet may be partially read. Caller is responsible for reading full packet.
 inline void wait_for_reply(cpbuffer_t &rbuffer, int fd)
 {
     fill_buffer_to(rbuffer, fd, 1);

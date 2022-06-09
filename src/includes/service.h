@@ -691,17 +691,18 @@ class service_record
         return *pre_i;
     }
 
-    // Remove a dependency, of the given type, to the given service. Propagation queues should be processed
-    // after calling.
-    void rm_dep(service_record *to, dependency_type dep_type) noexcept
+    // Remove a dependency, of the given type, to the given service. Returns true if the specified
+    // dependency was found (and removed). Propagation queues should be processed after calling.
+    bool rm_dep(service_record *to, dependency_type dep_type) noexcept
     {
         for (auto i = depends_on.begin(); i != depends_on.end(); i++) {
             auto & dep = *i;
             if (dep.get_to() == to && dep.dep_type == dep_type) {
                 rm_dep(i);
-                break;
+                return true;
             }
         }
+        return false;
     }
 
     dep_list::iterator rm_dep(dep_list::iterator i) noexcept

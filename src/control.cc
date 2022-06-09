@@ -796,10 +796,10 @@ bool control_conn_t::rm_service_dep()
     dependency_type dep_type = static_cast<dependency_type>(dep_type_int);
 
     // Remove dependency:
-    from_service->rm_dep(to_service, dep_type);
+    bool did_remove = from_service->rm_dep(to_service, dep_type);
     services->process_queues();
 
-    char ack_rep[] = { DINIT_RP_ACK };
+    char ack_rep[] = { did_remove ? (char)DINIT_RP_ACK : (char)DINIT_RP_NAK };
     if (! queue_packet(ack_rep, 1)) return false;
     rbuf.consume(pkt_size);
     chklen = 0;
