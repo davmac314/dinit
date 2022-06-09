@@ -111,7 +111,7 @@ class subproc_buffer : private cpbuffer<subproc_bufsize>
     void append(const char *msg)
     {
         out_watch->set_enabled(loop, true);
-        int len = strlen(msg);
+        unsigned len = strlen(msg);
         if (subproc_bufsize - get_length() >= len) {
             base::append(msg, len);
         }

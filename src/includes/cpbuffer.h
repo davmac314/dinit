@@ -8,19 +8,19 @@
 #include "baseproc-sys.h"
 
 // control protocol buffer, a circular buffer with fixed capacity.
-template <int SIZE> class cpbuffer
+template <unsigned SIZE> class cpbuffer
 {
     char buf[SIZE];
-    int cur_idx = 0;
-    int length = 0;  // number of elements in the buffer
+    unsigned cur_idx = 0;
+    unsigned length = 0;  // number of elements in the buffer
     
     public:
-    static constexpr int get_size()
+    static constexpr unsigned get_size()
     {
         return SIZE;
     }
 
-    int get_length() noexcept
+    unsigned get_length() noexcept
     {
         return length;
     }
@@ -32,7 +32,7 @@ template <int SIZE> class cpbuffer
     
     char * get_ptr(int index)
     {
-        int pos = cur_idx + index;
+        unsigned pos = cur_idx + index;
         if (pos >= SIZE) pos -= SIZE;
     
         return &buf[pos];
@@ -43,9 +43,9 @@ template <int SIZE> class cpbuffer
         return buf;
     }
     
-    int get_contiguous_length(char *ptr)
+    unsigned get_contiguous_length(char *ptr)
     {
-        int eidx = cur_idx + length;
+        unsigned eidx = cur_idx + length;
         if (eidx >= SIZE) eidx -= SIZE;
         
         if (buf + eidx > ptr) {
@@ -59,9 +59,9 @@ template <int SIZE> class cpbuffer
     // Fill by reading from the given fd, return positive if some was read or -1 on error.
     int fill(int fd) noexcept
     {
-        int pos = cur_idx + length;
+        unsigned pos = cur_idx + length;
         if (pos >= SIZE) pos -= SIZE;
-        int max_count = std::min(SIZE - pos, SIZE - length);
+        unsigned max_count = std::min(SIZE - pos, SIZE - length);
         ssize_t r = bp_sys::read(fd, buf + pos, max_count);
         if (r >= 0) {
             length += r;
@@ -71,11 +71,11 @@ template <int SIZE> class cpbuffer
     
     // Fill by reading up to the specified amount of bytes from the given fd,
     // Return is the number of bytes read, 0 on end-of-file or -1 on error.
-    int fill(int fd, int limit) noexcept
+    int fill(int fd, unsigned limit) noexcept
     {
-        int pos = cur_idx + length;
+        unsigned pos = cur_idx + length;
         if (pos >= SIZE) pos -= SIZE;
-        int max_count = std::min(SIZE - pos, SIZE - length);
+        unsigned max_count = std::min(SIZE - pos, SIZE - length);
         max_count = std::min(max_count, limit);
         ssize_t r = bp_sys::read(fd, buf + pos, max_count);
         if (r >= 0) {
@@ -86,7 +86,7 @@ template <int SIZE> class cpbuffer
 
     // fill by reading from the given fd, until at least the specified number of bytes are in
     // the buffer. Return 0 if end-of-file reached before fill complete, or -1 on error.
-    int fill_to(int fd, int rlength) noexcept
+    int fill_to(int fd, unsigned rlength) noexcept
     {
         while (length < rlength) {
             int r = fill(fd);
@@ -96,20 +96,20 @@ template <int SIZE> class cpbuffer
     }
     
     // Trim the buffer to the specified length (must be less than current length)
-    void trim_to(int new_length)
+    void trim_to(unsigned new_length)
     {
         length = new_length;
     }
     
     char operator[](int idx) noexcept
     {
-        int dest_idx = cur_idx + idx;
+        unsigned dest_idx = cur_idx + idx;
         if (dest_idx >= SIZE) dest_idx -= SIZE;
         return buf[dest_idx];
     }
     
     // Remove the given number of bytes from the start of the buffer.
-    void consume(int amount) noexcept
+    void consume(unsigned amount) noexcept
     {
         cur_idx += amount;
         if (cur_idx >= SIZE) cur_idx -= SIZE;
@@ -117,7 +117,7 @@ template <int SIZE> class cpbuffer
     }
     
     // Extract bytes from the buffer. The bytes remain in the buffer.
-    void extract(void *dest, int index, int length) noexcept
+    void extract(void *dest, unsigned index, unsigned length) noexcept
     {
         index += cur_idx;
         if (index >= SIZE) index -= SIZE;
@@ -135,7 +135,7 @@ template <int SIZE> class cpbuffer
     
     // Extract string of given length from given index
     // Throws:  std::bad_alloc on allocation failure
-    std::string extract_string(int index, int length)
+    std::string extract_string(unsigned index, unsigned length)
     {
         index += cur_idx;
         if (index >= SIZE) index -= SIZE;
@@ -151,14 +151,14 @@ template <int SIZE> class cpbuffer
     
     // Append characters to the buffer. Caller must make certain there
     // is enough space to contain the characters first.
-    void append(const char * s, int len) noexcept
+    void append(const char * s, unsigned len) noexcept
     {
-        int index = cur_idx + length;
+        unsigned index = cur_idx + length;
         if (index >= SIZE) index -= SIZE;
 
         length += len; // (before we destroy len)
         
-        int max = SIZE - index;
+        unsigned max = SIZE - index;
         std::memcpy(buf + index, s, std::min(max, len));
         if (len > max) {
             // Wrapped around buffer: copy the rest

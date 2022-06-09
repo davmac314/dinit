@@ -98,7 +98,7 @@ class control_conn_t : private service_listener
 
     // The packet length before we need to re-check if the packet is complete.
     // process_packet() will not be called until the packet reaches this size.
-    int chklen;
+    unsigned chklen;
     
     // Receive buffer
     cpbuffer<1024> rbuf;

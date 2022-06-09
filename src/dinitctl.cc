@@ -928,7 +928,7 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
     while (rbuffer[0] == DINIT_RP_SVCINFO) {
         int hdrsize = 8 + std::max(sizeof(int), sizeof(pid_t));
         fill_buffer_to(rbuffer, socknum, hdrsize);
-        int nameLen = rbuffer[1];
+        unsigned name_len = (unsigned char)rbuffer[1];
         service_state_t current = static_cast<service_state_t>(rbuffer[2]);
         service_state_t target = static_cast<service_state_t>(rbuffer[3]);
 
@@ -949,13 +949,13 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
         	rbuffer.extract((char *)&exit_status, 8, sizeof(exit_status));
         }
 
-        fill_buffer_to(rbuffer, socknum, nameLen + hdrsize);
+        fill_buffer_to(rbuffer, socknum, name_len + hdrsize);
 
         char *name_ptr = rbuffer.get_ptr(hdrsize);
-        int clength = std::min(rbuffer.get_contiguous_length(name_ptr), nameLen);
+        unsigned clength = std::min(rbuffer.get_contiguous_length(name_ptr), name_len);
 
         string name = string(name_ptr, clength);
-        name.append(rbuffer.get_buf_base(), nameLen - clength);
+        name.append(rbuffer.get_buf_base(), name_len - clength);
 
         cout << "[";
 
@@ -1023,7 +1023,7 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
 
         cout << endl;
 
-        rbuffer.consume(hdrsize + nameLen);
+        rbuffer.consume(hdrsize + name_len);
         wait_for_reply(rbuffer, socknum);
     }
 
@@ -1490,10 +1490,11 @@ static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *>
         // protocol message and size space
         buf.push_back(DINIT_CP_SETENV);
         buf.append(2, 0);
+        const unsigned hdr_len = 3;
         // either full var or name
         auto elen = strlen(envp);
         buf.append(envp, elen);
-        // = not found, get value from environment
+        // if '=' not found, get value from environment
         if (!memchr(envp, '=', elen)) {
             buf.push_back('=');
             auto *envv = getenv(envp);
@@ -1501,18 +1502,18 @@ static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *>
                 buf.append(envv);
             }
         }
-        uint16_t bufs = buf.size() - 3;
+        uint16_t bufs = buf.size() - hdr_len;
         // sanitize length early on
-        if (bufs > (1024 - 3)) {
-            auto eq = buf.find('=', 3);
-            auto name = buf.substr(3, eq - 3);
+        if (buf.size() > cpbuffer_t::get_size()) {
+            auto eq = buf.find('=', hdr_len);
+            auto name = buf.substr(hdr_len, eq - hdr_len);
             cerr << "dinitctl: environment variable '" << name << "' too long." << endl;
             return 1;
         }
         // set size in protocol message
         memcpy(&buf[1], &bufs, 2);
         // send
-        write_all_x(socknum, buf.data(), bufs + 3);
+        write_all_x(socknum, buf.data(), buf.size());
         wait_for_reply(rbuffer, socknum);
         if (rbuffer[0] == DINIT_RP_BADREQ) {
             cerr << "dinitctl: failed to export environment." << endl;

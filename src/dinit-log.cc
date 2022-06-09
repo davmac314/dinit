@@ -208,7 +208,7 @@ rearm buffered_log_stream::fd_event(eventloop_t &loop, int fd, int flags) noexce
         struct iovec logiov[2];
         
         char *ptr = log_buffer.get_ptr(0);
-        int len = log_buffer.get_contiguous_length(ptr);
+        unsigned len = log_buffer.get_contiguous_length(ptr);
         char *creptr = ptr + len;  // contiguous region end
         char *eptr = std::find(ptr, creptr, '\n');
         
@@ -225,7 +225,7 @@ rearm buffered_log_stream::fd_event(eventloop_t &loop, int fd, int flags) noexce
         int iovs_to_write = 1;
         
         // Do we need the second span?
-        if (! will_complete && len != log_buffer.get_length()) {
+        if (!will_complete && len != log_buffer.get_length()) {
             ptr = log_buffer.get_buf_base();
             creptr = ptr + log_buffer.get_length() - len;
             eptr = std::find(ptr, creptr, '\n');
