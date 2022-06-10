@@ -317,6 +317,9 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
         // that anything is a service name (for example "nopti" seems to get passed through to init).
         // However, we can look for special names that we know aren't kernel parameters, such as "single".
         //
+        // (Note this may have been fixed in recent kernels: see changelog for 5.15.46/5.18.3,
+        // "x86: Fix return value of __setup handlers")
+        //
         // LILO puts "auto" on the command line for unattended boots, but we don't care about that and want
         // it filtered.
         //

@@ -183,6 +183,19 @@ System shutdown or restart need to be handled by the primary \fBinit\fR, which s
 \fBdinit\fR on normal startup, and terminate \fBdinit\fR before shutdown, by signalling it and
 waiting for it to terminate after stopping services (possibly by invoking \fBdinitctl shutdown\fR).
 .\"
+.SH COMMAND LINE FROM KERNEL
+.LP
+When running as PID 1, \fBdinit\fR may process the command line differently, to compensate for kernel behaviour.
+.LP
+On Linux, kernel command line options that are not recognised by the kernel will be passed on to \fBdinit\fR.
+However, bugs in some kernel versions may cause some options that are recognised to also be passed to \fBdinit\fR.
+Also, boot managers may insert command-line options such as "\fBauto\fR" (which indicates an "unattended" boot).
+Therefore, \fBdinit\fR ignores all "word like" options other than "\fBsingle\fR", which it treats as
+the name of the service to start (thus allowing "single user mode", assuming that a suitable service description exists).
+Options beginning with "\fB--\fR" will not be recognised by the kernel and will be passed to (and processed by) \fBdinit\fR;
+for example \fB\-\-quiet\fR can be used to suppress console output. Options containing "=" that are unrecognised by the
+kernel (or some that are, due to bugs) are passed to init via the environment rather than via the command line. 
+.\"
 .SH FILES
 .\"
 .TP
