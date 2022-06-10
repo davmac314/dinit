@@ -401,9 +401,9 @@ setting will be ignored on such systems.
 .TP
 \fBrun\-in\-cgroup\fR = \fIcgroup-path\fR
 (Linux only) Run the service process(es) in the specified cgroup (see \fBcgroups\fR(7)).
-The cgroup is specified as a path; if it has a leading slash, it is interpreted as relative to \fI/sys/fs/cgroup\fR
-and otherwise it is interpreted relative to the cgroup in which \fBdinit\fR is running
-(as determined at startup).
+The cgroup is specified as a path; if it has a leading slash, the remainder of the path is
+interpreted as relative to \fI/sys/fs/cgroup\fR, and otherwise the entire path is interpreted
+relative to the cgroup in which \fBdinit\fR is running (as determined at startup).
 The latter can only be used if there is only a single cgroup hierarchy (either the cgroups v2
 hierarchy with no cgroups v1 hierarchies, or a single cgroups v1 hierarchy).
 .sp
