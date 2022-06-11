@@ -70,10 +70,12 @@ namespace bp_sys {
     extern pid_t last_forked_pid;
 }
 
+static time_val default_restart_interval = time_val(0, 200000000); // 200 milliseconds
+
 static void init_service_defaults(base_process_service &ps)
 {
     ps.set_restart_interval(time_val(10,0), 3);
-    ps.set_restart_delay(time_val(0, 200000000)); // 200 milliseconds
+    ps.set_restart_delay(default_restart_interval); // 200 milliseconds
     ps.set_stop_timeout(time_val(10,0));
 }
 
@@ -230,10 +232,10 @@ void test_proc_term_restart()
     assert(event_loop.active_timers.size() == 1);
     assert(bp_sys::last_forked_pid == first_pid);
 
-    event_loop.advance_time(time_val(0, 200000000));
-    assert(event_loop.active_timers.size() == 0);
+    event_loop.advance_time(default_restart_interval);
 
-    sset.process_queues();
+    // Startup timer now active:
+    assert(event_loop.active_timers.size() == 1);
 
     assert(bp_sys::last_forked_pid == (first_pid + 1));
 
@@ -293,7 +295,9 @@ void test_proc_term_restart2()
     assert(bp_sys::last_forked_pid == first_pid + 1);
 
     event_loop.advance_time(time_val(0, 200000000));
-    assert(event_loop.active_timers.size() == 0);
+
+    // startup timer will be active:
+    assert(event_loop.active_timers.size() == 1);
 
     sset.process_queues();
     assert(bp_sys::last_forked_pid == first_pid + 2);
@@ -374,6 +378,66 @@ void test_proc_term_restart3()
     sset.remove_service(&d1);
     sset.remove_service(&p);
     event_loop.active_timers.clear();
+}
+
+// Restart after unexpected termination, start times out
+void test_proc_term_restart4()
+{
+    using namespace std;
+
+    service_set sset;
+
+    string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_auto_restart(true);
+
+    time_val start_timeout {5, 0};
+    p.set_start_timeout(start_timeout);
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    pid_t first_pid = bp_sys::last_forked_pid;
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    // Starting, restart timer should be armed:
+    assert(p.get_state() == service_state_t::STARTING);
+    assert(event_loop.active_timers.size() == 1);
+    assert(bp_sys::last_forked_pid == first_pid);
+
+    event_loop.advance_time(default_restart_interval);
+
+    // restart timer should have stopped, start timeout timer should have started
+    assert(event_loop.active_timers.size() == 1);
+    assert(bp_sys::last_forked_pid == (first_pid + 1));
+
+    event_loop.advance_time(start_timeout);
+
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(event_loop.active_timers.size() == 1); // stop timeout should be set
+
+    base_process_service_test::exec_succeeded(&p); // the exec must finally succeed...
+
+    base_process_service_test::handle_exit(&p, 0);
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
 }
 
 // Termination via stop request
@@ -826,6 +890,10 @@ void test_proc_smooth_recovery2()
     // no restart delay, process should restart immediately:
     assert(first_instance + 1 == bp_sys::last_forked_pid);
     assert(p.get_state() == service_state_t::STARTED);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
     assert(event_loop.active_timers.size() == 0);
 
     sset.remove_service(&p);
@@ -871,7 +939,7 @@ void test_proc_smooth_recovery3()
     // no restart delay, process should attempt restart immediately:
     assert(first_instance + 1 == bp_sys::last_forked_pid);
     assert(p.get_state() == service_state_t::STARTED);
-    assert(event_loop.active_timers.size() == 0);
+    assert(event_loop.active_timers.size() == 1); // (restart timer)
 
     base_process_service_test::exec_failed(&p, ENOENT);
 
@@ -881,6 +949,7 @@ void test_proc_smooth_recovery3()
     assert(p.get_target_state() == service_state_t::STOPPED);
     assert(d1.get_state() == service_state_t::STOPPED);
     assert(d1.get_target_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
 
     sset.remove_service(&d1);
     sset.remove_service(&p);
@@ -1272,15 +1341,14 @@ void test_bgproc_smooth_recover()
     sset.process_queues();
 
     // Now a new process should've been launched:
-    assert(event_loop.active_timers.size() == 0);
     assert(daemon_instance + 1 == bp_sys::last_forked_pid);
     assert(p.get_state() == service_state_t::STARTED);
-    assert(event_loop.active_timers.size() == 0);
+    assert(event_loop.active_timers.size() == 1); // start timer
 
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
 
-    assert(event_loop.active_timers.size() == 0);
+    assert(event_loop.active_timers.size() == 1);
 
     supply_pid_contents("/run/daemon.pid", &daemon_instance);
 
@@ -1304,15 +1372,14 @@ void test_bgproc_smooth_recover()
     sset.process_queues();
 
     // Now a new process should've been launched:
-    assert(event_loop.active_timers.size() == 0);
     assert(daemon_instance + 1 == bp_sys::last_forked_pid);
     assert(p.get_state() == service_state_t::STARTED);
-    assert(event_loop.active_timers.size() == 0);
+    assert(event_loop.active_timers.size() == 1);
 
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
 
-    assert(event_loop.active_timers.size() == 0);
+    assert(event_loop.active_timers.size() == 1);
 
     supply_pid_contents("/run/daemon.pid", &daemon_instance);
 
@@ -1379,10 +1446,9 @@ void test_bgproc_smooth_recove2()
     event_loop.advance_time(time_val {0, 1000});
 
     // Now a new process should've been launched:
-    assert(event_loop.active_timers.size() == 0);
     assert(bp_sys::last_forked_pid == daemon_instance + 2);
     assert(p.get_state() == service_state_t::STARTED);
-    assert(event_loop.active_timers.size() == 0);
+    assert(event_loop.active_timers.size() == 1); // start timer
 
     // We tell the service to stop, before the smooth recovery completes (in fact
     // before the exec even succeeds):
@@ -1406,6 +1472,8 @@ void test_bgproc_smooth_recove2()
     base_process_service_test::handle_exit(&d1, 0);
     assert(d1.get_state() == service_state_t::STOPPED);
     assert(p.get_state() == service_state_t::STOPPED);
+
+    assert(event_loop.active_timers.size() == 0);
 
     sset.remove_service(&p);
     sset.remove_service(&d1);
@@ -1452,10 +1520,9 @@ void test_bgproc_smooth_recove3()
     event_loop.advance_time(time_val {0, 1000});
 
     // Now a new process should've been launched:
-    assert(event_loop.active_timers.size() == 0);
     assert(bp_sys::last_forked_pid == daemon_instance + 1);
     assert(p.get_state() == service_state_t::STARTED);
-    assert(event_loop.active_timers.size() == 0);
+    assert(event_loop.active_timers.size() == 1); // start timer
 
     // Let the new process fail to executable:
     base_process_service_test::exec_failed(&p, ENOMEM);
@@ -1463,6 +1530,7 @@ void test_bgproc_smooth_recove3()
 
     assert(p.get_state() == service_state_t::STOPPED);
     assert(p.get_stop_reason() == stopped_reason_t::TERMINATED);
+    assert(event_loop.active_timers.size() == 0);
 
     sset.remove_service(&p);
 
@@ -1585,7 +1653,7 @@ void test_bgproc_term_restart()
     assert(event_loop.active_timers.size() == 1);
 
     event_loop.advance_time(time_val(0, 1000));
-    assert(event_loop.active_timers.size() == 0);
+    assert(event_loop.active_timers.size() == 1); // start timer
 
     assert(p.get_pid() != -1);
 
@@ -1749,14 +1817,11 @@ void test_bgproc_stop3()
     sset.process_queues();
 
     // Now a new process should've been launched:
-    assert(event_loop.active_timers.size() == 0);
     assert(daemon_instance + 1 == bp_sys::last_forked_pid);
     assert(p.get_state() == service_state_t::STARTED);
-    assert(event_loop.active_timers.size() == 0);
+    assert(event_loop.active_timers.size() == 1); // start timer
 
     base_process_service_test::exec_succeeded(&p);
-
-    assert(event_loop.active_timers.size() == 0);
 
     supply_pid_contents("/run/daemon.pid", &daemon_instance);
 
@@ -1764,6 +1829,7 @@ void test_bgproc_stop3()
 
     p.stop();
     assert(p.get_state() == service_state_t::STOPPING);
+    assert(event_loop.active_timers.size() == 1);
 
     base_process_service_test::handle_exit(&p, 0);
 
@@ -2251,6 +2317,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_term_restart, "     ");
     RUN_TEST(test_proc_term_restart2, "    ");
     RUN_TEST(test_proc_term_restart3, "    ");
+    RUN_TEST(test_proc_term_restart4, "    ");
     RUN_TEST(test_term_via_stop, "         ");
     RUN_TEST(test_term_via_stop2, "        ");
     RUN_TEST(test_term_via_stop3, "        ");

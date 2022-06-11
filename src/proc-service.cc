@@ -66,6 +66,13 @@ void process_service::exec_succeeded() noexcept
             started();
         }
     }
+    else if (get_state() == service_state_t::STARTED) {
+        // Smooth recovery (is now complete)
+        if (waiting_stopstart_timer) {
+            process_timer.stop_timer(event_loop);
+            waiting_stopstart_timer = false;
+        }
+    }
     else if (get_state() == service_state_t::STOPPING) {
         // stopping, but smooth recovery was in process. That's now over so we can
         // commence normal stop. Note that if pid == -1 the process already stopped,
@@ -500,6 +507,11 @@ void bgproc_service::exec_failed(run_proc_err errcode) noexcept
 {
     log(loglevel_t::ERROR, get_name(), ": execution failed - ",
             exec_stage_descriptions[static_cast<int>(errcode.stage)], ": ", strerror(errcode.st_errno));
+
+    if (waiting_stopstart_timer) {
+        process_timer.stop_timer(event_loop);
+        waiting_stopstart_timer = false;
+    }
 
     if (doing_smooth_recovery) {
         doing_smooth_recovery = false;

@@ -34,27 +34,31 @@ bool base_process_service::bring_up() noexcept
         return false;
     }
 
+    bool start_success;
     if (in_auto_restart) {
-        return restart_ps_process();
+        start_success = restart_ps_process();
     }
-
-    restart_interval_count = 0;
-    if (start_ps_process(exec_arg_parts,
-            onstart_flags.starts_on_console || onstart_flags.shares_console)) {
+    else {
+        restart_interval_count = 0;
+        start_success = start_ps_process(exec_arg_parts,
+                onstart_flags.starts_on_console || onstart_flags.shares_console);
         // start_ps_process updates last_start_time, use it also for restart_interval_time:
         restart_interval_time = last_start_time;
-        if (start_timeout != time_val(0,0)) {
-            process_timer.arm_timer_rel(event_loop, start_timeout);
-            waiting_stopstart_timer = true;
+
+        // Arm start timer. (For restarts, this is only done once the restart interval expires).
+        if (start_success) {
+            if (start_timeout != time_val(0,0)) {
+                process_timer.arm_timer_rel(event_loop, start_timeout);
+                waiting_stopstart_timer = true;
+            }
+            else if (waiting_stopstart_timer) {
+                process_timer.stop_timer(event_loop);
+                waiting_stopstart_timer = false;
+            }
         }
-        else if (waiting_stopstart_timer) {
-            process_timer.stop_timer(event_loop);
-            waiting_stopstart_timer = false;
-        }
-        return true;
     }
-    restart_interval_time = last_start_time;
-    return false;
+
+    return start_success;
 }
 
 void base_process_service::handle_unexpected_termination() noexcept
@@ -269,7 +273,7 @@ void base_process_service::do_restart() noexcept
     restart_interval_count++;
     auto service_state = get_state();
 
-    if (! start_ps_process(exec_arg_parts, have_console || onstart_flags.shares_console)) {
+    if (!start_ps_process(exec_arg_parts, have_console || onstart_flags.shares_console)) {
         if (service_state == service_state_t::STARTING) {
             failed_to_start();
         }
@@ -278,6 +282,13 @@ void base_process_service::do_restart() noexcept
             unrecoverable_stop();
         }
         services->process_queues();
+    }
+    else {
+        // started process successfully (at least as far as fork)
+        if (start_timeout != time_val(0,0)) {
+            process_timer.arm_timer_rel(event_loop, start_timeout);
+            waiting_stopstart_timer = true;
+        }
     }
 }
 
@@ -387,6 +398,7 @@ void base_process_service::timer_expired() noexcept
         interrupt_start();
         stop_reason = stopped_reason_t::TIMEDOUT;
         failed_to_start(false, false);
+	    //services->process_queues();
     }
     else {
         // STARTING / STARTED, and we have no pid: must be restarting (smooth recovery if STARTED)
