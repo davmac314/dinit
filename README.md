@@ -1,5 +1,5 @@
 # Dinit
-v0.14.0 (alpha release #5)
+v0.15.0 (alpha release #6)
 
 This is the README for Dinit, the service manager and init system. It is
 intended to provide an overview; For full documentation please check the manual pages. 

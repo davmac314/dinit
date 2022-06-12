@@ -4,26 +4,22 @@ Soon:
   Note that "XXX=YYYY" settings on Linux kernel command line sometimes get set as environment
   variables (and sometimes don't) even if the kernel should understand them (eg "pti=off",
   but not "root=/dev/sda1").
-  * Version 0.13 includes dinitctl setenv to set environment variables, this is a good start
-* start timeout may not be being used for restarts, check and fix [DONE]
 
 
-For version 0.15:
+For version 0.16:
 -----------------
-* basic support for cgroups (at least: run service processes in a specified cgroup) [DONE]
-* Service description parse errors should report line number [DONE]
 * Limit memory use by control connections. Currently clients have command responses queued without
   limit; it would be better to stop accepting new commands once a certain amount of response is
   buffered. 
+* Externally triggered services (to represent devices etc). Such services will not reach STARTED
+  state unless the external trigger occurs (eg "dinitctl trigger servicename", details to be
+  determined).
+* Maybe: support for after/before orderings (specify a service name like a dependency, but don't
+  cause the named service to be loaded if it otherwise wouldn't be).
 
 
 For version 1.0 (release requirements):
 ---------------------------------------
-* "triggered" service type: external process notifies Dinit when the service
-  has started. (maybe?)
-  - key thing is we want some way to eg mount filesystem once the disk comes up,
-    configure network when device comes up, etc, potentially relying an an external
-    tool/daemon.
 * Be able to boot and shutdown Linux and FreeBSD (or OpenBSD).
 
 

@@ -1,3 +1,27 @@
+== Version 0.15.0
+
+(Alpha release #6)
+
+This release contains bug fixes and new features.
+
+Changes:
+ * New "dinit-monitor" command can be used to perform notifications (via an external command, such
+   as notify-send) when a service changes state. This is primarily intended for users running dinit
+   in "user mode" rather than for system instances of dinit, although it works in either case. See
+   the dinit-monitor(8) manual page for details.
+ * Support on Linux for running service processes in a cgroup, via the "runs-in-cgroup" service
+   setting. Cgroups must be mounted/created outside of dinit (eg via an early service), there is no
+   support for this in dinit itself. See the dinit-service(5) manual page for details.
+ * "dinitctl enable", "dinitctl disable" and "dinitctl rmdep" now give better feedback in various
+   situations. For example, "dinitctl disable" will warn if a disabled service has other
+   dependents (which may cause it to start anyway).
+ * When parse errors occur in service description files, the relevant line number should now be
+   reported (by dinitcheck, or in the dinit log).
+ * Environment variable substitution in command lines is now performed for the "stop-command"
+   setting in exactly the same way as for the "command" setting. Previously, by oversight,
+   substitution was not performed for the "stop-command" setting.
+ * Fix: start timeout was not being honoured for service restarts.
+
 == Version 0.14.0
 
 (Alpha release #5)
