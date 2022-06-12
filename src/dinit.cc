@@ -404,14 +404,6 @@ int dinit_main(int argc, char **argv)
         #endif
     }
 
-    #if SUPPORT_CGROUPS
-    if (!have_cgroups_path) {
-        find_cgroup_path();
-        // We will press on if the cgroup root path could not be identified, since services might
-        // not require cgroups anyway.
-    }
-    #endif
-
     /* Set up signal handlers etc */
     sigset_t sigwait_set;
     sigemptyset(&sigwait_set);
@@ -476,6 +468,14 @@ int dinit_main(int argc, char **argv)
 
     init_log(log_is_syslog);
     log_flush_timer.add_timer(event_loop, dasynq::clock_type::MONOTONIC);
+
+    #if SUPPORT_CGROUPS
+    if (!have_cgroups_path) {
+        find_cgroup_path();
+        // We will press on if the cgroup root path could not be identified, since services might
+        // not require cgroups anyway.
+    }
+    #endif
 
     // Try to open control socket (may fail due to readonly filesystem, we ignore that if we are
     // system init)
