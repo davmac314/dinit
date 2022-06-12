@@ -360,6 +360,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         if (service_type == service_type_t::PROCESS) {
             do_env_subst("command", settings.command, settings.command_offsets, settings.do_sub_vars);
+            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, settings.do_sub_vars);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             process_service *rvalps;
             if (create_new_record) {
@@ -394,6 +395,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         }
         else if (service_type == service_type_t::BGPROCESS) {
             do_env_subst("command", settings.command, settings.command_offsets, settings.do_sub_vars);
+            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, settings.do_sub_vars);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             bgproc_service *rvalps;
             if (create_new_record) {
@@ -424,6 +426,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         }
         else if (service_type == service_type_t::SCRIPTED) {
             do_env_subst("command", settings.command, settings.command_offsets, settings.do_sub_vars);
+            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, settings.do_sub_vars);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             scripted_service *rvalps;
             if (create_new_record) {
