@@ -154,6 +154,9 @@ bool control_conn_t::process_find_load(int pktType)
         try {
             record = services->load_service(serviceName.c_str());
         }
+        catch (service_description_exc &sdexc) {
+            log_service_load_failure(sdexc);
+        }
         catch (service_load_exc &slexc) {
             log(loglevel_t::ERROR, "Could not load service ", slexc.service_name, ": ",
                     slexc.exc_description);

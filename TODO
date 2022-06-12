@@ -5,13 +5,13 @@ Soon:
   variables (and sometimes don't) even if the kernel should understand them (eg "pti=off",
   but not "root=/dev/sda1").
   * Version 0.13 includes dinitctl setenv to set environment variables, this is a good start
-* start timeout may not be being used for restarts, check and fix
+* start timeout may not be being used for restarts, check and fix [DONE]
 
 
 For version 0.15:
 -----------------
-* basic support for cgroups (at least: run service processes in a specified cgroup)
-* Service description parse errors should report line number
+* basic support for cgroups (at least: run service processes in a specified cgroup) [DONE]
+* Service description parse errors should report line number [DONE]
 * Limit memory use by control connections. Currently clients have command responses queued without
   limit; it would be better to stop accepting new commands once a certain amount of response is
   buffered. 
@@ -29,7 +29,6 @@ For version 1.0 (release requirements):
 
 Maybe for 1.0?
 --------------
-* Consider using mlockall (if system process).
 * on shutdown, after a long interval with no activity, display information about
   services we are waiting on (and/or, do this when prompted via ^C or C-A-D?)
 * Documentation must be complete (mostly done; will need updates as other items are completed).

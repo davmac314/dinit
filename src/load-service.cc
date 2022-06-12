@@ -26,12 +26,12 @@ using string_iterator = std::string::iterator;
 //   line -  the string storing the command and arguments
 //   offsets - the [start,end) pair of offsets of the command and each argument within the string
 //
-static void do_env_subst(std::string &line, std::list<std::pair<unsigned,unsigned>> &offsets,
-        bool do_sub_vars)
+static void do_env_subst(const char *setting_name, std::string &line,
+        std::list<std::pair<unsigned,unsigned>> &offsets, bool do_sub_vars)
 {
     using namespace dinit_load;
     if (do_sub_vars) {
-        cmdline_var_subst(line, offsets, resolve_env_var);
+        cmdline_var_subst(setting_name, line, offsets, resolve_env_var);
     }
 }
 
@@ -269,7 +269,8 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         }
 
         process_service_file(name, service_file,
-                [&](string &line, string &setting, string_iterator &i, string_iterator &end) -> void {
+                [&](string &line, unsigned line_num, string &setting,
+                        string_iterator &i, string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
                     dependency_type dep_type) -> void {
@@ -280,13 +281,14 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 return load_service(dep_name.c_str(), reload_svc);
             };
 
-            process_service_line(settings, name, line, setting, i, end, load_service_n, process_dep_dir_n);
+            process_service_line(settings, name, line, line_num, setting, i, end, load_service_n,
+                    process_dep_dir_n);
         });
 
         service_file.close();
 
         auto report_err = [&](const char *msg){
-            throw service_description_exc(name, msg);
+            throw service_load_exc(name, msg);
         };
 
         settings.finalise(report_err);
@@ -298,11 +300,11 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             if (service->get_state() != service_state_t::STOPPED) {
                 // Can not change type of a running service.
                 if (service_type != service->get_type()) {
-                    throw service_description_exc(name, "cannot change type of non-stopped service.");
+                    throw service_load_exc(name, "cannot change type of non-stopped service.");
                 }
                 // Can not alter a starting/stopping service, at least for now.
                 if (service->get_state() != service_state_t::STARTED) {
-                    throw service_description_exc(name,
+                    throw service_load_exc(name,
                             "cannot alter settings for service which is currently starting/stopping.");
                 }
 
@@ -310,7 +312,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 for (auto &new_dep : settings.depends) {
                     if (new_dep.dep_type == dependency_type::REGULAR) {
                         if (new_dep.to->get_state() != service_state_t::STARTED) {
-                            throw service_description_exc(name,
+                            throw service_load_exc(name,
                                     std::string("cannot add non-started dependency '")
                                         + new_dep.to->get_name() + "'.");
                         }
@@ -321,7 +323,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 auto current_flags = service->get_flags();
                 if (current_flags.starts_on_console != settings.onstart_flags.starts_on_console
                         || current_flags.shares_console != settings.onstart_flags.shares_console) {
-                    throw service_description_exc(name, "cannot change starts_on_console/"
+                    throw service_load_exc(name, "cannot change starts_on_console/"
                             "shares_console flags for a running service.");
                 }
 
@@ -329,7 +331,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 if (service->get_type() == service_type_t::BGPROCESS) {
                     auto *bgp_service = static_cast<bgproc_service *>(service);
                     if (bgp_service->get_pid_file() != settings.pid_file) {
-                        throw service_description_exc(name, "cannot change pid_file for running service.");
+                        throw service_load_exc(name, "cannot change pid_file for running service.");
                     }
                 }
 
@@ -342,7 +344,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                         if (strncmp(svc_utmp_id, settings.inittab_id, proc_service->get_utmp_id_size()) != 0
                                 || strncmp(svc_utmp_ln, settings.inittab_line,
                                         proc_service->get_utmp_line_size()) != 0) {
-                            throw service_description_exc(name, "cannot change inittab-id or inittab-line "
+                            throw service_load_exc(name, "cannot change inittab-id or inittab-line "
                                     "settings for running service.");
                         }
                     }
@@ -357,7 +359,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         // we've made before the exception occurred.
 
         if (service_type == service_type_t::PROCESS) {
-            do_env_subst(settings.command, settings.command_offsets, settings.do_sub_vars);
+            do_env_subst("command", settings.command, settings.command_offsets, settings.do_sub_vars);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             process_service *rvalps;
             if (create_new_record) {
@@ -391,7 +393,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             #endif
         }
         else if (service_type == service_type_t::BGPROCESS) {
-            do_env_subst(settings.command, settings.command_offsets, settings.do_sub_vars);
+            do_env_subst("command", settings.command, settings.command_offsets, settings.do_sub_vars);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             bgproc_service *rvalps;
             if (create_new_record) {
@@ -421,7 +423,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             settings.onstart_flags.runs_on_console = false;
         }
         else if (service_type == service_type_t::SCRIPTED) {
-            do_env_subst(settings.command, settings.command_offsets, settings.do_sub_vars);
+            do_env_subst("command", settings.command, settings.command_offsets, settings.do_sub_vars);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             scripted_service *rvalps;
             if (create_new_record) {
@@ -510,7 +512,12 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             delete dummy;
         }
         if (create_new_record) delete rval;
-        throw service_description_exc(name, std::move(setting_exc.get_info()));
+        if (setting_exc.line_num != (unsigned)-1) {
+            throw service_description_exc(name, std::move(setting_exc.get_info()), setting_exc.line_num);
+        }
+        else {
+            throw service_description_exc(name, std::move(setting_exc.get_info()), setting_exc.setting_name);
+        }
     }
     catch (std::system_error &sys_err)
     {
@@ -519,7 +526,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             delete dummy;
         }
         if (create_new_record) delete rval;
-        throw service_description_exc(name, sys_err.what());
+        throw service_load_exc(name, sys_err.what());
     }
     catch (...) // (should only be std::bad_alloc / service_description_exc)
     {

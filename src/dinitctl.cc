@@ -1392,10 +1392,10 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
     string waits_for_d;
 
     try {
-        process_service_file(from, service_file, [&](string &line, string &setting,
+        process_service_file(from, service_file, [&](string &line, unsigned line_num, string &setting,
                 dinit_load::string_iterator i, dinit_load::string_iterator end) -> void {
             if (setting == "waits-for" || setting == "depends-on" || setting == "depends-ms") {
-                string dname = dinit_load::read_setting_value(i, end);
+                string dname = dinit_load::read_setting_value(line_num, i, end);
                 if (dname == to) {
                     // There is already a dependency
                     cerr << "dinitctl: there is a fixed dependency to service '" << to
@@ -1404,7 +1404,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
                 }
             }
             else if (setting == "waits-for.d") {
-                string dname = dinit_load::read_setting_value(i, end);
+                string dname = dinit_load::read_setting_value(line_num, i, end);
                 if (! waits_for_d.empty()) {
                     cerr << "dinitctl: service '" << from << "' has multiple waits-for.d directories "
                             << "specified in service description" << endl;

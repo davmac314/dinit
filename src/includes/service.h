@@ -204,6 +204,19 @@ class prelim_dep
     }
 };
 
+// log a service load exception
+inline void log_service_load_failure(service_description_exc &exc)
+{
+    if (exc.line_num != (unsigned)-1) {
+        log(loglevel_t::ERROR, "Couldn't load service '", exc.service_name, "' (line ", exc.line_num, "): ",
+                exc.exc_description, "\n");
+    }
+    else {
+        log(loglevel_t::ERROR, "Couldn't load service '", exc.service_name, "' setting '", exc.setting_name, "': ",
+                exc.exc_description, "\n");
+    }
+}
+
 // service_record: base class for service record containing static information
 // and current state of each service.
 //

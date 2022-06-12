@@ -533,6 +533,9 @@ int dinit_main(int argc, char **argv)
         catch (service_not_found &snf) {
             log(loglevel_t::ERROR, snf.service_name, ": could not find service description.");
         }
+        catch (service_description_exc &sde) {
+            log_service_load_failure(sde);
+        }
         catch (service_load_exc &sle) {
             log(loglevel_t::ERROR, sle.service_name, ": ", sle.exc_description);
         }

@@ -49,11 +49,10 @@ void test_env_subst2()
     std::list<std::pair<unsigned,unsigned>> offsets;
     std::string::iterator li = line.begin();
     std::string::iterator le = line.end();
-    dinit_load::read_setting_value(li, le, &offsets);
+    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
 
-    dinit_load::cmdline_var_subst(line, offsets, resolve_env_var);
+    dinit_load::cmdline_var_subst("command", line, offsets, resolve_env_var);
 
-    //std::cout << "line = " << line << std::endl; // XXX
     assert(line == "test xa~ yhellohello$ONE_VAR");
 
     assert(offsets.size() == 3);
@@ -108,7 +107,7 @@ void test_settings()
 
     try {
         process_service_file("test-service", ss,
-                [&](string &line, string &setting, string_iterator &i, string_iterator &end) -> void {
+                [&](string &line, unsigned line_num, string &setting, string_iterator &i, string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
                     dependency_type dep_type) -> void {
@@ -120,7 +119,7 @@ void test_settings()
             };
 
             try {
-                process_service_line(settings, "test-service", line, setting, i, end, load_service_n, process_dep_dir_n);
+                process_service_line(settings, "test-service", line, line_num, setting, i, end, load_service_n, process_dep_dir_n);
             }
             catch (service_description_exc &exc) {
                 //report_service_description_exc(exc);
@@ -130,7 +129,7 @@ void test_settings()
     catch (std::system_error &sys_err)
     {
         //report_error(sys_err, name);
-        throw service_description_exc("", "error while reading service description.");
+        throw service_description_exc("", "error while reading service description.", "unknown");
     }
 
     assert(settings.service_type == service_type_t::PROCESS);
@@ -173,7 +172,7 @@ void test_path_env_subst()
 
     try {
         process_service_file("test-service", ss,
-                [&](string &line, string &setting, string_iterator &i, string_iterator &end) -> void {
+                [&](string &line, unsigned line_num, string &setting, string_iterator &i, string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
                     dependency_type dep_type) -> void {
@@ -185,7 +184,7 @@ void test_path_env_subst()
             };
 
             try {
-                process_service_line(settings, "test-service", line, setting, i, end, load_service_n, process_dep_dir_n);
+                process_service_line(settings, "test-service", line, line_num, setting, i, end, load_service_n, process_dep_dir_n);
             }
             catch (service_description_exc &exc) {
                 //report_service_description_exc(exc);
@@ -194,7 +193,7 @@ void test_path_env_subst()
     }
     catch (std::system_error &sys_err)
     {
-        throw service_description_exc("", "error while reading service description.");
+        throw service_description_exc("", "error while reading service description.", "unknown");
     }
 
     auto report_error = [](const char *msg) {};

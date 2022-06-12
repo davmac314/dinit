@@ -62,7 +62,6 @@ class service_load_exc
     std::string service_name;
     std::string exc_description;
 
-    protected:
     service_load_exc(const std::string &serviceName, std::string &&desc)
         : service_name(serviceName), exc_description(std::move(desc))
     {
@@ -99,8 +98,16 @@ class service_cyclic_dependency : public service_load_exc
 class service_description_exc : public service_load_exc
 {
     public:
-    service_description_exc(const std::string &serviceName, std::string &&extraInfo)
-        : service_load_exc(serviceName, std::move(extraInfo))
+    const unsigned line_num = -1;
+    const char * const setting_name = nullptr;
+
+    service_description_exc(const std::string &serviceName, std::string &&extraInfo, unsigned line_num)
+        : service_load_exc(serviceName, std::move(extraInfo)), line_num(line_num)
+    {
+    }
+
+    service_description_exc(const std::string &serviceName, std::string &&extraInfo, const char *setting_name)
+        : service_load_exc(serviceName, std::move(extraInfo)), setting_name(setting_name)
     {
     }
 };
@@ -116,7 +123,16 @@ class setting_exception
     std::string info;
 
     public:
-    setting_exception(const std::string &&exc_info) : info(std::move(exc_info))
+    const unsigned line_num = -1;
+    const char *setting_name = nullptr;
+
+    setting_exception(unsigned line_num, std::string &&exc_info)
+            : info(std::move(exc_info)), line_num(line_num)
+    {
+    }
+
+    setting_exception(const char *setting_name, std::string &&exc_info)
+            : info(std::move(exc_info)), setting_name(setting_name)
     {
     }
 
@@ -212,7 +228,7 @@ inline string read_config_name(string_iterator & i, string_iterator end) noexcep
 //    end -   iterator at end of line (not including newline character if any)
 //    part_positions -  list of <int,int> to which the position of each setting value
 //                      part will be added as [start,end). May be null.
-inline string read_setting_value(string_iterator & i, string_iterator end,
+inline string read_setting_value(unsigned line_num, string_iterator & i, string_iterator end,
         std::list<std::pair<unsigned,unsigned>> * part_positions = nullptr)
 {
     using std::locale;
@@ -244,7 +260,7 @@ inline string read_setting_value(string_iterator & i, string_iterator end,
                         rval += c;
                     }
                     else {
-                        throw setting_exception("line end follows backslash escape character (`\\')");
+                        throw setting_exception(line_num, "line end follows backslash escape character (`\\')");
                     }
                 }
                 else {
@@ -254,7 +270,7 @@ inline string read_setting_value(string_iterator & i, string_iterator end,
             }
             if (i == end) {
                 // String wasn't terminated
-                throw setting_exception("unterminated quoted string");
+                throw setting_exception(line_num, "unterminated quoted string");
             }
         }
         else if (c == '\\') {
@@ -268,7 +284,7 @@ inline string read_setting_value(string_iterator & i, string_iterator end,
                 rval += *i;
             }
             else {
-                throw setting_exception("backslash escape (`\\') not followed by character");
+                throw setting_exception(line_num, "backslash escape (`\\') not followed by character");
             }
         }
         else if (isspace(c, locale::classic())) {
@@ -285,7 +301,7 @@ inline string read_setting_value(string_iterator & i, string_iterator end,
         else if (c == '#') {
             // Possibly intended a comment; we require leading whitespace to reduce occurrence of accidental
             // comments in setting values.
-            throw setting_exception("hashmark (`#') comment must be separated from setting value by whitespace");
+            throw setting_exception(line_num, "hashmark (`#') comment must be separated from setting value by whitespace");
         }
         else {
             if (new_part) {
@@ -309,7 +325,8 @@ inline string read_setting_value(string_iterator & i, string_iterator end,
 // userid is looked up via the system user database (getpwnam() function). In this case,
 // the associated group is stored in the location specified by the group_p parameter if
 // it is not null.
-inline uid_t parse_uid_param(const std::string &param, const std::string &service_name, const char *setting_name, gid_t *group_p)
+inline uid_t parse_uid_param(unsigned line_num, const std::string &param, const std::string &service_name,
+        const char *setting_name, gid_t *group_p)
 {
     const char * uid_err_msg = "specified user id contains invalid numeric characters "
             "or is outside allowed range.";
@@ -327,12 +344,12 @@ inline uid_t parse_uid_param(const std::string &param, const std::string &servic
         unsigned long long v = std::stoull(param, &ind, 0);
         if (v > static_cast<unsigned long long>(std::numeric_limits<uid_t>::max())
                 || ind != param.length()) {
-            throw service_description_exc(service_name, std::string(setting_name) + ": " + uid_err_msg);
+            throw service_description_exc(service_name, std::string(setting_name) + ": " + uid_err_msg, line_num);
         }
         return v;
     }
     catch (std::out_of_range &exc) {
-        throw service_description_exc(service_name, uid_err_msg);
+        throw service_description_exc(service_name, uid_err_msg, line_num);
     }
     catch (std::invalid_argument &exc) {
         // Ok, so it doesn't look like a number: proceed...
@@ -344,11 +361,11 @@ inline uid_t parse_uid_param(const std::string &param, const std::string &servic
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
             throw service_description_exc(service_name, std::string(setting_name) + ": specified user \"" + param
-                    + "\" does not exist in system database.");
+                    + "\" does not exist in system database.", line_num);
         }
         else {
             throw service_description_exc(service_name, std::string("error accessing user database: ")
-                    + strerror(errno));
+                    + strerror(errno), line_num);
         }
     }
 
@@ -359,7 +376,8 @@ inline uid_t parse_uid_param(const std::string &param, const std::string &servic
     return pwent->pw_uid;
 }
 
-inline gid_t parse_gid_param(const std::string &param, const char *setting_name, const std::string &service_name)
+inline gid_t parse_gid_param(unsigned line_num, const std::string &param, const char *setting_name,
+        const std::string &service_name)
 {
     const char * gid_err_msg = "specified group id contains invalid numeric characters or is "
             "outside allowed range.";
@@ -377,12 +395,12 @@ inline gid_t parse_gid_param(const std::string &param, const char *setting_name,
         unsigned long long v = std::stoull(param, &ind, 0);
         if (v > static_cast<unsigned long long>(std::numeric_limits<gid_t>::max())
                 || ind != param.length()) {
-            throw service_description_exc(service_name, std::string(setting_name) + ": " + gid_err_msg);
+            throw service_description_exc(service_name, std::string(setting_name) + ": " + gid_err_msg, line_num);
         }
         return v;
     }
     catch (std::out_of_range &exc) {
-        throw service_description_exc(service_name, std::string(setting_name) + ": " + gid_err_msg);
+        throw service_description_exc(service_name, std::string(setting_name) + ": " + gid_err_msg, line_num);
     }
     catch (std::invalid_argument &exc) {
         // Ok, so it doesn't look like a number: proceed...
@@ -394,11 +412,11 @@ inline gid_t parse_gid_param(const std::string &param, const char *setting_name,
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
             throw service_description_exc(service_name, std::string(setting_name) + ": specified group \"" + param
-                    + "\" does not exist in system database.");
+                    + "\" does not exist in system database.", line_num);
         }
         else {
             throw service_description_exc(service_name, std::string("error accessing group database: ")
-                    + strerror(errno));
+                    + strerror(errno), line_num);
         }
     }
 
@@ -407,7 +425,7 @@ inline gid_t parse_gid_param(const std::string &param, const char *setting_name,
 
 // Parse a time, specified as a decimal number of seconds (with optional fractional component after decimal
 // point or decimal comma).
-inline void parse_timespec(const std::string &paramval, const std::string &servicename,
+inline void parse_timespec(unsigned line_num, const std::string &paramval, const std::string &servicename,
         const char * paramname, timespec &ts)
 {
     decltype(ts.tv_sec) isec = 0;
@@ -422,11 +440,11 @@ inline void parse_timespec(const std::string &paramval, const std::string &servi
             break;
         }
         if (ch < '0' || ch > '9') {
-            throw service_description_exc(servicename, std::string("bad value for ") + paramname);
+            throw service_description_exc(servicename, std::string("bad value for ") + paramname, line_num);
         }
         // check for overflow
         if (isec >= max_secs) {
-           throw service_description_exc(servicename, std::string("too-large value for ") + paramname);
+           throw service_description_exc(servicename, std::string("too-large value for ") + paramname, line_num);
         }
         isec *= 10;
         isec += ch - '0';
@@ -435,7 +453,7 @@ inline void parse_timespec(const std::string &paramval, const std::string &servi
     for ( ; i < len; i++) {
         char ch = paramval[i];
         if (ch < '0' || ch > '9') {
-            throw service_description_exc(servicename, std::string("bad value for ") + paramname);
+            throw service_description_exc(servicename, std::string("bad value for ") + paramname, line_num);
         }
         insec += (ch - '0') * insec_m;
         insec_m /= 10;
@@ -445,8 +463,8 @@ inline void parse_timespec(const std::string &paramval, const std::string &servi
 }
 
 // Parse an unsigned numeric parameter value
-inline unsigned long long parse_unum_param(const std::string &param, const std::string &service_name,
-        unsigned long long max = std::numeric_limits<unsigned long long>::max())
+inline unsigned long long parse_unum_param(unsigned line_num, const std::string &param,
+        const std::string &service_name, unsigned long long max = std::numeric_limits<unsigned long long>::max())
 {
     const char * num_err_msg = "specified value contains invalid numeric characters or is outside "
             "allowed range.";
@@ -455,15 +473,15 @@ inline unsigned long long parse_unum_param(const std::string &param, const std::
     try {
         unsigned long long v = std::stoull(param, &ind, 0);
         if (v > max || ind != param.length()) {
-            throw service_description_exc(service_name, num_err_msg);
+            throw service_description_exc(service_name, num_err_msg, line_num);
         }
         return v;
     }
     catch (std::out_of_range &exc) {
-        throw service_description_exc(service_name, num_err_msg);
+        throw service_description_exc(service_name, num_err_msg, line_num);
     }
     catch (std::invalid_argument &exc) {
-        throw service_description_exc(service_name, num_err_msg);
+        throw service_description_exc(service_name, num_err_msg, line_num);
     }
 }
 
@@ -481,8 +499,8 @@ inline service_rlimits &find_rlimits(std::vector<service_rlimits> &all_rlimits, 
 }
 
 // Parse resource limits setting (can specify both hard and soft limit).
-inline void parse_rlimit(const std::string &line, const std::string &service_name, const char *param_name,
-        service_rlimits &rlimit)
+inline void parse_rlimit(const std::string &line, unsigned line_num, const std::string &service_name,
+        const char *param_name, service_rlimits &rlimit)
 {
     // Examples:
     // 4:5 - soft:hard limits both set
@@ -491,7 +509,7 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
     // 4     soft and hard limit set to same limit
 
     if (line.empty()) {
-        throw service_description_exc(service_name, std::string(param_name) + ": bad value.");
+        throw service_description_exc(service_name, std::string(param_name) + ": bad value.", line_num);
     }
 
     const char *cline = line.c_str();
@@ -523,7 +541,7 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
             }
 
             if (*index != ':') {
-                throw service_description_exc(service_name, std::string(param_name) + ": bad value.");
+                throw service_description_exc(service_name, std::string(param_name) + ": bad value.", line_num);
             }
         }
 
@@ -535,7 +553,7 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
         if (*index == '-') {
             rlimit.limits.rlim_max = RLIM_INFINITY;
             if (index[1] != 0) {
-                throw service_description_exc(service_name, std::string(param_name) + ": bad value.");
+                throw service_description_exc(service_name, std::string(param_name) + ": bad value.", line_num);
             }
         }
         else {
@@ -550,10 +568,10 @@ inline void parse_rlimit(const std::string &line, const std::string &service_nam
         }
     }
     catch (std::invalid_argument &exc) {
-        throw service_description_exc(service_name, std::string(param_name) + ": bad value.");
+        throw service_description_exc(service_name, std::string(param_name) + ": bad value.", line_num);
     }
     catch (std::out_of_range &exc) {
-        throw service_description_exc(service_name, std::string(param_name) + ": too-large value.");
+        throw service_description_exc(service_name, std::string(param_name) + ": too-large value.", line_num);
     }
 }
 
@@ -573,8 +591,10 @@ template <typename T>
 void process_service_file(string name, std::istream &service_file, T func)
 {
     string line;
+    unsigned line_num = 0;
 
     while (getline(service_file, line)) {
+        ++line_num;
         string::iterator i = line.begin();
         string::iterator end = line.end();
 
@@ -586,11 +606,11 @@ void process_service_file(string name, std::istream &service_file, T func)
             string setting = read_config_name(i, end);
             i = skipws(i, end);
             if (setting.empty() || i == end || (*i != '=' && *i != ':')) {
-                throw service_description_exc(name, "badly formed line.");
+                throw service_description_exc(name, "badly formed line.", line_num);
             }
             i = skipws(++i, end);
 
-            func(line, setting, i, end);
+            func(line, line_num, setting, i, end);
         }
     }
 }
@@ -613,7 +633,7 @@ static auto resolve_env_var = [](const string &name){
 //    var_resolve - function to translate names to values; returning string or const char *;
 //                  may throw setting_exception
 template <typename T>
-inline std::string resolve_path(std::string &&p, T &var_resolve)
+inline std::string resolve_path(const char *setting_name, std::string &&p, T &var_resolve)
 {
     auto dpos = p.find('$');
     if (dpos == string::npos) {
@@ -637,7 +657,7 @@ inline std::string resolve_path(std::string &&p, T &var_resolve)
         auto i = std::next(p.begin(), dpos);
         string name = read_config_name(i, p.end());
         if (name.empty()) {
-            throw setting_exception("invalid/missing variable name after '$'");
+            throw setting_exception(setting_name, "invalid/missing variable name after '$'");
         }
         string value = var_resolve(name);
         r.append(value);
@@ -656,8 +676,8 @@ inline std::string resolve_path(std::string &&p, T &var_resolve)
 // throws: setting_exception if a $-substitution is ill-formed, or if the command line is too long;
 //         bad_alloc on allocation failure
 template <typename T>
-static void cmdline_var_subst(std::string &line, std::list<std::pair<unsigned,unsigned>> &offsets,
-        T &var_resolve)
+static void cmdline_var_subst(const char *setting_name, std::string &line,
+        std::list<std::pair<unsigned,unsigned>> &offsets, T &var_resolve)
 {
     auto dindx = line.find('$');
     if (dindx == string::npos) {
@@ -666,7 +686,7 @@ static void cmdline_var_subst(std::string &line, std::list<std::pair<unsigned,un
 
     if (line.length() > (size_t)std::numeric_limits<int>::max()) {
         // (avoid potential for overflow later)
-        throw setting_exception("command line too long");
+        throw setting_exception(setting_name, "command line too long");
     }
 
     auto i = offsets.begin();
@@ -692,7 +712,7 @@ static void cmdline_var_subst(std::string &line, std::list<std::pair<unsigned,un
                 auto i = std::next(line.begin(), dindx + 1);
                 string name = read_config_name(i, line.end());
                 if (name.empty()) {
-                    throw setting_exception("invalid/missing variable name after '$'");
+                    throw setting_exception(setting_name, "invalid/missing variable name after '$'");
                 }
                 size_t line_len_before = r_line.size();
                 r_line.append(var_resolve(name));
@@ -700,7 +720,7 @@ static void cmdline_var_subst(std::string &line, std::list<std::pair<unsigned,un
 
                 if (line_len_after > (size_t)std::numeric_limits<int>::max()) {
                     // (avoid potential overflow)
-                    throw setting_exception("command line too long (after substitution)");
+                    throw setting_exception(setting_name, "command line too long (after substitution)");
                 }
 
                 xpos = i - line.begin();
@@ -854,7 +874,7 @@ class service_settings_wrapper
         {
             auto do_resolve = [&](const char *setting_name, string &setting_value) {
                 try {
-                    setting_value = resolve_path(std::move(setting_value), var_subst);
+                    setting_value = resolve_path(setting_name, std::move(setting_value), var_subst);
                 }
                 catch (setting_exception &exc) {
                     report_error((string() + setting_name + ": " + exc.get_info()).c_str());
@@ -902,29 +922,29 @@ class service_settings_wrapper
 template <typename settings_wrapper,
     typename load_service_t,
     typename process_dep_dir_t>
-void process_service_line(settings_wrapper &settings, const char *name, string &line, string &setting,
-        string::iterator &i, string::iterator &end, load_service_t load_service,
+void process_service_line(settings_wrapper &settings, const char *name, string &line, unsigned line_num,
+        string &setting, string::iterator &i, string::iterator &end, load_service_t load_service,
         process_dep_dir_t process_dep_dir)
 {
     if (setting == "command") {
-        settings.command = read_setting_value(i, end, &settings.command_offsets);
+        settings.command = read_setting_value(line_num, i, end, &settings.command_offsets);
     }
     else if (setting == "working-dir") {
-        settings.working_dir = read_setting_value(i, end, nullptr);
+        settings.working_dir = read_setting_value(line_num, i, end, nullptr);
     }
     else if (setting == "env-file") {
-        settings.env_file = read_setting_value(i, end, nullptr);
+        settings.env_file = read_setting_value(line_num, i, end, nullptr);
     }
     #if SUPPORT_CGROUPS
     else if (setting == "run-in-cgroup") {
-        settings.run_in_cgroup = read_setting_value(i, end, nullptr);
+        settings.run_in_cgroup = read_setting_value(line_num, i, end, nullptr);
     }
     #endif
     else if (setting == "socket-listen") {
-        settings.socket_path = read_setting_value(i, end, nullptr);
+        settings.socket_path = read_setting_value(line_num, i, end, nullptr);
     }
     else if (setting == "socket-permissions") {
-        string sock_perm_str = read_setting_value(i, end, nullptr);
+        string sock_perm_str = read_setting_value(line_num, i, end, nullptr);
         std::size_t ind = 0;
         try {
             settings.socket_perms = std::stoi(sock_perm_str, &ind, 8);
@@ -934,52 +954,52 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         }
         catch (std::logic_error &exc) {
             throw service_description_exc(name, "socket-permissions: badly-formed or "
-                    "out-of-range numeric value");
+                    "out-of-range numeric value", line_num);
         }
     }
     else if (setting == "socket-uid") {
-        string sock_uid_s = read_setting_value(i, end, nullptr);
-        settings.socket_uid = parse_uid_param(sock_uid_s, name, "socket-uid", &settings.socket_uid_gid);
+        string sock_uid_s = read_setting_value(line_num, i, end, nullptr);
+        settings.socket_uid = parse_uid_param(line_num, sock_uid_s, name, "socket-uid", &settings.socket_uid_gid);
     }
     else if (setting == "socket-gid") {
-        string sock_gid_s = read_setting_value(i, end, nullptr);
-        settings.socket_gid = parse_gid_param(sock_gid_s, "socket-gid", name);
+        string sock_gid_s = read_setting_value(line_num, i, end, nullptr);
+        settings.socket_gid = parse_gid_param(line_num, sock_gid_s, "socket-gid", name);
     }
     else if (setting == "stop-command") {
-        settings.stop_command = read_setting_value(i, end, &settings.stop_command_offsets);
+        settings.stop_command = read_setting_value(line_num, i, end, &settings.stop_command_offsets);
     }
     else if (setting == "pid-file") {
-        settings.pid_file = read_setting_value(i, end);
+        settings.pid_file = read_setting_value(line_num, i, end);
     }
     else if (setting == "depends-on") {
-        string dependency_name = read_setting_value(i, end);
+        string dependency_name = read_setting_value(line_num, i, end);
         settings.depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::REGULAR);
     }
     else if (setting == "depends-ms") {
-        string dependency_name = read_setting_value(i, end);
+        string dependency_name = read_setting_value(line_num, i, end);
         settings.depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::MILESTONE);
     }
     else if (setting == "waits-for") {
-        string dependency_name = read_setting_value(i, end);
+        string dependency_name = read_setting_value(line_num, i, end);
         settings.depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::WAITS_FOR);
     }
     else if (setting == "waits-for.d") {
-        string waitsford = read_setting_value(i, end);
+        string waitsford = read_setting_value(line_num, i, end);
         process_dep_dir(settings.depends, waitsford, dependency_type::WAITS_FOR);
     }
     else if (setting == "logfile") {
-        settings.logfile = read_setting_value(i, end);
+        settings.logfile = read_setting_value(line_num, i, end);
     }
     else if (setting == "restart") {
-        string restart = read_setting_value(i, end);
+        string restart = read_setting_value(line_num, i, end);
         settings.auto_restart = (restart == "yes" || restart == "true");
     }
     else if (setting == "smooth-recovery") {
-        string recovery = read_setting_value(i, end);
+        string recovery = read_setting_value(line_num, i, end);
         settings.smooth_recovery = (recovery == "yes" || recovery == "true");
     }
     else if (setting == "type") {
-        string type_str = read_setting_value(i, end);
+        string type_str = read_setting_value(line_num, i, end);
         if (type_str == "scripted") {
             settings.service_type = service_type_t::SCRIPTED;
         }
@@ -994,12 +1014,12 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         }
         else {
             throw service_description_exc(name, "service type must be one of: \"scripted\","
-                " \"process\", \"bgprocess\" or \"internal\"");
+                " \"process\", \"bgprocess\" or \"internal\"", line_num);
         }
     }
     else if (setting == "options") {
         std::list<std::pair<unsigned,unsigned>> indices;
-        string onstart_cmds = read_setting_value(i, end, &indices);
+        string onstart_cmds = read_setting_value(line_num, i, end, &indices);
         for (auto indexpair : indices) {
             string option_txt = onstart_cmds.substr(indexpair.first,
                     indexpair.second - indexpair.first);
@@ -1040,13 +1060,13 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
                 settings.onstart_flags.always_chain = true;
             }
             else {
-                throw service_description_exc(name, "Unknown option: " + option_txt);
+                throw service_description_exc(name, "Unknown option: " + option_txt, line_num);
             }
         }
     }
     else if (setting == "load-options") {
         std::list<std::pair<unsigned,unsigned>> indices;
-        string load_opts = read_setting_value(i, end, &indices);
+        string load_opts = read_setting_value(line_num, i, end, &indices);
         for (auto indexpair : indices) {
             string option_txt = load_opts.substr(indexpair.first,
                     indexpair.second - indexpair.first);
@@ -1058,109 +1078,109 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
                 settings.do_sub_vars = false;
             }
             else {
-                throw service_description_exc(name, "unknown load option: " + option_txt);
+                throw service_description_exc(name, "unknown load option: " + option_txt, line_num);
             }
         }
     }
     else if (setting == "term-signal" || setting == "termsignal") {
         // Note: "termsignal" supported for legacy reasons.
-        string signame = read_setting_value(i, end, nullptr);
+        string signame = read_setting_value(line_num, i, end, nullptr);
         int signo = signal_name_to_number(signame);
         if (signo == -1) {
             throw service_description_exc(name, "unknown/unsupported termination signal: "
-                    + signame);
+                    + signame, line_num);
         }
         else {
             settings.term_signal = signo;
         }
     }
     else if (setting == "restart-limit-interval") {
-        string interval_str = read_setting_value(i, end, nullptr);
-        parse_timespec(interval_str, name, "restart-limit-interval", settings.restart_interval);
+        string interval_str = read_setting_value(line_num, i, end, nullptr);
+        parse_timespec(line_num, interval_str, name, "restart-limit-interval", settings.restart_interval);
     }
     else if (setting == "restart-delay") {
-        string rsdelay_str = read_setting_value(i, end, nullptr);
-        parse_timespec(rsdelay_str, name, "restart-delay", settings.restart_delay);
+        string rsdelay_str = read_setting_value(line_num, i, end, nullptr);
+        parse_timespec(line_num, rsdelay_str, name, "restart-delay", settings.restart_delay);
     }
     else if (setting == "restart-limit-count") {
-        string limit_str = read_setting_value(i, end, nullptr);
-        settings.max_restarts = parse_unum_param(limit_str, name, std::numeric_limits<int>::max());
+        string limit_str = read_setting_value(line_num, i, end, nullptr);
+        settings.max_restarts = parse_unum_param(line_num, limit_str, name, std::numeric_limits<int>::max());
     }
     else if (setting == "stop-timeout") {
-        string stoptimeout_str = read_setting_value(i, end, nullptr);
-        parse_timespec(stoptimeout_str, name, "stop-timeout", settings.stop_timeout);
+        string stoptimeout_str = read_setting_value(line_num, i, end, nullptr);
+        parse_timespec(line_num, stoptimeout_str, name, "stop-timeout", settings.stop_timeout);
     }
     else if (setting == "start-timeout") {
-        string starttimeout_str = read_setting_value(i, end, nullptr);
-        parse_timespec(starttimeout_str, name, "start-timeout", settings.start_timeout);
+        string starttimeout_str = read_setting_value(line_num, i, end, nullptr);
+        parse_timespec(line_num, starttimeout_str, name, "start-timeout", settings.start_timeout);
     }
     else if (setting == "run-as") {
-        string run_as_str = read_setting_value(i, end, nullptr);
-        settings.run_as_uid = parse_uid_param(run_as_str, name, "run-as", &settings.run_as_uid_gid);
+        string run_as_str = read_setting_value(line_num, i, end, nullptr);
+        settings.run_as_uid = parse_uid_param(line_num, run_as_str, name, "run-as", &settings.run_as_uid_gid);
     }
     else if (setting == "chain-to") {
-        settings.chain_to_name = read_setting_value(i, end, nullptr);
+        settings.chain_to_name = read_setting_value(line_num, i, end, nullptr);
     }
     else if (setting == "ready-notification") {
-        string notify_setting = read_setting_value(i, end, nullptr);
+        string notify_setting = read_setting_value(line_num, i, end, nullptr);
         if (starts_with(notify_setting, "pipefd:")) {
-            settings.readiness_fd = parse_unum_param(notify_setting.substr(7 /* len 'pipefd:' */),
+            settings.readiness_fd = parse_unum_param(line_num, notify_setting.substr(7 /* len 'pipefd:' */),
                     name, std::numeric_limits<int>::max());
         }
         else if (starts_with(notify_setting, "pipevar:")) {
             settings.readiness_var = notify_setting.substr(8 /* len 'pipevar:' */);
             if (settings.readiness_var.empty()) {
                 throw service_description_exc(name, "invalid pipevar variable name "
-                        "in ready-notification");
+                        "in ready-notification", line_num);
             }
         }
         else {
             throw service_description_exc(name, "unknown ready-notification setting: "
-                    + notify_setting);
+                    + notify_setting, line_num);
         }
     }
     else if (setting == "inittab-id") {
-        string inittab_setting = read_setting_value(i, end, nullptr);
+        string inittab_setting = read_setting_value(line_num, i, end, nullptr);
         #if USE_UTMPX
         if (inittab_setting.length() > sizeof(settings.inittab_id)) {
-            throw service_description_exc(name, "inittab-id setting is too long");
+            throw service_description_exc(name, "inittab-id setting is too long", line_num);
         }
         strncpy(settings.inittab_id, inittab_setting.c_str(), sizeof(settings.inittab_id));
         #endif
     }
     else if (setting == "inittab-line") {
-        string inittab_setting = read_setting_value(i, end, nullptr);
+        string inittab_setting = read_setting_value(line_num, i, end, nullptr);
         #if USE_UTMPX
         if (inittab_setting.length() > sizeof(settings.inittab_line)) {
-            throw service_description_exc(name, "inittab-line setting is too long");
+            throw service_description_exc(name, "inittab-line setting is too long", line_num);
         }
         strncpy(settings.inittab_line, inittab_setting.c_str(), sizeof(settings.inittab_line));
         #endif
     }
     else if (setting == "rlimit-nofile") {
-        string nofile_setting = read_setting_value(i, end, nullptr);
+        string nofile_setting = read_setting_value(line_num, i, end, nullptr);
         service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_NOFILE);
-        parse_rlimit(nofile_setting, name, "rlimit-nofile", nofile_limits);
+        parse_rlimit(nofile_setting, line_num, name, "rlimit-nofile", nofile_limits);
     }
     else if (setting == "rlimit-core") {
-        string core_setting = read_setting_value(i, end, nullptr);
+        string core_setting = read_setting_value(line_num, i, end, nullptr);
         service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_CORE);
-        parse_rlimit(core_setting, name, "rlimit-core", nofile_limits);
+        parse_rlimit(core_setting, line_num, name, "rlimit-core", nofile_limits);
     }
     else if (setting == "rlimit-data") {
-        string data_setting = read_setting_value(i, end, nullptr);
+        string data_setting = read_setting_value(line_num, i, end, nullptr);
         service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_DATA);
-        parse_rlimit(data_setting, name, "rlimit-data", nofile_limits);
+        parse_rlimit(data_setting, line_num, name, "rlimit-data", nofile_limits);
     }
     else if (setting == "rlimit-addrspace") {
         #if defined(RLIMIT_AS)
-            string addrspace_setting = read_setting_value(i, end, nullptr);
+            string addrspace_setting = read_setting_value(line_num, i, end, nullptr);
             service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_AS);
-            parse_rlimit(addrspace_setting, name, "rlimit-addrspace", nofile_limits);
+            parse_rlimit(addrspace_setting, line_num, name, "rlimit-addrspace", nofile_limits);
         #endif
     }
     else {
-        throw service_description_exc(name, "unknown setting: '" + setting + "'.");
+        throw service_description_exc(name, "unknown setting: '" + setting + "'.", line_num);
     }
 }
 

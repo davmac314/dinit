@@ -222,6 +222,20 @@ int main(int argc, char **argv)
     return errors_found ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
+static void report_service_description_err(const std::string &service_name, unsigned line_num,
+        const std::string &what)
+{
+    std::cerr << "Service '" << service_name << "' (line " << line_num << "): " << what << "\n";
+    errors_found = true;
+}
+
+static void report_service_description_err(const std::string &service_name, const char *setting_name,
+        const std::string &what)
+{
+    std::cerr << "Service '" << service_name << "' setting '" << setting_name << "': " << what << "\n";
+    errors_found = true;
+}
+
 static void report_service_description_err(const std::string &service_name, const std::string &what)
 {
     std::cerr << "Service '" << service_name << "': " << what << "\n";
@@ -230,7 +244,12 @@ static void report_service_description_err(const std::string &service_name, cons
 
 static void report_service_description_exc(service_description_exc &exc)
 {
-    report_service_description_err(exc.service_name, exc.exc_description);
+    if (exc.line_num != (unsigned)-1) {
+        report_service_description_err(exc.service_name, exc.line_num, exc.exc_description);
+    }
+    else {
+        report_service_description_err(exc.service_name, exc.setting_name, exc.exc_description);
+    }
 }
 
 static void report_error(std::system_error &exc, const std::string &service_name)
@@ -331,7 +350,8 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     try {
         process_service_file(name, service_file,
-                [&](string &line, string &setting, string_iterator &i, string_iterator &end) -> void {
+                [&](string &line, unsigned line_num, string &setting,
+                        string_iterator &i, string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
                     dependency_type dep_type) -> void {
@@ -343,7 +363,8 @@ service_record *load_service(service_set_t &services, const std::string &name,
             };
 
             try {
-                process_service_line(settings, name.c_str(), line, setting, i, end, load_service_n, process_dep_dir_n);
+                process_service_line(settings, name.c_str(), line, line_num, setting, i, end,
+                        load_service_n, process_dep_dir_n);
             }
             catch (service_description_exc &exc) {
                 report_service_description_exc(exc);
@@ -353,7 +374,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
     catch (std::system_error &sys_err)
     {
         report_error(sys_err, name);
-        throw service_description_exc(name, "error while reading service description.");
+        throw service_load_exc(name, "error while reading service description.");
     }
 
     auto report_err = [&](const char *msg) {
