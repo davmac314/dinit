@@ -153,12 +153,12 @@ inline void clear_utmp_entry(const char *utmp_id, const char *utmp_line)
 
 #else // Don't update databases:
 
-static inline bool log_boot()
+inline bool log_boot()
 {
     return true;
 }
 
-static inline bool create_utmp_entry(const char *utmp_id, const char *utmp_line)
+inline bool create_utmp_entry(const char *utmp_id, const char *utmp_line)
 {
     return true;
 }
