@@ -17,6 +17,7 @@ jobs:
       run: ./configs/mconfig.Linux.sh
   
   build:
+    needs: pre_configure
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -24,6 +25,7 @@ jobs:
       run: make
   
   check:
+    needs: build
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
