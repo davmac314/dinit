@@ -16,7 +16,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Getting depends
-      run: apt-get update && apt-get install gcc make m4 g++ -y
+      run: apt-get update && apt-get install gcc make m4 g++ build-essential -y
     - name: chmod +x configure
       run: chmod +x ./configs/mconfig.Linux.sh
     - name: configure
