@@ -11,7 +11,7 @@ jobs:
 
     runs-on: ubuntu-latest
     container:
-    image: debian:stable
+      image: debian:stable
 
     steps:
     - uses: actions/checkout@v3
