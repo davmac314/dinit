@@ -7,18 +7,23 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
-
+  pre_configure:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
     - name: chmod +x configure
       run: chmod +x ./configs/mconfig.Linux.sh
     - name: configure
       run: ./configs/mconfig.Linux.sh
+  
+  build:
+    runs-on: ubuntu-latest
+    steps:
     - name: Build
       run: make
+  
+  check:
+    runs-on: ubuntu-latest
+    steps:
     - name: Initial checks
       run: make check
     - name: Advanced checks
