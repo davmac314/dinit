@@ -400,10 +400,11 @@ Note that some operating systems (notably, OpenBSD) do not support this limit; t
 setting will be ignored on such systems.
 .TP
 \fBrun\-in\-cgroup\fR = \fIcgroup-path\fR
-(Linux only) Run the service process(es) in the specified cgroup (see \fBcgroups\fR(7)).
+Run the service process(es) in the specified cgroup (see \fBcgroups\fR(7)).
 The cgroup is specified as a path; if it has a leading slash, the remainder of the path is
 interpreted as relative to \fI/sys/fs/cgroup\fR, and otherwise the entire path is interpreted
-relative to the cgroup in which \fBdinit\fR is running (as determined at startup).
+relative to the cgroup in which \fBdinit\fR is running (as determined at startup or specified
+by options).
 The latter can only be used if there is only a single cgroup hierarchy (either the cgroups v2
 hierarchy with no cgroups v1 hierarchies, or a single cgroups v1 hierarchy).
 .sp
@@ -412,6 +413,8 @@ begin with ".." if cgroups v2 are used.
 .sp
 The named cgroup must already exist prior to the service starting; it will not be created by
 \fBdinit\fR.
+.sp
+This setting is only available if \fBdinit\fR was built with cgroups support.
 .\"
 .SS OPTIONS
 .\"

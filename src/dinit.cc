@@ -229,7 +229,8 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                 env_file = argv[i];
             }
             else {
-                cerr << "dinit: '--env-file' (-e) requires an argument" << endl;
+                cerr << "dinit: '--env-file' (-e) requires an argument\n";
+                return 1;
             }
         }
         else if (strcmp(argv[i], "--services-dir") == 0 || strcmp(argv[i], "-d") == 0) {
@@ -237,7 +238,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                 service_dir_opts.set_specified_service_dir(argv[i]);
             }
             else {
-                cerr << "dinit: '--services-dir' (-d) requires an argument" << endl;
+                cerr << "dinit: '--services-dir' (-d) requires an argument\n";
                 return 1;
             }
         }
@@ -261,7 +262,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                 control_socket_path_set = true;
             }
             else {
-                cerr << "dinit: '--socket-path' (-p) requires an argument" << endl;
+                cerr << "dinit: '--socket-path' (-p) requires an argument\n";
                 return 1;
             }
         }
@@ -272,7 +273,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                 log_specified = true;
             }
             else {
-                cerr << "dinit: '--log-file' (-l) requires an argument" << endl;
+                cerr << "dinit: '--log-file' (-l) requires an argument\n";
                 return 1;
             }
         }
@@ -280,6 +281,18 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             console_service_status = false;
             log_level[DLOG_CONS] = loglevel_t::ZERO;
         }
+        #ifdef SUPPORT_CGROUPS
+        else if (strcmp(argv[i], "--cgroup-path") == 0 || strcmp(argv[i], "-b") == 0) {
+            if (++i < argc) {
+                cgroups_path = argv[i];
+                have_cgroups_path = true;
+            }
+            else {
+                cerr << "dinit: '--cgroup-path' (-b) requires an argument\n";
+                return 1;
+            }
+        }
+        #endif
         else if (strcmp(argv[i], "--version") == 0) {
             printVersion();
             return -1;
@@ -299,6 +312,10 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                     " --container, -o              run in container mode (do not manage system)\n"
                     " --socket-path <path>, -p <path>\n"
                     "                              path to control socket\n"
+                    #ifdef SUPPORT_CGROUPS
+                    " --cgroup-path <path>, -b <path>\n"
+                    "                              cgroup base path (for resolving relative paths)\n"
+                    #endif
                     " --log-file <file>, -l <file> log to the specified file\n"
                     " --quiet, -q                  disable output to standard output\n"
                     " <service-name> [...]         start service with name <service-name>\n";
@@ -475,7 +492,7 @@ int dinit_main(int argc, char **argv)
     if (!have_cgroups_path) {
         find_cgroup_path();
         // We will press on if the cgroup root path could not be identified, since services might
-        // not require cgroups anyway.
+        // not require cgroups anyway and/or might only specify absolute cgroups paths.
     }
     #endif
 

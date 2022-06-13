@@ -9,10 +9,7 @@ dinit \- supervise processes and manage services
 .\"
 .HP
 .B dinit
-[\fB\-s\fR|\fB\-\-system\fR|\fB\-u\fR|\fB\-\-user\fR] [\fB\-d\fR|\fB\-\-services\-dir\fR \fIdir\fR]
-[\fB\-p\fR|\fB\-\-socket\-path\fR \fIpath\fR] [\fB\-e\fR|\fB\-\-env\-file\fR \fIpath\fR]
-[\fB\-l\fR|\fB\-\-log\-file\fR \fIpath\fR]
-[\fIservice-name\fR...]
+[OPTION]... [\fIservice-name\fR]...
 .\"
 .hy
 .\"
@@ -95,6 +92,12 @@ The \fBdinit\fR daemon will simply exit rather than executing the \fBshutdown\fR
 Run with no output to the terminal/console.
 This disables service status messages and sets the log level for the console log to \fBNONE\fR.
 .TP
+\fB\-b\fR \fIpath\fR, \fB\-\-cgroup\-path\fR \fIpath\fR
+Specify the path to resolve relative cgroup paths against.
+If service description settings contain relative cgroup paths, they will be resolved relative to
+this path.
+This option is only available if \fBdinit\fR is built with cgroups support.
+.TP
 \fB\-\-help\fR
 Display brief help text and then exit.
 \fB\-\-version\fR
@@ -120,8 +123,8 @@ They are named for the service they describe, and are found in \fI/etc/dinit.d\f
 for a system instance or \fI$HOME/.config/dinit.d\fR for a user instance.
 .LP
 Service description files are read by Dinit on an "as needed" basis.
-Once a service description has been read the configuration can be altered in limited
-ways via the \fBdinitctl\fR(8) program.
+Once a service description has been read the configuration can be altered or reloaded via the
+\fBdinitctl\fR(8) program (with some limitations).
 .LP
 See \fBdinit-service\fR(5) for details of the format and available parameters.
 .\"
