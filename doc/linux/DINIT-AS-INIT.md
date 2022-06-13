@@ -107,8 +107,6 @@ of packages to create a functional Dinit-based system.
 First, a device node manager. I recommend "Eudev".
 
 - Eudev - the Gentoo fork of Udev; https://github.com/gentoo/eudev
-- Vdev - "a device file manager and filesystem" and a "work in progress";
-  https://github.com/jcnelson/vdev
 - Mdev may also be an option; it is part of the "busybox" utility suite. I
   don't personally have any experience with it.
 
@@ -147,8 +145,11 @@ https://github.com/lxc/cgmanager
 I expect that v2 cgroups together with cgroup namespaces as found in newer
 kernels will render it obsolete).
 
-The above use **Dbus**:
+The above use **D-Bus**:
 https://dbus.freedesktop.org/
+
+Another implementation of D-Bus is dbus-broker:
+https://github.com/bus1/dbus-broker
 
 
 ## Explanation of example services
@@ -256,6 +257,7 @@ not normally start at all:
 
 While they are a little rough around the edges, these service definitions demonstrate the
 essentials of getting a system up and running.
+
 
 ## Testing and debugging tips
 
