@@ -1,0 +1,23 @@
+name: Dinit on ubuntu CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: configure
+      run: ./configs/mconfig.Linux.sh
+    - name: Build
+      run: make
+    - name: Initial checks
+      run: make check
+    - name: Advanced checks
+      run: make check-igr
