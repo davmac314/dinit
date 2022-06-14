@@ -27,6 +27,8 @@ jobs:
       run: ./configs/mconfig.Linux.sh
     - name: Build
       run: make
+    - name: Install "file" package via apt-get
+      run: apt-get install file -y
     - name: Print dinit exec architecture
       run: file ./src/dinit
     - name: Unit tests
