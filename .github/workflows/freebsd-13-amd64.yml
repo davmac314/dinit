@@ -1,0 +1,30 @@
+name: Dinit on freebsd-13-amd64 CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  Debian-bookworm-amd64_build:
+
+    runs-on: ubuntu-latest
+    container:
+      image: kwiat/freebsd:13.0-RELEASE
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Getting depends
+      run: pkg -y update && pkg -y install clang++ m4
+    - name: chmod +x configure
+      run: chmod +x ./configs/mconfig.Linux.sh
+    - name: configure
+      run: mv ./configs/mconfig.FreeBSD ./mconfig
+    - name: Build
+      run: make
+    - name: Unit tests
+      run: make check
+## Integration tests disabled due some bugs
+#    - name: Integration tests
+#      run: make check-igr
