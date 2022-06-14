@@ -1,25 +1,27 @@
-name: Dinit on ubuntu CI
+## Ubuntu CI Disable due some bugs
 
-on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
-
-jobs:
-  ubuntu-latest-amd64:
-    runs-on: ubuntu-latest-amd64
-    steps:
-    - uses: actions/checkout@v3
-    - name: chmod +x configure
-      run: chmod +x ./configs/mconfig.Linux.sh
-    - name: configure
-      run: ./configs/mconfig.Linux.sh
-    - uses: actions/checkout@v3
-    - name: Build
-      run: make
-    - uses: actions/checkout@v3
-    - name: Initial checks
-      run: make check
-    - name: Advanced checks
-      run: make check-igr
+#name: Dinit on ubuntu CI
+#
+#on:
+#  push:
+#    branches: [ "master" ]
+#  pull_request:
+#    branches: [ "master" ]
+#
+#jobs:
+#  ubuntu-latest-amd64:
+#    runs-on: ubuntu-latest-amd64
+#    steps:
+#    - uses: actions/checkout@v3
+#    - name: chmod +x configure
+#      run: chmod +x ./configs/mconfig.Linux.sh
+#    - name: configure
+#      run: ./configs/mconfig.Linux.sh
+#    - uses: actions/checkout@v3
+#    - name: Build
+#      run: make
+#    - uses: actions/checkout@v3
+#    - name: Initial checks
+#      run: make check
+#    - name: Advanced checks
+#      run: make check-igr
