@@ -18,7 +18,7 @@ jobs:
     - name: Add 32-bit repos
       run: dpkg --add-architecture i386
     - name: Getting depends
-      run: apt-get update && apt-get install gcc:i386 make:i386 m4:i386 g++:i386 build-essential:i386 -y
+      run: apt-get update && apt-get install gcc:i386 make:i386 m4:i386 g++:i386 -y
     - name: Print g++ version & info
       run: g++ -dumpmachine 
     - name: chmod +x configure
