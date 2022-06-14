@@ -639,7 +639,7 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
         ignore_unstarted = false;
     }
 
-    if (! load_service(socknum, rbuffer, service_name, &handle, &state, !ignore_unstarted)) {
+    if (!load_service(socknum, rbuffer, service_name, &handle, &state, !ignore_unstarted)) {
         return ignore_unstarted ? 0 : 1;
     }
 
@@ -794,7 +794,22 @@ static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p
     }
     else if (rbuffer[0] == DINIT_RP_NOSERVICE) {
         if (write_error) {
-            cerr << "dinitctl: failed to find/load service." << endl;
+            cerr << "dinitctl: failed to find service description.\n";
+            cerr << "dinitctl: check service description file exists / service name spelling.\n";
+        }
+        return 1;
+    }
+    else if (rbuffer[0] == DINIT_RP_SERVICE_DESC_ERR) {
+        if (write_error) {
+            cerr << "dinitctl: error in service description.\n";
+            cerr << "dinitctl: try 'dinitcheck <service-name>' or check log for more information.\n";
+        }
+        return 1;
+    }
+    else if (rbuffer[0] == DINIT_RP_SERVICE_LOAD_ERR) {
+        if (write_error) {
+            cerr << "dinitctl: error loading service.\n";
+            cerr << "dinitctl: try 'dinitcheck <service-name>' or check log for more information.\n";
         }
         return 1;
     }

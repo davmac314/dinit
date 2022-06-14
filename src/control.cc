@@ -148,7 +148,13 @@ bool control_conn_t::process_find_load(int pktType)
     service_record * record = nullptr;
     
     string serviceName = rbuf.extract_string(3, svcSize);
+
+    // Clear the packet from the buffer
+    rbuf.consume(chklen);
+    chklen = 0;
     
+    char fail_code = DINIT_RP_NOSERVICE;
+
     if (pktType == DINIT_CP_LOADSERVICE) {
         // LOADSERVICE
         try {
@@ -156,10 +162,17 @@ bool control_conn_t::process_find_load(int pktType)
         }
         catch (service_description_exc &sdexc) {
             log_service_load_failure(sdexc);
+            fail_code = DINIT_RP_SERVICE_DESC_ERR;
+        }
+        catch (service_not_found &snf) {
+            log(loglevel_t::ERROR, "Could not load service ", snf.service_name, ": ",
+                    snf.exc_description);
+            // fail_code = DINIT_RP_NOSERVICE;   (already set)
         }
         catch (service_load_exc &slexc) {
             log(loglevel_t::ERROR, "Could not load service ", slexc.service_name, ": ",
                     slexc.exc_description);
+            fail_code = DINIT_RP_SERVICE_LOAD_ERR;
         }
     }
     else {
@@ -167,27 +180,24 @@ bool control_conn_t::process_find_load(int pktType)
         record = services->find_service(serviceName.c_str());
     }
     
-    if (record != nullptr) {
-        // Allocate a service handle
-        handle_t handle = allocate_service_handle(record);
-        std::vector<char> rp_buf;
-        rp_buf.reserve(7);
-        rp_buf.push_back(DINIT_RP_SERVICERECORD);
-        rp_buf.push_back(static_cast<char>(record->get_state()));
-        for (int i = 0; i < (int) sizeof(handle); i++) {
-            rp_buf.push_back(*(((char *) &handle) + i));
-        }
-        rp_buf.push_back(static_cast<char>(record->get_target_state()));
+    if (record == nullptr) {
+        std::vector<char> rp_buf = { fail_code };
         if (! queue_packet(std::move(rp_buf))) return false;
+        return true;
     }
-    else {
-        std::vector<char> rp_buf = { DINIT_RP_NOSERVICE };
-        if (! queue_packet(std::move(rp_buf))) return false;
+
+    // Allocate a service handle
+    handle_t handle = allocate_service_handle(record);
+    std::vector<char> rp_buf;
+    rp_buf.reserve(7);
+    rp_buf.push_back(DINIT_RP_SERVICERECORD);
+    rp_buf.push_back(static_cast<char>(record->get_state()));
+    for (int i = 0; i < (int) sizeof(handle); i++) {
+        rp_buf.push_back(*(((char *) &handle) + i));
     }
+    rp_buf.push_back(static_cast<char>(record->get_target_state()));
+    if (! queue_packet(std::move(rp_buf))) return false;
     
-    // Clear the packet from the buffer
-    rbuf.consume(chklen);
-    chklen = 0;
     return true;
 }
 
