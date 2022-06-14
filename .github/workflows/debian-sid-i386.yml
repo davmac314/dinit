@@ -18,7 +18,7 @@ jobs:
     - name: Add 32-bit repos
       run: dpkg --add-architecture i386
     - name: Getting depends
-      run: apt-get update && apt-get upgrade -y && apt-get install g++-i686-linux-gnu m4 make:i386 -y
+      run: apt-get update && apt-get upgrade -y && apt-get install g++-i686-linux-gnu m4 make -y
     - name: Linking i686-linux-gnu-g++ to /usr/bin/g++
       run: ln -s /usr/bin/i686-linux-gnu-g++ /usr/bin/g++
     - name: Print g++ architecture
