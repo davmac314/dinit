@@ -1,4 +1,4 @@
-name: Dinit on debian-stable CI
+name: Dinit on devuan-ceres-amd64 CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
+  Devuan-ceres-amd64_build:
 
     runs-on: ubuntu-latest
     container:
