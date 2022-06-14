@@ -1,4 +1,4 @@
-name: Dinit on debian-stable CI
+name: Dinit on debian-stable-amd64 CI
 
 on:
   push:
@@ -23,9 +23,8 @@ jobs:
       run: ./configs/mconfig.Linux.sh
     - name: Build
       run: make
-    - name: Initial checks
+    - name: Unit tests
       run: make check
-    - name: sleep 10
-      run: sleep 10
-    - name: Advanced checks
-      run: make check-igr
+## Integration tests disabled due some bugs
+#    - name: Integration tests
+#      run: make check-igr
