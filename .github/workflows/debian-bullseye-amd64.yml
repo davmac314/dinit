@@ -7,7 +7,7 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
+  Debian-bullseye-amd64_build:
 
     runs-on: ubuntu-latest
     container:
@@ -25,5 +25,7 @@ jobs:
       run: make
     - name: Initial checks
       run: make check
+    - name: sleep 10
+      run: sleep 10
     - name: Advanced checks
       run: make check-igr
