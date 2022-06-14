@@ -10,7 +10,9 @@ jobs:
   Debian-bullseye-aarch64_build:
 
     runs-on: ubuntu-latest
-
+    container:
+      image: debian:bullseye
+      
     steps:
     - uses: actions/checkout@v3
     - name: Getting depends
