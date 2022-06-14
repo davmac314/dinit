@@ -168,12 +168,14 @@ for a full list.
 
 ## Running Dinit
 
+The main Dinit executable is called `dinit`.
+
 Dinit can run as the system "init" - the first process started by the kernel
-on boot - which is normally done by linking or copying it to `/sbin/init`.
+on boot - which is normally done by linking or copying `dinit` to `/sbin/init`.
 This is currently supported only on Linux. It requires having suitable service
 descriptions in place and should be attempted only by those comfortable
-with low-level system administration and recovery. See doc/linux directory for
-more information.
+with low-level system administration and recovery. See [doc/linux](doc/linux) directory for more
+information.
 
 Dinit can also run as a normal process, and can be started in this case by a
 regular user.
@@ -182,7 +184,8 @@ By default, regardless of whether it runs as a system or user process, Dinit
 will look for and start the service named "boot". This service should be
 configured with dependencies which will cause any other desired services to
 start. You can specify alternative services to start via the `dinit` command
-line (consult the man page for more information).
+line (consult the [manual page](https://davmac.org/projects/dinit/man-pages-html/dinit.8.html)
+for more information).
 
 
 ## Controlling services
