@@ -111,6 +111,11 @@ constexpr static int DINIT_RP_SHUTTINGDOWN = 69;
 // Service status:
 constexpr static int DINIT_RP_SERVICESTATUS = 70;
 
+// Service description error:
+constexpr static int DINIT_RP_SERVICE_DESC_ERR = 71;
+// Service load error (general):
+constexpr static int DINIT_RP_SERVICE_LOAD_ERR = 72;
+
 
 // Information (out-of-band):
 
