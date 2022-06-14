@@ -14,35 +14,40 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: uraimo/run-on-arch-action@v2
-      name: Getting depends
+      name: Getting depends|configure|build|test
       with:
         arch: aarch64
         distro: bullseye
-        run: apt-get update && apt-get install gcc make m4 g++ build-essential -y
-    - uses: uraimo/run-on-arch-action@v2
-      name: chmod +x configure
-      with:
-        arch: aarch64
-        distro: bullseye
-        run: chmod +x ./configs/mconfig.Linux.sh
-    - uses: uraimo/run-on-arch-action@v2
-      name: configure
-      with:
-        arch: aarch64
-        distro: bullseye
-        run: ./configs/mconfig.Linux.sh
-    - uses: uraimo/run-on-arch-action@v2
-      name: Build
-      with:
-        arch: aarch64
-        distro: bullseye
-        run: make
-    - uses: uraimo/run-on-arch-action@v2
-      name: Unit tests
-      with:
-        arch: aarch64
-        distro: bullseye
-        run: make check
+        run: | 
+          apt-get update && apt-get install gcc make m4 g++ build-essential -y
+          chmod +x ./configs/mconfig.Linux.sh
+          ./configs/mconfig.Linux.sh
+          make
+          make check
+#    - uses: uraimo/run-on-arch-action@v2
+#      name: chmod +x configure
+#      with:
+#        arch: aarch64
+#        distro: bullseye
+#        run: chmod +x ./configs/mconfig.Linux.sh
+#    - uses: uraimo/run-on-arch-action@v2
+#      name: configure
+#      with:
+#        arch: aarch64
+#        distro: bullseye
+#        run: ./configs/mconfig.Linux.sh
+#    - uses: uraimo/run-on-arch-action@v2
+#      name: Build
+#      with:
+#        arch: aarch64
+#        distro: bullseye
+#        run: make
+#    - uses: uraimo/run-on-arch-action@v2
+#      name: Unit tests
+#      with:
+#        arch: aarch64
+#        distro: bullseye
+#        run: make check
 ## Integration tests disabled due some bugs
 #    - uses: uraimo/run-on-arch-action@v2
 #      name: Integration tests
