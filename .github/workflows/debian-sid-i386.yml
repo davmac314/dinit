@@ -1,4 +1,4 @@
-name: Dinit on debian-bullseye-i386 CI
+name: Dinit on debian-sid-i386 CI
 
 on:
   push:
@@ -7,11 +7,11 @@ on:
     branches: [ "master" ]
 
 jobs:
-  Debian-bullseye-i386_build:
+  Debian-sid-i386_build:
 
     runs-on: ubuntu-latest
     container:
-      image: debian:bullseye
+      image: debian:sid
 
     steps:
     - uses: actions/checkout@v3
