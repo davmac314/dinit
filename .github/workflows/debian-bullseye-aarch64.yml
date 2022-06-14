@@ -28,11 +28,11 @@ jobs:
     - name: Build
       run: make
     - name: make
-    - uses: uraimo/run-on-arch-action@v2
-      name: Unit tests
-      with:
-        arch: aarch64
-        distro: bullseye
-        run: | 
-          export LSAN_OPTIONS=verbosity=1:log_threads=1
-          make check
+#    - uses: uraimo/run-on-arch-action@v2
+#      name: Unit tests
+#      with:
+#        arch: aarch64
+#        distro: bullseye
+#        run: | 
+#          export LSAN_OPTIONS=verbosity=1:log_threads=1
+#          make check
