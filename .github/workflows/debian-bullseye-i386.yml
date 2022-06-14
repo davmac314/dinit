@@ -1,0 +1,34 @@
+name: Dinit on debian-bullseye-i386 CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  Debian-bullseye-amd64_build:
+
+    runs-on: ubuntu-latest
+    container:
+      image: debian:bullseye
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Add 32-bit repos
+      run: dpkg --add-architecture i386
+    - name: Getting depends
+      run: apt-get update && apt-get install gcc:i386 make:i386 m4:i386 g++:i386 build-essential:i386 -y
+    - name: Print g++ version & info
+      run: g++ -dumpmachine 
+    - name: chmod +x configure
+      run: chmod +x ./configs/mconfig.Linux.sh
+    - name: configure
+      run: ./configs/mconfig.Linux.sh
+    - name: Build
+      run: make
+    - name: Unit tests
+      run: make check
+## Integration tests disabled due some bugs
+#    - name: Integration tests
+#      run: make check-igr
