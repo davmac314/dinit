@@ -23,8 +23,11 @@ jobs:
           apk add make
           apk add g++
           apk add m4
+          g++ -dumpmachine
           chmod +x ./configs/mconfig.Linux.sh
           ./configs/mconfig.Linux.sh
           make
+          apk add file
+          file ./src/dinit
           export LSAN_OPTIONS=verbosity=1:log_threads=1
           make check
