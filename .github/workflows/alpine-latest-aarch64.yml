@@ -28,4 +28,3 @@ jobs:
           make
           export LSAN_OPTIONS=verbosity=1:log_threads=1
           make check
-          make check-igr
