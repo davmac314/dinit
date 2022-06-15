@@ -20,9 +20,9 @@ jobs:
         distro: alpine_latest
         run: | 
           apk update
-          apk install make
-          apk install g++
-          apk install m4
+          apk add make
+          apk add g++
+          apk add m4
           chmod +x ./configs/mconfig.Linux.sh
           ./configs/mconfig.Linux.sh
           make
