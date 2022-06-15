@@ -1,3 +1,13 @@
+== Version 0.15.1
+
+(Alpha release #7)
+
+This contains minor fixes for the previous release.
+
+Changes:
+ * Remove extra newline which was printed after service description error log messages.
+ * Install dinit-monitor as part of "make install".
+
 == Version 0.15.0
 
 (Alpha release #6)
