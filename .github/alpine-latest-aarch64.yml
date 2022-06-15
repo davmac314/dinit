@@ -1,0 +1,30 @@
+name: Dinit on alpine-latest-aarch64 CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  Alpine-latest-aarch64_build:
+
+    runs-on: ubuntu-latest
+      
+    steps:
+    - uses: actions/checkout@v3
+    - uses: uraimo/run-on-arch-action@v2
+      name: Getting depends & configure & build & unit tests
+      with:
+        arch: aarch64
+        distro: alpine_latest
+        run: | 
+          apk update
+          apk install make -y
+          apk install g++ -y
+          apk install m4 -y
+          chmod +x ./configs/mconfig.Linux.sh
+          ./configs/mconfig.Linux.sh
+          make
+          export LSAN_OPTIONS=verbosity=1:log_threads=1
+          make check
