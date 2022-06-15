@@ -16,7 +16,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Getting depends
-      run: apt-get update && apt-get install gcc make m4 g++ file -y
+      run: apt-get update && apt-get install gcc make m4 g++ -y
     - name: Print g++ arch
       run: g++ -dumpmachine
     - name: chmod +x configure
@@ -25,6 +25,8 @@ jobs:
       run: ./configs/mconfig.Linux.sh
     - name: Build
       run: make
+    - name: Install "file" package via apt-get
+      run: apt-get install file -y
     - name: Print compiled file arch
       run: file ./src/dinit
     - name: Unit tests
