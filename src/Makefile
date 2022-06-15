@@ -49,7 +49,7 @@ run-cppcheck:
 
 install: all
 	install -d $(DESTDIR)$(SBINDIR)
-	install $(STRIPOPTS) dinit dinitctl dinitcheck $(SHUTDOWN) $(DESTDIR)$(SBINDIR)
+	install $(STRIPOPTS) dinit dinitctl dinitcheck dinit-monitor $(SHUTDOWN) $(DESTDIR)$(SBINDIR)
 ifeq ($(BUILD_SHUTDOWN),yes)
 	ln -sf $(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWNPREFIX)halt
 	ln -sf $(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWNPREFIX)reboot
