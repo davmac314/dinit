@@ -1,0 +1,30 @@
+name: Dinit on alpine-latest-armv6 CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  Alpine-latest-armv6_build:
+
+    runs-on: ubuntu-latest
+      
+    steps:
+    - uses: actions/checkout@v3
+    - uses: uraimo/run-on-arch-action@v2
+      name: Getting depends & configure & build & unit tests
+      with:
+        arch: armv6
+        distro: alpine_latest
+        run: | 
+          apk update
+          apk add make
+          apk add g++
+          apk add m4
+          chmod +x ./configs/mconfig.Linux.sh
+          ./configs/mconfig.Linux.sh
+          make
+          export LSAN_OPTIONS=verbosity=1:log_threads=1
+          make check
