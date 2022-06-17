@@ -31,8 +31,5 @@ jobs:
       run: file ./src/dinit
     - name: Unit tests
       run: make check
-    - name: Create tester user
-      run: useradd tester -m && chown -R tester:tester ./ && passwd -d tester
-## Integration tests disabled due some bugs
     - name: Integration tests
-      run: sudo -u tester make check-igr
+      run: make check-igr
