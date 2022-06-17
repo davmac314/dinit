@@ -16,7 +16,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Getting depends
-      run: apt-get update && apt-get install gcc make m4 g++ -y
+      run: apt-get update && apt-get install gcc make m4 g++ sudo -y
     - name: Print g++ arch
       run: g++ -dumpmachine
     - name: chmod +x configure
@@ -31,6 +31,8 @@ jobs:
       run: file ./src/dinit
     - name: Unit tests
       run: make check
+    - name: Create tester user
+      run: useradd tester -m && chmod -R tester:tester && passwd -d tester
 ## Integration tests disabled due some bugs
-#    - name: Integration tests
-#      run: make check-igr
+    - name: Integration tests
+      run: sudo -u tester make check-igr
