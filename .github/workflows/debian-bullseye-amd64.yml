@@ -16,7 +16,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Getting depends
-      run: apt-get update && apt-get install gcc make m4 g++ sudo -y
+      run: apt-get update && apt-get install gcc make m4 g++ build-essential sudo -y
     - name: Print g++ arch
       run: g++ -dumpmachine
     - name: chmod +x configure
