@@ -32,7 +32,7 @@ jobs:
     - name: Unit tests
       run: make check
     - name: Create tester user
-      run: useradd tester -m && chmod -R tester:tester && passwd -d tester
+      run: useradd tester -m && chown -R tester:tester ./ && passwd -d tester
 ## Integration tests disabled due some bugs
     - name: Integration tests
       run: sudo -u tester make check-igr
