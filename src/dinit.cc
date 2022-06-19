@@ -659,8 +659,6 @@ static void log_bad_env(int linenum)
 // Read and set environment variables from a file. May throw std::bad_alloc, std::system_error.
 void read_env_file(const char *env_file_path)
 {
-    // Note that we can't use the log in this function; it hasn't been initialised yet.
-
     std::ifstream env_file(env_file_path);
     if (! env_file) return;
 
