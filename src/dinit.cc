@@ -1053,7 +1053,7 @@ static void find_cgroup_path() noexcept
             }
 
             cur_read += rr;
-            if (line_end_pos != 0) {
+            if (line_end_pos != (size_t)-1) {
                 break;
             }
 
