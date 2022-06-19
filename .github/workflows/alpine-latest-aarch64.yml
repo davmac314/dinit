@@ -5,16 +5,17 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+  workflow_dispatch:
 
 jobs:
   Alpine-latest-aarch64_build:
 
     runs-on: ubuntu-latest
-      
+
     steps:
     - uses: actions/checkout@v3
     - uses: uraimo/run-on-arch-action@v2
-      name: Getting depends & configure & build & unit tests
+      name: Getting depends & configure & build & unit tests & integration tests
       with:
         arch: aarch64
         distro: alpine_latest
@@ -31,3 +32,4 @@ jobs:
           file ./src/dinit
           export LSAN_OPTIONS=verbosity=1:log_threads=1
           make check
+          make check-igr

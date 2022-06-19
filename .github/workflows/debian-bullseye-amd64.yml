@@ -32,6 +32,5 @@ jobs:
       run: file ./src/dinit
     - name: Unit tests
       run: make check
-## Integration tests disabled due some bugs
-#    - name: Integration tests
-#      run: make check-igr
+    - name: Integration tests
+      run: make check-igr
