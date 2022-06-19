@@ -1027,6 +1027,36 @@ control_conn_t::handle_t control_conn_t::allocate_service_handle(service_record 
     return candidate;
 }
 
+void control_conn_t::service_event(service_record *service, service_event_t event) noexcept
+{
+    // For each service handle corresponding to the event, send an information packet.
+    auto range = service_key_map.equal_range(service);
+    auto &i = range.first;
+    auto &end = range.second;
+    try {
+        while (i != end) {
+            uint32_t key = i->second;
+            std::vector<char> pkt;
+            constexpr int pktsize = 3 + sizeof(key) + STATUS_BUFFER_SIZE;
+            pkt.reserve(pktsize);
+            pkt.push_back(DINIT_IP_SERVICEEVENT);
+            pkt.push_back(pktsize);
+            char *p = (char *)&key;
+            for (unsigned j = 0; j < sizeof(key); j++) {
+                pkt.push_back(*p++);
+            }
+            pkt.push_back(static_cast<char>(event));
+            pkt.resize(pktsize);
+            fill_status_buffer(pkt.data() + 3 + sizeof(key), service);
+            queue_packet(std::move(pkt));
+            ++i;
+        }
+    }
+    catch (std::bad_alloc &exc) {
+        do_oom_close();
+    }
+}
+
 bool control_conn_t::queue_packet(const char *pkt, unsigned size) noexcept
 {
     int in_flag = bad_conn_close ? 0 : IN_EVENTS;

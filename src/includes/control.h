@@ -206,33 +206,7 @@ class control_conn_t : private service_listener
     // Process service event broadcast.
     // Note that this can potentially be called during packet processing (upon issuing
     // service start/stop orders etc).
-    void service_event(service_record * service, service_event_t event) noexcept final override
-    {
-        // For each service handle corresponding to the event, send an information packet.
-        auto range = service_key_map.equal_range(service);
-        auto & i = range.first;
-        auto & end = range.second;
-        try {
-            while (i != end) {
-                uint32_t key = i->second;
-                std::vector<char> pkt;
-                constexpr int pktsize = 3 + sizeof(key);
-                pkt.reserve(pktsize);
-                pkt.push_back(DINIT_IP_SERVICEEVENT);
-                pkt.push_back(pktsize);
-                char * p = (char *) &key;
-                for (int j = 0; j < (int)sizeof(key); j++) {
-                    pkt.push_back(*p++);
-                }
-                pkt.push_back(static_cast<char>(event));
-                queue_packet(std::move(pkt));
-                ++i;
-            }
-        }
-        catch (std::bad_alloc &exc) {
-            do_oom_close();
-        }
-    }
+    void service_event(service_record *service, service_event_t event) noexcept final override;
     
     public:
     control_conn_t(eventloop_t &loop, service_set * services_p, int fd)
