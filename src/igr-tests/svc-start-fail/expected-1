@@ -1,0 +1,4 @@
+Service 'bad-command' failed to start.
+Reason: execution of service process failed:
+        Stage: executing command
+        Error: No such file or directory
