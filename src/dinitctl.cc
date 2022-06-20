@@ -446,6 +446,8 @@ int main(int argc, char **argv)
     return 1;
 }
 
+// Size of service status info (in various packets)
+constexpr static unsigned STATUS_BUFFER_SIZE = 6 + ((sizeof(pid_t) > sizeof(int)) ? sizeof(pid_t) : sizeof(int));
 
 // Extract/read a string of specified length from the buffer/socket. The string is consumed
 // from the buffer.
@@ -549,6 +551,23 @@ static std::string get_service_name(int socknum, cpbuffer_t &rbuffer, handle_t h
     return name;
 }
 
+static void print_termination_details(int exit_status)
+{
+    using namespace std;
+
+    if (WIFSIGNALED(exit_status)) {
+        cout << "signalled - signal ";
+        cout << WTERMSIG(exit_status);
+    }
+    else if (WIFEXITED(exit_status)) {
+        cout << "exited - status ";
+        cout << WEXITSTATUS(exit_status);
+    }
+    else {
+        cout << "unknown reason";
+    }
+}
+
 // Wait for a service to reached stopped (do_stop == true) or started (do_stop == false) state.
 // Returns 0 if the service started/stopped, 1 if start/stop was cancelled or failed.
 static int wait_service_state(int socknum, cpbuffer_t &rbuffer, handle_t handle,
@@ -574,29 +593,63 @@ static int wait_service_state(int socknum, cpbuffer_t &rbuffer, handle_t handle,
     int r = rbuffer.fill_to(socknum, 2);
     while (r > 0) {
         if (rbuffer[0] >= 100) {
-            int pktlen = (unsigned char) rbuffer[1];
+            unsigned pktlen = (unsigned char) rbuffer[1];
             fill_buffer_to(rbuffer, socknum, pktlen);
 
             if (rbuffer[0] == DINIT_IP_SERVICEEVENT) {
+                // earlier versions do not include status info, the size in that case is base_pkt_size:
+                constexpr unsigned base_pkt_size = 2 + sizeof(handle_t) + 1;
+                if (pktlen < base_pkt_size) {
+                    throw dinit_protocol_error();
+                }
                 handle_t ev_handle;
                 rbuffer.extract((char *) &ev_handle, 2, sizeof(ev_handle));
                 service_event_t event = static_cast<service_event_t>(rbuffer[2 + sizeof(ev_handle)]);
                 if (ev_handle == handle) {
                     if (event == completionEvent) {
                         if (verbose) {
-                            cout << "Service '" << service_name << "' " << describeState(do_stop) << "." << endl;
+                            cout << "Service '" << service_name << "' " << describeState(do_stop) << ".\n";
                         }
                         return 0;
                     }
                     else if (event == cancelledEvent) {
                         if (verbose) {
-                            cout << "Service '" << service_name << "' " << describeVerb(do_stop) << " cancelled." << endl;
+                            cout << "Service '" << service_name << "' " << describeVerb(do_stop) << " cancelled.\n";
                         }
                         return 1;
                     }
-                    else if (! do_stop && event == service_event_t::FAILEDSTART) {
+                    else if (!do_stop && event == service_event_t::FAILEDSTART) {
                         if (verbose) {
-                            cout << "Service '" << service_name << "' failed to start." << endl;
+                            cout << "Service '" << service_name << "' failed to start.\n";
+                            if (pktlen >= base_pkt_size + STATUS_BUFFER_SIZE) {
+                                stopped_reason_t stop_reason =
+                                        static_cast<stopped_reason_t>(rbuffer[base_pkt_size + 3]);
+                                int exit_status;
+                                rbuffer.extract((char *)&exit_status, base_pkt_size + 6, sizeof(exit_status));
+
+                                switch (stop_reason) {
+                                case stopped_reason_t::DEPFAILED:
+                                    cout << "Reason: a dependency of the service failed to start. Check dinit log.\n";
+                                    break;
+                                case stopped_reason_t::TIMEDOUT:
+                                    cout << "Reason: start timed out.\n";
+                                    break;
+                                case stopped_reason_t::EXECFAILED:
+                                    cout << "Reason: execution of service process failed:\n";
+                                    uint16_t launch_stage;
+                                    rbuffer.extract((char *)&launch_stage, base_pkt_size + 4, sizeof(uint16_t));
+                                    cout << "        Stage: " << exec_stage_descriptions[launch_stage] << "\n";
+                                    cout << "        Error: " << strerror(exit_status) << "\n";
+                                    break;
+                                case stopped_reason_t::FAILED:
+                                    cout << "Reason: service process terminated before ready: ";
+                                    print_termination_details(exit_status);
+                                    cout << "\n";
+                                    break;
+                                default:
+                                    cout << "Reason unknown/unrecognised. Check dinit log.\n";
+                                }
+                            }
                         }
                         return 1;
                     }
@@ -964,12 +1017,13 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
         bool waiting_console = (console_flags & 1) != 0;
         bool was_skipped = (console_flags & 4) != 0;
         bool marked_active = (console_flags & 8) != 0;
+        bool has_pid = (console_flags & 16) != 0;
 
         stopped_reason_t stop_reason = static_cast<stopped_reason_t>(rbuffer[5]);
 
         pid_t service_pid;
         int exit_status;
-        if (current != service_state_t::STOPPED) {
+        if (has_pid) {
             rbuffer.extract((char *)&service_pid, 8, sizeof(service_pid));
         }
         else {
@@ -1028,7 +1082,7 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
 
         cout << "] " << name;
 
-        if (current != service_state_t::STOPPED && service_pid != -1) {
+        if (current != service_state_t::STOPPED && has_pid) {
         	cout << " (pid: " << service_pid << ")";
         }
         
@@ -1060,23 +1114,6 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
     }
 
     return 0;
-}
-
-static void print_termination_details(int exit_status)
-{
-    using namespace std;
-
-    if (WIFSIGNALED(exit_status)) {
-        cout << "signalled - signal ";
-        cout << WTERMSIG(exit_status);
-    }
-    else if (WIFEXITED(exit_status)) {
-        cout << "exited - status ";
-        cout << WEXITSTATUS(exit_status);
-    }
-    else {
-        cout << "unknown";
-    }
 }
 
 static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_name)
@@ -1114,8 +1151,7 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
         }
         rbuffer.consume(1);
 
-        int statussize = 6 + std::max(sizeof(pid_t), sizeof(int));;
-        fill_buffer_to(rbuffer, socknum, statussize + 1 /* reserved */);
+        fill_buffer_to(rbuffer, socknum, STATUS_BUFFER_SIZE + 1 /* reserved */);
         rbuffer.consume(1);
 
         service_state_t current = static_cast<service_state_t>(rbuffer[0]);

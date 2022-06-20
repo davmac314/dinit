@@ -539,30 +539,31 @@ bool control_conn_t::process_reload_service()
     return true;
 }
 
-constexpr static int STATUS_BUFFER_SIZE = 6 + ((sizeof(pid_t) > sizeof(int)) ? sizeof(pid_t) : sizeof(int));
+constexpr static unsigned SIZEOF_INT_PIDT_UNION = ((sizeof(pid_t) > sizeof(int)) ? sizeof(pid_t) : sizeof(int));
+constexpr static unsigned STATUS_BUFFER_SIZE = 6 + SIZEOF_INT_PIDT_UNION;
 
 static void fill_status_buffer(char *buffer, service_record *service)
 {
     buffer[0] = static_cast<char>(service->get_state());
     buffer[1] = static_cast<char>(service->get_target_state());
 
+    pid_t proc_pid = service->get_pid();
+
     char b0 = service->is_waiting_for_console() ? 1 : 0;
     b0 |= service->has_console() ? 2 : 0;
     b0 |= service->was_start_skipped() ? 4 : 0;
     b0 |= service->is_marked_active() ? 8 : 0;
+    b0 |= (proc_pid != -1) ? 16 : 0;
     buffer[2] = b0;
     buffer[3] = static_cast<char>(service->get_stop_reason());
 
     buffer[4] = 0; // (if exec failed, these are replaced with stage)
     buffer[5] = 0;
 
-    // Next: either the exit status, or the process ID
-    if (service->get_state() != service_state_t::STOPPED) {
-        pid_t proc_pid = service->get_pid();
+    if (proc_pid != -1) {
         memcpy(buffer + 6, &proc_pid, sizeof(proc_pid));
     }
     else {
-        // If exec failed,
         if (buffer[3] == (char)stopped_reason_t::EXECFAILED) {
             base_process_service *bsp = (base_process_service *)service;
             run_proc_err exec_err = bsp->get_exec_err_info();
