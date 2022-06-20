@@ -189,8 +189,8 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
                 service->process_timer.stop_timer(event_loop);
                 service->waiting_stopstart_timer = false;
             }
-            service->failed_to_start(false, false);
             service->set_state(service_state_t::STOPPING);
+            service->failed_to_start(false, false);
             service->bring_down();
         }
         service->services->process_queues();
@@ -295,6 +295,7 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
         // If state is STARTING, we must be waiting for readiness notification; the process has
         // terminated before becoming ready.
         stop_reason = stopped_reason_t::FAILED;
+        service_state = service_state_t::STOPPING;
         failed_to_start();
     }
     else if (service_state == service_state_t::STOPPING) {
@@ -343,6 +344,7 @@ void process_service::exec_failed(run_proc_err errcode) noexcept
 
     if (get_state() == service_state_t::STARTING) {
         stop_reason = stopped_reason_t::EXECFAILED;
+        set_state(service_state_t::STOPPING);
         failed_to_start();
     }
     else {
@@ -465,6 +467,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
                 case pid_result_t::FAILED:
                     // Failed startup: no auto-restart.
                     stop_reason = stopped_reason_t::FAILED;
+                    service_state = service_state_t::STOPPING;
                     failed_to_start();
                     break;
                 case pid_result_t::TERMINATED:
@@ -478,6 +481,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
         }
         else {
             stop_reason = stopped_reason_t::FAILED;
+            service_state = service_state_t::STOPPING;
             failed_to_start();
         }
     }
@@ -521,6 +525,7 @@ void bgproc_service::exec_failed(run_proc_err errcode) noexcept
     else {
         // Only time we execute is for startup:
         stop_reason = stopped_reason_t::EXECFAILED;
+        set_state(service_state_t::STOPPING);
         failed_to_start();
     }
 }
@@ -602,6 +607,7 @@ void scripted_service::handle_exit_status(bp_sys::exit_status exit_status) noexc
                 log(loglevel_t::ERROR, "Service ", get_name(), " command terminated due to signal ",
                         exit_status.get_term_sig());
             }
+            service_state = service_state_t::STOPPED;
             stop_reason = stopped_reason_t::FAILED;
             failed_to_start();
         }
@@ -616,6 +622,7 @@ void scripted_service::exec_failed(run_proc_err errcode) noexcept
     auto service_state = get_state();
     if (service_state == service_state_t::STARTING) {
         stop_reason = stopped_reason_t::EXECFAILED;
+        service_state = service_state_t::STOPPING;
         failed_to_start();
     }
     else if (service_state == service_state_t::STOPPING) {

@@ -317,7 +317,7 @@ class service_record
     // Service has successfully started
     void started() noexcept;
     
-    // Service failed to start (only called when in STARTING state).
+    // Service failed to start (should be called with state set to STOPPING or STOPPED).
     //   dep_failed: whether failure is recorded due to a dependency failing
     //   immediate_stop: whether to set state as STOPPED and handle complete stop.
     void failed_to_start(bool dep_failed = false, bool immediate_stop = true) noexcept;

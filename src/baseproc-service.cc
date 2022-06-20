@@ -398,7 +398,6 @@ void base_process_service::timer_expired() noexcept
         interrupt_start();
         stop_reason = stopped_reason_t::TIMEDOUT;
         failed_to_start(false, false);
-	    //services->process_queues();
     }
     else {
         // STARTING / STARTED, and we have no pid: must be restarting (smooth recovery if STARTED)

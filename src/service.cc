@@ -232,6 +232,7 @@ void service_record::do_propagation() noexcept
     if (prop_failure) {
         prop_failure = false;
         stop_reason = stopped_reason_t::DEPFAILED;
+        service_state = service_state_t::STOPPED;
         failed_to_start(true);
     }
 
@@ -363,6 +364,7 @@ void service_record::all_deps_started() noexcept
     waiting_for_deps = false;
 
     if (!bring_up()) {
+        service_state = service_state_t::STOPPING;
         failed_to_start();
     }
 }
@@ -419,6 +421,8 @@ void service_record::started() noexcept
 
 void service_record::failed_to_start(bool depfailed, bool immediate_stop) noexcept
 {
+    desired_state = service_state_t::STOPPED;
+
     if (waiting_for_console) {
         services->unqueue_console(this);
         waiting_for_console = false;

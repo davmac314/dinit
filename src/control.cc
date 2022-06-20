@@ -564,6 +564,7 @@ static void fill_status_buffer(char *buffer, service_record *service)
         memcpy(buffer + 6, &proc_pid, sizeof(proc_pid));
     }
     else {
+        // These values only make sense in STOPPING/STOPPED, but we'll fill them in regardless:
         if (buffer[3] == (char)stopped_reason_t::EXECFAILED) {
             base_process_service *bsp = (base_process_service *)service;
             run_proc_err exec_err = bsp->get_exec_err_info();
