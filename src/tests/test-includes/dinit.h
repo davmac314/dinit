@@ -231,7 +231,7 @@ inline void setup_external_log() noexcept
 {
 }
 
-inline void read_env_file(const char *env_file_path)
+inline void read_env_file(const char *env_file_path, bool do_log)
 {
 }
 
