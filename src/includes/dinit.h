@@ -15,7 +15,12 @@ using time_val = dasynq::time_val;
 
 void rootfs_is_rw() noexcept;
 void setup_external_log() noexcept;
-void read_env_file(const char *);
+
+// Read an environment file and set variables in the current environment.
+//   file - the file to read
+//   log_warnings - if true, syntactic errors are logged
+// May throw bad_alloc or system_error.
+void read_env_file(const char *file, bool log_warnings);
 
 extern eventloop_t event_loop;
 

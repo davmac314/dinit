@@ -142,7 +142,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     if (params.env_file != nullptr && *params.env_file != 0) {
         err.stage = exec_stage::READ_ENV_FILE;
         try {
-            read_env_file(params.env_file);
+            read_env_file(params.env_file, false);
         }
         catch (std::system_error &sys_err) {
             errno = sys_err.code().value();

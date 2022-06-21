@@ -538,7 +538,7 @@ int dinit_main(int argc, char **argv)
     if (!am_system_init && log_specified) setup_external_log();
 
     if (env_file != nullptr) {
-        read_env_file(env_file);
+        read_env_file(env_file, true);
     }
 
     for (auto svc : services_to_start) {
@@ -657,7 +657,7 @@ static void log_bad_env(int linenum)
 }
 
 // Read and set environment variables from a file. May throw std::bad_alloc, std::system_error.
-void read_env_file(const char *env_file_path)
+void read_env_file(const char *env_file_path, bool log_warnings)
 {
     std::ifstream env_file(env_file_path);
     if (! env_file) return;
@@ -679,17 +679,21 @@ void read_env_file(const char *env_file_path)
         if (lpos != lend) {
             if (*lpos != '#') {
                 if (*lpos == '=') {
-                    log_bad_env(linenum);
+                    if (log_warnings) {
+                        log_bad_env(linenum);
+                    }
                     continue;
                 }
                 auto name_begin = lpos++;
                 // skip until '=' or whitespace:
-                while (lpos != lend && *lpos != '=' && ! std::isspace(*lpos, clocale)) ++lpos;
+                while (lpos != lend && *lpos != '=' && !std::isspace(*lpos, clocale)) ++lpos;
                 auto name_end = lpos;
                 //  skip whitespace:
                 while (lpos != lend && std::isspace(*lpos, clocale)) ++lpos;
                 if (lpos == lend || *lpos != '=') {
-                    log_bad_env(linenum);
+                    if (log_warnings) {
+                        log_bad_env(linenum);
+                    }
                     continue;
                 }
 
