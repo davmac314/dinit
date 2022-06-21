@@ -146,9 +146,11 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         }
         catch (std::system_error &sys_err) {
             errno = sys_err.code().value();
+            goto failure_out;
         }
         catch (std::bad_alloc &alloc_err) {
-            errno = ENOMEM; goto failure_out;
+            errno = ENOMEM;
+            goto failure_out;
         }
     }
 
