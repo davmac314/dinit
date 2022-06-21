@@ -688,7 +688,7 @@ void read_env_file(const char *env_file_path)
                 auto name_end = lpos;
                 //  skip whitespace:
                 while (lpos != lend && std::isspace(*lpos, clocale)) ++lpos;
-                if (lpos == lend) {
+                if (lpos == lend || *lpos != '=') {
                     log_bad_env(linenum);
                     continue;
                 }
