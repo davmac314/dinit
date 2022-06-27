@@ -893,19 +893,14 @@ bool control_conn_t::process_setenv()
 
     eq = envVar.find('=');
     if (!eq || eq == envVar.npos) {
-        // not found or at the beginning of the string
+        // Not found or at the beginning of the string
         goto badreq;
     }
 
-    envVar[eq] = '\0';
+    main_env.set_var(std::move(envVar));
 
-    if (setenv(envVar.c_str(), &envVar[eq + 1], 1) != 0) {
-        // failed to set the var
-        goto badreq;
-    }
-
-    // success response
-    if (! queue_packet(okRep, 1)) return false;
+    // Success response
+    if (!queue_packet(okRep, 1)) return false;
 
     // Clear the packet from the buffer
     rbuf.consume(chklen);

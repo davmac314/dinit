@@ -18,6 +18,7 @@
 #include "dinit-ll.h"
 #include "dinit-log.h"
 #include "service-dir.h"
+#include "dinit-env.h"
 
 /*
  * This header defines service_record, a data record maintaining information about a service,

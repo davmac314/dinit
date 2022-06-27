@@ -2,7 +2,12 @@
 #define DINIT_UTIL_H_INCLUDED 1
 
 #include <string>
+#include <functional>
+#include <list>
+#include <vector>
+#include <algorithm>
 
+#include <cstring>
 #include <cstddef>
 #include <cerrno>
 
@@ -112,6 +117,412 @@ public:
     void construct(T *obj, Args... args)
     {
         std::allocator<T>::construct(obj, args...);
+    }
+};
+
+// Since we are C++11, we don't have a std::string_view.
+class string_view
+{
+    const char *s = nullptr;
+    size_t count = 0;
+
+public:
+    string_view() = default;
+    string_view(const string_view &other) = default;
+    string_view(const char *s_p, size_t count_p) : s(s_p), count(count_p) { }
+    string_view(const char *s_p) : s(s_p), count(strlen(s_p)) { }
+
+    string_view(const std::string &str) : s(str.data()), count(str.length()) { }
+
+    string_view &operator=(const string_view &other) = default;
+
+    bool operator==(const string_view &other) const
+    {
+        if (count != other.count) return false;
+        return memcmp(s, other.s, count) == 0;
+    }
+
+    bool operator==(const char *other) const
+    {
+        if (strncmp(s, other, count) == 0) {
+            if (other[count] == '\0') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    const char *data() const { return s; }
+    size_t size() const { return count; }
+    size_t length() const { return count; }
+    bool empty() const { return count == 0; }
+};
+
+inline size_t hash(const string_view &str)
+{
+    size_t end_pos = str.length();
+    size_t hash_val = 0;
+    for (size_t i = 0; i < end_pos; i += sizeof(size_t)) {
+        // collect as many characters as will fit into size_t
+        size_t hash_unit = 0;
+        std::memcpy(&hash_unit, str.data() + i, std::min(sizeof(size_t), end_pos - i));
+        // then incorporate the collected characters into the hash value
+        hash_val *= 31;
+        hash_val += hash_unit;
+    }
+    return hash_val;
+}
+
+struct hash_sv
+{
+    size_t operator()(const string_view &str) const
+    {
+        return hash(str);
+    }
+};
+
+inline bool operator==(string_view str1, const std::string &str2)
+{
+    return str1 == string_view(str2);
+}
+
+inline bool operator==(const std::string &str2, string_view str1)
+{
+    return str1 == string_view(str2);
+}
+
+// An equivalent to std::equal_to<void> (which is C++14)
+class dinit_equal_to
+{
+public:
+    template <typename A, typename B>
+    bool operator()(const A &a, const B &b)
+    {
+        return a == b;
+    }
+};
+
+// A set where we can check for membership via other-than-key-type values
+template <typename K, typename Hash = std::hash<K>, typename Equal = std::equal_to<K>>
+class dinit_unordered_set {
+
+    using key_type = K;
+    using value_type = K;
+    using size_type = size_t;
+    using hasher = Hash;
+    using key_equal = Equal;
+
+    hasher hash_f;
+    key_equal key_equal_f;
+
+    using bucket_vec = std::vector<std::list<K>>;
+    bucket_vec buckets {};
+
+    size_t current_size = 0;
+    size_t current_limit = 0; // size limit before we need more buckets
+
+    size_t buckets_to_max(size_t buckets) noexcept
+    {
+        // calculate "buckets * 3 / 4" but without risk of overflow at the multiply stage
+        size_t base = buckets / 4 * 3;
+        size_t extra = (buckets % 4) * 3 / 4;
+        return base + extra;
+    }
+
+    void do_rehash(size_t new_buckets) noexcept
+    {
+        // note, buckets vector is already at least new_buckets in size
+        size_t old_buckets = buckets.size();
+
+        // first splice all nodes from all buckets into a single list
+        std::list<K> all_nodes;
+        for (size_t i = 0; i < old_buckets; ++i) {
+            all_nodes.splice(all_nodes.end(), buckets[i]);
+        }
+
+        // now put all nodes into the correct bucket
+        auto node_i = all_nodes.begin();
+        while (node_i != all_nodes.end()) {
+            auto next_node_i = std::next(node_i);
+            size_t hashval = hash_f(*node_i);
+            size_t bucket_num = hashval % new_buckets;
+            buckets[bucket_num].splice(buckets[bucket_num].end(), all_nodes, node_i);
+            node_i = next_node_i;
+        }
+    }
+
+public:
+    class iterator
+    {
+        friend class dinit_unordered_set;
+
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+        using value_type = dinit_unordered_set::value_type;
+        using pointer = value_type*;
+        using reference = value_type&;
+
+    protected:
+        using list_iterator_t = typename std::list<K>::iterator;
+
+        bucket_vec *buckets;
+        list_iterator_t list_it;
+        size_t bucket_num;
+
+    public:
+        iterator() noexcept : buckets(nullptr), list_it({}), bucket_num(-1) { }
+        iterator(bucket_vec *buckets_p, list_iterator_t lit, size_t bucket_p) noexcept
+            : buckets(buckets_p), list_it(lit), bucket_num(bucket_p) { }
+        iterator(const iterator &) noexcept = default;
+
+        bool operator==(const iterator &other) noexcept
+        {
+            return other.bucket_num == bucket_num && other.list_it == list_it;
+        }
+
+        bool operator!=(const iterator &other) noexcept
+        {
+            return !(*this == other);
+        }
+
+        value_type &operator*() noexcept
+        {
+            return *list_it;
+        }
+
+        const value_type *operator->() noexcept
+        {
+            return &(*list_it);
+        }
+
+        iterator &operator++() noexcept
+        {
+            if (++list_it == (*buckets)[bucket_num].end()) {
+                for (size_type i = bucket_num + 1; i < buckets->size(); ++i) {
+                    if (!(*buckets)[i].empty()) {
+                        list_it = (*buckets)[i].begin();
+                        bucket_num = i;
+                        return *this;
+                    }
+                }
+                list_it = {};
+                bucket_num = -1;
+            }
+            return *this;
+        }
+    };
+
+    class const_iterator : public iterator
+    {
+    public:
+        using iterator::iterator;
+
+        using pointer = const typename iterator::value_type*;
+        using reference = const typename iterator::value_type&;
+
+        const_iterator(const const_iterator &) noexcept = default;
+        const_iterator(const iterator &other) noexcept : iterator(other) { }
+
+        const value_type &operator*() noexcept
+        {
+            return *iterator::list_it;
+        }
+
+        const value_type *operator->() noexcept
+        {
+            return &(*iterator::list_it);
+        }
+    };
+
+private:
+    // implement insert as a template so we can use it for rvalues and lvalues alike
+    template <typename V>
+    std::pair<iterator,bool> do_insert(V &&value)
+    {
+        size_t hashval = hash_f(value);
+        size_t bucket_num;
+
+        if (buckets.empty()) {
+            buckets.resize(4); // good enough starting point
+            current_limit = 3;
+            bucket_num = hashval % buckets.size();
+        }
+        else {
+            // First, check if the value is already present
+            bucket_num = hashval % buckets.size();
+            auto list_it = std::find_if(buckets[bucket_num].begin(), buckets[bucket_num].end(),
+                    [&](key_type &k) { return key_equal_f(k,value); });
+            if (list_it != buckets[bucket_num].end()) {
+                return { { &buckets, list_it, bucket_num }, false };
+            }
+
+            // Not present. Check if we need to expand.
+            if (current_size >= current_limit) {
+                if (buckets.size() <= (buckets.max_size() / 2)) {
+                    rehash(buckets.size() * 2);
+                    current_limit *= 2;
+                    bucket_num = hashval % buckets.size();
+                }
+                else {
+                    // in the unlikely event that we have hit the max_size, let's just become overloaded
+                    current_limit = -1;
+                }
+            }
+        }
+
+        auto list_it = buckets[bucket_num].insert(buckets[bucket_num].end(), std::forward<V>(value));
+        ++current_size;
+        return { { &buckets, list_it, bucket_num }, true };
+    }
+
+public:
+    dinit_unordered_set() noexcept = default;
+
+    iterator end() noexcept
+    {
+        return iterator();
+    }
+
+    const_iterator end() const noexcept
+    {
+        return const_iterator();
+    }
+
+    iterator begin() noexcept
+    {
+        if (current_size == 0) return end();
+        for (size_t i = 0; i < buckets.size(); ++i) {
+            if (!buckets[i].empty()) {
+                return { &buckets, buckets[i].begin(), i };
+            }
+        }
+        return end(); // (should not be reachable)
+    }
+
+    const_iterator begin() const noexcept
+    {
+        auto *non_const_this = const_cast<dinit_unordered_set *>(this);
+        return non_const_this->begin();
+    }
+
+    std::pair<iterator,bool> insert(const value_type &value)
+    {
+        return do_insert(value);
+    }
+
+    std::pair<iterator,bool> insert(value_type &&value)
+    {
+        return do_insert(std::move(value));
+    }
+
+    // Not available in C++: insert a different type of value; assumes that hash and equals
+    // predicate can deal with the argument type, and that it can be converted to the actual
+    // value.
+    template <typename V>
+    std::pair<iterator,bool> insert_byval(V &&value)
+    {
+        return do_insert(std::forward<V>(value));
+    }
+
+    void rehash(size_type new_bucket_count)
+    {
+        // calculate minimum bucket count, limited by maximum possible count.
+        size_t max_buckets = buckets.max_size();
+        size_t max_count = buckets_to_max(max_buckets);
+        size_t min_buckets;
+        if (current_size > max_count) {
+            min_buckets = max_buckets;
+        }
+        else {
+            size_t base = current_size / 3 * 4;
+            size_t extra = (current_size % 3) * 4 / 3;
+            min_buckets = base + extra;
+        }
+
+        new_bucket_count = std::max(new_bucket_count, min_buckets);
+
+        if (new_bucket_count < buckets.size()) {
+            // buckets vector will shrink: we need to reallocate entries into their new buckets first
+            do_rehash(new_bucket_count);
+            buckets.resize(new_bucket_count);
+        }
+        else {
+            // grow the vector, then rehash
+            buckets.resize(new_bucket_count);
+            do_rehash(new_bucket_count);
+        }
+    }
+
+    template <typename V>
+    iterator find(const V &value) noexcept
+    {
+        if (buckets.empty()) return end();
+        size_t hashval = hash_f(value);
+        size_t bucket_num = hashval % buckets.size();
+        for (auto list_it = buckets[bucket_num].begin(); list_it != buckets[bucket_num].end(); ++list_it) {
+            if (key_equal_f(*list_it, value)) {
+                return { &buckets, list_it, bucket_num };
+            }
+        }
+        return end();
+    }
+
+    template <typename V>
+    const_iterator find(const V &value) const noexcept
+    {
+        auto *non_const_this = const_cast<dinit_unordered_set *>(this);
+        return non_const_this->find(value);
+    }
+
+    iterator erase(iterator pos) noexcept
+    {
+        auto new_it = std::next(pos);
+        buckets[pos.bucket_num].erase(pos.list_it);
+        return new_it;
+    }
+
+    template <typename V>
+    size_type erase(const V &value) noexcept
+    {
+        auto it = find(value);
+        if (it != end()) {
+            buckets[it.bucket_num].erase(it.list_it);
+            return 1;
+        }
+        return 0;
+    }
+
+    template <typename V>
+    bool contains(const V &value) const noexcept
+    {
+        return find(value) != end();
+    }
+
+    size_type size() const noexcept
+    {
+        return current_size;
+    }
+
+    bool empty() const noexcept
+    {
+        return current_size == 0;
+    }
+
+    void clear() noexcept
+    {
+        for (auto &bucket : buckets) {
+            bucket.clear();
+        }
+        current_size = 0;
+        current_limit = 0;
+        buckets.clear();
+        try {
+            buckets.shrink_to_fit();
+        }
+        catch (std::bad_alloc &) {
+            // ignore any (unlikely) error
+        }
     }
 };
 

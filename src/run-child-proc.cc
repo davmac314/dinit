@@ -88,6 +88,9 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     constexpr int csenvbufsz = 12 + ((CHAR_BIT * sizeof(int) - 1 + 2) / 3) + 1;
     char csenvbuf[csenvbufsz];
 
+    environment proc_env;
+    environment::env_map proc_env_map;
+
     run_proc_err err;
     err.stage = exec_stage::ARRANGE_FDS;
 
@@ -138,52 +141,56 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         if (notify_fd == -1) goto failure_out;
     }
 
-    // Read environment from file
-    if (params.env_file != nullptr && *params.env_file != 0) {
+    try {
+        // Read environment from file
+        if (params.env_file != nullptr && *params.env_file != 0) {
+            err.stage = exec_stage::READ_ENV_FILE;
+            read_env_file(params.env_file, false, proc_env);
+        }
+
+        // Set up notify-fd variable:
+        if (notify_var != nullptr && *notify_var != 0) {
+            err.stage = exec_stage::SET_NOTIFYFD_VAR;
+            // We need to do an allocation: the variable name length, '=', and space for the value,
+            // and nul terminator:
+            int notify_var_len = strlen(notify_var);
+            int req_sz = notify_var_len + ((CHAR_BIT * sizeof(int) - 1 + 2) / 3) + 1;
+            char * var_str = (char *) malloc(req_sz);
+            if (var_str == nullptr) goto failure_out;
+            snprintf(var_str, req_sz, "%s=%d", notify_var, notify_fd);
+            proc_env.set_var(var_str);
+        }
+
+        // Set up Systemd-style socket activation:
+        if (socket_fd != -1) {
+            err.stage = exec_stage::SETUP_ACTIVATION_SOCKET;
+
+            // If we passing a pre-opened socket, it has to be fd number 3. (Thanks, Systemd).
+            if (dup2(socket_fd, 3) == -1) goto failure_out;
+            if (socket_fd != 3) close(socket_fd);
+
+            if (putenv(const_cast<char *>("LISTEN_FDS=1"))) goto failure_out;
+            snprintf(nbuf, bufsz, "LISTEN_PID=%jd", static_cast<intmax_t>(getpid()));
+            proc_env.set_var(nbuf);
+        }
+
+        if (csfd != -1) {
+            err.stage = exec_stage::SETUP_CONTROL_SOCKET;
+            snprintf(csenvbuf, csenvbufsz, "DINIT_CS_FD=%d", csfd);
+            proc_env.set_var(csenvbuf);
+        }
+
+        // We'll re-use READ_ENV_FILE stage here; it's accurate enough.
         err.stage = exec_stage::READ_ENV_FILE;
-        try {
-            read_env_file(params.env_file, false);
-        }
-        catch (std::system_error &sys_err) {
-            errno = sys_err.code().value();
-            goto failure_out;
-        }
-        catch (std::bad_alloc &alloc_err) {
-            errno = ENOMEM;
-            goto failure_out;
-        }
+        proc_env_map = proc_env.build(main_env);
     }
-
-    // Set up notify-fd variable:
-    if (notify_var != nullptr && *notify_var != 0) {
-        err.stage = exec_stage::SET_NOTIFYFD_VAR;
-        // We need to do an allocation: the variable name length, '=', and space for the value,
-        // and nul terminator:
-        int notify_var_len = strlen(notify_var);
-        int req_sz = notify_var_len + ((CHAR_BIT * sizeof(int) - 1 + 2) / 3) + 1;
-        char * var_str = (char *) malloc(req_sz);
-        if (var_str == nullptr) goto failure_out;
-        snprintf(var_str, req_sz, "%s=%d", notify_var, notify_fd);
-        if (putenv(var_str)) goto failure_out;
+    catch (std::system_error &sys_err) {
+        errno = sys_err.code().value();
+        goto failure_out;
     }
-
-    // Set up Systemd-style socket activation:
-    if (socket_fd != -1) {
-        err.stage = exec_stage::SETUP_ACTIVATION_SOCKET;
-
-        // If we passing a pre-opened socket, it has to be fd number 3. (Thanks, Systemd).
-        if (dup2(socket_fd, 3) == -1) goto failure_out;
-        if (socket_fd != 3) close(socket_fd);
-
-        if (putenv(const_cast<char *>("LISTEN_FDS=1"))) goto failure_out;
-        snprintf(nbuf, bufsz, "LISTEN_PID=%jd", static_cast<intmax_t>(getpid()));
-        if (putenv(nbuf)) goto failure_out;
-    }
-
-    if (csfd != -1) {
-        err.stage = exec_stage::SETUP_CONTROL_SOCKET;
-        snprintf(csenvbuf, csenvbufsz, "DINIT_CS_FD=%d", csfd);
-        if (putenv(csenvbuf)) goto failure_out;
+    catch (std::bad_alloc &) {
+        errno = ENOMEM;
+        goto failure_out;
     }
 
     if (working_dir != nullptr && *working_dir != 0) {
@@ -193,7 +200,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         }
     }
 
-    if (! on_console) {
+    if (!on_console) {
         // Re-set stdin, stdout, stderr
         for (int i = 0; i < 3; i++) {
             if (i != force_notify_fd) close(i);
@@ -326,7 +333,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     sigprocmask(SIG_SETMASK, &sigwait_set, nullptr);
 
     err.stage = exec_stage::DO_EXEC;
-    execvp(args[0], const_cast<char **>(args));
+    execvpe(args[0], const_cast<char **>(args), const_cast<char **>(proc_env_map.env_list.data()));
 
     // If we got here, the exec failed:
     failure_out:
