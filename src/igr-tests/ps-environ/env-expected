@@ -1,0 +1,5 @@
+hello
+goodbye
+set-in-service-env
+set-in-dinit-env
+set-via-script
