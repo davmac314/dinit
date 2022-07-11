@@ -60,6 +60,7 @@ static void sigquit_cb(eventloop_t &eloop) noexcept;
 static void sigterm_cb(eventloop_t &eloop) noexcept;
 static bool open_control_socket(bool report_ro_failure = true) noexcept;
 static void close_control_socket() noexcept;
+static void control_socket_ready() noexcept;
 static void confirm_restart_boot() noexcept;
 static void flush_log() noexcept;
 
@@ -82,6 +83,7 @@ static bool did_log_boot = false;
 static bool control_socket_open = false;
 bool external_log_open = false;
 int active_control_conns = 0;
+int socket_ready_fd = -1;
 
 // Control socket path. We maintain a string (control_socket_str) in case we need
 // to allocate storage, but control_socket_path is the authoritative value.
@@ -266,6 +268,32 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                 return 1;
             }
         }
+        else if (strcmp(argv[i], "--ready-fd") == 0 || strcmp(argv[i], "-F") == 0) {
+            if (++i < argc) {
+                char *endp = nullptr;
+                auto fdn = strtoul(argv[i], &endp, 10);
+                if (endp == argv[i] || *endp) {
+                    cerr << "dinit: '--ready-fd' (-F) requires a numerical argument\n";
+                    return 1;
+                }
+                socket_ready_fd = int(fdn);
+                auto fl = fcntl(socket_ready_fd, F_GETFD);
+                // We also want to make sure stdin is not allowed
+                if (socket_ready_fd == 0 || fl < 0) {
+                    cerr << "dinit: '--ready-fd' (-F) requires an open file descriptor\n";
+                    return 1;
+                }
+                // Leave standard file descriptors alone, but make sure
+                // anything else is not leaked to child processes
+                if (socket_ready_fd > 2) {
+                    fcntl(socket_ready_fd, F_SETFD, FD_CLOEXEC | fl);
+                }
+            }
+            else {
+                cerr << "dinit: '--ready-fd' (-F) requires an argument\n";
+                return 1;
+            }
+        }
         else if (strcmp(argv[i], "--log-file") == 0 || strcmp(argv[i], "-l") == 0) {
             if (++i < argc) {
                 log_path = argv[i];
@@ -312,6 +340,8 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                     " --container, -o              run in container mode (do not manage system)\n"
                     " --socket-path <path>, -p <path>\n"
                     "                              path to control socket\n"
+                    " --ready-fd <fd>, -F <fd>\n"
+                    "                              file descriptor to report readiness\n"
                     #ifdef SUPPORT_CGROUPS
                     " --cgroup-path <path>, -b <path>\n"
                     "                              cgroup base path (for resolving relative paths)\n"
@@ -563,6 +593,11 @@ int dinit_main(int argc, char **argv)
             break;
         }
     }
+
+    // Notify readiness just before the event loop starts (and after services
+    // are scheduled to start). If the socket is not ready yet (may be in case
+    // of read-only file system), we will report it when it is.
+    control_socket_ready();
     
     run_event_loop:
     
@@ -802,6 +837,19 @@ static void control_socket_cb(eventloop_t *loop, int sockfd) noexcept
     }
 }
 
+static void control_socket_ready() noexcept {
+    if (!control_socket_open || socket_ready_fd < 0) {
+        return;
+    }
+    write(socket_ready_fd, control_socket_path, strlen(control_socket_path) + 1);
+    // Once done with, close it (but leave stdout/stderr alone)
+    if (socket_ready_fd > 2) {
+        close(socket_ready_fd);
+    }
+    // Ensure this can only be called once
+    socket_ready_fd = -1;
+}
+
 // Callback when the root filesystem is read/write:
 void rootfs_is_rw() noexcept
 {
@@ -809,6 +857,9 @@ void rootfs_is_rw() noexcept
     if (! did_log_boot) {
         did_log_boot = log_boot();
     }
+    // If the control socket failed to open early on, there was no readiness
+    // notification, so do it here for a second time, just in case
+    control_socket_ready();
 }
 
 // Open/create the control socket, normally /dev/dinitctl, used to allow client programs to connect
