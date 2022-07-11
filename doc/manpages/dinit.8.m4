@@ -57,6 +57,13 @@ The default for the system service manager is usually \fI/dev/dinitctl\fR (but c
 For a user service manager the default is either \fI$XDG_RUNTIME_DIR/dinitctl\fR
 or \fI$HOME/.dinitctl\fR, depending on whether \fI$XDG_RUNTIME_DIR\fR is set.
 .TP
+\fB\-F\fR \fIfd\fP, \fB\-\-ready\-fd\fR \fIfd\fP
+Specifies \fIfd\fP as the file descriptor number to report readiness to.
+Readiness means that the control socket is open and the service manager is
+ready to accept commands (e.g. via \fBdinitctl\fR). It does not mean that
+services are finished starting yet. The path to the currently open control
+socket is written on the file descriptor.
+.TP
 \fB\-l\fR \fIpath\fP, \fB\-\-log\-file\fR \fIpath\fP
 Species \fIpath\fP as the path to the log file, to which Dinit will log status
 and error messages.
