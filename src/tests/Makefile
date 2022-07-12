@@ -1,7 +1,7 @@
 -include ../../mconfig
 
 objects = tests.o test-dinit.o proctests.o loadtests.o test-run-child-proc.o test-bpsys.o
-parent_objs = service.o proc-service.o dinit-log.o load-service.o baseproc-service.o
+parent_objs = service.o proc-service.o dinit-log.o load-service.o baseproc-service.o dinit-env.o
 
 check: build-tests run-tests
 

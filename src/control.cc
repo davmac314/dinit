@@ -2,6 +2,7 @@
 #include <unordered_set>
 #include <climits>
 
+#include "dinit-env.h"
 #include "control.h"
 #include "service.h"
 #include "proc-service.h"

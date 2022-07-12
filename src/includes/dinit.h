@@ -18,13 +18,6 @@ class environment;
 void rootfs_is_rw() noexcept;
 void setup_external_log() noexcept;
 
-// Read an environment file and set variables in the current environment.
-//   file - the file to read
-//   log_warnings - if true, syntactic errors are logged
-// May throw bad_alloc or system_error.
-void read_env_file(const char *file, bool log_warnings, environment &env);
-
 extern eventloop_t event_loop;
-extern environment main_env;
 
 #endif

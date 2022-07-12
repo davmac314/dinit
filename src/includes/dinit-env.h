@@ -1,12 +1,21 @@
 #ifndef DINIT_ENV_H_INCLUDED
 #define DINIT_ENV_H_INCLUDED 1
 
-#include <unordered_set>
+#include <unordered_map>
 #include <string>
 
 #include "dinit-util.h"
 
 extern char **environ;
+
+class environment;
+extern environment main_env;
+
+// Read an environment file and set variables in the current environment.
+//   file - the file to read
+//   log_warnings - if true, syntactic errors are logged
+// May throw bad_alloc or system_error.
+void read_env_file(const char *file, bool log_warnings, environment &env);
 
 // Hash environment variable name only (not including value)
 struct hash_env_name
