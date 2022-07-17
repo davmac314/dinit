@@ -9,6 +9,7 @@
 /src/tests/tests
 /src/tests/proctests
 /src/tests/loadtests
+/src/tests/envtests
 /src/tests/includes
 /src/tests/cptests/includes
 /src/tests/cptests/cptests

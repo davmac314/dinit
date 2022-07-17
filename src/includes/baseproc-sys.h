@@ -8,11 +8,15 @@
 #ifndef BPSYS_INCLUDED
 #define BPSYS_INCLUDED
 
+#include <cstdlib> // getenv
+
 #include "dasynq.h" // for pipe2
 
 #include <sys/uio.h> // writev
 #include <unistd.h>
 #include <fcntl.h>
+
+extern char **environ;
 
 namespace bp_sys {
 
@@ -28,6 +32,9 @@ using ::getpgrp;
 using ::read;
 using ::write;
 using ::writev;
+using std::getenv;
+
+using ::environ;
 
 // Wrapper around a POSIX exit status
 class exit_status

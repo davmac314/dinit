@@ -137,6 +137,11 @@ ssize_t read(int fd, void *buf, size_t count);
 ssize_t write(int fd, const void *buf, size_t count);
 ssize_t writev (int fd, const struct iovec *iovec, int count);
 
+extern char **environ;
+char *getenv(const char *name);
+int setenv(const char *name, const char *value, int overwrite);
+int clearenv();
+
 }
 
 #endif

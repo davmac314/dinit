@@ -5,12 +5,14 @@
 #include <map>
 
 #include <cstdlib>
+#include <cstring>
 #include <cerrno>
 
 #include "baseproc-sys.h"
 
 namespace {
 
+// which simulated file descriptors are currently "open"
 std::vector<bool> usedfds = {true, true, true};
 
 struct read_result
@@ -42,9 +44,14 @@ std::map<int, std::unique_ptr<bp_sys::write_handler>> write_hndlr_map;
 // map of path to file content
 std::map<std::string, std::vector<char>> file_content_map;
 
+// environment variables, in "NAME=VALUE" form
+std::vector<char *> env_vars;
+
 } // anon namespace
 
 namespace bp_sys {
+
+char **environ = nullptr;
 
 int last_sig_sent = -1; // last signal number sent, accessible for tests.
 pid_t last_forked_pid = 1;  // last forked process id (incremented each 'fork')
@@ -212,6 +219,62 @@ ssize_t writev(int fd, const struct iovec *iov, int iovcnt)
         }
     }
     return r;
+}
+
+char *getenv(const char *name)
+{
+    size_t name_len = strlen(name);
+    for (auto *var : env_vars) {
+        if (strncmp(name, var, name_len) == 0) {
+            if (var[name_len] == '=') {
+                return &(var[name_len + 1]);
+            }
+        }
+    }
+    return nullptr;
+}
+
+int setenv(const char *name, const char *value, int overwrite)
+{
+    size_t name_len = strlen(name);
+    if (env_vars.empty()) {
+        env_vars.push_back(nullptr);
+    }
+    else for (unsigned i = 0; i < (env_vars.size() - 1); ++i) {
+        if (strncmp(name, env_vars[i], name_len) == 0) {
+            if (env_vars[i][name_len] == '=') {
+                // name matches, replace the value
+                if (overwrite) {
+                    delete[](env_vars[i]);
+                    env_vars[i] = new char[name_len + 1 + strlen(value) + 1];
+                    strcpy(env_vars[i], name);
+                    env_vars[i][name_len] = '=';
+                    strcpy(env_vars[i] + name_len + 1, value);
+                }
+                return 0;
+            }
+        }
+    }
+
+    // not found, add
+    char *new_var = new char[name_len + 1 + strlen(value) + 1];
+    strcpy(new_var, name);
+    new_var[name_len] = '=';
+    strcpy(new_var + name_len + 1, value);
+    env_vars[env_vars.size() - 1] = new_var;
+    env_vars.push_back(nullptr);
+    environ = env_vars.data();
+    return 0;
+}
+
+int clearenv()
+{
+    for (char *env_var : env_vars) {
+        delete[](env_var);
+    }
+    env_vars.clear();
+    environ = nullptr;
+    return 0;
 }
 
 }

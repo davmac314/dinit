@@ -5,8 +5,7 @@
 #include <string>
 
 #include "dinit-util.h"
-
-extern char **environ;
+#include "baseproc-sys.h"
 
 class environment;
 extern environment main_env;
@@ -17,6 +16,9 @@ extern environment main_env;
 // May throw bad_alloc or system_error.
 void read_env_file(const char *file, bool log_warnings, environment &env);
 
+// Note that our sets (defined as part of environment class below) allow searching based
+// on a name only (string_view) or "NAME=VALUE" assignment pair (std::string).
+
 // Hash environment variable name only (not including value)
 struct hash_env_name
 {
@@ -24,6 +26,11 @@ struct hash_env_name
     {
         size_t eq_pos = s.find('=');
         return hash(string_view(s.data(), eq_pos));
+    }
+
+    size_t operator()(string_view s) const
+    {
+        return hash(s);
     }
 };
 
@@ -36,9 +43,9 @@ struct env_equal_name
         return string_view(a.data(), a_eq_pos) == string_view(b.data(), b_eq_pos);
     }
 
-    // For comparison between a string and string_view, assume the view is just the name
+    // For comparison between a string and string_view, we can assume the view is just the name
 
-    bool operator()(const std::string &a, string_view &b) const noexcept
+    bool operator()(const std::string &a, string_view b) const noexcept
     {
         size_t a_eq_pos = a.find('=');
         return string_view(a.data(), a_eq_pos) == b;
@@ -91,12 +98,16 @@ public:
     // return environment variable in form NAME=VALUE. Assumes that the real environment is the parent.
     string_view get(const std::string &name) const
     {
-        auto it = set_vars.find(name);
+        auto it = set_vars.find(string_view(name));
         if (it != set_vars.end()) {
             return *it;
         }
 
-        const char *val = getenv(name.c_str());
+        if (!keep_parent_env && !import_from_parent.contains(name)) {
+            return {};
+        }
+
+        const char *val = bp_sys::getenv(name.c_str());
         if (val == nullptr) {
             return {};
         }
@@ -111,9 +122,9 @@ public:
 
         if (keep_parent_env) {
             // import all from parent, excluding our own undefines + the exclude set
-            if (environ != nullptr) {
+            if (bp_sys::environ != nullptr) {
                 unsigned pos = 0;
-                for (char **env = environ; *env != nullptr; ++env) {
+                for (char **env = bp_sys::environ; *env != nullptr; ++env) {
                     // find '='
                     char *var_ch;
                     for (var_ch = *env; *var_ch != '='; ++var_ch) {
@@ -227,6 +238,7 @@ public:
     void import_parent_var(std::string &&var_name)
     {
         undefine.erase(var_name);
+        set_vars.erase(string_view(var_name));
         if (!keep_parent_env) {
             import_from_parent.insert(std::move(var_name));
         }
@@ -235,6 +247,7 @@ public:
     void undefine_var(std::string &&var_name)
     {
         import_from_parent.erase(var_name);
+        set_vars.erase(string_view(var_name));
         if (keep_parent_env) {
             undefine.insert(std::move(var_name));
         }
@@ -245,6 +258,7 @@ public:
         keep_parent_env = false;
         import_from_parent.clear();
         undefine.clear();
+        set_vars.clear();
     }
 };
 
