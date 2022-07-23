@@ -60,8 +60,36 @@ void read_env_file(const char *env_file_path, bool log_warnings, environment &en
             const char *lpos_p = line.data() + (lpos - line.begin());
             string_view cmd {lpos_p, (size_t)(epos - lpos)};
 
+            std::vector<string_view> cmd_args;
+            while (epos != lend) {
+                // skip whitespace
+                while (std::isspace(*epos, clocale)) {
+                    ++epos;
+                    if (epos == lend) goto process_cmd; // no more args
+                }
+                // all non-ws is argument until next ws
+                const char *arg_begin = line.c_str() + (epos - line.begin());
+                auto arg_begin_i = epos;
+                while (epos != lend && !std::isspace(*epos)) {
+                    ++epos;
+                }
+                cmd_args.push_back(string_view {arg_begin, (size_t)(epos - arg_begin_i)});
+            }
+
+            process_cmd:
+
             if (cmd == "clear") {
                 env.clear_no_inherit();
+            }
+            else if (cmd == "unset") {
+                for (string_view arg : cmd_args) {
+                    env.undefine_var(std::string {arg.data(), arg.length()});
+                }
+            }
+            else if (cmd == "import") {
+                for (string_view arg : cmd_args) {
+                    env.import_parent_var(std::string {arg.data(), arg.length()});
+                }
             }
             else if (log_warnings) {
                 log_bad_env_cmd(linenum);
@@ -86,10 +114,9 @@ void read_env_file(const char *env_file_path, bool log_warnings, environment &en
 
         ++lpos;
         auto val_begin = lpos;
-        while (lpos != lend && *lpos != '\n') ++lpos;
-        auto val_end = lpos;
+        auto val_end = lend;
 
-        if (val_begin != (name_end + 1) || val_begin != line.begin() || name_end != lend) {
+        if (val_begin != (name_end + 1) || name_begin != line.begin()) {
             // there are spaces that we need to eliminate
             std::string name_and_val;
             name_and_val.reserve((name_end - name_begin) + 1 + (val_end - val_begin));
