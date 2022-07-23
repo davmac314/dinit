@@ -16,8 +16,9 @@ extern environment main_env;
 // May throw bad_alloc or system_error.
 void read_env_file(const char *file, bool log_warnings, environment &env);
 
-// Note that our sets (defined as part of environment class below) allow searching based
-// on a name only (string_view) or "NAME=VALUE" assignment pair (std::string).
+// Note that our sets (defined as part of environment class below) allow searching based on a name
+// only (string_view) or "NAME=VALUE" assignment pair (std::string). It is important to always
+// search using the correct type.
 
 // Hash environment variable name only (not including value)
 struct hash_env_name
@@ -34,6 +35,7 @@ struct hash_env_name
     }
 };
 
+// Comparison predicate for environment variables, checking name only
 struct env_equal_name
 {
     bool operator()(const std::string &a, const std::string &b) const noexcept
@@ -88,7 +90,7 @@ class environment
 public:
 
     struct env_map {
-        // list of environment variables, i.e. list as suitable for exec
+        // *non-owning* list of environment variables, i.e. list as suitable for exec
         std::vector<const char *> env_list;
 
         // map of variable name (via string_view) to its index in env_list
@@ -116,7 +118,9 @@ public:
         return {name_and_val, name.length() + 1 + val_len};
     }
 
-    // build a mapping excluding named variables (only called if the parent is the real environment)
+    // Build a mapping excluding named variables (only called if the parent is the real environment).
+    // Note that the return is non-owning, i.e. the variable values are backed by the environment object
+    // and their lifetime is bounded to it.
     env_map build(const env_names &exclude) const {
         env_map mapping;
 
