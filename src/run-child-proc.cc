@@ -169,7 +169,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             if (dup2(socket_fd, 3) == -1) goto failure_out;
             if (socket_fd != 3) close(socket_fd);
 
-            if (putenv(const_cast<char *>("LISTEN_FDS=1"))) goto failure_out;
+            proc_env.set_var("LISTEN_FDS=1");
             snprintf(nbuf, bufsz, "LISTEN_PID=%jd", static_cast<intmax_t>(getpid()));
             proc_env.set_var(nbuf);
         }
