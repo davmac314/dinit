@@ -869,7 +869,7 @@ bool process_service::start_stop_process(const std::vector<const char *> &cmd) n
         run_params.csfd = -1;
         run_params.socket_fd = socket_fd;
         run_params.notify_fd = -1;
-        run_params.force_notify_fd = force_notification_fd;
+        run_params.force_notify_fd = -1;
         run_params.notify_var = nullptr;
         run_params.env_file = env_file.c_str();
         #if SUPPORT_CGROUPS
