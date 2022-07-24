@@ -1,3 +1,21 @@
+== Version ???
+
+This release contains some new features and bug fixes.
+
+Changes:
+ * The dinit daemon itself supports S6-compatible readiness notification (for when run under
+   another supervision system or controlling process). The "-r <fd>" command line argument
+   specifies the file descriptor to write the notification to. Contributed by Daniel Kolesa.
+ * Environment files (including per-service file as specified by env-file service setting):
+   support for commands !clear, !unset and !import. These give more flexibility in how much of the
+   original environment to expose to service processes. See the dinit(8) man page for more
+   information.
+ * The dinitctl utility provides more information if a service fails to start (avoiding the need
+   to query the status separately or check logs to get the same information).
+ * Fix bug with cgroup root path extraction where the path was longer than 64 characters (found
+   by Github continuous integration builds as implemented by Mobin Aydinfar).
+ * Minor fix to service examples, contributed by Firas Khalil Khana.
+
 == Version 0.15.1
 
 (Alpha release #7)
