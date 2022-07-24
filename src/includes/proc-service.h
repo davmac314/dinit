@@ -51,8 +51,6 @@ struct run_proc_params
     { }
 };
 
-extern const char * const exec_stage_descriptions[static_cast<int>(exec_stage::DO_EXEC) + 1];
-
 // Error information from process execution transferred via this struct
 struct run_proc_err
 {
