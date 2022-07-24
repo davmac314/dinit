@@ -213,8 +213,24 @@ kernel (or some that are, due to bugs) are passed to init via the environment ra
 Default location of the environment file for Dinit when run as a system
 instance (for user instances there is no default).
 Values are specified as \fINAME\fR=\fIVALUE\fR, one per line, and add to and replace variables present
-in the environment when Dinit started.
+in the environment when Dinit started (the "original environment").
 Lines beginning with a hash character (#) are ignored.
+.IP
+The following special commands can be used (each on a single line):
+.RS
+.TP
+\fB!clear\fR
+Clears the environment completely (prevents inheritance of any variables from the original environment).
+.TP
+\fB!unset\fR \fIvar-name\fR...
+Unsets the specified variables.
+Any previously specified value for these variables is forgotten, and they will not inherit any
+value from the original environment. 
+.TP
+\fB!import\fR \fIvar-name\fR...
+Imports the value of the named variables from the original environment, overriding the effect of any
+value set previously as well as the effect of previous \fB!unset\fR and \fB!clear\fR commands.
+.RE
 .\"
 .SH SIGNALS
 .LP

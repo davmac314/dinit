@@ -153,7 +153,7 @@ group of the specified user.
 .TP
 \fBenv\-file\fR = \fIfile\fR
 Specifies a file containing value assignments for environment variables, in the same
-format recognised by the \fBdinit\fR command's \fB\-\-env\-file\fR option.
+format recognised by the \fBdinit\fR command's \fB\-\-env\-file\fR option (see \fBdinit\fR(5)).
 The file is read (or re-read) whenever the service is started; the values read do not
 affect for the processing performed for the \fBsub\-vars\fR load option, which is done
 when the service description is loaded.
