@@ -83,12 +83,12 @@ void read_env_file(const char *env_file_path, bool log_warnings, environment &en
             }
             else if (cmd == "unset") {
                 for (string_view arg : cmd_args) {
-                    env.undefine_var(std::string {arg.data(), arg.length()});
+                    env.undefine_var(std::string(arg.data(), arg.length()));
                 }
             }
             else if (cmd == "import") {
                 for (string_view arg : cmd_args) {
-                    env.import_parent_var(std::string {arg.data(), arg.length()});
+                    env.import_parent_var(std::string(arg.data(), arg.length()));
                 }
             }
             else if (log_warnings) {
