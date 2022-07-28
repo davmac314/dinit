@@ -36,7 +36,7 @@
 #if __linux__
 #define CLEAR_UTMP_ON_BOOT 1
 #else
-#define CLEAR UTMP_ON_BOOT 0
+#define CLEAR_UTMP_ON_BOOT 0
 #endif
 #endif
 
