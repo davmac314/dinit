@@ -349,7 +349,8 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                     #endif
                     " --log-file <file>, -l <file> log to the specified file\n"
                     " --quiet, -q                  disable output to standard output\n"
-                    " <service-name> [...]         start service with name <service-name>\n";
+                    " --service <service-name>     start service with name <service-name>\n"
+                    " single                       start 'single' service";
             return -1;
         }
         else {
