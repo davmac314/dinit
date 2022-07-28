@@ -7,6 +7,7 @@
 
 #include "service.h"
 #include "proc-service.h"
+#include "dinit-util.h"
 
 // Tests of process-service related functionality.
 //
@@ -86,7 +87,7 @@ void test_proc_service_start()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -116,7 +117,7 @@ void test_proc_notify_start()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -159,7 +160,7 @@ void test_proc_unexpected_term()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -203,7 +204,7 @@ void test_proc_term_restart()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -255,7 +256,7 @@ void test_proc_term_restart2()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -341,7 +342,7 @@ void test_proc_term_restart3()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -387,7 +388,7 @@ void test_proc_term_restart4()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -447,7 +448,7 @@ void test_term_via_stop()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -488,7 +489,7 @@ void test_term_via_stop2()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -539,7 +540,7 @@ void test_term_via_stop3()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -606,7 +607,7 @@ void test_proc_start_timeout()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -644,7 +645,7 @@ void test_proc_start_timeout2()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -686,7 +687,7 @@ void test_proc_start_execfail()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -717,7 +718,7 @@ void test_proc_notify_fail()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -761,7 +762,7 @@ void test_proc_stop_timeout()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -812,7 +813,7 @@ void test_proc_smooth_recovery1()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -862,7 +863,7 @@ void test_proc_smooth_recovery2()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -906,7 +907,7 @@ void test_proc_smooth_recovery3()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -961,7 +962,7 @@ void test_proc_smooth_recovery4()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -1010,7 +1011,7 @@ void test_proc_smooth_recovery5()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -1076,7 +1077,7 @@ void test_proc_smooth_recovery6()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -1145,7 +1146,7 @@ void test_bgproc_start()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -1181,7 +1182,7 @@ void test_bgproc_start_fail()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -1215,7 +1216,7 @@ void test_bgproc_start_fail_pid()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -1250,7 +1251,7 @@ void test_bgproc_unexpected_term()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -1301,7 +1302,7 @@ void test_bgproc_smooth_recover()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -1401,11 +1402,11 @@ void test_bgproc_smooth_recove2()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
 
-    bgproc_service p {&sset, "testproc", string(command), command_offsets, {}};
+    bgproc_service p {&sset, "testproc", ha_string(command), command_offsets, {}};
     init_service_defaults(p);
     p.set_smooth_recovery(true);
     p.set_restart_delay(time_val {0, 1000});
@@ -1486,11 +1487,11 @@ void test_bgproc_smooth_recove3()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
 
-    bgproc_service p {&sset, "testproc", string(command), command_offsets, {}};
+    bgproc_service p {&sset, "testproc", ha_string(command), command_offsets, {}};
     init_service_defaults(p);
     p.set_smooth_recovery(true);
     p.set_restart_delay(time_val {0, 1000});
@@ -1543,11 +1544,11 @@ void test_bgproc_smooth_recove4()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
 
-    bgproc_service p {&sset, "testproc", string(command), command_offsets, {}};
+    bgproc_service p {&sset, "testproc", ha_string(command), command_offsets, {}};
     init_service_defaults(p);
     p.set_smooth_recovery(true);
     p.set_restart_delay(time_val {0, 1000});
@@ -1613,7 +1614,7 @@ void test_bgproc_term_restart()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -1676,7 +1677,7 @@ void test_bgproc_stop()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -1725,7 +1726,7 @@ void test_bgproc_stop2()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -1777,7 +1778,7 @@ void test_bgproc_stop3()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -1855,12 +1856,12 @@ void test_bgproc_stop4()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    string stop_command = "stop-command";
+    ha_string stop_command = "stop-command";
     list<pair<unsigned,unsigned>> stop_command_offsets;
     stop_command_offsets.emplace_back(0, stop_command.length());
 
@@ -1915,12 +1916,12 @@ void test_bgproc_stop5()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
-    string stop_command = "stop-command";
+    ha_string stop_command = "stop-command";
     list<pair<unsigned,unsigned>> stop_command_offsets;
     stop_command_offsets.emplace_back(0, stop_command.length());
 
@@ -1977,8 +1978,8 @@ void test_scripted_stop_timeout()
 
     service_set sset;
 
-    string command = "test-command";
-    string stopcommand = "stop-command";
+    ha_string command = "test-command";
+    ha_string stopcommand = "stop-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -2036,8 +2037,8 @@ void test_scripted_start_fail()
 
     service_set sset;
 
-    string command = "test-command";
-    string stopcommand = "stop-command";
+    ha_string command = "test-command";
+    ha_string stopcommand = "stop-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -2083,8 +2084,8 @@ void test_scripted_stop_fail()
 
     service_set sset;
 
-    string command = "test-command";
-    string stopcommand = "stop-command";
+    ha_string command = "test-command";
+    ha_string stopcommand = "stop-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -2144,7 +2145,7 @@ void test_scripted_start_skip()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -2196,7 +2197,7 @@ void test_scripted_start_skip2()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
@@ -2246,7 +2247,7 @@ void test_waitsfor_restart()
 
     service_set sset;
 
-    string command = "test-command";
+    ha_string command = "test-command";
     list<pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;

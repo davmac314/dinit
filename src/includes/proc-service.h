@@ -18,7 +18,7 @@ class process_service;
 // store a null terminator for the argument. Return a `char *` vector containing the beginning
 // of each argument and a trailing nullptr. (The returned array is invalidated if the string is later
 // modified).
-std::vector<const char *> separate_args(std::string &s,
+std::vector<const char *> separate_args(ha_string &s,
         const std::list<std::pair<unsigned,unsigned>> &arg_indices);
 
 // Parameters for process execution
@@ -153,11 +153,11 @@ class base_process_service : public service_record
     void do_restart() noexcept;
 
     protected:
-    string program_name;          // storage for program/script and arguments
+    ha_string program_name;          // storage for program/script and arguments
     // pointer to each argument/part of the program_name, and nullptr:
     std::vector<const char *> exec_arg_parts;
 
-    string stop_command;          // storage for stop program/script and arguments
+    ha_string stop_command;          // storage for stop program/script and arguments
     // pointer to each argument/part of the stop_command, and nullptr:
     std::vector<const char *> stop_arg_parts;
 
@@ -274,7 +274,7 @@ class base_process_service : public service_record
     public:
     // Constructor for a base_process_service. Note that the various parameters not specified here must in
     // general be set separately (using the appropriate set_xxx function for each).
-    base_process_service(service_set *sset, string name, service_type_t record_type_p, string &&command,
+    base_process_service(service_set *sset, string name, service_type_t record_type_p, ha_string &&command,
             const std::list<std::pair<unsigned,unsigned>> &command_offsets,
             const std::list<prelim_dep> &deplist_p);
 
@@ -288,20 +288,20 @@ class base_process_service : public service_record
 
     // Set the command to run this service (executable and arguments, nul separated). The command_parts_p
     // vector must contain pointers to each part.
-    void set_command(std::string &&command_p, std::vector<const char *> &&command_parts_p) noexcept
+    void set_command(ha_string &&command_p, std::vector<const char *> &&command_parts_p) noexcept
     {
         program_name = std::move(command_p);
         exec_arg_parts = std::move(command_parts_p);
     }
 
-    void get_command(std::string &command_p, std::vector<const char *> &command_parts_p)
+    void get_command(ha_string &command_p, std::vector<const char *> &command_parts_p)
     {
         command_p = program_name;
         command_parts_p = exec_arg_parts;
     }
 
     // Set the stop command and arguments (may throw std::bad_alloc)
-    void set_stop_command(const std::string &command,
+    void set_stop_command(ha_string &command,
             std::list<std::pair<unsigned,unsigned>> &stop_command_offsets)
     {
         stop_command = command;
@@ -311,7 +311,7 @@ class base_process_service : public service_record
     // Set the stop command as a sequence of nul-terminated parts (arguments).
     //   command - the command and arguments, each terminated with nul ('\0')
     //   command_parts - pointers to the beginning of each command part
-    void set_stop_command(std::string &&command,
+    void set_stop_command(ha_string &&command,
             std::vector<const char *> &&command_parts) noexcept
     {
         stop_command = std::move(command);
@@ -496,7 +496,7 @@ class process_service : public base_process_service
         }
     }
 
-    process_service(service_set *sset, const string &name, service_type_t s_type, string &&command,
+    process_service(service_set *sset, const string &name, service_type_t s_type, ha_string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             const std::list<prelim_dep> &depends_p)
          : base_process_service(sset, name, s_type, std::move(command), command_offsets,
@@ -506,7 +506,7 @@ class process_service : public base_process_service
     }
 
     public:
-    process_service(service_set *sset, const string &name, string &&command,
+    process_service(service_set *sset, const string &name, ha_string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             const std::list<prelim_dep> &depends_p)
          : base_process_service(sset, name, service_type_t::PROCESS, std::move(command), command_offsets,
@@ -572,7 +572,7 @@ class bgproc_service : public process_service
     pid_result_t read_pid_file(bp_sys::exit_status *exit_status) noexcept;
 
     public:
-    bgproc_service(service_set *sset, const string &name, string &&command,
+    bgproc_service(service_set *sset, const string &name, ha_string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             const std::list<prelim_dep> &depends_p)
          : process_service(sset, name, service_type_t::BGPROCESS, std::move(command), command_offsets,
@@ -614,7 +614,7 @@ class scripted_service : public base_process_service
     bool interrupting_start : 1;  // running start script (true) or stop script (false)
 
     public:
-    scripted_service(service_set *sset, const string &name, string &&command,
+    scripted_service(service_set *sset, const string &name, ha_string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             const std::list<prelim_dep> &depends_p)
          : base_process_service(sset, name, service_type_t::SCRIPTED, std::move(command), command_offsets,

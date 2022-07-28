@@ -6,6 +6,7 @@
 #include <list>
 #include <vector>
 #include <algorithm>
+#include <stdexcept>
 
 #include <cstring>
 #include <cstddef>
@@ -523,6 +524,111 @@ public:
         catch (std::bad_alloc &) {
             // ignore any (unlikely) error
         }
+    }
+};
+
+// string that maintains a heap allocation always. Moving a ha_string does not invalidate pointers
+// to characters within the string.
+class ha_string {
+    char *str_data = nullptr;
+    size_t str_len = 0;
+
+public:
+    ha_string()
+    {
+    }
+
+    ha_string(const char *cstr, size_t clen)
+    {
+        str_data = new char[clen + 1];
+        memcpy(str_data, cstr, clen + 1);
+        str_len = clen;
+    }
+
+    ha_string(const char *cstr) : ha_string(cstr, strlen(cstr))
+    {
+    }
+
+    ha_string(const ha_string &other)
+    {
+        operator=(other);
+    }
+
+    ha_string(const ha_string &&other)
+    {
+        operator=(std::move(other));
+    }
+
+    ha_string &operator=(const ha_string &other)
+    {
+        char *new_str_data = new char[other.str_len + 1];
+        delete[] str_data;
+        memcpy(new_str_data, other.str_data, other.str_len + 1);
+        str_data = new_str_data;
+        str_len = other.str_len;
+        return *this;
+    }
+
+    ha_string &operator=(ha_string &&other) noexcept
+    {
+        delete[] str_data;
+        str_data = other.str_data;
+        str_len = other.str_len;
+        other.str_data = nullptr;
+        other.str_len = 0;
+        return *this;
+    }
+
+    ha_string &operator=(const std::string &other)
+    {
+        char *new_str_data = new char[other.length() + 1];
+        delete[] str_data;
+        memcpy(new_str_data, other.data(), other.length() + 1);
+        str_data = new_str_data;
+        str_len = other.length();
+        return *this;
+    }
+
+    ~ha_string()
+    {
+        delete[] str_data;
+    }
+
+    char &operator[](size_t index) noexcept
+    {
+        return str_data[index];
+    }
+
+    bool operator==(const char *other) noexcept
+    {
+        return strncmp(str_data, other, str_len) == 0;
+    }
+
+    char *c_str() noexcept
+    {
+        return str_data;
+    }
+
+    const char *c_str() const noexcept
+    {
+        return str_data;
+    }
+
+    bool empty() const noexcept
+    {
+        return str_len == 0;
+    }
+
+    size_t length() const noexcept
+    {
+        return str_len;
+    }
+
+    std::string substr(size_t pos, size_t count = (size_t)-1)
+    {
+        if (pos > str_len) throw std::out_of_range("pos exceeds string length");
+        size_t sub_len = std::min(count, str_len - pos);
+        return std::string(str_data + pos, sub_len);
     }
 };
 

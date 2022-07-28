@@ -20,7 +20,7 @@
 // store a null terminator for the argument. Return a `char *` vector containing the beginning
 // of each argument and a trailing nullptr. (The returned array is invalidated if the string is
 // later modified).
-std::vector<const char *> separate_args(std::string &s,
+std::vector<const char *> separate_args(ha_string &s,
         const std::list<std::pair<unsigned,unsigned>> &arg_indices)
 {
     std::vector<const char *> r;

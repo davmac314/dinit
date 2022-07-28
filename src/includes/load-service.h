@@ -756,9 +756,9 @@ class service_settings_wrapper
 
     public:
 
-    string command;
+    ha_string command;
     list<pair<unsigned,unsigned>> command_offsets; // [start,end) offset of each arg (inc. executable)
-    string stop_command;
+    ha_string stop_command;
     list<pair<unsigned,unsigned>> stop_command_offsets;
     string working_dir;
     string pid_file;

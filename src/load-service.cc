@@ -26,12 +26,14 @@ using string_iterator = std::string::iterator;
 //   line -  the string storing the command and arguments
 //   offsets - the [start,end) pair of offsets of the command and each argument within the string
 //
-static void do_env_subst(const char *setting_name, std::string &line,
+static void do_env_subst(const char *setting_name, ha_string &line,
         std::list<std::pair<unsigned,unsigned>> &offsets, bool do_sub_vars)
 {
     using namespace dinit_load;
     if (do_sub_vars) {
-        cmdline_var_subst(setting_name, line, offsets, resolve_env_var);
+        std::string line_s = std::string(line.c_str(), line.length());
+        cmdline_var_subst(setting_name, line_s, offsets, resolve_env_var);
+        line = line_s;
     }
 }
 
@@ -135,7 +137,7 @@ static void update_command_and_dependencies(base_process_service *service,
         dinit_load::service_settings_wrapper<prelim_dep> &settings)
 {
     // Get the current command parts
-    std::string orig_cmd; std::vector<const char *> orig_arg_parts;
+    ha_string orig_cmd; std::vector<const char *> orig_arg_parts;
     service->get_command(orig_cmd, orig_arg_parts);
 
     // Separate the new command parts and set
