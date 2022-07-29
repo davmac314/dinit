@@ -331,7 +331,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             } 
             else {
                 cerr << "dinit: '--service' requires an argument\n";
-                retrun 1;
+                return 1;
             }
         }
         else if (strcmp(argv[i], "--version") == 0) {
