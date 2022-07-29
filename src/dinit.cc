@@ -646,7 +646,7 @@ int dinit_main(int argc, char **argv)
                     goto run_event_loop; // yes, the "evil" goto
                 }
                 catch (...) {
-                    // Now what do we do? try to reboot, but wait for user ack to avoid boot loop.
+                    // Couldn't start boot service, let's reboot the system
                     log(loglevel_t::ERROR, "Could not start 'boot' service. Will attempt reboot.");
                     shutdown_type = shutdown_type_t::REBOOT;
                 }
