@@ -85,8 +85,6 @@ static bool control_socket_open = false;
 bool external_log_open = false;
 int active_control_conns = 0;
 int socket_ready_fd = -1;
-bool specifie_service_loading = false; // true if use "--service" argument
-char *specifie_service_path; // Its empty variable. if use "--service", service name saves in this variable
 
 // Control socket path. We maintain a string (control_socket_str) in case we need
 // to allocate storage, but control_socket_path is the authoritative value.
@@ -326,8 +324,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
         #endif
         else if (strcmp(argv[i], "--service") == 0) {
             if (++i < argc) {
-                specifie_service_loading = true;
-                specifie_service_path = argv[i];
+                services_to_start.push_back(argv[i]);
             } 
             else {
                 cerr << "dinit: '--service' requires an argument\n";
@@ -361,6 +358,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                     #endif
                     " --log-file <file>, -l <file> log to the specified file\n"
                     " --quiet, -q                  disable output to standard output\n"
+                    " <service-name>               start service with name <service-name>\n"
                     " --service <service-name>     start service with name <service-name>\n";
             return -1;
         }
@@ -399,9 +397,6 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 
         if (!opts.process_sys_args || strcmp(argv[i], "single") == 0) {
             services_to_start.push_back(argv[i]);
-        } 
-        else if (specifie_service_loading) {
-            services_to_start.push_back(specifie_service_path);
         }
 #else
         services_to_start.push_back(argv[i]);
