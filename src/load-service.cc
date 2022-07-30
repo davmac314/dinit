@@ -5,6 +5,7 @@
 #include <limits>
 #include <list>
 #include <utility>
+#include <iterator>
 
 #include <cstring>
 #include <cstdlib>
@@ -122,12 +123,16 @@ static void check_cycle(service_dep_list &deps, service_record *orig)
 // Update the dependencies of the specified service atomically.
 // May fail with bad_alloc, service_cyclic_dependency.
 static void update_depenencies(service_record *service,
-        dinit_load::service_settings_wrapper<prelim_dep> &settings)
+        dinit_load::service_settings_wrapper<prelim_dep> &settings,
+        std::list<service_dep> &before_deps)
 {
     check_cycle(settings.depends, service);
 
     std::list<service_dep> &deps = service->get_dependencies();
     auto first_preexisting = deps.begin();
+
+    auto &depts = service->get_dependents();
+    auto first_pre_dept = depts.begin();
 
     // build a set of services currently issuing acquisition
     std::unordered_set<service_record *> deps_with_acqs;
@@ -138,6 +143,17 @@ static void update_depenencies(service_record *service,
     }
 
     try {
+        // Insert all new dependents (from "before" relationships) before the first pre-existing dependent
+        for (auto new_dept_i = before_deps.begin(); new_dept_i != before_deps.end(); ) {
+            auto &new_dept = *new_dept_i;
+            depts.insert(depts.begin(), &new_dept);
+            // splice the dependency into the dependent:
+            auto next_dept_i = std::next(new_dept_i);
+            auto &from_deps = new_dept.get_from()->get_dependencies();
+            from_deps.splice(from_deps.begin(), before_deps, new_dept_i);
+            new_dept_i = next_dept_i;
+        }
+
         // Insert all the new dependencies before the first pre-existing dependency
         for (auto &new_dep : settings.depends) {
             bool has_acq = deps_with_acqs.count(new_dep.to);
@@ -145,8 +161,15 @@ static void update_depenencies(service_record *service,
         }
     }
     catch (...) {
+        // remove "before" dependencies from dependents
+        for (auto i = depts.begin(); i != first_pre_dept; ) {
+            auto next_i = std::next(i);
+            (*i)->get_from()->rm_dep(**i);
+            i = next_i;
+        }
+
         // remove the inserted dependencies
-        for (auto i = deps.begin(); i != first_preexisting; ++i) {
+        for (auto i = deps.begin(); i != first_preexisting; ) {
             i = service->rm_dep(i);
         }
 
@@ -158,12 +181,22 @@ static void update_depenencies(service_record *service,
     for( ; first_preexisting != deps.end(); ) {
         first_preexisting = service->rm_dep(first_preexisting);
     }
+
+    // Also remove pre-existing "before" dependents
+    for( ; first_pre_dept != depts.end(); ) {
+        auto next_pre_dept = std::next(first_pre_dept);
+        if ((*first_pre_dept)->dep_type == dependency_type::BEFORE) {
+            (*first_pre_dept)->get_from()->rm_dep(**first_pre_dept);
+        }
+        first_pre_dept = next_pre_dept;
+    }
 }
 
 // Update the command, and dependencies, of the specified service atomically.
 // May fail with bad_alloc, service_cyclic_dependency.
 static void update_command_and_dependencies(base_process_service *service,
-        dinit_load::service_settings_wrapper<prelim_dep> &settings)
+        dinit_load::service_settings_wrapper<prelim_dep> &settings,
+        std::list<service_dep> &before_deps)
 {
     // Get the current command parts
     ha_string orig_cmd; std::vector<const char *> orig_arg_parts;
@@ -174,7 +207,7 @@ static void update_command_and_dependencies(base_process_service *service,
     service->set_command(std::move(settings.command), std::move(cmd_arg_parts));
 
     try {
-        update_depenencies(service, settings);
+        update_depenencies(service, settings, before_deps);
     }
     catch (...) {
         // restore original command
@@ -389,6 +422,28 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         // Note, we need to be very careful to handle exceptions properly and roll back any changes that
         // we've made before the exception occurred.
 
+        // if we have "before" constraints, check them now, before we potentially do irreversible changes
+        // to an existing service.
+        std::list<service_dep> before_deps;
+        if (dummy == nullptr) {
+            for (const std::string &before_ent : settings.before_svcs) {
+                service_record *before_svc = load_service(before_ent.c_str());
+                before_deps.emplace_back(before_svc, reload_svc, dependency_type::BEFORE);
+                // (note, we may need to adjust the to-service if we create a new service record object)
+                check_cycle(settings.depends, before_svc);
+                if (before_svc == reload_svc) {
+                    throw service_cyclic_dependency(before_svc->get_name());
+                }
+            }
+        }
+        else {
+            // If we have a dummy service in place, we can't load "before" services since they
+            // may depend on *this* service which is currently represented as a dummy, which would
+            // trigger cycle detection.
+            // So, we'll do it later in this case. We can also postpone if we'll be creating a
+            // replacement service record rather than modifying the original.
+        }
+
         if (service_type == service_type_t::PROCESS) {
             do_env_subst("command", settings.command, settings.command_offsets, settings.do_sub_vars);
             do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, settings.do_sub_vars);
@@ -403,7 +458,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             }
             else {
                 rvalps = static_cast<process_service *>(reload_svc);
-                update_command_and_dependencies(rvalps, settings);
+                update_command_and_dependencies(rvalps, settings, before_deps);
             }
             rval = rvalps;
             // All of the following should be noexcept or must perform rollback on exception
@@ -441,7 +496,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             }
             else {
                 rvalps = static_cast<bgproc_service *>(reload_svc);
-                update_command_and_dependencies(rvalps, settings);
+                update_command_and_dependencies(rvalps, settings, before_deps);
             }
             rval = rvalps;
             // All of the following should be noexcept or must perform rollback on exception
@@ -475,7 +530,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             }
             else {
                 rvalps = static_cast<scripted_service *>(reload_svc);
-                update_command_and_dependencies(rvalps, settings);
+                update_command_and_dependencies(rvalps, settings, before_deps);
             }
             rval = rvalps;
             // All of the following should be noexcept or must perform rollback on exception
@@ -500,7 +555,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             }
             else {
                 rval = reload_svc;
-                update_depenencies(rval, settings);
+                update_depenencies(rval, settings, before_deps);
             }
         }
 
@@ -515,6 +570,11 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         if (create_new_record && reload_svc != nullptr) {
             // switch dependencies on old record so that they refer to the new record
 
+            auto &dept_list = rval->get_dependents();
+            for (auto &dept : before_deps) {
+                dept_list.push_back(&dept);
+            }
+
             // Add dependent-link for all dependencies. Add to the new service first, so we can rollback
             // on failure:
             int added_dep_links = 0;
@@ -525,6 +585,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 }
             }
             catch (...) {
+                // exception caught; roll back any added dependencies and re-throw
                 for (auto &dep : rval->get_dependencies()) {
                     if (added_dep_links-- == 0) break;
                     dep.get_to()->get_dependents().pop_back();
@@ -532,13 +593,38 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 throw;
             }
 
+            // --- Point of no return: mustn't fail from here ---
+
+            // Remove all "before" dependents from the original service
+            auto &reload_depts = reload_svc->get_dependents();
+            for (auto i = reload_depts.begin(); i != reload_depts.end(); ) {
+                auto next_i = std::next(i);
+                if ((*i)->dep_type == dependency_type::BEFORE) {
+                    (*i)->get_from()->rm_dep(**i);
+                }
+                i = next_i;
+            }
+
+            // Transfer dependents from the original service record to the new record;
+            // set links in all dependents on the original to point to the new service:
+            auto first_new_before = dept_list.begin();
+            dept_list.splice(first_new_before, reload_depts);
+            for (auto &dept : dept_list) {
+                dept->set_to(rval);
+            }
+
             // Remove dependent-link for all dependencies from the original:
             reload_svc->prepare_for_unload();
 
-            // Set links in all dependents to the original to point to the new service:
-            rval->get_dependents() = std::move(reload_svc->get_dependents());
-            for (auto n : rval->get_dependents()) {
-                n->set_to(rval);
+            // Splice in the "before" dependencies
+            auto i = before_deps.begin();
+            decltype(i) j;
+            while (i != before_deps.end()) {
+                j = std::next(i);
+                i->set_to(rval);
+                auto &from_deps = i->get_from()->get_dependencies();
+                from_deps.splice(from_deps.end(), before_deps, i);
+                i = j;
             }
         }
 
@@ -546,6 +632,30 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             auto iter = std::find(records.begin(), records.end(), dummy);
             *iter = rval;
             delete dummy;
+
+            // process before entries now. We must do it after "installing" the newly loaded service
+            // in the service set (which we do just above) in order to avoid triggering the cycle
+            // detection (in case the "before" service depends directly on this one) due to the dummy
+            // service.
+            auto ii = std::prev(rval->get_dependents().end());
+            auto i = settings.before_svcs.begin();
+            try {
+                for ( ; i != settings.before_svcs.end(); ++i) {
+                    const std::string &before_ent = *i;
+                    service_record *before_svc = load_service(before_ent.c_str());
+                    before_svc->add_dep(rval, dependency_type::BEFORE);
+                }
+            }
+            catch (...) {
+                // undo if unsuccessful:
+                for (auto j = std::next(ii); j != rval->get_dependents().end(); j = std::next(ii)) {
+                    (*j)->get_to()->rm_dep(**j);
+                }
+                dummy = nullptr;
+                rval->prepare_for_unload();
+                records.erase(std::find(records.begin(), records.end(), rval));
+                throw;
+            }
         }
 
         return rval;

@@ -343,16 +343,17 @@ bool control_conn_t::process_start_stop(int pktType)
             }
             bool found_dpt = false;
             for (auto dpt : service->get_dependents()) {
+                if (dpt->dep_type == dependency_type::BEFORE) continue;
                 auto from = dpt->get_from();
                 auto from_state = from->get_state();
                 if (from_state == service_state_t::STARTED || from_state == service_state_t::STARTING) {
                     found_dpt = true;
-                    if (! dpt->holding_acq) {
+                    if (!dpt->holding_acq) {
                         dpt->get_from()->start_dep(*dpt);
                     }
                 }
             }
-            if (! found_dpt) {
+            if (!found_dpt) {
                 ack_buf[0] = DINIT_RP_NAK;
             }
 
@@ -445,7 +446,7 @@ bool control_conn_t::process_unload_service()
         return true;
     }
 
-    if (! service->has_lone_ref() || service->get_state() != service_state_t::STOPPED) {
+    if (!service->has_lone_ref() || service->get_state() != service_state_t::STOPPED) {
         // Cannot unload: has other references
         char nak_rep[] = { DINIT_RP_NAK };
         if (! queue_packet(nak_rep, 1)) return false;

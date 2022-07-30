@@ -768,6 +768,7 @@ class service_settings_wrapper
 
     service_type_t service_type = service_type_t::INTERNAL;
     list<dep_type> depends;
+    list<std::string> before_svcs;
     string logfile;
     service_flags_t onstart_flags;
     int term_signal = SIGTERM;  // termination signal
@@ -986,6 +987,10 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
     else if (setting == "waits-for.d") {
         string waitsford = read_setting_value(line_num, i, end);
         process_dep_dir(settings.depends, waitsford, dependency_type::WAITS_FOR);
+    }
+    else if (setting == "before") {
+        string before_name = read_setting_value(line_num, i, end);
+        settings.before_svcs.emplace_back(std::move(before_name));
     }
     else if (setting == "logfile") {
         settings.logfile = read_setting_value(line_num, i, end);

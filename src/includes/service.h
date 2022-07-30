@@ -616,7 +616,13 @@ class service_record
     // or false if there are others (including dependents).
     bool has_lone_ref(bool check_deps = true) noexcept
     {
-        if (check_deps && ! dependents.empty()) return false;
+        if (check_deps) {
+            for (auto *dept : dependents) {
+                if (dept->dep_type != dependency_type::BEFORE) {
+                    return false;
+                }
+            }
+        }
         auto i = listeners.begin();
         return (++i == listeners.end());
     }
@@ -630,6 +636,12 @@ class service_record
             dep_dpts.erase(std::find(dep_dpts.begin(), dep_dpts.end(), &dep));
         }
         depends_on.clear();
+
+        // Also remove all dependents. This should not be necessary except for "before" links.
+        // Note: this for loop might look odd, but it's correct!
+        for (auto i = dependents.begin(); i != dependents.end(); i = dependents.begin()) {
+            (*i)->get_from()->rm_dep(**i);
+        }
     }
 
     // Why did the service stop?
@@ -694,11 +706,13 @@ class service_record
             throw;
         }
 
-        if (dep_type == dependency_type::REGULAR
-                || (reattach && to->get_state() == service_state_t::STARTED)) {
-            if (service_state == service_state_t::STARTING || service_state == service_state_t::STARTED) {
-                to->require();
-                pre_i->holding_acq = true;
+        if (dep_type != dependency_type::BEFORE) {
+            if (dep_type == dependency_type::REGULAR
+                    || (reattach && to->get_state() == service_state_t::STARTED)) {
+                if (service_state == service_state_t::STARTING || service_state == service_state_t::STARTED) {
+                    to->require();
+                    pre_i->holding_acq = true;
+                }
             }
         }
 
@@ -709,7 +723,7 @@ class service_record
     // dependency was found (and removed). Propagation queues should be processed after calling.
     bool rm_dep(service_record *to, dependency_type dep_type) noexcept
     {
-        for (auto i = depends_on.begin(); i != depends_on.end(); i++) {
+        for (auto i = depends_on.begin(); i != depends_on.end(); ++i) {
             auto & dep = *i;
             if (dep.get_to() == to && dep.dep_type == dep_type) {
                 rm_dep(i);
@@ -719,10 +733,20 @@ class service_record
         return false;
     }
 
+    void rm_dep(service_dep &dep) noexcept
+    {
+        for (auto i = depends_on.begin(); i != depends_on.end(); ++i) {
+            if (&(*i) == &dep) {
+                rm_dep(i);
+                return;
+            }
+        }
+    }
+
     dep_list::iterator rm_dep(dep_list::iterator i) noexcept
     {
         auto to = i->get_to();
-        for (auto j = to->dependents.begin(); ; j++) {
+        for (auto j = to->dependents.begin(); ; ++j) {
             if (*j == &(*i)) {
                 to->dependents.erase(j);
                 break;

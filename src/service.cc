@@ -333,6 +333,8 @@ bool service_record::start_check_dependencies() noexcept
 
     for (auto & dep : depends_on) {
         service_record * to = dep.get_to();
+        if (dep.dep_type == dependency_type::BEFORE
+                && to->service_state != service_state_t::STARTING) continue;
         if (to->service_state != service_state_t::STARTED) {
             // We don't actually have to issue a start; the require will do that
             dep.waiting_on = true;
@@ -448,6 +450,7 @@ void service_record::failed_to_start(bool depfailed, bool immediate_stop) noexce
             break;
         case dependency_type::WAITS_FOR:
         case dependency_type::SOFT:
+        case dependency_type::BEFORE:
             if (dept->waiting_on) {
                 dept->waiting_on = false;
                 dept->get_from()->dependency_started();
