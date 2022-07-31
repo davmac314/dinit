@@ -117,11 +117,16 @@ If none are specified, defaults to \fIboot\fR (which requires that a suitable se
 for the \fIboot\fR service exists).
 .sp
 \fBNote:\fR on Linux, if \fBdinit\fR is running as PID 1 and with UID 0, it will ignore
-service names provided on the command line, other than "single", unless they appear
+service names provided on the command line, other than "single", unless use \fB-t\fR, \fB--service\fR argument or they appear
 anywhere after the "\-o" or "\-m" options (or their long forms).
 This is to filter arguments that were intended for the kernel and not for \fBinit\fR.
 If running in a container, the "\-o" option should be used regardless and will inhibit this
 filtering for any subsequent service names.
+.TP
+\fB\-t\fR, \fB--service\fR \fIservice-name\fR
+Specifies the name of a service that should be started (along with its
+dependencies) and its work when \fBdinit\fR started as \fBinit\fR. you can use this argument(s) in kernel/bootloader command line (E.g: \fB-t tty1\fR).
+also possible to start several services by adding several \fB-t\fR, \fB--service\fR (E.g: \fB-t tty1 -t tty2\fR).
 .\"
 .SH SERVICE DESCRIPTION FILES
 .\"
