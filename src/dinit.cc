@@ -327,7 +327,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                 services_to_start.push_back(argv[i]);
             }
             else {
-                cerr << "dinit: '--service' requires an argument\n";
+                cerr << "dinit: '--service' (-t) requires an argument\n";
                 return 1;
             }
         }
