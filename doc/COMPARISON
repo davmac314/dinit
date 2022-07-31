@@ -252,8 +252,8 @@ essentially the same thing.
 
 Systemd running in "system" mode does not properly support running with a PID other than
 one [1]. That is, it must replace /sbin/init. Systemd can however be run in "user" mode
-where it (most likely) provides roughly the same level of functionality as Dinit, though
-in a more complex package.
+where it (most likely) provides roughly the same level of functionality as Dinit's user instance,
+though in a more complex package.
 
 The Systemd interdependence graph is more complex than for Dinit and most other
 dependency-handling service managers: a service can conflict with another service, meaning
@@ -284,14 +284,10 @@ management, just as Dinit does. Development appears to have ceased some
 time ago, unfortunately.
 
 
-InitNG (http://initng.org/trac; defunct)
--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-A highly modular init system which apparently offers dependency management
-(as Dinit does). Portability status is unclear; may be Linux-only (Dinit
-strives for portability). Development may have ceased (website is now showing
-Japanese text which I am unable to read) although there are what looks like
-maintenance commits from 2017 in the Github repository at
-https://github.com/initng/initng.
+InitNG (https://github.com/initng/initng; development ceased)
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+A highly-modular init system which offers dependency management (as Dinit does). Focused on Linux
+but portable (a port for Haiku existed at one point). Development ceased in 2013.
 
 
 Upstart (Ubuntu; http://upstart.ubuntu.com)
