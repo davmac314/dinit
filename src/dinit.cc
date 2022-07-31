@@ -322,10 +322,10 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             }
         }
         #endif
-        else if (strcmp(argv[i], "--service") == 0) {
+        else if (strcmp(argv[i], "--service") == 0 || strcmp(argv[i], "-t") == 0) {
             if (++i < argc) {
                 services_to_start.push_back(argv[i]);
-            } 
+            }
             else {
                 cerr << "dinit: '--service' requires an argument\n";
                 return 1;
@@ -359,7 +359,8 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                     " --log-file <file>, -l <file> log to the specified file\n"
                     " --quiet, -q                  disable output to standard output\n"
                     " <service-name>               start service with name <service-name>\n"
-                    " --service <service-name>     start service with name <service-name>\n";
+                    " --service <service-name>, -t <service-name>\n" 
+                    "                              start service with name <service-name>\n";
             return -1;
         }
         else {
