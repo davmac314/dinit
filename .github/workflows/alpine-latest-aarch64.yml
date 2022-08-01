@@ -15,21 +15,26 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: uraimo/run-on-arch-action@v2.2.0
-      name: Getting depends & configure & build & unit tests & integration tests
+      name: Getting depends & build & unit tests & integration tests
       with:
         arch: aarch64
         distro: alpine_latest
         run: | 
+          echo "$(tput bold) Getting depends$(tput sgr0)"
           apk update
           apk add make
           apk add g++
           apk add m4
+          echo "$(tput bold) Print g++ arch$(tput sgr0)"
           g++ -dumpmachine
-          chmod +x ./configs/mconfig.Linux.sh
-          ./configs/mconfig.Linux.sh
+          echo "$(tput bold) Build$(tput sgr0)"
           make
+          echo "$(tput bold) Install "file" package via apk$(tput sgr0)"
           apk add file
+          echo "$(tput bold) Print compiled file arch$(tput sgr0)"
           file ./src/dinit
           export LSAN_OPTIONS=verbosity=1:log_threads=1
+          echo "$(tput bold) Unit tests$(tput sgr0)"
           make check
+          echo "$(tput bold) Integration tests$(tput sgr0)"
           make check-igr
