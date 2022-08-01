@@ -21,21 +21,17 @@ jobs:
         distro: alpine_latest
         run: | 
           apk add ncurses
-          echo "$(tput bold) Getting depends$(tput sgr0)"
+          echo "$(tput bold) Getting depends:$(tput sgr0) apk update && apk add make g++ m4 file"
           apk update
-          apk add make
-          apk add g++
-          apk add m4
-          echo "$(tput bold) Print g++ arch$(tput sgr0)"
+          apk add make g++ m4 file
+          echo "$(tput bold) Print g++ arch:$(tput sgr0) g++ -dumpmachine"
           g++ -dumpmachine
-          echo "$(tput bold) Build$(tput sgr0)"
+          echo "$(tput bold) Build:$(tput sgr0) make"
           make
-          echo "$(tput bold) Install "file" package via apk$(tput sgr0)"
-          apk add file
-          echo "$(tput bold) Print compiled file arch$(tput sgr0)"
+          echo "$(tput bold) Print compiled file arch:$(tput sgr0) file"
           file ./src/dinit
           export LSAN_OPTIONS=verbosity=1:log_threads=1
-          echo "$(tput bold) Unit tests$(tput sgr0)"
+          echo "$(tput bold) Unit tests:$(tput sgr0) make check"
           make check
-          echo "$(tput bold) Integration tests$(tput sgr0)"
+          echo "$(tput bold) Integration tests:$(tput sgr0) make check-igr"
           make check-igr
