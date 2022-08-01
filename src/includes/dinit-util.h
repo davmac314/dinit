@@ -527,6 +527,136 @@ public:
     }
 };
 
+// a linked-list-set, i.e. a set that tracks insertion order
+template <typename K, typename Hash = std::hash<K>, typename Equal = std::equal_to<K>>
+class linked_uo_set
+{
+    using key_type = K;
+    using value_type = K;
+    using size_type = size_t;
+    using hasher = Hash;
+    using key_equal = Equal;
+
+    struct linked_record
+    {
+        K value;
+        linked_record *next;
+    };
+
+    struct lr_hash
+    {
+        hasher lr_hash_f;
+
+        template <typename T>
+        size_t operator()(const T &hval)
+        {
+            return lr_hash_f(hval);
+        }
+
+        size_t operator()(const linked_record &r)
+        {
+            return lr_hash_f(r.value);
+        }
+    };
+
+    struct lr_equ
+    {
+        key_equal lr_equal_f;
+
+        template <typename T>
+        bool operator()(const T &hval, const linked_record &rec)
+        {
+            return lr_equal_f(hval, rec.value);
+        }
+
+        template <typename T>
+        bool operator()(const linked_record &rec, const T &hval)
+        {
+            return lr_equal_f(hval, rec.value);
+        }
+
+        bool operator()(const linked_record &rec1, const linked_record &rec2)
+        {
+            return lr_equal_f(rec1.value, rec2.value);
+        }
+    };
+
+    dinit_unordered_set<linked_record, lr_hash, lr_equ> backing;
+
+    linked_record *first = nullptr;
+    linked_record *last = nullptr;
+
+public:
+    // Add to the back of the linked set, if not already in the set.
+    // Return true if added, false if was already in the set.
+    bool add_back(const value_type &value)
+    {
+        auto it_b = backing.insert({value, nullptr});
+        if (it_b.second) {
+            auto *new_ent = &(*it_b.first);
+            if (last != nullptr) {
+                last->next = new_ent;
+            }
+            last = new_ent;
+            if (first == nullptr) {
+                first = new_ent;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    class iterator
+    {
+        linked_record *current = nullptr;
+
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+        using value_type = linked_uo_set::value_type;
+        using pointer = value_type*;
+        using reference = value_type&;
+
+        iterator(linked_record *record) : current(record) { }
+
+        bool operator==(const iterator &other) noexcept
+        {
+            return other.current == current;
+        }
+
+        bool operator!=(const iterator &other) noexcept
+        {
+            return !(*this == other);
+        }
+
+        value_type &operator*() noexcept
+        {
+            return current->value;
+        }
+
+        const value_type *operator->() noexcept
+        {
+            return &(current->value);
+        }
+
+        iterator &operator++() noexcept
+        {
+            current = current->next;
+            return *this;
+        }
+    };
+
+    iterator begin()
+    {
+        return iterator(first);
+    }
+
+    iterator end()
+    {
+        return iterator(nullptr);
+    }
+};
+
 // string that maintains a heap allocation always. Moving a ha_string does not invalidate pointers
 // to characters within the string.
 class ha_string {

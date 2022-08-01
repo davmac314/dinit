@@ -4,6 +4,7 @@
 #include <locale>
 #include <limits>
 #include <list>
+#include <utility>
 
 #include <cstring>
 #include <cstdlib>
@@ -94,10 +95,37 @@ service_record * dirload_service_set::reload_service(service_record * service)
     return load_reload_service(service->get_name().c_str(), service, service);
 }
 
-// Update the dependencies of the specified service atomically. May fail with bad_alloc.
+using service_dep_list = decltype(std::declval<dinit_load::service_settings_wrapper<prelim_dep>>().depends);
+
+// Check for dependency cycles for the specified service (orig) with the given set of dependencies
+static void check_cycle(service_dep_list &deps, service_record *orig)
+{
+    linked_uo_set<service_record *> pending;
+    for (auto &new_dep : deps) {
+        if (new_dep.to == orig) {
+            throw service_cyclic_dependency(orig->get_name());
+        }
+        pending.add_back(new_dep.to);
+    }
+
+    for (auto i = pending.begin(); i != pending.end(); ++i) {
+        auto &dep_list = (*i)->get_dependencies();
+        for (auto &dep : dep_list) {
+            if (dep.get_to() == orig) {
+                throw service_cyclic_dependency(orig->get_name());
+            }
+            pending.add_back(dep.get_to());
+        }
+    }
+}
+
+// Update the dependencies of the specified service atomically.
+// May fail with bad_alloc, service_cyclic_dependency.
 static void update_depenencies(service_record *service,
         dinit_load::service_settings_wrapper<prelim_dep> &settings)
 {
+    check_cycle(settings.depends, service);
+
     std::list<service_dep> &deps = service->get_dependencies();
     auto first_preexisting = deps.begin();
 
@@ -132,7 +160,8 @@ static void update_depenencies(service_record *service,
     }
 }
 
-// Update the command, and dependencies, of the specified service atomically. May fail with bad_alloc.
+// Update the command, and dependencies, of the specified service atomically.
+// May fail with bad_alloc, service_cyclic_dependency.
 static void update_command_and_dependencies(base_process_service *service,
         dinit_load::service_settings_wrapper<prelim_dep> &settings)
 {
@@ -368,6 +397,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             if (create_new_record) {
                 rvalps = new process_service(this, string(name), std::move(settings.command),
                         settings.command_offsets, settings.depends);
+                if (reload_svc != nullptr) {
+                    check_cycle(settings.depends, reload_svc);
+                }
             }
             else {
                 rvalps = static_cast<process_service *>(reload_svc);
@@ -403,6 +435,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             if (create_new_record) {
                 rvalps = new bgproc_service(this, string(name), std::move(settings.command),
                         settings.command_offsets, settings.depends);
+                if (reload_svc != nullptr) {
+                    check_cycle(settings.depends, reload_svc);
+                }
             }
             else {
                 rvalps = static_cast<bgproc_service *>(reload_svc);
@@ -434,6 +469,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             if (create_new_record) {
                 rvalps = new scripted_service(this, string(name), std::move(settings.command),
                         settings.command_offsets, settings.depends);
+                if (reload_svc != nullptr) {
+                    check_cycle(settings.depends, reload_svc);
+                }
             }
             else {
                 rvalps = static_cast<scripted_service *>(reload_svc);
@@ -456,6 +494,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         else {
             if (create_new_record) {
                 rval = new service_record(this, string(name), service_type, settings.depends);
+                if (reload_svc != nullptr) {
+                    check_cycle(settings.depends, reload_svc);
+                }
             }
             else {
                 rval = reload_svc;
