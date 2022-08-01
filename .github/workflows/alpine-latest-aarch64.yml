@@ -20,6 +20,7 @@ jobs:
         arch: aarch64
         distro: alpine_latest
         run: | 
+          apk add ncurses
           echo "$(tput bold) Getting depends$(tput sgr0)"
           apk update
           apk add make
