@@ -107,26 +107,20 @@ This option is only available if \fBdinit\fR is built with cgroups support.
 .TP
 \fB\-\-help\fR
 Display brief help text and then exit.
+.TP
 \fB\-\-version\fR
 Display version number and then exit.
 .TP
-\fIservice-name\fR
+[\fB\-t\fR] \fIservice-name\fR, [\fB\-\-service\fR] \fIservice-name\fR
 Specifies the name of a service that should be started (along with its
 dependencies).
 If none are specified, defaults to \fIboot\fR (which requires that a suitable service description
-for the \fIboot\fR service exists).
+for the \fIboot\fR service exists). Multiple services can be specified in which case they will each
+be started.
 .sp
-\fBNote:\fR on Linux, if \fBdinit\fR is running as PID 1 and with UID 0, it will ignore
-service names provided on the command line, other than "single", unless use \fB-t\fR, \fB--service\fR argument or they appear
-anywhere after the "\-o" or "\-m" options (or their long forms).
-This is to filter arguments that were intended for the kernel and not for \fBinit\fR.
-If running in a container, the "\-o" option should be used regardless and will inhibit this
-filtering for any subsequent service names.
-.TP
-\fB\-t\fR, \fB--service\fR \fIservice-name\fR
-Specifies the name of a service that should be started (along with its
-dependencies) and its work when \fBdinit\fR started as \fBinit\fR. you can use this argument(s) in kernel/bootloader command line (E.g: \fB-t tty1\fR).
-also possible to start several services by adding several \fB-t\fR, \fB--service\fR (E.g: \fB-t tty1 -t tty2\fR).
+\fBNote:\fR on Linux, if \fBdinit\fR is running as PID 1 and with UID 0, it may ignore "naked"
+service names (without preceding \fB\-\-service\fR/\fB\-t\fR) provided on the command line.
+See the \fBCOMMAND LINE FROM KERNEL\fR section.
 .\"
 .SH SERVICE DESCRIPTION FILES
 .\"
@@ -209,7 +203,11 @@ Therefore, \fBdinit\fR ignores all "word like" options other than "\fBsingle\fR"
 the name of the service to start (thus allowing "single user mode", assuming that a suitable service description exists).
 Options beginning with "\fB--\fR" will not be recognised by the kernel and will be passed to (and processed by) \fBdinit\fR;
 for example \fB\-\-quiet\fR can be used to suppress console output. Options containing "=" that are unrecognised by the
-kernel (or some that are, due to bugs) are passed to init via the environment rather than via the command line. 
+kernel (or some that are, due to bugs) are passed to init via the environment rather than via the command line.
+.LP
+There are several ways to work around this.
+Service names following the \fB\-\-container\fR (\fB\-o\fR) or \fB\-\-system\-mgr\fR (\fB\-m\fR) options are not ignored.
+Also, the \fB\-\-service\fR (\fB\-t\fR) option can be used to force a service name to be recognised regardless of operating mode.
 .\"
 .SH FILES
 .\"
