@@ -19,7 +19,7 @@ jobs:
       with:
         arch: armv6
         distro: alpine_latest
-        run: | 
+        run: |
           apk add ncurses
           echo "$(tput bold) Getting depends:$(tput sgr0) apk update && apk add make g++ m4 file"
           apk update
@@ -28,7 +28,7 @@ jobs:
           g++ -dumpmachine
           echo "$(tput bold) Build:$(tput sgr0) make"
           make
-          echo "$(tput bold) Print compiled file arch:$(tput sgr0) file"
+          echo "$(tput bold) Print dinit executive file architecture:$(tput sgr0) file ./src/dinit"
           file ./src/dinit
           export LSAN_OPTIONS=verbosity=1:log_threads=1
           echo "$(tput bold) Unit tests:$(tput sgr0) make check"
