@@ -796,13 +796,13 @@ class service_set
     slist<service_record, extract_stop_queue> stop_queue;
     
     public:
-    service_set()
+    service_set() noexcept
     {
         active_services = 0;
         restart_enabled = true;
     }
     
-    virtual ~service_set()
+    virtual ~service_set() noexcept
     {
         for (auto * s : records) {
             delete s;
@@ -810,14 +810,14 @@ class service_set
     }
 
     // Start the specified service. The service will be marked active.
-    void start_service(service_record *svc)
+    void start_service(service_record *svc) noexcept
     {
         svc->start();
         process_queues();
     }
 
     // Stop the specified service. Its active mark will be cleared.
-    void stop_service(service_record *svc)
+    void stop_service(service_record *svc) noexcept
     {
         svc->stop(true);
         process_queues();
@@ -868,12 +868,12 @@ class service_set
         records.push_back(svc);
     }
     
-    void remove_service(service_record *svc)
+    void remove_service(service_record *svc) noexcept
     {
         records.erase(std::find(records.begin(), records.end(), svc));
     }
 
-    void replace_service(service_record *orig, service_record *replacement)
+    void replace_service(service_record *orig, service_record *replacement) noexcept
     {
         auto i = std::find(records.begin(), records.end(), orig);
         *i = replacement;
@@ -1002,7 +1002,7 @@ class service_set
 
     // Get an identifier for the run-time type of the service set (similar to typeid, but without
     // requiring RTTI to be enabled during compilation).
-    virtual int get_set_type_id()
+    virtual int get_set_type_id() noexcept
     {
         return SSET_TYPE_NONE;
     }
@@ -1033,12 +1033,12 @@ class dirload_service_set : public service_set
             const service_record *avoid_circular);
 
     public:
-    dirload_service_set() : service_set()
+    dirload_service_set() noexcept : service_set()
     {
         // nothing to do.
     }
 
-    dirload_service_set(service_dir_pathlist &&pathlist) : service_set(), service_dirs(std::move(pathlist))
+    dirload_service_set(service_dir_pathlist &&pathlist) noexcept : service_set(), service_dirs(std::move(pathlist))
     {
         // nothing to do.
     }
@@ -1050,12 +1050,12 @@ class dirload_service_set : public service_set
 
     dirload_service_set(const dirload_service_set &) = delete;
 
-    int get_service_dir_count()
+    int get_service_dir_count() noexcept
     {
         return service_dirs.size();
     }
 
-    const char * get_service_dir(int n)
+    const char * get_service_dir(int n) noexcept
     {
         return service_dirs[n].get_dir();
     }
@@ -1069,7 +1069,7 @@ class dirload_service_set : public service_set
 
     service_record *reload_service(service_record *service) override;
 
-    int get_set_type_id() override
+    int get_set_type_id() noexcept override
     {
         return SSET_TYPE_DIRLOAD;
     }
