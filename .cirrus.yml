@@ -2,4 +2,4 @@ freebsd_instance:
   image_family: freebsd-13-0
 
 task:
-  test: uname -a
+  script: uname -a
