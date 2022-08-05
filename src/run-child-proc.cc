@@ -314,7 +314,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             num_chars = sprintf(pidbuf, "%lu\n", (unsigned long)getpid());
         }
         else {
-            static_assert(sizeof(pid_t) <= sizeof(unsigned long long));
+            static_assert(sizeof(pid_t) <= sizeof(unsigned long long), "pid_t is too big");
             num_chars = sprintf(pidbuf, "%llu\n", (unsigned long long)getpid());
         }
 
@@ -333,7 +333,9 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     sigprocmask(SIG_SETMASK, &sigwait_set, nullptr);
 
     err.stage = exec_stage::DO_EXEC;
-    execvpe(args[0], const_cast<char **>(args), const_cast<char **>(proc_env_map.env_list.data()));
+    // (on linux we could use execvpe, but it's not POSIX and not in eg FreeBSD).
+    environ = const_cast<char **>(proc_env_map.env_list.data());
+    execvp(args[0], const_cast<char **>(args));
 
     // If we got here, the exec failed:
     failure_out:

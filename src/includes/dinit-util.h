@@ -272,7 +272,7 @@ public:
         size_t bucket_num;
 
     public:
-        iterator() noexcept : buckets(nullptr), list_it({}), bucket_num(-1) { }
+        iterator() noexcept : buckets(nullptr), list_it(), bucket_num(-1) { }
         iterator(bucket_vec *buckets_p, list_iterator_t lit, size_t bucket_p) noexcept
             : buckets(buckets_p), list_it(lit), bucket_num(bucket_p) { }
         iterator(const iterator &) noexcept = default;
