@@ -4,4 +4,4 @@ freebsd_instance:
 task:
   Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install m4
   Print clang++ architecture_script: clang++ -dumpmachine
-  Build_script: make
+  Build_script: gmake
