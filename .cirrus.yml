@@ -2,5 +2,4 @@ freebsd_instance:
   image_family: freebsd-13-0
 
 task:
-  - name: Print FreeBSD Kernel info
-    script: uname -a
+  Print_FreeBSD_Kernel_info_script: uname -a
