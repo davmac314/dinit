@@ -2,4 +2,4 @@ freebsd_instance:
   image_family: freebsd-13-1
 
 task:
-  Getting depends_script: pkg update && pkg -q install m4
+  Getting depends_script: pkg update && pkg_install m4
