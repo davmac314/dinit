@@ -1,5 +1,5 @@
 freebsd_instance:
-  image_family: freebsd-13-0
+  image_family: freebsd-13-1
 
 task:
-  Print_FreeBSD_Kernel_info_script: uname -a
+  Getting_depends-script: pkg update -y && pkg install g++ m4 make -y
