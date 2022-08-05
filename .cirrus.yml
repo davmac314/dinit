@@ -2,6 +2,6 @@ freebsd_instance:
   image_family: freebsd-13-1
 
 task:
-  Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install m4
+  Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install gmake m4
   Print clang++ architecture_script: clang++ -dumpmachine
   Build_script: gmake
