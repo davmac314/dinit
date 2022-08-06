@@ -10,7 +10,7 @@ SYSCONTROLSOCKET=/var/run/dinitctl
 # FreeBSD: use clang++ by default, supports sanitizers, requires linking with -lrt
 # Cannot use LTO with default linker.
 CXX=clang++
-CXXOPTS=-std=c++14 -Os -Wall -fno-plt -fno-rtti
+CXXOPTS=-std=c++11 -Os -Wall -fno-plt -fno-rtti
 LDFLAGS=-lrt
 BUILD_SHUTDOWN=no
 SANITIZEOPTS=-fsanitize=address,undefined
