@@ -8,7 +8,7 @@ check: build-tests run-tests
 build-tests: prepare-incdir tests proctests loadtests envtests
 	$(MAKE) -C cptests build-tests
 
-run-tests: tests proctests loadtests
+run-tests: tests proctests loadtests envtests
 	./tests
 	./proctests
 	./loadtests
