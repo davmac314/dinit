@@ -8,3 +8,25 @@ task:
   Print dinit executive file architecture_script: file ./src/dinit
   Unit tests_script: gmake check
   Integration tests_script: gmake check-igr
+  
+freebsd_instance:
+  image_family: freebsd-13-0
+
+task:
+  Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install gmake m4 file
+  Print clang++ architecture_script: clang++ -dumpmachine
+  Build_script: gmake
+  Print dinit executive file architecture_script: file ./src/dinit
+  Unit tests_script: gmake check
+  Integration tests_script: gmake check-igr
+
+freebsd_instance:
+  image_family: freebsd-12-3
+
+task:
+  Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install gmake m4 file
+  Print clang++ architecture_script: clang++ -dumpmachine
+  Build_script: gmake
+  Print dinit executive file architecture_script: file ./src/dinit
+  Unit tests_script: gmake check
+  Integration tests_script: gmake check-igr
