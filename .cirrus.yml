@@ -5,5 +5,5 @@ task:
   Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install gmake m4
   Print clang++ architecture_script: clang++ -dumpmachine
   Build_script: gmake
-  Unit tests_build: gmake check
-  Integration tests_build: gmake check-igr
+  Unit tests_script: gmake check
+  Integration tests_script: gmake check-igr
