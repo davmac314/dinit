@@ -334,7 +334,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
 
     err.stage = exec_stage::DO_EXEC;
     // (on linux we could use execvpe, but it's not POSIX and not in eg FreeBSD).
-    environ = const_cast<char **>(proc_env_map.env_list.data());
+    bp_sys::environ = const_cast<char **>(proc_env_map.env_list.data());
     execvp(args[0], const_cast<char **>(args));
 
     // If we got here, the exec failed:
