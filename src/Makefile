@@ -32,8 +32,8 @@ dinitcheck: dinitcheck.o options-processing.o
 dinit-monitor: dinit-monitor.o
 	$(CXX) -o dinit-monitor dinit-monitor.o $(CXXOPTS) $(LDFLAGS)
 
-$(SHUTDOWNPREFIX)shutdown: shutdown.o
-	$(CXX) -o $(SHUTDOWNPREFIX)shutdown shutdown.o $(CXXOPTS) $(LDFLAGS)
+$(SHUTDOWN_PREFIX)shutdown: shutdown.o
+	$(CXX) -o $(SHUTDOWN_PREFIX)shutdown shutdown.o $(CXXOPTS) $(LDFLAGS)
 
 $(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) -MMD -MP -Iincludes -I../dasynq/include -I../build/includes -c $< -o $@
@@ -51,9 +51,9 @@ install: all
 	install -d $(DESTDIR)$(SBINDIR)
 	install $(STRIPOPTS) dinit dinitctl dinitcheck dinit-monitor $(SHUTDOWN) $(DESTDIR)$(SBINDIR)
 ifeq ($(BUILD_SHUTDOWN),yes)
-	ln -sf $(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWNPREFIX)halt
-	ln -sf $(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWNPREFIX)reboot
-	ln -sf $(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWNPREFIX)poweroff
+	ln -sf $(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWN_PREFIX)halt
+	ln -sf $(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWN_PREFIX)reboot
+	ln -sf $(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWN_PREFIX)poweroff
 endif
 
 clean:

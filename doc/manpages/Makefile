@@ -11,10 +11,10 @@ install: generate
 	mkdir -p "$(DESTDIR)$(MANDIR)/man5"
 	install -m644 dinit-service.5 "$(DESTDIR)$(MANDIR)/man5"
 ifeq ($(BUILD_SHUTDOWN),yes)
-	install -m644 shutdown.8 "$(DESTDIR)$(MANDIR)/man8"
-	ln -sf "shutdown.8" "$(DESTDIR)$(MANDIR)/man8/halt.8"
-	ln -sf "shutdown.8" "$(DESTDIR)$(MANDIR)/man8/reboot.8"
-	ln -sf "shutdown.8" "$(DESTDIR)$(MANDIR)/man8/poweroff.8"
+	install -m644 shutdown.8 "$(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)shutdown.8"
+	ln -sf "$(SHUTDOWN_PREFIX)shutdown.8" "$(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)halt.8"
+	ln -sf "$(SHUTDOWN_PREFIX)shutdown.8" "$(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)reboot.8"
+	ln -sf "$(SHUTDOWN_PREFIX)shutdown.8" "$(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)poweroff.8"
 endif
 
 clean:
