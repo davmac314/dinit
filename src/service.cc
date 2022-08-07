@@ -416,8 +416,10 @@ void service_record::started() noexcept
 
     // Notify any dependents whose desired state is STARTED:
     for (auto dept : dependents) {
-        dept->get_from()->dependency_started();
-        dept->waiting_on = false;
+        if (dept->waiting_on) {
+            dept->get_from()->dependency_started();
+            dept->waiting_on = false;
+        }
     }
 }
 
