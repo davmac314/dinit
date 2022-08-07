@@ -682,20 +682,17 @@ class service_record
 
     // Add a dependency. Caller must ensure that the services are in an appropriate state and that
     // a circular dependency chain is not created. Propagation queues should be processed after
-    // calling this. May throw std::bad_alloc.
+    // calling this (if dependency may be required to start). May throw std::bad_alloc.
     service_dep & add_dep(service_record *to, dependency_type dep_type)
     {
-        return add_dep(to, dep_type, depends_on.end(), false);
+        return add_dep(to, dep_type, depends_on.end());
     }
 
     // Add a dependency. Caller must ensure that the services are in an appropriate state and that
     // a circular dependency chain is not created. Propagation queues should be processed after
-    // calling this. May throw std::bad_alloc.
+    // calling this (if dependency may be required to start). May throw std::bad_alloc.
     //   i - where to insert the dependency (in dependencies list)
-    //   reattach - whether to acquire the required service if it and the dependent are started.
-    //             (if false, only REGULAR dependencies will cause acquire if the dependent is started,
-    //              doing so regardless of required service's state).
-    service_dep & add_dep(service_record *to, dependency_type dep_type, dep_list::iterator i, bool reattach)
+    service_dep & add_dep(service_record *to, dependency_type dep_type, dep_list::iterator i)
     {
         auto pre_i = depends_on.emplace(i, this, to, dep_type);
         try {
@@ -708,8 +705,10 @@ class service_record
 
         if (dep_type != dependency_type::BEFORE) {
             if (dep_type == dependency_type::REGULAR
-                    || (reattach && to->get_state() == service_state_t::STARTED)) {
-                if (service_state == service_state_t::STARTING || service_state == service_state_t::STARTED) {
+                    || to->get_state() == service_state_t::STARTED
+                    || to->get_state() == service_state_t::STARTING) {
+                if (service_state == service_state_t::STARTING
+                        || service_state == service_state_t::STARTED) {
                     to->require();
                     pre_i->holding_acq = true;
                 }

@@ -134,14 +134,6 @@ static void update_depenencies(service_record *service,
     auto &depts = service->get_dependents();
     auto first_pre_dept = depts.begin();
 
-    // build a set of services currently issuing acquisition
-    std::unordered_set<service_record *> deps_with_acqs;
-    for (auto i = deps.begin(), e = deps.end(); i != e; ++i) {
-        if (i->holding_acq) {
-            deps_with_acqs.insert(i->get_to());
-        }
-    }
-
     try {
         // Insert all new dependents (from "before" relationships) before the first pre-existing dependent
         for (auto new_dept_i = before_deps.begin(); new_dept_i != before_deps.end(); ) {
@@ -156,8 +148,7 @@ static void update_depenencies(service_record *service,
 
         // Insert all the new dependencies before the first pre-existing dependency
         for (auto &new_dep : settings.depends) {
-            bool has_acq = deps_with_acqs.count(new_dep.to);
-            service->add_dep(new_dep.to, new_dep.dep_type, first_preexisting, has_acq);
+            service->add_dep(new_dep.to, new_dep.dep_type, first_preexisting);
         }
     }
     catch (...) {
