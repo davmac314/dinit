@@ -17,6 +17,7 @@ jobs:
     # on MacOS, g++ symlinked to clang++
     # We must verify that
     - name: Verify g++ (it is g++ or clang++)
+      run: g++ --version
     - name: Print g++ architecture
       run: g++ -dumpmachine
     - name: We have 'file'?
