@@ -13,7 +13,14 @@ jobs:
     runs-on: macos-latest
 
     steps:
-#    - name: Test clang++
-#      run: clang++
-    - name: Test m4
-      run: m4 --version
+    - uses: actions/checkout@v3
+    - name: Print g++ architecture
+      run: clang++ -dumpmachine
+    - name: Build
+      run: make
+#    - name: Print dinit executive file architecture
+#      run: file ./src/dinit
+    - name: Unit tests
+      run: make check
+    - name: Integration tests
+      run: make check-igr
