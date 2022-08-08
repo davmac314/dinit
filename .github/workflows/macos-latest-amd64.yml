@@ -14,8 +14,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    # on MacOS, g++ symlinked to clang++
+    # We must verify that
+    - name: Verify g++ (it is g++ or clang++)
     - name: Print g++ architecture
-      run: clang++ -dumpmachine
+      run: g++ -dumpmachine
+    - name: We have 'file'?
+      run: file --version
     - name: Build
       run: make
 #    - name: Print dinit executive file architecture
