@@ -13,5 +13,5 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - name: Getting Xcode depends
-      run: xcode-select --install
+    - name: Getting homebrew
+      run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
