@@ -13,7 +13,5 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - name: Getting homebrew
-      run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
-    - name: Getting clang++ via homebrew
-      run: brew install clang++
+    - name: Test Xcode
+      run: clang++
