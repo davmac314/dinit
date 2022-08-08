@@ -13,5 +13,6 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - name: Test Xcode
+    - name: Test clang++
       run: clang++
+    - name: Test m4
