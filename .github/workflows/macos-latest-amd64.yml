@@ -13,5 +13,5 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - name: Print kernel info
-      run: uname -a
+    - name: Getting Xcode depends
+      run: xcode-select --install
