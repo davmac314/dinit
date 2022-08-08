@@ -1,4 +1,4 @@
-name: Dinit on debian-bullseye-amd64 CI
+name: Dinit on macos-latest-amd64 CI
 
 on:
   push:
@@ -8,10 +8,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  Debian-bullseye-amd64_build:
+  MacOS-latest-amd64_build:
 
     runs-on: macos-latest
 
     steps:
-    - name:
+    - name: Print kernel info
       run: uname -a
