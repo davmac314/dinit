@@ -16,3 +16,4 @@ jobs:
     - name: Test clang++
       run: clang++
     - name: Test m4
+      run: m4 --version
