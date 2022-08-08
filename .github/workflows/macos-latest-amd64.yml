@@ -1,0 +1,17 @@
+name: Dinit on debian-bullseye-amd64 CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  Debian-bullseye-amd64_build:
+
+    runs-on: macos-latest
+
+    steps:
+    - name:
+      run: uname -a
