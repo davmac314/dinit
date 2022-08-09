@@ -1,0 +1,30 @@
+name: Dinit on macos-latest-amd64 CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  MacOS-latest-amd64_build:
+
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    # on MacOS, g++ symlinked to clang++
+    # We must verify that
+    - name: Verify g++ (it is g++ or clang++?)
+      run: g++ --version
+    - name: Print g++ architecture
+      run: g++ -dumpmachine
+    - name: Build
+      run: make
+    - name: Print dinit executive file architecture
+      run: file ./src/dinit
+    - name: Unit tests
+      run: make check
+    - name: Integration tests
+      run: make check-igr
