@@ -1,8 +1,8 @@
 -include ../../../mconfig
 
 objects = cptests.o
-parent_test_objects = ../test-bpsys.o ../test-dinit.o
-parent_objs = control.o dinit-log.o service.o load-service.o proc-service.o baseproc-service.o run-child-proc.o dinit-env.o
+parent_test_objects = ../test-bpsys.o ../test-dinit.o ../test-run-child-proc.o
+parent_objs = control.o dinit-log.o service.o load-service.o proc-service.o baseproc-service.o dinit-env.o
 
 check: build-tests run-tests
 
