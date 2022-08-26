@@ -48,7 +48,7 @@ fuzz_objects = $(foreach obj,$(parent_objs),fuzz-$(obj))
 include/mconfig.h: ../../../build/includes/mconfig.h
 	/usr/bin/env mv ../../../build/includes/mconfig.h includes/mconfig.h
 
-fuzz: prepare-incdir gen-mconfig fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects)
+fuzz: prepare-incdir include/mconfig.h fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects)
 	clang++ -std=c++11 -g -O1 -Iincludes -I../../../dasynq/include -fsanitize=fuzzer,address,undefined,leak fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects) -o fuzz
 
 $(fuzz_parent_test_objects): fuzz-%.o: ../%.cc
