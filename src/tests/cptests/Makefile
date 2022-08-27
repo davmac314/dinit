@@ -45,17 +45,14 @@ fuzz_objects = $(foreach obj,$(parent_objs),fuzz-$(obj))
 ../../../build/includes/mconfig.h: ../../../mconfig
 	$(MAKE) -C ../../../build all
 
-include/mconfig.h: ../../../build/includes/mconfig.h
-	/usr/bin/env mv ../../../build/includes/mconfig.h includes/mconfig.h
-
-fuzz: prepare-incdir include/mconfig.h fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects)
-	clang++ -std=c++11 -g -O1 -Iincludes -I../../../dasynq/include -fsanitize=fuzzer,address,undefined,leak fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects) -o fuzz
+fuzz: prepare-incdir ../../../build/include/mconfig.h fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects)
+	clang++ -std=c++11 -g -O1 -Iincludes -I../../../dasynq/include -I../../../build/includes/ -fsanitize=fuzzer,address,undefined,leak fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects) -o fuzz
 
 $(fuzz_parent_test_objects): fuzz-%.o: ../%.cc
-	clang -O1 -fsanitize=address,undefined,fuzzer-no-link,leak -MMD -MP -Iincludes -I../../../dasynq/include -c $< -o $@
+	clang -O1 -fsanitize=address,undefined,fuzzer-no-link,leak -MMD -MP -Iincludes -I../../../dasynq/include -I../../../build/includes/ -c $< -o $@
 
 $(fuzz_objects): fuzz-%.o: ../../%.cc
-	clang -O1 -fsanitize=address,undefined,fuzzer-no-link,leak -MMD -MP -Iincludes -I../../../dasynq/include -c $< -o $@
+	clang -O1 -fsanitize=address,undefined,fuzzer-no-link,leak -MMD -MP -Iincludes -I../../../dasynq/include -I../../../build/includes/ -c $< -o $@
 
 
 -include $(objects:.o=.d)
