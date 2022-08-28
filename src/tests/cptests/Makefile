@@ -45,7 +45,7 @@ fuzz_objects = $(foreach obj,$(parent_objs),fuzz-$(obj))
 ../../../build/includes/mconfig.h: ../../../mconfig
 	$(MAKE) -C ../../../build all
 
-fuzz: prepare-incdir ../../../build/include/mconfig.h fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects)
+fuzz: prepare-incdir ../../../build/includes/mconfig.h fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects)
 	clang++ -std=c++11 -g -O1 -Iincludes -I../../../dasynq/include -I../../../build/includes/ -fsanitize=fuzzer,address,undefined,leak fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects) -o fuzz
 
 $(fuzz_parent_test_objects): fuzz-%.o: ../%.cc
