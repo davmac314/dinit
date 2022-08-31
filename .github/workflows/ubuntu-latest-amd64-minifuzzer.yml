@@ -23,10 +23,10 @@ jobs:
     - name: Build `fuzz` target via make
       run: cd src/tests/cptests/ && make fuzz
     - name: Run fuzzer
-      run: src/tests/cptests/fuzz -max_total_time=12
+      run: src/tests/cptests/fuzz -max_total_time=1200
     - name: Upload crash file(s)
       uses: actions/upload-artifact@v3.1.0
-      if: failure() && steps.build.outcome == 'success'
+      if: failure()
       with:
-          name: Dinit-minifuzzer_crash-$(date)
+          name: Dinit-minifuzzer_crash
           path: src/tests/cptests/fuzz/crash*
