@@ -1,8 +1,8 @@
 -include ../../../mconfig
 
 objects = cptests.o
-parent_test_objects = ../test-bpsys.o ../test-dinit.o
-parent_objs = control.o dinit-log.o service.o load-service.o proc-service.o baseproc-service.o run-child-proc.o dinit-env.o
+parent_test_objects = ../test-bpsys.o ../test-dinit.o ../test-run-child-proc.o
+parent_objs = control.o dinit-log.o service.o load-service.o proc-service.o baseproc-service.o dinit-env.o
 
 check: build-tests run-tests
 
@@ -38,14 +38,21 @@ clean:
 fuzz_parent_test_objects = $(foreach obj,$(notdir $(parent_test_objects)),fuzz-$(obj))
 fuzz_objects = $(foreach obj,$(parent_objs),fuzz-$(obj))
 
-fuzz: fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects)
-	clang++ -std=c++11 -g -O1 -Iincludes -I../../../dasynq/include -fsanitize=fuzzer,address,undefined,leak fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects) -o fuzz
+# Create mconfig.h for fuzzing. because fuzz target not runned by top level make; we need to create mconfig.h manually.
+../../../mconfig:
+	$(MAKE) -C ../../../ mconfig
+
+../../../build/includes/mconfig.h: ../../../mconfig
+	$(MAKE) -C ../../../build all
+
+fuzz: prepare-incdir ../../../build/includes/mconfig.h fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects)
+	clang++ -std=c++11 -g -O1 -Iincludes -I../../../dasynq/include -I../../../build/includes/ -fsanitize=fuzzer,address,undefined,leak fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects) -o fuzz
 
 $(fuzz_parent_test_objects): fuzz-%.o: ../%.cc
-	clang -O1 -fsanitize=address,undefined,fuzzer-no-link,leak -MMD -MP -Iincludes -I../../../dasynq/include -c $< -o $@
+	clang -O1 -fsanitize=address,undefined,fuzzer-no-link,leak -MMD -MP -Iincludes -I../../../dasynq/include -I../../../build/includes/ -c $< -o $@
 
 $(fuzz_objects): fuzz-%.o: ../../%.cc
-	clang -O1 -fsanitize=address,undefined,fuzzer-no-link,leak -MMD -MP -Iincludes -I../../../dasynq/include -c $< -o $@
+	clang -O1 -fsanitize=address,undefined,fuzzer-no-link,leak -MMD -MP -Iincludes -I../../../dasynq/include -I../../../build/includes/ -c $< -o $@
 
 
 -include $(objects:.o=.d)

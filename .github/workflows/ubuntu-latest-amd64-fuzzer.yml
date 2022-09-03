@@ -1,0 +1,28 @@
+name: Dinit on ubuntu-latest-amd64 fuzzer
+
+on:
+  workflow_dispatch:
+
+jobs:
+  Ubuntu-latest-amd64_fuzzer:
+
+    runs-on: ubuntu-latest
+    
+    # We need to upload crash* files after libfuzzer fail so disable fail-fast option
+    strategy:
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v3
+    - name: Print clang++ architecture
+      run: clang++ -dumpmachine
+    - name: Build `fuzz` target via make
+      run: cd src/tests/cptests/ && make fuzz
+    - name: Run fuzzer
+      run: src/tests/cptests/fuzz -max_total_time=21000
+    - name: Upload crash file(s)
+      uses: actions/upload-artifact@v3.1.0
+      if: failure()
+      with:
+          name: Dinit-fuzzer_crash
+          path: src/tests/cptests/fuzz/crash*
