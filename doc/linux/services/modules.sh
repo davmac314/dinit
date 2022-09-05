@@ -9,7 +9,7 @@ case "${1}" in
     start)
 
         # Exit if there's no modules file or there are no valid entries
-        [ -r ${MODULES} ] && egrep -qv '^($|#)' ${MODULES} || exit 0
+        [ -r ${MODULES} ] && grep -Eqv '^($|#)' ${MODULES} || exit 0
 
         while read module args; do
 
