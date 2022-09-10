@@ -106,7 +106,8 @@ enum class dependency_type
     SOFT,       // dependency starts in parallel, failure/stop does not affect dependent
     WAITS_FOR,  // as for SOFT, but dependent waits until dependency starts/fails before starting
     MILESTONE,  // dependency must start successfully, but once started the dependency becomes soft
-    BEFORE      // dependency due to "before" specified in the dependency (to) service
+    BEFORE,     // "before" ordering constraint (specified via the "to" service)
+    AFTER       // "after" ordering constraint (specified via the "from" service)
 };
 
 // Service set type identifiers:

@@ -169,6 +169,12 @@ class service_dep
                 || (dep_type == dependency_type::MILESTONE && waiting_on);
     }
 
+    // Check if the dependency represents only an ordering constraint (not really a dependency)
+    bool is_only_ordering()
+    {
+        return (dep_type == dependency_type::BEFORE) || (dep_type == dependency_type::AFTER);
+    }
+
     service_dep(service_record * from, service_record * to, dependency_type dep_type_p) noexcept
             : from(from), to(to), waiting_on(false), holding_acq(false), dep_type(dep_type_p)
     {  }
@@ -618,6 +624,8 @@ class service_record
     {
         if (check_deps) {
             for (auto *dept : dependents) {
+                // BEFORE links don't count because they are actually specified via the "to" service i.e.
+                // this service.
                 if (dept->dep_type != dependency_type::BEFORE) {
                     return false;
                 }
@@ -703,7 +711,7 @@ class service_record
             throw;
         }
 
-        if (dep_type != dependency_type::BEFORE) {
+        if (dep_type != dependency_type::BEFORE && dep_type != dependency_type::AFTER) {
             if (dep_type == dependency_type::REGULAR
                     || to->get_state() == service_state_t::STARTED
                     || to->get_state() == service_state_t::STARTING) {

@@ -218,7 +218,7 @@ void service_record::do_propagation() noexcept
     if (prop_require) {
         // Need to require all our dependencies
         for (auto & dep : depends_on) {
-            if (dep.dep_type != dependency_type::BEFORE) {
+            if (!dep.is_only_ordering()) {
                 dep.get_to()->require();
                 dep.holding_acq = true;
             }
@@ -335,7 +335,7 @@ bool service_record::start_check_dependencies() noexcept
 
     for (auto & dep : depends_on) {
         service_record * to = dep.get_to();
-        if (dep.dep_type == dependency_type::BEFORE
+        if (dep.is_only_ordering()
                 && to->service_state != service_state_t::STARTING) continue;
         if (to->service_state != service_state_t::STARTED) {
             dep.waiting_on = true;
@@ -454,6 +454,7 @@ void service_record::failed_to_start(bool depfailed, bool immediate_stop) noexce
         case dependency_type::WAITS_FOR:
         case dependency_type::SOFT:
         case dependency_type::BEFORE:
+        case dependency_type::AFTER:
             if (dept->waiting_on) {
                 dept->waiting_on = false;
                 dept->get_from()->dependency_started();

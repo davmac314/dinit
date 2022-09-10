@@ -988,6 +988,10 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         string waitsford = read_setting_value(line_num, i, end);
         process_dep_dir(settings.depends, waitsford, dependency_type::WAITS_FOR);
     }
+    else if (setting == "after") {
+        string after_name = read_setting_value(line_num, i, end);
+        settings.depends.emplace_back(load_service(after_name.c_str()), dependency_type::AFTER);
+    }
     else if (setting == "before") {
         string before_name = read_setting_value(line_num, i, end);
         settings.before_svcs.emplace_back(std::move(before_name));
