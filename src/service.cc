@@ -218,8 +218,10 @@ void service_record::do_propagation() noexcept
     if (prop_require) {
         // Need to require all our dependencies
         for (auto & dep : depends_on) {
-            dep.get_to()->require();
-            dep.holding_acq = true;
+            if (dep.dep_type != dependency_type::BEFORE) {
+                dep.get_to()->require();
+                dep.holding_acq = true;
+            }
         }
         prop_require = false;
     }
@@ -336,7 +338,6 @@ bool service_record::start_check_dependencies() noexcept
         if (dep.dep_type == dependency_type::BEFORE
                 && to->service_state != service_state_t::STARTING) continue;
         if (to->service_state != service_state_t::STARTED) {
-            // We don't actually have to issue a start; the require will do that
             dep.waiting_on = true;
             all_deps_started = false;
         }
