@@ -757,7 +757,7 @@ class service_record
         return depends_on.erase(i);
     }
 
-    // Start a speficic dependency of this service. Should only be called if this service is in an
+    // Start a specific dependency of this service. Should only be called if this service is in an
     // appropriate state (started, starting). The dependency is marked as holding acquired; when
     // this service stops, the dependency will be released and may also stop.
     void start_dep(service_dep &dep)
