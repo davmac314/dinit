@@ -10,6 +10,8 @@
 constexpr static auto REG = dependency_type::REGULAR;
 constexpr static auto WAITS = dependency_type::WAITS_FOR;
 constexpr static auto MS = dependency_type::MILESTONE;
+constexpr static auto BEFORE = dependency_type::BEFORE;
+constexpr static auto AFTER = dependency_type::AFTER;
 
 class test_listener : public service_listener
 {
@@ -1367,6 +1369,193 @@ void test_log2()
     close_log();
 }
 
+// Test ordering is honoured (when services would start anyway)
+void test_order1()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, BEFORE}});
+    test_service *s3 = new test_service(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}, {s1, REG}});
+    s1->auto_stop = false;
+    s2->auto_stop = false;
+    s3->auto_stop = false;
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+    assert(sset.find_service("test-service-3") == s3);
+
+    // Start all three services:
+    sset.start_service(s3);
+
+    assert(s1->bring_up_reqd == true);
+    assert(s2->bring_up_reqd == false);
+    assert(s3->bring_up_reqd == false);
+
+    s1->started();
+    sset.process_queues();
+
+    assert(s2->bring_up_reqd == true);
+    assert(s3->bring_up_reqd == false);
+
+    s2->started();
+    sset.process_queues();
+
+    assert(s3->bring_up_reqd == true);
+
+    s3->started();
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    // Now stop s3, which should also cause s1 and s2 to stop.
+    s3->stop();
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STOPPING);
+    assert(s2->get_state() == service_state_t::STOPPING);
+    assert(s1->get_state() == service_state_t::STOPPING);
+
+    assert(s3->get_target_state() == service_state_t::STOPPED);
+    assert(s2->get_target_state() == service_state_t::STOPPED);
+    assert(s1->get_target_state() == service_state_t::STOPPED);
+
+    s3->stopped();
+    sset.process_queues();
+    s2->stopped();
+    sset.process_queues();
+    s1->stopped();
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
+}
+
+// Test "before" ordering does not by itself imply bring-up requirement
+void test_order2()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, BEFORE}});
+    test_service *s3 = new test_service(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
+    s1->auto_stop = false;
+    s2->auto_stop = false;
+    s3->auto_stop = false;
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+    assert(sset.find_service("test-service-3") == s3);
+
+    // Start s3 and s2; s1 should not be started
+    sset.start_service(s3);
+
+    assert(s1->bring_up_reqd == false);
+    assert(s2->bring_up_reqd == true);
+    assert(s3->bring_up_reqd == false);
+
+    s2->started();
+    sset.process_queues();
+
+    s3->started();
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STOPPED);
+
+    // Now stop s3, which should also cause ss2 to stop.
+    s3->stop();
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STOPPING);
+    assert(s2->get_state() == service_state_t::STOPPING);
+    assert(s1->get_state() == service_state_t::STOPPED);
+
+    assert(s3->get_target_state() == service_state_t::STOPPED);
+    assert(s2->get_target_state() == service_state_t::STOPPED);
+    assert(s1->get_target_state() == service_state_t::STOPPED);
+
+    s3->stopped();
+    sset.process_queues();
+    s2->stopped();
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
+}
+
+// Test "after" ordering does not by itself imply bring-up requirement
+void test_order3()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, AFTER}});
+    test_service *s3 = new test_service(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
+    s1->auto_stop = false;
+    s2->auto_stop = false;
+    s3->auto_stop = false;
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+    assert(sset.find_service("test-service-3") == s3);
+
+    // Start s3 and s2; s1 should not be started
+    sset.start_service(s3);
+
+    assert(s1->bring_up_reqd == false);
+    assert(s2->bring_up_reqd == true);
+    assert(s3->bring_up_reqd == false);
+
+    s2->started();
+    sset.process_queues();
+
+    s3->started();
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STOPPED);
+
+    // Now stop s3, which should also cause ss2 to stop.
+    s3->stop();
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STOPPING);
+    assert(s2->get_state() == service_state_t::STOPPING);
+    assert(s1->get_state() == service_state_t::STOPPED);
+
+    assert(s3->get_target_state() == service_state_t::STOPPED);
+    assert(s2->get_target_state() == service_state_t::STOPPED);
+    assert(s1->get_target_state() == service_state_t::STOPPED);
+
+    s3->stopped();
+    sset.process_queues();
+    s2->stopped();
+    sset.process_queues();
+
+    assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
+}
+
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
     name(); \
@@ -1410,4 +1599,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_other6, "               ");
     RUN_TEST(test_log1, "                 ");
     RUN_TEST(test_log2, "                 ");
+    RUN_TEST(test_order1, "               ");
+    RUN_TEST(test_order2, "               ");
+    RUN_TEST(test_order3, "               ");
 }
