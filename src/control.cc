@@ -202,16 +202,36 @@ bool control_conn_t::process_find_load(int pktType)
     return true;
 }
 
-bool control_conn_t::check_dependents(service_record *service, bool &had_dependents)
+static bool check_restart(service_record *service)
+{
+    if (service->is_start_pinned())
+        return false;
+    for (service_dep *dep : service->get_dependents()) {
+        if (dep->dep_type == dependency_type::REGULAR && dep->holding_acq) {
+            service_record *dep_from = dep->get_from();
+            if (! check_restart(dep_from))
+                return false;
+        }
+    }
+    return true;
+}
+
+bool control_conn_t::check_dependents(service_record *service, bool do_restart, bool &had_dependents)
 {
     std::vector<char> reply_pkt;
     size_t num_depts = 0;
 
     for (service_dep *dep : service->get_dependents()) {
         if (dep->dep_type == dependency_type::REGULAR && dep->holding_acq) {
+            service_record *dep_from = dep->get_from();
+            if (do_restart) {
+                // recursively check that no hard dependency is pinned started.
+                if (check_restart(dep_from))
+                    continue;
+            }
             num_depts++;
             // find or allocate a service handle
-            handle_t dept_handle = allocate_service_handle(dep->get_from());
+            handle_t dept_handle = allocate_service_handle(dep_from);
             if (reply_pkt.empty()) {
                 // packet type, size
                 reply_pkt.reserve(1 + sizeof(size_t) + sizeof(handle_t));
@@ -302,7 +322,7 @@ bool control_conn_t::process_start_stop(int pktType)
             if (gentle) {
                 // Check dependents; return appropriate response if any will be affected
                 bool has_dependents;
-                if (! check_dependents(service, has_dependents)) {
+                if (! check_dependents(service, do_restart, has_dependents)) {
                     return false;
                 }
                 if (has_dependents) {

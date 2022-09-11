@@ -273,6 +273,7 @@ class service_record
     bool start_skipped : 1;     // start was skipped by interrupt
     
     bool in_auto_restart : 1;
+    bool in_user_restart : 1;
 
     int required_by = 0;        // number of dependents wanting this service to be started
 
@@ -356,7 +357,10 @@ class service_record
     bool stop_check_dependents() noexcept;
     
     // issue a stop to all dependents, return true if they are all already stopped
-    bool stop_dependents(bool for_restart) noexcept;
+    bool stop_dependents(bool with_restart, bool for_restart) noexcept;
+
+    // issue a restart to all hard dependents
+    bool restart_dependents() noexcept;
     
     void require() noexcept;
     void release(bool issue_stop = true) noexcept;
@@ -437,7 +441,7 @@ class service_record
             waiting_for_console(false), have_console(false), waiting_for_execstat(false),
             start_explicit(false), prop_require(false), prop_release(false), prop_failure(false),
             prop_start(false), prop_stop(false), start_failed(false), start_skipped(false),
-            in_auto_restart(false), force_stop(false)
+            in_auto_restart(false), in_user_restart(false), force_stop(false)
     {
         services = set;
         record_type = service_type_t::DUMMY;
