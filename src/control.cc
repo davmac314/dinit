@@ -216,7 +216,7 @@ static bool check_restart(service_record *service)
     return true;
 }
 
-bool control_conn_t::check_dependents(service_record *service, bool do_restart, bool &had_dependents)
+bool control_conn_t::check_restart_dependents(service_record *service, bool gentle, bool &had_dependents)
 {
     std::vector<char> reply_pkt;
     size_t num_depts = 0;
@@ -224,7 +224,7 @@ bool control_conn_t::check_dependents(service_record *service, bool do_restart, 
     for (service_dep *dep : service->get_dependents()) {
         if (dep->dep_type == dependency_type::REGULAR && dep->holding_acq) {
             service_record *dep_from = dep->get_from();
-            if (do_restart) {
+            if (!gentle) {
                 // recursively check that no hard dependency is pinned started.
                 if (check_restart(dep_from))
                     continue;
@@ -232,6 +232,39 @@ bool control_conn_t::check_dependents(service_record *service, bool do_restart, 
             num_depts++;
             // find or allocate a service handle
             handle_t dept_handle = allocate_service_handle(dep_from);
+            if (reply_pkt.empty()) {
+                // packet type, size
+                reply_pkt.reserve(1 + sizeof(size_t) + sizeof(handle_t));
+                reply_pkt.resize(1 + sizeof(size_t));
+                reply_pkt[0] = DINIT_RP_DEPENDENTS;
+            }
+            auto old_size = reply_pkt.size();
+            reply_pkt.resize(old_size + sizeof(handle_t));
+            memcpy(reply_pkt.data() + old_size, &dept_handle, sizeof(dept_handle));
+        }
+    }
+
+    if (num_depts != 0) {
+        // There are affected dependents
+        had_dependents = true;
+        memcpy(reply_pkt.data() + 1, &num_depts, sizeof(num_depts));
+        return queue_packet(std::move(reply_pkt));
+    }
+
+    had_dependents = false;
+    return true;
+}
+
+bool control_conn_t::check_dependents(service_record *service, bool &had_dependents)
+{
+    std::vector<char> reply_pkt;
+    size_t num_depts = 0;
+
+    for (service_dep *dep : service->get_dependents()) {
+        if (dep->dep_type == dependency_type::REGULAR && dep->holding_acq) {
+            num_depts++;
+            // find or allocate a service handle
+            handle_t dept_handle = allocate_service_handle(dep->get_from());
             if (reply_pkt.empty()) {
                 // packet type, size
                 reply_pkt.reserve(1 + sizeof(size_t) + sizeof(handle_t));
@@ -308,7 +341,7 @@ bool control_conn_t::process_start_stop(int pktType)
         {
             // force service to stop
             bool do_restart = ((rbuf[1] & 4) == 4);
-            bool gentle = ((rbuf[1] & 2) == 2) || do_restart;  // restart is always "gentle"
+            bool gentle = ((rbuf[1] & 2) == 2);
             if (do_restart && services->is_shutting_down()) {
                 ack_buf[0] = DINIT_RP_SHUTTINGDOWN;
                 break;
@@ -319,10 +352,21 @@ bool control_conn_t::process_start_stop(int pktType)
                 ack_buf[0] = DINIT_RP_PINNEDSTARTED;
                 break;
             }
-            if (gentle) {
+            if (do_restart) {
                 // Check dependents; return appropriate response if any will be affected
                 bool has_dependents;
-                if (! check_dependents(service, do_restart, has_dependents)) {
+                if (! check_restart_dependents(service, gentle, has_dependents)) {
+                    return false;
+                }
+                if (has_dependents) {
+                    // Reply packet has already been sent
+                    goto clear_out;
+                }
+            }
+            else if (gentle) {
+                // Check dependents; return appropriate response if any will be affected
+                bool has_dependents;
+                if (! check_dependents(service, has_dependents)) {
                     return false;
                 }
                 if (has_dependents) {

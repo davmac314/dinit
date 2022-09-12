@@ -179,7 +179,13 @@ class control_conn_t : private service_listener
     // Check if any dependents will be affected by stopping a service, generate a response packet if so.
     // had_dependents will be set true if the service should not be stopped, false otherwise.
     // Returns false if the connection must be closed, true otherwise.
-    bool check_dependents(service_record *service, bool do_restart, bool &had_dependents);
+    bool check_dependents(service_record *service, bool &had_dependents);
+
+    // Check if any dependents will be affected by restarting a service if gentle, otherwise check if
+    // any pinned started dependents will be affected, generate a response packet if so.
+    // had_dependents will be set true if the service should not be restarted, false otherwise.
+    // Returns false if the connection must be closed, true otherwise.
+    bool check_restart_dependents(service_record *service, bool gentle, bool &had_dependents);
 
     // Allocate a new handle for a service; may throw std::bad_alloc
     handle_t allocate_service_handle(service_record *record);
