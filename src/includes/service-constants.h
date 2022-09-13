@@ -45,6 +45,7 @@ enum class shutdown_type_t {
 enum class stopped_reason_t
 {
     NORMAL,
+    DEPRESTART, // A hard dependency was restarted
 
     // Start failures:
     DEPFAILED, // A dependency failed to start

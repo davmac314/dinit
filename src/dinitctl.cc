@@ -1181,6 +1181,9 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
         case service_state_t::STOPPED:
             cout << "STOPPED";
             switch (stop_reason) {
+            case stopped_reason_t::DEPRESTART:
+                cout << " (dependency restarted)";
+                break;
             case stopped_reason_t::DEPFAILED:
                 cout << " (dependency failed/terminated)";
                 break;

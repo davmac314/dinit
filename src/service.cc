@@ -245,7 +245,7 @@ void service_record::do_propagation() noexcept
 
     if (prop_stop) {
         prop_stop = false;
-        do_stop();
+        do_stop(in_user_restart);
     }
 }
 
@@ -569,6 +569,7 @@ void service_record::do_stop(bool with_restart) noexcept
     if (pinned_started) return;
 
     in_auto_restart = false;
+    in_user_restart = false;
 
     // Will we restart? desired state of STOPPED inhibits auto-restart
     bool for_restart = with_restart || (auto_restart && desired_state == service_state_t::STARTED);
@@ -581,7 +582,7 @@ void service_record::do_stop(bool with_restart) noexcept
         }
     }
 
-    bool all_deps_stopped = stop_dependents(for_restart);
+    bool all_deps_stopped = stop_dependents(with_restart, for_restart);
 
     if (service_state != service_state_t::STARTED) {
         if (service_state == service_state_t::STARTING) {
@@ -642,7 +643,7 @@ bool service_record::stop_check_dependents() noexcept
     return all_deps_stopped;
 }
 
-bool service_record::stop_dependents(bool for_restart) noexcept
+bool service_record::stop_dependents(bool with_restart, bool for_restart) noexcept
 {
     // We are in either STARTED or STARTING states.
     bool all_deps_stopped = true;
@@ -676,6 +677,12 @@ bool service_record::stop_dependents(bool for_restart) noexcept
                         dep_from->start_explicit = false;
                         dep_from->release(true);
                     }
+                }
+                else if (with_restart) {
+                    // if we restart, restart dependent and propagate restart to
+                    // all their hard dependents.
+                    dep_from->stop_reason = stopped_reason_t::DEPRESTART;
+                    dep_from->in_user_restart = true;
                 }
                 services->add_prop_queue(dep_from);
             }
