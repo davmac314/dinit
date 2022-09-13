@@ -4,7 +4,8 @@ project(
     'cpp', 
     version : '0.15.1',
     license : 'Apache',
-    default_options : 'cpp_std = c++11')
+    default_options : ['cpp_std = c++11',
+                       'b_lto = true'])
 
 ## Includes
 ## We include `src/includes/` & `dasynq/include/` as defualt_incdir 
@@ -31,9 +32,7 @@ elif get_option('use_new_abi').disabled()
 endif
 
 ## ToDo; its must handeled with `meson_options.txt` instead of force them
-## Use -Wall -flto -fno-rtti -fno-plt
-add_global_arguments('-Wall', language : 'cpp')
-add_global_arguments('-flto', language : 'cpp')
+## Use -flto -fno-rtti -fno-plt
 add_global_arguments('-fno-rtti', language : 'cpp')
 add_global_arguments('-fno-plt', language : 'cpp')
 
@@ -42,3 +41,18 @@ executable('dinit', dinit_needed_files , include_directories : default_incdir)
 executable('dinitctl', 'src/dinitctl.cc', include_directories : default_incdir)
 executable('dinitcheck', 'src/dinitcheck.cc', 'src/options-processing.cc', include_directories : default_incdir)
 executable('dinit-monitor', 'src/dinit-monitor.cc', include_directories : default_incdir)
+
+if get_option('build_shutdown').auto()
+  if host_machine.system() == 'linux'
+    message('System uses "linux"; Build shutdown = YES')
+    executable('shutdown', 'src/shutdown.cc', include_directories : default_incdir)
+    executable('reboot', 'src/shutdown.cc', include_directories : default_incdir)
+    executable('halt', 'src/shutdown.cc', include_directories : default_incdir)
+  else
+    message('System not uses "linux"; Build shutdown = NO')
+  endif
+elif get_option('build_shutdown').enabled()
+  executable('shutdown', 'src/shutdown.cc', include_directories : default_incdir)
+  executable('reboot', 'src/shutdown.cc', include_directories : default_incdir)
+  executable('halt', 'src/shutdown.cc', include_directories : default_incdir)
+endif

@@ -2,19 +2,15 @@
 ## You can set options in here:
 
 ## General options
-
 ## Its must be used in `meson.build` file. For now dont work
 option('avaiable_cores', type : 'integer', value : '1', 
         description : 'Avaiable CPU Cores for building' + 
         'If you have multi-core CPU you can set it to use specifce numbers of CPU cores for building.')
 
+option('build_shutdown', type : 'feature', value : 'auto',
+        description : 'Building shutdown/reboot/halt or not.' +
+
 ## Compiler flags
 option('use_new_abi', type : 'feature', value : 'enabled', 
         description : 'Using new C++11 ABI,' +
         'for more information see BUILD file')
-
-## Its must be used in `meson.build` file. For now dont work
-option('use_rtti', type : 'feature', value : 'disabled', 
-        description : 'Disable RTTI (run-time type information),' + 
-        'However, on some platforms such as Mac OS (and historically FreeBSD, IIRC),' +
-        'this prevents exceptions working correctly.')
