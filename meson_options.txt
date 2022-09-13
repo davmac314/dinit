@@ -9,6 +9,7 @@ option('avaiable_cores', type : 'integer', value : '1',
 
 option('build_shutdown', type : 'feature', value : 'auto',
         description : 'Building shutdown/reboot/halt or not.' +
+        'Currently only supported on linux')
 
 ## Compiler flags
 option('use_new_abi', type : 'feature', value : 'enabled', 
