@@ -44,15 +44,34 @@ executable('dinit-monitor', 'src/dinit-monitor.cc', include_directories : defaul
 
 if get_option('build_shutdown').auto()
   if host_machine.system() == 'linux'
-    message('System uses "linux"; Build shutdown = YES')
-    executable('shutdown', 'src/shutdown.cc', include_directories : default_incdir)
-    executable('reboot', 'src/shutdown.cc', include_directories : default_incdir)
-    executable('halt', 'src/shutdown.cc', include_directories : default_incdir)
+    if get_option('shutdown_prefix') != ''
+      shutdown_prefix = get_option('shutdown_prefix')
+      message('System uses "linux"; Build shutdown = YES')
+      message('shutdown_prefix is configured: ' + shutdown_prefix)
+      executable(shutdown_prefix + 'shutdown', 'src/shutdown.cc', include_directories : default_incdir)
+      executable(shutdown_prefix + 'reboot', 'src/shutdown.cc', include_directories : default_incdir)
+      executable(shutdown_prefix + 'halt', 'src/shutdown.cc', include_directories : default_incdir)
+    else
+      message('System uses "linux"; Build shutdown = YES')
+      executable('shutdown', 'src/shutdown.cc', include_directories : default_incdir)
+      executable('reboot', 'src/shutdown.cc', include_directories : default_incdir)
+      executable('halt', 'src/shutdown.cc', include_directories : default_incdir)
+      endif
   else
     message('System not uses "linux"; Build shutdown = NO')
   endif
 elif get_option('build_shutdown').enabled()
-  executable('shutdown', 'src/shutdown.cc', include_directories : default_incdir)
-  executable('reboot', 'src/shutdown.cc', include_directories : default_incdir)
-  executable('halt', 'src/shutdown.cc', include_directories : default_incdir)
+  if get_option('shutdown_prefix') != ''
+    shutdown_prefix = get_option('shutdown_prefix')
+    message('System uses "linux"; Build shutdown = YES')
+    message('shutdown_prefix is configured: ' + shutdown_prefix)
+    executable(shutdown_prefix + 'shutdown', 'src/shutdown.cc', include_directories : default_incdir)
+    executable(shutdown_prefix + 'reboot', 'src/shutdown.cc', include_directories : default_incdir)
+    executable(shutdown_prefix + 'halt', 'src/shutdown.cc', include_directories : default_incdir)
+  else
+    message('System uses "linux"; Build shutdown = YES')
+    executable('shutdown', 'src/shutdown.cc', include_directories : default_incdir)
+    executable('reboot', 'src/shutdown.cc', include_directories : default_incdir)
+    executable('halt', 'src/shutdown.cc', include_directories : default_incdir)
+    endif
 endif

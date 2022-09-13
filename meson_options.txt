@@ -2,6 +2,7 @@
 ## You can set options in here:
 
 ## General options
+
 ## Its must be used in `meson.build` file. For now dont work
 option('avaiable_cores', type : 'integer', value : '1', 
         description : 'Avaiable CPU Cores for building' + 
@@ -10,6 +11,10 @@ option('avaiable_cores', type : 'integer', value : '1',
 option('build_shutdown', type : 'feature', value : 'auto',
         description : 'Building shutdown/reboot/halt or not.' +
         'Currently only supported on linux')
+option('shutdown_prefix', type : 'string', value : '',
+        description: 'Name prefix for "shutdown", "halt" and "reboot" commands (if they are built).' +
+        'This affects both the output, and what command dinit will execute as part of system shutdown.' +
+        'If you want to install Dinit alongside another init system with its own shutdown/halt/reboot commands, set this (for eg. to "dinit-").')
 
 ## Compiler flags
 option('use_new_abi', type : 'feature', value : 'enabled', 
