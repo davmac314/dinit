@@ -45,7 +45,7 @@ conf_data.set('SHUTDOWN_PREFIX', '"' + get_option('shutdown_prefix') + '"')
 if get_option('support_cgroups').auto()
   #ToDo. we must verify host system uses Linux & have cgroup file system type
 elif get_option('support_cgroups').enabled()
-  conf_data.set('SUPPROT_CGROUPS', true)
+  conf_data.set('SUPPORT_CGROUPS', true)
 endif
 ## Write mconfig.h
 configure_file(output : 'mconfig.h',
