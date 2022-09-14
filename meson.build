@@ -36,6 +36,21 @@ endif
 add_global_arguments('-fno-rtti', language : 'cpp')
 add_global_arguments('-fno-plt', language : 'cpp')
 
+## Prepare mconfig.h
+conf_data = configuration_data()
+conf_data.set('DINIT_VERSION', '""') # ToDo; Set dinit version
+conf_data.set('SYSCONTROLSOCKET', '"' + get_option('dinit_control_socket_path') + '"')
+conf_data.set('SBINDIR', '""')
+conf_data.set('SHUTDOWN_PREFIX', '"' + get_option('shutdown_prefix') + '"')
+if get_option('support_cgroups').auto()
+  #ToDo. we must verify host system uses Linux & have cgroup file system type
+elif get_option('support_cgroups').enabled()
+  conf_data.set('SUPPROT_CGROUPS', true)
+endif
+## Write mconfig.h
+configure_file(output : 'mconfig.h',
+               configuration : conf_data)
+
 ## Outputs
 executable('dinit', dinit_needed_files , include_directories : default_incdir)
 executable('dinitctl', 'src/dinitctl.cc', include_directories : default_incdir)
@@ -63,15 +78,13 @@ if get_option('build_shutdown').auto()
 elif get_option('build_shutdown').enabled()
   if get_option('shutdown_prefix') != ''
     shutdown_prefix = get_option('shutdown_prefix')
-    message('System uses "linux"; Build shutdown = YES')
     message('shutdown_prefix is configured: ' + shutdown_prefix)
     executable(shutdown_prefix + 'shutdown', 'src/shutdown.cc', include_directories : default_incdir)
     executable(shutdown_prefix + 'reboot', 'src/shutdown.cc', include_directories : default_incdir)
     executable(shutdown_prefix + 'halt', 'src/shutdown.cc', include_directories : default_incdir)
   else
-    message('System uses "linux"; Build shutdown = YES')
     executable('shutdown', 'src/shutdown.cc', include_directories : default_incdir)
     executable('reboot', 'src/shutdown.cc', include_directories : default_incdir)
     executable('halt', 'src/shutdown.cc', include_directories : default_incdir)
-    endif
+  endif
 endif

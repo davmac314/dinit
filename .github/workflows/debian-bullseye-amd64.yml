@@ -20,14 +20,14 @@ jobs:
       run: apt-get update && apt-get install gcc meson make m4 g++ file -y
     - name: Print g++ architecture
       run: g++ -dumpmachine
-    - name: Temp step create mconfig.h
-      run: make mconfig && make -C build && build/tools/mconfig-gen > src/includes/mconfig.h
     - name: Prepare Build
-      run: meson setup builddir
+      run: meson setup -Dsupport_cgroups=enabled builddir
     - name: Build
       run: meson compile -C builddir
     - name: Print dinit executive file architecture
       run: file ./builddir/dinit
+    - name: ./dinit --version
+      run: builddir/dinit --version
     # for now; meson dont support Unit & intergration tests
     #- name: Unit tests
     #  run: make check

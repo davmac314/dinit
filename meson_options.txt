@@ -12,11 +12,17 @@ option('build_shutdown', type : 'feature', value : 'auto',
         description : 'Building shutdown/reboot/halt or not.' +
         'Currently only supported on linux')
 option('shutdown_prefix', type : 'string', value : '',
-        description: 'Name prefix for "shutdown", "halt" and "reboot" commands (if they are built).' +
+        description : 'Name prefix for "shutdown", "halt" and "reboot" commands (if they are built).' +
         'This affects both the output, and what command dinit will execute as part of system shutdown.' +
         'If you want to install Dinit alongside another init system with its own shutdown/halt/reboot commands, set this (for eg. to "dinit-").')
+option('dinit_control_socket_path', type : 'string', value : '/run/dinitctl'
+        description : 'Default full path to the control socket, for when Dinit runs as system service manager.')
 
 ## Compiler flags
 option('use_new_abi', type : 'feature', value : 'enabled', 
         description : 'Using new C++11 ABI,' +
         'for more information see BUILD file')
+
+## Linux specifce options
+option('support_cgroups', type : 'feature', value : 'disabled',
+        description : 'Enable Cgroups supprot')
