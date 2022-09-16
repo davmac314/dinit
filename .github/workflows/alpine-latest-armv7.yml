@@ -1,11 +1,11 @@
 name: Dinit on alpine-latest-armv7 CI
 
-on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
-  workflow_dispatch:
+#on:
+#  push:
+#    branches: [ "master" ]
+#  pull_request:
+#    branches: [ "master" ]
+#  workflow_dispatch:
 
 jobs:
   Alpine-latest-armv7_build:
