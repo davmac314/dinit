@@ -21,7 +21,7 @@ jobs:
     - name: Print g++ architecture
       run: g++ -dumpmachine
     - name: Prepare Build
-      run: meson setup -Dsupport_cgroups=enabled builddir
+      run: meson setup builddir
     - name: Build
       run: meson compile -C builddir
     - name: Print dinit executive file architecture

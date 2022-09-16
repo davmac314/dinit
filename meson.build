@@ -2,7 +2,7 @@
 project(
     'dinit', 
     'cpp', 
-    version : '0.15.1',
+    version : '0.16.0pre',
     license : 'Apache',
     default_options : ['cpp_std = c++11',
                        'b_lto = true'])
@@ -38,12 +38,17 @@ add_global_arguments('-fno-plt', language : 'cpp')
 
 ## Prepare mconfig.h
 conf_data = configuration_data()
-conf_data.set('DINIT_VERSION', '""') # ToDo; Set dinit version
+conf_data.set('DINIT_VERSION', '"' + '@0@'.format(meson.project_version()) + '"')
 conf_data.set('SYSCONTROLSOCKET', '"' + get_option('dinit_control_socket_path') + '"')
-conf_data.set('SBINDIR', '""')
+conf_data.set('SBINDIR', '""') #ToDo; We must prepare SBINDIR path for dinit. dinit uses SBINDIR to find shutdown/reboot/halt exec(s)
 conf_data.set('SHUTDOWN_PREFIX', '"' + get_option('shutdown_prefix') + '"')
 if get_option('support_cgroups').auto()
-  #ToDo. we must verify host system uses Linux & have cgroup file system type
+  if host_machine.system() == 'linux'
+    message('System uses "linux"; Support Cgroups = YES')
+    conf_data.set('SUPPORT_CGROUPS', '1') 
+  else
+    message('System not uses "linux"; Support Cgroups = NO')
+  endif
 elif get_option('support_cgroups').enabled()
   conf_data.set('SUPPORT_CGROUPS', '1')
 endif
