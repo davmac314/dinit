@@ -1,11 +1,11 @@
 name: Dinit on alpine-latest-aarch64 CI
 
-on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
-  workflow_dispatch:
+#on:
+#  push:
+#    branches: [ "master" ]
+#  pull_request:
+#    branches: [ "master" ]
+#  workflow_dispatch:
 
 jobs:
   Alpine-latest-aarch64_build:
