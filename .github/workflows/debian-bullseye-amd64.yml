@@ -25,9 +25,9 @@ jobs:
     - name: Build
       run: cd builddir && mkdir ./test && DESTDIR=./test meson install
     - name: Print dinit executive file architecture
-      run: file ./builddir/dinit
+      run: file ./builddir/test/sbin/dinit
     - name: ./dinit --version
-      run: builddir/test/dinit --version
+      run: builddir/test/sbin/dinit --version
     # for now; meson dont support Unit & intergration tests
     #- name: Unit tests
     #  run: make check
