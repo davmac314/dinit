@@ -19,7 +19,7 @@ option('dinit_control_socket_path', type : 'string', value : '/run/dinitctl',
         description : 'Default full path to the control socket, for when Dinit runs as system service manager.')
 
 ## Compiler flags
-option('use_new_abi', type : 'feature', value : 'enabled', 
+option('use_new_abi', type : 'feature', value : 'auto', 
         description : 'Using new C++11 ABI,' +
         'for more information see BUILD file')
 

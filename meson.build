@@ -24,9 +24,19 @@ dinit_needed_files = ['src/dinit-main.cc',
                       'src/options-processing.cc',
                       'src/dinit-env.cc']
 
+compiler = meson.get_compiler('cpp')
+
 ## Use -D_GLIBCXX_USE_CXX11_ABI?
 if get_option('use_new_abi').auto()
-# ToDo. We must verify libstdc++ version and set -D_GLIBCXX_USE_CXX11_ABI to 1 or 0
+  if compiler.get_id() == 'gcc'
+    if compiler.version().version_compare('>=7')
+      message('System uses g++ 7 or later; Use new ABI = YES')
+      add_global_arguments('-D_GLIBCXX_USE_CXX11_ABI=1', language : 'cpp')
+    else
+      message('System uses g++ 6 or easiler; Use new ABI = NO')
+      add_global_arguments('-D_GLIBCXX_USE_CXX11_ABI=0', language : 'cpp')
+    endif
+  endif
 elif get_option('use_new_abi').enabled()
   add_global_arguments('-D_GLIBCXX_USE_CXX11_ABI=1', language : 'cpp')
 elif get_option('use_new_abi').disabled()
