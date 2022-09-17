@@ -10,7 +10,7 @@ project(
                        'sbindir=/sbin'])
 
 ## Includes
-## We include `src/includes/` & `dasynq/include/` as defualt_incdir 
+# We include `src/includes/` & `dasynq/include/` as defualt_incdir 
 default_incdir = include_directories('src/includes/', 'dasynq/include/')
 dinit_needed_files = ['src/dinit-main.cc',
                       'src/dinit.cc',
@@ -24,7 +24,16 @@ dinit_needed_files = ['src/dinit-main.cc',
                       'src/options-processing.cc',
                       'src/dinit-env.cc']
 
+## Defines
 compiler = meson.get_compiler('cpp')
+shutdown_prefix = get_option('shutdown_prefix')
+dinit_control_socket_path = get_option('dinit_control_socket_path')
+# We have custom prefix for install files
+# By default: Prefix = /
+# By default: Sbin = /sbin
+# By default: you find dinit on /sbin
+prefix = get_option('prefix')
+sbindir = get_option('sbindir')
 
 ## Use -D_GLIBCXX_USE_CXX11_ABI?
 if get_option('use_new_abi').auto()
@@ -48,19 +57,12 @@ endif
 add_global_arguments('-fno-rtti', language : 'cpp')
 add_global_arguments('-fno-plt', language : 'cpp')
 
-## We have custom prefix for install files
-# Prefix = /usr
-# Sbin = /sbin
-# By default; you find dinit on /sbin
-prefix = get_option('prefix')
-sbindir = get_option('sbindir')
-
 ## Prepare mconfig.h
 conf_data = configuration_data()
 conf_data.set('DINIT_VERSION', '"' + '@0@'.format(meson.project_version()) + '"')
-conf_data.set('SYSCONTROLSOCKET', '"' + get_option('dinit_control_socket_path') + '"')
+conf_data.set('SYSCONTROLSOCKET', '"' + dinit_control_socket_path + '"')
 conf_data.set('SBINDIR', '"' + prefix + sbindir + '"')
-conf_data.set('SHUTDOWN_PREFIX', '"' + get_option('shutdown_prefix') + '"')
+conf_data.set('SHUTDOWN_PREFIX', '"' + shutdown_prefix + '"')
 if get_option('support_cgroups').auto()
   if host_machine.system() == 'linux'
     message('System uses "linux"; Support Cgroups = YES')
@@ -76,39 +78,30 @@ configure_file(output : 'mconfig.h',
                configuration : conf_data)
 
 ## Outputs
+# Standard apps: dinit, dinitctl, dinit-check, dinit-monitor
 executable('dinit', dinit_needed_files , include_directories : default_incdir, install : true, install_dir : sbindir)
 executable('dinitctl', 'src/dinitctl.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
 executable('dinitcheck', 'src/dinitcheck.cc', 'src/options-processing.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
 executable('dinit-monitor', 'src/dinit-monitor.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
 
+# Shutdown/reboot/halt
 if get_option('build_shutdown').auto()
   if host_machine.system() == 'linux'
-    if get_option('shutdown_prefix') != ''
-      shutdown_prefix = get_option('shutdown_prefix')
-      message('System uses "linux"; Build shutdown = YES')
+    message('System uses "linux"; Build shutdown = YES')
+    if shutdown_prefix != ''
       message('shutdown_prefix is configured: ' + shutdown_prefix)
-      executable(shutdown_prefix + 'shutdown', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
-      executable(shutdown_prefix + 'reboot', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
-      executable(shutdown_prefix + 'halt', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
-    else
-      message('System uses "linux"; Build shutdown = YES')
-      executable('shutdown', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
-      executable('reboot', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
-      executable('halt', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
-      endif
-  else
-    message('System not uses "linux"; Build shutdown = NO')
-  endif
-elif get_option('build_shutdown').enabled()
-  if get_option('shutdown_prefix') != ''
-    shutdown_prefix = get_option('shutdown_prefix')
-    message('shutdown_prefix is configured: ' + shutdown_prefix)
+    endif
     executable(shutdown_prefix + 'shutdown', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
     executable(shutdown_prefix + 'reboot', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
     executable(shutdown_prefix + 'halt', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
   else
-    executable('shutdown', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
-    executable('reboot', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
-    executable('halt', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
+    message('System not uses "linux"; Build shutdown = NO')
   endif
+elif get_option('build_shutdown').enabled()
+  if shutdown_prefix != ''
+      message('shutdown_prefix is configured: ' + shutdown_prefix)
+  endif
+    executable(shutdown_prefix + 'shutdown', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
+    executable(shutdown_prefix + 'reboot', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
+    executable(shutdown_prefix + 'halt', 'src/shutdown.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
 endif
