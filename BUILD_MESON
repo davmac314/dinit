@@ -1,0 +1,37 @@
+Meson build system for Dinit
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+<!> Special notes about building Dinit via Meson
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+Please keep in mind:
+1. Meson build system for Dinit is experimental way to build Dinit. 
+   so maybe its have some bugs. Please report bugs to https://github.com/davmac314/dinit/issues
+2. Meson build system for Dinit is "extra" part. The main build system is GNU make.
+   This means that the feature is first tested on make. There may also be delays in adding new Dinit's features to Meson builds. 
+3. If you see some bugs in Meson builds. Please also test it on GNU make builds.
+
+Buidling Dinit via Meson
+=-=-=-=-=-=-=-=-=-=-=-=-
+
+Buidling Dinit is avaiable via two "Build system": meson & make.
+Its file tell everything you need to buidling Dinit via meson.
+Bulding dinit via meson requires "meson" and a C++11 compiler (GCC version 4.9 and later, or Clang ~5.0 and later, should be fine)
+
+Meson configure all you need to build Dinit. Its detect your OS, detect your compiler & set something based on your system information.
+By Default no action required & meson configure everything needed to build Dinit.
+
+in Meson you need to prepare "Buidling Dir". simply just type:
+
+    meson setup builddir/
+
+This command configure "Building dir" to compile Dinit. If everything goes smoothly this will prepare everything to build dinit, dinitctl, and optionaly the shutdown/reboot/halt utilitys by default.
+
+Finaly you can compile Dinit with changing current directory to builddir/ & run:
+
+     meson compile
+
+Note: on old Mesons you must use "ninja compile" instead of "meson compile".
+This command build the dinit, dinitctl, and optionaly the shutdown/reboot/halt utilitys by default.
+
+##INCOMPLATE
