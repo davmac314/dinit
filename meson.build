@@ -77,7 +77,7 @@ elif support_cgroups.enabled()
 endif
 ## Write mconfig.h
 configure_file(output : 'mconfig.h',
-              configuration : conf_data)
+               configuration : conf_data)
 
 ## Outputs
 # Standard apps: dinit, dinitctl, dinitcheck, dinit-monitor
