@@ -253,9 +253,13 @@ class service_record
     
     bool auto_restart : 1;    // whether to restart this (process) if it dies unexpectedly
     bool smooth_recovery : 1; // whether the service process can restart without bringing down service
-    
+
+    // Pins. Start pins are directly transitive (hence pinned_started and dept_pinned_started) whereas
+    // for stop pins, the effect is transitive since a stop-pinned service will "fail" to start anyway.
     bool pinned_stopped : 1;
     bool pinned_started : 1;
+    bool dept_pinned_started : 1; // pinned started due to dependent
+
     bool waiting_for_deps : 1;  // if STARTING, whether we are waiting for dependencies/console
                                 // if STOPPING, whether we are waiting for dependents to stop
     bool waiting_for_console : 1;   // waiting for exclusive console access (while STARTING)
@@ -268,6 +272,7 @@ class service_record
     bool prop_failure : 1;      // failure to start must be propagated
     bool prop_start   : 1;
     bool prop_stop    : 1;
+    bool prop_pin_dpt : 1;
 
     bool start_failed : 1;      // failed to start (reset when begins starting)
     bool start_skipped : 1;     // start was skipped by interrupt
@@ -437,11 +442,12 @@ class service_record
     service_record(service_set *set, const string &name)
         : service_name(name), service_state(service_state_t::STOPPED),
             desired_state(service_state_t::STOPPED), auto_restart(false), smooth_recovery(false),
-            pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
-            waiting_for_console(false), have_console(false), waiting_for_execstat(false),
-            start_explicit(false), prop_require(false), prop_release(false), prop_failure(false),
-            prop_start(false), prop_stop(false), start_failed(false), start_skipped(false),
-            in_auto_restart(false), in_user_restart(false), force_stop(false)
+            pinned_stopped(false), pinned_started(false), dept_pinned_started(false),
+            waiting_for_deps(false), waiting_for_console(false), have_console(false),
+            waiting_for_execstat(false), start_explicit(false), prop_require(false), prop_release(false),
+            prop_failure(false), prop_start(false), prop_stop(false), prop_pin_dpt(false),
+            start_failed(false), start_skipped(false), in_auto_restart(false), in_user_restart(false),
+            force_stop(false)
     {
         services = set;
         record_type = service_type_t::DUMMY;
@@ -568,10 +574,7 @@ class service_record
     void forced_stop() noexcept; // force-stop this service and all dependents
     
     // Pin the service in "started" state (when it reaches the state)
-    void pin_start() noexcept
-    {
-        pinned_started = true;
-    }
+    void pin_start() noexcept;
     
     // Pin the service in "stopped" state (when it reaches the state)
     void pin_stop() noexcept
@@ -586,7 +589,7 @@ class service_record
     
     bool is_start_pinned() noexcept
     {
-        return pinned_started;
+        return pinned_started || dept_pinned_started;
     }
 
     bool is_stop_pinned() noexcept
