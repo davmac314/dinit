@@ -1,32 +1,34 @@
 name: Dinit on ubuntu-latest-amd64 minifuzzer
 
-#on:
-#  push:
-#    branches: [ "master" ]
-#  pull_request:
-#    branches: [ "master" ]
-#  workflow_dispatch:
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
 
 jobs:
   Ubuntu-latest-amd64_minifuzzer:
 
     runs-on: ubuntu-latest
-    
+
     # We need to upload crash* files after libfuzzer fail so disable fail-fast option
     strategy:
       fail-fast: false
-    
+
     steps:
     - uses: actions/checkout@v3
     - name: Print clang++ architecture
       run: clang++ -dumpmachine
-    - name: Build `fuzz` target via make
-      run: cd src/tests/cptests/ && make fuzz
+    - name: Prepare `fuzz` target via meson
+      run: cd src/tests/cptests/ && meson setup builddir
+    - name: Build `fuzz` target via meson
+      run: cd src/tests/cptests/builddir && CC=clang CXX=clang++ meson compile
     - name: Run fuzzer
-      run: src/tests/cptests/fuzz -max_total_time=1200
+      run: src/tests/cptests/builddir/fuzz -max_total_time=1200
     - name: Upload crash file(s)
       uses: actions/upload-artifact@v3.1.0
       if: failure()
       with:
           name: Dinit-minifuzzer_crash
-          path: src/tests/cptests/fuzz/crash*
+          path: src/tests/cptests/fuzz/builddir/crash*

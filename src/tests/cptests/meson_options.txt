@@ -1,0 +1,23 @@
+## meson_options.txt for dinit
+## You can set options in here:
+
+## General options
+
+## Its must be used in `meson.build` file. For now dont work
+option('avaiable_cores', type : 'integer', value : '1', 
+        description : 'Avaiable CPU Cores for building' + 
+        'If you have multi-core CPU you can set it to use specifce numbers of CPU cores for building.')
+
+option('build_shutdown', type : 'feature', value : 'auto',
+        description : 'Building shutdown/reboot/halt or not.' +
+        'Currently only supported on linux')
+option('shutdown_prefix', type : 'string', value : '',
+        description : 'Name prefix for "shutdown", "halt" and "reboot" commands (if they are built).' +
+        'This affects both the output, and what command dinit will execute as part of system shutdown.' +
+        'If you want to install Dinit alongside another init system with its own shutdown/halt/reboot commands, set this (for eg. to "dinit-").')
+option('dinit_control_socket_path', type : 'string', value : '/run/dinitctl',
+        description : 'Default full path to the control socket, for when Dinit runs as system service manager.')
+
+## Linux specifce options
+option('support_cgroups', type : 'feature', value : 'auto',
+        description : 'Enable Cgroups supprot')
