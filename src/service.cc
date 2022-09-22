@@ -148,13 +148,13 @@ void service_record::release(bool issue_stop) noexcept
             // If we are stopping but would have restarted, we now need to notify that the restart
             // has been cancelled. Other start-cancelled cases are handled by do_stop() (called
             // below).
-            if (desired_state == service_state_t::STARTED && !pinned_started) {
+            if (desired_state == service_state_t::STARTED && !is_start_pinned()) {
                 notify_listeners(service_event_t::STARTCANCELLED);
             }
         }
         desired_state = service_state_t::STOPPED;
 
-        if (pinned_started) return;
+        if (is_start_pinned()) return;
 
         // Can stop, and can release dependencies now. We don't need to issue a release if
         // a require was pending though:
@@ -245,7 +245,34 @@ void service_record::do_propagation() noexcept
 
     if (prop_stop) {
         prop_stop = false;
-        do_stop();
+        do_stop(in_user_restart);
+    }
+
+    if (prop_pin_dpt) {
+        bool dept_pin = false;
+        for (auto *dept : dependents) {
+            if (dept->is_hard() && dept->get_from()->is_start_pinned()) {
+                dept_pin = true;
+                break;
+            }
+        }
+        if (dept_pin != dept_pinned_started) {
+            dept_pinned_started = dept_pin;
+            for (auto &dep : depends_on) {
+                if (dep.is_hard() && dep.get_to()->dept_pinned_started != dept_pin) {
+                    dep.get_to()->prop_pin_dpt = true;
+                    services->add_prop_queue(dep.get_to());
+                }
+            }
+
+            if (!dept_pinned_started && !pinned_started) {
+                // No longer pinned at all
+                if ((desired_state == service_state_t::STOPPED || force_stop)
+                        && service_state == service_state_t::STARTED) {
+                    do_stop();
+                }
+            }
+        }
     }
 }
 
@@ -497,7 +524,7 @@ void service_record::forced_stop() noexcept
 {
     if (service_state != service_state_t::STOPPED) {
         force_stop = true;
-        if (! pinned_started) {
+        if (!is_start_pinned()) {
             prop_stop = true;
             services->add_prop_queue(this);
         }
@@ -526,7 +553,7 @@ void service_record::stop(bool bring_down) noexcept
         desired_state = service_state_t::STOPPED;
     }
 
-    if (pinned_started) {
+    if (is_start_pinned()) {
         return;
     }
 
@@ -548,7 +575,8 @@ void service_record::stop(bool bring_down) noexcept
 
 bool service_record::restart() noexcept
 {
-    // Re-start without affecting dependency links/activation.
+    // Re-start without affecting dependency links/activation. Hard dependents will be similarly
+    // restarted.
 
     if (service_state == service_state_t::STARTED) {
         stop_reason = stopped_reason_t::NORMAL;
@@ -565,13 +593,17 @@ void service_record::do_stop(bool with_restart) noexcept
 {
     // Called when we should definitely stop. We may need to restart afterwards, but we
     // won't know that for sure until the execution transition.
+    // Note: to inhibit automatic restart,  to inhibit automatic restart, including restart due to
+    //       dependent still requiring this service, caller must first set desired_state to STOPPED
 
-    if (pinned_started) return;
+    if (is_start_pinned()) return;
 
     in_auto_restart = false;
+    in_user_restart = false;
 
     // Will we restart? desired state of STOPPED inhibits auto-restart
     bool for_restart = with_restart || (auto_restart && desired_state == service_state_t::STARTED);
+    bool restart_deps = with_restart;
 
     // If we won't restart, release explicit activation:
     if (!for_restart) {
@@ -581,7 +613,7 @@ void service_record::do_stop(bool with_restart) noexcept
         }
     }
 
-    bool all_deps_stopped = stop_dependents(for_restart);
+    bool all_deps_stopped = stop_dependents(for_restart, restart_deps);
 
     if (service_state != service_state_t::STARTED) {
         if (service_state == service_state_t::STARTING) {
@@ -642,7 +674,7 @@ bool service_record::stop_check_dependents() noexcept
     return all_deps_stopped;
 }
 
-bool service_record::stop_dependents(bool for_restart) noexcept
+bool service_record::stop_dependents(bool for_restart, bool restart_deps) noexcept
 {
     // We are in either STARTED or STARTING states.
     bool all_deps_stopped = true;
@@ -677,6 +709,11 @@ bool service_record::stop_dependents(bool for_restart) noexcept
                         dep_from->release(true);
                     }
                 }
+                else if (restart_deps) {
+                    // restart dependent and propagate restart to all their hard dependents.
+                    dep_from->stop_reason = stopped_reason_t::DEPRESTART;
+                    dep_from->in_user_restart = true;
+                }
                 services->add_prop_queue(dep_from);
             }
         }
@@ -708,10 +745,36 @@ void service_record::bring_down() noexcept
     stopped();
 }
 
+void service_record::pin_start() noexcept
+{
+    if (!pinned_started) {
+        if (!dept_pinned_started) {
+            for (auto &dep : depends_on) {
+                if (dep.is_hard() && !dep.get_to()->dept_pinned_started) {
+                    dep.get_to()->prop_pin_dpt = true;
+                    services->add_prop_queue(dep.get_to());
+                }
+            }
+        }
+        pinned_started = true;
+    }
+}
+
 void service_record::unpin() noexcept
 {
     if (pinned_started) {
         pinned_started = false;
+
+        if (dept_pinned_started) return;
+
+        // unpin dependencies
+        for (auto &dep : depends_on) {
+            if (dep.is_hard() && dep.get_to()->dept_pinned_started) {
+                dep.get_to()->prop_pin_dpt = true;
+                services->add_prop_queue(dep.get_to());
+            }
+        }
+
         // We only need special handling here if service was in STARTED state
         if (service_state == service_state_t::STARTED) {
             // If any dependents are stopping, then force_stop should already be set.
