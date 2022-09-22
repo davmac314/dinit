@@ -3,6 +3,7 @@
 project(
     'dinit-fuzzer',
     'cpp',
+    'c',
     version : '0.16.0pre',
     default_options : ['cpp_std = c++11',
                        'c_std = c11',
