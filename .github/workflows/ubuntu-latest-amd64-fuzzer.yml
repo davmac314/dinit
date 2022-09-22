@@ -6,7 +6,7 @@ on:
 jobs:
   Ubuntu-latest-amd64_fuzzer:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     # We need to upload crash* files after libfuzzer fail so disable fail-fast option
     strategy:
