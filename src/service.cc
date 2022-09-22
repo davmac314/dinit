@@ -575,7 +575,8 @@ void service_record::stop(bool bring_down) noexcept
 
 bool service_record::restart() noexcept
 {
-    // Re-start without affecting dependency links/activation.
+    // Re-start without affecting dependency links/activation. Hard dependents will be similarly
+    // restarted.
 
     if (service_state == service_state_t::STARTED) {
         stop_reason = stopped_reason_t::NORMAL;
@@ -592,6 +593,8 @@ void service_record::do_stop(bool with_restart) noexcept
 {
     // Called when we should definitely stop. We may need to restart afterwards, but we
     // won't know that for sure until the execution transition.
+    // Note: to inhibit automatic restart,  to inhibit automatic restart, including restart due to
+    //       dependent still requiring this service, caller must first set desired_state to STOPPED
 
     if (is_start_pinned()) return;
 
@@ -600,6 +603,7 @@ void service_record::do_stop(bool with_restart) noexcept
 
     // Will we restart? desired state of STOPPED inhibits auto-restart
     bool for_restart = with_restart || (auto_restart && desired_state == service_state_t::STARTED);
+    bool restart_deps = with_restart;
 
     // If we won't restart, release explicit activation:
     if (!for_restart) {
@@ -609,7 +613,7 @@ void service_record::do_stop(bool with_restart) noexcept
         }
     }
 
-    bool all_deps_stopped = stop_dependents(with_restart, for_restart);
+    bool all_deps_stopped = stop_dependents(for_restart, restart_deps);
 
     if (service_state != service_state_t::STARTED) {
         if (service_state == service_state_t::STARTING) {
@@ -670,7 +674,7 @@ bool service_record::stop_check_dependents() noexcept
     return all_deps_stopped;
 }
 
-bool service_record::stop_dependents(bool with_restart, bool for_restart) noexcept
+bool service_record::stop_dependents(bool for_restart, bool restart_deps) noexcept
 {
     // We are in either STARTED or STARTING states.
     bool all_deps_stopped = true;
@@ -705,9 +709,8 @@ bool service_record::stop_dependents(bool with_restart, bool for_restart) noexce
                         dep_from->release(true);
                     }
                 }
-                else if (with_restart) {
-                    // if we restart, restart dependent and propagate restart to
-                    // all their hard dependents.
+                else if (restart_deps) {
+                    // restart dependent and propagate restart to all their hard dependents.
                     dep_from->stop_reason = stopped_reason_t::DEPRESTART;
                     dep_from->in_user_restart = true;
                 }
