@@ -18,6 +18,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Getting depends
+      run: sudo apt install meson -y
     - name: Print clang++ architecture
       run: clang++ -dumpmachine
     - name: Prepare `fuzz` target via meson
