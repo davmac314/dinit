@@ -40,8 +40,8 @@ if cpp_compiler.get_id() != 'clang'
 endif
 
 ## Prepare compiler/linker arguments for c/c++ files
-add_global_arguments('-fsanitize=address,undefined,fuzzer-no-link,leak', language : 'cpp')
-add_global_arguments('-fsanitize=fuzzer,address,undefined,leak', language : 'c')
+add_project_arguments('-fsanitize=address,undefined,fuzzer-no-link,leak', language : 'cpp')
+add_project_arguments('-fsanitize=fuzzer,address,undefined,leak', language : 'c')
 
 ## Prepare mconfig.h
 conf_data.set('DINIT_VERSION', '"' + '@0@'.format(meson.project_version()) + '"')

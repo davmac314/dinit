@@ -12,7 +12,7 @@ project(
 ## Includes
 # We include `src/includes/` & `dasynq/include/` as defualt_incdir 
 default_incdir = include_directories('src/includes/', 'dasynq/include/')
-dinit_source_files = ['src/dinit-main.cc',
+dinit_needed_files = ['src/dinit-main.cc',
                       'src/dinit.cc',
                       'src/load-service.cc',
                       'src/service.cc',
@@ -43,22 +43,29 @@ if use_new_abi.auto()
   if compiler.get_id() == 'gcc'
     if compiler.version().version_compare('>=7')
       message('System uses g++ 7 or later; Use new ABI = YES')
-      add_global_arguments('-D_GLIBCXX_USE_CXX11_ABI=1', language : 'cpp')
+      add_project_arguments('-D_GLIBCXX_USE_CXX11_ABI=1', language : 'cpp')
     else
       message('System uses g++ 6 or easiler; Use new ABI = NO')
-      add_global_arguments('-D_GLIBCXX_USE_CXX11_ABI=0', language : 'cpp')
+      add_project_arguments('-D_GLIBCXX_USE_CXX11_ABI=0', language : 'cpp')
     endif
   endif
 elif use_new_abi.enabled()
-  add_global_arguments('-D_GLIBCXX_USE_CXX11_ABI=1', language : 'cpp')
+  add_project_arguments('-D_GLIBCXX_USE_CXX11_ABI=1', language : 'cpp')
 elif use_new_abi.disabled()
-  add_global_arguments('-D_GLIBCXX_USE_CXX11_ABI=0', language : 'cpp')
+  add_project_arguments('-D_GLIBCXX_USE_CXX11_ABI=0', language : 'cpp')
+endif
+
+## Use -lrt?
+# We need to pass -lrt to c++ linker on FreeBSD. see BUILD_MESON
+if host_machine.system() == 'freebsd'
+  message('System uses FreeBSD; Pass "-lrt" to linker = YES')
+  add_project_link_arguments('-lrt', language : 'cpp')
 endif
 
 ## ToDo; its must handeled with `meson_options.txt` instead of force them
 ## Use -flto -fno-rtti -fno-plt
-add_global_arguments('-fno-rtti', language : 'cpp')
-add_global_arguments('-fno-plt', language : 'cpp')
+add_project_arguments('-fno-rtti', language : 'cpp')
+add_project_arguments('-fno-plt', language : 'cpp')
 
 ## Prepare mconfig.h
 conf_data.set('DINIT_VERSION', '"' + '@0@'.format(meson.project_version()) + '"')
@@ -81,7 +88,7 @@ configure_file(output : 'mconfig.h',
 
 ## Outputs
 # Standard apps: dinit, dinitctl, dinitcheck, dinit-monitor
-executable('dinit', dinit_source_files , include_directories : default_incdir, install : true, install_dir : sbindir)
+executable('dinit', dinit_needed_files , include_directories : default_incdir, install : true, install_dir : sbindir)
 executable('dinitctl', 'src/dinitctl.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
 executable('dinitcheck', 'src/dinitcheck.cc', 'src/options-processing.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
 executable('dinit-monitor', 'src/dinit-monitor.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
