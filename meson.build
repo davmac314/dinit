@@ -12,7 +12,7 @@ project(
 ## Includes
 # We include `src/includes/` & `dasynq/include/` as defualt_incdir 
 default_incdir = include_directories('src/includes/', 'dasynq/include/')
-dinit_needed_files = ['src/dinit-main.cc',
+dinit_source_files = ['src/dinit-main.cc',
                       'src/dinit.cc',
                       'src/load-service.cc',
                       'src/service.cc',
@@ -81,7 +81,7 @@ configure_file(output : 'mconfig.h',
 
 ## Outputs
 # Standard apps: dinit, dinitctl, dinitcheck, dinit-monitor
-executable('dinit', dinit_needed_files , include_directories : default_incdir, install : true, install_dir : sbindir)
+executable('dinit', dinit_source_files , include_directories : default_incdir, install : true, install_dir : sbindir)
 executable('dinitctl', 'src/dinitctl.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
 executable('dinitcheck', 'src/dinitcheck.cc', 'src/options-processing.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
 executable('dinit-monitor', 'src/dinit-monitor.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
