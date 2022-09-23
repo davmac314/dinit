@@ -1,13 +1,9 @@
 ## meson_options.txt for dinit
 ## You can set options in here:
 
+## Please see BUILD_MESON for more information.
+
 ## General options
-
-## Its must be used in `meson.build` file. For now dont work
-option('avaiable_cores', type : 'integer', value : '1', 
-        description : 'Avaiable CPU Cores for building' + 
-        'If you have multi-core CPU you can set it to use specifce numbers of CPU cores for building.')
-
 option('build_shutdown', type : 'feature', value : 'auto',
         description : 'Building shutdown/reboot/halt or not.' +
         'Currently only supported on linux')
@@ -18,7 +14,7 @@ option('shutdown_prefix', type : 'string', value : '',
 option('dinit_control_socket_path', type : 'string', value : '/run/dinitctl',
         description : 'Default full path to the control socket, for when Dinit runs as system service manager.')
 
-## Compiler flags
+## Dinit's special compiler flags
 option('use_new_abi', type : 'feature', value : 'auto', 
         description : 'Using new C++11 ABI,' +
         'for more information see BUILD file')
