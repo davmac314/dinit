@@ -2,7 +2,10 @@
 project(
     'dinit', 
     'cpp', 
-    version : '0.16.0pre',
+    version : run_command(
+    [find_program('bash', 'dirname'), 'build/general_variables_for_meson.sh', 'version'],
+    check : true
+    ).stdout(),
     license : 'Apache',
     default_options : ['cpp_std = c++11',
                        'b_lto = true',
