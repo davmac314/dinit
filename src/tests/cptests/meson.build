@@ -5,7 +5,7 @@ project(
     'cpp',
     'c',
     version : run_command(
-    [find_program('bash', 'dirname'), '../../../build/general_variables_for_meson.sh', 'version'],
+    [find_program('sh'), '../../../build/general_variables_for_meson.sh', 'version'],
     check : true
     ).stdout(),
     default_options : ['cpp_std = c++11',

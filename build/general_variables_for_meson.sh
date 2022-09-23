@@ -7,7 +7,7 @@
 set -e # Exit immediately if a command exits with a non-zero status.
 
 cd $(dirname $0)
-source ./version.conf
+. ./version.conf
 
 case $1 in
 	version)
