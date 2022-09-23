@@ -23,3 +23,12 @@ Dinit on freebsd-12.3-amd64 CI_task:
   # Currently unit & integration tests not avaiable on meson builds
   #Unit tests_script: gmake check
   #Integration tests_script: gmake check-igr
+
+Dinit on freebsd-13.1-amd64 miniFuzzer_task:
+  freebsd_instance:
+    image_family: freebsd-13-1
+
+  Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install meson
+  Prepare fuzz target_script: cd src/tests/cptests/ && CC=clang CXX=clang++ meson setup builddir/
+  Build_script: cd src/tests/cptests/builddir/ && meson compile
+  Run fuzzer_script: src/tests/cptests/builddir/fuzz -max_total_time=60
