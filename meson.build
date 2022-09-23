@@ -3,7 +3,7 @@ project(
     'dinit', 
     'cpp', 
     version : run_command(
-    [find_program('bash', 'dirname'), 'build/general_variables_for_meson.sh', 'version'],
+    [find_program('bash'), 'build/general_variables_for_meson.sh', 'version'],
     check : true
     ).stdout(),
     license : 'Apache',
