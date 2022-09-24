@@ -14,7 +14,7 @@ Please keep in mind:
 Buidling Dinit via Meson
 =-=-=-=-=-=-=-=-=-=-=-=-
 
-Buidling Dinit is avaiable via two "Build system": meson & make.
+Buidling Dinit is available via two "Build system": meson & make.
 Its file tell everything you need to buidling Dinit via meson.
 Bulding dinit via meson requires "meson" and a C++11 compiler (GCC version 4.9 and later, or Clang ~5.0 and later, should be fine)
 
@@ -28,7 +28,8 @@ in Meson you need to prepare "Buidling Dir". simply just type:
 
     meson setup builddir/
 
-This command configure "Building dir" to compile Dinit. If everything goes smoothly this will prepare everything to build dinit, dinitctl, and optionaly the shutdown/reboot/halt utilitys by default.
+This command configure "Building dir" in builddir/. you can set desired directory (but we suggest dont use dinit's directory such as build/ & src/ or ... as "Buidling dir").
+If everything goes smoothly this will prepare everything to build dinit, dinitctl, and optionaly the shutdown/reboot/halt utilitys by default.
 
 Everything is ready! you can compile Dinit with changing current directory to builddir/ & run:
 
@@ -41,8 +42,7 @@ Finaly install them via this command:
 
      meson install
 
-This command install there programs. you can specify an alternate installation by
-setting the "DESTDIR" variable, eg "DESTDIR=/tmp/temporary-install-path meson install".
+This command install there programs. you can specify an alternate installation by setting the "DESTDIR" variable, eg "DESTDIR=/tmp/temporary-install-path meson install".
 
 Dinit's custom options
 =-=-=-=-=-=-=-=-=-=-=-
@@ -57,24 +57,24 @@ or users can modify original "meson_options.txt" and set values.
 Custom options:
  use_new_abi               : see "Special note for GCC/Libstdc++", below.
                              Not needed for most modern systems.
-                             Avaiable values : enabled, disabled, auto
+                             Available values : enabled, disabled, auto
                              Default value : auto
 
  build_shutdown            : Whether to build the "shutdown" (and "halt" etc) utilities. 
                              These are only useful if dinit is the system init (i.e. the PID 1 process). 
                              You probably don't want this unless building for Linux.
-                             Avaiable values : enabled, disabled, auto
+                             Available values : enabled, disabled, auto
                              Default value : auto
 
  dinit_control_socket_path : Default full path to the control socket, for when Dinit runs as system service manager.
-                             Avaiable values : full path for dinit_control_socket_path
+                             Available values : everywhere you want!
                              Default value : /run/dinitctl
 
  shutdown_prefix           : Name prefix for "shutdown", "halt" and "reboot" commands (if they are built).
                              This affects both the output, and what command dinit will execute as part of system shutdown.
                              If you want to install Dinit alongside another init system with its own shutdown/halt/reboot
                              commands, set this (for eg. to "dinit-").
-                             Avaiable values : everything you want!
+                             Available values : everything you want!
                              Default value : (empty)
 
 
