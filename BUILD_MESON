@@ -5,49 +5,49 @@ Meson build system for Dinit
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 Please keep in mind:
-1. Meson build system for Dinit is experimental way to build Dinit. 
-   so maybe its have some bugs. Please report bugs to https://github.com/davmac314/dinit/issues
-2. Meson build system for Dinit is "extra" part. The main build system is GNU make.
-   This means that the feature is first tested on make. There may also be delays in adding new Dinit's features to Meson builds. 
-3. If you see some bugs in Meson builds. Please also test it on GNU make builds.
+1. Meson build system for Dinit is an experimental way to build Dinit. 
+   it might have some bugs. Please report bugs on https://github.com/davmac314/dinit/issues
+2. Meson build system for Dinit is "extra" part. The main build system is GNU Make.
+   This means that the feature is first tested on Make. There may also be delays in adding new Dinit's features to Meson builds. 
+3. If you found some bugs in Meson builds, Please also test it on GNU make builds.
 
 Buidling Dinit via Meson
 =-=-=-=-=-=-=-=-=-=-=-=-
 
 Buidling Dinit is available via two "Build system": meson & make.
-Its file tell everything you need to buidling Dinit via meson.
+Its file tells everything you need to buidling Dinit via meson.
 Bulding dinit via meson requires "meson" and a C++11 compiler (GCC version 4.9 and later, or Clang ~5.0 and later, should be fine)
 
-Meson configure all you need to build Dinit. Its detect your OS, detect your compiler & set something based on your system information.
-By Default no action required & meson configure everything needed to build Dinit.
+Meson configures all you need to build Dinit. It detects your OS, detects your compiler & sets something based on your system information.
+By Default no action is required & meson configures everything needed to build Dinit.
 
 Note that the "eg++" or "clang++" package must be installed on OpenBSD as the default "g++"
-compiler is too old. Clang is part of the base system in recent releases.
+compiler is too old. Clang is a part of the base system in recent releases.
 
 in Meson you need to prepare "Buidling Dir". simply just type:
 
     meson setup builddir/
 
-This command configure "Building dir" in builddir/. you can set desired directory (but we suggest dont use dinit's directory such as build/ & src/ or ... as "Buidling dir").
+This command configures "Building dir" in builddir/. you can set desired directory (but we suggest dont use dinit's directory such as build/ & src/ or ... as "Buidling dir").
 If everything goes smoothly this will prepare everything to build dinit, dinitctl, and optionaly the shutdown/reboot/halt utilitys by default.
 
 Everything is ready! you can compile Dinit with changing current directory to builddir/ & run:
 
      meson compile
 
-Note: on old Mesons you must use "ninja compile" instead of "meson compile".
-This command build the dinit, dinitctl, and optionaly the shutdown/reboot/halt utilitys by default.
+Note: on old Mesons, you must use "ninja compile" instead of "meson compile".
+This command builds the dinit, dinitctl, and optionaly the shutdown/reboot/halt utilitys by default.
 
-Finaly install them via this command:
+Finally install them via this command:
 
      meson install
 
-This command install there programs. you can specify an alternate installation by setting the "DESTDIR" variable, eg "DESTDIR=/tmp/temporary-install-path meson install".
+This command installs the programs. you can specify an alternate installation by setting the "DESTDIR" variable, eg "DESTDIR=/tmp/temporary-install-path meson install".
 
 Dinit's custom options
 =-=-=-=-=-=-=-=-=-=-=-
 
-Dinit should generally build fine with no additional options, all required options/flags automaitly added.
+Dinit should generally build with no additional options, all required options/flags will be added automatically.
 Custom options can be passed with command line:
 
      meson setup -Doption=value builddir/
@@ -67,10 +67,10 @@ Custom options:
                              Default value : auto
 
  dinit_control_socket_path : Default full path to the control socket, for when Dinit runs as system service manager.
-                             Available values : everywhere you want!
+                             Available values : anywhere you want!
                              Default value : /run/dinitctl
 
- shutdown_prefix           : Name prefix for "shutdown", "halt" and "reboot" commands (if they are built).
+ shutdown_prefix           : Name prefix to "shutdown", "halt" and "reboot" commands (if they are built).
                              This affects both the output, and what command dinit will execute as part of system shutdown.
                              If you want to install Dinit alongside another init system with its own shutdown/halt/reboot
                              commands, set this (for eg. to "dinit-").
