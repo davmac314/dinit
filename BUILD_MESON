@@ -70,7 +70,7 @@ Custom options:
                              Available values : anywhere you want!
                              Default value : /run/dinitctl
 
- shutdown_prefix           : Name prefix to "shutdown", "halt" and "reboot" commands (if they are built).
+ shutdown_prefix           : Name prefix for "shutdown", "halt" and "reboot" commands (if they are built).
                              This affects both the output, and what command dinit will execute as part of system shutdown.
                              If you want to install Dinit alongside another init system with its own shutdown/halt/reboot
                              commands, set this (for eg. to "dinit-").
