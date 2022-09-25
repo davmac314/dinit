@@ -13,6 +13,7 @@ option('shutdown_prefix', type : 'string', value : '',
         'If you want to install Dinit alongside another init system with its own shutdown/halt/reboot commands, set this (for eg. to "dinit-").')
 option('dinit_control_socket_path', type : 'string', value : '/run/dinitctl',
         description : 'Default full path to the control socket, for when Dinit runs as system service manager.')
+option('unit_tests', type : 'feature', value : 'disabled')
 
 ## Dinit's special compiler flags
 option('use_new_abi', type : 'feature', value : 'auto', 

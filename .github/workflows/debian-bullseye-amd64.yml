@@ -17,19 +17,19 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Getting depends
-      run: apt-get update && apt-get install gcc meson make m4 g++ file -y
+      run: apt-get update && apt-get install gcc meson m4 g++ file -y
     - name: Print g++ architecture
       run: g++ -dumpmachine
     - name: Prepare Build
-      run: meson setup builddir
+      run: meson setup -Dunit_tests=enabled builddir
     - name: Build
       run: cd builddir && mkdir ./test && DESTDIR=./test meson install
     - name: Print dinit executive file architecture
       run: file ./builddir/test/sbin/dinit
     - name: ./dinit --version
       run: builddir/test/sbin/dinit --version
-    # for now; meson dont support Unit & intergration tests
-    #- name: Unit tests
-    #  run: make check
+    - name: Unit tests
+      run: cd builddir/ && meson test
+    # for now; meson dont support Intergration tests
     #- name: Integration tests
     #  run: make check-igr

@@ -7,8 +7,8 @@ Dinit on freebsd-13.1-amd64 CI_task:
   Prepare Build_script: meson setup builddir/
   Build_script: meson compile -C builddir/
   Print dinit executive file architecture_script: file ./builddir/dinit
-  # Currently unit & integration tests not avaiable on meson builds
-  #Unit tests_script: gmake check
+  Unit tests_script: cd builddir/ && meson test
+  # Currently integration tests not avaiable on meson builds
   #Integration tests_script: gmake check-igr
 
 Dinit on freebsd-12.3-amd64 CI_task:
@@ -20,8 +20,8 @@ Dinit on freebsd-12.3-amd64 CI_task:
   Prepare Build_script: meson setup builddir/
   Build_script: meson compile -C builddir/
   Print dinit executive file architecture_script: file ./builddir/dinit
-  # Currently unit & integration tests not avaiable on meson builds
-  #Unit tests_script: gmake check
+  Unit tests_script: cd builddir/ && meson test
+  # Currently integration tests not avaiable on meson builds
   #Integration tests_script: gmake check-igr
 
 Dinit on freebsd-13.1-amd64 miniFuzzer_task:
