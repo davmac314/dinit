@@ -29,4 +29,4 @@ jobs:
     - name: ./dinit --version
       run: builddir/ins-test/sbin/dinit --version
     - name: Unit & Integration tests
-      run: cd builddir/ && meson test
+      run: cd builddir/ && meson test --print-errorlogs
