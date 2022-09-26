@@ -18,6 +18,7 @@ shutdown_prefix = get_option('shutdown_prefix')
 dinit_control_socket_path = get_option('dinit_control_socket_path')
 use_new_abi = get_option('use_new_abi')
 unit_tests = get_option('unit_tests')
+igr_tests = get_option('igr_tests')
 conf_data = configuration_data()
 support_cgroups = get_option('support_cgroups')
 # We have custom prefix for install files
@@ -78,4 +79,7 @@ subdir('src')
 # Unit tests
 if unit_tests.enabled()
   subdir('src/tests')
+endif
+if igr_tests.enabled()
+  subdir('src/igr-tests')
 endif

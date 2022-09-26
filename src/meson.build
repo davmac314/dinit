@@ -21,8 +21,8 @@ configure_file(output : 'mconfig.h',
 
 ## Outputs
 # Standard apps: dinit, dinitctl, dinitcheck, dinit-monitor
-executable('dinit', dinit_source_files , include_directories : default_incdir, install : true, install_dir : sbindir)
-executable('dinitctl', 'dinitctl.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
+dinit = executable('dinit', dinit_source_files , include_directories : default_incdir, install : true, install_dir : sbindir)
+dinitctl = executable('dinitctl', 'dinitctl.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
 executable('dinitcheck', 'dinitcheck.cc', 'options-processing.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
 executable('dinit-monitor', 'dinit-monitor.cc', include_directories : default_incdir, install : true, install_dir : sbindir)
 # Shutdown/reboot/halt

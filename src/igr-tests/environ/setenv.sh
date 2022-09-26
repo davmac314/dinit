@@ -1,5 +1,12 @@
 #!/bin/sh
 
+if [ $IS_MESON ]; then
+   cd $(dirname $0)
+   DINITCTL_EXEC=$APPS_PATH/dinitctl
+else
+   DINITCTL_EXEC=../../dinitctl
+fi
+
 case "$1" in
     setenv1)
         if [ "$FOO" = "foo" -a "$BAR" = "bar" -a "$BAZ" = "baz" ]; then
@@ -10,11 +17,11 @@ case "$1" in
         if [ "$FOO" = "foo" ]; then
             echo 2 >> ./env-record
             export BAR=bar
-            ../../dinitctl setenv BAR BAZ=baz
+            $DINITCTL_EXEC setenv BAR BAZ=baz
         fi
         ;;
     setenv3)
-        ../../dinitctl setenv FOO=foo
+        $DINITCTL_EXEC setenv FOO=foo
         echo 3 >> ./env-record
         ;;
     *) ;;

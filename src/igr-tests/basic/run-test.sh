@@ -2,8 +2,14 @@
 
 rm -f ./basic-ran
 
-../../dinit -d sd -u -p socket -q \
-	basic
+if [ $IS_MESON ]; then
+   cd $(dirname $0)
+   $APPS_PATH/dinit -d sd -u -p socket -q \
+           basic
+else
+   ../../dinit -d sd -u -p socket -q \
+	   basic
+fi
 
 STATUS=FAIL
 if [ -e basic-ran ]; then

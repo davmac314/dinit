@@ -21,15 +21,12 @@ jobs:
     - name: Print g++ architecture
       run: g++ -dumpmachine
     - name: Prepare Build
-      run: meson setup -Dunit_tests=enabled builddir
+      run: meson setup -Dunit_tests=enabled -Digr_tests=enabled builddir
     - name: Build
       run: cd builddir && mkdir ./ins-test && DESTDIR=./ins-test meson install
     - name: Print dinit executive file architecture
       run: file ./builddir/ins-test/sbin/dinit
     - name: ./dinit --version
       run: builddir/ins-test/sbin/dinit --version
-    - name: Unit tests
+    - name: Unit & Integration tests
       run: cd builddir/ && meson test
-    # for now; meson dont support Intergration tests
-    #- name: Integration tests
-    #  run: make check-igr

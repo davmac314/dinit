@@ -1,4 +1,4 @@
-#!env bash
+#!/usr/bin/env sh
 
 ## For some reasons meson cant read variables from env/files.
 ## So we need to a wrapper for variables. This script is a wrapper for importing variables to meson.
@@ -10,16 +10,16 @@ cd $(dirname $0)
 . ./version.conf
 
 case $1 in
-	version)
-		printf $VERSION
-		;;
-	month)
-		printf $MONTH
-		;;
-	year)
-		printf $YEAR
-		;;
-	*)
-		echo "Invalid argument. Please set version or month or year as argument"
-		exit 1
+    version)
+        printf $VERSION
+        ;;
+    month)
+        printf $MONTH
+        ;;
+    year)
+        printf $YEAR
+        ;;
+    *)
+        echo "Invalid argument. Please set version or month or year as argument"
+        exit 1
 esac

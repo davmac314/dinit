@@ -1,0 +1,11 @@
+# Included from top-level meson.build
+
+## Prepare integration tests
+run_command([find_program('cp'), '-r', './', '@0@/igr-tests/'.format(meson.build_root())], check : true)
+
+## Outputs
+# Integration tests
+basic_test_script = find_program('@0@/igr-tests/basic/run-test.sh'.format(meson.build_root()))
+environ_test_script = find_program('@0@/igr-tests/environ/run-test.sh'.format(meson.build_root()))
+test('basic', basic_test_script, env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
+test('environ', environ_test_script, env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())], is_parallel : false)
