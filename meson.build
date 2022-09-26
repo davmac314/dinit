@@ -54,7 +54,7 @@ endif
 
 ## ToDo; its must handeled with `meson_options.txt` instead of force them
 # Use -fno-rtti -fno-plt
-add_project_arguments('-fno-rtti', language : 'cpp')
+#add_roject_arguments('-fno-rtti', language : 'cpp')
 add_project_arguments('-fno-plt', language : 'cpp')
 
 ## Prepare mconfig.h
