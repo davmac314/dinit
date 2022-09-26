@@ -1,8 +1,15 @@
 #!/bin/sh
 
+if [ $IS_MESON ]; then
+   cd $(dirname $0)
+   DINIT_EXEC=$APPS_PATH/dinit
+else
+   DINIT_EXEC=../../dinit
+fi
+
 rm -f ./recorded-output
 
-../../dinit -d sd -u -p socket -q \
+$DINIT_EXEC -d sd -u -p socket -q \
 	part1
 
 STATUS=FAIL
