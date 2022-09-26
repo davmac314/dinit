@@ -4,7 +4,7 @@ Dinit on freebsd-13.1-amd64 CI_task:
 
   Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install meson m4 file
   Print clang++ architecture_script: clang++ -dumpmachine
-  Prepare Build_script: meson setup -Dunit_tests=enabled builddir/
+  Prepare Build_script: meson setup -Dunit_tests=enabled -Digr_tests=enabled builddir/
   Build_script: meson compile -C builddir/
   Print dinit executive file architecture_script: file ./builddir/src/dinit
   Unit & Integration tests_script: cd builddir/ && meson test
@@ -15,7 +15,7 @@ Dinit on freebsd-12.3-amd64 CI_task:
 
   Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install meson m4 file
   Print clang++ architecture_script: clang++ -dumpmachine
-  Prepare Build_script: meson setup -Dunit_tests=enabled builddir/
+  Prepare Build_script: meson setup -Dunit_tests=enabled -Digr_tests=enabled builddir/
   Build_script: meson compile -C builddir/
   Print dinit executive file architecture_script: file ./builddir/src/dinit
   Unit & Integration tests_script: cd builddir/ && meson test

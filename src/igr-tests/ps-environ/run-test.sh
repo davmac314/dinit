@@ -1,22 +1,29 @@
 #!/bin/sh
 
+if [ $IS_MESON ]; then
+   cd $(dirname $0)
+   DINIT_EXEC=$APPS_PATH/dinit
+else
+   DINIT_EXEC=../../dinit
+fi
+
 rm -f ./env-record
 
 export TEST_VAR_TWO=set-via-script
 
-../../dinit -d sd -u -p socket -q \
+$DINIT_EXEC -d sd -u -p socket -q \
 	checkenv1
 
-../../dinit -d sd -u -p socket -q \
+$DINIT_EXEC -d sd -u -p socket -q \
 	checkenv2
 
-../../dinit -d sd -u -p socket -q \
+$DINIT_EXEC -d sd -u -p socket -q \
 	checkenv3
 
-../../dinit -d sd -e dinit-environment -u -p socket -q \
+$DINIT_EXEC -d sd -e dinit-environment -u -p socket -q \
 	checkenv4
 
-../../dinit -d sd -u -p socket -q \
+$DINIT_EXEC -d sd -u -p socket -q \
 	checkenv4
 
 STATUS=FAIL
