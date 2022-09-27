@@ -55,7 +55,7 @@ endif
 ## ToDo; its must handeled with `meson_options.txt` instead of force them
 # Use -fno-rtti -fno-plt
 #add_roject_arguments('-fno-rtti', language : 'cpp')
-add_project_arguments('-fno-plt', language : 'cpp')
+#add_project_arguments('-fno-plt', language : 'cpp')
 
 ## Prepare mconfig.h
 conf_data.set('DINIT_VERSION', '"' + '@0@'.format(meson.project_version()) + '"')
