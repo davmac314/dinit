@@ -1,6 +1,7 @@
 #!/bin/sh
 
 if [ $IS_MESON ]; then
+   cd $(dirname $0)
    DINITCHECK_EXEC=$APPS_PATH/dinitcheck
 else
    DINITCHECK_EXEC=../../dinitcheck
