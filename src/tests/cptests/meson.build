@@ -65,4 +65,9 @@ endif
 configure_file(output : 'mconfig.h',
                configuration : conf_data)
 
-executable('fuzz', 'fuzz.cc', fuzz_sources, include_directories : fuzz_incdir, install : false, link_args : '-fsanitize=fuzzer,address,undefined,leak')
+executable('fuzz',
+           'fuzz.cc',
+           fuzz_sources,
+           include_directories : fuzz_incdir,
+           install : false,
+           link_args : '-fsanitize=fuzzer,address,undefined,leak')

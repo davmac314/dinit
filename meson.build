@@ -24,7 +24,7 @@ support_cgroups = get_option('support_cgroups')
 # We have custom prefix for install files
 # By default: Prefix = /
 # By default: Sbin = /sbin
-# By default: you find dinit on /sbin
+# By default: you find dinit on /sbin/dinit
 prefix = get_option('prefix')
 sbindir = get_option('sbindir')
 
@@ -50,6 +50,8 @@ endif
 if host_machine.system() == 'freebsd'
   message('System uses FreeBSD; Pass "-lrt" to linker = YES')
   add_project_link_arguments('-lrt', language : 'cpp')
+else
+  message('System not uses FreeBSD; Pass "-lrt" to linker = NO')
 endif
 
 ## ToDo; its must handeled with `meson_options.txt` instead of force them
@@ -80,6 +82,7 @@ subdir('src')
 if unit_tests.enabled()
   subdir('src/tests')
 endif
+# Integration tests
 if igr_tests.enabled()
   subdir('src/igr-tests')
 endif

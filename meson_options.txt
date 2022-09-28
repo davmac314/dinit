@@ -1,5 +1,5 @@
 ## meson_options.txt for dinit
-## You can set options in here:
+## You can set dinit's options in here:
 
 ## Please see BUILD_MESON for more information.
 
@@ -23,6 +23,6 @@ option('use_new_abi', type : 'feature', value : 'auto',
         description : 'Using new C++11 ABI,' +
         'for more information see BUILD file')
 
-## Linux specifce options
+## Linux specific options
 option('support_cgroups', type : 'feature', value : 'auto',
         description : 'Enable Cgroups supprot')
