@@ -1,6 +1,15 @@
 #!/bin/sh
 
-../../dinit -d sd -u -p socket -q main &
+if [ $IS_MESON ]; then
+   cd $(dirname $0)
+   DINIT_EXEC=$APPS_PATH/dinit
+   DINITCTL_EXEC=$APPS_PATH/dinitctl
+else
+   DINIT_EXEC=../../dinit
+   DINITCTL_EXEC=../../dinitctl
+fi
+
+$DINIT_EXEC -d sd -u -p socket -q main &
 DINITPID=$!
 
 # give time for socket to open
@@ -10,7 +19,7 @@ done
 
 STATUS=FAIL
 
-DINITCTL="../../dinitctl -p socket"
+DINITCTL="$DINITCTL_EXEC -p socket"
 
 while
 
@@ -55,7 +64,7 @@ while
 
     STATUS=PASS
     false
-    
+
 do :; done
 
 kill $DINITPID

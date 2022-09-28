@@ -16,6 +16,10 @@ checkcycle_test_script = find_program('@0@/igr-tests/check-cycle/run-test.sh'.fo
 checklint_test_script = find_program('@0@/igr-tests/check-lint/run-test.sh'.format(meson.build_root()))
 reload1_test_script = find_program('@0@/igr-tests/reload1/run-test.sh'.format(meson.build_root()))
 reload2_test_script = find_program('@0@/igr-tests/reload2/run-test.sh'.format(meson.build_root()))
+nocommanderror_test_script = find_program('@0@/igr-tests/no-command-error/run-test.sh'.format(meson.build_root()))
+addrmdep_test_script = find_program('@0@/igr-tests/add-rm-dep/run-test.sh'.format(meson.build_root()))
+varsubst_test_script = find_program('@0@/igr-tests/var-subst/run-test.sh'.format(meson.build_root()))
+svcstartfail_test_script = find_program('@0@/igr-tests/svc-start-fail/run-test.sh'.format(meson.build_root()))
 test('basic',
      basic_test_script,
      env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
@@ -49,4 +53,16 @@ test('reload1',
      env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
 test('reload2',
      reload2_test_script,
+     env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
+test('no-command-error',
+     nocommanderror_test_script,
+     env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
+test('add-rm-dep',
+     addrmdep_test_script,
+     env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
+test('var-subst',
+      varsubst_test_script,
+     env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
+test('svc-start-fail',
+     svcstartfail_test_script,
      env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])

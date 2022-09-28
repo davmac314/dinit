@@ -1,9 +1,16 @@
 #!/bin/sh
 
+if [ $IS_MESON ]; then
+   cd $(dirname $0)
+   DINIT_EXEC=$APPS_PATH/dinit
+else
+   DINIT_EXEC=../../dinit
+fi
+
 rm -f ./args-record
 
 export TEST_VAR_ONE="var one" TEST_VAR_TWO=vartwo TEST_VAR_THREE=varthree
-../../dinit -d sd -u -p socket -q \
+$DINIT_EXEC -d sd -u -p socket -q \
 	checkargs
 
 STATUS=FAIL
