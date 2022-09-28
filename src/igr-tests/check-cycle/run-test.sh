@@ -1,6 +1,13 @@
 #!/bin/sh
 
-../../dinitcheck -d sd > output.txt 2>&1
+if [ $IS_MESON ]; then
+   cd $(dirname $0)
+   DINITCHECK_EXEC=$APPS_PATH/dinitcheck
+else
+   DINITCHECK_EXEC=../../dinitcheck
+fi
+
+$DINITCHECK_EXEC -d sd > output.txt 2>&1
 if [ $? != 1 ]; then exit 1; fi
 
 STATUS=FAIL

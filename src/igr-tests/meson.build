@@ -12,12 +12,14 @@ chainto_test_script = find_program('@0@/igr-tests/chain-to/run-test.sh'.format(m
 forcestop_test_script = find_program('@0@/igr-tests/force-stop/run-test.sh'.format(meson.build_root()))
 restart_test_script = find_program('@0@/igr-tests/restart/run-test.sh'.format(meson.build_root()))
 checkbasic_test_script = find_program('@0@/igr-tests/check-basic/run-test.sh'.format(meson.build_root()))
+checkcycle_test_script = find_program('@0@/igr-tests/check-cycle/run-test.sh'.format(meson.build_root()))
 test('basic',
      basic_test_script,
      env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
 test('environ',
      environ_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())], is_parallel : false)
+     env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())],
+     is_parallel : false)
 test('ps-environ',
      psenviron_test_script,
      env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
@@ -32,4 +34,7 @@ test('restart',
      env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
 test('check-basic',
      checkbasic_test_script,
+     env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
+test('check-cycle',
+     checkcycle_test_script,
      env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
