@@ -13,6 +13,7 @@ forcestop_test_script = find_program('@0@/igr-tests/force-stop/run-test.sh'.form
 restart_test_script = find_program('@0@/igr-tests/restart/run-test.sh'.format(meson.build_root()))
 checkbasic_test_script = find_program('@0@/igr-tests/check-basic/run-test.sh'.format(meson.build_root()))
 checkcycle_test_script = find_program('@0@/igr-tests/check-cycle/run-test.sh'.format(meson.build_root()))
+checklint_test_script = find_program('@0@/igr-tests/check-lint/run-test.sh'.format(meson.build_root()))
 test('basic',
      basic_test_script,
      env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
@@ -37,4 +38,7 @@ test('check-basic',
      env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
 test('check-cycle',
      checkcycle_test_script,
+     env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
+test('check-lint',
+     checklint_test_script,
      env : ['IS_MESON=true', 'APPS_PATH=@0@/src/'.format(meson.build_root())])
