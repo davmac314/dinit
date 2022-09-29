@@ -7,6 +7,7 @@ project(
     check : true
     ).stdout(),
     license : 'Apache',
+    meson_version : '>= 0.47.0',
     default_options : ['cpp_std = c++11',
                        'b_lto = true',
                        'prefix=/',
