@@ -20,7 +20,6 @@ dinit_control_socket_path = get_option('dinit_control_socket_path')
 use_new_abi = get_option('use_new_abi')
 unit_tests = get_option('unit_tests')
 igr_tests = get_option('igr_tests')
-conf_data = configuration_data()
 support_cgroups = get_option('support_cgroups')
 use_utmpx = get_option('use_utmpx')
 # We have custom prefix for install files
@@ -29,6 +28,10 @@ use_utmpx = get_option('use_utmpx')
 # By default: you find dinit on /sbin/dinit
 prefix = get_option('prefix')
 sbindir = get_option('sbindir')
+conf_data = configuration_data()
+version = '@0@'.format(meson.project_version())
+month = run_command('build/general_variables_for_meson.sh', 'month', check : true).stdout()
+year = run_command('build/general_variables_for_meson.sh', 'year', check : true).stdout()
 
 ## Use -D_GLIBCXX_USE_CXX11_ABI?
 if use_new_abi.auto()
@@ -93,3 +96,5 @@ endif
 if igr_tests.enabled()
   subdir('src/igr-tests')
 endif
+# Man pages
+subdir('doc/manpages/')
