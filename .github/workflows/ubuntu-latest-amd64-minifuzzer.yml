@@ -26,9 +26,9 @@ jobs:
     - name: Print clang++ architecture
       run: clang++ -dumpmachine
     - name: Prepare `fuzz` target via meson
-      run: CC=clang CXX=clang++ meson setup builddir
+      run: CC=clang CXX=clang++ meson setup builddir/
     - name: Build `fuzz` target via meson
-      run: cd builddir && meson compile
+      run: cd builddir && ninja
     - name: Run fuzzer
       run: builddir/fuzz -max_total_time=1200
     - name: Upload crash file(s)
