@@ -21,6 +21,7 @@ unit_tests = get_option('unit_tests')
 igr_tests = get_option('igr_tests')
 conf_data = configuration_data()
 support_cgroups = get_option('support_cgroups')
+use_utmpx = get_option('use_utmpx')
 # We have custom prefix for install files
 # By default: Prefix = /
 # By default: Sbin = /sbin
@@ -73,6 +74,11 @@ if support_cgroups.auto()
   endif
 elif support_cgroups.enabled()
   conf_data.set('SUPPORT_CGROUPS', '1')
+endif
+if use_utmpx.enabled()
+  conf_data.set('USE_UTMPX', '1')
+elif use_utmpx.disabled()
+  conf_data.set('USE_UTMPX', '0')
 endif
 
 ## Outputs

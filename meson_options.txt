@@ -17,6 +17,8 @@ option('unit_tests', type : 'feature', value : 'disabled',
        description : 'Building Unit tests. by default its disabled')
 option('igr_tests', type : 'feature', value : 'disabled',
         description : 'Building Integration tests. by default its disabled')
+option('use_utmpx', type : 'feature', value : 'disabled',
+        description : 'Whether to build support for manipulating the utmp/utmpx database via the related POSIX functions.')
 
 ## Dinit's special compiler flags
 option('use_new_abi', type : 'feature', value : 'auto', 
