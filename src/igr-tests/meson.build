@@ -3,8 +3,6 @@
 ## Prepare integration tests
 run_command([find_program('cp'), '-r', './', '@0@'.format(meson.current_build_dir())], check : true)
 
-message('@0@'.format(meson.current_build_dir()))
-
 ## Outputs
 # Integration tests
 basic_test_script = find_program('@0@/basic/run-test.sh'.format(meson.current_build_dir()))
