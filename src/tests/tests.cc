@@ -1635,18 +1635,18 @@ int main(int argc, char **argv)
 {
     bp_sys::init_bpsys();
 
-//    RUN_TEST(basic_test1, "               ");
-//    RUN_TEST(basic_test2, "               ");
-//    RUN_TEST(basic_test3, "               ");
-//    RUN_TEST(basic_test4, "               ");
-//    RUN_TEST(basic_test5, "               ");
-//    RUN_TEST(basic_test6, "               ");
-//    RUN_TEST(basic_test7, "               ");
-//    RUN_TEST(basic_test8, "               ");
-//    RUN_TEST(basic_test9, "               ");
-//    RUN_TEST(test_pin1, "                 ");
-//    RUN_TEST(test_pin2, "                 ");
-//    RUN_TEST(test_pin3, "                 ");
+    RUN_TEST(basic_test1, "               ");
+    RUN_TEST(basic_test2, "               ");
+    RUN_TEST(basic_test3, "               ");
+    RUN_TEST(basic_test4, "               ");
+    RUN_TEST(basic_test5, "               ");
+    RUN_TEST(basic_test6, "               ");
+    RUN_TEST(basic_test7, "               ");
+    RUN_TEST(basic_test8, "               ");
+    RUN_TEST(basic_test9, "               ");
+    RUN_TEST(test_pin1, "                 ");
+    RUN_TEST(test_pin2, "                 ");
+    RUN_TEST(test_pin3, "                 ");
     RUN_TEST(test_pin4, "                 ");
     RUN_TEST(test_pin5, "                 ");
     RUN_TEST(test_pin6, "                 ");
