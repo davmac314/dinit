@@ -1,5 +1,15 @@
 # Included from top-level meson.build
 
+# doc/manpages's Defines
+man5 = 'dinit-service.5'
+man8 = [meson.current_build_dir() + 'dinit.8',
+        meson.current_build_dir() + 'dinitcheck.8',
+        meson.current_build_dir() + 'dinitctl.8',
+        meson.current_build_dir() + 'dinit-monitor.8']
+if install_shutdown_man == '1'
+  man8 += meson.current_build_dir() + 'shutdown.8'
+endif
+
 ## Generate man-pages
 # Dinit need 'm4' to gen man-pages
 find_program('m4', required : true)
@@ -19,3 +29,8 @@ run_command('generate-man-pages.sh',
             month,
             year,
             check : true)
+
+install_data(man5,
+             install_dir : mandir + '/man5/')
+install_data(man8,
+             install_dir : mandir + '/man8/')

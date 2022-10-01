@@ -10,7 +10,7 @@ project(
     meson_version : '>= 0.47.0',
     default_options : ['cpp_std = c++11',
                        'b_lto = true',
-                       'prefix=/',
+                       'prefix=/usr',
                        'sbindir=/sbin'])
 
 ## General Defines
@@ -22,12 +22,13 @@ unit_tests = get_option('unit_tests')
 igr_tests = get_option('igr_tests')
 support_cgroups = get_option('support_cgroups')
 use_utmpx = get_option('use_utmpx')
-# We have custom prefix for install files
-# By default: Prefix = /
+# We have custom sbindir for install programs (/sbin instead of /usr/sbin/)
+# By default: Prefix = /usr
 # By default: Sbin = /sbin
 # By default: you find dinit on /sbin/dinit
 prefix = get_option('prefix')
 sbindir = get_option('sbindir')
+mandir = get_option('mandir')
 conf_data = configuration_data()
 version = '@0@'.format(meson.project_version())
 month = run_command('build/general_variables_for_meson.sh', 'month', check : true).stdout()
