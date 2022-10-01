@@ -90,11 +90,11 @@ endif
 # Standard apps: dinit, dinitctl, dinitcheck, dinit-monitor + shutdown/reboot/halt
 subdir('src')
 # Temp fix for FreeBSD CIs cant find `install_shutdown_man` variable
-if build_shutdown.auto()
+if get_option('build_shutdown').auto()
   if host_machine.system() == 'linux'
     install_shutdown_man = '1'
   endif
-elif build_shutdown.enabled()
+elif get_option('build_shutdown').enabled()
   install_shutdown_man = '1'
 endif
 # Unit tests
