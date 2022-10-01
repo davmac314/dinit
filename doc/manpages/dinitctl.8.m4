@@ -110,12 +110,13 @@ Once unpinned, a service which is not explicitly activated, and which has no act
 will automatically stop. If a pinned-started service fails to start, the pin is removed.
 .sp
 Note that a pin takes effect while the service is starting/stopping, before it reaches the target
-state.
-For example, issuing a stop command to a service which is starting and which is pinned started
-will have no effect other than removing explicit activation.
+state. Stopping or restarting a service that is pinned started and which is already starting or
+started is not possible. Similarly, starting a service which is pinned stopped and which is stopping
+or stopped is not possible.
 .TP
 \fB\-\-force\fR
 Stop the service even if it will require stopping other services which depend on the specified service.
+When applied to the \fBrestart\fR command, this will cause the dependent services to also be restarted.
 .TP
 \fB\-\-ignore\-unstarted\fR
 If the service is not started or doesn't exist, ignore the command and return an exit code indicating
@@ -131,13 +132,15 @@ If the service is currently stopping it will generally continue to stop before i
 .TP
 \fBstop\fR
 Stop the specified service, and remove explicit activation.
-If the service has (non-soft) dependents, an error will be displayed unless the \fB\-\-force\fR option is used.
+If the service has (non-soft) dependents, an error will be displayed and no further action taken,
+unless the \fB\-\-force\fR option is used. If the service is pinned started (and not already stopped or
+stopping) an error will be displayed and no further action taken.
 .sp
 The \fBrestart\fR option (see \fBdinit-service\fR(5)) applied to the stopped service will not cause the
 service to restart when it is stopped via this command (that is, this command inhibits automatic restart).
 This also applies to any dependents that must also be stopped at the same time.
 .sp
-Any pending \fBstart\fR orders are cancelled,
+Any pending \fBstart\fR orders (including for restarts) are cancelled,
 though a service which is starting will continue its startup before then stopping (unless the service is
 configured to have an interruptible startup or is otherwise at a stage of startup which can be safely
 interrupted).
