@@ -1,7 +1,7 @@
 # Included from top-level meson.build
 
 # doc/manpages's Defines
-man5 = 'dinit-service.5'
+man5 = meson.current_build_dir() + 'dinit-service.5'
 man8 = [meson.current_build_dir() + 'dinit.8',
         meson.current_build_dir() + 'dinitcheck.8',
         meson.current_build_dir() + 'dinitctl.8',
