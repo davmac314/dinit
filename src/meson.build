@@ -20,7 +20,7 @@ APPS_PATH = '@0@'.format(meson.current_build_dir())
 
 ## Write mconfig.h
 configure_file(output : 'mconfig.h',
-               configuration : conf_data)
+               configuration : mconfig_data)
 
 ## Outputs
 # Standard apps: dinit, dinitctl, dinitcheck, dinit-monitor
@@ -46,7 +46,7 @@ executable('dinit-monitor',
            install : true,
            install_dir : sbindir)
 # Shutdown/reboot/halt
-if get_option('build_shutdown').auto()
+if build_shutdown.auto()
   if host_machine.system() == 'linux'
     message('System uses "linux"; Build shutdown = YES')
     if shutdown_prefix != ''
@@ -70,8 +70,9 @@ if get_option('build_shutdown').auto()
     install_shutdown_man = true
   else
     message('System not uses "linux"; Build shutdown = NO')
+    install_shutdown_man = false
   endif
-elif get_option('build_shutdown').enabled()
+elif build_shutdown.enabled()
   if shutdown_prefix != ''
       message('shutdown_prefix is configured: ' + shutdown_prefix)
   endif

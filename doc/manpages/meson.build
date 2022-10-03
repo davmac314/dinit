@@ -7,8 +7,6 @@ man8 = [meson.current_build_dir() + 'dinit.8',
         meson.current_build_dir() + 'dinitctl.8',
         meson.current_build_dir() + 'dinit-monitor.8']
 
-message('@0@'.format(install_shutdown_man))
-
 if install_shutdown_man
   man8 += meson.current_build_dir() + 'shutdown.8'
 endif

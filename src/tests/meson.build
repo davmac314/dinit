@@ -15,7 +15,7 @@ for_tests_general_sources = ['test-dinit.cc',
 
 ## Write mconfig.h from top-level meson.build
 configure_file(output : 'mconfig.h',
-               configuration : conf_data)
+               configuration : mconfig_data)
 
 ## Outputs
 # Unit tests

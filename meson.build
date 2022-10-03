@@ -14,6 +14,11 @@ project(
 
 ## General Defines
 compiler = meson.get_compiler('cpp')
+mconfig_data = configuration_data()
+version = meson.project_version()
+month = run_command('build/general_variables_for_meson.sh', 'month', check : true).stdout()
+year = run_command('build/general_variables_for_meson.sh', 'year', check : true).stdout()
+build_shutdown = get_option('build_shutdown')
 shutdown_prefix = get_option('shutdown_prefix')
 dinit_control_socket_path = get_option('dinit_control_socket_path')
 use_new_abi = get_option('use_new_abi')
@@ -21,17 +26,19 @@ unit_tests = get_option('unit_tests')
 igr_tests = get_option('igr_tests')
 support_cgroups = get_option('support_cgroups')
 use_utmpx = get_option('use_utmpx')
-# We have custom sbindir for install programs (/sbin instead of /usr/sbin/)
+# We have custom sbindir for install programs (/sbin instead of /usr/sbin/ by default)
 # By default: Prefix = /usr
 # By default: Sbin = /sbin
 # By default: you find dinit on /sbin/dinit
+# Note: Dinit dont follow Meson's default sbindir; Use dinit_sbindir option instead!
 prefix = get_option('prefix')
 sbindir = get_option('dinit_sbindir')
 mandir = get_option('mandir')
-conf_data = configuration_data()
-version = '@0@'.format(meson.project_version())
-month = run_command('build/general_variables_for_meson.sh', 'month', check : true).stdout()
-year = run_command('build/general_variables_for_meson.sh', 'year', check : true).stdout()
+
+## If Meson's default sbindir is modifed; Warn users about it:
+if get_option('sbindir') != 'sbin'
+  warning('Seems like Default "sbindir" is modified. Dinit dont follow Default "sbindir" option please use "dinit_sbindir" option instead!')
+endif
 
 ## Use -D_GLIBCXX_USE_CXX11_ABI?
 if use_new_abi.auto()
@@ -65,39 +72,29 @@ endif
 #add_project_arguments('-fno-plt', language : 'cpp')
 
 ## Prepare mconfig.h
-conf_data.set('DINIT_VERSION', '"' + '@0@'.format(meson.project_version()) + '"')
-conf_data.set('SYSCONTROLSOCKET', '"' + dinit_control_socket_path + '"')
-conf_data.set('SBINDIR', '"' + sbindir + '"')
-conf_data.set('SHUTDOWN_PREFIX', '"' + shutdown_prefix + '"')
+mconfig_data.set('DINIT_VERSION', '"' + '@0@'.format(meson.project_version()) + '"')
+mconfig_data.set('SYSCONTROLSOCKET', '"' + dinit_control_socket_path + '"')
+mconfig_data.set('SBINDIR', '"' + sbindir + '"')
+mconfig_data.set('SHUTDOWN_PREFIX', '"' + shutdown_prefix + '"')
 if support_cgroups.auto()
   if host_machine.system() == 'linux'
     message('System uses "linux"; Support Cgroups = YES')
-    conf_data.set('SUPPORT_CGROUPS', '1') 
+    mconfig_data.set('SUPPORT_CGROUPS', '1') 
   else
     message('System not uses "linux"; Support Cgroups = NO')
   endif
 elif support_cgroups.enabled()
-  conf_data.set('SUPPORT_CGROUPS', '1')
+  mconfig_data.set('SUPPORT_CGROUPS', '1')
 endif
 if use_utmpx
-  conf_data.set('USE_UTMPX', '1')
+  mconfig_data.set('USE_UTMPX', '1')
 else
-  conf_data.set('USE_UTMPX', '0')
+  mconfig_data.set('USE_UTMPX', '0')
 endif
 
 ## Outputs
 # Standard apps: dinit, dinitctl, dinitcheck, dinit-monitor + shutdown/reboot/halt
 subdir('src')
-# Temp fix for FreeBSD CIs cant find `install_shutdown_man` variable
-#if get_option('build_shutdown').auto()
-#  if host_machine.system() == 'linux'
-#    install_shutdown_man = true
-#  endif
-#elif get_option('build_shutdown').enabled()
-#  install_shutdown_man = true
-#else
-#  install_shutdown_man = false
-#endif
 # Unit tests
 if unit_tests
   subdir('src/tests')
