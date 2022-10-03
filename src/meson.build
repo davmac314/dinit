@@ -67,7 +67,7 @@ if get_option('build_shutdown').auto()
                include_directories : default_incdir,
                install : true,
                install_dir : sbindir)
-    #install_shutdown_man = '1'
+    install_shutdown_man = true
   else
     message('System not uses "linux"; Build shutdown = NO')
   endif
@@ -90,5 +90,7 @@ elif get_option('build_shutdown').enabled()
                include_directories : default_incdir,
                install : true,
                install_dir : sbindir)
-    #install_shutdown_man = '1'
+    install_shutdown_man = true
+else
+    install_shutdown_man = false
 endif
