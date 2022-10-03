@@ -95,6 +95,8 @@ if get_option('build_shutdown').auto()
   endif
 elif get_option('build_shutdown').enabled()
   install_shutdown_man = true
+else
+  install_shutdown_man = false
 endif
 # Unit tests
 if unit_tests
