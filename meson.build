@@ -10,8 +10,7 @@ project(
     meson_version : '>= 0.47.0',
     default_options : ['cpp_std = c++11',
                        'b_lto = true',
-                       'prefix=/usr',
-                       'sbindir=/sbin'])
+                       'prefix=/usr'])
 
 ## General Defines
 compiler = meson.get_compiler('cpp')
@@ -27,7 +26,7 @@ use_utmpx = get_option('use_utmpx')
 # By default: Sbin = /sbin
 # By default: you find dinit on /sbin/dinit
 prefix = get_option('prefix')
-sbindir = get_option('sbindir')
+sbindir = get_option('dinit_sbindir')
 mandir = get_option('mandir')
 conf_data = configuration_data()
 version = '@0@'.format(meson.project_version())
@@ -68,7 +67,7 @@ endif
 ## Prepare mconfig.h
 conf_data.set('DINIT_VERSION', '"' + '@0@'.format(meson.project_version()) + '"')
 conf_data.set('SYSCONTROLSOCKET', '"' + dinit_control_socket_path + '"')
-conf_data.set('SBINDIR', '"' + prefix + sbindir + '"')
+conf_data.set('SBINDIR', '"' + sbindir + '"')
 conf_data.set('SHUTDOWN_PREFIX', '"' + shutdown_prefix + '"')
 if support_cgroups.auto()
   if host_machine.system() == 'linux'
@@ -80,9 +79,9 @@ if support_cgroups.auto()
 elif support_cgroups.enabled()
   conf_data.set('SUPPORT_CGROUPS', '1')
 endif
-if use_utmpx.enabled()
+if use_utmpx
   conf_data.set('USE_UTMPX', '1')
-elif use_utmpx.disabled()
+else
   conf_data.set('USE_UTMPX', '0')
 endif
 
@@ -98,11 +97,11 @@ elif get_option('build_shutdown').enabled()
   install_shutdown_man = '1'
 endif
 # Unit tests
-if unit_tests.enabled()
+if unit_tests
   subdir('src/tests')
 endif
 # Integration tests
-if igr_tests.enabled()
+if igr_tests
   subdir('src/igr-tests')
 endif
 # Man pages

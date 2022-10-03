@@ -8,12 +8,14 @@ option('shutdown_prefix', type : 'string', value : '',
         description : 'Name prefix for "shutdown", "halt" and "reboot" commands (if they are built).')
 option('dinit_control_socket_path', type : 'string', value : '/run/dinitctl',
         description : 'Default full path to the control socket, for when Dinit runs as system service manager.')
-option('unit_tests', type : 'feature', value : 'disabled',
+option('unit_tests', type : 'boolean', value : 'false',
        description : 'Building Unit tests. by default its disabled')
-option('igr_tests', type : 'feature', value : 'disabled',
+option('igr_tests', type : 'boolean', value : 'false',
         description : 'Building Integration tests. by default its disabled')
-option('use_utmpx', type : 'feature', value : 'disabled',
+option('use_utmpx', type : 'boolean', value : 'false',
         description : 'Whether to build support for manipulating the utmp/utmpx database via the related POSIX functions.')
+option('dinit_sbindir', type : 'string', value : '/sbin')
+
 
 ## Dinit's special compiler flags
 option('use_new_abi', type : 'feature', value : 'auto', 
