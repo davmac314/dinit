@@ -1,15 +1,16 @@
 #!/bin/sh
 
-rm -f ./basic-ran
-
 if [ $IS_MESON ]; then
    cd $(dirname $0)
-   $APPS_PATH/dinit -d sd -u -p socket -q \
-           basic
+   DINIT_EXEC=$APPS_PATH/dinit
 else
-   ../../dinit -d sd -u -p socket -q \
-	   basic
+   DINIT_EXEC=../../dinit
 fi
+
+rm -f ./basic-ran
+
+$DINIT_EXEC -d sd -u -p socket -q \
+	basic
 
 STATUS=FAIL
 if [ -e basic-ran ]; then
