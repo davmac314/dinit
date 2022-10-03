@@ -496,6 +496,31 @@ class process_service : public base_process_service
         }
     }
 
+    virtual bool check_restart() noexcept
+    {
+        if (max_restart_interval_count != 0) {
+            // Check whether we're still in the most recent restart check interval:
+            time_val current_time;
+            event_loop.get_time(current_time, clock_type::MONOTONIC);
+            time_val int_diff = current_time - restart_interval_time;
+            if (int_diff < restart_interval) {
+                // Within the restart limiting interval; check number of restarts
+                if (restart_interval_count >= max_restart_interval_count) {
+                    log(loglevel_t::ERROR, "Service ", get_name(), " restarting too quickly; stopping.");
+                    return false;
+                }
+                ++restart_interval_count;
+            }
+            else {
+                // Not within the last limiting interval; start a new interval
+                restart_interval_time = current_time;
+                restart_interval_count = 1;
+            }
+        }
+
+        return true;
+    }
+
     process_service(service_set *sset, const string &name, service_type_t s_type, ha_string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             const std::list<prelim_dep> &depends_p)

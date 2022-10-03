@@ -437,6 +437,12 @@ class service_record
     // any appropriate cleanup.
     virtual void becoming_inactive() noexcept { }
 
+    // Check whether the service should automatically restart (assuming auto_restart is true)
+    virtual bool check_restart() noexcept
+    {
+        return true;
+    }
+
     public:
 
     service_record(service_set *set, const string &name)

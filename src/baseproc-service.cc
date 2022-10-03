@@ -22,7 +22,7 @@
 
 void base_process_service::do_smooth_recovery() noexcept
 {
-    if (! restart_ps_process()) {
+    if (!restart_ps_process()) {
         unrecoverable_stop();
         services->process_queues();
     }
@@ -270,7 +270,6 @@ void base_process_service::do_restart() noexcept
     // be a regular restart.
 
     waiting_restart_timer = false;
-    restart_interval_count++;
     auto service_state = get_state();
 
     if (!start_ps_process(exec_arg_parts, have_console || onstart_flags.shares_console)) {
@@ -298,21 +297,6 @@ bool base_process_service::restart_ps_process() noexcept
 
     time_val current_time;
     event_loop.get_time(current_time, clock_type::MONOTONIC);
-
-    if (max_restart_interval_count != 0) {
-        // Check whether we're still in the most recent restart check interval:
-        time_val int_diff = current_time - restart_interval_time;
-        if (int_diff < restart_interval) {
-            if (restart_interval_count >= max_restart_interval_count) {
-                log(loglevel_t::ERROR, "Service ", get_name(), " restarting too quickly; stopping.");
-                return false;
-            }
-        }
-        else {
-            restart_interval_time = current_time;
-            restart_interval_count = 0;
-        }
-    }
 
     // Check if enough time has lapsed since the previous restart. If not, start a timer:
     time_val tdiff = current_time - last_start_time;

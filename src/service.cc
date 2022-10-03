@@ -605,6 +605,11 @@ void service_record::do_stop(bool with_restart) noexcept
     bool for_restart = with_restart || (auto_restart && desired_state == service_state_t::STARTED);
     bool restart_deps = with_restart;
 
+    if (!with_restart && for_restart) {
+        // auto restart - check for restarting too often
+        for_restart = check_restart();
+    }
+
     // If we won't restart, release explicit activation:
     if (!for_restart) {
         if (start_explicit) {
