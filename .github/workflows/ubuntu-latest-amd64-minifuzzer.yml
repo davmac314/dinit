@@ -1,10 +1,6 @@
 name: Dinit on ubuntu-latest-amd64 minifuzzer
 
 on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
   workflow_dispatch:
 
 jobs:
