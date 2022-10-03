@@ -608,6 +608,7 @@ void service_record::do_stop(bool with_restart) noexcept
     if (!with_restart && for_restart) {
         // auto restart - check for restarting too often
         for_restart = check_restart();
+        in_auto_restart = for_restart;
     }
 
     // If we won't restart, release explicit activation:

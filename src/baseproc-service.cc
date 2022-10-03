@@ -78,7 +78,6 @@ void base_process_service::handle_unexpected_termination() noexcept
 
     force_stop = true;
     do_stop();
-    in_auto_restart = true;
     services->process_queues();
 
     if (get_state() == service_state_t::STOPPING) {
