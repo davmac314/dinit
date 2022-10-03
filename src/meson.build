@@ -16,7 +16,7 @@ dinit_source_files = ['dinit-main.cc',
                       'dinit-env.cc']
 
 ## src/'s defines
-APPS_PATH = '@0@'.format(meson.current_build_dir())
+APPS_PATH = meson.current_build_dir()
 
 ## Write mconfig.h
 configure_file(output : 'mconfig.h',

@@ -24,6 +24,7 @@ dinit_control_socket_path = get_option('dinit_control_socket_path')
 use_new_abi = get_option('use_new_abi')
 unit_tests = get_option('unit_tests')
 igr_tests = get_option('igr_tests')
+man_pages = get_option('man_pages')
 support_cgroups = get_option('support_cgroups')
 use_utmpx = get_option('use_utmpx')
 # We have custom sbindir for install programs (/sbin instead of /usr/sbin/ by default)
@@ -37,7 +38,7 @@ mandir = get_option('mandir')
 
 ## If Meson's default sbindir is modifed; Warn users about it:
 if get_option('sbindir') != 'sbin'
-  warning('Seems like Default "sbindir" is modified. Dinit dont follow Default "sbindir" option please use "dinit_sbindir" option instead!')
+  warning('Seems like Default "sbindir" is modified. Dinit dont follow Default "sbindir" option. Please use "dinit_sbindir" option instead!')
 endif
 
 ## Use -D_GLIBCXX_USE_CXX11_ABI?
@@ -72,7 +73,7 @@ endif
 #add_project_arguments('-fno-plt', language : 'cpp')
 
 ## Prepare mconfig.h
-mconfig_data.set('DINIT_VERSION', '"' + '@0@'.format(meson.project_version()) + '"')
+mconfig_data.set('DINIT_VERSION', '"' + meson.project_version() + '"')
 mconfig_data.set('SYSCONTROLSOCKET', '"' + dinit_control_socket_path + '"')
 mconfig_data.set('SBINDIR', '"' + sbindir + '"')
 mconfig_data.set('SHUTDOWN_PREFIX', '"' + shutdown_prefix + '"')
@@ -104,4 +105,6 @@ if igr_tests
   subdir('src/igr-tests')
 endif
 # Man pages
-subdir('doc/manpages/')
+if man_pages
+  subdir('doc/manpages/')
+endif

@@ -8,7 +8,12 @@ man8 = [meson.current_build_dir() + 'dinit.8',
         meson.current_build_dir() + 'dinit-monitor.8']
 
 if install_shutdown_man
-  man8 += meson.current_build_dir() + 'shutdown.8'
+  man8 += [meson.current_build_dir() + 'shutdown.8',
+           meson.current_build_dir() + 'reboot.8',
+           meson.current_build_dir() + 'halt.8']
+  find_program('ln')
+  run_command('ln', '-sf', 'shutdown.8', meson.current_build_dir() + 'reboot.8', check : true)
+  run_command('ln', '-sf', 'shutdown.8', meson.current_build_dir() + 'halt.8', check : true)
 endif
 
 ## Generate man-pages
