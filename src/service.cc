@@ -593,8 +593,8 @@ void service_record::do_stop(bool with_restart) noexcept
 {
     // Called when we should definitely stop. We may need to restart afterwards, but we
     // won't know that for sure until the execution transition.
-    // Note: to inhibit automatic restart,  to inhibit automatic restart, including restart due to
-    //       dependent still requiring this service, caller must first set desired_state to STOPPED
+    // Note: to inhibit automatic restart, including restart due to dependent still requiring this
+    //       service, caller must first set desired_state to STOPPED
 
     if (is_start_pinned()) return;
 
