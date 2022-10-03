@@ -1626,6 +1626,84 @@ void test_order3()
     assert(sset.count_active_services() == 0);
 }
 
+// Stopping a restarting service, which is in the stopping phase, should prevent restart
+void test_restart_stop1()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    s1->auto_stop = false;
+    sset.add_service(s1);
+    assert(sset.find_service("test-service-1") == s1);
+
+    // start s1
+    sset.start_service(s1);
+    assert(s1->bring_up_reqd == true);
+    s1->started();
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    // issue restart
+    s1->restart();
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STOPPING);
+
+    // now issue stop, while still in stopping phase of restart: the restart should be cancelled
+    s1->stop();
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STOPPING);
+
+    // once stopped, the service should not restart
+    s1->stopped();
+    assert(s1->get_state() == service_state_t::STOPPED);
+}
+
+// Stopping a restarting service, which is in the stopping phase, should prevent restart
+// (this time with a dependent)
+void test_restart_stop2()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    s1->auto_stop = false;
+    s2->auto_stop = false;
+    sset.add_service(s1);
+    sset.add_service(s2);
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+
+    // start s2, which also starts s1
+    sset.start_service(s2);
+    assert(s1->bring_up_reqd == true);
+    assert(s2->bring_up_reqd == false);
+    s1->started();
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->bring_up_reqd == true);
+    s2->started();
+    sset.process_queues();
+    assert(s2->get_state() == service_state_t::STARTED);
+
+    // issue restart
+    s1->restart();
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STOPPING);
+    assert(s2->get_state() == service_state_t::STOPPING);
+
+    // now issue stop, while still in stopping phase of restart: the restart should be cancelled
+    s1->stop();
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STOPPING);
+    assert(s2->get_state() == service_state_t::STOPPING);
+
+    // once stopped, the service should not restart
+    s2->stopped();
+    assert(s2->get_state() == service_state_t::STOPPED);
+    s1->stopped();
+    assert(s1->get_state() == service_state_t::STOPPED);
+}
+
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
     name(); \
@@ -1673,4 +1751,6 @@ int main(int argc, char **argv)
     RUN_TEST(test_order1, "               ");
     RUN_TEST(test_order2, "               ");
     RUN_TEST(test_order3, "               ");
+    RUN_TEST(test_restart_stop1, "        ");
+    RUN_TEST(test_restart_stop2, "        ");
 }
