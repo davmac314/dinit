@@ -67,10 +67,21 @@ else
   message('System not uses FreeBSD; Pass "-lrt" to linker = NO')
 endif
 
-## ToDo; its must handeled with `meson_options.txt` instead of force them
-# Use -fno-rtti -fno-plt
-#add_roject_arguments('-fno-rtti', language : 'cpp')
-#add_project_arguments('-fno-plt', language : 'cpp')
+## Use -fno-rtti?
+if host_machine.system() == 'linux'
+  message('System uses linux; Pass "-fno-rtti" to compiler = YES')
+  add_project_arguments('-fno-rtti', language : 'cpp')
+else
+  message('System not uses linux; Pass "-fno-rtti" to compiler = NO')
+endif
+
+## Use -fno-plt?
+if host_machine.system() != 'freebsd'
+  message('System not uses FreeBSD; Pass "-fno-plt" to compiler = YES')
+  add_project_arguments('-fno-plt', language : 'cpp')
+else
+  message('System uses FreeBSD; Pass "-fno-plt" to compiler = NO')
+endif
 
 ## Prepare mconfig.h
 mconfig_data.set('DINIT_VERSION', '"' + meson.project_version() + '"')
