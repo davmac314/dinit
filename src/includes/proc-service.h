@@ -496,7 +496,7 @@ class process_service : public base_process_service
         }
     }
 
-    virtual bool check_restart() noexcept
+    virtual bool check_restart() noexcept override
     {
         if (max_restart_interval_count != 0) {
             // Check whether we're still in the most recent restart check interval:
