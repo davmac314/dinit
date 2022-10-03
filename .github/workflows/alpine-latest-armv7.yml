@@ -1,4 +1,4 @@
-name: Dinit on alpine-latest-aarch64 CI
+name: Dinit on alpine-latest-armv7 CI
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  Alpine-latest-aarch64_build:
+  Alpine-latest-armv7_build:
 
     runs-on: ubuntu-latest
 
@@ -17,7 +17,7 @@ jobs:
     - uses: uraimo/run-on-arch-action@v2.2.1
       name: Getting depends & build & unit tests & integration tests
       with:
-        arch: aarch64
+        arch: armv7
         distro: alpine_latest
         run: |
           apk add ncurses
