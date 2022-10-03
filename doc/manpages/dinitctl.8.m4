@@ -86,8 +86,8 @@ This option determines the default path to the control socket used to communicat
 .TP
 \fB\-\-socket\-path\fR \fIsocket-path\fR, \fB\-p\fR \fIsocket-path\fR
 Specify the path to the socket used for communicating with the service manager daemon.
-When not specified, the \fIDINIT_SOCKET_PATH\fR environment variable is read, otherwise
-Dinit's default values are used.
+When not specified, the value from the \fBDINIT_SOCKET_PATH\fR environment variable is used, with
+the default path (as documented for \fBdinit\fR(8)) used if the variable is unset.
 .TP
 \fB\-\-quiet\fR
 Suppress status output, except for errors. 
@@ -268,7 +268,16 @@ A service can be pinned in either the started or stopped state.
 This is mainly intended to be used to prevent automated stop or start of a service, including
 via a dependency or dependent service, during a manual administrative procedure.
 .LP
-Stopping a service manually will prevent it (and its dependents) from automatically restarting.
+Stopping a service manually will prevent it (and its dependents) from automatically restarting (i.e. it
+will override the \fBrestart\fR setting in the service configuration).
+.\"
+.SH ENVIRONMENT VARIABLES
+.\"
+The following environment variables may control \fBdinitctl\fR's operation: 
+.TP
+\fBDINIT_SOCKET_PATH\fR
+The path to the socket used to communicate with the \fBdinit\fR(8) daemon. May be overridden by certain
+command line options. If not set, and not overridden, the \fBdinit\fR defaults are used.
 .\"
 .SH SEE ALSO
 \fBdinit\fR(8), \fBdinit-service\fR(5).
