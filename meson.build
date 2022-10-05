@@ -6,7 +6,7 @@ project(
     [find_program('sh'), 'build/general_variables_for_meson.sh', 'version'],
     check : true
     ).stdout(),
-    license : 'Apache',
+    license : 'Apache-2.0',
     meson_version : '>= 0.47.0',
     default_options : ['cpp_std = c++11',
                        'b_lto = true',
