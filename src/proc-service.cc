@@ -314,7 +314,7 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
             initiate_start();
         }
     }
-    else if (smooth_recovery && service_state == service_state_t::STARTED) {
+    else if (smooth_recovery && service_state == service_state_t::STARTED && check_restart()) {
         // unexpected termination, with smooth recovery
         doing_smooth_recovery = true;
         do_smooth_recovery();
@@ -494,7 +494,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
     }
     else {
         // we must be STARTED
-        if (smooth_recovery && get_target_state() == service_state_t::STARTED) {
+        if (smooth_recovery && get_target_state() == service_state_t::STARTED && check_restart()) {
             doing_smooth_recovery = true;
             do_smooth_recovery();
             if (get_state() != service_state_t::STARTED) {
