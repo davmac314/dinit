@@ -9,8 +9,7 @@ project(
     license : 'Apache-2.0',
     meson_version : '>= 0.47.0',
     default_options : ['cpp_std = c++11',
-                       'b_lto = true',
-                       'prefix=/usr'])
+                       'b_lto = true'])
 
 ## General Defines
 compiler = meson.get_compiler('cpp')
@@ -105,17 +104,13 @@ else
 endif
 
 ## Outputs
-# Standard apps: dinit, dinitctl, dinitcheck, dinit-monitor + shutdown/reboot/halt
 subdir('src')
-# Unit tests
 if unit_tests
   subdir('src/tests')
 endif
-# Integration tests
 if igr_tests
   subdir('src/igr-tests')
 endif
-# Man pages
 if man_pages
   subdir('doc/manpages/')
 endif
