@@ -8,8 +8,7 @@ project(
     ).stdout(),
     license : 'Apache-2.0',
     meson_version : '>= 0.47.0',
-    default_options : ['cpp_std = c++11',
-                       'b_lto = true'])
+    default_options : 'cpp_std = c++11')
 
 ## General Defines
 compiler = meson.get_compiler('cpp')
@@ -97,9 +96,9 @@ if support_cgroups.auto()
 elif support_cgroups.enabled()
   mconfig_data.set('SUPPORT_CGROUPS', '1')
 endif
-if use_utmpx
+if use_utmpx.enabled()
   mconfig_data.set('USE_UTMPX', '1')
-else
+elif use_utmpx.disabled()
   mconfig_data.set('USE_UTMPX', '0')
 endif
 

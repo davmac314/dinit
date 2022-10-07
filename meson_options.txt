@@ -12,7 +12,7 @@ option('unit_tests', type : 'boolean', value : 'false',
        description : 'Building Unit tests. by default its disabled.')
 option('igr_tests', type : 'boolean', value : 'false',
        description : 'Building Integration tests. by default its disabled.')
-option('use_utmpx', type : 'boolean', value : 'false',
+option('use_utmpx', type : 'feature', value : 'auto',
        description : 'Whether to build support for manipulating the utmp/utmpx database via the related POSIX functions.')
 option('dinit_sbindir', type : 'string', value : '/sbin',
        description : 'Default full path to the dinit executables. For some reasons dinit dont follow default sbindir. see BUILD_MESON for more info.')
