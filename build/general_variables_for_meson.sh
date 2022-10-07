@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/bin/sh
 
 ## For some reasons meson cant read variables from env/files.
 ## So we need to a wrapper for variables. This script is a wrapper for importing variables to meson.
