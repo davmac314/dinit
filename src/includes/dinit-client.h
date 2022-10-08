@@ -196,7 +196,8 @@ inline void wait_for_info(cpbuffer_t &rbuffer, int fd)
 
 // Write *all* the requested buffer and re-try if necessary until
 // the buffer is written or an unrecoverable error occurs.
-inline int write_all(int fd, const void *buf, size_t count)
+// Note: count is int
+inline int write_all(int fd, const void *buf, int count)
 {
     const char *cbuf = static_cast<const char *>(buf);
     int w = 0;
@@ -204,7 +205,7 @@ inline int write_all(int fd, const void *buf, size_t count)
         int r = write(fd, cbuf, count);
         if (r == -1) {
             if (errno == EINTR) continue;
-            return r;
+            return (count > 0) ? count : r;
         }
         w += r;
         cbuf += r;
@@ -214,7 +215,8 @@ inline int write_all(int fd, const void *buf, size_t count)
 }
 
 // Write all the requested buffer, and throw an exception on failure.
-inline void write_all_x(int fd, const void *buf, size_t count)
+// Note: count is int
+inline void write_all_x(int fd, const void *buf, int count)
 {
     if (write_all(fd, buf, count) == -1) {
         throw cp_write_exception(errno);
