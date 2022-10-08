@@ -202,20 +202,6 @@ bool control_conn_t::process_find_load(int pktType)
     return true;
 }
 
-static bool check_restart(service_record *service)
-{
-    if (service->is_start_pinned())
-        return false;
-    for (service_dep *dep : service->get_dependents()) {
-        if (dep->dep_type == dependency_type::REGULAR && dep->holding_acq) {
-            service_record *dep_from = dep->get_from();
-            if (! check_restart(dep_from))
-                return false;
-        }
-    }
-    return true;
-}
-
 bool control_conn_t::check_dependents(service_record *service, bool &had_dependents)
 {
     std::vector<char> reply_pkt;
