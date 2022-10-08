@@ -1704,6 +1704,111 @@ void test_restart_stop2()
     assert(s1->get_state() == service_state_t::STOPPED);
 }
 
+// Stopping a restarting service, which is in the stopping phase, should prevent restart,
+// and prevent restart of a dependency which is not otherwise active
+void test_restart_stop3()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    s1->auto_stop = false;
+    s2->auto_stop = false;
+    sset.add_service(s1);
+    sset.add_service(s2);
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+
+    // start s2, which also starts s1
+    sset.start_service(s2);
+    assert(s1->bring_up_reqd == true);
+    assert(s2->bring_up_reqd == false);
+    s1->started();
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->bring_up_reqd == true);
+    s2->started();
+    sset.process_queues();
+    assert(s2->get_state() == service_state_t::STARTED);
+
+    // issue restart on s1 (and s2 transitively)
+    s1->restart();
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STOPPING);
+    assert(s2->get_state() == service_state_t::STOPPING);
+
+    // now issue stop on s2, while still in stopping phase of restart: the restart should be cancelled
+    // s1's restart should also be cancelled due to lack of any active dependent
+    s2->stop();
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STOPPING);
+    assert(s2->get_state() == service_state_t::STOPPING);
+
+    // once stopped, the services should not restart
+    s2->stopped();
+    assert(s2->get_state() == service_state_t::STOPPED);
+    s1->stopped();
+    assert(s1->get_state() == service_state_t::STOPPED);
+}
+
+// Stopping a restarting service, which is in the stopping phase, should prevent restart,
+// but not prevent restart of a dependency which is otherwise active
+void test_restart_stop4()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    s1->auto_stop = false;
+    s2->auto_stop = false;
+    sset.add_service(s1);
+    sset.add_service(s2);
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+
+    // start s2, which also starts s1
+    sset.start_service(s2);
+    assert(s1->bring_up_reqd == true);
+    assert(s2->bring_up_reqd == false);
+    s1->started();
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->bring_up_reqd == true);
+    s2->started();
+    sset.process_queues();
+    assert(s2->get_state() == service_state_t::STARTED);
+
+    // also explicitly activate s1
+    s1->start();
+
+    // issue restart on s1 (and s2 transitively)
+    s1->restart();
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STOPPING);
+    assert(s2->get_state() == service_state_t::STOPPING);
+
+    // now issue stop on s2, while still in stopping phase of restart: the restart should be cancelled
+    // s1's restart should not be cancelled
+    s2->stop();
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STOPPING);
+    assert(s2->get_state() == service_state_t::STOPPING);
+
+    // once stopped, the s2 should not restart
+    s2->stopped();
+    assert(s2->get_state() == service_state_t::STOPPED);
+
+    // When s1 stops, it should restart
+    s1->stopped();
+    assert(s1->get_state() == service_state_t::STARTING);
+    s1->started();
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    s1->stop();
+    sset.process_queues();
+    s1->stopped();
+}
+
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
     name(); \
@@ -1753,4 +1858,6 @@ int main(int argc, char **argv)
     RUN_TEST(test_order3, "               ");
     RUN_TEST(test_restart_stop1, "        ");
     RUN_TEST(test_restart_stop2, "        ");
+    RUN_TEST(test_restart_stop3, "        ");
+    RUN_TEST(test_restart_stop4, "        ");
 }
