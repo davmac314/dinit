@@ -1162,12 +1162,13 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
         bool waiting_console = (console_flags & 1) != 0;
         bool was_skipped = (console_flags & 4) != 0;
         bool marked_active = (console_flags & 8) != 0;
+        bool has_pid = (console_flags & 16) != 0;
 
         stopped_reason_t stop_reason = static_cast<stopped_reason_t>(rbuffer[3]);
 
         pid_t service_pid = -1;
         int exit_status = 0;
-        if (current != service_state_t::STOPPED) {
+        if (has_pid) {
             rbuffer.extract((char *)&service_pid, 6, sizeof(service_pid));
         }
         else {
