@@ -1,12 +1,4 @@
-Soon:
--------------------
-* better environment handling, way to restrict which variables get passed through
-  Note that "XXX=YYYY" settings on Linux kernel command line sometimes get set as environment
-  variables (and sometimes don't) even if the kernel should understand them (eg "pti=off",
-  but not "root=/dev/sda1").
-
-
-For version 0.16:
+For version 0.17:
 -----------------
 * Limit memory use by control connections. Currently clients have command responses queued without
   limit; it would be better to stop accepting new commands once a certain amount of response is
@@ -14,9 +6,6 @@ For version 0.16:
 * Externally triggered services (to represent devices etc). Such services will not reach STARTED
   state unless the external trigger occurs (eg "dinitctl trigger servicename", details to be
   determined).
-* Maybe: support for after/before orderings (specify a service name like a dependency, but don't
-  cause the named service to be loaded if it otherwise wouldn't be).
-
 
 For version 1.0 (release requirements):
 ---------------------------------------
