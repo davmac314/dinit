@@ -19,7 +19,6 @@ year = run_command('build/general_variables_for_meson.sh', 'year', check : true)
 build_shutdown = get_option('build_shutdown')
 shutdown_prefix = get_option('shutdown_prefix')
 dinit_control_socket_path = get_option('dinit_control_socket_path')
-use_new_abi = get_option('use_new_abi')
 unit_tests = get_option('unit_tests')
 igr_tests = get_option('igr_tests')
 man_pages = get_option('man_pages')
@@ -37,23 +36,6 @@ mandir = get_option('mandir')
 ## If Meson's default sbindir is modifed; Warn users about it:
 if get_option('sbindir') != 'sbin'
   warning('Seems like Default "sbindir" is modified. Dinit dont follow Default "sbindir" option. Please use "dinit_sbindir" option instead!')
-endif
-
-## Use -D_GLIBCXX_USE_CXX11_ABI?
-if use_new_abi.auto()
-  if compiler.get_id() == 'gcc'
-    if compiler.version().version_compare('>=7')
-      message('System uses g++ 7 or later; Use new ABI = YES')
-      add_project_arguments('-D_GLIBCXX_USE_CXX11_ABI=1', language : 'cpp')
-    else
-      message('System uses g++ 6 or easiler; Use new ABI = NO')
-      add_project_arguments('-D_GLIBCXX_USE_CXX11_ABI=0', language : 'cpp')
-    endif
-  endif
-elif use_new_abi.enabled()
-  add_project_arguments('-D_GLIBCXX_USE_CXX11_ABI=1', language : 'cpp')
-elif use_new_abi.disabled()
-  add_project_arguments('-D_GLIBCXX_USE_CXX11_ABI=0', language : 'cpp')
 endif
 
 ## Use -lrt?

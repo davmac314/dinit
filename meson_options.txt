@@ -20,8 +20,6 @@ option('man_pages', type : 'boolean', value : 'true',
        description : 'Building & installing man-pages.')
 
 ## Dinit's special compiler flags
-option('use_new_abi', type : 'feature', value : 'auto', 
-       description : 'Using new C++11 ABI.')
 
 ## Linux specific options
 option('support_cgroups', type : 'feature', value : 'auto',
