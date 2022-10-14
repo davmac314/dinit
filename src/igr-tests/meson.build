@@ -1,5 +1,9 @@
 # Included from top-level meson.build
 
+## Integration test's Defines
+igr_tests_env = ['IS_MESON=true',
+                 'APPS_PATH=' + APPS_PATH]
+
 ## Prepare integration tests
 run_command([find_program('cp'), '-r', './', '@0@'.format(meson.current_build_dir())], check : true)
 
@@ -22,47 +26,47 @@ varsubst_test_script = find_program('@0@/var-subst/run-test.sh'.format(meson.cur
 svcstartfail_test_script = find_program('@0@/svc-start-fail/run-test.sh'.format(meson.current_build_dir()))
 test('basic',
      basic_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=' + APPS_PATH])
+     env : igr_tests_env)
 test('environ',
      environ_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH='+ APPS_PATH],
+     env : igr_tests_env,
      is_parallel : false)
 test('ps-environ',
      psenviron_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=' + APPS_PATH])
+     env : igr_tests_env)
 test('chain-to',
      chainto_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=' + APPS_PATH])
+     env : igr_tests_env)
 test('force-stop',
      forcestop_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=' + APPS_PATH])
+     env : igr_tests_env)
 test('restart',
      restart_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=' + APPS_PATH])
+     env : igr_tests_env)
 test('check-basic',
      checkbasic_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=' + APPS_PATH])
+     env : igr_tests_env)
 test('check-cycle',
      checkcycle_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=' + APPS_PATH])
+     env : igr_tests_env)
 test('check-lint',
      checklint_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=' + APPS_PATH])
+     env : igr_tests_env)
 test('reload1',
      reload1_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=' + APPS_PATH])
+     env : igr_tests_env)
 test('reload2',
      reload2_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=' + APPS_PATH])
+     env : igr_tests_env)
 test('no-command-error',
      nocommanderror_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=' + APPS_PATH])
+     env : igr_tests_env)
 test('add-rm-dep',
      addrmdep_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=' + APPS_PATH])
+     env : igr_tests_env)
 test('var-subst',
       varsubst_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=' + APPS_PATH])
+     env : igr_tests_env)
 test('svc-start-fail',
      svcstartfail_test_script,
-     env : ['IS_MESON=true', 'APPS_PATH=' + APPS_PATH])
+     env : igr_tests_env)

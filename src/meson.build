@@ -52,46 +52,37 @@ if build_shutdown.auto()
     if shutdown_prefix != ''
       message('shutdown_prefix is configured: ' + shutdown_prefix)
     endif
-    executable(shutdown_prefix + 'shutdown',
-               'shutdown.cc',
-               include_directories : default_incdir,
-               install : true,
-               install_dir : sbindir)
-    executable(shutdown_prefix + 'reboot',
-               'shutdown.cc',
-               include_directories : default_incdir,
-               install : true,
-               install_dir : sbindir)
-    executable(shutdown_prefix + 'halt',
-               'shutdown.cc',
-               include_directories : default_incdir,
-               install : true,
-               install_dir : sbindir)
+    shutdown_build = true
     install_shutdown_man = true
   else
     message('System not uses "linux"; Build shutdown = NO')
+    shutdown_build = false
     install_shutdown_man = false
   endif
 elif build_shutdown.enabled()
   if shutdown_prefix != ''
       message('shutdown_prefix is configured: ' + shutdown_prefix)
   endif
-    executable(shutdown_prefix + 'shutdown',
-               'shutdown.cc',
-               include_directories : default_incdir,
-               install : true,
-               install_dir : sbindir)
-    executable(shutdown_prefix + 'reboot',
-               'shutdown.cc',
-               include_directories : default_incdir,
-               install : true,
-               install_dir : sbindir)
-    executable(shutdown_prefix + 'halt',
-               'shutdown.cc',
-               include_directories : default_incdir,
-               install : true,
-               install_dir : sbindir)
+    shutdown_build = true
     install_shutdown_man = true
 else
+    shutdown_build = false
     install_shutdown_man = false
+endif
+if shutdown_build
+  executable(shutdown_prefix + 'shutdown',
+             'shutdown.cc',
+             include_directories : default_incdir,
+             install : true,
+             install_dir : sbindir)
+  executable(shutdown_prefix + 'reboot',
+             'shutdown.cc',
+             include_directories : default_incdir,
+             install : true,
+             install_dir : sbindir)
+  executable(shutdown_prefix + 'halt',
+             'shutdown.cc',
+             include_directories : default_incdir,
+             install : true,
+             install_dir : sbindir)
 endif
