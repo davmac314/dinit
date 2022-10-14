@@ -2,9 +2,9 @@
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin
 
 if [ "$1" != "stop" ]; then
-  
-  ROOTDEV=`findmnt -o SOURCE -n -M /`
-  
+
+  ROOTDEV=`findmnt -v -o SOURCE -n -M /`
+
   echo "Checking root file system (^C to skip)..."
   if [ -x /sbin/fsck ]; then
     /sbin/fsck -C -a "$ROOTDEV"
@@ -28,5 +28,5 @@ if [ "$1" != "stop" ]; then
   else
     echo "WARNING - Could not find /sbin/fsck"
   fi
-  
+
 fi;
