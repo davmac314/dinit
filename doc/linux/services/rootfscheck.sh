@@ -3,7 +3,7 @@ export PATH=/usr/bin:/usr/sbin:/bin:/sbin
 
 if [ "$1" != "stop" ]; then
 
-  ROOTDEV=`eval $(lsblk -oMOUNTPOINT,NAME -P | grep 'MOUNTPOINT="/"'); echo /dev/"$NAME"`
+  ROOTDEV=`findmnt -v -o SOURCE -n -M /`
 
   echo "Checking root file system (^C to skip)..."
   if [ -x /sbin/fsck ]; then
