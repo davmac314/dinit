@@ -47,22 +47,6 @@ else
   message('System not uses FreeBSD; Pass "-lrt" to linker = NO')
 endif
 
-## Use -fno-rtti?
-if host_machine.system() == 'linux'
-  message('System uses linux; Pass "-fno-rtti" to compiler = YES')
-  add_project_arguments('-fno-rtti', language : 'cpp')
-else
-  message('System not uses linux; Pass "-fno-rtti" to compiler = NO')
-endif
-
-## Use -fno-plt?
-if host_machine.system() != 'freebsd'
-  message('System not uses FreeBSD; Pass "-fno-plt" to compiler = YES')
-  add_project_arguments('-fno-plt', language : 'cpp')
-else
-  message('System uses FreeBSD; Pass "-fno-plt" to compiler = NO')
-endif
-
 ## Prepare mconfig.h
 mconfig_data.set('DINIT_VERSION', '"' + meson.project_version() + '"')
 mconfig_data.set('SYSCONTROLSOCKET', '"' + dinit_control_socket_path + '"')
