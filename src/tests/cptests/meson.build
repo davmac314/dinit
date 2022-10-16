@@ -28,9 +28,9 @@ fuzz_sources = ['../test-bpsys.cc',
 ## Defines
 c_compiler = meson.get_compiler('c')
 cpp_compiler = meson.get_compiler('cpp')
-shutdown_prefix = get_option('shutdown_prefix')
-dinit_control_socket_path = get_option('dinit_control_socket_path')
-support_cgroups = get_option('support_cgroups')
+shutdown_prefix = get_option('shutdown-prefix')
+dinit_control_socket_path = get_option('dinit-control-socket-path')
+support_cgroups = get_option('support-cgroups')
 conf_data = configuration_data()
 sbindir = '' # For fuzzing dinit; we dont need to specify sbindir. so we empty them.
 
