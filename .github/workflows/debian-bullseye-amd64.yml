@@ -21,7 +21,7 @@ jobs:
     - name: Print g++ architecture
       run: g++ -dumpmachine
     - name: Prepare Build
-      run: meson setup -Dunit_tests=true -Digr_tests=true builddir
+      run: meson setup -Dunit-tests=true -Digr-tests=true builddir
     - name: Build
       run: cd builddir && mkdir ./ins-test && DESTDIR=./ins-test meson install
     - name: Print dinit executive file architecture

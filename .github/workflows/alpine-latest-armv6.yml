@@ -27,7 +27,7 @@ jobs:
           echo "$(tput bold) Print g++ arch:$(tput sgr0) g++ -dumpmachine"
           g++ -dumpmachine
           echo "$(tput bold) Prepare Build:$(tput sgr0) meson setup -Dunit_tests=true -Digr_tests=true builddir"
-          meson setup -Dunit_tests=true -Digr_tests=true builddir
+          meson setup -Dunit-tests=true -Digr-tests=true builddir
           echo "$(tput bold) Build:$(tput sgr0) meson compile -C builddir"
           meson compile -C builddir
           echo "$(tput bold) Print dinit executive file architecture:$(tput sgr0) file ./builddir/src/dinit"
