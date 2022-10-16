@@ -48,21 +48,13 @@ executable('dinit-monitor',
 # Shutdown/reboot/halt
 if build_shutdown.auto()
   if host_machine.system() == 'linux'
-    message('System uses "linux"; Build shutdown = YES')
-    if shutdown_prefix != ''
-      message('shutdown_prefix is configured: ' + shutdown_prefix)
-    endif
     shutdown_build = true
     install_shutdown_man = true
   else
-    message('System not uses "linux"; Build shutdown = NO')
     shutdown_build = false
     install_shutdown_man = false
   endif
 elif build_shutdown.enabled()
-  if shutdown_prefix != ''
-      message('shutdown_prefix is configured: ' + shutdown_prefix)
-  endif
     shutdown_build = true
     install_shutdown_man = true
 else

@@ -13,21 +13,21 @@ mconfig_data = configuration_data()
 version = meson.project_version()
 month = run_command('build/general_variables_for_meson.sh', 'month', check : true).stdout()
 year = run_command('build/general_variables_for_meson.sh', 'year', check : true).stdout()
-build_shutdown = get_option('build_shutdown')
-shutdown_prefix = get_option('shutdown_prefix')
-dinit_control_socket_path = get_option('dinit_control_socket_path')
-unit_tests = get_option('unit_tests')
-igr_tests = get_option('igr_tests')
-man_pages = get_option('man_pages')
-support_cgroups = get_option('support_cgroups')
-use_utmpx = get_option('use_utmpx')
+build_shutdown = get_option('build-shutdown')
+shutdown_prefix = get_option('shutdown-prefix')
+dinit_control_socket_path = get_option('dinit-control-socket-path')
+unit_tests = get_option('unit-tests')
+igr_tests = get_option('igr-tests')
+man_pages = get_option('man-pages')
+support_cgroups = get_option('support-cgroups')
+use_utmpx = get_option('use-utmpx')
 # We have custom sbindir for install programs (/sbin instead of /usr/sbin/ by default)
 # By default: Prefix = /usr
 # By default: Sbin = /sbin
 # By default: you find dinit on /sbin/dinit
 # Note: Dinit dont follow Meson's default sbindir; Use dinit_sbindir option instead!
 prefix = get_option('prefix')
-sbindir = get_option('dinit_sbindir')
+sbindir = get_option('dinit-sbindir')
 mandir = get_option('mandir')
 
 ## If Meson's default sbindir is modifed; Warn users about it:
@@ -38,10 +38,7 @@ endif
 ## Use -lrt?
 # We need to pass -lrt to c++ linker on FreeBSD. see BUILD_MESON
 if host_machine.system() == 'freebsd'
-  message('System uses FreeBSD; Pass "-lrt" to linker = YES')
   add_project_link_arguments('-lrt', language : 'cpp')
-else
-  message('System not uses FreeBSD; Pass "-lrt" to linker = NO')
 endif
 
 ## Prepare mconfig.h
@@ -51,10 +48,7 @@ mconfig_data.set('SBINDIR', '"' + sbindir + '"')
 mconfig_data.set('SHUTDOWN_PREFIX', '"' + shutdown_prefix + '"')
 if support_cgroups.auto()
   if host_machine.system() == 'linux'
-    message('System uses "linux"; Support Cgroups = YES')
     mconfig_data.set('SUPPORT_CGROUPS', '1') 
-  else
-    message('System not uses "linux"; Support Cgroups = NO')
   endif
 elif support_cgroups.enabled()
   mconfig_data.set('SUPPORT_CGROUPS', '1')
