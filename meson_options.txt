@@ -4,25 +4,61 @@
 ## Please see BUILD_MESON for more information.
 
 ## General options
-option('shutdown-prefix', type : 'string', value : '',
-       description : 'Name prefix for "shutdown", "halt" and "reboot" commands (if they are built).')
-option('dinit-control-socket-path', type : 'string', value : '/run/dinitctl',
-       description : 'Default full path to the control socket, for when Dinit runs as system service manager.')
-option('unit-tests', type : 'boolean', value : 'false',
-       description : 'Building Unit tests. by default its disabled.')
-option('igr-tests', type : 'boolean', value : 'false',
-       description : 'Building Integration tests. by default its disabled.')
-option('use-utmpx', type : 'feature', value : 'auto',
-       description : 'Whether to build support for manipulating the utmp/utmpx database via the related POSIX functions.')
-option('dinit-sbindir', type : 'string', value : '/sbin',
-       description : 'Default full path to the dinit executables. For some reasons dinit dont follow default sbindir. see BUILD_MESON for more info.')
-option('man-pages', type : 'boolean', value : 'true',
-       description : 'Building & installing man-pages.')
+option(
+    'shutdown-prefix',
+    type : 'string',
+    value : '',
+    description : 'Name prefix for "shutdown", "halt" and "reboot" commands (if they are built).'
+)
+option(
+    'dinit-control-socket-path',
+    type : 'string',
+    value : '/run/dinitctl',
+    description : 'Default full path to the control socket, for when Dinit runs as system service manager.'
+)
+option(
+    'unit-tests',
+    type : 'boolean',
+    value : 'false',
+    description : 'Building Unit tests. by default its disabled.'
+)
+option(
+    'igr-tests',
+    type : 'boolean',
+    value : 'false',
+    description : 'Building Integration tests. by default its disabled.'
+)
+option(
+    'use-utmpx',
+    type : 'feature',
+    value : 'auto',
+    description : 'Whether to build support for manipulating the utmp/utmpx database via the related POSIX functions.'
+)
+option(
+    'dinit-sbindir',
+    type : 'string',
+    value : '/sbin',
+    description : 'Default full path to the dinit executables. For some reasons dinit dont follow default sbindir. see BUILD_MESON for more info.'
+)
+option(
+    'man-pages',
+    type : 'boolean',
+    value : 'true',
+    description : 'Building & installing man-pages.'
+)
 
 ## Dinit's special compiler flags
 
 ## Linux specific options
-option('support-cgroups', type : 'feature', value : 'auto',
-       description : 'Enable Cgroups supprot.')
-option('build-shutdown', type : 'feature', value : 'auto',
-       description : 'Building shutdown/reboot/halt or not.')
+option(
+    'support-cgroups',
+    type : 'feature',
+    value : 'auto',
+    description : 'Enable Cgroups supprot.'
+)
+option(
+    'build-shutdown',
+    type : 'feature',
+    value : 'auto',
+    description : 'Building shutdown/reboot/halt or not.'
+)
