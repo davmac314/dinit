@@ -2,18 +2,22 @@
 
 # doc/manpages's Defines
 man5 = meson.current_build_dir() + 'dinit-service.5'
-man8 = [meson.current_build_dir() + 'dinit.8',
-        meson.current_build_dir() + 'dinitcheck.8',
-        meson.current_build_dir() + 'dinitctl.8',
-        meson.current_build_dir() + 'dinit-monitor.8']
+man8 = [
+    meson.current_build_dir() + 'dinit.8',
+    meson.current_build_dir() + 'dinitcheck.8',
+    meson.current_build_dir() + 'dinitctl.8',
+    meson.current_build_dir() + 'dinit-monitor.8'
+]
 
 if install_shutdown_man
-  man8 += [meson.current_build_dir() + 'shutdown.8',
-           meson.current_build_dir() + 'reboot.8',
-           meson.current_build_dir() + 'halt.8']
-  find_program('ln')
-  run_command('ln', '-sf', 'shutdown.8', meson.current_build_dir() + 'reboot.8', check : true)
-  run_command('ln', '-sf', 'shutdown.8', meson.current_build_dir() + 'halt.8', check : true)
+    man8 += [
+        meson.current_build_dir() + 'shutdown.8',
+        meson.current_build_dir() + 'reboot.8',
+        meson.current_build_dir() + 'halt.8'
+    ]
+    find_program('ln')
+    run_command('ln', '-sf', 'shutdown.8', meson.current_build_dir() + 'reboot.8', check : true)
+    run_command('ln', '-sf', 'shutdown.8', meson.current_build_dir() + 'halt.8', check : true)
 endif
 
 ## Generate man-pages
@@ -22,16 +26,21 @@ find_program('m4', required : true)
 # Gen man-pages via script
 # Note: We dont use 'env' in 'run_command()' because it's brake compatibility with older meson(s) than >0.50.0.
 # So instead of that; please use argument in scripts.
-run_command('generate-man-pages.sh',
-            meson.current_source_dir(),
-            meson.current_build_dir(),
-            version,
-            month,
-            year,
-            check : true)
+run_command(
+    'generate-man-pages.sh',
+    meson.current_source_dir(),
+    meson.current_build_dir(),
+    version,
+    month,
+    year,
+    check : true
+)
 
-install_data(man5,
-             install_dir : mandir + '/man5/')
-install_data(man8,
-             install_dir : mandir + '/man8/')
-
+install_data(
+    man5,
+    install_dir : mandir + '/man5/'
+)
+install_data(
+    man8,
+    install_dir : mandir + '/man8/'
+)

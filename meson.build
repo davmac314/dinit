@@ -5,7 +5,8 @@ project(
     version : '0.16.0',
     license : 'Apache-2.0',
     meson_version : '>= 0.47.0',
-    default_options : 'cpp_std = c++11')
+    default_options : 'cpp_std = c++11'
+)
 
 ## General Defines
 compiler = meson.get_compiler('cpp')
@@ -32,7 +33,7 @@ mandir = get_option('mandir')
 
 ## If Meson's default sbindir is modifed; Warn users about it:
 if get_option('sbindir') != 'sbin'
-  warning('Seems like Default "sbindir" is modified. Dinit dont follow Default "sbindir" option. Please use "dinit_sbindir" option instead!')
+    warning('Seems like Default "sbindir" is modified. Dinit dont follow Default "sbindir" option. Please use "dinit_sbindir" option instead!')
 endif
 
 ## Use -lrt?
@@ -47,26 +48,26 @@ mconfig_data.set('SYSCONTROLSOCKET', '"' + dinit_control_socket_path + '"')
 mconfig_data.set('SBINDIR', '"' + sbindir + '"')
 mconfig_data.set('SHUTDOWN_PREFIX', '"' + shutdown_prefix + '"')
 if support_cgroups.auto()
-  if host_machine.system() == 'linux'
-    mconfig_data.set('SUPPORT_CGROUPS', '1') 
-  endif
+    if host_machine.system() == 'linux'
+      mconfig_data.set('SUPPORT_CGROUPS', '1') 
+    endif
 elif support_cgroups.enabled()
-  mconfig_data.set('SUPPORT_CGROUPS', '1')
+    mconfig_data.set('SUPPORT_CGROUPS', '1')
 endif
 if use_utmpx.enabled()
-  mconfig_data.set('USE_UTMPX', '1')
+    mconfig_data.set('USE_UTMPX', '1')
 elif use_utmpx.disabled()
-  mconfig_data.set('USE_UTMPX', '0')
+    mconfig_data.set('USE_UTMPX', '0')
 endif
 
 ## Outputs
 subdir('src')
 if unit_tests
-  subdir('src/tests')
+    subdir('src/tests')
 endif
 if igr_tests
-  subdir('src/igr-tests')
+    subdir('src/igr-tests')
 endif
 if man_pages
-  subdir('doc/manpages/')
+    subdir('doc/manpages/')
 endif

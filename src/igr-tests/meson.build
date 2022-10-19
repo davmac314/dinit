@@ -1,11 +1,20 @@
 # Included from top-level meson.build
 
 ## Integration test's Defines
-igr_tests_env = ['IS_MESON=true',
-                 'APPS_PATH=' + APPS_PATH]
+igr_tests_env = [
+     'IS_MESON=true',
+     'APPS_PATH=' + APPS_PATH
+]
 
 ## Prepare integration tests
-run_command([find_program('cp'), '-r', './', '@0@'.format(meson.current_build_dir())], check : true)
+run_command([
+    find_program('cp'),
+    '-r',
+    './',
+    '@0@'.format(meson.current_build_dir())
+    ],
+    check : true
+)
 
 ## Outputs
 # Integration tests
@@ -24,49 +33,79 @@ nocommanderror_test_script = find_program('@0@/no-command-error/run-test.sh'.for
 addrmdep_test_script = find_program('@0@/add-rm-dep/run-test.sh'.format(meson.current_build_dir()))
 varsubst_test_script = find_program('@0@/var-subst/run-test.sh'.format(meson.current_build_dir()))
 svcstartfail_test_script = find_program('@0@/svc-start-fail/run-test.sh'.format(meson.current_build_dir()))
-test('basic',
+test(
+     'basic',
      basic_test_script,
-     env : igr_tests_env)
-test('environ',
+     env : igr_tests_env
+)
+test(
+     'environ',
      environ_test_script,
      env : igr_tests_env,
-     is_parallel : false)
-test('ps-environ',
+     is_parallel : false
+)
+test(
+     'ps-environ',
      psenviron_test_script,
-     env : igr_tests_env)
-test('chain-to',
+     env : igr_tests_env
+)
+test(
+     'chain-to',
      chainto_test_script,
-     env : igr_tests_env)
-test('force-stop',
+     env : igr_tests_env
+)
+test(
+     'force-stop',
      forcestop_test_script,
-     env : igr_tests_env)
-test('restart',
+     env : igr_tests_env
+)
+test(
+     'restart',
      restart_test_script,
-     env : igr_tests_env)
-test('check-basic',
+     env : igr_tests_env
+)
+test(
+     'check-basic',
      checkbasic_test_script,
-     env : igr_tests_env)
-test('check-cycle',
+     env : igr_tests_env
+)
+test(
+     'check-cycle',
      checkcycle_test_script,
-     env : igr_tests_env)
-test('check-lint',
+     env : igr_tests_env
+)
+test(
+     'check-lint',
      checklint_test_script,
-     env : igr_tests_env)
-test('reload1',
+     env : igr_tests_env
+)
+test(
+     'reload1',
      reload1_test_script,
-     env : igr_tests_env)
-test('reload2',
+     env : igr_tests_env
+)
+test(
+     'reload2',
      reload2_test_script,
-     env : igr_tests_env)
-test('no-command-error',
+     env : igr_tests_env
+)
+test(
+     'no-command-error',
      nocommanderror_test_script,
-     env : igr_tests_env)
-test('add-rm-dep',
+     env : igr_tests_env
+)
+test(
+     'add-rm-dep',
      addrmdep_test_script,
-     env : igr_tests_env)
-test('var-subst',
-      varsubst_test_script,
-     env : igr_tests_env)
-test('svc-start-fail',
+     env : igr_tests_env
+)
+test(
+     'var-subst',
+     varsubst_test_script,
+     env : igr_tests_env
+)
+test(
+     'svc-start-fail',
      svcstartfail_test_script,
-     env : igr_tests_env)
+     env : igr_tests_env
+)
