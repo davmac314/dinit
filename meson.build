@@ -33,13 +33,13 @@ mandir = get_option('mandir')
 
 ## If Meson's default sbindir is modifed; Warn users about it:
 if get_option('sbindir') != 'sbin'
-    warning('Seems like Default "sbindir" is modified. Dinit dont follow Default "sbindir" option. Please use "dinit_sbindir" option instead!')
+    warning('Seems like Default "sbindir" is modified. Dinit dont follow Default "sbindir" option. Please use "dinit-sbindir" option instead!')
 endif
 
 ## Use -lrt?
 # We need to pass -lrt to c++ linker on FreeBSD. see BUILD_MESON
 if host_machine.system() == 'freebsd'
-  add_project_link_arguments('-lrt', language : 'cpp')
+    add_project_link_arguments('-lrt', language : 'cpp')
 endif
 
 ## Prepare mconfig.h
