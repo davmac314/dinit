@@ -26,7 +26,7 @@ use_utmpx = get_option('use-utmpx')
 # By default: Prefix = /usr
 # By default: Sbin = /sbin
 # By default: you find dinit on /sbin/dinit
-# Note: Dinit dont follow Meson's default sbindir; Use dinit_sbindir option instead!
+# Note: Dinit dont follow Meson's default sbindir; Use dinit-sbindir option instead!
 prefix = get_option('prefix')
 sbindir = get_option('dinit-sbindir')
 mandir = get_option('mandir')
@@ -49,7 +49,7 @@ mconfig_data.set('SBINDIR', '"' + sbindir + '"')
 mconfig_data.set('SHUTDOWN_PREFIX', '"' + shutdown_prefix + '"')
 if support_cgroups.auto()
     if host_machine.system() == 'linux'
-      mconfig_data.set('SUPPORT_CGROUPS', '1') 
+        mconfig_data.set('SUPPORT_CGROUPS', '1') 
     endif
 elif support_cgroups.enabled()
     mconfig_data.set('SUPPORT_CGROUPS', '1')

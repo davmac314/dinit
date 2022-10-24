@@ -55,28 +55,38 @@ Custom options can be passed with command line:
 or users can modify original "meson_options.txt" and set values.
 
 Custom options:
- use_new_abi               : see "Special note for GCC/Libstdc++", below.
-                             Not needed for most modern systems.
-                             Available values : enabled, disabled, auto
-                             Default value : auto
-
- build_shutdown            : Whether to build the "shutdown" (and "halt" etc) utilities. 
-                             These are only useful if dinit is the system init (i.e. the PID 1 process). 
-                             You probably don't want this unless building for Linux.
-                             Available values : enabled, disabled, auto
-                             Default value : auto
-
- dinit_control_socket_path : Default full path to the control socket, for when Dinit runs as system service manager.
-                             Available values : anywhere you want!
-                             Default value : /run/dinitctl
-
- shutdown_prefix           : Name prefix for "shutdown", "halt" and "reboot" commands (if they are built).
+ shutdown-prefix           : Name prefix for "shutdown", "halt" and "reboot" commands (if they are built).
                              This affects both the output, and what command dinit will execute as part of system shutdown.
                              If you want to install Dinit alongside another init system with its own shutdown/halt/reboot
                              commands, set this (for eg. to "dinit-").
                              Available values : everything you want!
                              Default value : (empty)
 
+ build-shutdown            : Whether to build the "shutdown" (and "halt" etc) utilities. 
+                             These are only useful if dinit is the system init (i.e. the PID 1 process). 
+                             You probably don't want this unless building for Linux.
+                             Available values : enabled, disabled, auto
+                             Default value : auto
+
+ dinit-control-socket-path : Default full path to the control socket, for when Dinit runs as system service manager.
+                             Available values : anywhere you want!
+                             Default value : /run/dinitctl
+
+ unit-tests                : Building Unit tests. see "Running test suite", below.
+                             Available values: true, false
+                             Default value : false
+
+ igr-tests                 : Building Integration tests. see "Running test suite", below.
+                             Available values : true, false
+                             Default value : false
+
+ use-utmpx                 : Whether to build support for manipulating the utmp/utmpx database via the related POSIX functions.
+                             This may be required (along with appropriate service configuration) for utilities
+                             like "who" to work correctly (the service configuration items "inittab-id" and "inittab-line" have no effect if this is disabled).
+                             If not set to any value, support is enabled for certain
+                             systems automatically and disabled for all others.
+                             Available values : enabled, disabled, auto
+                             Default value : auto
 
 Special note for GCC/Libstdc++
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

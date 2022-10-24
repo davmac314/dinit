@@ -36,14 +36,14 @@ shutdown_prefix = get_option('shutdown-prefix')
 dinit_control_socket_path = get_option('dinit-control-socket-path')
 support_cgroups = get_option('support-cgroups')
 conf_data = configuration_data()
-sbindir = '' # For fuzzing dinit; we dont need to specify sbindir. so we empty them.
+sbindir = '' # For fuzzing dinit; we don't need to specify sbindir. so we just leave them empty.
 
-## dinit with libfuzzer can't be compiled without clang/clang++. For some reasons, Meson dont support set default compiler in default_options
+## dinit with libfuzzer can't be compiled without clang/clang++. For some reasons, Meson dont support set default compiler in default_options.
 if c_compiler.get_id() != 'clang'
-    error('Fuzz target must be compiled with clang instead of @0@'.format(c_compiler.get_id()))
+    error('Fuzz target must compiles with clang instead of @0@'.format(c_compiler.get_id()))
 endif
 if cpp_compiler.get_id() != 'clang'
-    error('Fuzz target must be compiled with clang instead of @0@'.format(cpp_compiler.get_id()))
+    error('Fuzz target must compiles with clang instead of @0@'.format(cpp_compiler.get_id()))
 endif
 
 ## Prepare compiler/linker arguments for c/c++ files
