@@ -12,6 +12,7 @@ project(
 compiler = meson.get_compiler('cpp')
 mconfig_data = configuration_data()
 version = meson.project_version()
+platform = host_machine.system()
 month = run_command('build/general_variables_for_meson.sh', 'month', check : true).stdout()
 year = run_command('build/general_variables_for_meson.sh', 'year', check : true).stdout()
 build_shutdown = get_option('build-shutdown')
@@ -38,7 +39,7 @@ endif
 
 ## Use -lrt?
 # We need to pass -lrt to c++ linker on FreeBSD. see BUILD_MESON
-if host_machine.system() == 'freebsd'
+if platform == 'freebsd'
     add_project_link_arguments('-lrt', language : 'cpp')
 endif
 
@@ -47,12 +48,8 @@ mconfig_data.set('DINIT_VERSION', '"' + meson.project_version() + '"')
 mconfig_data.set('SYSCONTROLSOCKET', '"' + dinit_control_socket_path + '"')
 mconfig_data.set('SBINDIR', '"' + sbindir + '"')
 mconfig_data.set('SHUTDOWN_PREFIX', '"' + shutdown_prefix + '"')
-if support_cgroups.auto()
-    if host_machine.system() == 'linux'
-        mconfig_data.set('SUPPORT_CGROUPS', '1') 
-    endif
-elif support_cgroups.enabled()
-    mconfig_data.set('SUPPORT_CGROUPS', '1')
+if support_cgroups.auto() and platform == 'linux' or support_cgroups.enabled()
+    mconfig_data.set('SUPPORT_CGROUPS', '1') 
 endif
 if use_utmpx.enabled()
     mconfig_data.set('USE_UTMPX', '1')

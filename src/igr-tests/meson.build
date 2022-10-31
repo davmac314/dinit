@@ -11,7 +11,7 @@ run_command([
     find_program('cp'),
     '-r',
     './',
-    '@0@'.format(meson.current_build_dir())
+    meson.current_build_dir()
     ],
     check : true
 )

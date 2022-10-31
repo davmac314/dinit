@@ -39,11 +39,8 @@ conf_data = configuration_data()
 sbindir = '' # For fuzzing dinit; we don't need to specify sbindir. so we just leave them empty.
 
 ## dinit with libfuzzer can't be compiled without clang/clang++. For some reasons, Meson dont support set default compiler in default_options.
-if c_compiler.get_id() != 'clang'
+if c_compiler.get_id() != 'clang' or cpp_compiler.get_id() != 'clang'
     error('Fuzz target must compiles with clang instead of @0@'.format(c_compiler.get_id()))
-endif
-if cpp_compiler.get_id() != 'clang'
-    error('Fuzz target must compiles with clang instead of @0@'.format(cpp_compiler.get_id()))
 endif
 
 ## Prepare compiler/linker arguments for c/c++ files
@@ -55,16 +52,10 @@ conf_data.set('DINIT_VERSION', '"' + '@0@'.format(meson.project_version()) + '"'
 conf_data.set('SYSCONTROLSOCKET', '"' + dinit_control_socket_path + '"')
 conf_data.set('SBINDIR', '"' + sbindir + '"')
 conf_data.set('SHUTDOWN_PREFIX', '"' + shutdown_prefix + '"')
-if support_cgroups.auto()
-    if host_machine.system() == 'linux'
-        message('System uses "linux"; Support Cgroups = YES')
-        conf_data.set('SUPPORT_CGROUPS', '1') 
-    else
-        message('System not uses "linux"; Support Cgroups = NO')
-    endif
-elif support_cgroups.enabled()
-    conf_data.set('SUPPORT_CGROUPS', '1')
+if support_cgroups.auto() and platform == 'linux' or support_cgroups.enabled()
+    conf_data.set('SUPPORT_CGROUPS', '1') 
 endif
+
 ## Write mconfig.h
 configure_file(
     output : 'mconfig.h',

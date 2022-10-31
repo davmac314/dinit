@@ -61,17 +61,12 @@ executable(
     install_dir : sbindir
 )
 # Shutdown/reboot/halt
-if build_shutdown.auto()
-    if host_machine.system() == 'linux'
-        shutdown_build = true
-        install_shutdown_man = true
-    else
-        shutdown_build = false
-        install_shutdown_man = false
-    endif
-elif build_shutdown.enabled()
+if build_shutdown.auto() and platform == 'linux' or build_shutdown.enabled()
     shutdown_build = true
     install_shutdown_man = true
+elif build_shutdown.auto() and platform != 'linux'
+    shutdown_build = false
+    install_shutdown_man = false
 else
     shutdown_build = false
     install_shutdown_man = false
