@@ -32,6 +32,7 @@ fuzz_sources = [
 ## Defines
 c_compiler = meson.get_compiler('c')
 cpp_compiler = meson.get_compiler('cpp')
+platform = host_machine.system()
 shutdown_prefix = get_option('shutdown-prefix')
 dinit_control_socket_path = get_option('dinit-control-socket-path')
 support_cgroups = get_option('support-cgroups')
