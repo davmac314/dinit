@@ -296,6 +296,8 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             fail_load_path = std::move(service_filename);
         }
     }
+    // We want to clear errno as the service may have been missing in some paths
+    errno = 0;
 
     if (!service_file) {
         if (fail_load_errno == 0) {
