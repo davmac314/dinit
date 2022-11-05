@@ -5,6 +5,7 @@ on:
     paths:
       - 'doc/manpages/*.m4'
       - 'docs/*'
+  workflow_dispatch:
 
 jobs:
   Website-generator:
