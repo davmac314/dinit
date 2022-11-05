@@ -1,0 +1,1 @@
+../../doc/manpages/dinitctl.8.m4
