@@ -1,0 +1,22 @@
+name: Dinit's website man-pages generator
+
+on:
+  push:
+    'doc/manpages/*.m4'
+
+jobs:
+  Website-generator:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    - name: Getting depends
+      run: sudo apt install m4 make
+    - name: Generate `mconfig`
+      run: make mconfig
+    - name: Generate man-pages
+      run: make -C docs/source-man-pages/
+    - name: Generate html files
+      run: ./docs/generate-html.sh
+
