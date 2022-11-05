@@ -3,8 +3,8 @@ name: Dinit's website man-pages generator
 on:
   push:
     paths:
-      'doc/manpages/*.m4'
-      'docs/*'
+      - 'doc/manpages/*.m4'
+      - 'docs/*'
 
 jobs:
   Website-generator:
