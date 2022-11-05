@@ -13,7 +13,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Getting depends
-      run: sudo apt install m4 make
+      run: sudo apt-get install m4 make mandoc -y
     - name: Generate `mconfig`
       run: make mconfig
     - name: Generate man-pages
