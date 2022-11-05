@@ -1,0 +1,55 @@
+<html>
+    <head>
+        <title>Dinit &mdash; service manager and init system</title>
+        <meta name="Description" content="Dinit &mdash; service manager and init system"/>
+        <meta name="Keywords" content="dinit unix init service-manager linux bsd davmac supervision"/>
+    </head>
+    <body>
+        <h1>Dinit &mdash; service manager and "init" system</h1>
+        <p><em><a href="https://github.com/davmac314/dinit/releases/tag/v0.16.0">Version 0.16.0</a> now available.</em></p>
+        <h3>What is it?</h3>
+        <p>Dinit is a service manager / supervision system, which can (on Linux) also function as a system manager and <em>init</em>. It is:</p>
+        <ul>
+        <li>Portable &mdash; written in portable C++ code; compiles and runs on a variety of Unix-likes (Linux, various BSDs).</li>
+        <li>Compact &mdash; with a reasonable feature set, but a sufficiently limited scope; designed to work <em>with</em> other system components, rather than replace them.</li>
+        <li>Robust &mdash; written with a focus on being secure and correct.</li>
+        <li>Usable &mdash; with simple configuration syntax and control commands.</li>
+        <li>Well documented &mdash; check the extensive manual pages!</li>
+        <li>Free and Open Source &mdash; distributed under the Apache License version 2.0</li>
+        </ul>
+        <p>Dinit fits in the middle ground between extremely simple supervision suites and the more complex service managers. It aims to be functional and configurable, convenient to use, and easy to understand. You can perhaps get a feel for how it compares to similar software packages by reading the <a href="https://github.com/davmac314/dinit/blob/master/doc/COMPARISON">COMPARISON</a> file from the source tree. If you want a more in-depth exploration, check <a href="https://davmac.wordpress.com/2018/10/26/on-the-vagaries-of-init-systems/">this blog entry</a>.</p>
+        <p>Dinit works fully (as both a service manager and system manager) on Linux, and as a functional service manager on at least OpenBSD, FreeBSD and MacOS. It should be easily portable to other POSIX(-ish) operating systems. It is available under the <a href="https://github.com/davmac314/dinit/blob/master/LICENSE">Apache License, version 2.0</a>.</p>
+        <h3>Get Dinit</h3>
+        <p>The best way to use Dinit is in a distribution which supports it, out-of-the-box:</p>
+        <ul>
+        <li><strong><a href="https://chimera-linux.org/">Chimera Linux</a></strong> &mdash; a Linux distribution based on FreeBSD userland and LLVM</li>
+        <li><strong><a href="https://artixlinux.org/">Artix Linux</a></strong> &mdash; a rolling-release distribution based on Arch Linux, offering a choice of init systems including Dinit.</li>
+        </ul>
+        <p>Another option for trying Dinit out quickly is the <a href="alpine-demo/">Alpine Linux Dinit Demo</a> VM image which you can run in QEMU. In this image, Dinit has been retrofitted into a regular Alpine Linux installation.</p>
+        <p>Otherwise, the best way to get Dinit is currently to compile it from <a href="https://github.com/davmac314/dinit">source code</a>. The build requirements are very minimal. Use the <a href="https://github.com/davmac314/dinit/releases">Download link</a> to the left (or in this paragraph...). The <tt>README.md</tt> file in the source tarball is a good starting point for information, and build instructions can be found in <tt>BUILD</tt>.</p>
+        <p>Dinit is also available as an OpenBSD package, maintained by E. Barrett. It can be installed using <tt>pkg_add dinit</tt>. Again, the package may not correspond to the latest version of Dinit.</p>
+        <p>Arch users can try the package in the user repository (AUR), <a href="https://aur.archlinux.org/packages/dinit">here</a>, created by <a href="https://github.com/Relwi">Relwi</a>.</p>
+        <h3>Using Dinit</h3>
+        <h4>As a service manager / supervision suite</h4>
+        <p>Start by reading the <a href="https://github.com/davmac314/dinit/blob/master/README.md">README.md</a> file, or if that is a bit much, have a look at the <a href="https://github.com/davmac314/dinit/blob/master/doc/getting_started.md">Getting Started guide</a>. You should install Dinit first (see the <a href="https://github.com/davmac314/dinit/blob/master/BUILD">build instructions</a>) so that you can try it out as you read.</p>
+        <p>The "real" documentation is the man pages. Start with <tt>man dinit</tt> and then <tt>man dinit-service</tt> for more details on how to configure services. You can use the <tt>dinitcheck</tt> utility to check your service configurations.</p>
+        <ul>
+        <li><a href="man-pages-html/dinit.8.html">dinit(8) manpage</a></li>
+        <li><a href="man-pages-html/dinit-service.5.html">dinit-service(5) manpage</a></li>
+        <li><a href="man-pages-html/dinitcheck.8.html">dinitcheck(8) manpage</a></li>
+        </ul>
+        <p>Finally, use the <tt>dinitctl</tt> utility to control services; it also has a man page:</p>
+        <ul>
+        <li><a href="man-pages-html/dinitctl.8.html">dinitctl(8) manpage</a></li>
+        </ul>
+        <h4>As a system manager / init</h4>
+        <p><em>Note: This is currently supported only on Linux.</em></p>
+        <p>First, read the above information on how service management works in Dinit. Using it as a system manager involves writing service descriptions for all the various system services.</p>
+        <p>Check the <a href="https://github.com/davmac314/dinit/blob/master/doc/linux/DINIT-AS-INIT.md">documentation</a> in the source tree. Be prepared to spend some time on manual configuration and creation of service descriptions, if not using a distribution that supports Dinit out-of-the-box.</p>
+        <h3>Author</h3>
+        <p>Dinit is the creation of Davin McCall, who you can contact via email at <em>davmac@davmac.org</em>, or as <a href="https://twitter.com/davmac314">@davmac314</a> on Twitter.</p>
+        <p>As with any open source project, a number of contributors have helped along the way. They have my gratitude.</p>
+        <p>Artix Linux have provided a small financial contribution for development of Dinit. They also have my gratitude.</p>
+    </body>
+</html>
+
