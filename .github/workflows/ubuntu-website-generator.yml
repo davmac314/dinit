@@ -16,10 +16,7 @@ jobs:
     - uses: actions/checkout@v3
     - name: Getting depends
       run: sudo apt-get install m4 make mandoc -y
-    - name: Generate `mconfig`
-      run: make mconfig
     - name: Generate man-pages
       run: make -C docs/source-man-pages/
     - name: Generate html files
-      run: ./docs/generate-html.sh
-
+      run: make -C docs/ html

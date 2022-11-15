@@ -1,4 +1,3 @@
-include ../../mconfig
 include ../../build/version.conf
 
 all: generate
