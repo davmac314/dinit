@@ -88,6 +88,26 @@ Custom options:
                              Available values : enabled, disabled, auto
                              Default value : auto
 
+ dinit-sbindir             : Default full path to the dinit executables.
+                             For some reasons Dinit dont follow Meson's default sbindir option. see "Why we use another option for sbindir?", below.
+                             Available values : anywhere you want!
+                             Default value : /sbin
+                             
+ man-pages                 : Building Dinit's man-pages.
+                             Available values : true, false
+                             Default value : true
+                             
+ support-cgroups           : Enable Cgroups supprot.
+                             Available values : enabled, disabled, auto
+                             Default value : auto
+
+ build-shutdown            : Building shutdown/reboot/halt or not.
+                             Available values : enabled, disabled, auto
+                             Default value : auto
+
+Running test suite
+=-=-=-=-=-=-=-=-=-
+
 Special note for GCC/Libstdc++
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
