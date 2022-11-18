@@ -41,7 +41,7 @@ jobs:
     - name: Deploy!
       uses: actions/upload-pages-artifact@v1
       with:
-        path: 'doc/website/*'
+        path: 'doc/website/'
     - name: Actual deploy!
       uses: actions/deploy-pages@v1
 
