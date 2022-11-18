@@ -1,1 +1,0 @@
-../../doc/manpages/dinit.8.m4

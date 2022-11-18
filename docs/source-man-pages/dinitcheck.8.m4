@@ -1,1 +1,0 @@
-../../doc/manpages/dinitcheck.8.m4

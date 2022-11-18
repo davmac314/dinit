@@ -1,1 +1,0 @@
-../../doc/manpages/shutdown.8.m4

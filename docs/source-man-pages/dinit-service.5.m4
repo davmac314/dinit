@@ -1,1 +1,0 @@
-../../doc/manpages/dinit-service.5.m4
