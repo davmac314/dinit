@@ -1,4 +1,4 @@
-name: Dinit's website man-pages generator
+name: Dinit's website generator
 
 on:
   push:
