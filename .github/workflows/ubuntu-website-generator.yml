@@ -20,4 +20,4 @@ jobs:
     - name: Generate man-pages
       run: make -C docs/source-man-pages/
     - name: Generate html files
-      run: make -C docs/ html
+      run: make -C docs/source-man-pages/ html
