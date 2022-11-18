@@ -3,6 +3,7 @@ name: Dinit's website man-pages generator
 on:
   push:
     paths:
+      - '.github/workflows/ubuntu-website-generator.yml'
       - 'doc/manpages/*.m4'
       - 'docs/*'
   workflow_dispatch:
