@@ -5,7 +5,7 @@ on:
     paths:
       - '.github/workflows/ubuntu-website-generator.yml'
       - 'doc/manpages/*.m4'
-      - 'docs/*'
+      - 'doc/website/*'
   workflow_dispatch:
 
 permissions:
