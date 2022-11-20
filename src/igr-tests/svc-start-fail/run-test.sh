@@ -11,7 +11,7 @@ fi
 
 rm -f ./basic-ran
 
-$DINIT_EXEC -d sd -u -p socket \
+$DINIT_EXEC -d sd -u -p socket -q \
 	boot &
 DINITPID=$!
 
