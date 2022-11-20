@@ -1,4 +1,4 @@
-name: Dinit on debian-bullseye-amd64 CI
+name: Dinit on debian-bullseye-i386 CI
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  Debian-bullseye-amd64_build:
+  Debian-bullseye-i386_build:
 
     runs-on: ubuntu-latest
     container:
@@ -16,8 +16,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Add 32-bit repos
+      run: dpkg --add-architecture i386
     - name: Getting depends
-      run: apt-get update && apt-get install gcc make m4 g++ file -y
+      run: apt-get update && apt-get install gcc:i386 make:i386 m4:i386 g++:i386 file:i386 -y
     - name: Print g++ architecture
       run: g++ -dumpmachine
     - name: Build
