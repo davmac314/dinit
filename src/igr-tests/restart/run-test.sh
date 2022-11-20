@@ -6,7 +6,7 @@ if [ $IS_MESON ]; then
    DINITCTL_EXEC=$APPS_PATH/dinitctl
 else
    DINIT_EXEC=../../dinit
-   DINITCTL_EXEC=/../../dinitctl
+   DINITCTL_EXEC=../../dinitctl
 fi
 
 rm -f ./basic-ran
