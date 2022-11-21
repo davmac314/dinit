@@ -35,7 +35,7 @@ test_compile_link_arg() {
   fi
 }
 
-for compiler in g++ clang++ c++ ""; do
+for compiler in c++ clang++ g++ ""; do
   if test -z "$compiler"; then
     break # none found
   fi
