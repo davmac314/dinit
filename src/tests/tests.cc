@@ -459,6 +459,47 @@ void basic_test9()
     assert(sset.count_active_services() == 4);
 }
 
+// Test services stop in reverse dependency order
+void basic_test10()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
+    s2->auto_stop = false;
+    sset.add_service(s1);
+    sset.add_service(s2);
+
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+
+    // Start two services:
+    sset.start_service(s2);
+
+    s1->started();
+    sset.process_queues();
+    s2->started();
+    sset.process_queues();
+
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s1->get_state() == service_state_t::STARTED);
+
+    // Issue stop (without forced bring down) to both s1 and s2:
+    s1->stop(false);
+    s2->stop(false);
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STOPPING);
+    assert(s2->get_state() == service_state_t::STOPPING);
+
+    s2->stopped();
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(sset.count_active_services() == 0);
+}
+
 // Test that service pinned in start state is not stopped when its dependency stops.
 void test_pin1()
 {
@@ -1827,6 +1868,7 @@ int main(int argc, char **argv)
     RUN_TEST(basic_test7, "               ");
     RUN_TEST(basic_test8, "               ");
     RUN_TEST(basic_test9, "               ");
+    RUN_TEST(basic_test10, "              ");
     RUN_TEST(test_pin1, "                 ");
     RUN_TEST(test_pin2, "                 ");
     RUN_TEST(test_pin3, "                 ");
