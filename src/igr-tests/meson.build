@@ -8,7 +8,7 @@ igr_tests_env = [
 
 ## Prepare integration tests
 run_command([
-    find_program('cp'),
+    'cp',
     '-r',
     './',
     meson.current_build_dir()

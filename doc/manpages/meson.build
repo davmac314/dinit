@@ -11,13 +11,12 @@ man8 = [
 
 if install_shutdown_man
     man8 += [
-        meson.current_build_dir() + 'shutdown.8',
-        meson.current_build_dir() + 'reboot.8',
-        meson.current_build_dir() + 'halt.8'
+        meson.current_build_dir() + shutdown_prefix + 'shutdown.8',
+        meson.current_build_dir() + shutdown_prefix + 'reboot.8',
+        meson.current_build_dir() + shutdown_prefix + 'halt.8'
     ]
-    find_program('ln')
-    run_command('ln', '-sf', 'shutdown.8', meson.current_build_dir() + 'reboot.8', check : true)
-    run_command('ln', '-sf', 'shutdown.8', meson.current_build_dir() + 'halt.8', check : true)
+    run_command('ln', '-sf', shutdown_prefix + 'shutdown.8', meson.current_build_dir() + shutdown_prefix + 'reboot.8', check : true)
+    run_command('ln', '-sf', shutdown_prefix + 'shutdown.8', meson.current_build_dir() + shutdown_prefix + 'halt.8', check : true)
 endif
 
 ## Generate man-pages
@@ -30,9 +29,7 @@ run_command(
     'generate-man-pages.sh',
     meson.current_source_dir(),
     meson.current_build_dir(),
-    version,
-    month,
-    year,
+    shutdown_prefix,
     check : true
 )
 
