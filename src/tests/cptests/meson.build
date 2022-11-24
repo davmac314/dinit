@@ -4,7 +4,9 @@ project(
     'dinit-fuzzer',
     'cpp',
     'c',
-    version : '0.16.0',
+    version : run_command(
+        [find_program('sh'), '../../../build/general_variables_for_meson.sh', 'version'],
+        check : true).stdout(),
     default_options : [
         'cpp_std = c++11',
         'c_std = c11'
