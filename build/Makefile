@@ -7,7 +7,7 @@ all: ../mconfig includes/mconfig.h
 	@echo "*** No mconfig, please run make from top level"
 	@false
 
-includes/mconfig.h: ../mconfig tools/mconfig-gen.cc
+includes/mconfig.h: ../mconfig tools/mconfig-gen.cc version.conf
 	$(MAKE) -C tools mconfig-gen
 	./tools/mconfig-gen SBINDIR=$(SBINDIR) SYSCONTROLSOCKET=$(SYSCONTROLSOCKET) \
 		SHUTDOWN_PREFIX=$(SHUTDOWN_PREFIX) VERSION=$(VERSION) \
