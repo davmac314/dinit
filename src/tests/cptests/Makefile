@@ -6,18 +6,10 @@ parent_objs = control.o dinit-log.o service.o load-service.o proc-service.o base
 
 check: build-tests run-tests
 
-build-tests: prepare-incdir cptests
+build-tests: cptests
 
 run-tests: cptests
 	./cptests
-	
-# Create an "includes" directory populated with a combination of real and mock headers:
-prepare-incdir:
-	mkdir -p includes
-	rm -rf includes/*.h
-	cd includes; ln -f ../../../includes/*.h .
-	cd includes; ln -f ../../test-includes/dinit.h .
-	cd includes; ln -f ../../test-includes/baseproc-sys.h .
 
 cptests: cptests.o $(parent_objs) $(parent_test_objs)
 	$(CXX) $(SANITIZEOPTS) -o cptests cptests.o $(parent_test_objects) $(parent_objs) $(CXXOPTS) $(LDFLAGS)
@@ -45,7 +37,7 @@ fuzz_objects = $(foreach obj,$(parent_objs),fuzz-$(obj))
 ../../../build/includes/mconfig.h: ../../../mconfig
 	$(MAKE) -C ../../../build all
 
-fuzz: prepare-incdir ../../../build/includes/mconfig.h fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects)
+fuzz: ../../../build/includes/mconfig.h fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects)
 	clang++ -std=c++11 -g -O1 -Iincludes -I../../../dasynq/include -I../../../build/includes/ -fsanitize=fuzzer,address,undefined,leak fuzz.cc $(fuzz_parent_test_objects) $(fuzz_objects) -o fuzz
 
 $(fuzz_parent_test_objects): fuzz-%.o: ../%.cc
