@@ -20,21 +20,21 @@ run_command([
 
 ## Outputs
 # Integration tests
-basic_test_script = find_program('@0@/basic/run-test.sh'.format(meson.current_build_dir()))
-environ_test_script = find_program('@0@/environ/run-test.sh'.format(meson.current_build_dir()))
-psenviron_test_script = find_program('@0@/ps-environ/run-test.sh'.format(meson.current_build_dir()))
-chainto_test_script = find_program('@0@/chain-to/run-test.sh'.format(meson.current_build_dir()))
-forcestop_test_script = find_program('@0@/force-stop/run-test.sh'.format(meson.current_build_dir()))
-restart_test_script = find_program('@0@/restart/run-test.sh'.format(meson.current_build_dir()))
-checkbasic_test_script = find_program('@0@/check-basic/run-test.sh'.format(meson.current_build_dir()))
-checkcycle_test_script = find_program('@0@/check-cycle/run-test.sh'.format(meson.current_build_dir()))
-checklint_test_script = find_program('@0@/check-lint/run-test.sh'.format(meson.current_build_dir()))
-reload1_test_script = find_program('@0@/reload1/run-test.sh'.format(meson.current_build_dir()))
-reload2_test_script = find_program('@0@/reload2/run-test.sh'.format(meson.current_build_dir()))
-nocommanderror_test_script = find_program('@0@/no-command-error/run-test.sh'.format(meson.current_build_dir()))
-addrmdep_test_script = find_program('@0@/add-rm-dep/run-test.sh'.format(meson.current_build_dir()))
-varsubst_test_script = find_program('@0@/var-subst/run-test.sh'.format(meson.current_build_dir()))
-svcstartfail_test_script = find_program('@0@/svc-start-fail/run-test.sh'.format(meson.current_build_dir()))
+basic_test_script = files(meson.current_build_dir() + '/basic/run-test.sh')
+environ_test_script = files(meson.current_build_dir() + '/environ/run-test.sh')
+psenviron_test_script = files(meson.current_build_dir() + '/ps-environ/run-test.sh')
+chainto_test_script = files(meson.current_build_dir() + '/chain-to/run-test.sh')
+forcestop_test_script = files(meson.current_build_dir() + '/force-stop/run-test.sh')
+restart_test_script = files(meson.current_build_dir() + '/restart/run-test.sh')
+checkbasic_test_script = files(meson.current_build_dir() + '/check-basic/run-test.sh')
+checkcycle_test_script = files(meson.current_build_dir() + '/check-cycle/run-test.sh')
+checklint_test_script = files(meson.current_build_dir() + '/check-lint/run-test.sh')
+reload1_test_script = files(meson.current_build_dir() + '/reload1/run-test.sh')
+reload2_test_script = files(meson.current_build_dir() + '/reload2/run-test.sh')
+nocommanderror_test_script = files(meson.current_build_dir() + '/no-command-error/run-test.sh')
+addrmdep_test_script = files(meson.current_build_dir() + '/add-rm-dep/run-test.sh')
+varsubst_test_script = files(meson.current_build_dir() + '/var-subst/run-test.sh')
+svcstartfail_test_script = files(meson.current_build_dir() + '/svc-start-fail/run-test.sh')
 test(
      'basic',
      basic_test_script,
