@@ -1,11 +1,6 @@
 #!/bin/sh
 
-if [ $IS_MESON ]; then
-   cd $(dirname $0)
-   DINIT_EXEC=$APPS_PATH/dinit
-else
-   DINIT_EXEC=../../dinit
-fi
+cd $(dirname $0)
 
 rm -f ./basic-ran
 

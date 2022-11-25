@@ -1,13 +1,6 @@
 #!/bin/sh
 
-if [ $IS_MESON ]; then
-   cd $(dirname $0)
-   DINIT_EXEC=$APPS_PATH/dinit
-   DINITCTL_EXEC=$APPS_PATH/dinitctl
-else
-   DINIT_EXEC=../../dinit
-   DINITCTL_EXEC=../../dinitctl
-fi
+cd $(dirname $0)
 
 # Similar to reload1 test, but with boot service stopped while we reload.
 

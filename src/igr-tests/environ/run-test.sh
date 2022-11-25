@@ -1,11 +1,6 @@
 #!/bin/sh
 
-if [ $IS_MESON ]; then
-   cd $(dirname $0)
-   DINIT_EXEC=$APPS_PATH/dinit
-else
-   DINIT_EXEC=../../dinit
-fi
+cd $(dirname $0)
 
 export DINIT_SOCKET_PATH="$(pwd)/socket"
 

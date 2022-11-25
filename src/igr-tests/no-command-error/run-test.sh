@@ -3,12 +3,7 @@
 # Check that a service without a command configured causes the appropriate error.
 #
 
-if [ $IS_MESON ]; then
-   cd $(dirname $0)
-   DINIT_EXEC=$APPS_PATH/dinit
-else
-   DINIT_EXEC=../../dinit
-fi
+cd $(dirname $0)
 
 rm -f dinit-run.log
 
