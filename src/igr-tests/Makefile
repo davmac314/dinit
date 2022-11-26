@@ -1,7 +1,7 @@
 include ../../mconfig
 
 check-igr: igr-runner
-	./igr-runner
+	DINIT_EXEC=../../dinit DINITCTL_EXEC=../../dinitctl DINITCHECK_EXEC=../../dinitcheck DINITMONITOR_EXEC=../../dinit-monitor ./igr-runner
 
 igr-runner: igr-runner.cc
 	$(CXX) $(CXXOPTS) igr-runner.cc -o igr-runner
