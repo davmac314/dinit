@@ -16,7 +16,6 @@ foreach man: ['dinit-service.5', 'dinit.8', 'dinitcheck.8', 'dinitctl.8', 'dinit
 endforeach
 if shutdown_build
     foreach shutdown_man: ['shutdown.8', 'reboot.8', 'halt.8']
-        #section = 'man' + man.split('.')[1]
         custom_target(
             shutdown_man,
             input: 'shutdown.8.m4',
