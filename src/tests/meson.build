@@ -5,11 +5,6 @@ for_tests_incdir = include_directories(
     'includes/',
     '../../dasynq/include/'
 )
-#ToDo; we need to have another meson.build for cptests
-for_cptests_incdir = include_directories(
-    'cptests/includes',
-    '../../dasynq/include/'
-)
 for_tests_dinit_sources = [
     '../service.cc', 
     '../proc-service.cc',
@@ -60,16 +55,8 @@ envtests_exec = executable(
     for_tests_dinit_sources, 
     include_directories : for_tests_incdir
 )
-cptests_exec = executable(
-    'cptests',
-    'cptests/cptests.cc',
-    for_tests_general_sources,
-    for_tests_dinit_sources,
-    '../control.cc',
-    include_directories : for_cptests_incdir
-)
 test('tests', tests_exec)
 test('proctests', proctests_exec)
 test('loadtests', loadtests_exec, should_fail : true)
 test('envtests', envtests_exec)
-test('cptests', cptests_exec)
+subdir('cptests/')

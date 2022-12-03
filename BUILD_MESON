@@ -82,6 +82,10 @@ Custom options:
  igr-tests                 : Building Integration tests. see "Running test suite", below.
                              Available values : true, false
                              Default value : false
+ 
+ fuzzer                    : Building LLVM's Libfuzzer for Dinit. see "Running fuzzer", below.
+                             Available values : true, false
+                             Default value : false
 
  use-utmpx                 : Whether to build support for manipulating the utmp/utmpx database via the related POSIX functions.
                              This may be required (along with appropriate service configuration) for utilities
@@ -196,4 +200,3 @@ the old ABI, but Dinit will be broken if you upgrade to GCC 7. If you have libst
 GCC 7, you *must* build with the new ABI. If the wrong ABI is used, Dinit may still run
 successfully but any attempt to load a non-existing service, for example, will cause Dinit
 to crash.
-

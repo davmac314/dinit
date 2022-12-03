@@ -26,6 +26,7 @@ shutdown_prefix = get_option('shutdown-prefix')
 dinit_control_socket_path = get_option('dinit-control-socket-path')
 unit_tests = get_option('unit-tests')
 igr_tests = get_option('igr-tests')
+fuzzer = get_option('fuzzer')
 man_pages = get_option('man-pages')
 support_cgroups = get_option('support-cgroups')
 use_utmpx = get_option('use-utmpx')
@@ -66,10 +67,13 @@ endif
 ## Outputs
 subdir('src')
 if unit_tests
-    subdir('src/tests')
+    subdir('src/tests/')
+endif
+if fuzzer
+    subdir('src/tests/cptests/')
 endif
 if igr_tests
-    subdir('src/igr-tests')
+    subdir('src/igr-tests/')
 endif
 if man_pages
     subdir('doc/manpages/')

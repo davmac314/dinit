@@ -29,6 +29,12 @@ option(
     description : 'Building Integration tests. by default its disabled.'
 )
 option(
+    'fuzzer',
+    type : 'boolean',
+    value : 'false',
+    description : 'Building fuzz target'
+)
+option(
     'use-utmpx',
     type : 'feature',
     value : 'auto',
@@ -46,8 +52,6 @@ option(
     value : 'true',
     description : 'Building & installing man-pages.'
 )
-
-## Dinit's special compiler flags
 
 ## Linux specific options
 option(
