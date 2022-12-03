@@ -142,12 +142,11 @@ Running fuzzer
 =-=-=-=-=-=-=-
 
 In addition to the standard test suite, there is experimental support for fuzzing the control
-protocol handling using LLVM/clang's fuzzer (libFuzzer). Change to the `src/tests/cptests`
-directory and build the "fuzz" target:
+protocol handling using LLVM/clang's fuzzer (libFuzzer). Enable "fuzzer" option to build fuzzer.
 
-    meson setup dirbuild
+    meson setup -Dfuzzer=true dirbuild
 
-Then create a "corpus" directory and run the fuzzer:
+Then changing current directory to Your builddir (eg dirbuild)/src/tests/cptests/, create a "corpus" directory and run the fuzzer:
 
     mkdir corpus
     ./fuzz corpus
