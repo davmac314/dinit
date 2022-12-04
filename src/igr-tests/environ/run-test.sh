@@ -6,15 +6,15 @@ export DINIT_SOCKET_PATH="$(pwd)/socket"
 
 rm -f ./env-record
 
-$DINIT_EXEC -d sd -u -p socket -q \
+"$DINIT_EXEC" -d sd -u -p socket -q \
         -e environment1 \
 	checkenv
 
-$DINIT_EXEC -d sd -u -p socket -q \
+"$DINIT_EXEC" -d sd -u -p socket -q \
         -e environment2 \
 	checkenv
 
-$DINIT_EXEC -d sd -u -p socket -q \
+"$DINIT_EXEC" -d sd -u -p socket -q \
 	setenv1
 
 STATUS=FAIL

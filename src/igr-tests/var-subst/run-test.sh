@@ -5,7 +5,7 @@ cd $(dirname $0)
 rm -f ./args-record
 
 export TEST_VAR_ONE="var one" TEST_VAR_TWO=vartwo TEST_VAR_THREE=varthree
-$DINIT_EXEC -d sd -u -p socket -q \
+"$DINIT_EXEC" -d sd -u -p socket -q \
 	checkargs
 
 STATUS=FAIL

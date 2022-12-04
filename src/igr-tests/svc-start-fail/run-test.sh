@@ -4,7 +4,7 @@ cd $(dirname $0)
 
 rm -f ./basic-ran
 
-$DINIT_EXEC -d sd -u -p socket -q \
+"$DINIT_EXEC" -d sd -u -p socket -q \
 	boot &
 DINITPID=$!
 
@@ -14,7 +14,7 @@ while [ ! -e socket ]; do
 done
 
 # try to start "bad-command" which will fail
-DINITCTLOUT="$($DINITCTL_EXEC -p socket start bad-command 2>&1)"
+DINITCTLOUT="$("$DINITCTL_EXEC" -p socket start bad-command 2>&1)"
 if [ "$DINITCTLOUT" != "$(cat expected-1)" ]; then
     echo "$DINITCTLOUT" > actual-1
     kill $DINITPID; wait $DINITPID
@@ -22,14 +22,14 @@ if [ "$DINITCTLOUT" != "$(cat expected-1)" ]; then
 fi
 
 # try to start command which will timeout
-DINITCTLOUT="$($DINITCTL_EXEC -p socket start timeout-command 2>&1)"
+DINITCTLOUT="$("$DINITCTL_EXEC" -p socket start timeout-command 2>&1)"
 if [ "$DINITCTLOUT" != "$(cat expected-2)" ]; then
     echo "$DINITCTLOUT" > actual-2
     kill $DINITPID; wait $DINITPID
     exit 1
 fi
 
-$DINITCTL_EXEC --quiet -p socket shutdown
+"$DINITCTL_EXEC" --quiet -p socket shutdown
 wait $DINITPID
 
 exit 0
