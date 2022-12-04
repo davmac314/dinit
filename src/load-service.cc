@@ -75,6 +75,7 @@ static void process_dep_dir(dirload_service_set &sset,
                         "' for ", servicename, " service.");
             }
         }
+        errno = 0; // errno may have changed in the meantime
         dent = readdir(depdir);
     }
 
