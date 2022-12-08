@@ -1,7 +1,5 @@
 #!/bin/sh
 
-cd $(dirname $0)
-
 case "$1" in
     setenv1)
         if [ "$FOO" = "foo" -a "$BAR" = "bar" -a "$BAZ" = "baz" ]; then

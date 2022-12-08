@@ -1,6 +1,6 @@
 #!/bin/sh
 
-cd $(dirname $0)
+cd "$(dirname $0)"
 
 # Similar to reload1 test, but with boot service stopped while we reload.
 

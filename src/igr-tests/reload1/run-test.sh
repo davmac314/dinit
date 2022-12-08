@@ -1,6 +1,6 @@
 #!/bin/sh
 
-cd $(dirname $0)
+cd "$(dirname $0)"
 
 # Start with boot depending on a,b
 rm -rf sd

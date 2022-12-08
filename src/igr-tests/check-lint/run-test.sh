@@ -1,6 +1,6 @@
 #!/bin/sh
 
-cd $(dirname $0)
+cd "$(dirname $0)"
 
 "$DINITCHECK_EXEC" -d sd > output.txt 2>&1
 if [ $? != 1 ]; then exit 1; fi
