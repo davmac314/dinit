@@ -1,13 +1,5 @@
 # Included from top-level meson.build
 
-## Integration test's Defines
-igr_tests_env = [
-     'DINIT_EXEC=' + APPS_PATH + '/dinit',
-     'DINITCTL_EXEC=' + APPS_PATH + '/dinitctl',
-     'DINITCHECK_EXEC=' + APPS_PATH + '/dinitcheck',
-     'DINITMONITOR_EXEC=' + APPS_PATH + '/dinit-monitor'
-]
-
 ## Prepare integration tests
 run_command([
     'cp',

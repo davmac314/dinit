@@ -20,8 +20,15 @@ dinit_source_files = [
     'dinit-env.cc'
 ]
 
-## src/'s defines
-APPS_PATH = meson.current_build_dir()
+## src/'s defines for igr-tests/
+if igr_tests
+    igr_tests_env = [
+        'DINIT_EXEC=' + meson.current_build_dir() + '/dinit',
+        'DINITCTL_EXEC=' + meson.current_build_dir() + '/dinitctl',
+        'DINITCHECK_EXEC=' + meson.current_build_dir() + '/dinitcheck',
+        'DINITMONITOR_EXEC=' + meson.current_build_dir() + '/dinit-monitor'
+    ]
+endif
 
 ## Write mconfig.h
 configure_file(
