@@ -27,7 +27,7 @@ jobs:
         echo "%abuild ALL=(ALL) ALL" > /etc/sudoers.d/abuild
         su - build
     - name: Generate keys
-      run: abuild-keygen -i -a
+      run: sudo abuild-keygen -i -a
     - name: clone aprots of Alpine linux repo
       run: git clone --depth=1 https://gitlab.alpinelinux.org/alpine/aports.git
     - name: Prepare for building image
