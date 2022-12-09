@@ -58,7 +58,7 @@ endif
 
 clean:
 	rm -f *.o *.d
-	rm -f dinit dinitctl dinitcheck shutdown
+	rm -f dinit dinitctl dinitcheck shutdown dinit-monitor
 	$(MAKE) -C tests clean
 	$(MAKE) -C igr-tests clean
 

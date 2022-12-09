@@ -42,7 +42,7 @@ $(parent_objs): %.o: ../%.cc
 
 clean:
 	$(MAKE) -C cptests clean
-	rm -f *.o *.d tests proctests loadtests
+	rm -f *.o *.d tests proctests loadtests envtests
 
 -include $(objects:.o=.d)
 -include $(parent_objs:.o=.d)
