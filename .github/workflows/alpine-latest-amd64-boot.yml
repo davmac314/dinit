@@ -22,7 +22,8 @@ jobs:
         apk add alpine-sdk build-base apk-tools alpine-conf busybox fakeroot syslinux xorriso squashfs-tools git sudo qemu
     - name: Create `build` user, give them access and switch to them
       run: |
-        adduser build -G abuild
+        useradd build -G abuild -m
+        passwd -d build
         echo "%abuild ALL=(ALL) ALL" > /etc/sudoers.d/abuild
         su - build
     - name: Generate keys
