@@ -35,4 +35,5 @@ jobs:
       run: su - build -c "sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository http://dl-cdn.alpinelinux.org/alpine/edge/main"
     - name: Check `~/iso` directory #temp
       run: su - build -c "ls -lah ~/iso/*"
-
+    - name: Running under QEMU
+      run: su - build -c "qemu-system-x86_64 -nographic /home/build/iso/alpine-standard-edge-x86_64.iso"
