@@ -1,18 +1,20 @@
 #!/bin/sh
 
+cd "$(dirname $0)"
+
 export DINIT_SOCKET_PATH="$(pwd)/socket"
 
 rm -f ./env-record
 
-../../dinit -d sd -u -p socket -q \
+"$DINIT_EXEC" -d sd -u -p socket -q \
         -e environment1 \
 	checkenv
 
-../../dinit -d sd -u -p socket -q \
+"$DINIT_EXEC" -d sd -u -p socket -q \
         -e environment2 \
 	checkenv
 
-../../dinit -d sd -u -p socket -q \
+"$DINIT_EXEC" -d sd -u -p socket -q \
 	setenv1
 
 STATUS=FAIL

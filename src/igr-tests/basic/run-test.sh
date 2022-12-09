@@ -1,8 +1,10 @@
 #!/bin/sh
 
+cd "$(dirname $0)"
+
 rm -f ./basic-ran
 
-../../dinit -d sd -u -p socket -q \
+"$DINIT_EXEC" -d sd -u -p socket -q \
 	basic
 
 STATUS=FAIL
