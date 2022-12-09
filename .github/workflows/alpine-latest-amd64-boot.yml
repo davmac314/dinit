@@ -20,20 +20,19 @@ jobs:
       run: | 
         apk update
         apk add alpine-sdk build-base apk-tools alpine-conf busybox fakeroot syslinux xorriso squashfs-tools git sudo qemu
-    - name: Create `build` user, give them access and switch to them
+    - name: Create `build` user, give them access
       run: |
         adduser build -G abuild -D
         passwd -d build
         echo "%abuild ALL=(ALL) ALL" > /etc/sudoers.d/abuild
-        su - build
     - name: Generate keys
-      run: sudo abuild-keygen -i -a
+      run: su - build -c "abuild-keygen -i -a"
     - name: clone aprots of Alpine linux repo
-      run: git clone --depth=1 https://gitlab.alpinelinux.org/alpine/aports.git
+      run: su - build -c "git clone --depth=1 https://gitlab.alpinelinux.org/alpine/aports.git"
     - name: Prepare for building image
-      run: mkdir -p ~/iso
+      run: su - build -c "mkdir -p ~/iso"
     - name: Buidling `.iso` image
-      run: sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository http://dl-cdn.alpinelinux.org/alpine/edge/main
+      run: su - build -c "sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository http://dl-cdn.alpinelinux.org/alpine/edge/main"
     - name: Check `~/iso` directory #temp
-      run: ls -lah ~/iso/*
+      run: su - build -c "ls -lah ~/iso/*"
 
