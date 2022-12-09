@@ -5,7 +5,7 @@ parent_objs = service.o proc-service.o dinit-log.o load-service.o baseproc-servi
 
 check: build-tests run-tests
 
-build-tests: prepare-incdir tests proctests loadtests envtests
+build-tests: tests proctests loadtests envtests
 	$(MAKE) -C cptests build-tests
 
 run-tests: tests proctests loadtests envtests
@@ -14,13 +14,6 @@ run-tests: tests proctests loadtests envtests
 	./loadtests
 	./envtests
 	$(MAKE) -C cptests run-tests
-
-# Create an "includes" directory populated with a combination of real and mock headers:
-prepare-incdir:
-	mkdir -p includes
-	rm -rf includes/*.h
-	cd includes; ln -f ../../includes/*.h .
-	cd includes; ln -f ../test-includes/*.h .
 
 tests: $(parent_objs) tests.o test-dinit.o test-bpsys.o test-run-child-proc.o
 	$(CXX) $(SANITIZEOPTS) -o tests $(parent_objs) tests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(CXXOPTS) $(LDFLAGS)
