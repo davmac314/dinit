@@ -24,9 +24,9 @@ jobs:
       run: |
         adduser build -G abuild -D
         passwd -d build
-        echo "%abuild ALL=(ALL) ALL" > /etc/sudoers.d/abuild
+        echo "%abuild ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/abuild
     - name: Generate keys
-      run: su - build -c "abuild-keygen -i /etc/apk/keys/ -a"
+      run: su - build -c "abuild-keygen -i -a"
     - name: clone aprots of Alpine linux repo
       run: su - build -c "git clone --depth=1 https://gitlab.alpinelinux.org/alpine/aports.git"
     - name: Prepare for building image
