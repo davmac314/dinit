@@ -1,0 +1,42 @@
+name: Dinit on alpine-latest-amd64 Boot
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  Alpine-latest-amd64_boot:
+
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Getting depends
+      run: | 
+        apk update
+        apk add alpine-sdk build-base apk-tools alpine-conf busybox fakeroot syslinux xorriso squashfs-tools git sudo qemu
+    - name: Create `build` user, give them access and switch to them
+      run: |
+        adduser build -G abuild
+        echo "%abuild ALL=(ALL) ALL" > /etc/sudoers.d/abuild
+        su - build
+    - name: Generate keys
+      run: abuild-keygen -i -a
+    - name: clone aprots of Alpine linux repo
+      run: git clone --depth=1 https://gitlab.alpinelinux.org/alpine/aports.git
+    - name: Prepare for building image
+      run: mkdir -p ~/iso
+    - name: Buidling `.iso` image
+      run: |
+        sh aports/scripts/mkimage.sh --tag edge \
+	    --outdir ~/iso \
+	    --arch x86_64 \
+	    --repository http://dl-cdn.alpinelinux.org/alpine/edge/main
+    - name: Check `~/iso` directory #temp
+      run: ls -lah ~/iso/*
+
