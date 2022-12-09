@@ -32,11 +32,7 @@ jobs:
     - name: Prepare for building image
       run: mkdir -p ~/iso
     - name: Buidling `.iso` image
-      run: |
-        sh aports/scripts/mkimage.sh --tag edge \
-	    --outdir ~/iso \
-	    --arch x86_64 \
-	    --repository http://dl-cdn.alpinelinux.org/alpine/edge/main
+      run: sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository http://dl-cdn.alpinelinux.org/alpine/edge/main
     - name: Check `~/iso` directory #temp
       run: ls -lah ~/iso/*
 
