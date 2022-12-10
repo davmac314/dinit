@@ -21,7 +21,7 @@ dinit_source_files = [
 ]
 
 ## src/'s Defines
-shutdown_build = true
+shutdown_build = false
 
 ## src/'s defines for igr-tests/
 if igr_tests
