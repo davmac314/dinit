@@ -19,7 +19,7 @@ jobs:
     - name: Getting depends
       run: | 
         apk update
-        apk add alpine-sdk build-base apk-tools alpine-conf busybox fakeroot syslinux xorriso squashfs-tools git sudo qemu grub grub-efi
+        apk add alpine-sdk build-base apk-tools alpine-conf busybox fakeroot syslinux xorriso squashfs-tools git sudo qemu qemu-system-x86_64 grub grub-efi
     - name: Create `build` user, give them access
       run: |
         adduser build -G abuild -D
