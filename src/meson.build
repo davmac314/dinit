@@ -20,6 +20,9 @@ dinit_source_files = [
     'dinit-env.cc'
 ]
 
+## src/'s Defines
+shutdown_build = false
+
 ## src/'s defines for igr-tests/
 if igr_tests
     igr_tests_env = [
@@ -70,12 +73,6 @@ executable(
 # Shutdown/reboot/halt
 if build_shutdown.auto() and platform == 'linux' or build_shutdown.enabled()
     shutdown_build = true
-elif build_shutdown.auto() and platform != 'linux'
-    shutdown_build = false
-else
-    shutdown_build = false
-endif
-if shutdown_build
     foreach exec: ['shutdown', 'reboot', 'halt']
         executable(
             shutdown_prefix + exec,
