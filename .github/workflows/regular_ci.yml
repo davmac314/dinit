@@ -54,8 +54,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: debian:bullseye
-    concurrency:
-      group: ${{ matrix.arch }}
     strategy:
       matrix:
         include:
@@ -91,8 +89,6 @@ jobs:
   MacOS-latest_build:
 
     runs-on: macos-latest
-    concurrency:
-      group: ${{ matrix.arch }}
     strategy:
       matrix:
         include:
@@ -118,8 +114,6 @@ jobs:
   Alpine-latest_build:
 
     runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ matrix.arch }}
     strategy:
       matrix:
         include:
