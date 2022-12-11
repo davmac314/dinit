@@ -1,0 +1,156 @@
+name: Dinit CI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '**'
+      - '!.*'
+      - '!README.md'
+      - '!NEWS'
+      - '!BUILD*'
+      - '!CONTRIBUTORS'
+      - '!TODO'
+      - '!LICENSE'
+      - '!build/includes/README'
+      - '!doc/CODE-STYLE'
+      - '!doc/COMPARISON'
+      - '!doc/CONTRIBUTING'
+      - '!doc/DESIGN'
+      - '!doc/getting_started.md'
+      - '!doc/manpages/README'
+      - '!doc/manpages/generate-html.sh'
+      - '!doc/manpages/DINIT-AS-INIT.md'
+      - '!doc/linux/**'
+  pull_request:
+    branches: 
+      - master
+    paths:
+      - '**'
+      - '!.*'
+      - '!README.md'
+      - '!NEWS'
+      - '!BUILD*'
+      - '!CONTRIBUTORS'
+      - '!TODO'
+      - '!LICENSE'
+      - '!build/includes/README'
+      - '!doc/CODE-STYLE'
+      - '!doc/COMPARISON'
+      - '!doc/CONTRIBUTING'
+      - '!doc/DESIGN'
+      - '!doc/getting_started.md'
+      - '!doc/manpages/README'
+      - '!doc/manpages/generate-html.sh'
+      - '!doc/manpages/DINIT-AS-INIT.md'
+      - '!doc/linux/**'
+  workflow_dispatch:
+
+jobs:
+
+  Debian-bullseye-amd64_build:
+
+    runs-on: ubuntu-latest
+    container:
+      image: debian:bullseye
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Getting depends
+      run: | 
+        apt-get update
+        apt-get install g++ make m4 file -y
+    - name: Print g++ architecture
+      run: g++ -dumpmachine
+    - name: Build
+      run: make
+    - name: Print dinit executive file architecture
+      run: file ./src/dinit
+    - name: Unit tests & Integration tests
+      run: make check & make check-igr
+    - name: Integration tests
+      run: make check-igr
+  
+  Debian-bullseye-i386_build:
+
+    runs-on: ubuntu-latest
+    container:
+      image: debian:bullseye
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Add 32-bit repos
+      run: dpkg --add-architecture i386
+    - name: Getting depends
+      run: |
+        apt-get update
+        apt-get install gcc:i386 make:i386 m4:i386 g++:i386 file:i386 -y
+    - name: Print g++ architecture
+      run: g++ -dumpmachine
+    - name: Build
+      run: make
+    - name: Print dinit executive file architecture
+      run: file ./src/dinit
+    - name: Unit tests
+      run: make check
+    - name: Integration tests
+      run: make check-igr
+
+  MacOS-latest-amd64_build:
+
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    # on MacOS, g++ symlinked to clang++
+    # We must verify that
+    - name: Verify g++ (it is g++ or clang++?)
+      run: g++ --version
+    - name: Print g++ architecture
+      run: g++ -dumpmachine
+    - name: Build
+      run: make
+    - name: Print dinit executive file architecture
+      run: file ./src/dinit
+    - name: Unit tests
+      run: make check
+    - name: Integration tests
+      run: make check-igr
+
+  Alpine-latest-ARMs_build:
+
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ matrix.arch }}
+      cancel-in-progress: true
+    strategy:
+      matrix:
+        include:
+          - arch: 'armv6'
+          - arch: 'armv7'
+          - arch: 'aarch64'
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: uraimo/run-on-arch-action@v2.3.0
+      name: Getting depends & build & unit tests & integration tests
+      with:
+        arch: ${{ matrix.arch }}
+        distro: alpine_latest
+        run: |
+          apk add ncurses
+          echo "$(tput bold) !---- ${{ matrix.arch }} BUILD ----!$(tput sgr0)"
+          echo "$(tput bold) ----Getting depends---- :$(tput sgr0) apk update && apk add make g++ m4 file"
+          apk update
+          apk add make g++ m4 file
+          echo "$(tput bold) ----Print g++ arch---- :$(tput sgr0) g++ -dumpmachine"
+          g++ -dumpmachine
+          echo "$(tput bold) ----Build---- :$(tput sgr0) make"
+          make
+          echo "$(tput bold) ----Print dinit executive file architecture---- :$(tput sgr0) file ./src/dinit"
+          file ./src/dinit
+          echo "$(tput bold) ----Unit tests---- :$(tput sgr0) make check"
+          make check
+          echo "$(tput bold) ----Integration tests---- :$(tput sgr0) make check-igr"
+          make check-igr
