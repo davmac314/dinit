@@ -65,15 +65,15 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Add 32-bit repos
-      if: ${{ matrix.arch }} == "i386"
+      if: $(uname -m | grep i386)
       run: dpkg --add-architecture i386
     - name: Getting depends (amd64)
-      if: ${{ matrix.arch }} == "amd64"
+      if: $(uname -m | grep x86_64)
       run: | 
         apt-get update
         apt-get install g++ make m4 file -y
     - name: Getting depends (i386)  
-      if: ${{ matrix.arch }} == "i386"
+      if: $(uname -m | grep i386)
       run: |
         apt-get update
         apt-get install gcc:i386 make:i386 m4:i386 g++:i386 file -y
