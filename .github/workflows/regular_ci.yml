@@ -70,6 +70,7 @@ jobs:
     - name: Getting depends (amd64)
       if: contains(${{ env.GITHUB_WORKFLOW }}, 'amd64')
       run: | 
+        echo $GITHUB_WORKFLOW
         apt-get update
         apt-get install g++ make m4 file -y
     - name: Getting depends (i386)
