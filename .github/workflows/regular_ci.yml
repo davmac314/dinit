@@ -89,9 +89,15 @@ jobs:
     - name: Integration tests
       run: make check-igr
 
-  MacOS-latest-amd64_build:
+  MacOS-latest_build:
 
     runs-on: macos-latest
+    concurrency:
+      group: ${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          - arch: 'amd64'
 
     steps:
     - uses: actions/checkout@v3
