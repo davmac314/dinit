@@ -1,0 +1,146 @@
+name: Dinit Regular CI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '**'
+      - '!.*'
+      - '!README.md'
+      - '!NEWS'
+      - '!BUILD*'
+      - '!CONTRIBUTORS'
+      - '!TODO'
+      - '!LICENSE'
+      - '!build/includes/README'
+      - '!doc/CODE-STYLE'
+      - '!doc/COMPARISON'
+      - '!doc/CONTRIBUTING'
+      - '!doc/DESIGN'
+      - '!doc/getting_started.md'
+      - '!doc/manpages/README'
+      - '!doc/manpages/generate-html.sh'
+      - '!doc/manpages/DINIT-AS-INIT.md'
+      - '!doc/linux/**'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - '**'
+      - '!.*'
+      - '!README.md'
+      - '!NEWS'
+      - '!BUILD*'
+      - '!CONTRIBUTORS'
+      - '!TODO'
+      - '!LICENSE'
+      - '!build/includes/README'
+      - '!doc/CODE-STYLE'
+      - '!doc/COMPARISON'
+      - '!doc/CONTRIBUTING'
+      - '!doc/DESIGN'
+      - '!doc/getting_started.md'
+      - '!doc/manpages/README'
+      - '!doc/manpages/generate-html.sh'
+      - '!doc/manpages/DINIT-AS-INIT.md'
+      - '!doc/linux/**'
+  workflow_dispatch:
+
+jobs:
+
+  Debian-bullseye_build:
+
+    runs-on: ubuntu-latest
+    container:
+      image: debian:bullseye
+    strategy:
+      matrix:
+        include:
+          - arch: 'amd64'
+          - arch: 'i386'
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Add i386 repos
+      if: ${{ matrix.arch == 'i386' }}
+      run: dpkg --add-architecture i386
+    - name: Getting depends (amd64)
+      if: ${{ matrix.arch == 'amd64' }}
+      run: |
+        apt-get update
+        apt-get install g++ make m4 file -y
+    - name: Getting depends (i386)
+      if: ${{ matrix.arch == 'i386' }}
+      run: |
+        apt-get update
+        apt-get install gcc:i386 make:i386 m4:i386 g++:i386 file -y
+    - name: Print g++ architecture
+      run: g++ -dumpmachine
+    - name: Build
+      run: make
+    - name: Print dinit executive file architecture
+      run: file ./src/dinit
+    - name: Unit tests
+      run: make check
+    - name: Integration tests
+      run: make check-igr
+
+  MacOS-latest_build:
+
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - arch: 'amd64'
+
+    steps:
+    - uses: actions/checkout@v3
+    # on MacOS, g++ symlinked to clang++
+    # We must verify that
+    - name: Verify g++ (it is g++ or clang++?)
+      run: g++ --version
+    - name: Print g++ architecture
+      run: g++ -dumpmachine
+    - name: Build
+      run: make
+    - name: Print dinit executive file architecture
+      run: file ./src/dinit
+    - name: Unit tests
+      run: make check
+    - name: Integration tests
+      run: make check-igr
+
+  Alpine-latest_build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: 'armv6'
+          - arch: 'armv7'
+          - arch: 'aarch64'
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: uraimo/run-on-arch-action@v2.3.0
+      name: Getting depends & build & unit tests & integration tests
+      with:
+        arch: ${{ matrix.arch }}
+        distro: alpine_latest
+        run: |
+          apk add ncurses
+          echo "$(tput bold) !---- ${{ matrix.arch }} BUILD ----!$(tput sgr0)"
+          echo "$(tput bold) ----Getting depends---- :$(tput sgr0) apk update && apk add make g++ m4 file"
+          apk update
+          apk add make g++ m4 file
+          echo "$(tput bold) ----Print g++ arch---- :$(tput sgr0) g++ -dumpmachine"
+          g++ -dumpmachine
+          echo "$(tput bold) ----Build---- :$(tput sgr0) make"
+          make
+          echo "$(tput bold) ----Print dinit executive file architecture---- :$(tput sgr0) file ./src/dinit"
+          file ./src/dinit
+          echo "$(tput bold) ----Unit tests---- :$(tput sgr0) make check"
+          make check
+          echo "$(tput bold) ----Integration tests---- :$(tput sgr0) make check-igr"
+          make check-igr

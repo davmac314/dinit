@@ -7,11 +7,11 @@ jobs:
   Ubuntu-latest-amd64_fuzzer:
 
     runs-on: ubuntu-latest
-    
+
     # We need to upload crash* files after libfuzzer fail so disable fail-fast option
     strategy:
       fail-fast: false
-    
+
     steps:
     - uses: actions/checkout@v3
     - name: Print clang++ architecture
