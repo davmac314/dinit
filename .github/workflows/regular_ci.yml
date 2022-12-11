@@ -24,7 +24,7 @@ on:
       - '!doc/manpages/DINIT-AS-INIT.md'
       - '!doc/linux/**'
   pull_request:
-    branches: 
+    branches:
       - master
     paths:
       - '**'
@@ -69,7 +69,7 @@ jobs:
       run: dpkg --add-architecture i386
     - name: Getting depends (amd64)
       if: ${{ matrix.arch == 'amd64' }}
-      run: | 
+      run: |
         apt-get update
         apt-get install g++ make m4 file -y
     - name: Getting depends (i386)
