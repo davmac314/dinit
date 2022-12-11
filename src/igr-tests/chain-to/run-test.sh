@@ -1,8 +1,10 @@
 #!/bin/sh
 
+cd "$(dirname $0)"
+
 rm -f ./recorded-output
 
-../../dinit -d sd -u -p socket -q \
+"$DINIT_EXEC" -d sd -u -p socket -q \
 	part1
 
 STATUS=FAIL

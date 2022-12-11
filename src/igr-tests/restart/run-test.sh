@@ -1,8 +1,10 @@
 #!/bin/sh
 
+cd "$(dirname $0)"
+
 rm -f ./basic-ran
 
-../../dinit -d sd -u -p socket -q \
+"$DINIT_EXEC" -d sd -u -p socket -q \
 	parent &
 DINITPID=$!
 
@@ -12,7 +14,7 @@ while [ ! -e socket ]; do
 done
 
 # wait until parent (and therefore 'basic') has fully started
-../../dinitctl --quiet -p socket start parent
+"$DINITCTL_EXEC" --quiet -p socket start parent
 
 sleep 0.1 # time for file to be written
 
@@ -24,14 +26,14 @@ if [ -e basic-ran ]; then
 fi
 
 if [ $STATUS != PASS ]; then
-    ../../dinitctl --quiet -p socket shutdown
+    "$DINITCTL_EXEC" --quiet -p socket shutdown
     exit 1;
 fi
 
-rm basic-ran 
+rm basic-ran
 
 STATUS=FAIL
-../../dinitctl --quiet -p socket restart basic
+"$DINITCTL_EXEC" --quiet -p socket restart basic
 sleep .1 # time for file write
 if [ -e basic-ran ]; then
    if [ "$(cat basic-ran)" = "ran" ]; then
@@ -39,7 +41,7 @@ if [ -e basic-ran ]; then
    fi
 fi
 
-../../dinitctl --quiet -p socket shutdown
+"$DINITCTL_EXEC" --quiet -p socket shutdown
 wait $DINITPID
 
 if [ $STATUS = PASS ]; then exit 0; fi

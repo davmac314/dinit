@@ -110,7 +110,7 @@ way and go down itself. Supervision of the service may try to restart it, but sh
 increasing delay to avoid continuously bouncing the service up and down. In my opinion this could
 create unnecessary load, unnecessary delay, and noise in logs that might make it more difficult to
 pinpoint the cause of problems, though I'll acknowledge that in simpler setups these are unlikely
-to be real problems. It may also make it much more difficult to see what will else will start
+to be real problems. It may also make it much more difficult to see what else will start
 when some particular service is started (or what will stop when a service is stopped).
 
 Not all services will necessarily behave as is required for this type of service management to
@@ -139,7 +139,7 @@ Another seemingly modular init system offering dependency management and socket 
 BSD licensing. Service configuration is expressed through directory structure (symbolic links
 represent service dependencies, etc;  "start", "stop" and "run" commands are individual scripts
 within a service directory bundle). It provides a simple shell-like scripting language which can
-be used (via the "nosh" interpreter) to implement service commands without requiring the user of a
+be used (via the "nosh" interpreter) to implement service commands without requiring the use of a
 full shell. Several "chain loading" utilities are provided to allow running processes in a
 different directory, with a different user id, with resource limits, etc.
 
@@ -175,7 +175,7 @@ supervisors such as S6.
 Service configuration is specified via a shell script, with the 'openrc-run'
 interpreter (which makes certain special shell functions available, and interprets
 shell variables once the service script completes. For performance reasons
-metatdata extracted from the service scripts is cached in an alternative format).
+metadata extracted from the service scripts is cached in an alternative format).
 
 Although the build system seems to have some support for BSD OSes, it did not
 build successfully on OpenBSD when tested (revision 33d3f33).
@@ -185,8 +185,8 @@ S6-RC (http://skarnet.org/software/s6-rc/s6-rc.html)
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 S6-RC provides a dependency-management system over the top of the S6 supervision
 system. S6-RC requires compiling the complete set of service descriptions into a
-database. Services are are configured via a directory structure, with a
-one-parameter-per-file style, rather than a single service description file.
+database. Services are configured via a directory structure, with a one-parameter-per-file
+style, rather than a single service description file.
 
 As well as services, S6-RC has the concept of service "bundles", named groups
 of services that can be started/stopped as a group (Dinit also supports this via
@@ -214,8 +214,8 @@ setting up a logging chain where a logging process consumes the output of a
 service, and either can be restarted while losing only minimal (if any)
 output from the logs.
 
-It appears that S6-RC supports only hard dependencies: that is if, a service depends
-on another then that service must start, and stay running. Dinit supports a number
+It appears that S6-RC supports only hard dependencies: that is, if a service depends
+on another, then that other service must start and stay running. Dinit supports a number
 of dependency types including "soft" dependencies which allow the dependency to
 stop or fail without necessarily stopping the dependent.
 

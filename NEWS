@@ -1,8 +1,25 @@
-== Version ???
+== Version 0.17.0
+
+Changes:
+ * ...
+
+== Version 0.16.0
+
+(Alpha release #8)
 
 This release contains some new features and bug fixes.
 
 Changes:
+ * "before" and "after" relationships can now be specified for services. These can be used to
+   control startup order without creating explicit dependencies between services.
+ * The "restart" command of dinitctl will now also restart hard dependents if the "--force"
+   option is used (previously the "--force" option was ignored, and the command would fail if
+   a dependent blocked the restart). Changes contributed by Duncan Overbruck.
+ * The "-t" (or "--service") command-line option has been implemented to allow unambiguously
+   specifying that the next argument is a service name. This can be used when booting Linux to
+   select a target service or services (dinit otherwise ignores potential service names in this
+   scenario, since the Linux kernel sometimes passes through kernel options to init).
+   Implemented by Mobin Aydinfar.
  * The dinit daemon itself supports S6-compatible readiness notification (for when run under
    another supervision system or controlling process). The "-r <fd>" command line argument
    specifies the file descriptor to write the notification to. Contributed by Daniel Kolesa.
@@ -15,8 +32,13 @@ Changes:
  * Fix bug with cgroup root path extraction where the path was longer than 64 characters (found
    by Github continuous integration builds as implemented by Mobin Aydinfar).
  * Fix bad pointer bug manifesting with very short command strings (reported by Duncan Overbruck).
+ * Reloading a service now checks for (and disallows) cyclic dependencies.
  * Minor fix to service examples, contributed by Firas Khalil Khana.
+ * Various minor build/install fixes.
 
+Other:
+ * Github continuous integration was set up by Mobin Aydinfar 
+ 
 == Version 0.15.1
 
 (Alpha release #7)

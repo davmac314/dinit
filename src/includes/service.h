@@ -169,6 +169,12 @@ class service_dep
                 || (dep_type == dependency_type::MILESTONE && waiting_on);
     }
 
+    // Check if the dependency represents only an ordering constraint (not really a dependency)
+    bool is_only_ordering()
+    {
+        return (dep_type == dependency_type::BEFORE) || (dep_type == dependency_type::AFTER);
+    }
+
     service_dep(service_record * from, service_record * to, dependency_type dep_type_p) noexcept
             : from(from), to(to), waiting_on(false), holding_acq(false), dep_type(dep_type_p)
     {  }
@@ -247,9 +253,13 @@ class service_record
     
     bool auto_restart : 1;    // whether to restart this (process) if it dies unexpectedly
     bool smooth_recovery : 1; // whether the service process can restart without bringing down service
-    
+
+    // Pins. Start pins are directly transitive (hence pinned_started and dept_pinned_started) whereas
+    // for stop pins, the effect is transitive since a stop-pinned service will "fail" to start anyway.
     bool pinned_stopped : 1;
     bool pinned_started : 1;
+    bool dept_pinned_started : 1; // pinned started due to dependent
+
     bool waiting_for_deps : 1;  // if STARTING, whether we are waiting for dependencies/console
                                 // if STOPPING, whether we are waiting for dependents to stop
     bool waiting_for_console : 1;   // waiting for exclusive console access (while STARTING)
@@ -262,11 +272,13 @@ class service_record
     bool prop_failure : 1;      // failure to start must be propagated
     bool prop_start   : 1;
     bool prop_stop    : 1;
+    bool prop_pin_dpt : 1;
 
     bool start_failed : 1;      // failed to start (reset when begins starting)
     bool start_skipped : 1;     // start was skipped by interrupt
     
     bool in_auto_restart : 1;
+    bool in_user_restart : 1;
 
     int required_by = 0;        // number of dependents wanting this service to be started
 
@@ -350,7 +362,10 @@ class service_record
     bool stop_check_dependents() noexcept;
     
     // issue a stop to all dependents, return true if they are all already stopped
-    bool stop_dependents(bool for_restart) noexcept;
+    bool stop_dependents(bool with_restart, bool for_restart) noexcept;
+
+    // issue a restart to all hard dependents
+    bool restart_dependents() noexcept;
     
     void require() noexcept;
     void release(bool issue_stop = true) noexcept;
@@ -422,16 +437,23 @@ class service_record
     // any appropriate cleanup.
     virtual void becoming_inactive() noexcept { }
 
+    // Check whether the service should automatically restart (assuming auto_restart is true)
+    virtual bool check_restart() noexcept
+    {
+        return true;
+    }
+
     public:
 
     service_record(service_set *set, const string &name)
         : service_name(name), service_state(service_state_t::STOPPED),
             desired_state(service_state_t::STOPPED), auto_restart(false), smooth_recovery(false),
-            pinned_stopped(false), pinned_started(false), waiting_for_deps(false),
-            waiting_for_console(false), have_console(false), waiting_for_execstat(false),
-            start_explicit(false), prop_require(false), prop_release(false), prop_failure(false),
-            prop_start(false), prop_stop(false), start_failed(false), start_skipped(false),
-            in_auto_restart(false), force_stop(false)
+            pinned_stopped(false), pinned_started(false), dept_pinned_started(false),
+            waiting_for_deps(false), waiting_for_console(false), have_console(false),
+            waiting_for_execstat(false), start_explicit(false), prop_require(false), prop_release(false),
+            prop_failure(false), prop_start(false), prop_stop(false), prop_pin_dpt(false),
+            start_failed(false), start_skipped(false), in_auto_restart(false), in_user_restart(false),
+            force_stop(false)
     {
         services = set;
         record_type = service_type_t::DUMMY;
@@ -558,10 +580,7 @@ class service_record
     void forced_stop() noexcept; // force-stop this service and all dependents
     
     // Pin the service in "started" state (when it reaches the state)
-    void pin_start() noexcept
-    {
-        pinned_started = true;
-    }
+    void pin_start() noexcept;
     
     // Pin the service in "stopped" state (when it reaches the state)
     void pin_stop() noexcept
@@ -576,7 +595,7 @@ class service_record
     
     bool is_start_pinned() noexcept
     {
-        return pinned_started;
+        return pinned_started || dept_pinned_started;
     }
 
     bool is_stop_pinned() noexcept
@@ -616,7 +635,15 @@ class service_record
     // or false if there are others (including dependents).
     bool has_lone_ref(bool check_deps = true) noexcept
     {
-        if (check_deps && ! dependents.empty()) return false;
+        if (check_deps) {
+            for (auto *dept : dependents) {
+                // BEFORE links don't count because they are actually specified via the "to" service i.e.
+                // this service.
+                if (dept->dep_type != dependency_type::BEFORE) {
+                    return false;
+                }
+            }
+        }
         auto i = listeners.begin();
         return (++i == listeners.end());
     }
@@ -630,6 +657,12 @@ class service_record
             dep_dpts.erase(std::find(dep_dpts.begin(), dep_dpts.end(), &dep));
         }
         depends_on.clear();
+
+        // Also remove all dependents. This should not be necessary except for "before" links.
+        // Note: this for loop might look odd, but it's correct!
+        for (auto i = dependents.begin(); i != dependents.end(); i = dependents.begin()) {
+            (*i)->get_from()->rm_dep(**i);
+        }
     }
 
     // Why did the service stop?
@@ -670,20 +703,17 @@ class service_record
 
     // Add a dependency. Caller must ensure that the services are in an appropriate state and that
     // a circular dependency chain is not created. Propagation queues should be processed after
-    // calling this. May throw std::bad_alloc.
+    // calling this (if dependency may be required to start). May throw std::bad_alloc.
     service_dep & add_dep(service_record *to, dependency_type dep_type)
     {
-        return add_dep(to, dep_type, depends_on.end(), false);
+        return add_dep(to, dep_type, depends_on.end());
     }
 
     // Add a dependency. Caller must ensure that the services are in an appropriate state and that
     // a circular dependency chain is not created. Propagation queues should be processed after
-    // calling this. May throw std::bad_alloc.
+    // calling this (if dependency may be required to start). May throw std::bad_alloc.
     //   i - where to insert the dependency (in dependencies list)
-    //   reattach - whether to acquire the required service if it and the dependent are started.
-    //             (if false, only REGULAR dependencies will cause acquire if the dependent is started,
-    //              doing so regardless of required service's state).
-    service_dep & add_dep(service_record *to, dependency_type dep_type, dep_list::iterator i, bool reattach)
+    service_dep & add_dep(service_record *to, dependency_type dep_type, dep_list::iterator i)
     {
         auto pre_i = depends_on.emplace(i, this, to, dep_type);
         try {
@@ -694,11 +724,15 @@ class service_record
             throw;
         }
 
-        if (dep_type == dependency_type::REGULAR
-                || (reattach && to->get_state() == service_state_t::STARTED)) {
-            if (service_state == service_state_t::STARTING || service_state == service_state_t::STARTED) {
-                to->require();
-                pre_i->holding_acq = true;
+        if (dep_type != dependency_type::BEFORE && dep_type != dependency_type::AFTER) {
+            if (dep_type == dependency_type::REGULAR
+                    || to->get_state() == service_state_t::STARTED
+                    || to->get_state() == service_state_t::STARTING) {
+                if (service_state == service_state_t::STARTING
+                        || service_state == service_state_t::STARTED) {
+                    to->require();
+                    pre_i->holding_acq = true;
+                }
             }
         }
 
@@ -709,7 +743,7 @@ class service_record
     // dependency was found (and removed). Propagation queues should be processed after calling.
     bool rm_dep(service_record *to, dependency_type dep_type) noexcept
     {
-        for (auto i = depends_on.begin(); i != depends_on.end(); i++) {
+        for (auto i = depends_on.begin(); i != depends_on.end(); ++i) {
             auto & dep = *i;
             if (dep.get_to() == to && dep.dep_type == dep_type) {
                 rm_dep(i);
@@ -719,10 +753,20 @@ class service_record
         return false;
     }
 
+    void rm_dep(service_dep &dep) noexcept
+    {
+        for (auto i = depends_on.begin(); i != depends_on.end(); ++i) {
+            if (&(*i) == &dep) {
+                rm_dep(i);
+                return;
+            }
+        }
+    }
+
     dep_list::iterator rm_dep(dep_list::iterator i) noexcept
     {
         auto to = i->get_to();
-        for (auto j = to->dependents.begin(); ; j++) {
+        for (auto j = to->dependents.begin(); ; ++j) {
             if (*j == &(*i)) {
                 to->dependents.erase(j);
                 break;
@@ -734,7 +778,7 @@ class service_record
         return depends_on.erase(i);
     }
 
-    // Start a speficic dependency of this service. Should only be called if this service is in an
+    // Start a specific dependency of this service. Should only be called if this service is in an
     // appropriate state (started, starting). The dependency is marked as holding acquired; when
     // this service stops, the dependency will be released and may also stop.
     void start_dep(service_dep &dep)

@@ -197,6 +197,79 @@ void test_proc_unexpected_term()
     sset.remove_service(&p);
 }
 
+// Unexpected termination until restarts exhausted, followed by a normal start.
+void test_proc_term_start()
+{
+    using namespace std;
+
+    service_set sset;
+
+    ha_string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+
+    // One restart per 1000 interval
+    p.set_restart_interval({1000, 0}, 1);
+    p.set_auto_restart(true);
+
+    sset.add_service(&p);
+
+    // Start the service
+    p.start();
+    sset.process_queues();
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_target_state() == service_state_t::STARTED);
+
+    // Unexpected termination - should restart
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+    assert(p.get_target_state() == service_state_t::STARTED);
+    assert(p.get_state() == service_state_t::STARTING);
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_target_state() == service_state_t::STARTED);
+
+    // 2nd unexpected termination - should stop
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+    assert(p.get_target_state() == service_state_t::STOPPED);
+    assert(p.get_state() == service_state_t::STOPPED);
+
+    // explicit restart:
+    p.start();
+    sset.process_queues();
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_target_state() == service_state_t::STARTED);
+
+    // Now, again, one automatic restart should go through if the process terminates
+    // restart:
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+    assert(p.get_target_state() == service_state_t::STARTED);
+    assert(p.get_state() == service_state_t::STARTING);
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_target_state() == service_state_t::STARTED);
+
+    // and stop:
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+    assert(p.get_target_state() == service_state_t::STOPPED);
+    assert(p.get_state() == service_state_t::STOPPED);
+
+    sset.remove_service(&p);
+}
+
 // Unexpected termination with restart
 void test_proc_term_restart()
 {
@@ -2315,6 +2388,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_service_start, "    ");
     RUN_TEST(test_proc_notify_start, "     ");
     RUN_TEST(test_proc_unexpected_term, "  ");
+    RUN_TEST(test_proc_term_start, "       ");
     RUN_TEST(test_proc_term_restart, "     ");
     RUN_TEST(test_proc_term_restart2, "    ");
     RUN_TEST(test_proc_term_restart3, "    ");

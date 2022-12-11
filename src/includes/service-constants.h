@@ -45,6 +45,7 @@ enum class shutdown_type_t {
 enum class stopped_reason_t
 {
     NORMAL,
+    DEPRESTART, // A hard dependency was restarted
 
     // Start failures:
     DEPFAILED, // A dependency failed to start
@@ -105,7 +106,9 @@ enum class dependency_type
     REGULAR,
     SOFT,       // dependency starts in parallel, failure/stop does not affect dependent
     WAITS_FOR,  // as for SOFT, but dependent waits until dependency starts/fails before starting
-    MILESTONE   // dependency must start successfully, but once started the dependency becomes soft
+    MILESTONE,  // dependency must start successfully, but once started the dependency becomes soft
+    BEFORE,     // "before" ordering constraint (specified via the "to" service)
+    AFTER       // "after" ordering constraint (specified via the "from" service)
 };
 
 // Service set type identifiers:

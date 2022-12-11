@@ -253,6 +253,18 @@ is not considered fatal.
 The directory path, if not absolute, is relative to the directory containing the service
 description file.
 .TP
+\fBafter\fR = \fIservice-name\fR
+When starting this service, if the named service is also starting, wait for the named service
+to finish starting before bringing this service up. This is similar to a \fBwaits\-for\fR
+dependency except no dependency relationship is implied; if the named service is not starting,
+starting this service will not cause it to start (nor wait for it in that case).
+.TP
+\fBbefore\fR = \fIservice-name\fR
+When starting the named service, if this service is also starting, wait for this service
+to finish starting before bringing the named service up. This is largely equivalent to specifying
+an \fBafter\fR relationship to this service in the named service (but the relationship "belongs"
+to this service and so will be removed if this service is unloaded, for example).
+.TP
 \fBchain\-to\fR = \fIservice-name\fR
 When this service terminates (i.e. starts successfully, and then stops of its
 own accord), the named service should be started.

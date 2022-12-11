@@ -8,6 +8,8 @@
 class test_service : public service_record
 {
     public:
+    bool bring_up_reqd = false;
+
     test_service(service_set *set, std::string name, service_type_t type_p,
             const std::list<prelim_dep> &deplist_p)
             : service_record(set, name, type_p, deplist_p)
@@ -21,6 +23,7 @@ class test_service : public service_record
     virtual bool bring_up() noexcept override
     {
         // return service_record::bring_up();
+        bring_up_reqd = true;
         return true;
     }
 
@@ -53,6 +56,7 @@ class test_service : public service_record
 
     void started() noexcept
     {
+        assert(bring_up_reqd);
         service_record::started();
     }
 
