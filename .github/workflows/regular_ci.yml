@@ -1,4 +1,4 @@
-name: Dinit CI
+name: Dinit Regular CI
 
 on:
   push:
