@@ -82,7 +82,7 @@ jobs:
     - name: Print dinit executive file architecture
       run: file ./src/dinit
     - name: Unit tests & Integration tests
-      run: make check & make check-igr
+      run: make check
     - name: Integration tests
       run: make check-igr
 
