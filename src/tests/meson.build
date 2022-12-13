@@ -25,6 +25,16 @@ configure_file(
     configuration : mconfig_data
 )
 
+## Prepare loadtests
+run_command([
+    'cp',
+    '-r',
+    meson.current_source_dir() + 'test-services',
+    meson.current_build_dir()
+    ],
+    check : true
+)
+
 ## Outputs
 # Unit tests
 tests_exec = executable(
@@ -57,6 +67,6 @@ envtests_exec = executable(
 )
 test('tests', tests_exec)
 test('proctests', proctests_exec)
-test('loadtests', loadtests_exec, should_fail : true)
+test('loadtests', loadtests_exec, workdir : meson.current_build_dir())
 test('envtests', envtests_exec)
 subdir('cptests/')
