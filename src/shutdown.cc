@@ -551,7 +551,6 @@ static void run_process(const char * prog_args[], loop_t &loop, subproc_buffer &
     subproc_out_watch owatch {sub_buf};
 
     if (have_pipe) {
-        close(pipefds[1]);
         try {
             owatch.add_watch(loop, pipefds[0], dasynq::IN_EVENTS);
         }
@@ -560,6 +559,7 @@ static void run_process(const char * prog_args[], loop_t &loop, subproc_buffer &
             // our stdout/stderr
             sub_buf.append("Warning: could not create output watch for subprocess\n");
             close(pipefds[0]);
+            close(pipefds[1]);
             have_pipe = false;
         }
     }
@@ -582,13 +582,17 @@ static void run_process(const char * prog_args[], loop_t &loop, subproc_buffer &
         perror(prog_args[0]);
         _exit(1);
     }
+    if (have_pipe) {
+        close(pipefds[1]);
+    }
 
     do {
         loop.run();
-    } while (! sp_watcher.terminated);
+    } while (!sp_watcher.terminated);
 
     if (have_pipe) {
         owatch.deregister(loop);
+        close(pipefds[0]);
     }
 }
 
