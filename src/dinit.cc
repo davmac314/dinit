@@ -828,7 +828,7 @@ static bool open_control_socket(bool report_ro_failure) noexcept
         }
     }
 
-    if (! control_socket_open) {
+    if (!control_socket_open) {
         const char * saddrname = control_socket_path;
         size_t saddrname_len = strlen(saddrname);
         uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + saddrname_len + 1;
@@ -875,12 +875,13 @@ static bool open_control_socket(bool report_ro_failure) noexcept
         unlink(saddrname);
 
         if (bind(sockfd, (struct sockaddr *) name, sockaddr_size) == -1) {
-            if (errno != EROFS || report_ro_failure) {
+            bool have_error = (errno != EROFS || report_ro_failure);
+            if (have_error) {
                 log(loglevel_t::ERROR, "Error binding control socket: ", strerror(errno));
             }
             close(sockfd);
             free(name);
-            return (errno != EROFS || report_ro_failure);
+            return !have_error;
         }
         
         free(name);
