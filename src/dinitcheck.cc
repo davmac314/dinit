@@ -252,6 +252,16 @@ static void report_service_description_exc(service_description_exc &exc)
     }
 }
 
+static void report_service_description_exc(const std::string &service_name, dinit_load::setting_exception &exc)
+{
+    if (exc.line_num != (unsigned)-1) {
+        report_service_description_err(service_name, exc.line_num, exc.get_info());
+    }
+    else {
+        report_service_description_err(service_name, exc.setting_name, exc.get_info());
+    }
+}
+
 static void report_error(std::system_error &exc, const std::string &service_name)
 {
     std::cerr << "Service '" << service_name << "', error reading service description: " << exc.what() << "\n";
@@ -368,6 +378,10 @@ service_record *load_service(service_set_t &services, const std::string &name,
             }
             catch (service_description_exc &exc) {
                 report_service_description_exc(exc);
+            }
+            catch (setting_exception &setting_exc)
+            {
+                report_service_description_exc(name, setting_exc);
             }
         });
     }
