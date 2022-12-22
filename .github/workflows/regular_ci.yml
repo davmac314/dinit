@@ -123,7 +123,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - uses: uraimo/run-on-arch-action@v2.3.0
+    - uses: uraimo/run-on-arch-action@v2.4.0
       name: Getting depends & build & unit tests & integration tests
       with:
         arch: ${{ matrix.arch }}
