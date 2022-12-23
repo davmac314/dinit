@@ -652,7 +652,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         return rval;
     }
-    catch (setting_exception &setting_exc)
+    catch (service_description_exc &setting_exc)
     {
         // Must remove the dummy service record.
         if (dummy != nullptr) {
@@ -660,12 +660,10 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             delete dummy;
         }
         if (create_new_record) delete rval;
-        if (setting_exc.line_num != (unsigned)-1) {
-            throw service_description_exc(name, std::move(setting_exc.get_info()), setting_exc.line_num);
+        if (setting_exc.service_name.empty()) {
+            setting_exc.service_name = name;
         }
-        else {
-            throw service_description_exc(name, std::move(setting_exc.get_info()), setting_exc.setting_name);
-        }
+        throw;
     }
     catch (std::system_error &sys_err)
     {
@@ -676,7 +674,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         if (create_new_record) delete rval;
         throw service_load_exc(name, sys_err.what());
     }
-    catch (...) // (should only be std::bad_alloc / service_description_exc)
+    catch (...) // (should only be std::bad_alloc)
     {
         if (dummy != nullptr) {
             records.erase(std::find(records.begin(), records.end(), dummy));

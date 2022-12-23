@@ -66,6 +66,11 @@ class service_load_exc
         : service_name(serviceName), exc_description(std::move(desc))
     {
     }
+
+    protected:
+    service_load_exc(std::string &&desc) : exc_description(std::move(desc))
+    {
+    }
 };
 
 class service_not_found : public service_load_exc
@@ -101,6 +106,16 @@ class service_description_exc : public service_load_exc
     const unsigned line_num = -1;
     const char * const setting_name = nullptr;
 
+    service_description_exc(unsigned line_num, std::string &&exc_info)
+            : service_load_exc(std::move(exc_info)), line_num(line_num)
+    {
+    }
+
+    service_description_exc(const char *setting_name, std::string &&exc_info)
+            : service_load_exc(std::move(exc_info)), setting_name(setting_name)
+    {
+    }
+
     service_description_exc(const std::string &serviceName, std::string &&extraInfo, unsigned line_num)
         : service_load_exc(serviceName, std::move(extraInfo)), line_num(line_num)
     {
@@ -116,32 +131,6 @@ namespace dinit_load {
 
 using string = std::string;
 using string_iterator = std::string::iterator;
-
-// exception thrown when encountering a syntax issue when reading a setting value
-class setting_exception
-{
-    std::string info;
-
-    public:
-    const unsigned line_num = -1;
-    const char *setting_name = nullptr;
-
-    setting_exception(unsigned line_num, std::string &&exc_info)
-            : info(std::move(exc_info)), line_num(line_num)
-    {
-    }
-
-    setting_exception(const char *setting_name, std::string &&exc_info)
-            : info(std::move(exc_info)), setting_name(setting_name)
-    {
-    }
-
-    std::string &get_info()
-    {
-        return info;
-    }
-};
-
 
 // Utility function to skip white space. Returns an iterator at the
 // first non-white-space position (or at end).
@@ -220,7 +209,7 @@ inline string read_config_name(string_iterator & i, string_iterator end) noexcep
 //
 // This function expects the string to be in an ASCII-compatible encoding (the "classic" locale).
 //
-// Throws setting_exception on error.
+// Throws service_description_exc (with service name unset) on error.
 //
 // Params:
 //    service_name - the name of the service to which the setting applies
@@ -260,7 +249,7 @@ inline string read_setting_value(unsigned line_num, string_iterator & i, string_
                         rval += c;
                     }
                     else {
-                        throw setting_exception(line_num, "line end follows backslash escape character (`\\')");
+                        throw service_description_exc(line_num, "line end follows backslash escape character (`\\')");
                     }
                 }
                 else {
@@ -270,7 +259,7 @@ inline string read_setting_value(unsigned line_num, string_iterator & i, string_
             }
             if (i == end) {
                 // String wasn't terminated
-                throw setting_exception(line_num, "unterminated quoted string");
+                throw service_description_exc(line_num, "unterminated quoted string");
             }
         }
         else if (c == '\\') {
@@ -284,7 +273,7 @@ inline string read_setting_value(unsigned line_num, string_iterator & i, string_
                 rval += *i;
             }
             else {
-                throw setting_exception(line_num, "backslash escape (`\\') not followed by character");
+                throw service_description_exc(line_num, "backslash escape (`\\') not followed by character");
             }
         }
         else if (isspace(c, locale::classic())) {
@@ -301,7 +290,7 @@ inline string read_setting_value(unsigned line_num, string_iterator & i, string_
         else if (c == '#') {
             // Possibly intended a comment; we require leading whitespace to reduce occurrence of accidental
             // comments in setting values.
-            throw setting_exception(line_num, "hashmark (`#') comment must be separated from setting value by whitespace");
+            throw service_description_exc(line_num, "hashmark (`#') comment must be separated from setting value by whitespace");
         }
         else {
             if (new_part) {
@@ -657,7 +646,7 @@ inline std::string resolve_path(const char *setting_name, std::string &&p, T &va
         auto i = std::next(p.begin(), dpos);
         string name = read_config_name(i, p.end());
         if (name.empty()) {
-            throw setting_exception(setting_name, "invalid/missing variable name after '$'");
+            throw service_description_exc(setting_name, "invalid/missing variable name after '$'");
         }
         string value = var_resolve(name);
         r.append(value);
@@ -686,7 +675,7 @@ static void cmdline_var_subst(const char *setting_name, std::string &line,
 
     if (line.length() > (size_t)std::numeric_limits<int>::max()) {
         // (avoid potential for overflow later)
-        throw setting_exception(setting_name, "command line too long");
+        throw service_description_exc(setting_name, "command line too long");
     }
 
     auto i = offsets.begin();
@@ -712,7 +701,7 @@ static void cmdline_var_subst(const char *setting_name, std::string &line,
                 auto i = std::next(line.begin(), dindx + 1);
                 string name = read_config_name(i, line.end());
                 if (name.empty()) {
-                    throw setting_exception(setting_name, "invalid/missing variable name after '$'");
+                    throw service_description_exc(setting_name, "invalid/missing variable name after '$'");
                 }
                 size_t line_len_before = r_line.size();
                 r_line.append(var_resolve(name));
@@ -720,7 +709,7 @@ static void cmdline_var_subst(const char *setting_name, std::string &line,
 
                 if (line_len_after > (size_t)std::numeric_limits<int>::max()) {
                     // (avoid potential overflow)
-                    throw setting_exception(setting_name, "command line too long (after substitution)");
+                    throw service_description_exc(setting_name, "command line too long (after substitution)");
                 }
 
                 xpos = i - line.begin();
@@ -877,8 +866,8 @@ class service_settings_wrapper
                 try {
                     setting_value = resolve_path(setting_name, std::move(setting_value), var_subst);
                 }
-                catch (setting_exception &exc) {
-                    report_error((string() + setting_name + ": " + exc.get_info()).c_str());
+                catch (service_description_exc &exc) {
+                    report_error((string() + setting_name + ": " + exc.exc_description).c_str());
                 }
             };
 
