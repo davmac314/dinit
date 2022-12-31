@@ -5,6 +5,7 @@ Dinit on freebsd-13.1-amd64 CI_task:
   Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install gmake m4 file
   Print clang++ architecture_script: clang++ -dumpmachine
   Configure_script: ./configure
+  cat ./mconfig_script: cat ./mconfig
   Build_script: gmake
   Print dinit executive file architecture_script: file ./src/dinit
   Unit tests_script: gmake check
@@ -18,6 +19,7 @@ Dinit on freebsd-12.3-amd64 CI_task:
   Print clang++ architecture_script: clang++ -dumpmachine
   uname_script: uname
   Configure_script: ./configure
+  cat ./mconfig_script: cat ./mconfig
   Build_script: gmake
   Print dinit executive file architecture_script: file ./src/dinit
   Unit tests_script: gmake check

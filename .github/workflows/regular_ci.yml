@@ -79,6 +79,8 @@ jobs:
       run: g++ -dumpmachine
     - name: Configure
       run: ./configure
+    - name: Print ./mconfig
+      run: cat ./mconfig
     - name: Build
       run: make
     - name: Print dinit executive file architecture
@@ -106,6 +108,8 @@ jobs:
       run: g++ -dumpmachine
     - name: Configure
       run: ./configure
+    - name: Print ./mconfig
+      run: cat ./mconfig
     - name: Build
       run: make
     - name: Print dinit executive file architecture
@@ -142,6 +146,8 @@ jobs:
           g++ -dumpmachine
           echo "$(tput bold) ----Configure---- :$(tput sgr0) ./configure"
           ./configure
+          echo "$(tput bold) ----cat ./mconfig---- :$(tput sgr0) cat ./mconfig"
+          cat ./mconfig
           echo "$(tput bold) ----Build---- :$(tput sgr0) make"
           make
           echo "$(tput bold) ----Print dinit executive file architecture---- :$(tput sgr0) file ./src/dinit"
