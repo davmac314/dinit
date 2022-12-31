@@ -45,7 +45,7 @@ findcxx() {
             if test -z "$guess" > /dev/null 2>&1; then
                 break # None found
             fi
-            type "$guess" > /dev/null
+            type "$guess" > /dev/null 2>&1
             if test $? = 0; then
                 compiler="$guess"
                 sub_info "$compiler"
