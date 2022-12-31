@@ -18,18 +18,27 @@ echo() {
 }
 
 info() {
-    echo "Info: $@"
+    echo "Info: $*"
+}
+
+sub_info() {
+    echo "  ... $*"
 }
 
 error() {
-    echo "Error: $@"
+    echo "Error: $*"
+    exit 1
+}
+
+sub_error() {
+    echo "  ... Error: $*"
     exit 1
 }
 
 findcxx() {
     info Checking C++ Compiler...
     if test "$CXX" ; then
-        info "$CXX" is user/system prefered C++ compiler.
+        sub_info "$CXX" is user/system prefered C++ compiler.
         compiler="$CXX"
     else
         for guess in c++ g++ clang++ ""; do
@@ -39,13 +48,13 @@ findcxx() {
             type "$guess" > /dev/null
             if test $? = 0; then
                 compiler="$guess"
-                info "$compiler" compiler is found.
+                sub_info "$compiler"
                 break # Found
             fi
         done
     fi
     if test -z "$compiler"; then
-       error No C++ compiler found!
+       sub_error No C++ compiler found!
     fi
 }
 
@@ -56,10 +65,10 @@ cxx_works() {
     $compiler -o test test.cc
     if [ $? != 0 ]; then
         rm -f test*
-        error Seems like C++ compiler is not working!
+        sub_error Seems like C++ compiler is not working!
     else
         rm -f test
-        info Ok.
+        sub_info Yes.
     fi
 }
 
@@ -72,13 +81,12 @@ Defaults for the options are specified in brackets.
   --help                        This help message.
 
 Installation directories:
-  --prefix=PREFIX               Main Installtion prefix [/]
-  --shutdown-prefix=PREFIX      Name prefix for shutdown, poweroff, reboot, halt programs []
-  --sbindir=SBINDIR             Dinit executables [PREFIX/sbin]
-  --mandir=MANDIR               Dinit man-pages location [PREFIX/usr/share/man]
-  --syscontrolsocket=SOCKETPATH Dinitctl socket location [PREFIX/run/dinitctl]
+  --sbindir=SBINDIR             Dinit executables [/sbin]
+  --mandir=MANDIR               Dinit man-pages location [/usr/share/man]
+  --syscontrolsocket=SOCKETPATH Dinitctl socket location [/run/dinitctl]
 
 Optional options:
+  --shutdown-prefix=PREFIX      Name prefix for shutdown, poweroff, reboot, halt programs []
   --enable-shutdown             Build shutdown, poweroff, reboot, halt programs [Enabled on Linux based systems]
   --disable-shutdown            Don't build shutdown, poweroff, reboot, halt programs
   --enable-cgroups              Enable Cgroups support [Enabled only on Linux based systems]
@@ -100,10 +108,12 @@ EOF
 ## General Defines
 PLATFORM=$(uname)
 CXXOPTS="-std=c++11 -Wall"
-PREFIX="/usr"
-SBINDIR="$PREFIX/sbin"
-MANDIR="$PREFIX/share/man/"
-SYSCONTROLSOCKET="$PREFIX/run/dinitctl"
+if [ "$PLATFORM" = "FreeBSD" ]; then
+    LDFLAGS="-lrt"
+fi
+SBINDIR="/sbin"
+MANDIR="/usr/share/man/"
+SYSCONTROLSOCKET="/run/dinitctl"
 SHUTDOWN_PREFIX=""
 if [ "$PLATFORM" = "Linux" ]; then
     BUILD_SHUTDOWN=yes
@@ -117,10 +127,9 @@ fi
 for arg in "$@"; do
     case "$arg" in
         --help) usage ;;
-        --prefix=*) PREFIX="${arg#*=}" && shift ;;
-        --sbindir=*) SBINDIR="$PREFIX/${arg#*=}" && shift ;;
-        --mandir=*) MANDIR="$PREFIX/${arg#*=}" && shift ;;
-        --syscontrolsocket=*) SYSCONTROLSOCKET="$PREFIX/${arg#*=}" && shift ;;
+        --sbindir=*) SBINDIR="${arg#*=}" && shift ;;
+        --mandir=*) MANDIR="${arg#*=}" && shift ;;
+        --syscontrolsocket=*) SYSCONTROLSOCKET="${arg#*=}" && shift ;;
         --shutdown-prefix=*) SHUTDOWN_PREFIX="${arg#*=}" && shift ;;
         --enable-shutdown) BUILD_SHUTDOWN=yes ;;
         --disable-shutdown) BUILD_SHUTDOWN=no ;;
@@ -135,7 +144,7 @@ done
 findcxx
 cxx_works
 
-## Praser options
+## Test compiler supported argument
 #ToDo
 
 ## Create mconfig
@@ -174,6 +183,6 @@ SUPPORT_CGROUPS=$SUPPORT_CGROUPS
 # Optional settings
 SHUTDOWN_PREFIX=$SHUTDOWN_PREFIX
 EOF
-info $(dirname $0)/mconfig has generated.
+sub_info done.
 info Done!
 exit 0

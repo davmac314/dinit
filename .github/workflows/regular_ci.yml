@@ -77,6 +77,8 @@ jobs:
         apt-get install gcc:i386 make:i386 m4:i386 g++:i386 file -y
     - name: Print g++ architecture
       run: g++ -dumpmachine
+    - name: Configure
+      run: ./configure
     - name: Build
       run: make
     - name: Print dinit executive file architecture
@@ -102,6 +104,8 @@ jobs:
       run: g++ --version
     - name: Print g++ architecture
       run: g++ -dumpmachine
+    - name: Configure
+      run: ./configure
     - name: Build
       run: make
     - name: Print dinit executive file architecture
@@ -136,6 +140,7 @@ jobs:
           apk add make g++ m4 file
           echo "$(tput bold) ----Print g++ arch---- :$(tput sgr0) g++ -dumpmachine"
           g++ -dumpmachine
+          echo "$(tput bold) ----Configure---- :$(tput sgr0) ./configure"
           echo "$(tput bold) ----Build---- :$(tput sgr0) make"
           make
           echo "$(tput bold) ----Print dinit executive file architecture---- :$(tput sgr0) file ./src/dinit"
