@@ -41,7 +41,7 @@ findcxx() {
         sub_info "$CXX" is user/system prefered C++ compiler.
         compiler="$CXX"
     else
-        for guess in c++ g++ clang++ ""; do
+        for guess in g++ clang++ c++ ""; do
             if test -z "$guess"; then
                 break # None found
             fi
@@ -60,14 +60,14 @@ findcxx() {
 
 cxx_works() {
     info Checking C++ compiler works...
-    echo "#include <iostream>" > test.cc
-    echo "int main(int argc, char **argv) { return 0; }" >> test.cc
-    $compiler -o test test.cc
+    echo "#include <iostream>" > testfile.cc
+    echo "int main(int argc, char **argv) { return 0; }" >> testfile.cc
+    $compiler -o testfile.o testfile.cc
     if [ $? != 0 ]; then
-        rm -f test*
+        rm -f testfile*
         sub_error Seems like C++ compiler is not working!
     else
-        rm -f test
+        rm -f testfile
         sub_info Yes.
     fi
 }
@@ -96,7 +96,7 @@ try_cxx_argument() {
             return 0
         fi
     fi
-    if $compiler -c $CXXOPTS $CUSTOM_CXXOPTS $1 test.cc -o test > /dev/null 2>&1 ; then
+    if $compiler -c $CXXOPTS $1 $CUSTOM_CXXOPTS testfile.cc -o testfile.o > /dev/null 2>&1 ; then
         sub_info Yes.
         CXXOPTS="$CXXOPTS $1"
     else
@@ -111,9 +111,13 @@ try_cxx_argument() {
 
 try_ld_argument() {
     info Checking Linker supports $1...
-    if $compiler $CXXOPTS $CUSTOM_CXXOPTS $1 test.cc -o test > /dev/null 2>&1 ; then
+    if $compiler $CXXOPTS $CUSTOM_CXXOPTS $1 testfile.cc -o testfile.o > /dev/null 2>&1 ; then
         sub_info Yes.
-        SANITIZEROPTS="$1"
+        if [ "$2" = "SANITIZEROPTS" ]; then
+            SANITIZEROPTS="$1"
+        else
+            LDFLAGS="$1"
+        fi
     else
         sub_info No.
     fi
@@ -142,12 +146,17 @@ Optional options:
   --disable-cgroups             Disable Cgroups support
   --enable-sanitizers           Enable -fsanitize in Unit tests [Enabled on supported systems]
   --disable-sanitizers          Disable -fsanitize in Unit tests
+  --disable-cxx-flags           (Not recommanded) Disable ALL CXXOPTS even -std=c++11
+                                  Don't forget set your flags via CUSTOM_CXXOPTS otherwise
+                                  build may be failed!
+  --disable-ld-flags            (Not recommanded) Disable ALL LDFLAGS even "-lrt on FreeBSD"
+                                  You can use CUSTOM_LDFLAGS to set your ld flags.
 
 Environment variables can be used:
-  CXX                           If you wanna use specifice C++ compiler.
+  CXX                           If you wanna use specific C++ compiler.
   CUSTOM_CXXOPTS                If you wanna use some arguments in C++ compiler command line.
                                   Note: You don't need to set required flags for Building Dinit!
-                                  such as -std=c++11
+                                  such as -std=c++11 (if you don't use --disable-cxx-flags of course)
   CUSTOM_LDFLAGS                If you wanna use some arguments in Linker command line.
 
 See BUILD file for more information.
@@ -156,12 +165,11 @@ EOF
 }
 
 ## General Defines
-#PLATFORM="$(uname)"
-PLATFORM="$(uname)"
+PLATFORM=$(uname)
 CXXOPTS=""
-if [ "$PLATFORM" = "FreeBSD" ]; then
-    LDFLAGS="-lrt"
-fi
+NO_CXXOPTS="false"
+LDFLAGS=""
+NO_LDFLAGS="false"
 SBINDIR="/sbin"
 MANDIR="/usr/share/man/"
 SYSCONTROLSOCKET="/run/dinitctl"
@@ -192,6 +200,8 @@ for arg in "$@"; do
         --disable-cgroups) SUPPORT_CGROUPS=0 ;;
         --enable-sanitizers) NO_SANITIZERS=0 ;;
         --disable-sanitizers) NO_SANITIZERS=1 ;;
+        --disable-cxx-flags) NO_CXXOPTS=true ;;
+        --disable-ld-flags) NO_LDFLAGS=true ;;
         --cxx-check) findcxx && cxx_works && exit 0 ;;
         -*) echo Warning: Unknown argument: "$arg" ;;
         *) continue ;;
@@ -208,18 +218,22 @@ for depend in make m4; do
 done
 
 ## Test compiler/linker supported argument
-for argument in -std=c++11 \
-                -Wall \
-                -flto \
-                -not-exist \
-                -fno-rtti \
-                -fno-plt; do
-    try_cxx_argument $argument
-done
-if [ "$NO_SANITIZERS" = "auto" ]; then
-    for ld_argument in -fsanitize=address,undefined; do
-        try_ld_argument $ld_argument
+if [ "$NO_CXXOPTS" != "true" ]; then
+    for argument in -std=c++11 \
+                    -Wall \
+                    -flto \
+                    -Os \
+                    -fno-rtti \
+                    -fno-plt
+                    do
+        try_cxx_argument $argument
     done
+fi
+if [ "$PLATFORM" = "FreeBSD" ] && [ "$NO_LDFLAGS" = "false" ]; then
+    try_ld_argument -lrt
+fi
+if [ "$NO_SANITIZERS" = "auto" ]; then
+    try_ld_argument -fsanitize=address,undefined SANITIZEROPTS
 elif [ "$NO_SANITIZERS" = "0" ]; then
     SANITIZEROPTS="-fsanitize=address,undefined"
 fi
@@ -227,7 +241,7 @@ fi
 ## Create mconfig
 rm -f test*
 info Generating $(dirname $0)/mconfig...
-cat << EOF > $(dirname $0)/mconfig
+cat << EOF > mconfig
 ## Generated by "$0" for "$PLATFORM"
 # Installation path options.
 
