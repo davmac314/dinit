@@ -164,7 +164,7 @@ fi
 SBINDIR="/sbin"
 MANDIR="/usr/share/man/"
 SYSCONTROLSOCKET="/run/dinitctl"
-SANITIZEROPTS="-fsanitize=address,undefined"
+SANITIZEROPTS=""
 SHUTDOWN_PREFIX=""
 if [ "$PLATFORM" = "Linux" ]; then
     BUILD_SHUTDOWN=yes
