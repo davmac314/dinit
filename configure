@@ -111,9 +111,15 @@ try_cxx_argument() {
 
 try_ld_argument() {
     info Checking Linker supports $1...
+    if [ "$PLATFORM" = "FreeBSD" ]; then
+        if [ "$1" = "-fsanitize=address,undefined" ]; then
+            sub_info Skipped. because "$1" is not recommended on "$PLATFORM".
+            return 0
+        fi
+    fi
     if $compiler $CXXOPTS $CUSTOM_CXXOPTS $1 test.cc -o test > /dev/null 2>&1 ; then
         sub_info Yes.
-        SANITIZE_OPTS="$1"
+        SANITIZEROPTS="$1"
     else
         sub_info No.
     fi
@@ -140,7 +146,8 @@ Optional options:
   --disable-shutdown            Don't build shutdown, poweroff, reboot, halt programs
   --enable-cgroups              Enable Cgroups support [Enabled only on Linux based systems]
   --disable-cgroups             Disable Cgroups support
-  --disable-sanitizers           Disable -fsanitize in Unit tests [They enabled by default]
+  --enable-sanitizers           Enable -fsanitize in Unit tests [Enabled on supported systems]
+  --disable-sanitizers          Disable -fsanitize in Unit tests
 
 Environment variables can be used:
   CXX                           If you wanna use specifice C++ compiler.
@@ -156,6 +163,7 @@ EOF
 }
 
 ## General Defines
+#PLATFORM="$(uname)"
 PLATFORM="$(uname)"
 CXXOPTS=""
 if [ "$PLATFORM" = "FreeBSD" ]; then
@@ -165,6 +173,7 @@ SBINDIR="/sbin"
 MANDIR="/usr/share/man/"
 SYSCONTROLSOCKET="/run/dinitctl"
 SANITIZEROPTS=""
+NO_SANITIZERS="auto"
 SHUTDOWN_PREFIX=""
 if [ "$PLATFORM" = "Linux" ]; then
     BUILD_SHUTDOWN=yes
@@ -188,7 +197,8 @@ for arg in "$@"; do
         --disable-shutdown) BUILD_SHUTDOWN=no ;;
         --enable-cgroups) SUPPORT_CGROUPS=1 ;;
         --disable-cgroups) SUPPORT_CGROUPS=0 ;;
-        --disable-sanitizers) SANITIZEROPTS="" ;;
+        --enable-sanitizers) NO_SANITIZERS=0 ;;
+        --disable-sanitizers) NO_SANITIZERS=1 ;;
         --cxx-check) findcxx && cxx_works && exit 0 ;;
         -*) echo Warning: Unknown argument: "$arg" ;;
         *) continue ;;
@@ -213,9 +223,13 @@ for argument in -std=c++11 \
                 -fno-plt; do
     try_cxx_argument $argument
 done
-for ld_argument in -fsanitize=address,undefined; do
-    try_ld_argument $ld_argument
-done
+if [ "$NO_SANITIZERS" = "auto" ]; then
+    for ld_argument in -fsanitize=address,undefined; do
+        try_ld_argument $ld_argument
+    done
+elif [ "$NO_SANITIZERS" = "0" ]; then
+    SANITIZEROPTS="-fsanitize=address,undefined"
+fi
 
 ## Create mconfig
 rm -f test*
