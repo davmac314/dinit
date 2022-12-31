@@ -141,6 +141,7 @@ jobs:
           echo "$(tput bold) ----Print g++ arch---- :$(tput sgr0) g++ -dumpmachine"
           g++ -dumpmachine
           echo "$(tput bold) ----Configure---- :$(tput sgr0) ./configure"
+          ./configure
           echo "$(tput bold) ----Build---- :$(tput sgr0) make"
           make
           echo "$(tput bold) ----Print dinit executive file architecture---- :$(tput sgr0) file ./src/dinit"
