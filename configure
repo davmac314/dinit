@@ -87,12 +87,12 @@ try_cxx_argument() {
     info Checking compiler supports $1...
     if [ "$PLATFORM" = "FreeBSD" ]; then
         if [ "$1" = "-flto" ]; then
-            sub_info No. because "$1" is not recommended on "$PLATFORM".
+            sub_info Skipped. because "$1" is not recommended on "$PLATFORM".
             return 0
         fi
     elif [ "$PLATFORM" = "Darwin" ]; then
         if [ "$1" = "-fno-rtti" ]; then
-            sub_info No. because "$1" is not recommended on "$PLATFORM".
+            sub_info Skipped. because "$1" is not recommended on "$PLATFORM".
             return 0
         fi
     fi
