@@ -42,7 +42,7 @@ findcxx() {
         compiler="$CXX"
     else
         for guess in g++ clang++ c++ ""; do
-            if test -z "$guess"; then
+            if test -z "$guess" > /dev/null 2>&1; then
                 break # None found
             fi
             type "$guess" > /dev/null
