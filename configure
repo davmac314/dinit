@@ -96,7 +96,7 @@ try_cxx_argument() {
             return 0
         fi
     fi
-    if $compiler $CXXOPTS $CUSTOM_CXXOPTS $1 test.cc -o test > /dev/null 2>&1 ; then
+    if $compiler -c $CXXOPTS $CUSTOM_CXXOPTS $1 test.cc -o test > /dev/null 2>&1 ; then
         sub_info Yes.
         CXXOPTS="$CXXOPTS $1"
     else
@@ -106,6 +106,16 @@ try_cxx_argument() {
         else
             sub_info No.
         fi
+    fi
+}
+
+try_ld_argument() {
+    info Checking Linker supports $1...
+    if $compiler $CXXOPTS $CUSTOM_CXXOPTS $1 test.cc -o test > /dev/null 2>&1 ; then
+        sub_info Yes.
+        SANITIZE_OPTS="$1"
+    else
+        sub_info No.
     fi
 }
 
@@ -194,7 +204,7 @@ for depend in make m4; do
     find_program $depend
 done
 
-## Test compiler supported argument
+## Test compiler/linker supported argument
 for argument in -std=c++11 \
                 -Wall \
                 -flto \
@@ -202,6 +212,9 @@ for argument in -std=c++11 \
                 -fno-rtti \
                 -fno-plt; do
     try_cxx_argument $argument
+done
+for ld_argument in -fsanitize=address,undefined; do
+    try_ld_argument $ld_argument
 done
 
 ## Create mconfig
