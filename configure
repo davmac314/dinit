@@ -35,6 +35,16 @@ sub_error() {
     exit 1
 }
 
+warning() {
+    echo
+    echo "Warning: $*"
+}
+
+sub_warning() {
+    echo "  ... $*"
+    echo
+}
+
 findcxx() {
     info Checking C++ Compiler...
     if test "$CXX" ; then
@@ -133,6 +143,10 @@ Defaults for the options are specified in brackets.
   --quiet                       Don't print normal messages, just errors.
   --clean                       Clear mconfig and configure's temp files.
 
+Target options:
+  --platform                    Set the platform manually (Just for cross-platform cross-compile!) [autodetected]
+                                  For all cross-compiles don't forget to set correct C++ compiler!
+
 Installation directories:
   --sbindir=SBINDIR             Dinit executables [/sbin]
   --mandir=MANDIR               Dinit man-pages location [/usr/share/man]
@@ -188,8 +202,9 @@ fi
 for arg in "$@"; do
     case "$arg" in
         --help) usage ;;
-        --quiet) info() { true; } && sub_info() { true; } ;;
+        --quiet) info() { true; } && sub_info() { true; } && warning() { true; } && sub_warning() { true; };;
         --clean) rm -f test* & rm -f mconfig && exit 0 ;;
+        --platform=*) PLATFORM="${arg#*=}" && shift ;;
         --sbindir=*) SBINDIR="${arg#*=}" && shift ;;
         --mandir=*) MANDIR="${arg#*=}" && shift ;;
         --syscontrolsocket=*) SYSCONTROLSOCKET="${arg#*=}" && shift ;;
@@ -203,7 +218,7 @@ for arg in "$@"; do
         --disable-cxx-flags) NO_CXXOPTS=true ;;
         --disable-ld-flags) NO_LDFLAGS=true ;;
         --cxx-check) findcxx && cxx_works && exit 0 ;;
-        -*) echo Warning: Unknown argument: "$arg" ;;
+        -*) warning Unknown argument: "$arg" ;;
         *) continue ;;
     esac
 done
@@ -211,6 +226,13 @@ done
 ## Find and test C++ compiler
 findcxx
 cxx_works
+
+## Verify PLATFORM value
+if [ "$PLATFORM" != "Linux" ] && [ "$PLATFORM" != "FreeBSD" ] && \
+[ "$PLATFORM" != "OpenBSD" ] && [ "$PLATFORM" != "Darwin" ]; then
+    warning "$PLATFORM" platform is unknown!
+    sub_warning Valid Platforms are: Linux, FreeBSD, OpenBSD, Darwin
+fi
 
 ## Find depends
 for depend in make m4; do
