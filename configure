@@ -200,14 +200,9 @@ fi
 for arg in "$@"; do
     case "$arg" in
         --help) usage ;;
-<<<<<<< HEAD
         --quiet) info() { true; } && sub_info() { true; } && warning() { true; } && sub_warning() { true; };;
         --clean) rm -f test* & rm -f mconfig && exit 0 ;;
         --platform=*) PLATFORM="${arg#*=}" && shift ;;
-=======
-        --quiet) info() { true; } && sub_info() { true; } ;;
-        --clean) rm -f testfile* & rm -f mconfig && exit 0 ;;
->>>>>>> 4fbfff6d353719d67b7f94eaf1c218bd3de2d239
         --sbindir=*) SBINDIR="${arg#*=}" && shift ;;
         --mandir=*) MANDIR="${arg#*=}" && shift ;;
         --syscontrolsocket=*) SYSCONTROLSOCKET="${arg#*=}" && shift ;;
