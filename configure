@@ -1,12 +1,8 @@
 #!/bin/sh
 ### Custom configure script of Dinit.
-# For compatability you don't need to use autotools.
-# Do you disagree? I show you!
-# Thanks Skarnet.org (Laurent Baracot ?) for s6's configure script. That's "my source of inspiration" to make this.
 
 ## Initial prepartion
 cd $(dirname "$0")
-. build/version.conf
 
 ## Helper funcations
 # I suggest do not comment this thing but if your system
@@ -45,6 +41,17 @@ sub_warning() {
     echo
 }
 
+create_testfile_cc() {
+    if [ "$1" = "testcxx" ]; then
+        echo "#ifndef __cplusplus" > testfile.c
+        echo "#error You can not use C compiler as C++ compiler!" >> testfile.c
+        echo "#endif" >> testfile.c
+        echo "int main(int argc, char **argv) { return 0; }" >> testfile.c
+    else
+        echo "int main(int argc, char **argv) { return 0; }" > testfile.cc
+    fi
+}
+
 findcxx() {
     info Checking C++ Compiler...
     if test "$CXX" ; then
@@ -70,9 +77,7 @@ findcxx() {
 
 cxx_works() {
     info Checking C++ compiler works...
-    echo "#include <iostream>" > testfile.cc
-    echo "int main(int argc, char **argv) { return 0; }" >> testfile.cc
-    $compiler -o testfile.o testfile.cc
+    $compiler -o testfile.o testfile.c
     if [ $? != 0 ]; then
         rm -f testfile*
         sub_error Seems like C++ compiler is not working!
@@ -80,6 +85,7 @@ cxx_works() {
         rm -f testfile
         sub_info Yes.
     fi
+    rm -f testfile.c
 }
 
 find_program() {
@@ -93,23 +99,13 @@ find_program() {
 }
 
 try_cxx_argument() {
-    info Checking compiler supports $1...
-    if [ "$PLATFORM" = "FreeBSD" ]; then
-        if [ "$1" = "-flto" ]; then
-            sub_info Skipped. because "$1" is not recommended on "$PLATFORM".
-            return 0
-        fi
-    elif [ "$PLATFORM" = "Darwin" ]; then
-        if [ "$1" = "-fno-rtti" ]; then
-            sub_info Skipped. because "$1" is not recommended on "$PLATFORM".
-            return 0
-        fi
-    fi
-    if $compiler -c $CXXOPTS $1 $CUSTOM_CXXOPTS testfile.cc -o testfile.o > /dev/null 2>&1 ; then
+    info Checking compiler supports $2...
+    if $compiler -c $CXXOPTS $2 $CUSTOM_CXXOPTS testfile.cc -o testfile.o > /dev/null 2>&1 ; then
         sub_info Yes.
-        CXXOPTS="$CXXOPTS $1"
+        eval "$1=\"\${$1} \$2\""
+        eval "$1=\${$1# }"
     else
-        if [ "$1" = "-std=c++11" ]; then
+        if [ "$2" = "-std=c++11" ]; then
             sub_error "Seems like C++ compiler don't support "$1" but It's required!"
         else
             sub_info No.
@@ -118,14 +114,11 @@ try_cxx_argument() {
 }
 
 try_ld_argument() {
-    info Checking Linker supports $1...
-    if $compiler $CXXOPTS $CUSTOM_CXXOPTS $1 testfile.cc -o testfile.o > /dev/null 2>&1 ; then
+    info Checking Linker supports $2...
+    if $compiler $CXXOPTS $CUSTOM_CXXOPTS $2 testfile.cc -o testfile.o > /dev/null 2>&1 ; then
         sub_info Yes.
-        if [ "$2" = "SANITIZEROPTS" ]; then
-            SANITIZEROPTS="$1"
-        else
-            LDFLAGS="$1"
-        fi
+        eval "$1=\"\${$1} \$2\""
+        eval "$1=\${$1# }"
     else
         sub_info No.
     fi
@@ -222,6 +215,8 @@ for arg in "$@"; do
 done
 
 ## Find and test C++ compiler
+# Create testfile.cc to test c++ compiler
+create_testfile_cc testcxx
 findcxx
 cxx_works
 
@@ -238,22 +233,27 @@ for depend in make m4; do
 done
 
 ## Test compiler/linker supported arguments
+create_testfile_cc
 if [ "$NO_CXXOPTS" != "true" ]; then
     for argument in -std=c++11 \
                     -Wall \
-                    -flto \
                     -Os \
-                    -fno-rtti \
                     -fno-plt
     do
-        try_cxx_argument $argument
+        try_cxx_argument CXXOPTS $argument
     done
+    if [ "$PLATFORM" != "FreeBSD" ]; then
+        try_cxx_argument CXXOPTS -flto
+    fi
+    if [ "$PLATFORM" != "Darwin" ]; then
+        try_cxx_argument CXXOPTS -fno-rtti
+    fi
 fi
 if [ "$PLATFORM" = "FreeBSD" ] && [ "$NO_LDFLAGS" = "false" ]; then
-    try_ld_argument -lrt
+    try_ld_argument LDFLAGS -lrt
 fi
 if [ "$NO_SANITIZERS" = "auto" ]; then
-    try_ld_argument -fsanitize=address,undefined SANITIZEROPTS
+    try_ld_argument SANITIZEROPTS -fsanitize=address,undefined
 elif [ "$NO_SANITIZERS" = "0" ]; then
     SANITIZEROPTS="-fsanitize=address,undefined"
 fi
