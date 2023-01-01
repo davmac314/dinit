@@ -28,4 +28,4 @@ clean:
 	$(MAKE) -C doc/manpages clean
 
 mconfig:
-	./configure
+	time ./configure

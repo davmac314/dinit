@@ -43,10 +43,12 @@ sub_warning() {
 
 create_testfile_cc() {
     if [ "$1" = "testcxx" ]; then
-        echo "#ifndef __cplusplus" > testfile.c
-        echo "#error You can not use C compiler as C++ compiler!" >> testfile.c
-        echo "#endif" >> testfile.c
-        echo "int main(int argc, char **argv) { return 0; }" >> testfile.c
+        cat << EOF > testfile.c
+        #ifndef __cplusplus
+        #error You can not use C compiler as C++ compiler!
+        #endif
+        int main(int argc, char **argv) { return 0; }
+EOF
     else
         echo "int main(int argc, char **argv) { return 0; }" > testfile.cc
     fi
