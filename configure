@@ -83,8 +83,7 @@ cxx_works() {
 
 find_program() {
     info Checking "$1" is executable...
-    "$1" --help > /dev/null 2>&1
-    if [ $? = 0 ]; then
+    if [ -x $(command -v "$1") ]; then
         sub_info Yes.
     else
         sub_error "$1" is not executable/exist!
@@ -92,7 +91,7 @@ find_program() {
 }
 
 try_cxx_argument() {
-    info Checking compiler supports $2...
+    info Checking whatever compiler accpets $2...
     if $compiler -c $CXXOPTS $2 $CUSTOM_CXXOPTS -nostdlib testfile.cc -o testfile.o > /dev/null 2>&1 ; then
         rm testfile.o
         sub_info Yes.
@@ -108,7 +107,7 @@ try_cxx_argument() {
 }
 
 try_ld_argument() {
-    info Checking Linker supports $2...
+    info Checking whatever linker accepts $2...
     if $compiler $CXXOPTS $CUSTOM_CXXOPTS $2 testfile.cc -o testfile.o  ; then
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
