@@ -83,7 +83,7 @@ cxx_works() {
 
 find_program() {
     info Checking "$1" is executable...
-    type "$1" > /dev/null 2>&1
+    "$1" --help > /dev/null 2>&1
     if [ $? = 0 ]; then
         sub_info Yes.
     else
@@ -208,11 +208,10 @@ for arg in "$@"; do
     esac
 done
 
+## Create testfile.cc to test c++ compiler
 create_testfile_cc
 
-## Find and test C++ compiler
-# Create testfile.cc to test c++ compiler
-create_testfile_cc
+## Find and test C++ compiler7
 findcxx
 cxx_works
 
@@ -224,7 +223,7 @@ if [ "$PLATFORM" != "Linux" ] && [ "$PLATFORM" != "FreeBSD" ] && \
 fi
 
 ## Find depends
-for depend in make m4; do
+for depend in gmake m4; do
     find_program $depend
 done
 
