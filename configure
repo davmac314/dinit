@@ -289,8 +289,10 @@ SUPPORT_CGROUPS=$SUPPORT_CGROUPS
 
 # Optional settings
 SHUTDOWN_PREFIX=$SHUTDOWN_PREFIX
-USE_UTMPX=$USE_UTMPX
 EOF
+if test $USE_UTMPX; then
+    echo "USE_UTMPX=$USE_UTMPX" >> mconfig
+fi
 sub_info done.
 info Creating build/includes/mconfig.h
 cat << EOF > build/includes/mconfig.h
