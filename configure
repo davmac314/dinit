@@ -66,7 +66,7 @@ cxx_works() {
 }
 
 find_program() {
-    if [ -x "$(command -v "$1")" ]; then
+    if [ -x $(command -v "$1") ]; then
         sub_info Yes.
     else
         sub_error "$1" is not executable/exist!
