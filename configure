@@ -105,7 +105,7 @@ try_cxx_argument() {
 
 try_ld_argument() {
     info Checking whatever linker accepts $2...
-    if $compiler $CXXOPTS $CUSTOM_CXXOPTS $2 testfile.cc -o testfile.o  ; then
+    if $compiler $CXXOPTS $CUSTOM_CXXOPTS $2 testfile.cc -o testfile.o > /dev/null 2>&1 ; then
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
         eval "$1=\${$1# }"
@@ -207,8 +207,8 @@ for arg in "$@"; do
         --disable-utmpx) USE_UTMPX=0 ;;
         --disable-cxx-flags) NO_CXXOPTS=true ;;
         --disable-ld-flags) NO_LDFLAGS=true ;;
-        *=*) eval "$arg" ;;
         -*) warning Unknown argument: "$arg" ;;
+        *=*) eval "$arg" ;;
         *) continue ;;
     esac
 done
