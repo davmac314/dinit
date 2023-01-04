@@ -155,7 +155,7 @@ Optional options:
 
 Environment variables can be used:
   CXX                           If you wanna use specific C++ compiler.
-  CUSTOM_CXXOPTS                If you wanna use some arguments in C++ compiler command line.
+  CXXFLAGS                      If you wanna use some arguments in C++ compiler command line.
                                   Note: You don't need to set required flags for Building Dinit!
                                   such as -std=c++11 (if you don't use --disable-cxx-flags of course)
   CUSTOM_LDFLAGS                If you wanna use some arguments in Linker command line.
@@ -280,7 +280,7 @@ if [ "$PLATFORM" != "Linux" ] && [ "$PLATFORM" != "FreeBSD" ] && \
 fi
 
 ## Find depends
-for depend in gmake m4; do
+for depend in gmake m4 install; do
     info Checking "$depend" is executable...
     find_program $depend
 done
@@ -330,7 +330,7 @@ SYSCONTROLSOCKET=$SYSCONTROLSOCKET
 
 CXX=$compiler
 CXXOPTS=$CXXOPTS
-CUSTOM_CXXOPTS=$CUSTOM_CXXOPTS
+CXXFLAGS=$CXXFLAGS
 LDFLAGS=$LDFLAGS
 CUSTOM_LDFLAGS=$CUSTOM_LDFLAGS
 BUILD_SHUTDOWN=$BUILD_SHUTDOWN
