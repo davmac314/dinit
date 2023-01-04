@@ -42,16 +42,6 @@ sub_warning() {
     echo
 }
 
-fnmatch() {
-    eval "case \"\$2\" in $1) return 0 ;; *) return 1 ;; esac"
-}
-
-stripdir() {
-    while eval "fnmatch '*/' \"\${$1}\"" ; do
-        eval "$1=\${$1%/}"
-    done
-}
-
 create_testfile_cc() {
     echo "int main(int argc, char **argv) { return 0; }" > testfile.cc
 }
@@ -211,14 +201,6 @@ for arg in "$@"; do
         *=*) eval "$arg" ;;
         *) continue ;;
     esac
-done
-
-## Strip sbindir and mandir and syscontrolsocket
-stripdir PREFIX
-for dir in SBINDIR MANDIR SYSCONTROLSOCKET; do
-    eval tmp=\${$dir}
-    eval $dir=$tmp
-    stripdir $dir
 done
 
 ## Create testfile.cc to test c++ compiler
