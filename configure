@@ -79,7 +79,7 @@ find_program() {
 
 try_cxx_argument() {
     info Checking whatever compiler accpets $2...
-    if $compiler -c $CXXOPTS $2 $CUSTOM_CXXOPTS testfile.cc -o testfile.o > /dev/null 2>&1 ; then
+    if $compiler -c $CPPFLAGS $CXXOPTS $2 $CUSTOM_CXXOPTS testfile.cc -o testfile.o > /dev/null 2>&1 ; then
         rm testfile.o
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
@@ -95,7 +95,7 @@ try_cxx_argument() {
 
 try_ld_argument() {
     info Checking whatever linker accepts $2...
-    if $compiler $CXXOPTS $CUSTOM_CXXOPTS $2 testfile.cc -o testfile.o > /dev/null 2>&1 ; then
+    if $compiler $CPPFLAGS $CXXOPTS $CUSTOM_CXXOPTS $2 testfile.cc -o testfile.o > /dev/null 2>&1 ; then
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
         eval "$1=\${$1# }"
@@ -137,18 +137,22 @@ Optional options:
   --disable-sanitizers          Disable -fsanitize in Unit tests
   --enable-utmpx                Enable manipulating the utmp/utmpx database via the related POSIX functions [auto]
   --disable-utmpx               Disable manipulating the utmp/utmpx database via the related POSIX functions
-  --disable-cxx-flags           (Not recommanded) Disable ALL CXXOPTS even -std=c++11
-                                  Don't forget set your flags via CXXOPTS= otherwise
+  --disable-cxxopts             (Not recommanded) Disable ALL CXXOPTS even -std=c++11
+                                  Don't forget set your flags via CXXOPTS & CXXFLAGS envs otherwise
                                   build may be failed!
-  --disable-ld-flags            (Not recommanded) Disable ALL LDFLAGS even "-lrt on FreeBSD"
-                                  You can use LDFLAGS= to set your ld flags.
+  --disable-ldflags             (Not recommanded) Disable ALL LDFLAGS even "-lrt on FreeBSD"
+                                  You can use LDFLAGS and CUSTOM_LDFLAGS envs to set your ld flags.
 
 Environment variables can be used:
   CXX                           If you wanna use specific C++ compiler.
+  CPPFLAGS                      If you wanna use some arguments in C++ compiler command line.
+                                  It's passed before $(CXXOPTS)
   CXXFLAGS                      If you wanna use some arguments in C++ compiler command line.
+                                  It's passed after $(CXXOPTS)
                                   Note: You don't need to set required flags for Building Dinit!
                                   such as -std=c++11 (if you don't use --disable-cxx-flags of course)
   CUSTOM_LDFLAGS                If you wanna use some arguments in Linker command line.
+                                  It's passed after $(LDFLAGS)
 
 See BUILD file for more information.
 EOF
@@ -195,10 +199,9 @@ for arg in "$@"; do
         --disable-sanitizers) NO_SANITIZERS=1 ;;
         --enable-utmpx) USE_UTMPX=1 ;;
         --disable-utmpx) USE_UTMPX=0 ;;
-        --disable-cxx-flags) NO_CXXOPTS=true ;;
-        --disable-ld-flags) NO_LDFLAGS=true ;;
+        --disable-cxxopts) NO_CXXOPTS=true ;;
+        --disable-ldflags) NO_LDFLAGS=true ;;
         -*) warning Unknown argument: "$arg" ;;
-        *=*) eval "$arg" ;;
         *) continue ;;
     esac
 done
@@ -311,6 +314,7 @@ SYSCONTROLSOCKET=$SYSCONTROLSOCKET
 # FreeBSD: Cannot use LTO with default linker.
 
 CXX=$compiler
+CPPFLAGS=$CPPFLAGS
 CXXOPTS=$CXXOPTS
 CXXFLAGS=$CXXFLAGS
 LDFLAGS=$LDFLAGS

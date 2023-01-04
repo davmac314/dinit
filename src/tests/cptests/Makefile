@@ -12,13 +12,13 @@ run-tests: cptests
 	./cptests
 
 cptests: cptests.o $(parent_objs) $(parent_test_objs)
-	$(CXX) -o cptests cptests.o $(parent_test_objects) $(parent_objs) $(CXXOPTS) $(CXXFLAGS) $(LDFLAGS) $(CUSTOM_LDFLAGS) $(SANITIZEOPTS)
+	$(CXX) -o cptests cptests.o $(parent_test_objects) $(parent_objs) $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) $(LDFLAGS) $(CUSTOM_LDFLAGS) $(SANITIZEOPTS)
 
 $(objects): %.o: %.cc
-	$(CXX) $(CXXOPTS) $(CXXFLAGS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../../dasynq/include -I../../../build/includes -c $< -o $@
+	$(CXX) $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../../dasynq/include -I../../../build/includes -c $< -o $@
 
 $(parent_objs): %.o: ../../%.cc
-	$(CXX) $(CXXOPTS) $(CXXFLAGS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../../dasynq/include -I../../../build/includes -c $< -o $@
+	$(CXX) $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../../dasynq/include -I../../../build/includes -c $< -o $@
 
 clean:
 	rm -f *.o *.d cptests
