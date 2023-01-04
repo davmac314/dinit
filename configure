@@ -42,6 +42,16 @@ sub_warning() {
     echo
 }
 
+fnmatch() {
+    eval "case \"\$2\" in $1) return 0 ;; *) return 1 ;; esac"
+}
+
+stripdir() {
+    while eval "fnmatch '*/' \"\${$1}\"" ; do
+        eval "$1=\${$1%/}"
+    done
+}
+
 create_testfile_cc() {
     echo "int main(int argc, char **argv) { return 0; }" > testfile.cc
 }
@@ -121,8 +131,10 @@ Target options:
                                   For all cross-compiles (even this) don't forget to set correct --target!
 
 Installation directories:
-  --sbindir=SBINDIR             Dinit executables [/sbin]
-  --mandir=MANDIR               Dinit man-pages location [/usr/share/man]
+  --prefix=PREFIX               Main installtion prefix [/usr]
+  --exec-prefix=EPREFIX         Main executables location [/]
+  --sbindir=SBINDIR             Dinit executables [EPREFIX/sbin]
+  --mandir=MANDIR               Dinit man-pages location [PREFIX/share/man]
   --syscontrolsocket=SOCKETPATH Dinitctl socket location [/run/dinitctl]
 
 Optional options:
@@ -155,10 +167,11 @@ EOF
 
 ## General Defines
 PLATFORM=$(uname)
-SBINDIR="/sbin"
-MANDIR="/usr/share/man/"
+PREFIX="/usr"
+EPREFIX="/"
+SBINDIR="$EPREFIX/sbin"
+MANDIR="$PREFIX/share/man/"
 SYSCONTROLSOCKET="/run/dinitctl"
-SANITIZEROPTS=""
 NO_SANITIZERS="auto"
 SHUTDOWN_PREFIX=""
 if [ "$PLATFORM" = "Linux" ]; then
@@ -176,8 +189,10 @@ for arg in "$@"; do
         --quiet) info() { true; } && sub_info() { true; } && warning() { true; } && sub_warning() { true; };;
         --clean) rm -f test* & rm -f mconfig && exit 0 ;;
         --platform=*) PLATFORM="${arg#*=}" && shift ;;
-        --sbindir=*) SBINDIR="${arg#*=}" && shift ;;
-        --mandir=*) MANDIR="${arg#*=}" && shift ;;
+        --prefix=*) PREFIX="${arg#*=}" && MANDIR="$PREFIX/share/man/" && shift ;;
+        --exec-prefix=*) EPREFIX="${arg#*=}" && SBINDIR="$EPREFIX/sbin" && shift;;
+        --sbindir=*) SBINDIR="$EPREFIX/${arg#*=}" && shift ;;
+        --mandir=*) MANDIR="$PREFIX${arg#*=}" && shift ;;
         --syscontrolsocket=*) SYSCONTROLSOCKET="${arg#*=}" && shift ;;
         --shutdown-prefix=*) SHUTDOWN_PREFIX="${arg#*=}" && shift ;;
         --build=*) BUILD="${arg#*=}" ;;
@@ -196,6 +211,14 @@ for arg in "$@"; do
         -*) warning Unknown argument: "$arg" ;;
         *) continue ;;
     esac
+done
+
+## Strip sbindir and mandir and syscontrolsocket
+stripdir PREFIX
+for dir in SBINDIR MANDIR SYSCONTROLSOCKET; do
+    eval tmp=\${$dir}
+    eval $dir=$tmp
+    stripdir $dir
 done
 
 ## Create testfile.cc to test c++ compiler
@@ -306,7 +329,6 @@ SYSCONTROLSOCKET=$SYSCONTROLSOCKET
 # FreeBSD: Cannot use LTO with default linker.
 
 CXX=$compiler
-HOSTCXX=$hostcompiler
 CXXOPTS=$CXXOPTS
 CUSTOM_CXXOPTS=$CUSTOM_CXXOPTS
 LDFLAGS=$LDFLAGS
@@ -329,6 +351,10 @@ SHUTDOWN_PREFIX=$SHUTDOWN_PREFIX
 EOF
 if test $USE_UTMPX; then
     echo "USE_UTMPX=$USE_UTMPX" >> mconfig
+fi
+if test $hostcompiler; then
+    echo "# For cross-compile" >> mconfig
+    echo "HOSTCXX=$hostcompiler" >> mconfig
 fi
 sub_info done.
 info Done!
