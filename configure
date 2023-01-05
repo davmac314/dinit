@@ -2,7 +2,7 @@
 ### Custom configure script of Dinit.
 
 ## Initial prepartion
-cd "$(dirname "$0")" || exit 1
+cd "$(dirname "$0")" || echo "Can't cd to $(dirname "$0")"
 . build/version.conf
 
 ## Helper funcations
@@ -40,6 +40,13 @@ warning() {
 sub_warning() {
     echo "  ... $*"
     echo
+}
+
+strip_dir() {
+    cd "$2" || error "Can't cd to $2"
+    eval "$1=\"\$PWD\""
+    eval "$1=\${$1# }"
+    cd "$BASE_DIR" || error "Can't cd to $BASE_DIR"
 }
 
 create_testfile_cc() {
@@ -160,6 +167,7 @@ EOF
 }
 
 ## General Defines
+BASE_DIR=$(pwd)
 PLATFORM=$(uname)
 PREFIX="/usr"
 EPREFIX="/"
@@ -202,9 +210,14 @@ for arg in "$@"; do
         --disable-cxxopts) NO_CXXOPTS=true ;;
         --disable-ldflags) NO_LDFLAGS=true ;;
         -*) warning Unknown argument: "$arg" ;;
+        *=*) eval "$arg" ;;
         *) continue ;;
     esac
 done
+
+## Fix & strip directories
+strip_dir SBINDIR "$SBINDIR"
+strip_dir MANDIR "$MANDIR"
 
 ## Create testfile.cc to test c++ compiler
 create_testfile_cc
