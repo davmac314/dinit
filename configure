@@ -153,13 +153,13 @@ Optional options:
 Environment variables can be used:
   CXX                           If you wanna use specific C++ compiler.
   CPPFLAGS                      If you wanna use some arguments in C++ compiler command line.
-                                  It's passed before $(CXXOPTS)
+                                  It's passed before CXXOPTS
   CXXFLAGS                      If you wanna use some arguments in C++ compiler command line.
-                                  It's passed after $(CXXOPTS)
+                                  It's passed after CXXOPTS
                                   Note: You don't need to set required flags for Building Dinit!
                                   such as -std=c++11 (if you don't use --disable-cxx-flags of course)
   CUSTOM_LDFLAGS                If you wanna use some arguments in Linker command line.
-                                  It's passed after $(LDFLAGS)
+                                  It's passed after LDFLAGS
 
 See BUILD file for more information.
 EOF
