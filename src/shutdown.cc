@@ -423,9 +423,8 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
 #endif
     
     // Write to console rather than any terminal, since we lose the terminal it seems:
-    close(STDOUT_FILENO);
     int consfd = open("/dev/console", O_WRONLY);
-    if (consfd != STDOUT_FILENO) {
+    if (consfd != STDOUT_FILENO && consfd != -1) {
         dup2(consfd, STDOUT_FILENO);
     }
     
