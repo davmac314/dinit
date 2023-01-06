@@ -49,7 +49,7 @@ as \fBreboot\fR.
 Instead of attempting to open a socket connection to the service daemon,
 use a pre-opened connection that has been passed to the process from its parent
 via an open file descriptor. The file descriptor with the connection is identified
-by the DINIT_CS_FD environment variable.
+by the contents of the DINIT_CS_FD environment variable.
 .TP
 \fB\-\-system\fR
 Shut down directly, instead of by issuing a command to the service manager. Use of
@@ -58,6 +58,31 @@ the service manager has stopped responding.
 
 The service manager may invoke \fBshutdown\fR with this option in order to perform
 system shutdown after it has rolled back services.
+.\"
+.SH SHUTDOWN HOOKS
+.\"
+To allow for special shutdown actions, if an executable file exists at any of the following
+locations, it will be executed before the system is shut down but after terminating all other
+processes:
+.\"
+.RS
+.IP \(bu
+/etc/dinit/shutdown-hook
+.IP \(bu
+/lib/dinit/shutdown-hook
+.RE
+.LP
+Only the first existing executable file from the above list will be executed. The first location
+is intended to allow customisation by the system administrator (and should usually be a script
+which on completion executes the 2nd shutdown hook, if present).
+The 2nd location is intended for distribution control. 
+.LP
+If found and successfully executed, the shutdown hook should perform any special shutdown actions
+that depend on all processes being terminated.
+If the shutdown hook cleanly unmounts (or remounts as read-only) all file systems including the
+root file system, it should exit with status 0 (success), which will prevent \fBshutdown\fR from
+attempting to unmount file systems itself.
+If it does not unmount file systems, the script should not exit with status 0. 
 .\"
 .SH SEE ALSO
 .\"
