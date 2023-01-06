@@ -8,8 +8,7 @@ cd "$(dirname "$0")" || echo "Can't cd to $(dirname "$0")" | exit 1
 ## Helper funcations
 # See http://www.etalabs.net/sh_tricks.html
 echo() {
-    IFS=" "
-    printf %s\\n "$*"
+    IFS=" " printf %s\\n "$*"
 }
 
 info() {
@@ -146,6 +145,7 @@ Environment variables can be used:
   All changes will be overwrited.
 
   CXX                           If you wanna use specific C++ compiler.
+  HOSTCXX                       If you wanna cross-compiling and need to use specific C++ compiler.
   PRE_CXXOPTS                   If you wanna use some arguments in C++ compiler command line.
                                   It's passed before CXXOPTS
   POST_CXXOPTS                  If you wanna use some arguments in C++ compiler command line.
@@ -210,6 +210,13 @@ for arg in "$@"; do
     esac
 done
 
+## Verify PLATFORM value
+if [ "$PLATFORM" != "Linux" ] && [ "$PLATFORM" != "FreeBSD" ] && \
+[ "$PLATFORM" != "OpenBSD" ] && [ "$PLATFORM" != "Darwin" ]; then
+    warning "$PLATFORM" platform is unknown!
+    sub_warning Valid Platforms are: Linux, FreeBSD, OpenBSD, Darwin
+fi
+
 ## Create testfile.cc to test c++ compiler
 create_testfile_cc
 
@@ -260,13 +267,6 @@ else
     fi
 fi
 cxx_works
-
-## Verify PLATFORM value
-if [ "$PLATFORM" != "Linux" ] && [ "$PLATFORM" != "FreeBSD" ] && \
-[ "$PLATFORM" != "OpenBSD" ] && [ "$PLATFORM" != "Darwin" ]; then
-    warning "$PLATFORM" platform is unknown!
-    sub_warning Valid Platforms are: Linux, FreeBSD, OpenBSD, Darwin
-fi
 
 ## Find depends
 if [ "$PLATFORM" = "Linux" ]; then
