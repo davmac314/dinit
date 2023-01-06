@@ -1,6 +1,8 @@
 #!/bin/sh
 ### Custom configure script of Dinit.
 
+set -eu
+
 ## Initial prepartion
 cd "$(dirname "$0")" || echo "Can't cd to $(dirname "$0")" | exit 1
 . build/version.conf
@@ -44,9 +46,8 @@ create_testfile_cc() {
 }
 
 findcxx() {
-    type "$1" > /dev/null 2>&1
-    if test $? = 0; then
-        if [ "$2" = "host" ]; then
+    if type "$1" > /dev/null 2>&1; then
+        if [ "${2:-}" = "host" ]; then
             hostcompiler="$1"
         else
             compiler="$1"
@@ -56,8 +57,7 @@ findcxx() {
 
 cxx_works() {
     info Checking "$1" works...
-    $compiler -o testfile.o testfile.cc
-    if [ $? != 0 ]; then
+    if ! $compiler -o testfile.o testfile.cc; then
         rm -f testfile*
         sub_error Seems like C++ compiler is not working!
     else
@@ -76,7 +76,7 @@ find_program() {
 
 try_cxx_argument() {
     info Checking whatever compiler accpets $2...
-    if $compiler -c $CPPFLAGS $CXXOPTS $2 $CUSTOM_CXXOPTS testfile.cc -o testfile.o > /dev/null 2>&1 ; then
+    if $compiler -c ${PRE_CXXOPTS:-} $CXXOPTS $2 ${POST_CXXOPTS:-} testfile.cc -o testfile.o > /dev/null 2>&1; then
         rm testfile.o
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
@@ -92,7 +92,7 @@ try_cxx_argument() {
 
 try_ld_argument() {
     info Checking whatever linker accepts $2...
-    if $compiler $CPPFLAGS $CXXOPTS $CUSTOM_CXXOPTS $2 testfile.cc -o testfile.o > /dev/null 2>&1 ; then
+    if $compiler ${PRE_CXXOPTS:-} $CXXOPTS ${POST_CXXOPTS:-} $2 testfile.cc -o testfile.o > /dev/null 2>&1 ; then
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
         eval "$1=\${$1# }"
@@ -164,6 +164,9 @@ EOF
 PLATFORM=$(uname)
 PREFIX="/usr"
 EPREFIX="/"
+CXXOPTS=""
+LDFLAGS=""
+SANITIZEOPTS=""
 SBINDIR="$EPREFIX/sbin"
 MANDIR="$PREFIX/share/man/"
 SYSCONTROLSOCKET="/run/dinitctl"
@@ -218,17 +221,9 @@ create_testfile_cc
 
 ## Find and test C++ compiler
 info Checking C++ Compiler...
-if test -n "$CXX" ; then
+if test "${CXX:-}" ; then
     sub_info "$CXX" is user/system prefered C++ compiler.
     compiler="$CXX"
-fi 
-if test -n "$HOSTCXX"; then
-    info Checking Host C++ Compiler...
-    sub_info "$HOSTCXX" is user/system prefered native C++ compiler.
-    hostcompiler="$HOSTCXX"
-    if test -z "$compiler" || test -z "$hostcompiler"; then
-       sub_error No C++ compiler found! # Not found
-    fi
 else
     for guess in g++ clang++ c++; do
         findcxx "$guess"
@@ -241,9 +236,17 @@ else
        sub_error No C++ compiler found! # Not found
     fi
 fi
+if test -n "${HOSTCXX:-}"; then
+    info Checking Host C++ Compiler...
+    sub_info "$HOSTCXX" is user/system prefered native C++ compiler.
+    hostcompiler="$HOSTCXX"
+    if test -z "$compiler" || test -z "$hostcompiler"; then
+       sub_error No C++ compiler found! # Not found
+    fi
+fi
 cxx_works "$compiler"
-if test -n "$hostcompiler"; then
-    cxx_works $hostcompiler
+if test -n "${hostcompiler:-}"; then
+    cxx_works "$hostcompiler"
 fi
 
 ## Find depends
@@ -256,7 +259,7 @@ else
 fi
 
 ## Test compiler/linker supported arguments
-if test -z $NO_CXXOPTS; then
+if test -z "${NO_CXXOPTS:-}"; then
     for argument in -std=c++11 \
                     -Wall \
                     -Os \
@@ -271,12 +274,12 @@ if test -z $NO_CXXOPTS; then
         try_cxx_argument CXXOPTS -fno-rtti
     fi
 fi
-if [ "$PLATFORM" = "FreeBSD" ] && test -z $NO_LDFLAGS; then
+if [ "$PLATFORM" = "FreeBSD" ] && test -z "${NO_LDFLAGS:-}"; then
     try_ld_argument LDFLAGS -lrt
 fi
-if [ "$NO_SANITIZE" = "auto" ]; then
+if [ "${NO_SANITIZE:-}" = "auto" ]; then
     try_ld_argument SANITIZEOPTS -fsanitize=address,undefined
-elif [ "$NO_SANITIZE" = "0" ]; then
+elif [ "${NO_SANITIZE:-}" = "0" ]; then
     SANITIZEOPTS="-fsanitize=address,undefined"
 fi
 
@@ -299,21 +302,21 @@ SYSCONTROLSOCKET=$SYSCONTROLSOCKET
 # FreeBSD: Cannot use LTO with default linker.
 
 CXX=$compiler
-CXXOPTS=$PRE_CXXOPTS $CXXOPTS $POST_CXXOPTS
-LDFLAGS=$PRE_LDFLAGS $LDFLAGS $POST_LDFLAGS
+CXXOPTS=${PRE_CXXOPTS:-} $CXXOPTS ${POST_CXXOPTS:-}
+LDFLAGS=${PRE_LDFLAGS:-} $LDFLAGS ${POST_LDFLAGS:-}
 BUILD_SHUTDOWN=$BUILD_SHUTDOWN
-SANITIZEOPTS=$SANITIZEOPTS
+SANITIZEOPTS=${SANITIZEOPTS:-}
 
 # Feature settings
 SUPPORT_CGROUPS=$SUPPORT_CGROUPS
 
 # Optional settings
-SHUTDOWN_PREFIX=$SHUTDOWN_PREFIX
+SHUTDOWN_PREFIX=${SHUTDOWN_PREFIX:-}
 EOF
-if test $USE_UTMPX; then
+if test "${USE_UTMPX:-}"; then
     echo "USE_UTMPX=$USE_UTMPX" >> mconfig
 fi
-if test $hostcompiler; then
+if test "${hostcompiler:-}"; then
     echo "# For cross-compile" >> mconfig
     echo "HOSTCXX=$hostcompiler" >> mconfig
 fi
