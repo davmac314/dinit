@@ -4,7 +4,7 @@
 set -eu
 
 ## Initial prepartion
-cd "$(dirname "$0")" || echo "Can't cd to $(dirname "$0")" | exit 1
+cd "$(dirname "$0")"
 . build/version.conf
 
 ## Helper funcations
@@ -227,7 +227,7 @@ if test "${CXX:-}" ; then
 else
     for guess in g++ clang++ c++; do
         findcxx "$guess"
-        if test -n "$compiler"; then
+        if test -n "${compiler:-}"; then
             sub_info "$compiler"
             break # Found
         fi
