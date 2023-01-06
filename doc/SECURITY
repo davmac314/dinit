@@ -1,0 +1,31 @@
+Security concerns
+-----------------
+
+Dinit is designed to allow control by one system user. In the case of a system instance, this is
+the root user. Of course, the unix model allows users to change identity and so regular users can
+control a system dinit instance using sudo or su, for example.
+
+Essential security is enforced by the system, not by Dinit itself. The socket used to control
+dinit is owned by a particular user (the user who starts dinit) and the permissions on this socket
+are set so that only the owning user can connect to the socket. According to the Linux unix(7)
+manual page, "older" BSDs do not honour socket permissions; on such systems, presumably the
+permissions on the containing directory at least are checked (so it is necessary to place the
+socket in a directory that is inaccessible to non-root users to ensure secure operation). This
+does not appear to be a concern for the various current *BSD systems that I have looked at.
+
+In general it should be assumed that a process that is able to open the control socket (or
+otherwise obtain an open connection to the socket) will be able to execute arbitrary code as root
+(or rather, as the user which dinit is running as). That said, errors or missing checks in the
+control protocol handling which could cause unspecified or undefined behaviour are considered a
+security concern (since they potentially allow minor flaws in clients to become arbitrary code
+execution within the dinit daemon). 
+
+Reporting security issues
+-------------------------
+
+Bearing the above in mind, any security issues in Dinit should be reported via email to:
+
+    davmac@davmac.org
+    
+I will endeavour to respond promptly, but please allow a reasonable time frame before wider
+disclosure.
