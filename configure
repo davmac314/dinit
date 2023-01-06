@@ -1,51 +1,58 @@
 #!/bin/sh
 ### Custom configure script of Dinit.
-
-set -eu
-
 ## Initial prepartion
+set -eu
 cd "$(dirname "$0")"
 . build/version.conf
 
 ## Helper funcations
 # See http://www.etalabs.net/sh_tricks.html
-echo() {
+echo()
+{
     IFS=" " printf %s\\n "$*"
 }
 
-info() {
+info()
+{
     echo "Info: $*"
 }
 
-sub_info() {
+sub_info()
+{
     echo "  ... $*"
 }
 
-error() {
+error()
+{
     echo "Error: $*"
     exit 1
 }
 
-sub_error() {
+sub_error()
+{
     echo "  ... Error: $*"
     exit 1
 }
 
-warning() {
+warning()
+{
     echo
     echo "Warning: $*"
 }
 
-sub_warning() {
+sub_warning()
+{
     echo "  ... $*"
     echo
 }
 
-create_testfile_cc() {
+create_testfile_cc()
+{
     echo "int main(int argc, char **argv) { return 0; }" > testfile.cc
 }
 
-findcxx() {
+findcxx()
+{
     if type "$1" > /dev/null 2>&1; then
         if [ "${2:-}" = "host" ]; then
             hostcompiler="$1"
@@ -55,7 +62,8 @@ findcxx() {
     fi
 }
 
-cxx_works() {
+cxx_works()
+{
     info Checking "$1" works...
     if ! $compiler -o testfile.o testfile.cc; then
         rm -f testfile*
@@ -66,7 +74,8 @@ cxx_works() {
     fi
 }
 
-find_program() {
+find_program()
+{
     if [ -x $(command -v "$1") ]; then
         sub_info Yes.
     else
@@ -74,7 +83,8 @@ find_program() {
     fi
 }
 
-try_cxx_argument() {
+try_cxx_argument()
+{
     info Checking whatever compiler accpets $2...
     if $compiler -c ${PRE_CXXOPTS:-} $CXXOPTS $2 ${POST_CXXOPTS:-} testfile.cc -o testfile.o > /dev/null 2>&1; then
         rm testfile.o
@@ -90,9 +100,10 @@ try_cxx_argument() {
     fi
 }
 
-try_ld_argument() {
+try_ld_argument()
+{
     info Checking whatever linker accepts $2...
-    if $compiler ${PRE_CXXOPTS:-} $CXXOPTS ${POST_CXXOPTS:-} $2 testfile.cc -o testfile.o > /dev/null 2>&1 ; then
+    if $compiler ${PRE_CXXOPTS:-} $CXXOPTS ${POST_CXXOPTS:-} $2 testfile.cc -o testfile.o > /dev/null 2>&1; then
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
         eval "$1=\${$1# }"
@@ -101,7 +112,8 @@ try_ld_argument() {
     fi
 }
 
-usage() {
+usage()
+{
     cat << EOF
 Usage: $0 [OPTION]...
 
@@ -184,7 +196,7 @@ fi
 for arg in "$@"; do
     case "$arg" in
         --help) usage ;;
-        --quiet) info() { true; } && sub_info() { true; } && warning() { true; } && sub_warning() { true; };;
+        --quiet) info() { true; } && sub_info() { true; } && warning() { true; } && sub_warning() { true; } ;;
         --clean) rm -f test* & rm -f mconfig && exit 0 ;;
         --platform=*) PLATFORM="${arg#*=}" && shift ;;
         --prefix=*) PREFIX="${arg#*=}" && MANDIR="$PREFIX/share/man/" && shift ;;
@@ -221,7 +233,7 @@ create_testfile_cc
 
 ## Find and test C++ compiler
 info Checking C++ Compiler...
-if test "${CXX:-}" ; then
+if test "${CXX:-}"; then
     sub_info "$CXX" is user/system prefered C++ compiler.
     compiler="$CXX"
 else
