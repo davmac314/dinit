@@ -1,4 +1,5 @@
 type=process
 depends-on=test1
+depends-on="unterminated
 not-valid=some value
 run-as=9notanumber
