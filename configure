@@ -55,7 +55,7 @@ findcxx() {
 }
 
 cxx_works() {
-    info Checking C++ compiler works...
+    info Checking "$1" works...
     $compiler -o testfile.o testfile.cc
     if [ $? != 0 ]; then
         rm -f testfile*
@@ -112,10 +112,8 @@ Defaults for the options are specified in brackets.
   --clean                       Clear mconfig and configure's temp files.
 
 Target options:
-  --target                      Set the target system (for cross-compiling) []
-  --host                        Same as --target
   --platform                    Set the platform manually (Just for cross-platform cross-compile!) [autodetected]
-                                  For all cross-compiles (even this) don't forget to set correct --target!
+                                  For all cross-compiles (even this) don't forget to set correct CXX and HOSTCXX
 
 Installation directories:
   --prefix=PREFIX               Main installtion prefix [/usr]
@@ -145,7 +143,7 @@ Environment variables can be used:
   All changes will be overwrited.
 
   CXX                           If you wanna use specific C++ compiler.
-  HOSTCXX                       If you wanna cross-compiling and need to use specific C++ compiler.
+  HOSTCXX                       If you wanna cross-compiling and set the a native C++ compiler.
   PRE_CXXOPTS                   If you wanna use some arguments in C++ compiler command line.
                                   It's passed before CXXOPTS
   POST_CXXOPTS                  If you wanna use some arguments in C++ compiler command line.
@@ -192,8 +190,6 @@ for arg in "$@"; do
         --mandir=*) MANDIR="$PREFIX${arg#*=}" && shift ;;
         --syscontrolsocket=*) SYSCONTROLSOCKET="${arg#*=}" && shift ;;
         --shutdown-prefix=*) SHUTDOWN_PREFIX="${arg#*=}" && shift ;;
-        --build=*) BUILD="${arg#*=}" ;;
-        --target=*|--host=*) TARGET="${arg#*=}" ;;
         --enable-shutdown) BUILD_SHUTDOWN=yes ;;
         --disable-shutdown) BUILD_SHUTDOWN=no ;;
         --enable-cgroups) SUPPORT_CGROUPS=1 ;;
@@ -225,32 +221,11 @@ info Checking C++ Compiler...
 if test -n "$CXX" ; then
     sub_info "$CXX" is user/system prefered C++ compiler.
     compiler="$CXX"
-elif test -n "$TARGET"; then
-    for guess in "$TARGET"-g++ "$TARGET"-clang++ "$TARGET"-c++; do
-        findcxx "$guess"
-        if test -n "$compiler"; then
-            sub_info "$compiler"
-            break # Found
-        fi
-    done
+fi 
+if test -n "$HOSTCXX"; then
     info Checking Host C++ Compiler...
-    if test -n "$BUILD"; then
-        for guess in "$BUILD"-g++ "$BUILD"-clang++ "$BUILD"-c++; do
-            findcxx "$guess" host
-            if test -n "$hostcompiler"; then
-                sub_info "$hostcompiler"
-                break # Found
-            fi
-        done
-    else
-        for guess in g++ clang++ c++; do
-        findcxx "$guess" host
-        if test -n "$hostcompiler"; then
-            sub_info "$hostcompiler"
-            break # Found
-        fi
-        done
-    fi
+    sub_info "$HOSTCXX" is user/system prefered native C++ compiler.
+    hostcompiler="$HOSTCXX"
     if test -z "$compiler" || test -z "$hostcompiler"; then
        sub_error No C++ compiler found! # Not found
     fi
@@ -266,7 +241,10 @@ else
        sub_error No C++ compiler found! # Not found
     fi
 fi
-cxx_works
+cxx_works "$compiler"
+if test -n "$hostcompiler"; then
+    cxx_works $hostcompiler
+fi
 
 ## Find depends
 if [ "$PLATFORM" = "Linux" ]; then
