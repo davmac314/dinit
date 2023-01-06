@@ -21,22 +21,22 @@ all: dinit dinitctl dinitcheck dinit-monitor $(SHUTDOWN)
 $(objects): ../build/includes/mconfig.h
 
 dinit: $(dinit_objects)
-	$(CXX) -o dinit $(dinit_objects) $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) $(LDFLAGS) $(CUSTOM_LDFLAGS)
+	$(CXX) -o dinit $(dinit_objects) $(CXXOPTS) $(LDFLAGS)
 
 dinitctl: dinitctl.o
-	$(CXX) -o dinitctl dinitctl.o $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) $(LDFLAGS) $(CUSTOM_LDFLAGS)
+	$(CXX) -o dinitctl dinitctl.o $(CXXOPTS) $(LDFLAGS)
 
 dinitcheck: dinitcheck.o options-processing.o
-	$(CXX) -o dinitcheck dinitcheck.o options-processing.o $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) $(LDFLAGS) $(CUSTOM_LDFLAGS)
+	$(CXX) -o dinitcheck dinitcheck.o options-processing.o $(CXXOPTS) $(LDFLAGS)
 
 dinit-monitor: dinit-monitor.o
-	$(CXX) -o dinit-monitor dinit-monitor.o $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) $(LDFLAGS) $(CUSTOM_LDFLAGS)
+	$(CXX) -o dinit-monitor dinit-monitor.o $(CXXOPTS) $(LDFLAGS)
 
 $(SHUTDOWN_PREFIX)shutdown: shutdown.o
-	$(CXX) -o $(SHUTDOWN_PREFIX)shutdown shutdown.o $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) $(LDFLAGS) $(CUSTOM_LDFLAGS)
+	$(CXX) -o $(SHUTDOWN_PREFIX)shutdown shutdown.o $(CXXOPTS) $(LDFLAGS)
 
 $(objects): %.o: %.cc
-	$(CXX) $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) -MMD -MP -Iincludes -I../dasynq/include -I../build/includes -c $< -o $@
+	$(CXX) $(CXXOPTS) -MMD -MP -Iincludes -I../dasynq/include -I../build/includes -c $< -o $@
 
 check: ../build/includes/mconfig.h $(dinit_objects)
 	$(MAKE) -C tests check

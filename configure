@@ -2,12 +2,10 @@
 ### Custom configure script of Dinit.
 
 ## Initial prepartion
-cd "$(dirname "$0")" || echo "Can't cd to $(dirname "$0")"
+cd "$(dirname "$0")" || echo "Can't cd to $(dirname "$0")" | exit 1
 . build/version.conf
 
 ## Helper funcations
-# I suggest do not comment this thing but if your system
-# is don't have `printf` you need to comment this thing.
 # See http://www.etalabs.net/sh_tricks.html
 echo() {
     IFS=" "
@@ -40,13 +38,6 @@ warning() {
 sub_warning() {
     echo "  ... $*"
     echo
-}
-
-strip_dir() {
-    cd "$2" || error "Can't cd to $2"
-    eval "$1=\"\$PWD\""
-    eval "$1=\${$1# }"
-    cd "$BASE_DIR" || error "Can't cd to $BASE_DIR"
 }
 
 create_testfile_cc() {
@@ -140,25 +131,30 @@ Optional options:
   --disable-shutdown            Don't build shutdown, poweroff, reboot, halt programs
   --enable-cgroups              Enable Cgroups support [Enabled only on Linux based systems]
   --disable-cgroups             Disable Cgroups support
-  --enable-sanitizers           Enable -fsanitize in Unit tests [Enabled on supported systems]
-  --disable-sanitizers          Disable -fsanitize in Unit tests
+  --enable-sanitize             Enable -fsanitize in Unit tests [Enabled on supported systems]
+  --disable-sanitize            Disable -fsanitize in Unit tests
   --enable-utmpx                Enable manipulating the utmp/utmpx database via the related POSIX functions [auto]
   --disable-utmpx               Disable manipulating the utmp/utmpx database via the related POSIX functions
   --disable-cxxopts             (Not recommanded) Disable ALL CXXOPTS even -std=c++11
-                                  Don't forget set your flags via CXXOPTS & CXXFLAGS envs otherwise
+                                  Don't forget set your flags via PRE_CXXOPTS & POST_CXXOPTS envs otherwise
                                   build may be failed!
   --disable-ldflags             (Not recommanded) Disable ALL LDFLAGS even "-lrt on FreeBSD"
-                                  You can use LDFLAGS and CUSTOM_LDFLAGS envs to set your ld flags.
+                                  You can use PRE_LDFLAGS and POST_LDFLAGS envs to set your ld flags.
 
 Environment variables can be used:
+  Note: CXXOPTS and LDFLAGS are Default compiler/linker flags. Don't use them. because
+  All changes will be overwrited.
+
   CXX                           If you wanna use specific C++ compiler.
-  CPPFLAGS                      If you wanna use some arguments in C++ compiler command line.
+  PRE_CXXOPTS                   If you wanna use some arguments in C++ compiler command line.
                                   It's passed before CXXOPTS
-  CXXFLAGS                      If you wanna use some arguments in C++ compiler command line.
+  POST_CXXOPTS                  If you wanna use some arguments in C++ compiler command line.
                                   It's passed after CXXOPTS
                                   Note: You don't need to set required flags for Building Dinit!
-                                  such as -std=c++11 (if you don't use --disable-cxx-flags of course)
-  CUSTOM_LDFLAGS                If you wanna use some arguments in Linker command line.
+                                  such as -std=c++11 (if you don't use --disable-cxxopts of course)
+  PRE_LDFLAGS                   If you wanna use some arguments in Linker command line.
+                                  It's passed before LDFLAGS
+  POST_LDFLAGS                  If you wanna use some arguments in Linker command line.
                                   It's passed after LDFLAGS
 
 See BUILD file for more information.
@@ -167,14 +163,13 @@ EOF
 }
 
 ## General Defines
-BASE_DIR=$(pwd)
 PLATFORM=$(uname)
 PREFIX="/usr"
 EPREFIX="/"
 SBINDIR="$EPREFIX/sbin"
 MANDIR="$PREFIX/share/man/"
 SYSCONTROLSOCKET="/run/dinitctl"
-NO_SANITIZERS="auto"
+NO_SANITIZE="auto"
 SHUTDOWN_PREFIX=""
 if [ "$PLATFORM" = "Linux" ]; then
     BUILD_SHUTDOWN=yes
@@ -203,8 +198,8 @@ for arg in "$@"; do
         --disable-shutdown) BUILD_SHUTDOWN=no ;;
         --enable-cgroups) SUPPORT_CGROUPS=1 ;;
         --disable-cgroups) SUPPORT_CGROUPS=0 ;;
-        --enable-sanitizers) NO_SANITIZERS=0 ;;
-        --disable-sanitizers) NO_SANITIZERS=1 ;;
+        --enable-sanitize) NO_SANITIZE=0 ;;
+        --disable-sanitize) NO_SANITIZE=1 ;;
         --enable-utmpx) USE_UTMPX=1 ;;
         --disable-utmpx) USE_UTMPX=0 ;;
         --disable-cxxopts) NO_CXXOPTS=true ;;
@@ -214,10 +209,6 @@ for arg in "$@"; do
         *) continue ;;
     esac
 done
-
-## Fix & strip directories
-strip_dir SBINDIR "$SBINDIR"
-strip_dir MANDIR "$MANDIR"
 
 ## Create testfile.cc to test c++ compiler
 create_testfile_cc
@@ -278,10 +269,13 @@ if [ "$PLATFORM" != "Linux" ] && [ "$PLATFORM" != "FreeBSD" ] && \
 fi
 
 ## Find depends
-for depend in gmake m4 install; do
-    info Checking "$depend" is executable...
-    find_program $depend
-done
+if [ "$PLATFORM" = "Linux" ]; then
+    info Checking make is executable...
+    find_program make
+else
+    info Checking gmake is executable...
+    find_program gmake
+fi
 
 ## Test compiler/linker supported arguments
 if test -z $NO_CXXOPTS; then
@@ -302,10 +296,10 @@ fi
 if [ "$PLATFORM" = "FreeBSD" ] && test -z $NO_LDFLAGS; then
     try_ld_argument LDFLAGS -lrt
 fi
-if [ "$NO_SANITIZERS" = "auto" ]; then
-    try_ld_argument SANITIZEROPTS -fsanitize=address,undefined
-elif [ "$NO_SANITIZERS" = "0" ]; then
-    SANITIZEROPTS="-fsanitize=address,undefined"
+if [ "$NO_SANITIZE" = "auto" ]; then
+    try_ld_argument SANITIZEOPTS -fsanitize=address,undefined
+elif [ "$NO_SANITIZE" = "0" ]; then
+    SANITIZEOPTS="-fsanitize=address,undefined"
 fi
 
 ## Create mconfig
@@ -327,20 +321,10 @@ SYSCONTROLSOCKET=$SYSCONTROLSOCKET
 # FreeBSD: Cannot use LTO with default linker.
 
 CXX=$compiler
-CPPFLAGS=$CPPFLAGS
-CXXOPTS=$CXXOPTS
-CXXFLAGS=$CXXFLAGS
-LDFLAGS=$LDFLAGS
-CUSTOM_LDFLAGS=$CUSTOM_LDFLAGS
+CXXOPTS=$PRE_CXXOPTS $CXXOPTS $POST_CXXOPTS
+LDFLAGS=$PRE_LDFLAGS $LDFLAGS $POST_LDFLAGS
 BUILD_SHUTDOWN=$BUILD_SHUTDOWN
-SANITIZEOPTS=$SANITIZEROPTS
-
-# Notes:
-#   -D_GLIBCXX_USE_CXX11_ABI=1 : force use of new ABI, see above / BUILD
-#   -fno-rtti (optional) : Dinit does not require C++ Run-time Type Information
-#   -fno-plt  (optional) : Recommended optimisation
-#   -flto     (optional) : Perform link-time optimisation
-#   -fsanitize=address,undefined :  Apply sanitizers (during unit tests)
+SANITIZEOPTS=$SANITIZEOPTS
 
 # Feature settings
 SUPPORT_CGROUPS=$SUPPORT_CGROUPS

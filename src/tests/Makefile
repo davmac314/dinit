@@ -16,22 +16,22 @@ run-tests: tests proctests loadtests envtests
 	$(MAKE) -C cptests run-tests
 
 tests: $(parent_objs) tests.o test-dinit.o test-bpsys.o test-run-child-proc.o
-	$(CXX) -o tests $(parent_objs) tests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) $(LDFLAGS) $(CUSTOM_LDFLAGS) $(SANITIZEOPTS)
+	$(CXX) -o tests $(parent_objs) tests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(CXXOPTS) $(LDFLAGS) $(SANITIZEOPTS)
 
 proctests: $(parent_objs) proctests.o test-dinit.o test-bpsys.o test-run-child-proc.o
-	$(CXX) -o proctests $(parent_objs) proctests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) $(LDFLAGS) $(CUSTOM_LDFLAGS) $(SANITIZEOPTS)
+	$(CXX) -o proctests $(parent_objs) proctests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(CXXOPTS) $(LDFLAGS) $(SANITIZEOPTS)
 	
 loadtests: $(parent_objs) loadtests.o test-dinit.o test-bpsys.o test-run-child-proc.o
-	$(CXX) -o loadtests $(parent_objs) loadtests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) $(LDFLAGS) $(CUSTOM_LDFLAGS) $(SANITIZEOPTS)
+	$(CXX) -o loadtests $(parent_objs) loadtests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(CXXOPTS) $(LDFLAGS) $(SANITIZEOPTS)
 
 envtests: $(parent_objs) envtests.o test-dinit.o test-bpsys.o test-run-child-proc.o
-	$(CXX) -o envtests $(parent_objs) envtests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) $(LDFLAGS) $(CUSTOM_LDFLAGS) $(SANITIZEOPTS)
+	$(CXX) -o envtests $(parent_objs) envtests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(CXXOPTS) $(LDFLAGS) $(SANITIZEOPTS)
 
 $(objects): %.o: %.cc
-	$(CXX) $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../dasynq/include -I../../build/includes -c $< -o $@
+	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../dasynq/include -I../../build/includes -c $< -o $@
 
 $(parent_objs): %.o: ../%.cc
-	$(CXX) $(CPPFLAGS) $(CXXOPTS) $(CXXFLAGS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../dasynq/include -I../../build/includes -c $< -o $@
+	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../dasynq/include -I../../build/includes -c $< -o $@
 
 clean:
 	$(MAKE) -C cptests clean
