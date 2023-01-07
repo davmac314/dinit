@@ -98,7 +98,6 @@ packages do not:
 
  * Daemontools (http://cr.yp.to/daemontools.html)
  * Epoch (http://universe2.us/epoch.html)
- * Finit (http://github.com/troglobit/finit)
  * Minit (http://www.fefe.de/minit)
  * Perp (http://b0llix.net/perp/)
  * Runit (http://smarden.org/runit/)
@@ -121,7 +120,9 @@ The basic problem of starting login sessions only after system initialisation ha
 partially) completed is naturally solved with a dependency-managing solution; you can have the tty
 sessions (getty) depend on some other service unit which, in turn, depends on the basic system
 initialisation services. In non-dependency-handling managers this must usually be special-cased
-(eg an "inittab" which is processed once all services have started).
+(eg an "inittab" which is processed once all services have started). Some inits (eg finit) use the
+"runlevels" concept from SysV init; they typically start services in run level 0 before any other
+services, which gives a kind of single-depth dependency tree.
 
 With all the above in mind, I feel that dependency management allows generally greater flexibility
 and control in how services are managed. While this might not always be useful, and comes at a
@@ -313,3 +314,16 @@ to define services without any programming knowledge.
 
 The documentation for GNU Shepherd is currently somewhat incomplete. It appears to offer full
 dependency management however.
+
+
+Finit (http://github.com/troglobit/finit)
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+The Finit "fast init" system is minimalistic, with most service configuration via a single line.
+However, it also has some advanced features with an obvious lean towards providing practical
+functionality and reducing external system dependencies. Finit supports "conditions" which
+effectively allow it to support (hard) dependencies. It also supports S6 and Systemd -compatible
+readiness notifications.
+
+Feature-wise, key differences compared to Dinit are probably lack of support for soft
+dependencies, and finer-grained control of individual services (dinit has a raft of service
+options which finit lacks). The finit configuration syntax is noticably terser than dinit's.
