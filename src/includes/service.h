@@ -414,8 +414,7 @@ class service_record
     // Virtual functions, to be implemented by service implementations:
 
     // Do any post-dependency startup; return false on failure. Should return true if service
-    // has started or is in the process of starting. Will only be called once can_proceed_to_start()
-    // returns true.
+    // has started or is in the process of starting.
     virtual bool bring_up() noexcept;
 
     // All dependents have stopped, and this service should proceed to stop.

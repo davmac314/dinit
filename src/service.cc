@@ -286,6 +286,12 @@ void service_record::execute_transition() noexcept
     else if (service_state == service_state_t::STOPPING) {
         if (stop_check_dependents()) {
             waiting_for_deps = false;
+            if (onstart_flags.kill_all_on_stop) {
+                log(loglevel_t::NOTICE, true, "Sending TERM/KILL to all processes...\n");
+                kill(-1, SIGTERM);
+                sleep(1);
+                kill(-1, SIGKILL);
+            }
             bring_down();
         }
     }

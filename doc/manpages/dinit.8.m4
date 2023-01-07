@@ -81,7 +81,7 @@ This option affects the default service definition directory and control socket 
 Run as the system manager (perform operations directly related to machine startup
 and shutdown).
 This is the default when running as process ID 1.
-The main user-visible effect of this option is to invoke the \fBshutdown\fR program when a shutdown is
+The main user-visible effect of this option is to invoke the \fB$$$SHUTDOWN_PREFIX@@@shutdown\fR program when a shutdown is
 requested (and after all services have stopped), and to provide some basic support
 for system recovery in case the \fBboot\fR service (or other specified service)
 cannot be started.
@@ -93,7 +93,7 @@ This is the opposite of \fB\-\-system\fR, and is the default if not invoked as t
 \fB\-o\fR, \fB\-\-container\fR
 Run in "container mode", i.e. do not perform system management functions (such
 as shutdown/reboot).
-The \fBdinit\fR daemon will simply exit rather than executing the \fBshutdown\fR program.
+The \fBdinit\fR daemon will simply exit rather than executing the \fB$$$SHUTDOWN_PREFIX@@@shutdown\fR program.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR
 Run with no output to the terminal/console.
@@ -246,7 +246,7 @@ and exit Dinit; SIGQUIT exits Dinit immediately.
 .\"
 .SH SEE ALSO
 .\"
-\fBdinitctl\fR(8), \fBdinit-service\fR(5), \fBdinitcheck\fR(8).
+\fBdinitctl\fR(8), \fBdinit-service\fR(5), \fBdinitcheck\fR(8), \fB$$$SHUTDOWN_PREFIX@@@shutdown(8)\fR.
 .\"
 .SH AUTHOR
 Dinit, and this manual, were written by Davin McCall.

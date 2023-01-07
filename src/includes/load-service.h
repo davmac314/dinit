@@ -27,19 +27,20 @@ struct service_flags_t
     bool log_ready : 1; // syslog should be available once this service starts
 
     // Other service options flags:
-    bool runs_on_console : 1;  // run "in the foreground"
+    bool runs_on_console : 1;   // run "in the foreground"
     bool starts_on_console : 1; // starts in the foreground
     bool shares_console : 1;    // run on console, but not exclusively
-    bool pass_cs_fd : 1;  // pass this service a control socket connection via fd
+    bool pass_cs_fd : 1;        // pass this service a control socket connection via fd
     bool start_interruptible : 1; // the startup of this service process is ok to interrupt with SIGINT
-    bool skippable : 1;   // if interrupted the service is skipped (scripted services)
+    bool skippable : 1;         // if interrupted the service is skipped (scripted services)
     bool signal_process_only : 1;  // signal the session process, not the whole group
-    bool always_chain : 1; // always start chain-to service on exit
+    bool always_chain : 1;      // always start chain-to service on exit
+    bool kill_all_on_stop : 1;  // kill all other processes before stopping this service
 
     service_flags_t() noexcept : rw_ready(false), log_ready(false),
             runs_on_console(false), starts_on_console(false), shares_console(false),
             pass_cs_fd(false), start_interruptible(false), skippable(false), signal_process_only(false),
-            always_chain(false)
+            always_chain(false), kill_all_on_stop(false)
     {
     }
 };
@@ -860,6 +861,11 @@ class service_settings_wrapper
             }
         }
 
+        if (onstart_flags.kill_all_on_stop && service_type != service_type_t::INTERNAL
+                && service_type != service_type_t::SCRIPTED) {
+            report_error("kill-all-on-stop can only be set on scripted or internal services.");
+        }
+
         // Resolve paths via variable substitution
         {
             auto do_resolve = [&](const char *setting_name, string &setting_value) {
@@ -1056,6 +1062,9 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
             }
             else if (option_txt == "always-chain") {
                 settings.onstart_flags.always_chain = true;
+            }
+            else if (option_txt == "kill-all-on-stop") {
+                settings.onstart_flags.kill_all_on_stop = true;
             }
             else {
                 throw service_description_exc(name, "Unknown option: " + option_txt, line_num);
