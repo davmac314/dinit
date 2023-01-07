@@ -512,10 +512,21 @@ sending it a signal for any reason.
 Alters behaviour of the \fBchain-to\fR property, forcing the chained service to
 always start on termination of this service (instead of only when this service
 terminates with an exit status indicating success).
+.TP
+\fBkill\-all\-on\-stop\fR
+Before stopping this service, send a TERM signal and then (after a short pause) a
+KILL signal to all other processes in the system, forcibly terminating them.
+This option is intended to allow system shutdown scripts to run without any possible
+interference from "leftover" or orphaned processes (for example, unmounting file systems usually
+requires that the file systems are no longer in use).
+.sp
+This option must be used with care since the signal broadcast does not discriminate and
+potentially kills other services (or their shutdown scripts); a strict dependency ordering
+is suggested, i.e. every other service should either be a (possibly transitive) dependency or
+dependent of the service with this option set.
+.sp
+This option can be used for scripted and internal services only.
 .RE
-.LP
-The next section contains example service descriptions including some of the
-parameters and options described above.
 .\"
 .SS RESOURCE LIMITS
 .\"
