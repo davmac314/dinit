@@ -84,8 +84,9 @@ The basic procedure for boot (to be implemented by services) is as follows:
 - mount early virtual filesystems
 - start device node manager
 - trigger device node manager (udevadm trigger --action=add) to add
-  boot-time device nodes (possibly not necessary if using kernel-mounted
-  devtmpfs)
+  boot-time device nodes (or run additional actions for nodes already created
+  if using kernel-mounted devtmpfs)
+- set the system time from the hardware realtime clock
 - run root filesystem check
 - remount root filesystem read-write
 - start syslog deamon
@@ -118,12 +119,16 @@ and mount. You'll probably want e2fsprogs (or the equivalent for your chosen
 filesystem): http://e2fsprogs.sourceforge.net/
 
 The syslog daemon from GNU Inetutils is basic, but functional - which makes
-it a good fit for a Dinit-based system. https://www.gnu.org/software/inetutils
+it a good fit for a Dinit-based system.  One alternative is sysklogd; the
+enhanced version by troglobit looks promising:
+
+- Inetutils: https://www.gnu.org/software/inetutils
+- Troglobit's sysklogd: https://github.com/troglobit/sysklogd
 
 You will need a shell script interpreter / command line, for which you have
 a range of options. A common choice is GNU Bash, but many distributions are
 using Dash as the /bin/sh shell because it is significantly faster (affecting
-boot time).
+boot time) although it is basically unusable as an interactive shell.
 
 - Bash: https://www.gnu.org/software/bash
 - Dash: http://gondor.apana.org.au/~herbert/dash
@@ -230,6 +235,10 @@ services can then start:
 - `dbusd` - starts the DBus daemon (system instance), which is used by other services to
   provide an interface to user processes
 - `dhcpcd` - starts a DHCP client daemon on a network interface (the example uses `enp3s0`).
+- 'netdev-enp3s0' - a triggered service representing the availablility of the `enp3s0` network
+  interface. See the service description file for details. Note that the 'udev-settle` service
+  somewhat makes this redundant, as would use of a suitable network manager; it is provided for
+  example purpsoses.
 - `sshd` - starts the SSH daemon.
 
 We want most of the preceding services to be started before we allow a user to login. To that
@@ -277,3 +286,9 @@ it will not be killed at shutdown (you will need to manually exit the shell to c
 This means you always have a shell available to check system state when something is going wrong.
 While this is not something you want to enable permanently, it can be a good tool to debug a
 reproducible boot issue or shutdown issue.
+
+
+## Caveats
+
+For services which specify a `logfile`, the location must be writable when the service starts
+(otherwise the service will fail to start).

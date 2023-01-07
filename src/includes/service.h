@@ -789,6 +789,31 @@ class service_record
     }
 };
 
+// Externally triggered service. This is essentially the same as an internal service, but does not start
+// until the external trigger is set.
+class triggered_service : public service_record {
+    private:
+    bool is_triggered = false;
+
+    public:
+    using service_record::service_record;
+
+    bool bring_up() noexcept override;
+
+    bool can_interrupt_start() noexcept override
+    {
+        return true;
+    }
+
+    void set_trigger(bool new_trigger) noexcept
+    {
+        is_triggered = new_trigger;
+        if (is_triggered && get_state() == service_state_t::STARTING && !waiting_for_deps) {
+            started();
+        }
+    }
+};
+
 inline auto extract_prop_queue(service_record *sr) -> decltype(sr->prop_queue_node) &
 {
     return sr->prop_queue_node;

@@ -155,6 +155,9 @@ class control_conn_t : private service_listener
     // Process a SETENV packet.
     bool process_setenv();
 
+    // Process a SETTRIGGER packet.
+    bool process_set_trigger();
+
     // List all loaded services and their state.
     bool list_services();
 
