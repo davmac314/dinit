@@ -118,12 +118,16 @@ and mount. You'll probably want e2fsprogs (or the equivalent for your chosen
 filesystem): http://e2fsprogs.sourceforge.net/
 
 The syslog daemon from GNU Inetutils is basic, but functional - which makes
-it a good fit for a Dinit-based system. https://www.gnu.org/software/inetutils
+it a good fit for a Dinit-based system.  One alternative is sysklogd; the
+enhanced version by troglobit looks promising:
+
+- Inetutils: https://www.gnu.org/software/inetutils
+- Troglobit's sysklogd: https://github.com/troglobit/sysklogd
 
 You will need a shell script interpreter / command line, for which you have
 a range of options. A common choice is GNU Bash, but many distributions are
 using Dash as the /bin/sh shell because it is significantly faster (affecting
-boot time).
+boot time) although it is basically unusable as an interactive shell.
 
 - Bash: https://www.gnu.org/software/bash
 - Dash: http://gondor.apana.org.au/~herbert/dash
@@ -277,3 +281,9 @@ it will not be killed at shutdown (you will need to manually exit the shell to c
 This means you always have a shell available to check system state when something is going wrong.
 While this is not something you want to enable permanently, it can be a good tool to debug a
 reproducible boot issue or shutdown issue.
+
+
+## Caveats
+
+For services which specify a `logfile`, the location must be writable when the service starts
+(otherwise the service will fail to start).
