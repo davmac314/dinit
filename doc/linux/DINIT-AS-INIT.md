@@ -84,8 +84,9 @@ The basic procedure for boot (to be implemented by services) is as follows:
 - mount early virtual filesystems
 - start device node manager
 - trigger device node manager (udevadm trigger --action=add) to add
-  boot-time device nodes (possibly not necessary if using kernel-mounted
-  devtmpfs)
+  boot-time device nodes (or run additional actions for nodes already created
+  if using kernel-mounted devtmpfs)
+- set the system time from the hardware realtime clock
 - run root filesystem check
 - remount root filesystem read-write
 - start syslog deamon
@@ -234,6 +235,10 @@ services can then start:
 - `dbusd` - starts the DBus daemon (system instance), which is used by other services to
   provide an interface to user processes
 - `dhcpcd` - starts a DHCP client daemon on a network interface (the example uses `enp3s0`).
+- 'netdev-enp3s0' - a triggered service representing the availablility of the `enp3s0` network
+  interface. See the service description file for details. Note that the 'udev-settle` service
+  somewhat makes this redundant, as would use of a suitable network manager; it is provided for
+  example purpsoses.
 - `sshd` - starts the SSH daemon.
 
 We want most of the preceding services to be started before we allow a user to login. To that
