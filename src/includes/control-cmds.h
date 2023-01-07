@@ -54,6 +54,9 @@ constexpr static int DINIT_CP_SETENV = 17;
 // Query status of an individual service
 constexpr static int DINIT_CP_SERVICESTATUS = 18;
 
+// Set trigger value for triggered services
+constexpr static int DINIT_CP_SETTRIGGER = 19;
+
 
 // Replies:
 

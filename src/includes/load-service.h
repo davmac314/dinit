@@ -813,40 +813,41 @@ class service_settings_wrapper
             }
         }
 
-        if (do_report_lint && service_type == service_type_t::INTERNAL) {
+        if (do_report_lint && (service_type == service_type_t::INTERNAL
+                || service_type == service_type_t::TRIGGERED)) {
             if (!command.empty()) {
-                report_lint("'command' specified, but 'type' is internal (or not specified).");
+                report_lint("'command' specified, but ignored for the specified (or default) service type.");
             }
             if (!stop_command.empty()) {
-                report_lint("'stop-command' specified, but 'type' is internal (or not specified).");
+                report_lint("'stop-command' specified, but ignored for the specified (or default) service type.");
             }
             if (!working_dir.empty()) {
-                report_lint("'working-dir' specified, but 'type' is internal (or not specified).");
+                report_lint("'working-dir' specified, but ignored for the specified (or default) service type.");
             }
             #if SUPPORT_CGROUPS
             if (!run_in_cgroup.empty()) {
-                report_lint("'run-in-cgroup' specified, but 'type' is internal (or not specified).");
+                report_lint("'run-in-cgroup' specified, but ignored for the specified (or default) service type.");
             }
             #endif
             if (run_as_uid != (uid_t)-1) {
-                report_lint("'run-as' specified, but 'type' is internal (or not specified).");
+                report_lint("'run-as' specified, but ignored for the specified (or default) service type.");
             }
             if (!socket_path.empty()) {
-                report_lint("'socket-listen' specified, but 'type' is internal (or not specified).");
+                report_lint("'socket-listen' specified, but ignored for the specified (or default) service type'.");
             }
             #if USE_UTMPX
             if (inittab_id[0] != 0 || inittab_line[0] != 0) {
-                report_lint("'inittab_line' or 'inittab_id' specified, but 'type' is internal (or not specified).");
+                report_lint("'inittab_line' or 'inittab_id' specified, but ignored for the specified (or default) service type.");
             }
             #endif
             if (onstart_flags.signal_process_only || onstart_flags.start_interruptible) {
-                report_lint("signal options were specified, but 'type' is internal (or not specified).");
+                report_lint("signal options were specified, but ignored for the specified (or default) service type.");
             }
             if (onstart_flags.pass_cs_fd) {
-                report_lint("option 'pass_cs_fd' was specified, but 'type' is internal (or not specified).");
+                report_lint("option 'pass_cs_fd' was specified, but ignored for the specified (or default) service type.");
             }
             if (onstart_flags.skippable) {
-                report_lint("option 'skippable' was specified, but 'type' is internal (or not specified).");
+                report_lint("option 'skippable' was specified, but ignored for the specified (or default) service type.");
             }
         }
 
@@ -1016,9 +1017,12 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         else if (type_str == "internal") {
             settings.service_type = service_type_t::INTERNAL;
         }
+        else if (type_str == "triggered") {
+            settings.service_type = service_type_t::TRIGGERED;
+        }
         else {
             throw service_description_exc(name, "service type must be one of: \"scripted\","
-                " \"process\", \"bgprocess\" or \"internal\"", line_num);
+                " \"process\", \"bgprocess\", \"internal\" or \"triggered\"", line_num);
         }
     }
     else if (setting == "options") {

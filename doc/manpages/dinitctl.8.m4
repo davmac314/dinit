@@ -54,6 +54,12 @@ dinitctl \- control services supervised by Dinit
 [\fIoptions\fR] \fBdisable\fR [\fB\-\-from\fR \fIfrom-service\fR] \fIto-service\fR
 .HP
 .B dinitctl
+[\fIoptions\fR] \fBtrigger\fR \fIservice-name\fR
+.HP
+.B dinitctl
+[\fIoptions\fR] \fBuntrigger\fR \fIservice-name\fR
+.HP
+.B dinitctl
 [\fIoptions\fR] \fBsetenv\fR [\fIname\fR[=\fIvalue\fR] \fI...\fR]
 .\"
 .PD
@@ -248,6 +254,15 @@ This is the complement of the \fBenable\fR command; see the description above fo
 Note that the \fBdisable\fR command affects only the dependency specified (or implied).
 It has no other effect, and a service that is "disabled" may still be started if it is a dependency of
 another started service.
+.TP
+\fBtrigger\fR
+Mark the specified service (which must be a \fItriggered\fR service) as having its external trigger set.
+This will allow the service to finish starting. 
+.TP
+\fBuntrigger\fR
+Clear the trigger for the specified service (which must be a \fItriggered\fR service).
+This will delay the service from starting, until the trigger is set. If the service has already started,
+this will have no immediate effect.
 .TP
 \fBsetenv\fR
 Export one or more variables into the activation environment.

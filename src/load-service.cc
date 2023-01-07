@@ -409,6 +409,10 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 // Already started; we must replace settings on existing service record
                 create_new_record = false;
             }
+            else if (service_type != service->get_type()) {
+                // No need to create a new record if the type hasn't changed
+                create_new_record = false;
+            }
         }
 
         // Note, we need to be very careful to handle exceptions properly and roll back any changes that
@@ -540,7 +544,13 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         }
         else {
             if (create_new_record) {
-                rval = new service_record(this, string(name), service_type, settings.depends);
+                if (service_type == service_type_t::INTERNAL) {
+                    rval = new service_record(this, string(name), service_type, settings.depends);
+                }
+                else {
+                    /* TRIGGERED */
+                    rval = new triggered_service(this, string(name), service_type, settings.depends);
+                }
                 if (reload_svc != nullptr) {
                     check_cycle(settings.depends, reload_svc);
                 }

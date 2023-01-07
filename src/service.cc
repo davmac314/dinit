@@ -392,7 +392,7 @@ bool service_record::check_deps_started() noexcept
 
 void service_record::all_deps_started() noexcept
 {
-    if (onstart_flags.starts_on_console && ! have_console) {
+    if (onstart_flags.starts_on_console && !have_console) {
         queue_for_console();
         return;
     }
@@ -426,7 +426,7 @@ void service_record::acquired_console() noexcept
 void service_record::started() noexcept
 {
     // If we start on console but don't keep it, release it now:
-    if (have_console && ! onstart_flags.runs_on_console) {
+    if (have_console && !onstart_flags.runs_on_console) {
         bp_sys::tcsetpgrp(0, bp_sys::getpgrp());
         release_console();
     }
@@ -835,4 +835,12 @@ void service_set::service_active(service_record *sr) noexcept
 void service_set::service_inactive(service_record *sr) noexcept
 {
     active_services--;
+}
+
+bool triggered_service::bring_up() noexcept
+{
+    if (is_triggered) {
+        started();
+    }
+    return true;
 }
