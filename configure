@@ -86,7 +86,7 @@ find_program()
 try_cxx_argument()
 {
     info Checking whatever compiler accpets $2...
-    if $compiler -c ${PRE_CXXOPTS:-} $CXXOPTS $2 ${POST_CXXOPTS:-} testfile.cc -o testfile.o > /dev/null 2>&1; then
+    if $compiler -c $CXXOPTS $2 ${POST_CXXOPTS:-} testfile.cc -o testfile.o > /dev/null 2>&1; then
         rm testfile.o
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
@@ -103,7 +103,7 @@ try_cxx_argument()
 try_ld_argument()
 {
     info Checking whatever linker accepts $2...
-    if $compiler ${PRE_CXXOPTS:-} $CXXOPTS ${POST_CXXOPTS:-} $2 testfile.cc -o testfile.o > /dev/null 2>&1; then
+    if $compiler $CXXOPTS ${POST_CXXOPTS:-} $LDFLAGS ${POST_LDFLAGS:-} $2 testfile.cc -o testfile.o > /dev/null 2>&1; then
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
         eval "$1=\${$1# }"
@@ -156,14 +156,10 @@ Environment variables can be used:
 
   CXX                           If you wanna use specific C++ compiler.
   HOSTCXX                       If you wanna cross-compiling and set the a native C++ compiler.
-  PRE_CXXOPTS                   If you wanna use some arguments in C++ compiler command line.
-                                  It's passed before CXXOPTS
   POST_CXXOPTS                  If you wanna use some arguments in C++ compiler command line.
                                   It's passed after CXXOPTS
                                   Note: You don't need to set required flags for Building Dinit!
                                   such as -std=c++11 (if you don't use --disable-cxxopts of course)
-  PRE_LDFLAGS                   If you wanna use some arguments in Linker command line.
-                                  It's passed before LDFLAGS
   POST_LDFLAGS                  If you wanna use some arguments in Linker command line.
                                   It's passed after LDFLAGS
 
@@ -314,8 +310,8 @@ SYSCONTROLSOCKET=$SYSCONTROLSOCKET
 # FreeBSD: Cannot use LTO with default linker.
 
 CXX=$compiler
-CXXOPTS=${PRE_CXXOPTS:-} $CXXOPTS ${POST_CXXOPTS:-}
-LDFLAGS=${PRE_LDFLAGS:-} $LDFLAGS ${POST_LDFLAGS:-}
+CXXOPTS=$CXXOPTS ${POST_CXXOPTS:-}
+LDFLAGS=$LDFLAGS ${POST_LDFLAGS:-}
 BUILD_SHUTDOWN=$BUILD_SHUTDOWN
 SANITIZEOPTS=${SANITIZEOPTS:-}
 
