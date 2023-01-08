@@ -310,29 +310,16 @@ int main(int argc, char **argv)
 
     signal(SIGPIPE, SIG_IGN);
     
-    int socknum = 0;
+    int socknum = -1;
     
     if (use_passed_cfd) {
-        char * dinit_cs_fd_env = getenv("DINIT_CS_FD");
-        if (dinit_cs_fd_env != nullptr) {
-            char * endptr;
-            long int cfdnum = strtol(dinit_cs_fd_env, &endptr, 10);
-            if (endptr != dinit_cs_fd_env) {
-                socknum = (int) cfdnum;
-                // Set non-blocking mode:
-                int sock_flags = fcntl(socknum, F_GETFL, 0);
-                fcntl(socknum, F_SETFL, sock_flags & ~O_NONBLOCK);
-            }
-            else {
-                use_passed_cfd = false;
-            }
-        }
-        else {
+        socknum = get_passed_cfd();
+        if (socknum == -1) {
             use_passed_cfd = false;
         }
     }
     
-    if (! use_passed_cfd) {
+    if (!use_passed_cfd) {
         socknum = socket(AF_UNIX, SOCK_STREAM, 0);
         if (socknum == -1) {
             perror("socket");

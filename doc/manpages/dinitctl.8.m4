@@ -95,6 +95,13 @@ Specify the path to the socket used for communicating with the service manager d
 When not specified, the value from the \fBDINIT_SOCKET_PATH\fR environment variable is used, with
 the default path (as documented for \fBdinit\fR(8)) used if the variable is unset.
 .TP
+\fB\-\-use\-passed\-cfd\fR
+Instead of attempting to open a socket connection to the service daemon,
+use a pre-opened connection that has been passed to the dinitctl process from its parent
+via an open file descriptor.
+The file descriptor with the connection is identified by the contents of the DINIT_CS_FD
+environment variable.
+.TP
 \fB\-\-quiet\fR
 Suppress status output, except for errors. 
 .\"

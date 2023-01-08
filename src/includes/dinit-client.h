@@ -337,3 +337,28 @@ inline int connect_to_daemon(const char *control_socket_path)
 
     return socknum;
 }
+
+// Get the file descriptor for the control socket connection as passed to use from parent process
+// (returns -1 if unsuccessful)
+inline int get_passed_cfd()
+{
+    int socknum = -1;
+    char * dinit_cs_fd_env = getenv("DINIT_CS_FD");
+    if (dinit_cs_fd_env != nullptr) {
+        char * endptr;
+        long int cfdnum = strtol(dinit_cs_fd_env, &endptr, 10);
+        if (endptr != dinit_cs_fd_env) {
+            socknum = (int) cfdnum;
+            // Set blocking mode (and validate file descriptor):
+            errno = 0;
+            int sock_flags = fcntl(socknum, F_GETFL, 0);
+            if (sock_flags == -1 && errno != 0) {
+                socknum = 0;
+            }
+            else {
+                fcntl(socknum, F_SETFL, sock_flags & ~O_NONBLOCK);
+            }
+        }
+    }
+    return socknum;
+}
