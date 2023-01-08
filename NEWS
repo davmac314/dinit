@@ -2,12 +2,21 @@
 
 Thank you to several new sponsors, as well as existing sponsors, for supporting this release.
 Current sponsors include github users: brentfrow, brazeon, and q66 (Daniel Kolesa, author of
-Chimera Linux).
-Development of Dinit has also received financial support from Artix Linux.
-I am grateful for the support, both financial and otherwise, that I have received to work on Dinit.
+Chimera Linux). Development of Dinit has also received financial support from Artix Linux.
+I am grateful for all the support, both financial and otherwise, that has been received.
 
 Changes:
- * ...
+ * ... TBC
+ * New "triggered" service type, similar to "internal" except that it requires an external
+   trigger before it will start (start of a triggered service is delayed until the external
+   trigger is received).
+ * New "kill-all-on-stop" service option will cause dinit to kill all (other) processes just
+   before stopping the service. This can be used to ensure a cleaner system state and that
+   filesystems can be unmounted (for example). Use with care; see dinit-service(5) for details.
+ * "shutdown" now runs (if present) user-provided shutdown hooks; see shutdown(8) for details.
+ * "dinitctl" now supports the "--use-passed-cfd" argument (as for shutdown).
+ * Meson build system added (as an alternative to the existing makefile-based build) by Mobin
+   Aydinfar.
 
 == Version 0.16.1
 
