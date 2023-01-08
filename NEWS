@@ -1,3 +1,20 @@
+== Version 0.16.1
+
+(Bugfix release for 0.16.0)
+
+This release contains bug fixes for the previous release.
+
+Changes:
+ * Fix issue where dependencies could stop before there dependents had stopped.
+ * Fix for dinitctl crashing due to an exception when a service description contained
+   certain syntactical errors.
+ * Fix nonsensical (but harmless) error message when loading services (when the service
+   description is found in a directory that is not the first directory searched)
+   (Daniel Kolesa).
+ * Fix issue with example rootfscheck.sh script (Mobin Aydinfar).
+ * Minor build system improvements (Daniel Kolesa).
+ * Minor documentation updates.
+
 == Version 0.16.0
 
 (Alpha release #8)
