@@ -110,6 +110,7 @@ int dinitctl_main(int argc, char **argv)
     bool do_pin = false;
     bool do_force = false;
     bool ignore_unstarted = false;
+    bool use_passed_cfd = false;
     
     command_t command = command_t::NONE;
 
@@ -150,6 +151,9 @@ int dinitctl_main(int argc, char **argv)
                     return 1;
                 }
                 control_socket_str = argv[i];
+            }
+            else if (strcmp(argv[i], "--use-passed-cfd") == 0) {
+                use_passed_cfd = true;
             }
             else if ((command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE)
                     && strcmp(argv[i], "--from") == 0) {
@@ -344,6 +348,8 @@ int dinitctl_main(int argc, char **argv)
           "  --quiet          : suppress output (except errors)\n"
           "  --socket-path <path>, -p <path>\n"
           "                   : specify socket for communication with daemon\n"
+          "  --use-passed-cfd : use the socket file descriptor identified by the DINIT_CS_FD\n"
+          "                     environment variable to communicate with the dinit daemon.\n"
           "\n"
           "Command options:\n"
           "  --no-wait        : don't wait for service startup/shutdown to complete\n"
@@ -356,21 +362,34 @@ int dinitctl_main(int argc, char **argv)
 
     signal(SIGPIPE, SIG_IGN);
     
-    // Locate control socket
-    if (! control_socket_str.empty()) {
-        control_socket_path = control_socket_str.c_str();
+    int socknum = -1;
+
+    if (use_passed_cfd) {
+        socknum = get_passed_cfd();
+        if (socknum == -1) {
+            use_passed_cfd = false;
+        }
     }
-    else {
-        control_socket_path = get_default_socket_path(control_socket_str, user_dinit);
-        if (control_socket_path == nullptr) {
-            cerr << "dinitctl: cannot locate user home directory (set XDG_RUNTIME_DIR, HOME, check /etc/passwd file, or "
-                    "specify socket path via -p)" << endl;
-            return 1;
+
+    if (!use_passed_cfd) {
+        // Locate control socket
+        if (!control_socket_str.empty()) {
+            control_socket_path = control_socket_str.c_str();
+        }
+        else {
+            control_socket_path = get_default_socket_path(control_socket_str, user_dinit);
+            if (control_socket_path == nullptr) {
+                cerr << "dinitctl: cannot locate user home directory (set XDG_RUNTIME_DIR, HOME, check /etc/passwd file, or "
+                        "specify socket path via -p)" << endl;
+                return 1;
+            }
         }
     }
     
     try {
-        int socknum = connect_to_daemon(control_socket_path);
+        if (!use_passed_cfd) {
+            socknum = connect_to_daemon(control_socket_path);
+        }
 
         // Start by querying protocol version:
         cpbuffer_t rbuffer;
