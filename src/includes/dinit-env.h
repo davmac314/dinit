@@ -95,6 +95,14 @@ public:
 
         // map of variable name (via string_view) to its index in env_list
         std::unordered_map<string_view, unsigned, hash_sv> var_map;
+
+        const char *lookup(string_view sv) const {
+            auto it = var_map.find(sv);
+            if (it != var_map.end()) {
+                return env_list[it->second] + sv.size() + 1;
+            }
+            return nullptr;
+        }
     };
 
     // return environment variable in form NAME=VALUE. Assumes that the real environment is the parent.

@@ -160,14 +160,9 @@ group of the specified user.
 \fBenv\-file\fR = \fIfile\fR
 Specifies a file containing value assignments for environment variables, in the same
 format recognised by the \fBdinit\fR command's \fB\-\-env\-file\fR option (see \fBdinit\fR(5)).
-The file is read (or re-read) whenever the service is started; the values read do not
-affect for the processing performed for the \fBsub\-vars\fR load option, which is done
-when the service description is loaded.
-The precise behaviour of this setting may change in the future.
-It is recommended to avoid depending on the specified file contents being reloaded
-whenever the service process starts.
+The file is read when the service is loaded, therefore values from it can be used in substitutions.
 .sp
-The path specified is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
+That means this path is static and cannot itself have variable substitutions (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBrestart\fR = {yes | true | no | false}
 Indicates whether the service should automatically restart if it stops, including due to
@@ -354,18 +349,11 @@ This directive can be specified multiple times to set additional options.
 .TP
 \fBload\-options\fR = \fIload_option\fR...
 Specifies options for interpreting other settings when loading this service description.
-Currently there is only one available option, \fBsub\-vars\fR, which specifies that command-line arguments
-(or parts thereof) in the form of \fB$NAME\fR should be replaced with the contents of the
-environment variable with the specified name.
-See \fBVARIABLE SUBSTITUTION\fR for details.
-Note command-line variable substitution occurs after splitting the line into separate arguments and so
-a single environment variable cannot be used to add multiple arguments to a command line.
-If a designated variable is not defined, it is replaced with an empty (zero-length) string, possibly producing a
-zero-length argument.
-Environment variable variables are taken from the environment of the \fBdinit\fR process, and values
-specified via \fBenv\-file\fR or \fBready\-notification\fR are not available.
-This functionality is likely to be re-worked or removed in the future; use of this option should
-be avoided if possible.
+Currently there is only one available option, \fBexport-passwd-vars\fR, which specifies that
+the environment variables `\fBUSER\fR', `\fBLOGNAME\fR' (same as `\fBUSER\fR'),
+`\fBHOME\fR', `\fBSHELL\fR', `\fBUID\fR', and `\fBGID\fR' should be exported into the
+service's load environment (that is, overriding any global environment including the
+global environment file, but being overridable by the service's environment file).
 .TP
 \fBinittab\-id\fR = \fIid-string\fR
 When this service is started, if this setting (or the \fBinittab\-line\fR setting) has a
@@ -574,12 +562,26 @@ For these properties, the specified value may contain one or more environment
 variable names, each preceded by a single `\fB$\fR' character, as in `\fB$NAME\fR'.
 In each case the value of the named environment variable will be substituted.
 The name must begin with a non-punctuation, non-space, non-digit character, and ends
-before the first control character, space, or punctuation character other than `\fB.\fR',
-`\fB\-\fR' or `\fB_\fR'.
+before the first control character, space, or punctuation character other than `\fB_\fR'.
 To avoid substitution, a single `\fB$\fR' can be escaped with a second, as in `\fB$$\fR'.
 .sp
-Variables for substitution come from the \fBdinit\fR environment at the time the service is loaded.
-In particular, variables set via \fBenv\-file\fR are not visible to the substitution function.
+Note command-line variable substitution occurs after splitting the line into separate arguments and so
+a single environment variable cannot be used to add multiple arguments to a command line.
+If a designated variable is not defined, it is replaced with an empty (zero-length) string, possibly producing a
+zero-length argument.
+.sp
+Variable substitution also supports a limited subset of shell syntax. You can use curly
+braces to enclose the variable, as in `\fB${NAME}\fR'. Limited parameter expansion is
+also supported, specifically the forms `\fB${NAME:\-word}\fR' (substitute `\fBword\fR'
+if variable is unset or empty), `\fB${NAME\-word}\fR' (substitute `\fBword\fR' if
+variable is unset), `\fB${NAME:+word}\fR' (substitute `\fBword\fR' if variable is
+set and non\-empty), and `\fB${NAME+word}\fR' (substitute `\fBword\fR' if variable
+is set).
+.sp
+The priority of environment variables, from highest to lowest, is the service \fBenv\-file\fR,
+followed by variables set by the \fBset\-passwd\-vars\fR load option, followed by the global
+environment file of \fBdinit\fR, followed by the process environment of \fBdinit\fR. This
+applies to both the substitutions as well as the process environment of the service.
 .\"
 .SH EXAMPLES
 .LP

@@ -345,6 +345,9 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     service_settings_wrapper<prelim_dep> settings;
 
+    environment menv{};
+    environment renv{};
+
     string line;
     service_file.exceptions(ios::badbit);
 
@@ -386,16 +389,18 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     bool issued_var_subst_warning = false;
 
-    auto resolve_var = [&](const string &name) {
+    environment::env_map renvmap = renv.build(menv);
+
+    auto resolve_var = [&](const string &name, environment::env_map const &envmap) {
         if (!issued_var_subst_warning) {
             report_service_description_err(name, "warning: variable substitution performed by dinitcheck "
                     "for file paths may not match dinitd (environment may differ)");
             issued_var_subst_warning = true;
         }
-        return resolve_env_var(name);
+        return resolve_env_var(name, envmap);
     };
 
-    settings.finalise(report_err, report_err, resolve_var);
+    settings.finalise(report_err, renvmap, report_err, resolve_var);
 
     auto check_command = [&](const char *setting_name, const char *command) {
         struct stat command_stat;

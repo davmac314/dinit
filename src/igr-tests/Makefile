@@ -7,7 +7,7 @@ igr-runner: igr-runner.cc
 	$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(LDFLAGS) $(LDFLAGS_EXTRA) igr-runner.cc -o igr-runner
 
 clean:
-	rm -f igr-runner basic/basic-ran environ/env-record ps-environ/env-record chain-to/recorded-output var-subst/args-record
+	rm -f igr-runner basic/basic-ran environ/env-record environ2/env-record ps-environ/env-record chain-to/recorded-output var-subst/args-record
 	rm -f restart/basic-ran
 	rm -f check-basic/output.txt check-lint/output.txt check-cycle/output.txt no-command-error/dinit-run.log
 	rm -rf reload1/sd

@@ -1,0 +1,3 @@
+TEST_VAR_ONE=override
+# so we know we can override it from here
+SHELL=/bogus/value

@@ -1,0 +1,5 @@
+type = process
+command = ./checkenv.sh $TEST_VAR_ONE $TEST_VAR_BASE
+restart = false
+env-file = env-service
+load-options = export-passwd-vars

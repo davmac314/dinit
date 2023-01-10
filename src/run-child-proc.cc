@@ -89,7 +89,6 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     constexpr int csenvbufsz = 12 + ((CHAR_BIT * sizeof(int) - 1 + 2) / 3) + 1;
     char csenvbuf[csenvbufsz];
 
-    environment proc_env;
     environment::env_map proc_env_map;
 
     run_proc_err err;
@@ -143,12 +142,6 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     }
 
     try {
-        // Read environment from file
-        if (params.env_file != nullptr && *params.env_file != 0) {
-            err.stage = exec_stage::READ_ENV_FILE;
-            read_env_file(params.env_file, false, proc_env);
-        }
-
         // Set up notify-fd variable:
         if (notify_var != nullptr && *notify_var != 0) {
             err.stage = exec_stage::SET_NOTIFYFD_VAR;
@@ -159,7 +152,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             char * var_str = (char *) malloc(req_sz);
             if (var_str == nullptr) goto failure_out;
             snprintf(var_str, req_sz, "%s=%d", notify_var, notify_fd);
-            proc_env.set_var(var_str);
+            service_env.set_var(var_str);
         }
 
         // Set up Systemd-style socket activation:
@@ -170,20 +163,20 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             if (dup2(socket_fd, 3) == -1) goto failure_out;
             if (socket_fd != 3) close(socket_fd);
 
-            proc_env.set_var("LISTEN_FDS=1");
+            service_env.set_var("LISTEN_FDS=1");
             snprintf(nbuf, bufsz, "LISTEN_PID=%jd", static_cast<intmax_t>(getpid()));
-            proc_env.set_var(nbuf);
+            service_env.set_var(nbuf);
         }
 
         if (csfd != -1) {
             err.stage = exec_stage::SETUP_CONTROL_SOCKET;
             snprintf(csenvbuf, csenvbufsz, "DINIT_CS_FD=%d", csfd);
-            proc_env.set_var(csenvbuf);
+            service_env.set_var(csenvbuf);
         }
 
         // We'll re-use READ_ENV_FILE stage here; it's accurate enough.
         err.stage = exec_stage::READ_ENV_FILE;
-        proc_env_map = proc_env.build(main_env);
+        proc_env_map = service_env.build(main_env);
     }
     catch (std::system_error &sys_err) {
         errno = sys_err.code().value();
