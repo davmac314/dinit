@@ -29,14 +29,13 @@ using string_iterator = std::string::iterator;
 //   offsets - the [start,end) pair of offsets of the command and each argument within the string
 //
 static void do_env_subst(const char *setting_name, ha_string &line,
-        std::list<std::pair<unsigned,unsigned>> &offsets, bool do_sub_vars)
+        std::list<std::pair<unsigned,unsigned>> &offsets,
+        environment::env_map const &envmap)
 {
     using namespace dinit_load;
-    if (do_sub_vars) {
-        std::string line_s = std::string(line.c_str(), line.length());
-        cmdline_var_subst(setting_name, line_s, offsets, resolve_env_var);
-        line = line_s;
-    }
+    std::string line_s = std::string(line.c_str(), line.length());
+    value_var_subst(setting_name, line_s, offsets, resolve_env_var, envmap);
+    line = line_s;
 }
 
 // Process a dependency directory - filenames contained within correspond to service names which
@@ -358,7 +357,31 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             throw service_load_exc(name, msg);
         };
 
-        settings.finalise(report_err);
+        environment srv_env;
+
+        /* fill user vars before reading env file */
+        if (settings.export_passwd_vars) {
+            fill_environment_userinfo(settings.run_as_uid, name, srv_env);
+        }
+
+        // this mapping is temporary, for load substitutions
+        // the reason for this is that the environment actually *may* change
+        // after load, e.g. through dinitctl setenv (either from the outside
+        // or from within services) and we want this to refresh for each
+        // process invocation
+        environment::env_map srv_envmap;
+
+        if (!settings.env_file.empty()) {
+            try {
+                read_env_file(settings.env_file.data(), false, srv_env);
+            } catch (const std::system_error &se) {
+                throw service_load_exc(name, std::string("could not load environment file: ") + se.what());
+            }
+        }
+
+        srv_envmap = srv_env.build(main_env);
+
+        settings.finalise(report_err, srv_envmap);
         auto service_type = settings.service_type;
 
         if (reload_svc != nullptr) {
@@ -464,8 +487,8 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         }
 
         if (service_type == service_type_t::PROCESS) {
-            do_env_subst("command", settings.command, settings.command_offsets, settings.do_sub_vars);
-            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, settings.do_sub_vars);
+            do_env_subst("command", settings.command, settings.command_offsets, srv_envmap);
+            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             process_service *rvalps;
             if (create_new_record) {
@@ -505,8 +528,8 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             #endif
         }
         else if (service_type == service_type_t::BGPROCESS) {
-            do_env_subst("command", settings.command, settings.command_offsets, settings.do_sub_vars);
-            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, settings.do_sub_vars);
+            do_env_subst("command", settings.command, settings.command_offsets, srv_envmap);
+            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             bgproc_service *rvalps;
             if (create_new_record) {
@@ -542,8 +565,8 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             settings.onstart_flags.runs_on_console = false;
         }
         else if (service_type == service_type_t::SCRIPTED) {
-            do_env_subst("command", settings.command, settings.command_offsets, settings.do_sub_vars);
-            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, settings.do_sub_vars);
+            do_env_subst("command", settings.command, settings.command_offsets, srv_envmap);
+            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             scripted_service *rvalps;
             if (create_new_record) {
@@ -599,6 +622,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         rval->set_socket_details(std::move(settings.socket_path), settings.socket_perms,
                 settings.socket_uid, settings.socket_gid);
         rval->set_chain_to(std::move(settings.chain_to_name));
+        rval->set_environment(std::move(srv_env));
 
         if (create_new_record && reload_svc != nullptr) {
             // switch dependencies on old record so that they refer to the new record

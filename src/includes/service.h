@@ -249,6 +249,8 @@ class service_record
     protected:
     service_flags_t onstart_flags;
     
+    environment service_env; // holds the environment populated during load
+
     bool auto_restart : 1;    // whether to restart this (process) if it dies unexpectedly
     bool smooth_recovery : 1; // whether the service process can restart without bringing down service
 
@@ -517,6 +519,11 @@ class service_record
     bool is_marked_active() noexcept
     {
         return start_explicit;
+    }
+
+    void set_environment(environment &&env) noexcept
+    {
+        this->service_env = std::move(env);
     }
 
     // Set whether this service should automatically restart when it dies

@@ -15,6 +15,7 @@
 #include <grp.h>
 #include <pwd.h>
 
+#include "dinit-env.h"
 #include "dinit-utmp.h"
 #include "dinit-util.h"
 #include "service-constants.h"
@@ -164,7 +165,9 @@ inline int signal_name_to_number(std::string &signame) noexcept
 }
 
 // Read a setting/variable name; return empty string if no valid name
-inline string read_config_name(string_iterator & i, string_iterator end) noexcept
+//
+// If env is set, dashes/dots are not allowed as they break correct envvar parsing
+inline string read_config_name(string_iterator & i, string_iterator end, bool env = false) noexcept
 {
     using std::locale;
     using std::ctype;
@@ -184,9 +187,9 @@ inline string read_config_name(string_iterator & i, string_iterator end) noexcep
         return {};
     }
 
-    // Within the setting name, allow dash and dot; also allow any non-control, non-punctuation,
-    // non-space character.
-    while (i != end && (*i == '-' || *i == '.' || *i == '_'
+    // Within the setting name, allow dash and dot unless parsing envvar name
+    // also allow any non-control, non-punctuation non-space character.
+    while (i != end && (((*i == '-' || *i == '.') && !env) || *i == '_'
             || (!facet.is(ctype<char>::cntrl, *i) && !facet.is(ctype<char>::punct, *i)
                     && !facet.is(ctype<char>::space, *i)))) {
         rval += *i;
@@ -309,6 +312,56 @@ inline string read_setting_value(unsigned line_num, string_iterator & i, string_
     }
 
     return rval;
+}
+
+inline void fill_environment_userinfo(uid_t uid, const std::string &service_name, environment &env)
+{
+    if (uid == (uid_t)-1) {
+        uid = geteuid();
+    }
+
+    char buf[std::numeric_limits<unsigned long long>::digits10 + 1];
+    snprintf(buf, sizeof(buf), "%llu", (unsigned long long)uid);
+
+    errno = 0;
+    struct passwd *pwent = getpwuid(uid);
+
+    if (!pwent) {
+        if (!errno) {
+            throw service_load_exc(service_name, std::string("user id '") + buf + "' does not exist in system database");
+        } else {
+            throw service_load_exc(service_name, std::string("error accessing user database: ") + strerror(errno));
+        }
+    }
+
+    std::string enval;
+
+    // USER
+    enval = "USER=";
+    enval += pwent->pw_name;
+    env.set_var(std::move(enval));
+    // LOGNAME
+    enval = "LOGNAME=";
+    enval += pwent->pw_name;
+    env.set_var(std::move(enval));
+    // HOME
+    enval = "HOME=";
+    enval += pwent->pw_dir;
+    env.set_var(std::move(enval));
+    // SHELL
+    enval = "SHELL=";
+    enval += pwent->pw_shell;
+    env.set_var(std::move(enval));
+    // UID (non-standard, but useful)
+    enval = "UID=";
+    snprintf(buf, sizeof(buf), "%llu", (unsigned long long)pwent->pw_uid);
+    enval += buf;
+    env.set_var(std::move(enval));
+    // GID (non-standard, but useful)
+    enval = "GID=";
+    snprintf(buf, sizeof(buf), "%llu", (unsigned long long)pwent->pw_gid);
+    enval += buf;
+    env.set_var(std::move(enval));
 }
 
 // Parse a userid parameter which may be a numeric user ID or a username. If a name, the
@@ -609,65 +662,21 @@ void process_service_file(string name, std::istream &service_file, T func)
 static auto dummy_lint = [](const char *){};
 
 // Resolve leading variables in paths using the environment
-static auto resolve_env_var = [](const string &name){
-    const char *r = getenv(name.c_str());
-    if (r == nullptr) {
-        return "";
-    }
-    return r;
+static auto resolve_env_var = [](const string &name, environment::env_map const &envmap){
+    return envmap.lookup(name);
 };
 
-// Resolve a path with variable substitutions ($varname). '$$' resolves to a single '$'.
-// Throws setting_exception on failure.
-//    p           - path to resolve
-//    var_resolve - function to translate names to values; returning string or const char *;
-//                  may throw setting_exception
-template <typename T>
-inline std::string resolve_path(const char *setting_name, std::string &&p, T &var_resolve)
-{
-    auto dpos = p.find('$');
-    if (dpos == string::npos) {
-        // shortcut the case where there are no substitutions:
-        return std::move(p);
-    }
-
-    string r;
-    string::size_type last_pos = 0;
-
-    do {
-        r.append(p, last_pos, dpos - last_pos); // non-substituted portion
-        ++dpos;
-        if (dpos < p.size() && p[dpos] == '$') {
-            // double '$' resolves to a single '$' in output
-            r += '$';
-            last_pos = dpos + 1;
-            dpos = p.find('$', last_pos);
-            continue;
-        }
-        auto i = std::next(p.begin(), dpos);
-        string name = read_config_name(i, p.end());
-        if (name.empty()) {
-            throw service_description_exc(setting_name, "invalid/missing variable name after '$'");
-        }
-        string value = var_resolve(name);
-        r.append(value);
-        last_pos = i - p.begin();
-        dpos = p.find('$', last_pos);
-    } while (dpos != string::npos);
-
-    r.append(p, last_pos, string::npos);
-
-    return r;
-}
-
-// Substitute variable references in a command line with their values. Specified offsets must give
+// Substitute variable references in a value with their values. Specified offsets must give
 // the location of separate arguments after word splitting and are adjusted appropriately.
+// If you simply wish to substitute all variables in the given string, pass an offsets list
+// containing one pair with the string's bounds (0, size). '$$' resolves to a single '$'.
 //
 // throws: setting_exception if a $-substitution is ill-formed, or if the command line is too long;
 //         bad_alloc on allocation failure
 template <typename T>
-static void cmdline_var_subst(const char *setting_name, std::string &line,
-        std::list<std::pair<unsigned,unsigned>> &offsets, T &var_resolve)
+static void value_var_subst(const char *setting_name, std::string &line,
+        std::list<std::pair<unsigned,unsigned>> &offsets, T &var_resolve,
+        environment::env_map const &envmap)
 {
     auto dindx = line.find('$');
     if (dindx == string::npos) {
@@ -676,7 +685,7 @@ static void cmdline_var_subst(const char *setting_name, std::string &line,
 
     if (line.length() > (size_t)std::numeric_limits<int>::max()) {
         // (avoid potential for overflow later)
-        throw service_description_exc(setting_name, "command line too long");
+        throw service_description_exc(setting_name, "value too long");
     }
 
     auto i = offsets.begin();
@@ -690,7 +699,6 @@ static void cmdline_var_subst(const char *setting_name, std::string &line,
 
         while (i->second > dindx) {
             r_line.append(line, xpos, dindx - xpos); // copy unmatched part
-
             if (line[dindx + 1] == '$') {
                 // double dollar, collapse to single
                 r_line += '$';
@@ -699,18 +707,60 @@ static void cmdline_var_subst(const char *setting_name, std::string &line,
             }
             else {
                 // variable
-                auto i = std::next(line.begin(), dindx + 1);
-                string name = read_config_name(i, line.end());
+                bool brace = line[dindx + 1] == '{';
+                auto i = std::next(line.begin(), dindx + 1 + int(brace));
+                // read environment variable name as specified by POSIX; do
+                // not use read_config_name, it allows characters not allowed
+                // in env vars and breaks further parsing
+                string name = read_config_name(i, line.end(), true);
                 if (name.empty()) {
                     throw service_description_exc(setting_name, "invalid/missing variable name after '$'");
                 }
+                char altmode = '\0';
+                bool colon = false;
+                auto altbeg = i, altend = i;
+                if (brace) {
+                    /* ${foo+val}, ${foo-val}, ${foo:+val}, ${foo:-val} */
+                    if (*i == ':') {
+                        colon = true;
+                        ++i;
+                        if (*i != '+' && *i != '-') {
+                            throw service_description_exc(setting_name, "invalid syntax in variable substitution");
+                        }
+                    }
+                    if (*i == '+' || *i == '-') {
+                        altmode = *i++;
+                        altbeg = altend = i;
+                        while (*altend != '}') {
+                            ++altend;
+                        }
+                        i = altend;
+                    }
+                    if (*i++ != '}') {
+                        throw service_description_exc(setting_name, "unmatched '{' in variable substitution");
+                    }
+                }
                 size_t line_len_before = r_line.size();
-                r_line.append(var_resolve(name));
+                auto *resolved = var_resolve(name, envmap);
+                /* apply shell-like substitutions */
+                if (altmode == '-') {
+                    if (!resolved || (colon && !*resolved)) {
+                        r_line.append(altbeg, altend);
+                    } else if (resolved) {
+                        r_line.append(resolved);
+                    }
+                } else if (altmode == '+') {
+                    if (resolved && (!colon || *resolved)) {
+                        r_line.append(altbeg, altend);
+                    }
+                } else if (resolved) {
+                    r_line.append(resolved);
+                }
                 size_t line_len_after = r_line.size();
 
                 if (line_len_after > (size_t)std::numeric_limits<int>::max()) {
                     // (avoid potential overflow)
-                    throw service_description_exc(setting_name, "command line too long (after substitution)");
+                    throw service_description_exc(setting_name, "value too long (after substitution)");
                 }
 
                 xpos = i - line.begin();
@@ -734,7 +784,6 @@ static void cmdline_var_subst(const char *setting_name, std::string &line,
 
     r_line.append(line, xpos); // copy final unmatched part
     line = std::move(r_line);
-    return;
 }
 
 // A wrapper type for service parameters. It is parameterised by dependency type.
@@ -754,7 +803,7 @@ class service_settings_wrapper
     string pid_file;
     string env_file;
 
-    bool do_sub_vars = false;
+    bool export_passwd_vars = false;
 
     service_type_t service_type = service_type_t::INTERNAL;
     list<dep_type> depends;
@@ -806,7 +855,7 @@ class service_settings_wrapper
     // checks even when the dummy_lint function is used. (Ideally the compiler would optimise them away).
     template <typename T, typename U = decltype(dummy_lint), typename V = decltype(resolve_env_var),
             bool do_report_lint = !std::is_same<U, decltype(dummy_lint)>::value>
-    void finalise(T &report_error, U &report_lint = dummy_lint, V &var_subst = resolve_env_var)
+    void finalise(T &report_error, environment::env_map const &envmap, U &report_lint = dummy_lint, V &var_subst = resolve_env_var)
     {
         if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS
                 || service_type == service_type_t::SCRIPTED) {
@@ -883,9 +932,14 @@ class service_settings_wrapper
 
         // Resolve paths via variable substitution
         {
+            std::list<std::pair<unsigned, unsigned>> offsets;
+            /* reserve item */
+            offsets.emplace_back(0, 0);
             auto do_resolve = [&](const char *setting_name, string &setting_value) {
                 try {
-                    setting_value = resolve_path(setting_name, std::move(setting_value), var_subst);
+                    offsets.front().first = 0;
+                    offsets.front().second = setting_value.size();
+                    value_var_subst(setting_name, setting_value, offsets, var_subst, envmap);
                 }
                 catch (service_description_exc &exc) {
                     report_error((string() + setting_name + ": " + exc.exc_description).c_str());
@@ -894,7 +948,6 @@ class service_settings_wrapper
 
             do_resolve("socket-listen", socket_path);
             do_resolve("logfile", logfile);
-            do_resolve("env-file", env_file);
             do_resolve("working-dir", working_dir);
             do_resolve("pid-file", pid_file);
         }
@@ -1120,12 +1173,12 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         for (auto indexpair : indices) {
             string option_txt = load_opts.substr(indexpair.first,
                     indexpair.second - indexpair.first);
-            if (option_txt == "sub-vars") {
-                // substitute environment variables in command line
-                settings.do_sub_vars = true;
+            if (option_txt == "export-passwd-vars") {
+                settings.export_passwd_vars = true;
             }
-            else if (option_txt == "no-sub-vars") {
-                settings.do_sub_vars = false;
+            else if (option_txt == "sub-vars") {
+                // noop: for backwards compatibility only
+                // we don't support no-sub-vars anymore, however
             }
             else {
                 throw service_description_exc(name, "unknown load option: " + option_txt, line_num);

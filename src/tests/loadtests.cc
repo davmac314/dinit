@@ -11,9 +11,13 @@
 
 std::string test_service_dir;
 
+environment tenv;
+environment::env_map tenvmap;
+
 void init_test_service_dir()
 {
     test_service_dir = "./test-services";
+    tenvmap = tenv.build(main_env);
 }
 
 void test_basic()
@@ -26,39 +30,57 @@ void test_basic()
 void test_env_subst()
 {
     dirload_service_set sset(test_service_dir.c_str());
-    setenv("ONEVAR", "a", true);
-    setenv("TWOVAR", "hellohello", true);
+    bp_sys::setenv("ONEVAR", "a", true);
+    bp_sys::setenv("TWOVAR", "hellohello", true);
+    bp_sys::setenv("THREEVAR", "", true);
     // leave THREEVAR undefined
     auto t2 = static_cast<base_process_service *>(sset.load_service("t2"));
     auto exec_parts = t2->get_exec_arg_parts();
     assert(strcmp("echo", exec_parts[0]) == 0);
-    assert(strcmp("a", exec_parts[1]) == 0);
-    assert(strcmp("hellohello", exec_parts[2]) == 0);
-    assert(strcmp("", exec_parts[3]) == 0);
+    assert(strcmp("a", exec_parts[1]) == 0); // $ONEVAR
+    assert(strcmp("a", exec_parts[2]) == 0); // ${ONEVAR}
+    assert(strcmp("b", exec_parts[3]) == 0); // ${ONEVAR+b}
+    assert(strcmp("b", exec_parts[4]) == 0); // ${ONEVAR:+b}
+    assert(strcmp("hellohello", exec_parts[5]) == 0); // $TWOVAR
+    assert(strcmp("hellohello", exec_parts[6]) == 0); // ${TWOVAR}
+    assert(strcmp("hellohello", exec_parts[7]) == 0); // ${TWOVAR-world}
+    assert(strcmp("hellohello", exec_parts[8]) == 0); // ${TWOVAR:-world}
+    assert(strcmp("",      exec_parts[9]) == 0); // $THREEVAR
+    assert(strcmp("",      exec_parts[10]) == 0); // ${THREEVAR}
+    assert(strcmp("empty", exec_parts[11]) == 0); // ${THREEVAR+empty}
+    assert(strcmp("",      exec_parts[12]) == 0); // ${THREEVAR:+empty}
+    assert(strcmp("",      exec_parts[13]) == 0); // ${THREEVAR-empty}
+    assert(strcmp("empty", exec_parts[14]) == 0); // ${THREEVAR:-empty}
+    assert(strcmp("",       exec_parts[15]) == 0); // $FOURVAR
+    assert(strcmp("",       exec_parts[16]) == 0); // ${FOURVAR}
+    assert(strcmp("",       exec_parts[17]) == 0); // ${FOURVAR+empty2}
+    assert(strcmp("",       exec_parts[18]) == 0); // ${FOURVAR:+empty2}
+    assert(strcmp("empty2", exec_parts[19]) == 0); // ${FOURVAR-empty2}
+    assert(strcmp("empty2", exec_parts[20]) == 0); // ${FOURVAR:-empty2}
 }
 
 void test_env_subst2()
 {
-    auto resolve_env_var = [](const std::string &name){
+    auto resolve_env_var = [](const std::string &name, environment::env_map const &) {
         if (name == "ONE_VAR") return "a";
         if (name == "TWOVAR") return "hellohello";
         return "";
     };
 
-    std::string line = "test x$ONE_VAR~ y$TWOVAR$$ONE_VAR";
+    std::string line = "test x$ONE_VAR-${ONE_VAR}~ y$${TWOVAR}$TWOVAR$$ONE_VAR";
     std::list<std::pair<unsigned,unsigned>> offsets;
     std::string::iterator li = line.begin();
     std::string::iterator le = line.end();
     dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
 
-    dinit_load::cmdline_var_subst("command", line, offsets, resolve_env_var);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
 
-    assert(line == "test xa~ yhellohello$ONE_VAR");
+    assert(line == "test xa-a~ y${TWOVAR}hellohello$ONE_VAR");
 
     assert(offsets.size() == 3);
     assert((*std::next(offsets.begin(), 0) == std::pair<unsigned,unsigned>{0, 4}));
-    assert((*std::next(offsets.begin(), 1) == std::pair<unsigned,unsigned>{5, 8}));
-    assert((*std::next(offsets.begin(), 2) == std::pair<unsigned,unsigned>{9, 28}));
+    assert((*std::next(offsets.begin(), 1) == std::pair<unsigned,unsigned>{5, 10}));
+    assert((*std::next(offsets.begin(), 2) == std::pair<unsigned,unsigned>{11, 39}));
 }
 
 void test_nonexistent()
@@ -198,12 +220,12 @@ void test_path_env_subst()
 
     auto report_error = [](const char *msg) {};
 
-    auto resolve_var = [](const std::string &name) {
+    auto resolve_var = [](const std::string &name, environment::env_map const &) -> const char * {
         if (name == "username") return "testsuccess";
-        return "";
+        return nullptr;
     };
 
-    settings.finalise(report_error, report_error /* lint */, resolve_var);
+    settings.finalise(report_error, tenvmap, report_error /* lint */, resolve_var);
 
     assert(settings.service_type == service_type_t::PROCESS);
     assert(settings.command == "/something/test");
@@ -224,5 +246,6 @@ int main(int argc, char **argv)
     RUN_TEST(test_nonexistent, "          ");
     RUN_TEST(test_settings, "             ");
     RUN_TEST(test_path_env_subst, "       ");
+    bp_sys::clearenv();
     return 0;
 }

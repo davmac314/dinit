@@ -10,7 +10,7 @@ export TEST_VAR_ONE="var one" TEST_VAR_TWO=vartwo TEST_VAR_THREE=varthree
 
 STATUS=FAIL
 if [ -e args-record ]; then
-   if [ "$(cat args-record)" = "1:xxxvar one/yyy 2:vartwovarthree 3:" ]; then
+   if [ "$(cat args-record)" = "1:xxxvar one/yyy 2:vartwovarthree 3:varfour 4:" ]; then
        STATUS=PASS
    fi
 fi

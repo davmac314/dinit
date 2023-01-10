@@ -1,3 +1,2 @@
 type = process
-load-options = sub-vars
-command = echo $ONEVAR $TWOVAR $THREEVAR
+command = echo $ONEVAR ${ONEVAR} ${ONEVAR+b} ${ONEVAR:+b} $TWOVAR ${TWOVAR} ${TWOVAR-world} ${TWOVAR:-world} $THREEVAR ${THREEVAR} ${THREEVAR+empty} ${THREEVAR:+empty} ${THREEVAR-empty} ${THREEVAR:-empty} $FOURVAR ${FOURVAR} ${FOURVAR+empty2} ${FOURVAR:+empty2} ${FOURVAR-empty2} ${FOURVAR:-empty2}

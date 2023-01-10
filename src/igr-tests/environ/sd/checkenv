@@ -1,3 +1,3 @@
 type = process
-command = ./checkenv.sh
+command = ./checkenv.sh $TEST_VAR_ONE
 restart = false
