@@ -36,6 +36,7 @@ If everything goes smoothly this will build dinit, dinitctl, and optionally the 
 utility. Use "make install" to install; you can specify an alternate installation by
 setting the "DESTDIR" variable, eg "make DESTDIR=/tmp/temporary-install-path install".
 
+
 Recommended Compiler options
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

@@ -76,8 +76,8 @@ cxx_works()
 
 find_program()
 {
-    if command -v "$1" > /dev/null 2>&1; then
-        sub_info $(command -v "$1")
+    if [ -x $(command -v "$1") ]; then
+        sub_info "$(command -v "$1")"
     else
         sub_error "$1" is not executable/exist!
     fi
@@ -102,7 +102,7 @@ try_cxx_argument()
 
 try_ld_argument()
 {
-    info Checking whatever linker accepts $2...
+    info Checking whatever linker accepts "$2"...
     if $compiler $CXXOPTS ${POST_CXXOPTS:-} $LDFLAGS ${POST_LDFLAGS:-} $2 testfile.cc -o testfile.o > /dev/null 2>&1; then
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
@@ -258,7 +258,7 @@ if test -n "${hostcompiler:-}"; then
 fi
 
 ## Find depends
-if [ "$PLATFORM" = "Linux" ]; then
+if [ "$PLATFORM" = "Linux" ] || [ "$PLATFORM" = "Darwin" ]; then
     info Checking make is executable...
     find_program make
 else
