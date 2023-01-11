@@ -9,9 +9,15 @@ suitable build configuration is provided and will be used automatically if no ma
 is supplied - skip directly to running "make" (more details below) if you are on one of these
 systems and are happy to use the default configuration.
 
-For other systems, or to fine tune or correct the configuration, create and edit the
-"mconfig" file (start by copying one for a particular OS from the "configs" directory) to choose
-appropriate values for the configuration variables defined within. In particular:
+For other systems, or to fine tune or correct the configuration, you can use experimental
+"configure" script. This script try to find C++ compiler and auto-detects OS and checks some options
+are supported or not. Also this script have a interface to working with them, for more info use
+
+    ./configure --help
+
+command to see all options.
+otherwise you can create and edit the "mconfig" file (start by copying one for a particular OS
+from the "configs" directory) to choose appropriate values for the configuration variables defined within. In particular:
 
   CXX     : should be set to the name of the C++ compiler (and link driver)
   CXXOPTS :  are options passed to the compiler during compilation (see note for GCC below)
@@ -29,7 +35,6 @@ such as on most BSD systems):
 If everything goes smoothly this will build dinit, dinitctl, and optionally the shutdown
 utility. Use "make install" to install; you can specify an alternate installation by
 setting the "DESTDIR" variable, eg "make DESTDIR=/tmp/temporary-install-path install".
-
 
 Recommended Compiler options
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-

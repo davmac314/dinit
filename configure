@@ -76,8 +76,8 @@ cxx_works()
 
 find_program()
 {
-    if [ -x $(command -v "$1") ]; then
-        sub_info Yes.
+    if command -v "$1" > /dev/null 2>&1; then
+        sub_info $(command -v "$1")
     else
         sub_error "$1" is not executable/exist!
     fi
@@ -85,7 +85,7 @@ find_program()
 
 try_cxx_argument()
 {
-    info Checking whatever compiler accpets $2...
+    info Checking whatever compiler accpets "$2"...
     if $compiler -c $CXXOPTS $2 ${POST_CXXOPTS:-} testfile.cc -o testfile.o > /dev/null 2>&1; then
         rm testfile.o
         sub_info Yes.
@@ -124,8 +124,8 @@ Defaults for the options are specified in brackets.
   --clean                       Clear mconfig and configure's temp files.
 
 Target options:
-  --platform                    Set the platform manually (Just for cross-platform cross-compile!) [autodetected]
-                                  For all cross-compiles (even this) don't forget to set correct CXX and HOSTCXX
+  --platform=PLATFORM           Set the platform manually (Just for cross-platform cross-compile!) [autodetected]
+                                  For all cross-compiles (even this) don't forget to set correct CXX and HOSTCXX!
 
 Installation directories:
   --prefix=PREFIX               Main installtion prefix [/usr]
@@ -155,12 +155,12 @@ Environment variables can be used:
   All changes will be overwrited.
 
   CXX                           If you wanna use specific C++ compiler.
-  HOSTCXX                       If you wanna cross-compiling and set the a native C++ compiler.
-  POST_CXXOPTS                  If you wanna use some arguments in C++ compiler command line.
+  HOSTCXX                       If you wanna cross-compiling and set the native C++ compiler.
+  CXXOPTS_POST                  If you wanna use some arguments in C++ compiler command line.
                                   It's passed after CXXOPTS
                                   Note: You don't need to set required flags for Building Dinit!
                                   such as -std=c++11 (if you don't use --disable-cxxopts of course)
-  POST_LDFLAGS                  If you wanna use some arguments in Linker command line.
+  LDFLAGS_POST                  If you wanna use some arguments in Linker command line.
                                   It's passed after LDFLAGS
 
 See BUILD file for more information.
@@ -221,7 +221,7 @@ done
 if [ "$PLATFORM" != "Linux" ] && [ "$PLATFORM" != "FreeBSD" ] && \
 [ "$PLATFORM" != "OpenBSD" ] && [ "$PLATFORM" != "Darwin" ]; then
     warning "$PLATFORM" platform is unknown!
-    sub_warning Valid Platforms are: Linux, FreeBSD, OpenBSD, Darwin
+    sub_warning Known Platforms are: Linux, FreeBSD, OpenBSD, Darwin
 fi
 
 ## Create testfile.cc to test c++ compiler
@@ -310,8 +310,8 @@ SYSCONTROLSOCKET=$SYSCONTROLSOCKET
 # FreeBSD: Cannot use LTO with default linker.
 
 CXX=$compiler
-CXXOPTS=$CXXOPTS ${POST_CXXOPTS:-}
-LDFLAGS=$LDFLAGS ${POST_LDFLAGS:-}
+CXXOPTS=$CXXOPTS ${CXXOPTS_POST:-}
+LDFLAGS=$LDFLAGS ${LDFLAGS_POST:-}
 BUILD_SHUTDOWN=$BUILD_SHUTDOWN
 SANITIZEOPTS=${SANITIZEOPTS:-}
 
