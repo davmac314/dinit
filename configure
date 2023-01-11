@@ -229,31 +229,31 @@ create_testfile_cc
 
 ## Find and test C++ compiler
 info Checking C++ Compiler...
-if test "${CXX:-}"; then
+if [ -n "${CXX:-}" ]; then
     sub_info "$CXX" is user/system prefered C++ compiler.
     compiler="$CXX"
 else
     for guess in g++ clang++ c++; do
         findcxx "$guess"
-        if test -n "${compiler:-}"; then
+        if [ -n "${compiler:-}" ]; then
             sub_info "$compiler"
             break # Found
         fi
     done
-    if test -z "${compiler:-}"; then
+    if [ -z "${compiler:-}" ]; then
        sub_error No C++ compiler found! # Not found
     fi
 fi
-if test -n "${HOSTCXX:-}"; then
+if [ -n "${HOSTCXX:-}" ]; then
     info Checking Host C++ Compiler...
     sub_info "$HOSTCXX" is user/system prefered native C++ compiler.
     hostcompiler="$HOSTCXX"
-    if test -z "${compiler:-}" || test -z "${hostcompiler:-}"; then
+    if [ -z "${compiler:-}" ] || [ -z "${hostcompiler:-}" ]; then
        sub_error No C++ compiler found! # Not found
     fi
 fi
 cxx_works "$compiler"
-if test -n "${hostcompiler:-}"; then
+if [ -n "${hostcompiler:-}" ]; then
     cxx_works "$hostcompiler"
 fi
 
@@ -267,7 +267,7 @@ else
 fi
 
 ## Test compiler/linker supported arguments
-if test -z "${NO_CXXOPTS:-}"; then
+if [ -z "${NO_CXXOPTS:-}" ]; then
     for argument in -std=c++11 \
                     -Wall \
                     -Os \
@@ -282,7 +282,7 @@ if test -z "${NO_CXXOPTS:-}"; then
         try_cxx_argument CXXOPTS -fno-rtti
     fi
 fi
-if [ "$PLATFORM" = "FreeBSD" ] && test -z "${NO_LDFLAGS:-}"; then
+if [ "$PLATFORM" = "FreeBSD" ] && [ -z "${NO_LDFLAGS:-}" ]; then
     try_ld_argument LDFLAGS -lrt
 fi
 if [ "${NO_SANITIZE:-}" = "auto" ]; then
@@ -321,10 +321,10 @@ SUPPORT_CGROUPS=$SUPPORT_CGROUPS
 # Optional settings
 SHUTDOWN_PREFIX=${SHUTDOWN_PREFIX:-}
 EOF
-if test "${USE_UTMPX:-}"; then
+if [ -n "${USE_UTMPX:-}" ]; then
     echo "USE_UTMPX=$USE_UTMPX" >> mconfig
 fi
-if test "${hostcompiler:-}"; then
+if [ -n "${hostcompiler:-}" ]; then
     echo "# For cross-compile" >> mconfig
     echo "HOSTCXX=$hostcompiler" >> mconfig
 fi
