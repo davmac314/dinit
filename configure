@@ -195,10 +195,10 @@ for arg in "$@"; do
         --quiet) info() { true; } && sub_info() { true; } && warning() { true; } && sub_warning() { true; } ;;
         --clean) rm -f test* & rm -f mconfig && exit 0 ;;
         --platform=*) PLATFORM="${arg#*=}" && shift ;;
-        --prefix=*) PREFIX="${arg#*=}" && MANDIR="$PREFIX/share/man/" && shift ;;
-        --exec-prefix=*) EPREFIX="${arg#*=}" && SBINDIR="$EPREFIX/sbin" && shift;;
-        --sbindir=*) SBINDIR="$EPREFIX/${arg#*=}" && shift ;;
-        --mandir=*) MANDIR="$PREFIX${arg#*=}" && shift ;;
+        --prefix=*) PREFIX="${arg#*=}" && shift ;;
+        --exec-prefix=*) EPREFIX="${arg#*=}" && shift;;
+        --sbindir=*) SBINDIR="${arg#*=}" && shift ;;
+        --mandir=*) MANDIR="${arg#*=}" && shift ;;
         --syscontrolsocket=*) SYSCONTROLSOCKET="${arg#*=}" && shift ;;
         --shutdown-prefix=*) SHUTDOWN_PREFIX="${arg#*=}" && shift ;;
         --enable-shutdown) BUILD_SHUTDOWN=yes ;;
@@ -217,6 +217,10 @@ for arg in "$@"; do
     esac
 done
 
+## Resolve final paths
+SBINDIR="$EPREFIX/$SBINDIR"
+MANDIR="$PREFIX/$MANDIR"
+
 ## Verify PLATFORM value
 if [ "$PLATFORM" != "Linux" ] && [ "$PLATFORM" != "FreeBSD" ] && \
 [ "$PLATFORM" != "OpenBSD" ] && [ "$PLATFORM" != "Darwin" ]; then
@@ -228,7 +232,7 @@ fi
 create_testfile_cc
 
 ## Find and test C++ compiler
-info Checking C++ Compiler...
+info Checking C++ compiler...
 if [ -n "${CXX:-}" ]; then
     sub_info "$CXX" is user/system prefered C++ compiler.
     compiler="$CXX"
