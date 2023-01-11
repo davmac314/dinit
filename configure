@@ -240,7 +240,7 @@ else
             break # Found
         fi
     done
-    if test -z "$compiler"; then
+    if test -z "${compiler:-}"; then
        sub_error No C++ compiler found! # Not found
     fi
 fi
@@ -248,7 +248,7 @@ if test -n "${HOSTCXX:-}"; then
     info Checking Host C++ Compiler...
     sub_info "$HOSTCXX" is user/system prefered native C++ compiler.
     hostcompiler="$HOSTCXX"
-    if test -z "$compiler" || test -z "$hostcompiler"; then
+    if test -z "${compiler:-}" || test -z "${hostcompiler:-}"; then
        sub_error No C++ compiler found! # Not found
     fi
 fi
