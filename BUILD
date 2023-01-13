@@ -151,7 +151,7 @@ path for normal users. Consider making a symbolic link to /usr/sbin/dinit.
 
 
 Special notes for "configure" script
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 When you using experimental "configure" script, be careful about this things:
 

@@ -175,8 +175,8 @@ EPREFIX="/"
 CXXOPTS=""
 LDFLAGS=""
 SANITIZEOPTS=""
-SBINDIR="$EPREFIX/sbin"
-MANDIR="$PREFIX/share/man/"
+SBINDIR="/sbin"
+MANDIR="/share/man/"
 SYSCONTROLSOCKET="/run/dinitctl"
 NO_SANITIZE="auto"
 SHUTDOWN_PREFIX=""
@@ -329,7 +329,8 @@ if [ -n "${USE_UTMPX:-}" ]; then
     echo "USE_UTMPX=$USE_UTMPX" >> mconfig
 fi
 if [ -n "${hostcompiler:-}" ]; then
-    echo "# For cross-compile" >> mconfig
+    echo "" >> mconfig
+    echo "# For cross-compiling" >> mconfig
     echo "HOSTCXX=$hostcompiler" >> mconfig
 fi
 sub_info done.
