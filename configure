@@ -136,19 +136,19 @@ Installation directories:
 
 Optional options:
   --shutdown-prefix=PREFIX      Name prefix for shutdown, poweroff, reboot, halt programs []
-  --enable-shutdown             Build shutdown, poweroff, reboot, halt programs [Enabled on Linux based systems]
+  --enable-shutdown             Build shutdown, poweroff, reboot, halt programs [Enabled only on Linux based systems]
   --disable-shutdown            Don't build shutdown, poweroff, reboot, halt programs
   --enable-cgroups              Enable Cgroups support [Enabled only on Linux based systems]
   --disable-cgroups             Disable Cgroups support
-  --enable-sanitize             Enable -fsanitize in Unit tests [Enabled on supported systems]
-  --disable-sanitize            Disable -fsanitize in Unit tests
+  --enable-sanitize             Enable -fsanitize for Unit tests [auto]
+  --disable-sanitize            Disable -fsanitize for Unit tests
   --enable-utmpx                Enable manipulating the utmp/utmpx database via the related POSIX functions [auto]
   --disable-utmpx               Disable manipulating the utmp/utmpx database via the related POSIX functions
   --disable-cxxopts             (Not recommanded) Disable ALL CXXOPTS even -std=c++11
-                                  Don't forget set your flags via PRE_CXXOPTS & POST_CXXOPTS envs otherwise
+                                  Don't forget set your flags via CXXOPTS_POST env otherwise
                                   build may be failed!
   --disable-ldflags             (Not recommanded) Disable ALL LDFLAGS even "-lrt on FreeBSD"
-                                  You can use PRE_LDFLAGS and POST_LDFLAGS envs to set your ld flags.
+                                  You can use LDFLAGS_POST env to set your ld flags.
 
 Environment variables can be used:
   Note: CXXOPTS and LDFLAGS are Default compiler/linker flags. Don't use them. because
