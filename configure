@@ -95,7 +95,7 @@ find_program()
 try_cxx_argument()
 {
     info Checking whatever compiler accpets "$2"...
-    if $compiler -c $CXXOPTS $2 ${POST_CXXOPTS:-} testfile.cc -o testfile.o > /dev/null 2>&1; then
+    if $compiler -c $CXXOPTS $2 ${POST_CXXOPTS:-} $LDFLAGS ${POST_LDFLAGS:-} testfile.cc -o testfile.o > /dev/null 2>&1; then
         rm testfile.o
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
