@@ -3,7 +3,6 @@
 ## Initial prepartion
 set -eu
 cd "$(dirname "$0")"
-. build/version.conf
 
 ## Helper funcations
 # According to POSIX, echo has unspecified behavior if any of its arguments contain “\” or
