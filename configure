@@ -163,13 +163,13 @@ Environment variables can be used:
   Note: CXXOPTS and LDFLAGS are Default compiler/linker flags. Don't use them. because
   All changes will be overwrited.
 
-  CXX                           If you wanna use specific C++ compiler.
-  HOSTCXX                       If you wanna cross-compiling and set the native C++ compiler.
-  CXXOPTS_POST                  If you wanna use some arguments in C++ compiler command line.
+  CXX                           If you want to use specific C++ compiler.
+  HOSTCXX                       If you want to cross-compiling and set the native C++ compiler.
+  CXXOPTS_POST                  If you want to use some arguments in C++ compiler command line.
                                   It's passed after CXXOPTS
                                   Note: You don't need to set required flags for Building Dinit!
                                   such as -std=c++11 (if you don't use --disable-cxxopts of course)
-  LDFLAGS_POST                  If you wanna use some arguments in Linker command line.
+  LDFLAGS_POST                  If you want to use some arguments in Linker command line.
                                   It's passed after LDFLAGS
 
 See BUILD file for more information.
