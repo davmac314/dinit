@@ -11,13 +11,14 @@ systems and are happy to use the default configuration.
 
 For other systems, or to fine tune or correct the configuration, you can use experimental
 "configure" script. This script try to find C++ compiler and auto-detects OS and checks some options
-are supported or not. Also this script have a interface to working with them, for more info use
+are supported or not. Also several options are available to control configuration, for more info use
 
     ./configure --help
 
 command to see all options.
 otherwise you can create and edit the "mconfig" file (start by copying one for a particular OS
-from the "configs" directory) to choose appropriate values for the configuration variables defined within. In particular:
+from the "configs" directory) to choose appropriate values for the configuration variables defined
+within. In particular:
 
   CXX     : should be set to the name of the C++ compiler (and link driver)
   CXXOPTS :  are options passed to the compiler during compilation (see note for GCC below)
