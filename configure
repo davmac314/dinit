@@ -83,15 +83,6 @@ cxx_works()
     fi
 }
 
-find_program()
-{
-    if [ -x $(command -v "$1") ]; then
-        sub_info "$(command -v "$1")"
-    else
-        sub_error "$1" is not executable/exist!
-    fi
-}
-
 try_cxx_argument()
 {
     info Checking whatever compiler accpets "$2"...
@@ -268,15 +259,6 @@ fi
 cxx_works "$compiler"
 if [ -n "${hostcompiler:-}" ]; then
     cxx_works "$hostcompiler"
-fi
-
-## Find depends
-if [ "$PLATFORM" = "Linux" ] || [ "$PLATFORM" = "Darwin" ]; then
-    info Checking make is executable...
-    find_program make
-else
-    info Checking gmake is executable...
-    find_program gmake
 fi
 
 ## Test compiler/linker supported arguments
