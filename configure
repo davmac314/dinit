@@ -23,7 +23,7 @@ echo()
 
 info()
 {
-    echo "Info: $*"
+    echo "$*"
 }
 
 sub_info()
