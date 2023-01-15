@@ -4,7 +4,7 @@
 set -eu
 cd "$(dirname "$0")"
 
-## Helper funcations
+## Helper functions
 # According to POSIX, echo has unspecified behavior if any of its arguments contain “\” or
 # if its first argument is “-n”. Unix™ standards fill in this unspecified area for
 # XSI-conformant implementations, by specifying nasty undesirable behavior that no one wants
@@ -85,8 +85,8 @@ cxx_works()
 try_cxx_argument()
 {
     info Checking whatever compiler accpets "$2"...
-    if $compiler -c $CXXOPTS $2 ${POST_CXXOPTS:-} $LDFLAGS ${POST_LDFLAGS:-} testfile.cc -o testfile.o > /dev/null 2>&1; then
-        rm testfile.o
+    if $compiler $CXXOPTS $2 ${CXXOPTS_POST:-} $LDFLAGS ${LDFLAGS_POST:-} testfile.cc -o testfile > /dev/null 2>&1; then
+        rm testfile
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
         eval "$1=\${$1# }"
@@ -102,7 +102,7 @@ try_cxx_argument()
 try_ld_argument()
 {
     info Checking whatever linker accepts "$2"...
-    if $compiler $CXXOPTS ${POST_CXXOPTS:-} $LDFLAGS ${POST_LDFLAGS:-} $2 testfile.cc -o testfile.o > /dev/null 2>&1; then
+    if $compiler $CXXOPTS ${CXXOPTS_POST:-} $LDFLAGS ${LDFLAGS_POST:-} $2 testfile.cc -o testfile > /dev/null 2>&1; then
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
         eval "$1=\${$1# }"
