@@ -10,7 +10,8 @@ is supplied - skip directly to running "make" (more details below) if you are on
 systems and are happy to use the default configuration.
 
 For other systems, or to fine tune or correct the configuration, you need to create mconfig
-manally. you can use experimental "configure" script. This script try to find C++ compiler and
+manally. you can use experimental "configure" script. Also make use this script if suitable config
+is not available by default. This script try to find C++ compiler and
 auto-detects OS and checks some options are supported or not and finally create mconfig.
 Also several options are available to control configuration, for more info use
 
