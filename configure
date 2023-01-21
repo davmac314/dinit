@@ -211,7 +211,12 @@ for arg in "$@"; do
         --disable-cxxopts) NO_CXXOPTS=true ;;
         --disable-ldflags) NO_LDFLAGS=true ;;
         -*) warning Unknown argument: "$arg" ;;
-        *=*) eval "$arg" ;;
+        *=*)
+            envvar=$(expr "x$arg" : 'x\([^=]*\)=')
+            envvar_value=$(expr "X$arg" : '[^=]*=\(.*\)')
+            eval "$envvar=\$envvar_value"
+            export "${envvar?}"
+        ;;
         *) continue ;;
     esac
 done
