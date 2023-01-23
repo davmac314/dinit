@@ -131,7 +131,8 @@ Installation directories:
   --exec-prefix=EPREFIX         Main executables location [/]
   --sbindir=SBINDIR             Dinit executables [EPREFIX/sbin]
   --mandir=MANDIR               Dinit man-pages location [PREFIX/share/man]
-  --syscontrolsocket=SOCKETPATH Dinitctl socket location [/run/dinitctl]
+  --syscontrolsocket=SOCKETPATH Dinitctl socket location [/run/dinitctl] on Linux based systems
+                                                         [/var/run/dinitctl] on Other systems
 
 Optional options:
   --shutdown-prefix=PREFIX      Name prefix for shutdown, poweroff, reboot, halt programs []
@@ -183,7 +184,6 @@ fi
 SANITIZEOPTS=""
 SBINDIR="/sbin"
 MANDIR="/share/man/"
-SYSCONTROLSOCKET="/run/dinitctl"
 NO_SANITIZE="auto"
 SHUTDOWN_PREFIX=""
 if [ "$PLATFORM" = "Linux" ]; then
@@ -220,16 +220,22 @@ for arg in "$@"; do
         --disable-sanitize) NO_SANITIZE=1 ;;
         --enable-utmpx) USE_UTMPX=1 ;;
         --disable-utmpx) USE_UTMPX=0 ;;
-        -*) warning Unknown argument: "$arg" ;;
         *=*)
             envvar=$(expr "x$arg" : 'x\([^=]*\)=')
             envvar_value=$(expr "X$arg" : '[^=]*=\(.*\)') || envvar_value="" # Fix empty var bug
             eval "$envvar=\$envvar_value"
             export "${envvar?}"
         ;;
-        *) continue ;;
+        *) warning Unknown argument: "$arg" ;;
     esac
 done
+
+## Resolve SYSCONTROLSOCKET based on PLATFORM
+if [ "$PLATFORM" = "Linux" ]; then
+    SYSCONTROLSOCKET="/run/dinitctl"
+else
+    SYSCONTROLSOCKET="/var/run/dinitctl"
+fi
 
 ## Resolve final CXXOPTS and LDFLAGS
 if [ "$CXXOPTS" = "default" ]; then
