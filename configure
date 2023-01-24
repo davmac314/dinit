@@ -149,8 +149,7 @@ Environment variables can be used:
   Note: environments vars can be passed as $0 argument.
   Note: CXXOPTS and LDFLAGS will be set to the options that the configure script uses as default for the platform,
   filtered to remove any options not supported by the compiler/linker. For disable this thing just pass empty
-  value as CXXOPTS and LDFLAGS in *arguments*! If you want to pass variables directly, make sure for disable test
-  compiler/linker flags, pass "null" value instead of empty value!
+  value as CXXOPTS and LDFLAGS or pass some flags as them.
 
   CXX                           If you want to use specific C++ compiler.
   HOSTCXX                       If you want to cross-compiling and set the native C++ compiler.
@@ -174,16 +173,6 @@ EOF
 PLATFORM=$(uname)
 PREFIX="/usr"
 EPREFIX="/"
-if [ -z "${CXXOPTS:-}" ]; then
-    CXXOPTS="default"
-elif [ "${CXXOPTS:-}" = "null" ]; then
-    CXXOPTS=""
-fi
-if [ -z "${LDFLAGS:-}" ]; then
-    LDFLAGS="default"
-elif [ "${LDFLAGS:-}" = "null" ]; then
-    LDFLAGS=""
-fi
 SANITIZEOPTS=""
 SBINDIR="/sbin"
 MANDIR="/share/man/"
@@ -241,13 +230,13 @@ else
 fi
 
 ## Resolve final CXXOPTS and LDFLAGS
-if [ "$CXXOPTS" = "default" ]; then
+if [ -z "${CXXOPTS+IS_SET}" ]; then
     NO_CXXOPTS=false
     CXXOPTS=""
 else
     NO_CXXOPTS=true
 fi
-if [ "$LDFLAGS" = "default" ]; then
+if [ -z "${LDFLAGS+IS_SET}" ]; then
     NO_LDFLAGS=false
     LDFLAGS=""
 else
