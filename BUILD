@@ -153,16 +153,6 @@ The dinit executable will be put in /sbin (or rather, in $DESTDIR/sbin), which m
 path for normal users. Consider making a symbolic link to /usr/sbin/dinit.
 
 
-Special notes for "configure" script
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
-When you using experimental "configure" script, be careful about passing a path
-with space as prefix/eprefix/sbindir/mandir: for this thing You need to use backslash (\)
-with double quotation (") for every space. For example:
-
-    ./configure --sbindir="/usr/bin\ with\ space/"
-
-
 Special note for GCC/Libstdc++
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

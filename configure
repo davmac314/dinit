@@ -161,6 +161,9 @@ Environment variables can be used:
   LDFLAGS_POST                  If you want to use some arguments in Linker command line.
                                   It's passed after LDFLAGS without disable that.
 
+Note: be careful about passing a path with space as prefix/eprefix/sbindir/mandir:
+for this thing You need to use backslash (\) with double quotation (") for every space.
+For example: ./configure --sbindir="/usr/bin\ with\ space/"
 
 See BUILD file for more information.
 EOF
