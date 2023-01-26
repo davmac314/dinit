@@ -3,7 +3,7 @@
 # Check that a service without a command configured causes the appropriate error.
 #
 
-cd "$(dirname $0)"
+cd "$(dirname "$0")"
 
 rm -f dinit-run.log
 
