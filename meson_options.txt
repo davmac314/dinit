@@ -19,19 +19,19 @@ option(
 option(
     'unit-tests',
     type : 'boolean',
-    value : 'false',
+    value : false,
     description : 'Building Unit tests. by default its disabled.'
 )
 option(
     'igr-tests',
     type : 'boolean',
-    value : 'false',
+    value : false,
     description : 'Building Integration tests. by default its disabled.'
 )
 option(
     'fuzzer',
     type : 'boolean',
-    value : 'false',
+    value : false,
     description : 'Building fuzz target'
 )
 option(
@@ -49,7 +49,7 @@ option(
 option(
     'man-pages',
     type : 'boolean',
-    value : 'true',
+    value : true,
     description : 'Building & installing man-pages.'
 )
 
