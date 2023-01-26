@@ -8,7 +8,7 @@ project(
     license : 'Apache-2.0',
     meson_version : '>= 0.47.0',
     default_options : [
-        'cpp_std = c++11',
+        'cpp_std=c++11',
         'optimization=s',
         'debug=false'
     ]
