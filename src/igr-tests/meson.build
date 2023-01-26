@@ -1,6 +1,7 @@
 # Included from top-level meson.build
 
 ## Prepare integration tests
+
 run_command([
     'cp',
     '-r',
@@ -30,76 +31,91 @@ svcstartfail_test_script = files(meson.current_build_dir() + '/svc-start-fail/ru
 test(
      'basic',
      basic_test_script,
-     env : igr_tests_env
+     env : igr_tests_env,
+     suite : 'Integration test'
 )
 test(
      'environ',
      environ_test_script,
      env : igr_tests_env,
-     is_parallel : false
+     is_parallel : false,
+     suite : 'Integration test'
 )
 test(
      'ps-environ',
      psenviron_test_script,
-     env : igr_tests_env
+     env : igr_tests_env,
+     suite : 'Integration test'
 )
 test(
      'chain-to',
      chainto_test_script,
-     env : igr_tests_env
+     env : igr_tests_env,
+     suite : 'Integration test'
 )
 test(
      'force-stop',
      forcestop_test_script,
-     env : igr_tests_env
+     env : igr_tests_env,
+     suite : 'Integration test'
 )
 test(
      'restart',
      restart_test_script,
-     env : igr_tests_env
+     env : igr_tests_env,
+     suite : 'Integration test'
 )
 test(
      'check-basic',
      checkbasic_test_script,
-     env : igr_tests_env
+     env : igr_tests_env,
+     suite : 'Integration test'
 )
 test(
      'check-cycle',
      checkcycle_test_script,
-     env : igr_tests_env
+     env : igr_tests_env,
+     suite : 'Integration test'
 )
 test(
      'check-lint',
      checklint_test_script,
-     env : igr_tests_env
+     env : igr_tests_env,
+     suite : 'Integration test'
 )
 test(
      'reload1',
      reload1_test_script,
-     env : igr_tests_env
+     env : igr_tests_env,
+     suite : 'Integration test'
 )
 test(
      'reload2',
      reload2_test_script,
-     env : igr_tests_env
+     env : igr_tests_env,
+     suite : 'Integration test'
 )
 test(
      'no-command-error',
      nocommanderror_test_script,
-     env : igr_tests_env
+     env : igr_tests_env,
+     suite : 'Integration test'
 )
 test(
      'add-rm-dep',
      addrmdep_test_script,
-     env : igr_tests_env
+     env : igr_tests_env,
+     suite : 'Integration test'
 )
 test(
      'var-subst',
      varsubst_test_script,
-     env : igr_tests_env
+     env : igr_tests_env,
+     suite : 'Integration test'
 )
 test(
      'svc-start-fail',
      svcstartfail_test_script,
-     env : igr_tests_env
+     env : igr_tests_env,
+     suite : 'Integration test'
 )

@@ -29,7 +29,7 @@ configure_file(
 run_command([
     'cp',
     '-r',
-    meson.current_source_dir() + 'test-services',
+    meson.current_source_dir() + '/test-services',
     meson.current_build_dir()
     ],
     check : true
@@ -65,8 +65,8 @@ envtests_exec = executable(
     for_tests_dinit_sources, 
     include_directories : for_tests_incdir
 )
-test('tests', tests_exec)
-test('proctests', proctests_exec)
-test('loadtests', loadtests_exec, workdir : meson.current_build_dir())
-test('envtests', envtests_exec)
+test('tests', tests_exec, suite : 'Unit test')
+test('proctests', proctests_exec, suite : 'Unit test')
+test('loadtests', loadtests_exec, workdir : meson.current_build_dir(), suite : 'Unit test')
+test('envtests', envtests_exec, suite : 'Unit test')
 subdir('cptests/')
