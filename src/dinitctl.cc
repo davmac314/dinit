@@ -897,7 +897,7 @@ static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p
     }
     else if (rbuffer[0] == DINIT_RP_SERVICE_LOAD_ERR) {
         if (write_error) {
-            cerr << "dinitctl: error loading service.\n";
+            cerr << "dinitctl: error loading service (or dependency of service).\n";
             cerr << "dinitctl: try 'dinitcheck <service-name>' or check log for more information.\n";
         }
         return 1;
