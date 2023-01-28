@@ -576,7 +576,7 @@ int dinit_main(int argc, char **argv)
     
     // Only try to set up the external log now if we aren't the system init. (If we are the
     // system init, wait until the log service starts).
-    if (!am_system_init && log_specified) setup_external_log();
+    if (!am_system_init || log_specified) setup_external_log();
 
     if (env_file != nullptr) {
         read_env_file(env_file, true, main_env);
