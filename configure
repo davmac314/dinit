@@ -204,14 +204,14 @@ for arg in "$@"; do
         --mandir=*) MANDIR="${arg#*=}" && shift ;;
         --syscontrolsocket=*) SYSCONTROLSOCKET="${arg#*=}" && shift ;;
         --shutdown-prefix=*) SHUTDOWN_PREFIX="${arg#*=}" && shift ;;
-        --enable-shutdown) BUILD_SHUTDOWN=yes ;;
-        --disable-shutdown) BUILD_SHUTDOWN=no ;;
-        --enable-cgroups) SUPPORT_CGROUPS=1 ;;
-        --disable-cgroups) SUPPORT_CGROUPS=0 ;;
-        --enable-sanitize) NO_SANITIZE=0 ;;
-        --disable-sanitize) NO_SANITIZE=1 ;;
-        --enable-utmpx) USE_UTMPX=1 ;;
-        --disable-utmpx) USE_UTMPX=0 ;;
+        --enable-shutdown|--enable-shutdown=yes) BUILD_SHUTDOWN=yes ;;
+        --disable-shutdown|--enable-shutdown=no) BUILD_SHUTDOWN=no ;;
+        --enable-cgroups|--enable-cgroups=yes) SUPPORT_CGROUPS=1 ;;
+        --disable-cgroups|--enable-cgroups=no) SUPPORT_CGROUPS=0 ;;
+        --enable-sanitize|--enable-sanitize=yes) NO_SANITIZE=0 ;;
+        --disable-sanitize|--enable-sanitize=no) NO_SANITIZE=1 ;;
+        --enable-utmpx|--enable-utmpx=yes) USE_UTMPX=1 ;;
+        --disable-utmpx|--enable-utmpx=no) USE_UTMPX=0 ;;
         *=*)
             envvar=$(expr "x$arg" : 'x\([^=]*\)=')
             envvar_value=$(expr "X$arg" : '[^=]*=\(.*\)') || envvar_value="" # Fix empty var bug
