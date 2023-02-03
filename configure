@@ -63,9 +63,9 @@ findcxx()
 {
     if type "$1" > /dev/null 2>&1; then
         if [ "${2:-}" = "host" ]; then
-            hostcompiler="$1"
+            HOSTCXX="$1"
         else
-            compiler="$1"
+            CXX="$1"
         fi
     fi
 }
@@ -73,7 +73,7 @@ findcxx()
 cxx_works()
 {
     info Checking "$1" works...
-    if ! $compiler -o testfile.o testfile.cc; then
+    if ! $CXX -o testfile.o testfile.cc; then
         rm -f testfile*
         sub_error Seems like C++ compiler is not working!
     else
@@ -85,7 +85,7 @@ cxx_works()
 try_cxx_argument()
 {
     info Checking whatever compiler accpets "$2"...
-    if $compiler $CXXOPTS $2 ${CXXOPTS_POST:-} $LDFLAGS ${LDFLAGS_POST:-} testfile.cc -o testfile > /dev/null 2>&1; then
+    if $CXX $CXXOPTS $2 ${CXXOPTS_POST:-} $LDFLAGS ${LDFLAGS_POST:-} testfile.cc -o testfile > /dev/null 2>&1; then
         rm testfile
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
@@ -102,7 +102,7 @@ try_cxx_argument()
 try_ld_argument()
 {
     info Checking whatever linker accepts "$2"...
-    if $compiler $CXXOPTS ${CXXOPTS_POST:-} $LDFLAGS ${LDFLAGS_POST:-} $2 testfile.cc -o testfile > /dev/null 2>&1; then
+    if $CXX $CXXOPTS ${CXXOPTS_POST:-} $LDFLAGS ${LDFLAGS_POST:-} $2 testfile.cc -o testfile > /dev/null 2>&1; then
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
         eval "$1=\${$1# }"
@@ -258,33 +258,27 @@ fi
 create_testfile_cc
 
 ## Find and test C++ compiler
-info Checking C++ compiler...
-if [ -n "${CXX:-}" ]; then
-    sub_info "$CXX" is user/system prefered C++ compiler.
-    compiler="$CXX"
-else
+if [ -z "${CXX:-}" ]; then
+    info Checking C++ compiler...
     for guess in g++ clang++ c++; do
         findcxx "$guess"
-        if [ -n "${compiler:-}" ]; then
-            sub_info "$compiler"
+        if [ -n "${CXX:-}" ]; then
+            sub_info "$CXX"
             break # Found
         fi
     done
-    if [ -z "${compiler:-}" ]; then
+    if [ -z "${CXX:-}" ]; then
        sub_error No C++ compiler found! # Not found
     fi
 fi
 if [ -n "${HOSTCXX:-}" ]; then
-    info Checking Host C++ Compiler...
-    sub_info "$HOSTCXX" is user/system prefered native C++ compiler.
-    hostcompiler="$HOSTCXX"
-    if [ -z "${compiler:-}" ] || [ -z "${hostcompiler:-}" ]; then
+    if [ -z "${CXX:-}" ] || [ -z "${HOSTCXX:-}" ]; then
        sub_error No C++ compiler found! # Not found
     fi
 fi
-cxx_works "$compiler"
-if [ -n "${hostcompiler:-}" ]; then
-    cxx_works "$hostcompiler"
+cxx_works "$CXX"
+if [ -n "${HOSTCXX:-}" ]; then
+    cxx_works "$HOSTCXX"
 fi
 
 ## Test compiler/linker supported arguments
@@ -330,7 +324,7 @@ SYSCONTROLSOCKET=$SYSCONTROLSOCKET
 # MacOS: Cannot use -fno-rtti: apparently prevents exception handling from working properly.
 # FreeBSD: Cannot use LTO with default linker.
 
-CXX=$compiler
+CXX=$CXX
 CXXOPTS=$CXXOPTS ${CXXOPTS_POST:-}
 LDFLAGS=$LDFLAGS ${LDFLAGS_POST:-}
 BUILD_SHUTDOWN=$BUILD_SHUTDOWN
@@ -348,7 +342,7 @@ fi
 if [ -n "${hostcompiler:-}" ]; then
     echo "" >> mconfig
     echo "# For cross-compiling" >> mconfig
-    echo "HOSTCXX=$hostcompiler" >> mconfig
+    echo "HOSTCXX=$HOSTCXX" >> mconfig
 fi
 sub_info done.
 info Done!
