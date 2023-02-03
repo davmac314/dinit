@@ -85,7 +85,7 @@ cxx_works()
 try_cxx_argument()
 {
     info Checking whatever compiler accpets "$2"...
-    if $CXX $CXXOPTS $2 ${CXXOPTS_POST:-} $LDFLAGS ${LDFLAGS_POST:-} testfile.cc -o testfile > /dev/null 2>&1; then
+    if $CXX $CXXOPTS $2 ${CXXOPTS_POST:-} ${LDFLAGS:-} ${LDFLAGS_POST:-} testfile.cc -o testfile > /dev/null 2>&1; then
         rm testfile
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
@@ -102,7 +102,7 @@ try_cxx_argument()
 try_ld_argument()
 {
     info Checking whatever linker accepts "$2"...
-    if $CXX $CXXOPTS ${CXXOPTS_POST:-} $LDFLAGS ${LDFLAGS_POST:-} $2 testfile.cc -o testfile > /dev/null 2>&1; then
+    if $CXX ${CXXOPTS:-} ${CXXOPTS_POST:-} ${LDFLAGS:-} ${LDFLAGS_POST:-} $2 testfile.cc -o testfile > /dev/null 2>&1; then
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
         eval "$1=\${$1# }"
@@ -229,20 +229,6 @@ else
     SYSCONTROLSOCKET="/var/run/dinitctl"
 fi
 
-## Resolve final CXXOPTS and LDFLAGS
-if [ -z "${CXXOPTS+IS_SET}" ]; then
-    NO_CXXOPTS=false
-    CXXOPTS=""
-else
-    NO_CXXOPTS=true
-fi
-if [ -z "${LDFLAGS+IS_SET}" ]; then
-    NO_LDFLAGS=false
-    LDFLAGS=""
-else
-    NO_LDFLAGS=true
-fi
-
 ## Resolve final paths
 SBINDIR="$EPREFIX/$SBINDIR"
 MANDIR="$PREFIX/$MANDIR"
@@ -282,7 +268,8 @@ if [ -n "${HOSTCXX:-}" ]; then
 fi
 
 ## Test compiler/linker supported arguments
-if [ "$NO_CXXOPTS" = "false" ]; then
+if [ -z "${CXXOPTS+IS_SET}" ]; then
+    CXXOPTS=""
     for argument in -std=c++11 \
                     -Wall \
                     -Os \
@@ -297,7 +284,8 @@ if [ "$NO_CXXOPTS" = "false" ]; then
         try_cxx_argument CXXOPTS -fno-rtti
     fi
 fi
-if [ "$PLATFORM" = "FreeBSD" ] && [ "$NO_LDFLAGS" = "false" ]; then
+if [ "$PLATFORM" = "FreeBSD" ] && [ -z "${LDFLAGS+IS_SET}" ]; then
+    LDFLAGS=""
     try_ld_argument LDFLAGS -lrt
 fi
 if [ "${NO_SANITIZE:-}" = "auto" ]; then
@@ -326,8 +314,8 @@ SYSCONTROLSOCKET=$SYSCONTROLSOCKET
 # FreeBSD: Cannot use LTO with default linker.
 
 CXX=$CXX
-CXXOPTS=$CXXOPTS ${CXXOPTS_POST:-}
-LDFLAGS=$LDFLAGS ${LDFLAGS_POST:-}
+CXXOPTS=${CXXOPTS:-} ${CXXOPTS_POST:-}
+LDFLAGS=${LDFLAGS:-} ${LDFLAGS_POST:-}
 BUILD_SHUTDOWN=$BUILD_SHUTDOWN
 SANITIZEOPTS=${SANITIZEOPTS:-}
 
