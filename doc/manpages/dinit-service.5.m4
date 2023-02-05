@@ -134,7 +134,7 @@ properties.
 .LP
 The following properties can be specified:
 .TP
-\fBtype\fR = {process | bgprocess | scripted | internal}
+\fBtype\fR = {process | bgprocess | scripted | internal | triggered}
 Specifies the service type; see the \fBSERVICE TYPES\fR section.
 .TP
 \fBcommand\fR = \fIcommand-string\fR
@@ -358,7 +358,7 @@ Currently there is only one available option, \fBsub\-vars\fR, which specifies t
 environment variable with the specified name.
 See \fBVARIABLE SUBSTITUTION\fR for details.
 Note command-line variable substitution occurs after splitting the line into separate arguments and so
-a single environment cannot be used to add multiple arguments to a command line.
+a single environment variable cannot be used to add multiple arguments to a command line.
 If a designated variable is not defined, it is replaced with an empty (zero-length) string, possibly producing a
 zero-length argument.
 Environment variable variables are taken from the environment of the \fBdinit\fR process, and values
@@ -482,7 +482,6 @@ This prompts Dinit to attempt to create its control socket, if it has not alread
 and similarly log boot time to the system \fBwtmp\fR(5) database (if supported) if not yet done.
 This option may be specified on multiple services, which may be useful if the wtmp database becomes
 writable at a different stage than the control socket location becomes writable, for example.
-It
 .TP
 \fBstarts\-log\fR
 This service starts the system log daemon.

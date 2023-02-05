@@ -291,4 +291,8 @@ reproducible boot issue or shutdown issue.
 ## Caveats
 
 For services which specify a `logfile`, the location must be writable when the service starts
-(otherwise the service will fail to start).
+(otherwise the service will fail to start). Typically this means that nearly all services must
+depend on the service that makes the root filesystem writable. For services that must start
+before the root filesystem becomes writable, it may be possible to log in `/run` or another
+directory that is mounted with a RAM-based filesystem; alternatively, the `shares-console`
+option can be used for these services so that their output is visible at startup.

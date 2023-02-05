@@ -574,9 +574,9 @@ int dinit_main(int argc, char **argv)
         log(loglevel_t::NOTICE, false, "Starting system");
     }
     
-    // Only try to set up the external log now if we aren't the system init. (If we are the
-    // system init, wait until the log service starts).
-    if (!am_system_init && log_specified) setup_external_log();
+    // Only try to set up the external log (via syslog) now if we aren't the system init. (If we
+    // are the system init, wait until the log service starts, unless a logfile has been specified).
+    if (!am_system_init || log_specified) setup_external_log();
 
     if (env_file != nullptr) {
         read_env_file(env_file, true, main_env);
