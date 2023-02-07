@@ -328,10 +328,12 @@ EOF
 if [ -n "${USE_UTMPX:-}" ]; then
     echo "USE_UTMPX=$USE_UTMPX" >> mconfig
 fi
-if [ -n "${hostcompiler:-}" ]; then
-    echo "" >> mconfig
-    echo "# For cross-compiling" >> mconfig
-    echo "HOSTCXX=$HOSTCXX" >> mconfig
+if [ -n "${HOSTCXX:-}" ]; then
+    (
+        echo ""
+        echo "# For cross-compiling"
+        echo "HOSTCXX=$HOSTCXX"
+    ) >> mconfig
 fi
 sub_info done.
 info Done!
