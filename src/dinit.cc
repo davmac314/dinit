@@ -806,6 +806,9 @@ void rootfs_is_rw() noexcept
         open_control_socket(true);
         control_socket_ready();
     }
+    if (!log_is_syslog) {
+        setup_external_log();
+    }
     if (!did_log_boot) {
         did_log_boot = log_boot();
     }
