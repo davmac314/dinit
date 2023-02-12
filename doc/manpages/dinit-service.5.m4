@@ -482,6 +482,9 @@ This prompts Dinit to attempt to create its control socket, if it has not alread
 and similarly log boot time to the system \fBwtmp\fR(5) database (if supported) if not yet done.
 This option may be specified on multiple services, which may be useful if the wtmp database becomes
 writable at a different stage than the control socket location becomes writable, for example.
+If the control socket has already been created, this option currently causes Dinit to check that
+the socket "file" still exists and re-create it if not. It is not recommended to rely on this
+behaviour.
 .TP
 \fBstarts\-log\fR
 This service starts the system log daemon.
