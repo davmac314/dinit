@@ -85,7 +85,7 @@ cxx_works()
 try_cxx_argument()
 {
     info Checking whatever compiler accpets "$2"...
-    if $CXX $CXXOPTS $2 ${CXXOPTS_POST:-} ${LDFLAGS:-} ${LDFLAGS_POST:-} testfile.cc -o testfile > /dev/null 2>&1; then
+    if $CXX $CXXOPTS $2 $CXXOPTS_POST $LDFLAGS $LDFLAGS_POST testfile.cc -o testfile > /dev/null 2>&1; then
         rm testfile
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
@@ -102,7 +102,7 @@ try_cxx_argument()
 try_ld_argument()
 {
     info Checking whatever linker accepts "$2"...
-    if $CXX ${CXXOPTS:-} ${CXXOPTS_POST:-} ${LDFLAGS:-} ${LDFLAGS_POST:-} $2 testfile.cc -o testfile > /dev/null 2>&1; then
+    if $CXX $CXXOPTS $CXXOPTS_POST $LDFLAGS $LDFLAGS_POST $2 testfile.cc -o testfile > /dev/null 2>&1; then
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
         eval "$1=\${$1# }"
@@ -169,23 +169,6 @@ EOF
     exit 0
 }
 
-## General Defines
-PLATFORM=$(uname)
-PREFIX="/usr"
-EPREFIX="/"
-SANITIZEOPTS=""
-SBINDIR="/sbin"
-MANDIR="/share/man/"
-NO_SANITIZE="auto"
-SHUTDOWN_PREFIX=""
-if [ "$PLATFORM" = "Linux" ]; then
-    BUILD_SHUTDOWN=yes
-    SUPPORT_CGROUPS=1
-else
-    BUILD_SHUTDOWN=no
-    SUPPORT_CGROUPS=0
-fi
-
 ## Flag praser
 for arg in "$@"; do
     case "$arg" in
@@ -222,16 +205,45 @@ for arg in "$@"; do
     esac
 done
 
-## Resolve SYSCONTROLSOCKET based on PLATFORM
+## General Defines
+: "${PLATFORM:=$(uname)}"
+: "${PREFIX:="/usr"}"
+: "${EPREFIX:="/"}"
+: "${NO_SANITIZE:="0"}"
+SANITIZEOPTS=""
+: "${SBINDIR:="/sbin"}"
+: "${MANDIR:="/share/man/"}"
+: "${NO_SANITIZE:="auto"}"
+: "${SHUTDOWN_PREFIX:=""}"
+: "${CXXOPTS_POST:=""}"
+: "${LDFLAGS_POST:=""}"
 if [ "$PLATFORM" = "Linux" ]; then
-    SYSCONTROLSOCKET="/run/dinitctl"
+    : "${BUILD_SHUTDOWN:=yes}"
+    : "${SUPPORT_CGROUPS:=1}"
+    : "${SYSCONTROLSOCKET:="/run/dinitctl"}"
 else
-    SYSCONTROLSOCKET="/var/run/dinitctl"
+    : "${BUILD_SHUTDOWN:=no}"
+    : "${SUPPORT_CGROUPS:=0}"
+    : "${SYSCONTROLSOCKET:="/var/run/dinitctl"}"
 fi
 
 ## Resolve final paths
 SBINDIR="$EPREFIX/$SBINDIR"
 MANDIR="$PREFIX/$MANDIR"
+
+## Finalize $CXXOPTS & $LDFLAGS
+if [ -z "${CXXOPTS+IS_SET}" ]; then
+    CXXOPTS=""
+    NO_CXXOPTS="false"
+else
+    NO_CXXOPTS="true"
+fi
+if [ -z "${LDFLAGS+IS_SET}" ]; then
+    LDFLAGS=""
+    NO_LDFLAGS="false"
+else
+    NO_LDFLAGS="true"
+fi
 
 ## Verify PLATFORM value
 if [ "$PLATFORM" != "Linux" ] && [ "$PLATFORM" != "FreeBSD" ] && \
@@ -268,8 +280,7 @@ if [ -n "${HOSTCXX:-}" ]; then
 fi
 
 ## Test compiler/linker supported arguments
-if [ -z "${CXXOPTS+IS_SET}" ]; then
-    CXXOPTS=""
+if [ "$NO_CXXOPTS" = "false" ]; then
     for argument in -std=c++11 \
                     -Wall \
                     -Os \
@@ -284,8 +295,7 @@ if [ -z "${CXXOPTS+IS_SET}" ]; then
         try_cxx_argument CXXOPTS -fno-rtti
     fi
 fi
-if [ "$PLATFORM" = "FreeBSD" ] && [ -z "${LDFLAGS+IS_SET}" ]; then
-    LDFLAGS=""
+if [ "$PLATFORM" = "FreeBSD" ] && [ "$NO_LDFLAGS" = "false" ]; then
     try_ld_argument LDFLAGS -lrt
 fi
 if [ "${NO_SANITIZE:-}" = "auto" ]; then
@@ -314,10 +324,10 @@ SYSCONTROLSOCKET=$SYSCONTROLSOCKET
 # FreeBSD: Cannot use LTO with default linker.
 
 CXX=$CXX
-CXXOPTS=${CXXOPTS:-} ${CXXOPTS_POST:-}
-LDFLAGS=${LDFLAGS:-} ${LDFLAGS_POST:-}
+CXXOPTS=$CXXOPTS $CXXOPTS_POST
+LDFLAGS=$LDFLAGS $LDFLAGS_POST
 BUILD_SHUTDOWN=$BUILD_SHUTDOWN
-SANITIZEOPTS=${SANITIZEOPTS:-}
+SANITIZEOPTS=$SANITIZEOPTS
 
 # Feature settings
 SUPPORT_CGROUPS=$SUPPORT_CGROUPS
