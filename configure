@@ -209,7 +209,7 @@ done
 : "${PLATFORM:=$(uname)}"
 : "${PREFIX:="/usr"}"
 : "${EPREFIX:="/"}"
-: "${NO_SANITIZE:="0"}"
+: "${NO_SANITIZE:="auto"}"
 SANITIZEOPTS=""
 : "${SBINDIR:="/sbin"}"
 : "${MANDIR:="/share/man/"}"
