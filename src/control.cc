@@ -1212,7 +1212,7 @@ bool control_conn_t::data_ready() noexcept
     // Note file descriptor is non-blocking
     if (r == -1) {
         if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-            log(loglevel_t::WARN, "Error writing to control connection: ", strerror(errno));
+            log(loglevel_t::WARN, "Error reading from control connection: ", strerror(errno));
             return true;
         }
         return false;
@@ -1267,12 +1267,12 @@ bool control_conn_t::send_data() noexcept
         }
         else if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
             // spurious readiness notification?
+            return false;
         }
         else {
             log(loglevel_t::ERROR, "Error writing to control connection: ", strerror(errno));
             return true;
         }
-        return false;
     }
 
     outpkt_index += written;
@@ -1280,23 +1280,27 @@ bool control_conn_t::send_data() noexcept
         // We've finished this packet, move on to the next:
         outbuf.pop_front();
         outpkt_index = 0;
-        if (outbuf.empty() && ! oom_close) {
-            if (! bad_conn_close) {
-                iob.set_watches(IN_EVENTS);
-            }
-            else {
+        if (oom_close) {
+            // remain active, try to send DINIT_RP_OOM shortly
+            return false;
+        }
+        if (outbuf.empty()) {
+            if (bad_conn_close) {
                 return true;
             }
+            iob.set_watches(IN_EVENTS);
         }
     }
     
+    // more to send
     return false;
 }
 
 control_conn_t::~control_conn_t() noexcept
 {
-    bp_sys::close(iob.get_watched_fd());
+    int fd = iob.get_watched_fd();
     iob.deregister(loop);
+    bp_sys::close(fd);
     
     // Clear service listeners
     for (auto p : service_key_map) {
