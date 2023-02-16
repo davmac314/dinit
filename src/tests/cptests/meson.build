@@ -40,7 +40,7 @@ if unit_tests
         sources,
         include_directories : incdir
     )
-    test('cptests', cptests_exec, suite : 'Unit test')
+    test('cptests', cptests_exec, suite : 'unit_tests')
 endif
 # LLVM's Libfuzzer
 if fuzzer

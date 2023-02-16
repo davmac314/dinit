@@ -1,7 +1,6 @@
 # Included from top-level meson.build
 
 ## Prepare integration tests
-
 run_command([
     'cp',
     '-r',
@@ -32,90 +31,90 @@ test(
      'basic',
      basic_test_script,
      env : igr_tests_env,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
 test(
      'environ',
      environ_test_script,
      env : igr_tests_env,
      is_parallel : false,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
 test(
      'ps-environ',
      psenviron_test_script,
      env : igr_tests_env,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
 test(
      'chain-to',
      chainto_test_script,
      env : igr_tests_env,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
 test(
      'force-stop',
      forcestop_test_script,
      env : igr_tests_env,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
 test(
      'restart',
      restart_test_script,
      env : igr_tests_env,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
 test(
      'check-basic',
      checkbasic_test_script,
      env : igr_tests_env,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
 test(
      'check-cycle',
      checkcycle_test_script,
      env : igr_tests_env,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
 test(
      'check-lint',
      checklint_test_script,
      env : igr_tests_env,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
 test(
      'reload1',
      reload1_test_script,
      env : igr_tests_env,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
 test(
      'reload2',
      reload2_test_script,
      env : igr_tests_env,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
 test(
      'no-command-error',
      nocommanderror_test_script,
      env : igr_tests_env,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
 test(
      'add-rm-dep',
      addrmdep_test_script,
      env : igr_tests_env,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
 test(
      'var-subst',
      varsubst_test_script,
      env : igr_tests_env,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
 test(
      'svc-start-fail',
      svcstartfail_test_script,
      env : igr_tests_env,
-     suite : 'Integration test'
+     suite : 'igr_tests'
 )
