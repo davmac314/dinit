@@ -46,7 +46,7 @@ endif
 
 ## Use -lrt?
 # We need to pass -lrt to c++ linker on FreeBSD. see BUILD_MESON
-if platform == 'freebsd'
+if platform == 'freebsd' and compiler.has_argument('-lrt')
     add_project_link_arguments('-lrt', language : 'cpp')
 endif
 
