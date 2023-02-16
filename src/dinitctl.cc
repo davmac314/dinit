@@ -51,6 +51,7 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, con
 static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to,
         bool enable, bool verbose);
 static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names);
+static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool trigger_value);
 
 static const char * describeState(bool stopped)
 {
@@ -80,6 +81,8 @@ enum class command_t {
     ENABLE_SERVICE,
     DISABLE_SERVICE,
     SETENV,
+    SET_TRIGGER,
+    UNSET_TRIGGER,
 };
 
 class dinit_protocol_error
@@ -107,6 +110,7 @@ int dinitctl_main(int argc, char **argv)
     bool do_pin = false;
     bool do_force = false;
     bool ignore_unstarted = false;
+    bool use_passed_cfd = false;
     
     command_t command = command_t::NONE;
 
@@ -147,6 +151,9 @@ int dinitctl_main(int argc, char **argv)
                     return 1;
                 }
                 control_socket_str = argv[i];
+            }
+            else if (strcmp(argv[i], "--use-passed-cfd") == 0) {
+                use_passed_cfd = true;
             }
             else if ((command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE)
                     && strcmp(argv[i], "--from") == 0) {
@@ -214,6 +221,12 @@ int dinitctl_main(int argc, char **argv)
             }
             else if (strcmp(argv[i], "setenv") == 0) {
                 command = command_t::SETENV;
+            }
+            else if (strcmp(argv[i], "trigger") == 0) {
+                command = command_t::SET_TRIGGER;
+            }
+            else if (strcmp(argv[i], "untrigger") == 0) {
+                command = command_t::UNSET_TRIGGER;
             }
             else {
                 cerr << "dinitctl: unrecognized command: " << argv[i] << " (use --help for help)\n";
@@ -322,6 +335,8 @@ int dinitctl_main(int argc, char **argv)
           "    dinitctl [options] rm-dep <type> <from-service> <to-service>\n"
           "    dinitctl [options] enable [--from <from-service>] <to-service>\n"
           "    dinitctl [options] disable [--from <from-service>] <to-service>\n"
+          "    dinitctl [options] trigger <service-name>\n"
+          "    dinitctl [options] untrigger <service-name>\n"
           "    dinitctl [options] setenv [name[=value] ...]\n"
           "\n"
           "Note: An activated service continues running when its dependents stop.\n"
@@ -333,6 +348,8 @@ int dinitctl_main(int argc, char **argv)
           "  --quiet          : suppress output (except errors)\n"
           "  --socket-path <path>, -p <path>\n"
           "                   : specify socket for communication with daemon\n"
+          "  --use-passed-cfd : use the socket file descriptor identified by the DINIT_CS_FD\n"
+          "                     environment variable to communicate with the dinit daemon.\n"
           "\n"
           "Command options:\n"
           "  --no-wait        : don't wait for service startup/shutdown to complete\n"
@@ -345,25 +362,38 @@ int dinitctl_main(int argc, char **argv)
 
     signal(SIGPIPE, SIG_IGN);
     
-    // Locate control socket
-    if (! control_socket_str.empty()) {
-        control_socket_path = control_socket_str.c_str();
+    int socknum = -1;
+
+    if (use_passed_cfd) {
+        socknum = get_passed_cfd();
+        if (socknum == -1) {
+            use_passed_cfd = false;
+        }
     }
-    else {
-        control_socket_path = get_default_socket_path(control_socket_str, user_dinit);
-        if (control_socket_path == nullptr) {
-            cerr << "dinitctl: cannot locate user home directory (set XDG_RUNTIME_DIR, HOME, check /etc/passwd file, or "
-                    "specify socket path via -p)" << endl;
-            return 1;
+
+    if (!use_passed_cfd) {
+        // Locate control socket
+        if (!control_socket_str.empty()) {
+            control_socket_path = control_socket_str.c_str();
+        }
+        else {
+            control_socket_path = get_default_socket_path(control_socket_str, user_dinit);
+            if (control_socket_path == nullptr) {
+                cerr << "dinitctl: cannot locate user home directory (set XDG_RUNTIME_DIR, HOME, check /etc/passwd file, or "
+                        "specify socket path via -p)" << endl;
+                return 1;
+            }
         }
     }
     
     try {
-        int socknum = connect_to_daemon(control_socket_path);
+        if (!use_passed_cfd) {
+            socknum = connect_to_daemon(control_socket_path);
+        }
 
         // Start by querying protocol version:
         cpbuffer_t rbuffer;
-        check_protocol_version(min_cp_version, max_cp_version, rbuffer, socknum);
+        uint16_t daemon_protocol_ver = check_protocol_version(min_cp_version, max_cp_version, rbuffer, socknum);
 
         if (command == command_t::UNPIN_SERVICE) {
             return unpin_service(socknum, rbuffer, service_name, verbose);
@@ -397,6 +427,12 @@ int dinitctl_main(int argc, char **argv)
         }
         else if (command == command_t::SETENV) {
             return do_setenv(socknum, rbuffer, cmd_args);
+        }
+        else if (command == command_t::SET_TRIGGER || command == command_t::UNSET_TRIGGER) {
+            if (daemon_protocol_ver < 2) {
+                throw cp_old_server_exception();
+            }
+            return trigger_service(socknum, rbuffer, service_name, (command == command_t::SET_TRIGGER));
         }
         else {
             return start_stop_service(socknum, rbuffer, service_name, command, do_pin, do_force,
@@ -861,7 +897,7 @@ static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p
     }
     else if (rbuffer[0] == DINIT_RP_SERVICE_LOAD_ERR) {
         if (write_error) {
-            cerr << "dinitctl: error loading service.\n";
+            cerr << "dinitctl: error loading service (or dependency of service).\n";
             cerr << "dinitctl: try 'dinitcheck <service-name>' or check log for more information.\n";
         }
         return 1;
@@ -1629,6 +1665,38 @@ static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *>
             return 1;
         } else if (rbuffer[0] != DINIT_RP_ACK) {
             throw dinit_protocol_error();
+        }
+        rbuffer.consume(1);
+    }
+
+    return 0;
+}
+
+static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool trigger_value)
+{
+    using namespace std;
+
+    handle_t handle;
+    if (!load_service(socknum, rbuffer, service_name, &handle, nullptr, true)) {
+        return 1;
+    }
+
+    // Issue SET_TRIGGER command.
+    {
+        auto m = membuf()
+                .append<char>(DINIT_CP_SETTRIGGER)
+                .append(handle)
+                .append<char>(trigger_value);
+        write_all_x(socknum, m);
+
+        wait_for_reply(rbuffer, socknum);
+        if (rbuffer[0] == DINIT_RP_NAK) {
+            cerr << "dinitctl: cannot trigger a service that is not of 'triggered' type.\n";
+            return 1;
+        }
+        if (rbuffer[0] != DINIT_RP_ACK) {
+            cerr << "dinitctl: protocol error.\n";
+            return 1;
         }
         rbuffer.consume(1);
     }

@@ -20,7 +20,8 @@ enum class service_type_t {
                 // "background".
     SCRIPTED,   // Service requires an external command to start,
                 // and a second command to stop
-    INTERNAL    // Internal service, runs no external process
+    INTERNAL,   // Internal service, runs no external process
+    TRIGGERED   // Externally triggered service
 };
 
 /* Service events */

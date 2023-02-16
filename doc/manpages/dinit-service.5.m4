@@ -28,7 +28,7 @@ specified via property settings, the format of which are documented in the
 .\"
 .SS SERVICE TYPES
 .\"
-There are four basic types of service:
+There are five basic types of service:
 .IP \(bu
 \fBProcess\fR services. This kind of service runs as a single process; starting
 the service simply requires starting the process; stopping the service is
@@ -48,6 +48,12 @@ They can not be supervised.
 \fBInternal\fR services do not run as an external process at all. They can
 be started and stopped without any external action.
 They are useful for grouping other services (via service dependencies).
+.IP \(bu
+\fbTriggered\fR services are similar to internal processes, but an external
+trigger is required before they will start (i.e. their startup will pause until
+the trigger occurs).
+The \fBdinitctl trigger\fR command can be used to trigger such a service;
+see \fBdinitctl\fR(8).
 .LP
 Independent of their type, the state of services can be linked to other
 services via dependency relationships, which are discussed in the next section.
@@ -128,7 +134,7 @@ properties.
 .LP
 The following properties can be specified:
 .TP
-\fBtype\fR = {process | bgprocess | scripted | internal}
+\fBtype\fR = {process | bgprocess | scripted | internal | triggered}
 Specifies the service type; see the \fBSERVICE TYPES\fR section.
 .TP
 \fBcommand\fR = \fIcommand-string\fR
@@ -352,7 +358,7 @@ Currently there is only one available option, \fBsub\-vars\fR, which specifies t
 environment variable with the specified name.
 See \fBVARIABLE SUBSTITUTION\fR for details.
 Note command-line variable substitution occurs after splitting the line into separate arguments and so
-a single environment cannot be used to add multiple arguments to a command line.
+a single environment variable cannot be used to add multiple arguments to a command line.
 If a designated variable is not defined, it is replaced with an empty (zero-length) string, possibly producing a
 zero-length argument.
 Environment variable variables are taken from the environment of the \fBdinit\fR process, and values
@@ -472,7 +478,13 @@ this option.
 \fBstarts\-rwfs\fR
 This service mounts the root filesystem read/write (or at least mounts the
 normal writable filesystems for the system).
-This prompts Dinit to create its control socket, if it has not already managed to do so.
+This prompts Dinit to attempt to create its control socket, if it has not already managed to do so,
+and similarly log boot time to the system \fBwtmp\fR(5) database (if supported) if not yet done.
+This option may be specified on multiple services, which may be useful if the wtmp database becomes
+writable at a different stage than the control socket location becomes writable, for example.
+If the control socket has already been created, this option currently causes Dinit to check that
+the socket "file" still exists and re-create it if not. It is not recommended to rely on this
+behaviour.
 .TP
 \fBstarts\-log\fR
 This service starts the system log daemon.
@@ -512,10 +524,21 @@ sending it a signal for any reason.
 Alters behaviour of the \fBchain-to\fR property, forcing the chained service to
 always start on termination of this service (instead of only when this service
 terminates with an exit status indicating success).
+.TP
+\fBkill\-all\-on\-stop\fR
+Before stopping this service, send a TERM signal and then (after a short pause) a
+KILL signal to all other processes in the system, forcibly terminating them.
+This option is intended to allow system shutdown scripts to run without any possible
+interference from "leftover" or orphaned processes (for example, unmounting file systems usually
+requires that the file systems are no longer in use).
+.sp
+This option must be used with care since the signal broadcast does not discriminate and
+potentially kills other services (or their shutdown scripts); a strict dependency ordering
+is suggested, i.e. every other service should either be a (possibly transitive) dependency or
+dependent of the service with this option set.
+.sp
+This option can be used for scripted and internal services only.
 .RE
-.LP
-The next section contains example service descriptions including some of the
-parameters and options described above.
 .\"
 .SS RESOURCE LIMITS
 .\"

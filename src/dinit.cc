@@ -574,9 +574,9 @@ int dinit_main(int argc, char **argv)
         log(loglevel_t::NOTICE, false, "Starting system");
     }
     
-    // Only try to set up the external log now if we aren't the system init. (If we are the
-    // system init, wait until the log service starts).
-    if (!am_system_init && log_specified) setup_external_log();
+    // Only try to set up the external log (via syslog) now if we aren't the system init. (If we
+    // are the system init, wait until the log service starts, unless a logfile has been specified).
+    if (!am_system_init || log_specified) setup_external_log();
 
     if (env_file != nullptr) {
         read_env_file(env_file, true, main_env);
@@ -786,7 +786,8 @@ static void control_socket_cb(eventloop_t *loop, int sockfd) noexcept
     }
 }
 
-static void control_socket_ready() noexcept {
+static void control_socket_ready() noexcept
+{
     if (!control_socket_open || socket_ready_fd < 0) {
         return;
     }
@@ -795,7 +796,7 @@ static void control_socket_ready() noexcept {
     if (socket_ready_fd > 2) {
         close(socket_ready_fd);
     }
-    // Ensure this can only be called once
+    // Ensure that we don't try to issue readiness again:
     socket_ready_fd = -1;
 }
 
@@ -803,15 +804,16 @@ static void control_socket_ready() noexcept {
 void rootfs_is_rw() noexcept
 {
     open_control_socket(true);
-    if (! did_log_boot) {
+    control_socket_ready();
+    if (!log_is_syslog) {
+        setup_external_log();
+    }
+    if (!did_log_boot) {
         did_log_boot = log_boot();
     }
-    // If the control socket failed to open early on, there was no readiness
-    // notification, so do it here for a second time, just in case
-    control_socket_ready();
 }
 
-// Open/create the control socket, normally /dev/dinitctl, used to allow client programs to connect
+// Open/create the control socket, normally /run/dinitctl, used to allow client programs to connect
 // and issue service orders and shutdown commands etc. This can safely be called multiple times;
 // once the socket has been successfully opened, further calls will check the socket file is still
 // present and re-create it if not.

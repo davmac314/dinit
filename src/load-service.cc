@@ -334,7 +334,18 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             };
 
             auto load_service_n = [&](const string &dep_name) -> service_record * {
-                return load_service(dep_name.c_str(), reload_svc);
+                try {
+                    return load_service(dep_name.c_str(), reload_svc);
+                }
+                catch (service_description_exc &sle) {
+                    log_service_load_failure(sle);
+                    throw service_load_exc(name, "could not load dependency.");
+                }
+                catch (service_load_exc &sle) {
+                    log(loglevel_t::ERROR, "Could not load service ", sle.service_name, ": ",
+                            sle.exc_description);
+                    throw service_load_exc(name, "could not load dependency.");
+                }
             };
 
             process_service_line(settings, name, line, line_num, setting, i, end, load_service_n,
@@ -409,6 +420,10 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 // Already started; we must replace settings on existing service record
                 create_new_record = false;
             }
+            else if (service_type != service->get_type()) {
+                // No need to create a new record if the type hasn't changed
+                create_new_record = false;
+            }
         }
 
         // Note, we need to be very careful to handle exceptions properly and roll back any changes that
@@ -419,7 +434,19 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         std::list<service_dep> before_deps;
         if (dummy == nullptr) {
             for (const std::string &before_ent : settings.before_svcs) {
-                service_record *before_svc = load_service(before_ent.c_str());
+                service_record *before_svc;
+                try {
+                    before_svc = load_service(before_ent.c_str());
+                }
+                catch (service_description_exc &sle) {
+                    log_service_load_failure(sle);
+                    throw service_load_exc(name, "could not load dependency.");
+                }
+                catch (service_load_exc &sle) {
+                    log(loglevel_t::ERROR, "Could not load service ", sle.service_name, ": ",
+                            sle.exc_description);
+                    throw service_load_exc(name, "could not load dependency.");
+                }
                 before_deps.emplace_back(before_svc, reload_svc, dependency_type::BEFORE);
                 // (note, we may need to adjust the to-service if we create a new service record object)
                 check_cycle(settings.depends, before_svc);
@@ -540,7 +567,13 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         }
         else {
             if (create_new_record) {
-                rval = new service_record(this, string(name), service_type, settings.depends);
+                if (service_type == service_type_t::INTERNAL) {
+                    rval = new service_record(this, string(name), service_type, settings.depends);
+                }
+                else {
+                    /* TRIGGERED */
+                    rval = new triggered_service(this, string(name), service_type, settings.depends);
+                }
                 if (reload_svc != nullptr) {
                     check_cycle(settings.depends, reload_svc);
                 }
@@ -652,7 +685,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         return rval;
     }
-    catch (setting_exception &setting_exc)
+    catch (service_description_exc &setting_exc)
     {
         // Must remove the dummy service record.
         if (dummy != nullptr) {
@@ -660,12 +693,10 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             delete dummy;
         }
         if (create_new_record) delete rval;
-        if (setting_exc.line_num != (unsigned)-1) {
-            throw service_description_exc(name, std::move(setting_exc.get_info()), setting_exc.line_num);
+        if (setting_exc.service_name.empty()) {
+            setting_exc.service_name = name;
         }
-        else {
-            throw service_description_exc(name, std::move(setting_exc.get_info()), setting_exc.setting_name);
-        }
+        throw;
     }
     catch (std::system_error &sys_err)
     {
@@ -676,7 +707,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         if (create_new_record) delete rval;
         throw service_load_exc(name, sys_err.what());
     }
-    catch (...) // (should only be std::bad_alloc / service_description_exc)
+    catch (...) // (should only be std::bad_alloc or service_load_exc)
     {
         if (dummy != nullptr) {
             records.erase(std::find(records.begin(), records.end(), dummy));

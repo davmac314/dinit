@@ -12,7 +12,7 @@ run-tests: cptests
 	./cptests
 
 cptests: cptests.o $(parent_objs) $(parent_test_objs)
-	$(CXX) $(SANITIZEOPTS) -o cptests cptests.o $(parent_test_objects) $(parent_objs) $(CXXOPTS) $(LDFLAGS)
+	$(CXX) -o cptests cptests.o $(parent_test_objects) $(parent_objs) $(CXXOPTS) $(LDFLAGS) $(SANITIZEOPTS)
 
 $(objects): %.o: %.cc
 	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../../dasynq/include -I../../../build/includes -c $< -o $@

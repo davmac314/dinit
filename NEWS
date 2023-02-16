@@ -1,7 +1,41 @@
 == Version 0.17.0
 
+Thank you to several new sponsors, as well as existing sponsors, for supporting this release.
+Current sponsors include github users: brentfrow, brazeon, and q66 (Daniel Kolesa, author of
+Chimera Linux). Development of Dinit has also received financial support from Artix Linux.
+I am grateful for all the support, both financial and otherwise, that has been received.
+
 Changes:
- * ...
+ * ... TBC
+ * New "triggered" service type, similar to "internal" except that it requires an external
+   trigger before it will start (start of a triggered service is delayed until the external
+   trigger is received).
+ * New "kill-all-on-stop" service option will cause dinit to kill all (other) processes just
+   before stopping the service. This can be used to ensure a cleaner system state and that
+   filesystems can be unmounted (for example). Use with care; see dinit-service(5) for details.
+ * "shutdown" now runs (if present) user-provided shutdown hooks; see shutdown(8) for details.
+ * "dinitctl" now supports the "--use-passed-cfd" argument (as for shutdown).
+ * Meson build system added (as an alternative to the existing makefile-based build) by Mobin
+   Aydinfar.
+
+== Version 0.16.1
+
+(Bugfix release for 0.16.0)
+
+This release contains bug fixes for the previous release.
+
+Changes:
+ * Fix issue where dependencies could stop before there dependents had stopped.
+ * Fix issue where startup could fail if control socket location was not writable when
+   dinit started.
+ * Fix for dinitctl crashing due to an exception when a service description contained
+   certain syntactical errors.
+ * Fix nonsensical (but harmless) error message when loading services (when the service
+   description is found in a directory that is not the first directory searched)
+   (Daniel Kolesa).
+ * Fix issue with example rootfscheck.sh script (Mobin Aydinfar).
+ * Minor build system improvements (Daniel Kolesa).
+ * Minor documentation updates.
 
 == Version 0.16.0
 

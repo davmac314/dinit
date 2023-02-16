@@ -367,6 +367,9 @@ service_record *load_service(service_set_t &services, const std::string &name,
                         load_service_n, process_dep_dir_n);
             }
             catch (service_description_exc &exc) {
+                if (exc.service_name.empty()) {
+                    exc.service_name = name;
+                }
                 report_service_description_exc(exc);
             }
         });

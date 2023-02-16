@@ -414,8 +414,7 @@ class service_record
     // Virtual functions, to be implemented by service implementations:
 
     // Do any post-dependency startup; return false on failure. Should return true if service
-    // has started or is in the process of starting. Will only be called once can_proceed_to_start()
-    // returns true.
+    // has started or is in the process of starting.
     virtual bool bring_up() noexcept;
 
     // All dependents have stopped, and this service should proceed to stop.
@@ -786,6 +785,31 @@ class service_record
         if (! dep.holding_acq) {
             dep.get_to()->require();
             dep.holding_acq = true;
+        }
+    }
+};
+
+// Externally triggered service. This is essentially the same as an internal service, but does not start
+// until the external trigger is set.
+class triggered_service : public service_record {
+    private:
+    bool is_triggered = false;
+
+    public:
+    using service_record::service_record;
+
+    bool bring_up() noexcept override;
+
+    bool can_interrupt_start() noexcept override
+    {
+        return true;
+    }
+
+    void set_trigger(bool new_trigger) noexcept
+    {
+        is_triggered = new_trigger;
+        if (is_triggered && get_state() == service_state_t::STARTING && !waiting_for_deps) {
+            started();
         }
     }
 };

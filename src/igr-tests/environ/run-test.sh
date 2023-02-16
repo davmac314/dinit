@@ -1,6 +1,6 @@
 #!/bin/sh
 
-cd "$(dirname $0)"
+cd "$(dirname "$0")"
 
 export DINIT_SOCKET_PATH="$(pwd)/socket"
 

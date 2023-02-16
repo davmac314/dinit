@@ -147,7 +147,8 @@ path for normal users. Consider making a symbolic link to /usr/sbin/dinit.
 Special note for GCC/Libstdc++
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-(Note: the issue discussed here has apparently been resolved in recent GCC versions).
+(Note: the issue discussed here has apparently been resolved in recent GCC versions, with the fix
+backported to GCC 6.x series and newer).
 
 GCC 5.x onwards includes a "dual ABI" in its standard library implementation, aka Libstdc++.
 Compiling against the newer (C++11 and later) ABI can be achieved by adding

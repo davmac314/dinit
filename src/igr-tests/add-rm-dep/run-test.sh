@@ -1,6 +1,6 @@
 #!/bin/sh
 
-cd "$(dirname $0)"
+cd "$(dirname "$0")"
 
 "$DINIT_EXEC" -d sd -u -p socket -q main &
 DINITPID=$!

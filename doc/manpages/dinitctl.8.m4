@@ -54,6 +54,12 @@ dinitctl \- control services supervised by Dinit
 [\fIoptions\fR] \fBdisable\fR [\fB\-\-from\fR \fIfrom-service\fR] \fIto-service\fR
 .HP
 .B dinitctl
+[\fIoptions\fR] \fBtrigger\fR \fIservice-name\fR
+.HP
+.B dinitctl
+[\fIoptions\fR] \fBuntrigger\fR \fIservice-name\fR
+.HP
+.B dinitctl
 [\fIoptions\fR] \fBsetenv\fR [\fIname\fR[=\fIvalue\fR] \fI...\fR]
 .\"
 .PD
@@ -88,6 +94,13 @@ This option determines the default path to the control socket used to communicat
 Specify the path to the socket used for communicating with the service manager daemon.
 When not specified, the value from the \fBDINIT_SOCKET_PATH\fR environment variable is used, with
 the default path (as documented for \fBdinit\fR(8)) used if the variable is unset.
+.TP
+\fB\-\-use\-passed\-cfd\fR
+Instead of attempting to open a socket connection to the service daemon,
+use a pre-opened connection that has been passed to the dinitctl process from its parent
+via an open file descriptor.
+The file descriptor with the connection is identified by the contents of the DINIT_CS_FD
+environment variable.
 .TP
 \fB\-\-quiet\fR
 Suppress status output, except for errors. 
@@ -249,6 +262,15 @@ Note that the \fBdisable\fR command affects only the dependency specified (or im
 It has no other effect, and a service that is "disabled" may still be started if it is a dependency of
 another started service.
 .TP
+\fBtrigger\fR
+Mark the specified service (which must be a \fItriggered\fR service) as having its external trigger set.
+This will allow the service to finish starting. 
+.TP
+\fBuntrigger\fR
+Clear the trigger for the specified service (which must be a \fItriggered\fR service).
+This will delay the service from starting, until the trigger is set. If the service has already started,
+this will have no immediate effect.
+.TP
 \fBsetenv\fR
 Export one or more variables into the activation environment.
 The value can be provided on the command line or retrieved from the environment \fBdinitctl\fR is
@@ -280,7 +302,7 @@ The path to the socket used to communicate with the \fBdinit\fR(8) daemon. May b
 command line options. If not set, and not overridden, the \fBdinit\fR defaults are used.
 .\"
 .SH SEE ALSO
-\fBdinit\fR(8), \fBdinit-service\fR(5).
+\fBdinit\fR(8), \fBdinit-service\fR(5), \fB$$$SHUTDOWN_PREFIX@@@shutdown(8)\fR.
 .\"
 .SH AUTHOR
 Dinit, and this manual, were written by Davin McCall.

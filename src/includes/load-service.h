@@ -27,19 +27,20 @@ struct service_flags_t
     bool log_ready : 1; // syslog should be available once this service starts
 
     // Other service options flags:
-    bool runs_on_console : 1;  // run "in the foreground"
+    bool runs_on_console : 1;   // run "in the foreground"
     bool starts_on_console : 1; // starts in the foreground
     bool shares_console : 1;    // run on console, but not exclusively
-    bool pass_cs_fd : 1;  // pass this service a control socket connection via fd
+    bool pass_cs_fd : 1;        // pass this service a control socket connection via fd
     bool start_interruptible : 1; // the startup of this service process is ok to interrupt with SIGINT
-    bool skippable : 1;   // if interrupted the service is skipped (scripted services)
+    bool skippable : 1;         // if interrupted the service is skipped (scripted services)
     bool signal_process_only : 1;  // signal the session process, not the whole group
-    bool always_chain : 1; // always start chain-to service on exit
+    bool always_chain : 1;      // always start chain-to service on exit
+    bool kill_all_on_stop : 1;  // kill all other processes before stopping this service
 
     service_flags_t() noexcept : rw_ready(false), log_ready(false),
             runs_on_console(false), starts_on_console(false), shares_console(false),
             pass_cs_fd(false), start_interruptible(false), skippable(false), signal_process_only(false),
-            always_chain(false)
+            always_chain(false), kill_all_on_stop(false)
     {
     }
 };
@@ -64,6 +65,11 @@ class service_load_exc
 
     service_load_exc(const std::string &serviceName, std::string &&desc)
         : service_name(serviceName), exc_description(std::move(desc))
+    {
+    }
+
+    protected:
+    service_load_exc(std::string &&desc) : exc_description(std::move(desc))
     {
     }
 };
@@ -101,6 +107,16 @@ class service_description_exc : public service_load_exc
     const unsigned line_num = -1;
     const char * const setting_name = nullptr;
 
+    service_description_exc(unsigned line_num, std::string &&exc_info)
+            : service_load_exc(std::move(exc_info)), line_num(line_num)
+    {
+    }
+
+    service_description_exc(const char *setting_name, std::string &&exc_info)
+            : service_load_exc(std::move(exc_info)), setting_name(setting_name)
+    {
+    }
+
     service_description_exc(const std::string &serviceName, std::string &&extraInfo, unsigned line_num)
         : service_load_exc(serviceName, std::move(extraInfo)), line_num(line_num)
     {
@@ -116,32 +132,6 @@ namespace dinit_load {
 
 using string = std::string;
 using string_iterator = std::string::iterator;
-
-// exception thrown when encountering a syntax issue when reading a setting value
-class setting_exception
-{
-    std::string info;
-
-    public:
-    const unsigned line_num = -1;
-    const char *setting_name = nullptr;
-
-    setting_exception(unsigned line_num, std::string &&exc_info)
-            : info(std::move(exc_info)), line_num(line_num)
-    {
-    }
-
-    setting_exception(const char *setting_name, std::string &&exc_info)
-            : info(std::move(exc_info)), setting_name(setting_name)
-    {
-    }
-
-    std::string &get_info()
-    {
-        return info;
-    }
-};
-
 
 // Utility function to skip white space. Returns an iterator at the
 // first non-white-space position (or at end).
@@ -220,7 +210,7 @@ inline string read_config_name(string_iterator & i, string_iterator end) noexcep
 //
 // This function expects the string to be in an ASCII-compatible encoding (the "classic" locale).
 //
-// Throws setting_exception on error.
+// Throws service_description_exc (with service name unset) on error.
 //
 // Params:
 //    service_name - the name of the service to which the setting applies
@@ -260,7 +250,7 @@ inline string read_setting_value(unsigned line_num, string_iterator & i, string_
                         rval += c;
                     }
                     else {
-                        throw setting_exception(line_num, "line end follows backslash escape character (`\\')");
+                        throw service_description_exc(line_num, "line end follows backslash escape character (`\\')");
                     }
                 }
                 else {
@@ -270,7 +260,7 @@ inline string read_setting_value(unsigned line_num, string_iterator & i, string_
             }
             if (i == end) {
                 // String wasn't terminated
-                throw setting_exception(line_num, "unterminated quoted string");
+                throw service_description_exc(line_num, "unterminated quoted string");
             }
         }
         else if (c == '\\') {
@@ -284,7 +274,7 @@ inline string read_setting_value(unsigned line_num, string_iterator & i, string_
                 rval += *i;
             }
             else {
-                throw setting_exception(line_num, "backslash escape (`\\') not followed by character");
+                throw service_description_exc(line_num, "backslash escape (`\\') not followed by character");
             }
         }
         else if (isspace(c, locale::classic())) {
@@ -301,7 +291,7 @@ inline string read_setting_value(unsigned line_num, string_iterator & i, string_
         else if (c == '#') {
             // Possibly intended a comment; we require leading whitespace to reduce occurrence of accidental
             // comments in setting values.
-            throw setting_exception(line_num, "hashmark (`#') comment must be separated from setting value by whitespace");
+            throw service_description_exc(line_num, "hashmark (`#') comment must be separated from setting value by whitespace");
         }
         else {
             if (new_part) {
@@ -657,7 +647,7 @@ inline std::string resolve_path(const char *setting_name, std::string &&p, T &va
         auto i = std::next(p.begin(), dpos);
         string name = read_config_name(i, p.end());
         if (name.empty()) {
-            throw setting_exception(setting_name, "invalid/missing variable name after '$'");
+            throw service_description_exc(setting_name, "invalid/missing variable name after '$'");
         }
         string value = var_resolve(name);
         r.append(value);
@@ -686,7 +676,7 @@ static void cmdline_var_subst(const char *setting_name, std::string &line,
 
     if (line.length() > (size_t)std::numeric_limits<int>::max()) {
         // (avoid potential for overflow later)
-        throw setting_exception(setting_name, "command line too long");
+        throw service_description_exc(setting_name, "command line too long");
     }
 
     auto i = offsets.begin();
@@ -712,7 +702,7 @@ static void cmdline_var_subst(const char *setting_name, std::string &line,
                 auto i = std::next(line.begin(), dindx + 1);
                 string name = read_config_name(i, line.end());
                 if (name.empty()) {
-                    throw setting_exception(setting_name, "invalid/missing variable name after '$'");
+                    throw service_description_exc(setting_name, "invalid/missing variable name after '$'");
                 }
                 size_t line_len_before = r_line.size();
                 r_line.append(var_resolve(name));
@@ -720,7 +710,7 @@ static void cmdline_var_subst(const char *setting_name, std::string &line,
 
                 if (line_len_after > (size_t)std::numeric_limits<int>::max()) {
                     // (avoid potential overflow)
-                    throw setting_exception(setting_name, "command line too long (after substitution)");
+                    throw service_description_exc(setting_name, "command line too long (after substitution)");
                 }
 
                 xpos = i - line.begin();
@@ -823,40 +813,41 @@ class service_settings_wrapper
             }
         }
 
-        if (do_report_lint && service_type == service_type_t::INTERNAL) {
+        if (do_report_lint && (service_type == service_type_t::INTERNAL
+                || service_type == service_type_t::TRIGGERED)) {
             if (!command.empty()) {
-                report_lint("'command' specified, but 'type' is internal (or not specified).");
+                report_lint("'command' specified, but ignored for the specified (or default) service type.");
             }
             if (!stop_command.empty()) {
-                report_lint("'stop-command' specified, but 'type' is internal (or not specified).");
+                report_lint("'stop-command' specified, but ignored for the specified (or default) service type.");
             }
             if (!working_dir.empty()) {
-                report_lint("'working-dir' specified, but 'type' is internal (or not specified).");
+                report_lint("'working-dir' specified, but ignored for the specified (or default) service type.");
             }
             #if SUPPORT_CGROUPS
             if (!run_in_cgroup.empty()) {
-                report_lint("'run-in-cgroup' specified, but 'type' is internal (or not specified).");
+                report_lint("'run-in-cgroup' specified, but ignored for the specified (or default) service type.");
             }
             #endif
             if (run_as_uid != (uid_t)-1) {
-                report_lint("'run-as' specified, but 'type' is internal (or not specified).");
+                report_lint("'run-as' specified, but ignored for the specified (or default) service type.");
             }
             if (!socket_path.empty()) {
-                report_lint("'socket-listen' specified, but 'type' is internal (or not specified).");
+                report_lint("'socket-listen' specified, but ignored for the specified (or default) service type'.");
             }
             #if USE_UTMPX
             if (inittab_id[0] != 0 || inittab_line[0] != 0) {
-                report_lint("'inittab_line' or 'inittab_id' specified, but 'type' is internal (or not specified).");
+                report_lint("'inittab_line' or 'inittab_id' specified, but ignored for the specified (or default) service type.");
             }
             #endif
             if (onstart_flags.signal_process_only || onstart_flags.start_interruptible) {
-                report_lint("signal options were specified, but 'type' is internal (or not specified).");
+                report_lint("signal options were specified, but ignored for the specified (or default) service type.");
             }
             if (onstart_flags.pass_cs_fd) {
-                report_lint("option 'pass_cs_fd' was specified, but 'type' is internal (or not specified).");
+                report_lint("option 'pass_cs_fd' was specified, but ignored for the specified (or default) service type.");
             }
             if (onstart_flags.skippable) {
-                report_lint("option 'skippable' was specified, but 'type' is internal (or not specified).");
+                report_lint("option 'skippable' was specified, but ignored for the specified (or default) service type.");
             }
         }
 
@@ -871,14 +862,19 @@ class service_settings_wrapper
             }
         }
 
+        if (onstart_flags.kill_all_on_stop && service_type != service_type_t::INTERNAL
+                && service_type != service_type_t::SCRIPTED) {
+            report_error("kill-all-on-stop can only be set on scripted or internal services.");
+        }
+
         // Resolve paths via variable substitution
         {
             auto do_resolve = [&](const char *setting_name, string &setting_value) {
                 try {
                     setting_value = resolve_path(setting_name, std::move(setting_value), var_subst);
                 }
-                catch (setting_exception &exc) {
-                    report_error((string() + setting_name + ": " + exc.get_info()).c_str());
+                catch (service_description_exc &exc) {
+                    report_error((string() + setting_name + ": " + exc.exc_description).c_str());
                 }
             };
 
@@ -1021,9 +1017,12 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         else if (type_str == "internal") {
             settings.service_type = service_type_t::INTERNAL;
         }
+        else if (type_str == "triggered") {
+            settings.service_type = service_type_t::TRIGGERED;
+        }
         else {
             throw service_description_exc(name, "service type must be one of: \"scripted\","
-                " \"process\", \"bgprocess\" or \"internal\"", line_num);
+                " \"process\", \"bgprocess\", \"internal\" or \"triggered\"", line_num);
         }
     }
     else if (setting == "options") {
@@ -1067,6 +1066,9 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
             }
             else if (option_txt == "always-chain") {
                 settings.onstart_flags.always_chain = true;
+            }
+            else if (option_txt == "kill-all-on-stop") {
+                settings.onstart_flags.kill_all_on_stop = true;
             }
             else {
                 throw service_description_exc(name, "Unknown option: " + option_txt, line_num);

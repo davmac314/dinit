@@ -38,6 +38,7 @@ class subproc_buffer;
 void do_system_shutdown(shutdown_type_t shutdown_type);
 static void unmount_disks(loop_t &loop, subproc_buffer &sub_buf);
 static void swap_off(loop_t &loop, subproc_buffer &sub_buf);
+static int run_process(const char * prog_args[], loop_t &loop, subproc_buffer &sub_buf);
 
 constexpr static int subproc_bufsize = 4096;
 
@@ -309,29 +310,16 @@ int main(int argc, char **argv)
 
     signal(SIGPIPE, SIG_IGN);
     
-    int socknum = 0;
+    int socknum = -1;
     
     if (use_passed_cfd) {
-        char * dinit_cs_fd_env = getenv("DINIT_CS_FD");
-        if (dinit_cs_fd_env != nullptr) {
-            char * endptr;
-            long int cfdnum = strtol(dinit_cs_fd_env, &endptr, 10);
-            if (endptr != dinit_cs_fd_env) {
-                socknum = (int) cfdnum;
-                // Set non-blocking mode:
-                int sock_flags = fcntl(socknum, F_GETFL, 0);
-                fcntl(socknum, F_SETFL, sock_flags & ~O_NONBLOCK);
-            }
-            else {
-                use_passed_cfd = false;
-            }
-        }
-        else {
+        socknum = get_passed_cfd();
+        if (socknum == -1) {
             use_passed_cfd = false;
         }
     }
     
-    if (! use_passed_cfd) {
+    if (!use_passed_cfd) {
         socknum = socket(AF_UNIX, SOCK_STREAM, 0);
         if (socknum == -1) {
             perror("socket");
@@ -422,9 +410,8 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
 #endif
     
     // Write to console rather than any terminal, since we lose the terminal it seems:
-    close(STDOUT_FILENO);
     int consfd = open("/dev/console", O_WRONLY);
-    if (consfd != STDOUT_FILENO) {
+    if (consfd != STDOUT_FILENO && consfd != -1) {
         dup2(consfd, STDOUT_FILENO);
     }
     
@@ -453,12 +440,45 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
     } while (! timeout_reached);
 
     kill(-1, SIGKILL);
+
+    // Attempt to execute shutdown hook at three possible locations:
+    const char * const hook_paths[] = {
+            "/etc/dinit/shutdown-hook",
+            "/lib/dinit/shutdown-hook"
+    };
     
+    bool do_unmount_ourself = true;
+    const int execmask = S_IXOTH | S_IXGRP | S_IXUSR;
+    struct stat statbuf;
+
+    for (size_t i = 0; i < sizeof(hook_paths) / sizeof(hook_paths[0]); ++i) {
+        int stat_r = lstat(hook_paths[i], &statbuf);
+        if (stat_r == 0 && (statbuf.st_mode & execmask) != 0) {
+            sub_buf.append("Executing shutdown hook...\n");
+            const char *prog_args[] = { hook_paths[i], nullptr };
+            try {
+                int r = run_process(prog_args, loop, sub_buf);
+                if (r == 0) {
+                    do_unmount_ourself = false;
+                }
+            }
+            catch (std::exception &e) {
+                sub_buf.append("Couldn't fork for shutdown-hook: ");
+                sub_buf.append(e.what());
+                sub_buf.append("\n");
+            }
+            break;
+        }
+    }
+
     // perform shutdown
-    sub_buf.append("Turning off swap...\n");
-    swap_off(loop, sub_buf);
-    sub_buf.append("Unmounting disks...\n");
-    unmount_disks(loop, sub_buf);
+    if (do_unmount_ourself) {
+        sub_buf.append("Turning off swap...\n");
+        swap_off(loop, sub_buf);
+        sub_buf.append("Unmounting disks...\n");
+        unmount_disks(loop, sub_buf);
+    }
+
     sync();
     
     sub_buf.append("Issuing shutdown via kernel...\n");
@@ -521,16 +541,18 @@ class subproc_out_watch : public loop_t::fd_watcher_impl<subproc_out_watch>
 
 // Run process, put its output through the subprocess buffer
 //   may throw: std::system_error, std::bad_alloc
-static void run_process(const char * prog_args[], loop_t &loop, subproc_buffer &sub_buf)
+static int run_process(const char * prog_args[], loop_t &loop, subproc_buffer &sub_buf)
 {
     class sp_watcher_t : public loop_t::child_proc_watcher_impl<sp_watcher_t>
     {
         public:
         bool terminated = false;
+        int exit_status;
 
         rearm status_change(loop_t &, pid_t child, int status)
         {
             terminated = true;
+            exit_status = status;
             return rearm::REMOVE;
         }
     };
@@ -594,6 +616,8 @@ static void run_process(const char * prog_args[], loop_t &loop, subproc_buffer &
         owatch.deregister(loop);
         close(pipefds[0]);
     }
+
+    return sp_watcher.exit_status;
 }
 
 static void unmount_disks(loop_t &loop, subproc_buffer &sub_buf)

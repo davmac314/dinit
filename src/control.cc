@@ -10,13 +10,17 @@
 // Server-side control protocol implementation. This implements the functionality that allows
 // clients (such as dinitctl) to query service state and issue commands to control services.
 
+// Control protocol versions:
+// 1 - dinit 0.16 and prior
+// 2 - dinit 0.17 (adds DINIT_CP_SETTRIGGER)
+
 namespace {
     constexpr auto OUT_EVENTS = dasynq::OUT_EVENTS;
     constexpr auto IN_EVENTS = dasynq::IN_EVENTS;
 
     // Control protocol minimum compatible version and current version:
     constexpr uint16_t min_compat_version = 1;
-    constexpr uint16_t cp_version = 1;
+    constexpr uint16_t cp_version = 2;
 
     // check for value in a set
     template <typename T, int N, typename U>
@@ -108,6 +112,9 @@ bool control_conn_t::process_packet()
     }
     if (pktType == DINIT_CP_SETENV) {
         return process_setenv();
+    }
+    if (pktType == DINIT_CP_SETTRIGGER) {
+        return process_set_trigger();
     }
 
     // Unrecognized: give error response
@@ -917,6 +924,40 @@ badreq:
     return true;
 }
 
+bool control_conn_t::process_set_trigger()
+{
+    // 1 byte packet type
+    // handle: service
+    // 1 byte trigger value
+    constexpr int pkt_size = 2 + sizeof(handle_t);
+
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    handle_t handle;
+    char trigger_val;
+
+    rbuf.extract(&handle, 1, sizeof(handle));
+    rbuf.extract(&trigger_val, 1 + sizeof(handle), sizeof(trigger_val));
+    rbuf.consume(pkt_size);
+    chklen = 0;
+
+    service_record *service = find_service_for_key(handle);
+    if (service == nullptr || service->get_type() != service_type_t::TRIGGERED) {
+        char nak_rep[] = { DINIT_RP_NAK };
+        return queue_packet(nak_rep, 1);
+    }
+
+    triggered_service *tservice = static_cast<triggered_service *>(service);
+    tservice->set_trigger(trigger_val != 0);
+    services->process_queues();
+
+    char ack_rep[] = { DINIT_RP_ACK };
+    return queue_packet(ack_rep, 1);
+}
+
 bool control_conn_t::query_load_mech()
 {
     rbuf.consume(1);
@@ -1171,7 +1212,7 @@ bool control_conn_t::data_ready() noexcept
     // Note file descriptor is non-blocking
     if (r == -1) {
         if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-            log(loglevel_t::WARN, "Error writing to control connection: ", strerror(errno));
+            log(loglevel_t::WARN, "Error reading from control connection: ", strerror(errno));
             return true;
         }
         return false;
@@ -1226,12 +1267,12 @@ bool control_conn_t::send_data() noexcept
         }
         else if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
             // spurious readiness notification?
+            return false;
         }
         else {
             log(loglevel_t::ERROR, "Error writing to control connection: ", strerror(errno));
             return true;
         }
-        return false;
     }
 
     outpkt_index += written;
@@ -1239,23 +1280,27 @@ bool control_conn_t::send_data() noexcept
         // We've finished this packet, move on to the next:
         outbuf.pop_front();
         outpkt_index = 0;
-        if (outbuf.empty() && ! oom_close) {
-            if (! bad_conn_close) {
-                iob.set_watches(IN_EVENTS);
-            }
-            else {
+        if (oom_close) {
+            // remain active, try to send DINIT_RP_OOM shortly
+            return false;
+        }
+        if (outbuf.empty()) {
+            if (bad_conn_close) {
                 return true;
             }
+            iob.set_watches(IN_EVENTS);
         }
     }
     
+    // more to send
     return false;
 }
 
 control_conn_t::~control_conn_t() noexcept
 {
-    bp_sys::close(iob.get_watched_fd());
+    int fd = iob.get_watched_fd();
     iob.deregister(loop);
+    bp_sys::close(fd);
     
     // Clear service listeners
     for (auto p : service_key_map) {

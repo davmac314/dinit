@@ -1,0 +1,11 @@
+# This service represents availability of the "enp3s0" network interface.
+# It must be triggered externally via the device manager (for example).
+#
+# This can then be used as a dependency for network services, such as dhcpcd.
+#
+# If using udev (or eudev) for example, a suitable rule could be put into a
+# file called /etc/udev/rules.d/81-netdev.rules, as follows:
+#
+#     ACTION=="add" SUBSYSTEM=="net" NAME=="enp4s0" RUN{program}="/sbin/dinitctl trigger netdev-enp4s0"
+
+type = triggered
