@@ -98,7 +98,7 @@ int dinitctl_main(int argc, char **argv)
     bool show_help = argc < 2;
     const char *service_name = nullptr;
     const char *to_service_name = nullptr;
-    dependency_type dep_type;
+    dependency_type dep_type = dependency_type::AFTER; // avoid maybe-uninitialised warning
     bool dep_type_set = false;
     
     std::string control_socket_str;
