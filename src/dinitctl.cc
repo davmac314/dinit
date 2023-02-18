@@ -52,6 +52,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
         bool enable, bool verbose);
 static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names);
 static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool trigger_value);
+static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name);
 
 static const char * describeState(bool stopped)
 {
@@ -83,6 +84,7 @@ enum class command_t {
     SETENV,
     SET_TRIGGER,
     UNSET_TRIGGER,
+	CAT_LOG,
 };
 
 class dinit_protocol_error
@@ -228,6 +230,9 @@ int dinitctl_main(int argc, char **argv)
             else if (strcmp(argv[i], "untrigger") == 0) {
                 command = command_t::UNSET_TRIGGER;
             }
+            else if (strcmp(argv[i], "catlog") == 0) {
+            	command = command_t::CAT_LOG;
+            }
             else {
                 cerr << "dinitctl: unrecognized command: " << argv[i] << " (use --help for help)\n";
                 return 1;
@@ -338,6 +343,7 @@ int dinitctl_main(int argc, char **argv)
           "    dinitctl [options] trigger <service-name>\n"
           "    dinitctl [options] untrigger <service-name>\n"
           "    dinitctl [options] setenv [name[=value] ...]\n"
+          "    dinitctl [options] catlog <service-name>\n"
           "\n"
           "Note: An activated service continues running when its dependents stop.\n"
           "\n"
@@ -433,6 +439,12 @@ int dinitctl_main(int argc, char **argv)
                 throw cp_old_server_exception();
             }
             return trigger_service(socknum, rbuffer, service_name, (command == command_t::SET_TRIGGER));
+        }
+        else if (command == command_t::CAT_LOG) {
+            if (daemon_protocol_ver < 2) {
+                throw cp_old_server_exception();
+            }
+            return cat_service_log(socknum, rbuffer, service_name);
         }
         else {
             return start_stop_service(socknum, rbuffer, service_name, command, do_pin, do_force,
@@ -1699,6 +1711,64 @@ static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service
             return 1;
         }
         rbuffer.consume(1);
+    }
+
+    return 0;
+}
+
+static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name)
+{
+    using namespace std;
+
+    handle_t handle;
+    if (!load_service(socknum, rbuffer, service_name, &handle, nullptr, true)) {
+        return 1;
+    }
+
+    // Issue CATLOG
+    auto m = membuf()
+    		 .append<char>(DINIT_CP_CATLOG)
+			 .append<char>(0)
+			 .append(handle);
+    write_all_x(socknum, m);
+
+    wait_for_reply(rbuffer, socknum);
+    if (rbuffer[0] == DINIT_RP_NAK) {
+        cerr << "dinitctl: cannot cat log for service not configured to buffer output.\n";
+        return 1;
+    }
+    if (rbuffer[0] != DINIT_RP_SERVICE_LOG) {
+        cerr << "dinitctl: protocol error.\n";
+        return 1;
+    }
+
+    fill_buffer_to(rbuffer, socknum, 1 + sizeof(unsigned));
+    unsigned bufsize;
+    rbuffer.extract(&bufsize, 1, sizeof(unsigned));
+    rbuffer.consume(1 + sizeof(unsigned));
+
+    // output the log
+    if (bufsize > 0) {
+		cout << flush;
+
+		bool trailing_nl = false;
+		char output_buf[rbuffer.get_size()];
+		while (bufsize > 0) {
+			unsigned l = rbuffer.get_length();
+			if (l == 0) {
+				fill_buffer_to(rbuffer, socknum, 1);
+			}
+			l = std::min(rbuffer.get_length(), bufsize);
+			rbuffer.extract(output_buf, 0, l);
+			write(STDOUT_FILENO, output_buf, l);
+			rbuffer.consume(l);
+			bufsize -= l;
+			trailing_nl = (output_buf[l - 1] == '\n');
+		}
+
+		if (!trailing_nl) {
+			cout << "\n(last line is truncated or incomplete)\n";
+		}
     }
 
     return 0;

@@ -759,7 +759,9 @@ class service_settings_wrapper
     service_type_t service_type = service_type_t::INTERNAL;
     list<dep_type> depends;
     list<std::string> before_svcs;
+    log_type_id log_type = log_type_id::NONE;
     string logfile;
+    unsigned max_log_buffer_sz = 4096;
     service_flags_t onstart_flags;
     int term_signal = SIGTERM;  // termination signal
     bool auto_restart = false;
@@ -848,6 +850,18 @@ class service_settings_wrapper
             }
             if (onstart_flags.skippable) {
                 report_lint("option 'skippable' was specified, but ignored for the specified (or default) service type.");
+            }
+            if (log_type != log_type_id::NONE) {
+                report_lint("option 'log_type' was specified, but ignored for the specified (or default) service type.");
+            }
+        }
+
+        if (do_report_lint) {
+            if (log_type != log_type_id::LOGFILE && !logfile.empty()) {
+                report_lint("option 'logfile' was specified, but selected log type is not 'file'");
+            }
+            if (log_type == log_type_id::LOGFILE && logfile.empty()) {
+                report_lint("option 'logfile' not set, but selected log type is 'file'");
             }
         }
 
@@ -994,6 +1008,31 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
     }
     else if (setting == "logfile") {
         settings.logfile = read_setting_value(line_num, i, end);
+        if (!settings.logfile.empty() && settings.log_type == log_type_id::NONE) {
+            settings.log_type = log_type_id::LOGFILE;
+        }
+    }
+    else if (setting == "log-type") {
+        string log_type_str = read_setting_value(line_num, i, end);
+        if (log_type_str == "file") {
+            settings.log_type = log_type_id::LOGFILE;
+        }
+        else if (log_type_str == "buffer") {
+            settings.log_type = log_type_id::BUFFER;
+        }
+        else if (log_type_str == "none") {
+            settings.log_type = log_type_id::NONE;
+        }
+        else {
+            throw service_description_exc(name, "log type must be one of: \"file\", \"buffer\" or \"none\"",
+                    line_num);
+        }
+    }
+    else if (setting == "log-buffer-size") {
+        string log_buffer_size_str = read_setting_value(line_num, i, end);
+        unsigned bufsize = (unsigned)parse_unum_param(line_num, log_buffer_size_str, name,
+                std::numeric_limits<unsigned>::max() / 2);
+        settings.max_log_buffer_sz = bufsize;
     }
     else if (setting == "restart") {
         string restart = read_setting_value(line_num, i, end);

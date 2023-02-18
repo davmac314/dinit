@@ -248,8 +248,6 @@ class service_record
 
     protected:
     service_flags_t onstart_flags;
-
-    string logfile;           // log file name, empty string specifies /dev/null
     
     bool auto_restart : 1;    // whether to restart this (process) if it dies unexpectedly
     bool smooth_recovery : 1; // whether the service process can restart without bringing down service
@@ -519,17 +517,6 @@ class service_record
     bool is_marked_active() noexcept
     {
         return start_explicit;
-    }
-
-    // Set logfile, should be done before service is started
-    void set_log_file(const string &logfile)
-    {
-        this->logfile = logfile;
-    }
-    
-    void set_log_file(std::string &&logfile) noexcept
-    {
-        this->logfile = std::move(logfile);
     }
 
     // Set whether this service should automatically restart when it dies

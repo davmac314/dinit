@@ -29,7 +29,7 @@ struct run_proc_params
     const char *logfile;      // log file or nullptr (stdout/stderr); must be valid if !on_console
     const char *env_file;     // file with environment settings (or nullptr)
     #if SUPPORT_CGROUPS
-    const char *run_in_cgroup; //  cgroup path
+    const char *run_in_cgroup = nullptr; //  cgroup path
     #endif
     bool on_console;          // whether to run on console
     bool in_foreground;       // if on console: whether to run in foreground
@@ -38,6 +38,7 @@ struct run_proc_params
     int socket_fd;            // pre-opened socket fd (or -1); may be moved
     int notify_fd;            // pipe for readiness notification message (or -1); may be moved
     int force_notify_fd;      // if not -1, notification fd must be moved to this fd
+    int output_fd;            // if not -1, output will be directed here (rather than logfile)
     const char *notify_var;   // environment variable name where notification fd will be stored, or nullptr
     uid_t uid;
     gid_t gid;
@@ -47,7 +48,7 @@ struct run_proc_params
             uid_t uid, gid_t gid, const std::vector<service_rlimits> &rlimits)
             : args(args), working_dir(working_dir), logfile(logfile), env_file(nullptr), on_console(false),
               in_foreground(false), wpipefd(wpipefd), csfd(-1), socket_fd(-1), notify_fd(-1),
-              force_notify_fd(-1), notify_var(nullptr), uid(uid), gid(gid), rlimits(rlimits)
+              force_notify_fd(-1), output_fd(-1), notify_var(nullptr), uid(uid), gid(gid), rlimits(rlimits)
     { }
 };
 
@@ -65,7 +66,7 @@ class base_process_service;
 class process_restart_timer : public eventloop_t::timer_impl<process_restart_timer>
 {
     public:
-    base_process_service * service;
+    base_process_service *service;
 
     explicit process_restart_timer(base_process_service *service_p)
         : service(service_p)
@@ -79,7 +80,7 @@ class process_restart_timer : public eventloop_t::timer_impl<process_restart_tim
 class exec_status_pipe_watcher : public eventloop_t::fd_watcher_impl<exec_status_pipe_watcher>
 {
     public:
-    base_process_service * service;
+    base_process_service *service;
     dasynq::rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
 
     exec_status_pipe_watcher(base_process_service * sr) noexcept : service(sr) { }
@@ -92,7 +93,7 @@ class exec_status_pipe_watcher : public eventloop_t::fd_watcher_impl<exec_status
 class stop_status_pipe_watcher : public eventloop_t::fd_watcher_impl<stop_status_pipe_watcher>
 {
     public:
-    process_service * service;
+    process_service *service;
     dasynq::rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
 
     stop_status_pipe_watcher(process_service * sr) noexcept : service(sr) { }
@@ -105,7 +106,7 @@ class stop_status_pipe_watcher : public eventloop_t::fd_watcher_impl<stop_status
 class ready_notify_watcher : public eventloop_t::fd_watcher_impl<ready_notify_watcher>
 {
     public:
-    base_process_service * service;
+    base_process_service *service;
     dasynq::rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
 
     ready_notify_watcher(base_process_service * sr) noexcept : service(sr) { }
@@ -118,7 +119,7 @@ class ready_notify_watcher : public eventloop_t::fd_watcher_impl<ready_notify_wa
 class service_child_watcher : public eventloop_t::child_proc_watcher_impl<service_child_watcher>
 {
     public:
-    base_process_service * service;
+    base_process_service *service;
     dasynq::rearm status_change(eventloop_t &eloop, pid_t child, int status) noexcept;
 
     service_child_watcher(base_process_service * sr) noexcept : service(sr) { }
@@ -131,13 +132,26 @@ class service_child_watcher : public eventloop_t::child_proc_watcher_impl<servic
 class stop_child_watcher : public eventloop_t::child_proc_watcher_impl<stop_child_watcher>
 {
     public:
-    process_service * service;
+    process_service *service;
     dasynq::rearm status_change(eventloop_t &eloop, pid_t child, int status) noexcept;
 
     stop_child_watcher(process_service * sr) noexcept : service(sr) { }
 
     stop_child_watcher(const service_child_watcher &) = delete;
     void operator=(const service_child_watcher &) = delete;
+};
+
+class log_output_watcher : public eventloop_t::fd_watcher_impl<log_output_watcher>
+{
+    public:
+    base_process_service *service;
+
+    dasynq::rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
+
+    log_output_watcher(base_process_service * sr) noexcept : service(sr) { }
+
+    log_output_watcher(const ready_notify_watcher &) = delete;
+    void operator=(const ready_notify_watcher &) = delete;
 };
 
 // Base class for process-based services.
@@ -147,10 +161,7 @@ class base_process_service : public service_record
     friend class exec_status_pipe_watcher;
     friend class base_process_service_test;
     friend class ready_notify_watcher;
-
-    private:
-    // Re-launch process
-    void do_restart() noexcept;
+    friend class log_output_watcher;
 
     protected:
     ha_string program_name;          // storage for program/script and arguments
@@ -164,6 +175,12 @@ class base_process_service : public service_record
     string working_dir;       // working directory (or empty)
     string env_file;          // file with environment settings for this service
 
+    log_type_id log_type = log_type_id::NONE;
+    string logfile;           // log file name, empty string specifies /dev/null
+    unsigned log_buf_max = 0; // log buffer maximum size
+    unsigned log_buf_size = 0; // log buffer current size
+    std::vector<char, default_init_allocator<char>> log_buffer;
+
     std::vector<service_rlimits> rlimits; // resource limits
 
 #if SUPPORT_CGROUPS
@@ -173,6 +190,7 @@ class base_process_service : public service_record
     service_child_watcher child_listener;
     exec_status_pipe_watcher child_status_listener;
     process_restart_timer process_timer; // timer is used for start, stop and restart
+    log_output_watcher log_output_listener;
     time_val last_start_time;
 
     // Restart interval time and restart count are used to track the number of automatic restarts
@@ -202,6 +220,8 @@ class base_process_service : public service_record
     bp_sys::exit_status exit_status; // Exit status, if the process has exited (pid == -1).
     int socket_fd = -1;  // For socket-activation services, this is the file descriptor for the socket.
     int notification_fd = -1;  // If readiness notification is via fd
+    int log_output_fd = -1; // If logging via buffer, write end of the log pipe
+    int log_input_fd = -1; // If logging via buffer, read end of the log pipe
 
     // Only one of waiting_restart_timer and waiting_stopstart_timer should be set at any time.
     // They indicate that the process timer is armed (and why).
@@ -214,6 +234,11 @@ class base_process_service : public service_record
     // If executing child process failed, information about the error
     run_proc_err exec_err_info;
 
+    private:
+    // Re-launch process
+    void do_restart() noexcept;
+
+    protected:
     // Run a child process (call after forking). Note that some parameters specify file descriptors,
     // but in general file descriptors may be moved before the exec call.
     void run_child_proc(run_proc_params params) noexcept;
@@ -271,6 +296,8 @@ class base_process_service : public service_record
         return nullptr;
     }
 
+    bool ensure_log_buffer_backing(unsigned size) noexcept;
+
     public:
     // Constructor for a base_process_service. Note that the various parameters not specified here must in
     // general be set separately (using the appropriate set_xxx function for each).
@@ -316,6 +343,36 @@ class base_process_service : public service_record
     {
         stop_command = std::move(command);
         stop_arg_parts = std::move(command_parts);
+    }
+
+    // Set logfile (used if log mode is FILE)
+    void set_log_file(std::string &&logfile) noexcept
+    {
+        this->logfile = std::move(logfile);
+    }
+
+    // Set log buffer maximum size (for if mode is BUFFER). Maximum allowed size is UINT_MAX / 2
+    // (must be checked by caller).
+    void set_log_buf_max(unsigned max_size) noexcept
+    {
+        this->log_buf_max = max_size;
+    }
+
+    // Set log mode (NONE, BUFFER, FILE)
+    void set_log_mode(log_type_id log_type) noexcept
+    {
+        this->log_type = log_type;
+    }
+
+    log_type_id get_log_mode() noexcept
+    {
+    	return this->log_type;
+    }
+
+    // Get the log buffer (address, length)
+    std::pair<const char *, unsigned> get_log_buffer() noexcept
+    {
+    	return {log_buffer.data(), log_buf_size};
     }
 
     void set_env_file(const std::string &env_file_p)
@@ -450,7 +507,6 @@ class process_service : public base_process_service
     stop_child_watcher stop_watcher;
     stop_status_pipe_watcher stop_pipe_watcher;
 
-    protected:
     bool doing_smooth_recovery = false; // if we are performing smooth recovery
 
 #if USE_UTMPX

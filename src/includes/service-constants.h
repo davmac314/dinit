@@ -112,6 +112,13 @@ enum class dependency_type
     AFTER       // "after" ordering constraint (specified via the "from" service)
 };
 
+enum class log_type_id
+{
+    NONE,     // discard all output
+    LOGFILE,  // log to a file
+    BUFFER    // log to a buffer in memory
+};
+
 // Service set type identifiers:
 constexpr int SSET_TYPE_NONE = 0;
 constexpr int SSET_TYPE_DIRLOAD = 1;

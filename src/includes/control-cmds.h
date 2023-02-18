@@ -57,6 +57,9 @@ constexpr static int DINIT_CP_SERVICESTATUS = 18;
 // Set trigger value for triggered services
 constexpr static int DINIT_CP_SETTRIGGER = 19;
 
+// Retrieve buffered output
+constexpr static int DINIT_CP_CATLOG = 20;
+
 
 // Replies:
 
@@ -118,6 +121,9 @@ constexpr static int DINIT_RP_SERVICESTATUS = 70;
 constexpr static int DINIT_RP_SERVICE_DESC_ERR = 71;
 // Service load error (general):
 constexpr static int DINIT_RP_SERVICE_LOAD_ERR = 72;
+
+// Service log:
+constexpr static int DINIT_RP_SERVICE_LOG = 73;
 
 
 // Information (out-of-band):

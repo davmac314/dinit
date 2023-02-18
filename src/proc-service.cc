@@ -257,6 +257,48 @@ dasynq::rearm stop_child_watcher::status_change(eventloop_t &loop, pid_t child, 
     return dasynq::rearm::NOOP;
 }
 
+rearm log_output_watcher::fd_event(eventloop_t &eloop, int fd, int flags) noexcept
+{
+	// In case buffer size has been decreased, check if we are already at the limit:
+	if (service->log_buf_size >= service->log_buf_max) {
+		return rearm::DISARM;
+	}
+
+    size_t max_read = std::min(service->log_buf_max / 8, service->log_buf_max - service->log_buf_size);
+
+    // ensure vector has size sufficient to read
+    unsigned new_size = service->log_buf_size + max_read;
+    if (!service->ensure_log_buffer_backing(new_size)) {
+    	return rearm::DISARM;
+    }
+
+    max_read = service->log_buffer.size() - service->log_buf_size;
+
+    int r = bp_sys::read(fd, service->log_buffer.data() + service->log_buf_size, max_read);
+    if (r == -1) {
+    	if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+    		return rearm::REARM;
+    	}
+    	log(loglevel_t::WARN, "Service ", service->get_name(), " output not readable: ", strerror(errno));
+    }
+
+    if (r <= 0) {
+    	deregister(eloop);
+        close(fd);
+        close(service->log_output_fd);
+        service->log_input_fd = -1;
+        service->log_output_fd = -1;
+        return rearm::REMOVED;
+    }
+
+    service->log_buf_size += r;
+    if (service->log_buf_size >= service->log_buf_max) {
+    	return rearm::DISARM;
+    }
+
+    return rearm::REARM;
+}
+
 void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexcept
 {
     bool did_exit = exit_status.did_exit();

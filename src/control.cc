@@ -12,7 +12,7 @@
 
 // Control protocol versions:
 // 1 - dinit 0.16 and prior
-// 2 - dinit 0.17 (adds DINIT_CP_SETTRIGGER)
+// 2 - dinit 0.17 (adds DINIT_CP_SETTRIGGER, DINIT_CP_CATLOG)
 
 namespace {
     constexpr auto OUT_EVENTS = dasynq::OUT_EVENTS;
@@ -115,6 +115,9 @@ bool control_conn_t::process_packet()
     }
     if (pktType == DINIT_CP_SETTRIGGER) {
         return process_set_trigger();
+    }
+    if (pktType == DINIT_CP_CATLOG) {
+    	return process_catlog();
     }
 
     // Unrecognized: give error response
@@ -956,6 +959,48 @@ bool control_conn_t::process_set_trigger()
 
     char ack_rep[] = { DINIT_RP_ACK };
     return queue_packet(ack_rep, 1);
+}
+
+bool control_conn_t::process_catlog()
+{
+	// 1 byte packet type
+	// 1 byte reserved for future use
+	// handle
+    constexpr int pkt_size = 2 + sizeof(handle_t);
+
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    handle_t handle;
+
+    rbuf.extract(&handle, 1, sizeof(handle));
+    rbuf.consume(pkt_size);
+    chklen = 0;
+
+    service_record *service = find_service_for_key(handle);
+    if (service == nullptr || (service->get_type() != service_type_t::PROCESS
+    		&& service->get_type() != service_type_t::BGPROCESS
+			&& service->get_type() != service_type_t::SCRIPTED)) {
+        char nak_rep[] = { DINIT_RP_NAK };
+        return queue_packet(nak_rep, 1);
+    }
+
+    base_process_service *bps = static_cast<base_process_service *>(service);
+    if (bps->get_log_mode() != log_type_id::BUFFER) {
+        char nak_rep[] = { DINIT_RP_NAK };
+        return queue_packet(nak_rep, 1);
+    }
+
+    auto buffer_details = bps->get_log_buffer();
+    const char *bufaddr = buffer_details.first;
+    unsigned buflen = buffer_details.second;
+
+    std::vector<char> pkt = { (char)DINIT_RP_SERVICE_LOG };
+    pkt.insert(pkt.end(), (char *)(&buflen), (char *)(&buflen + 1));
+    pkt.insert(pkt.end(), bufaddr, bufaddr + buflen);
+    return queue_packet(std::move(pkt));
 }
 
 bool control_conn_t::query_load_mech()
