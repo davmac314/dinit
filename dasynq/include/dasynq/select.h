@@ -18,7 +18,7 @@
 #include "config.h"
 #include "signal.h"
 
-// "pselect"-based event loop mechanism.
+// "select"-based event loop mechanism.
 //
 
 namespace dasynq {
@@ -86,13 +86,14 @@ template <class Base> class select_events : public signal_events<Base, true>
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
 
-        // Note: if error is set, report read-ready.
+        // Note: if error is set, we expect read or write is also set.
 
         for (int i = 0; i <= max_fd; i++) {
-            if (FD_ISSET(i, read_set_p) || FD_ISSET(i, error_set_p)) {
+            if (FD_ISSET(i, read_set_p)) {
                 if (FD_ISSET(i, &read_set) && rd_udata[i] != nullptr) {
                     // report read
-                    auto r = Base::receive_fd_event(*this, fd_r(i), rd_udata[i], IN_EVENTS);
+                	int events = IN_EVENTS | (FD_ISSET(i, error_set_p) ? ERR_EVENTS : 0);
+                    auto r = Base::receive_fd_event(*this, fd_r(i), rd_udata[i], events);
                     if (std::get<0>(r) == 0) {
                         FD_CLR(i, &read_set);
                     }
@@ -104,7 +105,8 @@ template <class Base> class select_events : public signal_events<Base, true>
             if (FD_ISSET(i, write_set_p)) {
                 if (FD_ISSET(i, &write_set) && wr_udata[i] != nullptr) {
                     // report write
-                    auto r = Base::receive_fd_event(*this, fd_r(i), wr_udata[i], OUT_EVENTS);
+                	int events = OUT_EVENTS | (FD_ISSET(i, error_set_p) ? ERR_EVENTS : 0);
+                    auto r = Base::receive_fd_event(*this, fd_r(i), wr_udata[i], events);
                     if (std::get<0>(r) == 0) {
                         FD_CLR(i, &write_set);
                     }
@@ -287,9 +289,9 @@ template <class Base> class select_events : public signal_events<Base, true>
         // Check whether any timers are pending, and what the next timeout is.
         this->process_monotonic_timers(do_wait, ts, wait_ts);
 
-        fd_set read_set_c;
-        fd_set write_set_c;
-        fd_set err_set;
+        volatile fd_set read_set_c;
+        volatile fd_set write_set_c;
+        volatile fd_set err_set;
 
         read_set_c = read_set;
         write_set_c = write_set;

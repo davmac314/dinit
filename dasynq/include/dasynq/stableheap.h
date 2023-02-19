@@ -23,13 +23,13 @@ class stable_prio
     uint64_t order;
     
     template <typename ...U>
-    stable_prio(uint64_t o, U... u) : p(u...), order(o)
+    stable_prio(uint64_t o, U... u) noexcept(noexcept(P(u...))): p(u...), order(o)
     {
     }
     
     // zero-argument constructor should not really be needed, but some
     // heap implementations aren't yet perfect.
-    stable_prio()
+    stable_prio() noexcept
     {
     }
 };
@@ -39,6 +39,7 @@ class compare_stable_prio
 {
     public:
     bool operator()(const stable_prio<P> &a, const stable_prio<P> &b)
+            noexcept(noexcept(C()) && noexcept(std::declval<C>()(std::declval<P>(),std::declval<P>())))
     {
         C lt;
         if (lt(a.p, b.p)) {
@@ -79,47 +80,47 @@ class stable_heap : private H<T,stable_prio<P>,compare_stable_prio<P,C>>
         Base::allocate(hnd, std::forward<U>(u)...);
     }
 
-    static void init_handle(handle_t &hndl)
+    static void init_handle(handle_t &hndl) noexcept(noexcept(std::declval<Base>().init_handle(hndl)))
     {
         Base::init_handle(hndl);
     }
 
-    T &node_data(handle_t &hndl)
+    T &node_data(handle_t &hndl) noexcept(noexcept(std::declval<Base>().node_data(hndl)))
     {
         return Base::node_data(hndl);
     }
 
-    bool is_queued(handle_t & hnd)
+    bool is_queued(handle_t & hnd) noexcept(noexcept(std::declval<Base>().is_queued(hnd)))
     {
         return Base::is_queued(hnd);
     }
 
-    decltype(std::declval<Base>().get_root()) get_root()
+    decltype(std::declval<Base>().get_root()) get_root() noexcept(noexcept(std::declval<Base>().get_root()))
     {
         return Base::get_root();
     }
     
-    void pull_root()
+    void pull_root() noexcept(noexcept(std::declval<Base>().pull_root()))
     {
         Base::pull_root();
     }
     
-    void deallocate(handle_t_r index)
+    void deallocate(handle_t_r index) noexcept(noexcept(std::declval<Base>().deallocate(index)))
     {
         Base::deallocate(index);
     }
     
-    void remove(handle_t_r hnd)
+    void remove(handle_t_r hnd) noexcept(noexcept(std::declval<Base>().remove(hnd)))
     {
         Base::remove(hnd);
     }
     
-    bool empty()
+    bool empty() noexcept(noexcept(std::declval<Base>().empty()))
     {
         return Base::empty();
     }
 
-    unsigned size()
+    unsigned size() noexcept(noexcept(std::declval<Base>().size()))
     {
         return Base::size();
     }

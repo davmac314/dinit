@@ -115,11 +115,11 @@ namespace dprivate {
     {
         public:
         watch_type_t watchType;
-        int active : 1;    // currently executing handler?
-        int deleteme : 1;  // delete when handler finished?
-        int emulatefd : 1; // emulate file watch (by re-queueing)
-        int emulate_enabled : 1;   // whether an emulated watch is enabled
-        int child_termd : 1;  // child process has terminated
+        unsigned active : 1;    // currently executing handler?
+        unsigned deleteme : 1;  // delete when handler finished?
+        unsigned emulatefd : 1; // emulate file watch (by re-queueing)
+        unsigned emulate_enabled : 1;   // whether an emulated watch is enabled
+        unsigned child_termd : 1;  // child process has terminated
 
         prio_queue::handle_t heap_handle;
         int priority;
@@ -244,8 +244,8 @@ namespace dprivate {
         // used; it exists mainly so that it can be queued independently of the primary watcher.
         base_watcher out_watcher {watch_type_t::SECONDARYFD};
 
-        int read_removed : 1; // read watch removed?
-        int write_removed : 1; // write watch removed?
+        unsigned read_removed : 1; // read watch removed?
+        unsigned write_removed : 1; // write watch removed?
     };
 
     class base_child_watcher : public base_watcher

@@ -93,7 +93,7 @@ template <typename Base, typename Mutex> class interrupt_channel : public Base
             eventfd_read(pipe_r_fd, &val);
 #endif
             if (Base::traits_t::supports_non_oneshot_fd) {
-                // If the loop mechanism actually persists none-oneshot marked watches, we don't need
+                // If the loop mechanism actually persists non-oneshot marked watches, we don't need
                 // to re-enable:
                 return std::make_tuple(0, typename Base::traits_t::fd_s(pipe_r_fd));
             }
