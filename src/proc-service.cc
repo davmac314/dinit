@@ -261,42 +261,57 @@ rearm log_output_watcher::fd_event(eventloop_t &eloop, int fd, int flags) noexce
 {
 	// In case buffer size has been decreased, check if we are already at the limit:
 	if (service->log_buf_size >= service->log_buf_max) {
-		return rearm::DISARM;
+		// If so, read and discard.
+		char buf[1024];
+		int r = bp_sys::read(fd, buf, 1024);
+		if (r == -1) {
+	    	if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+	    		return rearm::REARM;
+	    	}
+	    	goto bad_read;
+		}
+		if (r == 0) goto eof_read;
+		return rearm::REARM;
 	}
 
-    size_t max_read = std::min(service->log_buf_max / 8, service->log_buf_max - service->log_buf_size);
+	{
+		size_t max_read = std::max(service->log_buf_max / 8, 256u);
+		max_read = std::min((unsigned)max_read, service->log_buf_max - service->log_buf_size);
 
-    // ensure vector has size sufficient to read
-    unsigned new_size = service->log_buf_size + max_read;
-    if (!service->ensure_log_buffer_backing(new_size)) {
-    	return rearm::DISARM;
-    }
+		// ensure vector has size sufficient to read
+		unsigned new_size = service->log_buf_size + max_read;
+		if (!service->ensure_log_buffer_backing(new_size)) {
+			return rearm::DISARM;
+		}
 
-    max_read = service->log_buffer.size() - service->log_buf_size;
+		max_read = service->log_buffer.size() - service->log_buf_size;
 
-    int r = bp_sys::read(fd, service->log_buffer.data() + service->log_buf_size, max_read);
-    if (r == -1) {
-    	if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-    		return rearm::REARM;
-    	}
-    	log(loglevel_t::WARN, "Service ", service->get_name(), " output not readable: ", strerror(errno));
-    }
+		int r = bp_sys::read(fd, service->log_buffer.data() + service->log_buf_size, max_read);
+		if (r == -1) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+				return rearm::REARM;
+			}
+			goto bad_read;
+		}
 
-    if (r <= 0) {
-    	deregister(eloop);
-        close(fd);
-        close(service->log_output_fd);
-        service->log_input_fd = -1;
-        service->log_output_fd = -1;
-        return rearm::REMOVED;
-    }
+		if (r == 0) goto eof_read;
 
-    service->log_buf_size += r;
-    if (service->log_buf_size >= service->log_buf_max) {
-    	return rearm::DISARM;
-    }
+		service->log_buf_size += r;
+		return rearm::REARM;
+	}
 
-    return rearm::REARM;
+    // error/end-of-stream handling:
+
+    bad_read:
+	log(loglevel_t::WARN, "Service ", service->get_name(), " output not readable: ", strerror(errno));
+
+	eof_read:
+	deregister(eloop);
+    close(fd);
+    close(service->log_output_fd);
+    service->log_input_fd = -1;
+    service->log_output_fd = -1;
+    return rearm::REMOVED;
 }
 
 void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexcept
