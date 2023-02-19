@@ -9,6 +9,7 @@ class test_service : public service_record
 {
     public:
     bool bring_up_reqd = false;
+    bool start_interruptible = false;
 
     test_service(service_set *set, std::string name, service_type_t type_p,
             const std::list<prelim_dep> &deplist_p)
@@ -46,7 +47,7 @@ class test_service : public service_record
     // having to wait for it reach STARTED and then go through STOPPING).
     virtual bool can_interrupt_start() noexcept override
     {
-        return waiting_for_deps;
+        return waiting_for_deps || start_interruptible;
     }
 
     virtual bool interrupt_start() noexcept override

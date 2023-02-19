@@ -160,7 +160,7 @@ void service_record::release(bool issue_stop) noexcept
         // a require was pending though:
         prop_release = !prop_require;
         prop_require = false;
-        if (prop_release && service_state != service_state_t::STOPPED) {
+        if (prop_release) {
             services->add_prop_queue(this);
         }
 
@@ -632,14 +632,14 @@ void service_record::do_stop(bool with_restart) noexcept
         if (service_state == service_state_t::STARTING) {
             // If waiting for a dependency, or waiting for the console, we can interrupt start. Otherwise,
             // we need to delegate to can_interrupt_start() (which can be overridden).
-            if (! waiting_for_deps && ! waiting_for_console) {
-                if (! can_interrupt_start()) {
+            if (!waiting_for_deps && !waiting_for_console) {
+                if (!can_interrupt_start()) {
                     // Well this is awkward: we're going to have to continue starting. We can stop once
                     // we've reached the started state.
                     return;
                 }
 
-                if (! interrupt_start()) {
+                if (!interrupt_start()) {
                     // Now wait for service startup to actually end; we don't need to handle it here.
                     notify_listeners(service_event_t::STARTCANCELLED);
                     return;
