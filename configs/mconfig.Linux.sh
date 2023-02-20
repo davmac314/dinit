@@ -85,7 +85,6 @@ GENERAL_BUILD_SETTINGS=$(
   else
       echo "LDFLAGS="  
   fi
-  echo "LDFLAGS=\$(CXXFLAGS)"
   echo "TEST_CXXFLAGS=\$(CXXFLAGS) $SANITIZE_OPTS"
   echo "TEST_LDFLAGS=\$(LDFLAGS) \$(TEST_CXXFLAGS)"
   echo "BUILD_SHUTDOWN=yes"
