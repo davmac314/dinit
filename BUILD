@@ -2,7 +2,21 @@ Building Dinit
 =-=-=-=-=-=-=-
 
 Building Dinit should be a straight-forward process. It requires GNU make and a C++11 compiler
-(GCC version 4.9 and later, or Clang ~5.0 and later, should be fine)
+(GCC version 4.9 and later, or Clang ~5.0 and later, should be fine).
+
+
+Short version
+=-=-=-=-=-=-=
+
+Run "make" (or "gmake" if that is GNU make on your system). Your system type will hopefully be
+detected automatically and appropriate configuration chosen, and Dinit will be built. Continue
+reading instructions at "Running the test suite" or skip straight to "Installation".
+
+If this fails, or if you are cross-compiling, read the "long version" instructions.
+
+
+Long version 
+=-=-=-=-=-=-
 
 On the directly supported operating systems - Linux, OpenBSD, FreeBSD and Darwin (macOS) - a
 suitable build configuration is provided and will be used automatically if no manual configuration
@@ -13,10 +27,19 @@ For other systems, or to fine tune or correct the configuration, create and edit
 "mconfig" file (start by copying one for a particular OS from the "configs" directory) to choose
 appropriate values for the configuration variables defined within. In particular:
 
-  CXX     : should be set to the name of the C++ compiler (and link driver)
-  CXXOPTS :  are options passed to the compiler during compilation (see note for GCC below)
-  LDFLAGS :  are any extra flags required for linking; should not normally be needed
-             (FreeBSD requires -lrt).
+  CXX      : should be set to the name of the C++ compiler (and link driver)
+  CXXFLAGS : are options passed to the compiler during compilation
+  CPPFLAGS : are preprocessor options to use during compilation (see note for GCC below)
+  LDFLAGS  : are any options required for linking; should not normally be needed
+             (FreeBSD requires -lrt; link time optimisation requires -flto and other flags).
+  TEST_CXXFLAGS : are options passed to the compiler when compiling code for tests
+  TEST_LDFLAGS  : are options to be used when linking test code
+  
+Additionally, for cross-compilation, the following can be specified:
+
+  HOST_CXX : C++ compiler for compiling code to run on the build host
+  HOST_CXXFLAGS  : any options for compiling code to run on the host
+  HOST_LDFLAGS   : any options for linking code to run on the host
 
 Note that the "eg++" or "clang++" package must be installed on OpenBSD as the default "g++"
 compiler is too old. Clang is part of the base system in recent releases.
@@ -30,7 +53,19 @@ If everything goes smoothly this will build dinit, dinitctl, and optionally the 
 utility. Use "make install" to install; you can specify an alternate installation by
 setting the "DESTDIR" variable, eg "make DESTDIR=/tmp/temporary-install-path install".
 
+All of the above variables can be specified on the "make" command line, for example:
 
+    make CXX=gcc
+
+In addition to the above variables, the following can be specified on the command line (as a way
+to specify additional options without removing the defaults):
+
+    CXXFLAGS_EXTRA  : additional options to use when compiling code
+    LDFLAGS_EXTRA   : additional options to use when linking
+    TEST_CXXFLAGS_EXTRA  : additional options to use when compiling test code
+    TEST_LDFLAGS_EXTRA   : additional options to use when linking tests
+
+   
 Recommended Compiler options
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -77,9 +112,6 @@ USE_UTMPX=1|0
     like "who" to work correctly (the service configuration items "inittab-id" and "inittab-line"
     have no effect if this is disabled). If not set to any value, support is enabled for certain
     systems automatically and disabled for all others.
-SANITIZE_OPTS=...
-    Any options to enable run-time sanitizers or additional safety checks. This will be used
-    only when building tests. It can safely be left blank.
 
 
 Running test suite

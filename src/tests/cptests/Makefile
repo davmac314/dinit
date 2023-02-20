@@ -1,5 +1,8 @@
 -include ../../../mconfig
 
+ALL_TEST_CXXFLAGS=$(CPPFLAGS) $(TEST_CXXFLAGS) $(TEST_CXXFLAGS_EXTRA)
+ALL_TEST_LDFLAGS=$(TEST_LDFLAGS) $(TEST_LDFLAGS_EXTRA)
+
 objects = cptests.o
 parent_test_objects = ../test-bpsys.o ../test-dinit.o ../test-run-child-proc.o
 parent_objs = control.o dinit-log.o service.o load-service.o proc-service.o baseproc-service.o dinit-env.o
@@ -12,13 +15,13 @@ run-tests: cptests
 	./cptests
 
 cptests: cptests.o $(parent_objs) $(parent_test_objs)
-	$(CXX) -o cptests cptests.o $(parent_test_objects) $(parent_objs) $(CXXOPTS) $(LDFLAGS) $(SANITIZEOPTS)
+	$(CXX) -o cptests cptests.o $(parent_test_objects) $(parent_objs) $(ALL_TEST_LDFLAGS)
 
 $(objects): %.o: %.cc
-	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../../dasynq/include -I../../../build/includes -c $< -o $@
+	$(CXX) $(ALL_TEST_CXXFLAGS) -MMD -MP -Iincludes -I../../../dasynq/include -I../../../build/includes -c $< -o $@
 
 $(parent_objs): %.o: ../../%.cc
-	$(CXX) $(CXXOPTS) $(SANITIZEOPTS) -MMD -MP -Iincludes -I../../../dasynq/include -I../../../build/includes -c $< -o $@
+	$(CXX) $(ALL_TEST_CXXFLAGS) -MMD -MP -Iincludes -I../../../dasynq/include -I../../../build/includes -c $< -o $@
 
 clean:
 	rm -f *.o *.d cptests

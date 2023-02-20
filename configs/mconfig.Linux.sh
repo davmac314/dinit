@@ -55,10 +55,10 @@ echo "Compiler found          : $compiler"
 echo "int main(int argc, char **argv) { return 0; }" > testfile.cc
 supported_opts=""
 test_compiler_arg "$compiler" -flto
-HAS_LTO=$?
+NOT_HAS_LTO=$?
 test_compiler_arg "$compiler" -fno-rtti
 test_compiler_arg "$compiler" -fno-plt
-BUILD_OPTS="-D_GLIBCXX_USE_CXX11_ABI=1 -std=c++11 -Os -Wall $supported_opts"
+BUILD_OPTS="-std=c++11 -Os -Wall $supported_opts"
 
 echo "Using build options     : $supported_opts"
 
@@ -78,10 +78,17 @@ GENERAL_BUILD_SETTINGS=$(
   echo "# Linux (GCC). Note with GCC 5.x/6.x you must use the old ABI, with GCC 7.x you must use"
   echo "# the new ABI. See BUILD file for more information."
   echo "CXX=$compiler"
-  echo "CXXOPTS=$BUILD_OPTS"
-  echo "LDFLAGS="
+  echo "CXXFLAGS=$BUILD_OPTS"
+  echo "CPPFLAGS=-D_GLIBCXX_USE_CXX11_ABI=1"
+  if [ "$NOT_HAS_LTO" = 0 ]; then
+      echo "LDFLAGS=\$(CXXFLAGS)"
+  else
+      echo "LDFLAGS="  
+  fi
+  echo "LDFLAGS=\$(CXXFLAGS)"
+  echo "TEST_CXXFLAGS=\$(CXXFLAGS) $SANITIZE_OPTS"
+  echo "TEST_LDFLAGS=\$(LDFLAGS) \$(TEST_CXXFLAGS)"
   echo "BUILD_SHUTDOWN=yes"
-  echo "SANITIZEOPTS=$SANITIZE_OPTS"
   echo ""
   echo "# Notes:"
   echo "#   -D_GLIBCXX_USE_CXX11_ABI=1 : force use of new ABI, see above / BUILD"
@@ -89,6 +96,7 @@ GENERAL_BUILD_SETTINGS=$(
   echo "#   -fno-plt  (optional) : Recommended optimisation"
   echo "#   -flto     (optional) : Perform link-time optimisation"
   echo "#   -fsanitize=address,undefined :  Apply sanitizers (during unit tests)"
+  echo "# LDFLAGS should also contain C++ optimisation flags for LTO (-flto)."
 )
 
 FEATURE_SETTINGS=$(
