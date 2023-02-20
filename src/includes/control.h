@@ -158,6 +158,9 @@ class control_conn_t : private service_listener
     // Process a SETTRIGGER packet.
     bool process_set_trigger();
 
+    // Process a CATLOG packet.
+    bool process_catlog();
+
     // List all loaded services and their state.
     bool list_services();
 

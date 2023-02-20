@@ -5,8 +5,8 @@ incdir = include_directories(
     'includes',
     '../../../dasynq/include/'
 )
-if fuzzer
-    fuzz_sources = [
+if fuzzer or unit_tests
+    sources = [
         '../test-bpsys.cc',
         '../test-dinit.cc',
         '../test-run-child-proc.cc',
@@ -17,20 +17,6 @@ if fuzzer
         '../../proc-service.cc',
         '../../baseproc-service.cc',
         '../../dinit-env.cc'
-    ]
-endif
-if unit_tests
-    cptests_sources = [
-        '../../service.cc', 
-        '../../proc-service.cc',
-        '../../dinit-log.cc',
-        '../../load-service.cc',
-        '../../baseproc-service.cc',
-        '../../dinit-env.cc',
-        '../../control.cc',
-        '../test-dinit.cc',
-        '../test-bpsys.cc',
-        '../test-run-child-proc.cc'
     ]
 endif
 
@@ -51,17 +37,17 @@ if unit_tests
     cptests_exec = executable(
         'cptests',
         'cptests.cc',
-        cptests_sources,
+        sources,
         include_directories : incdir
     )
-    test('cptests', cptests_exec)
+    test('cptests', cptests_exec, suite : 'unit_tests')
 endif
 # LLVM's Libfuzzer
 if fuzzer
     executable(
         'fuzz',
         'fuzz.cc',
-        fuzz_sources,
+        sources,
         include_directories : incdir,
         install : false,
         cpp_args : '-fsanitize=address,undefined,fuzzer-no-link,leak',

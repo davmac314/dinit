@@ -496,6 +496,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             rvalps->set_run_as_uid_gid(settings.run_as_uid, settings.run_as_gid);
             rvalps->set_notification_fd(settings.readiness_fd);
             rvalps->set_notification_var(std::move(settings.readiness_var));
+            rvalps->set_log_file(std::move(settings.logfile));
+            rvalps->set_log_buf_max(settings.max_log_buffer_sz);
+            rvalps->set_log_mode(settings.log_type);
             #if USE_UTMPX
             rvalps->set_utmp_id(settings.inittab_id);
             rvalps->set_utmp_line(settings.inittab_line);
@@ -533,6 +536,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             rvalps->set_start_timeout(settings.start_timeout);
             rvalps->set_extra_termination_signal(settings.term_signal);
             rvalps->set_run_as_uid_gid(settings.run_as_uid, settings.run_as_gid);
+            rvalps->set_log_file(std::move(settings.logfile));
+            rvalps->set_log_buf_max(settings.max_log_buffer_sz);
+            rvalps->set_log_mode(settings.log_type);
             settings.onstart_flags.runs_on_console = false;
         }
         else if (service_type == service_type_t::SCRIPTED) {
@@ -564,6 +570,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             rvalps->set_start_timeout(settings.start_timeout);
             rvalps->set_extra_termination_signal(settings.term_signal);
             rvalps->set_run_as_uid_gid(settings.run_as_uid, settings.run_as_gid);
+            rvalps->set_log_file(std::move(settings.logfile));
+            rvalps->set_log_buf_max(settings.max_log_buffer_sz);
+            rvalps->set_log_mode(settings.log_type);
         }
         else {
             if (create_new_record) {
@@ -584,7 +593,6 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             }
         }
 
-        rval->set_log_file(std::move(settings.logfile));
         rval->set_auto_restart(settings.auto_restart);
         rval->set_smooth_recovery(settings.smooth_recovery);
         rval->set_flags(settings.onstart_flags);

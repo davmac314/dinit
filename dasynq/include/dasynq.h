@@ -1093,7 +1093,7 @@ class event_loop
     void interrupt_if_necessary()
     {
         wait_lock.lock();
-        bool attn_q_empty = attn_waitqueue.is_empty(); // (always false for single-threaded loops)
+        bool attn_q_empty = attn_waitqueue.is_empty(); // (always true for single-threaded loops)
         wait_lock.unlock();
 
         if (! attn_q_empty) {

@@ -1850,6 +1850,35 @@ void test_restart_stop4()
     s1->stopped();
 }
 
+void test_release_from_failed()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {});
+    test_service *s3 = new test_service(&sset, "test-service-3", service_type_t::INTERNAL, {{s1, REG}, {s2, WAITS}});
+    //s1->auto_stop = false;
+    s2->start_interruptible = true;
+    //s3->auto_stop = false;
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+    assert(sset.find_service("test-service-3") == s3);
+
+    // start s3, which also starts s1/s2
+    sset.start_service(s3);
+    assert(s1->bring_up_reqd == true);
+
+    s1->failed_to_start();
+    sset.process_queues();
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s3->get_state() == service_state_t::STOPPED);
+}
+
+
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
     name(); \
@@ -1902,4 +1931,5 @@ int main(int argc, char **argv)
     RUN_TEST(test_restart_stop2, "        ");
     RUN_TEST(test_restart_stop3, "        ");
     RUN_TEST(test_restart_stop4, "        ");
+    RUN_TEST(test_release_from_failed, "  ");
 }

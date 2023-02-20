@@ -104,14 +104,13 @@ template <class Base> class timer_fd_events : public timer_base<Base>
     {
         if (userdata == &timerfd_fd) {
             process_timer(clock_type::MONOTONIC, timerfd_fd);
-            return std::make_tuple(IN_EVENTS, typename traits_t::fd_s(timerfd_fd));
+            unsigned re_enable = (Base::traits_t::supports_non_oneshot_fd ? 0 : IN_EVENTS);
+            return std::make_tuple(re_enable, typename traits_t::fd_s(timerfd_fd));
         }
         else if (userdata == &systemtime_fd) {
             process_timer(clock_type::SYSTEM, systemtime_fd);
-            if (Base::traits_t::supports_non_oneshot_fd) {
-                return std::make_tuple(0, typename traits_t::fd_s(systemtime_fd));
-            }
-            return std::make_tuple(IN_EVENTS, typename traits_t::fd_s(systemtime_fd));
+            unsigned re_enable = (Base::traits_t::supports_non_oneshot_fd ? 0 : IN_EVENTS);
+            return std::make_tuple(re_enable, typename traits_t::fd_s(systemtime_fd));
         }
         else {
             return Base::receive_fd_event(loop_mech, fd_r_a, userdata, flags);

@@ -8,7 +8,7 @@ project(
     license : 'Apache-2.0',
     meson_version : '>= 0.47.0',
     default_options : [
-        'cpp_std = c++11',
+        'cpp_std=c++11',
         'optimization=s',
         'debug=false'
     ]
@@ -46,7 +46,7 @@ endif
 
 ## Use -lrt?
 # We need to pass -lrt to c++ linker on FreeBSD. see BUILD_MESON
-if platform == 'freebsd'
+if platform == 'freebsd' and compiler.has_link_argument('-lrt')
     add_project_link_arguments('-lrt', language : 'cpp')
 endif
 

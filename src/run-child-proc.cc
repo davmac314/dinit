@@ -61,6 +61,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     uid_t uid = params.uid;
     gid_t gid = params.gid;
     const std::vector<service_rlimits> &rlimits = params.rlimits;
+    int output_fd = params.output_fd;
 
     // If the console already has a session leader, presumably it is us. On the other hand
     // if it has no session leader, and we don't create one, then control inputs such as
@@ -210,15 +211,19 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         if (notify_fd == 0 || move_fd(open("/dev/null", O_RDONLY), 0) == 0) {
             // stdin = 0. That's what we should have; proceed with opening stdout and stderr. We have to
             // take care not to clobber the notify_fd.
+        	if (output_fd == -1) {
+        		output_fd = open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
+        		if (output_fd == -1) goto failure_out;
+        	}
             if (notify_fd != 1) {
-                if (move_fd(open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR), 1) != 0) {
+                if (move_fd(output_fd, 1) != 0) {
                     goto failure_out;
                 }
                 if (notify_fd != 2 && dup2(1, 2) != 2) {
                     goto failure_out;
                 }
             }
-            else if (move_fd(open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR), 2) != 0) {
+            else if (move_fd(output_fd, 2) != 0) {
                 goto failure_out;
             }
         }

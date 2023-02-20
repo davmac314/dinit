@@ -138,9 +138,11 @@ template <class Base> class epoll_loop : public Base
             else {
                 int flags = 0;
                 (events[i].events & EPOLLIN) && (flags |= IN_EVENTS);
-                (events[i].events & EPOLLHUP) && (flags |= IN_EVENTS);
                 (events[i].events & EPOLLOUT) && (flags |= OUT_EVENTS);
-                (events[i].events & EPOLLERR) && (flags |= IN_EVENTS | OUT_EVENTS | ERR_EVENTS);
+                // We mustn't introduce IN/OUT events for error conditions as we don't know which are being
+                // watched! Just set ERR_EVENTS.
+                (events[i].events & EPOLLHUP) && (flags |= ERR_EVENTS);
+                (events[i].events & EPOLLERR) && (flags |= ERR_EVENTS);
                 auto r = Base::receive_fd_event(*this, fd_r(), ptr, flags);
                 if (std::get<0>(r) != 0) {
                     enable_fd_watch_nolock(fd_r().get_fd(std::get<1>(r)), ptr, std::get<0>(r));

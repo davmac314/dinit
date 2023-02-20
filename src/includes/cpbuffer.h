@@ -123,7 +123,7 @@ template <unsigned SIZE> class cpbuffer
         if (index >= SIZE) index -= SIZE;
         if (index + length > SIZE) {
             // wrap-around copy
-            int half = SIZE - index;
+            unsigned half = SIZE - index;
             std::memcpy(dest, buf + index, half);
             std::memcpy(reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(dest) + half),
                     buf, length - half);

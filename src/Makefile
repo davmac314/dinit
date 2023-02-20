@@ -2,6 +2,8 @@ include ../mconfig
 include ../build/version.conf
 
 STRIPOPTS ?= -s
+ALL_CXXFLAGS=$(CPPFLAGS) $(CXXFLAGS) $(CXXFLAGS_EXTRA)
+ALL_LDFLAGS=$(LDFLAGS) $(LDFLAGS_EXTRA)
 
 ifeq ($(BUILD_SHUTDOWN),yes)
   SHUTDOWN=$(SHUTDOWN_PREFIX)shutdown
@@ -18,25 +20,25 @@ all: dinit dinitctl dinitcheck dinit-monitor $(SHUTDOWN)
 	@echo "*** No mconfig, please run make from top level"
 	@false
 
-$(objects): ../build/includes/mconfig.h
-
 dinit: $(dinit_objects)
-	$(CXX) -o dinit $(dinit_objects) $(CXXOPTS) $(LDFLAGS)
+	$(CXX) -o dinit $(dinit_objects) $(ALL_LDFLAGS)
 
 dinitctl: dinitctl.o
-	$(CXX) -o dinitctl dinitctl.o $(CXXOPTS) $(LDFLAGS)
+	$(CXX) -o dinitctl dinitctl.o $(ALL_LDFLAGS)
 
 dinitcheck: dinitcheck.o options-processing.o
-	$(CXX) -o dinitcheck dinitcheck.o options-processing.o $(CXXOPTS) $(LDFLAGS)
+	$(CXX) -o dinitcheck dinitcheck.o options-processing.o $(ALL_LDFLAGS)
 
 dinit-monitor: dinit-monitor.o
-	$(CXX) -o dinit-monitor dinit-monitor.o $(CXXOPTS) $(LDFLAGS)
+	$(CXX) -o dinit-monitor dinit-monitor.o $(ALL_LDFLAGS)
 
 $(SHUTDOWN_PREFIX)shutdown: shutdown.o
-	$(CXX) -o $(SHUTDOWN_PREFIX)shutdown shutdown.o $(CXXOPTS) $(LDFLAGS)
+	$(CXX) -o $(SHUTDOWN_PREFIX)shutdown shutdown.o $(ALL_LDFLAGS)
+
+$(objects): ../build/includes/mconfig.h
 
 $(objects): %.o: %.cc
-	$(CXX) $(CXXOPTS) -MMD -MP -Iincludes -I../dasynq/include -I../build/includes -c $< -o $@
+	$(CXX) $(ALL_CXXFLAGS) -MMD -MP -Iincludes -I../dasynq/include -I../build/includes -c $< -o $@
 
 check: ../build/includes/mconfig.h $(dinit_objects)
 	$(MAKE) -C tests check

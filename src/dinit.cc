@@ -786,7 +786,8 @@ static void control_socket_cb(eventloop_t *loop, int sockfd) noexcept
     }
 }
 
-static void control_socket_ready() noexcept {
+static void control_socket_ready() noexcept
+{
     if (!control_socket_open || socket_ready_fd < 0) {
         return;
     }
@@ -802,9 +803,10 @@ static void control_socket_ready() noexcept {
 // Callback when the root filesystem is read/write:
 void rootfs_is_rw() noexcept
 {
-    if (!control_socket_open) {
-        open_control_socket(true);
-        control_socket_ready();
+    open_control_socket(true);
+    control_socket_ready();
+    if (!log_is_syslog) {
+        setup_external_log();
     }
     if (!did_log_boot) {
         did_log_boot = log_boot();
