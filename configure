@@ -85,7 +85,7 @@ cxx_works()
 try_cxx_argument()
 {
     info Checking whatever compiler accpets "$2"...
-    if $CXX $CXXOPTS $2 $CXXOPTS_POST $LDFLAGS $LDFLAGS_POST testfile.cc -o testfile > /dev/null 2>&1; then
+    if $CXX $CXXFLAGS $2 $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA testfile.cc -o testfile > /dev/null 2>&1; then
         rm testfile
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
@@ -102,7 +102,7 @@ try_cxx_argument()
 try_ld_argument()
 {
     info Checking whatever linker accepts "$2"...
-    if $CXX $CXXOPTS $CXXOPTS_POST $LDFLAGS $LDFLAGS_POST $2 testfile.cc -o testfile > /dev/null 2>&1; then
+    if $CXX $CXXFLAGS $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA $2 testfile.cc -o testfile > /dev/null 2>&1; then
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
         eval "$1=\${$1# }"
@@ -147,18 +147,25 @@ Optional options:
 
 Environment variables can be used:
   Note: environments vars can be passed as $0 argument.
-  Note: CXXOPTS and LDFLAGS will be set to the options that the configure script uses as default for the platform,
+  Note: CXXFLAGS and LDFLAGS will be set to the options that the configure script uses as default for the platform,
   filtered to remove any options not supported by the compiler/linker. For disable this thing just pass empty
-  value as CXXOPTS and LDFLAGS or pass some flags as them.
+  value as CXXFLAGS and LDFLAGS or pass some flags as them.
 
   CXX                           If you want to use specific C++ compiler.
   HOSTCXX                       If you want to cross-compiling and set the native C++ compiler.
-  CXXOPTS                       If you want to use some arguments in C++ compiler command line.
-  CXXOPTS_POST                  If you want to use some arguments in C++ compiler command line.
-                                  It's passed after CXXOPTS without disable that.
+  CXXFLAGS                      If you want to use some arguments in C++ compiler command line.
+  CXXFLAGS_EXTRA                If you want to use some arguments in C++ compiler command line.
+                                  It's passed after CXXFLAGS without overwrite it.
+  TEST_CXXFLAGS                 If you want to use some arguments in C++ compiler for testing.
+  TEST_CXXFLAGS_EXTRA           If you want to use some arguments in C++ compiler for testing.
+                                  It's passed after TEST_CXXFLAGS without overwrite it.
+  CPPFLAGS                      If you want to use some arguments in C++ compiler preprocessor.
   LDFLAGS                       If you want to use some arguments in Linker command line.
-  LDFLAGS_POST                  If you want to use some arguments in Linker command line.
-                                  It's passed after LDFLAGS without disable that.
+  LDFLAGS_EXTRA                 If you want to use some arguments in Linker command line.
+                                  It's passed after LDFLAGS without overwrite it.
+  TEST_LDFLAGS                  If you want to use some arguments in Linker for testing.
+  TEST_LDFLAGS_EXTRA            If you want to use some arguments in Linker for testing.
+                                  It's passed after TEST_LDFLAGS without overwrite it.
 
 Note: be careful about passing a path with space as prefix/eprefix/sbindir/mandir:
 for this thing You need to use backslash (\) with double quotation (") for every space.
@@ -210,13 +217,17 @@ done
 : "${PREFIX:="/usr"}"
 : "${EPREFIX:="/"}"
 : "${NO_SANITIZE:="auto"}"
-SANITIZEOPTS=""
 : "${SBINDIR:="/sbin"}"
 : "${MANDIR:="/share/man/"}"
 : "${NO_SANITIZE:="auto"}"
 : "${SHUTDOWN_PREFIX:=""}"
-: "${CXXOPTS_POST:=""}"
-: "${LDFLAGS_POST:=""}"
+: "${CXXFLAGS_EXTRA:=""}"
+: "${TEST_CXXFLAGS:=""}"
+: "${TEST_CXXFLAGS_EXTRA:=""}"
+: "${CPPFLAGS:=""}"
+: "${LDFLAGS_EXTRA:=""}"
+: "${TEST_LDFLAGS:=""}"
+: "${TEST_LDFLAGS_EXTRA:=""}"
 if [ "$PLATFORM" = "Linux" ]; then
     : "${BUILD_SHUTDOWN:=yes}"
     : "${SUPPORT_CGROUPS:=1}"
@@ -231,12 +242,12 @@ fi
 SBINDIR="$EPREFIX/$SBINDIR"
 MANDIR="$PREFIX/$MANDIR"
 
-## Finalize $CXXOPTS & $LDFLAGS
-if [ -z "${CXXOPTS+IS_SET}" ]; then
-    CXXOPTS=""
-    NO_CXXOPTS="false"
+## Finalize $CXXFLAGS & $LDFLAGS
+if [ -z "${CXXFLAGS+IS_SET}" ]; then
+    CXXFLAGS=""
+    NO_CXXFLAGS="false"
 else
-    NO_CXXOPTS="true"
+    NO_CXXFLAGS="true"
 fi
 if [ -z "${LDFLAGS+IS_SET}" ]; then
     LDFLAGS=""
@@ -280,28 +291,28 @@ if [ -n "${HOSTCXX:-}" ]; then
 fi
 
 ## Test compiler/linker supported arguments
-if [ "$NO_CXXOPTS" = "false" ]; then
+if [ "$NO_CXXFLAGS" = "false" ]; then
     for argument in -std=c++11 \
                     -Wall \
                     -Os \
                     -fno-plt
     do
-        try_cxx_argument CXXOPTS $argument
+        try_cxx_argument CXXFLAGS $argument
     done
     if [ "$PLATFORM" != "FreeBSD" ]; then
-        try_cxx_argument CXXOPTS -flto
+        try_cxx_argument CXXFLAGS -flto
     fi
     if [ "$PLATFORM" != "Darwin" ]; then
-        try_cxx_argument CXXOPTS -fno-rtti
+        try_cxx_argument CXXFLAGS -fno-rtti
     fi
 fi
 if [ "$PLATFORM" = "FreeBSD" ] && [ "$NO_LDFLAGS" = "false" ]; then
     try_ld_argument LDFLAGS -lrt
 fi
 if [ "${NO_SANITIZE:-}" = "auto" ]; then
-    try_ld_argument SANITIZEOPTS -fsanitize=address,undefined
+    try_ld_argument TEST_LDFLAGS -fsanitize=address,undefined
 elif [ "${NO_SANITIZE:-}" = "0" ]; then
-    SANITIZEOPTS="-fsanitize=address,undefined"
+    TEST_LDFLAGS="-fsanitize=address,undefined"
 fi
 
 ## Create mconfig
@@ -324,10 +335,12 @@ SYSCONTROLSOCKET=$SYSCONTROLSOCKET
 # FreeBSD: Cannot use LTO with default linker.
 
 CXX=$CXX
-CXXOPTS=$CXXOPTS $CXXOPTS_POST
-LDFLAGS=$LDFLAGS $LDFLAGS_POST
+CXXFLAGS=$CXXFLAGS $CXXFLAGS_EXTRA
+TEST_CXXFLAGS=$CXXFLAGS $TEST_CXXFLAGS $TEST_CXXFLAGS_EXTRA
+CPPFLAGS=$CPPFLAGS
+LDFLAGS=$LDFLAGS $LDFLAGS_EXTRA
+TEST_LDFLAGS=$LDFLAGS $TEST_LDFLAGS $TEST_LDFLAGS_EXTRA
 BUILD_SHUTDOWN=$BUILD_SHUTDOWN
-SANITIZEOPTS=$SANITIZEOPTS
 
 # Feature settings
 SUPPORT_CGROUPS=$SUPPORT_CGROUPS
