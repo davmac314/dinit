@@ -62,11 +62,7 @@ create_testfile_cc()
 findcxx()
 {
     if type "$1" > /dev/null 2>&1; then
-        if [ "${2:-}" = "host" ]; then
-            HOSTCXX="$1"
-        else
-            CXX="$1"
-        fi
+        CXX="$1"
     fi
 }
 
@@ -84,7 +80,7 @@ cxx_works()
 
 try_cxx_argument()
 {
-    info Checking whatever compiler accpets "$2"...
+    info Checking whatever compiler accepts "$2"...
     if $CXX $CXXFLAGS $2 $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA testfile.cc -o testfile > /dev/null 2>&1; then
         rm testfile
         sub_info Yes.
@@ -176,7 +172,7 @@ EOF
     exit 0
 }
 
-## Flag praser
+## Flag parser
 for arg in "$@"; do
     case "$arg" in
         --help) usage ;;
@@ -202,12 +198,14 @@ for arg in "$@"; do
         --disable-sanitize|--enable-sanitize=no) NO_SANITIZE=1 ;;
         --enable-utmpx|--enable-utmpx=yes) USE_UTMPX=1 ;;
         --disable-utmpx|--enable-utmpx=no) USE_UTMPX=0 ;;
-        *=*)
+        CXX=*|HOSTCXX=*|CXXFLAGS=*|CXXFLAGS_EXTRA=*|TEST_CXXFLAGS=*\
+        |TEST_CXXFLAGS_EXTRA|LDFLAGS=*|LDFLAGS_EXTRA=*|TEST_LDFLAGS=*\
+        |TEST_LDFLAGS_EXTRA=*|CPPFLAGS=*)
             envvar=$(expr "x$arg" : 'x\([^=]*\)=')
             envvar_value=$(expr "X$arg" : '[^=]*=\(.*\)') || envvar_value="" # Fix empty var bug
-            eval "$envvar=\$envvar_value"
-            export "${envvar?}"
+            eval "$envvar=$envvar_value"
         ;;
+        *=*) warning Unknown variable: "$(expr "x$arg" : 'x\([^=]*\)=')" ;;
         *) warning Unknown argument: "$arg" ;;
     esac
 done
@@ -226,7 +224,6 @@ done
 : "${TEST_CXXFLAGS_EXTRA:=""}"
 : "${CPPFLAGS:=""}"
 : "${LDFLAGS_EXTRA:=""}"
-: "${TEST_LDFLAGS:=""}"
 : "${TEST_LDFLAGS_EXTRA:=""}"
 if [ "$PLATFORM" = "Linux" ]; then
     : "${BUILD_SHUTDOWN:=yes}"
@@ -242,18 +239,24 @@ fi
 SBINDIR="$EPREFIX/$SBINDIR"
 MANDIR="$PREFIX/$MANDIR"
 
-## Finalize $CXXFLAGS & $LDFLAGS
+## Finalize $CXXFLAGS, $LDFLAGS, $TEST_LDFLAGS
 if [ -z "${CXXFLAGS+IS_SET}" ]; then
     CXXFLAGS=""
-    NO_CXXFLAGS="false"
+    AUTO_CXXFLAGS="true"
 else
-    NO_CXXFLAGS="true"
+    AUTO_CXXFLAGS="false"
 fi
 if [ -z "${LDFLAGS+IS_SET}" ]; then
     LDFLAGS=""
-    NO_LDFLAGS="false"
+    AUTO_LDFLAGS="true"
 else
-    NO_LDFLAGS="true"
+    AUTO_LDFLAGS="false"
+fi
+if [ -z "${TEST_LDFLAGS+IS_SET}" ]; then
+    TEST_LDFLAGS=""
+    AUTO_TEST_LDFLAGS="true"
+else
+    AUTO_TEST_LDFLAGS="false"
 fi
 
 ## Verify PLATFORM value
@@ -280,18 +283,13 @@ if [ -z "${CXX:-}" ]; then
        sub_error No C++ compiler found! # Not found
     fi
 fi
-if [ -n "${HOSTCXX:-}" ]; then
-    if [ -z "${CXX:-}" ] || [ -z "${HOSTCXX:-}" ]; then
-       sub_error No C++ compiler found! # Not found
-    fi
-fi
 cxx_works "$CXX"
 if [ -n "${HOSTCXX:-}" ]; then
     cxx_works "$HOSTCXX"
 fi
 
 ## Test compiler/linker supported arguments
-if [ "$NO_CXXFLAGS" = "false" ]; then
+if [ "$AUTO_CXXFLAGS" = "true" ]; then
     for argument in -std=c++11 \
                     -Wall \
                     -Os \
@@ -306,10 +304,10 @@ if [ "$NO_CXXFLAGS" = "false" ]; then
         try_cxx_argument CXXFLAGS -fno-rtti
     fi
 fi
-if [ "$PLATFORM" = "FreeBSD" ] && [ "$NO_LDFLAGS" = "false" ]; then
+if [ "$PLATFORM" = "FreeBSD" ] && [ "$AUTO_LDFLAGS" = "true" ]; then
     try_ld_argument LDFLAGS -lrt
 fi
-if [ "${NO_SANITIZE:-}" = "auto" ]; then
+if [ "${NO_SANITIZE:-}" = "auto" ] && [ "$AUTO_TEST_LDFLAGS" = "true" ]; then
     try_ld_argument TEST_LDFLAGS -fsanitize=address,undefined
 elif [ "${NO_SANITIZE:-}" = "0" ]; then
     TEST_LDFLAGS="-fsanitize=address,undefined"
@@ -352,11 +350,11 @@ if [ -n "${USE_UTMPX:-}" ]; then
     echo "USE_UTMPX=$USE_UTMPX" >> mconfig
 fi
 if [ -n "${HOSTCXX:-}" ]; then
-    (
+    {
         echo ""
         echo "# For cross-compiling"
         echo "HOSTCXX=$HOSTCXX"
-    ) >> mconfig
+    } >> mconfig
 fi
 sub_info done.
 info Done!
