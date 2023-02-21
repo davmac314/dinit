@@ -5,14 +5,9 @@ set -eu
 cd "$(dirname "$0")"
 
 ## Helper functions
-# According to POSIX, echo has unspecified behavior if any of its arguments contain “\” or
-# if its first argument is “-n”. Unix™ standards fill in this unspecified area for
-# XSI-conformant implementations, by specifying nasty undesirable behavior that no one wants
-# (“\” is interpreted as a C-string-literal style escape), and other popular implementations
-# such as Bash interpret argument values other than “-n” as special options even
-# when in “POSIX compatibility” mode, rendering then nonconformant.
-# These issues mean echo "$var" can sting you whenever you do not have strict guarantees
-# about the contents of var (for example that it contains a nonnegative integer).
+# According to POSIX, echo has some unspecified behavior in some cases, for example
+# when its first argument is "-n" or backslash ("\"). We prefer to rely on
+# POSIX documented things.
 # So we replace shell built-in echo with a printf based function.
 # For more info see http://www.etalabs.net/sh_tricks.html
 echo()
