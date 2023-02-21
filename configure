@@ -120,7 +120,7 @@ Defaults for the options are specified in brackets.
 
 Target options:
   --platform=PLATFORM           Set the platform manually (Just for cross-platform cross-compile!) [autodetected]
-                                  For all cross-compiles (even this) don't forget to set correct CXX and HOSTCXX!
+                                  For all cross-compiles (even this) don't forget to set correct CXX and CXX_FOR_BUILD!
 
 Installation directories:
   --prefix=PREFIX               Main installtion prefix [/usr]
@@ -148,7 +148,13 @@ Environment variables can be used:
   value as CXXFLAGS and LDFLAGS or pass some flags as them.
 
   CXX                           If you want to use specific C++ compiler.
-  HOSTCXX                       If you want to cross-compiling and set the native C++ compiler.
+  CXX_FOR_BUILD                 If you want to cross-compiling and set the native C++ compiler.
+  CXXFLAGS_FOR_BUILD            If you want to use some arguments in native C++ compiler.
+                                  By default it's same as CXXFLAGS.
+  CPPFLAGS_FOR_BUILD            If you want to use some arguments in native C++ compiler preprocessor.
+                                  By default it's same as CPPFLAGS.
+  LDFLAGS_FOR_BUILD             If you want to use some arguments in native Linker command line.
+                                  By default it's same as LDFLAGS.
   CXXFLAGS                      If you want to use some arguments in C++ compiler command line.
   CXXFLAGS_EXTRA                If you want to use some arguments in C++ compiler command line.
                                   It's passed after CXXFLAGS without overwrite it.
@@ -198,7 +204,8 @@ for arg in "$@"; do
         --disable-sanitize|--enable-sanitize=no) NO_SANITIZE=1 ;;
         --enable-utmpx|--enable-utmpx=yes) USE_UTMPX=1 ;;
         --disable-utmpx|--enable-utmpx=no) USE_UTMPX=0 ;;
-        CXX=*|HOSTCXX=*|CXXFLAGS=*|CXXFLAGS_EXTRA=*|TEST_CXXFLAGS=*\
+        CXX=*|CXX_FOR_BUILD=*|CXXFLAGS_FOR_BUILD=*|CPPFLAGS_FOR_BUILD=*\
+        |LDFLAGS_FOR_BUILD=*|CXXFLAGS=*|CXXFLAGS_EXTRA=*|TEST_CXXFLAGS=*\
         |TEST_CXXFLAGS_EXTRA|LDFLAGS=*|LDFLAGS_EXTRA=*|TEST_LDFLAGS=*\
         |TEST_LDFLAGS_EXTRA=*|CPPFLAGS=*)
             envvar=$(expr "x$arg" : 'x\([^=]*\)=')
@@ -284,8 +291,8 @@ if [ -z "${CXX:-}" ]; then
     fi
 fi
 cxx_works "$CXX"
-if [ -n "${HOSTCXX:-}" ]; then
-    cxx_works "$HOSTCXX"
+if [ -n "${CXX_FOR_BUILD:-}" ]; then
+    cxx_works "$CXX_FOR_BUILD"
 fi
 
 ## Test compiler/linker supported arguments
@@ -349,12 +356,21 @@ EOF
 if [ -n "${USE_UTMPX:-}" ]; then
     echo "USE_UTMPX=$USE_UTMPX" >> mconfig
 fi
-if [ -n "${HOSTCXX:-}" ]; then
+if [ -n "${CXX_FOR_BUILD:-}" ]; then
     {
         echo ""
         echo "# For cross-compiling"
-        echo "HOSTCXX=$HOSTCXX"
+        echo "CXX_FOR_BUILD=$CXX_FOR_BUILD"
     } >> mconfig
+fi
+if [ -n "${CXXFLAGS_FOR_BUILD:-}" ]; then
+    echo "CXXFLAGS_FOR_BUILD=$CXXFLAGS_FOR_BUILD" >> mconfig
+fi
+if [ -n "${CPPFLAGS_FOR_BUILD:-}" ]; then
+    echo "CPPFLAGS_FOR_BUILD=$CPPFLAGS_FOR_BUILD" >> mconfig
+fi
+if [ -n "${LDFLAGS_FOR_BUILD:-}" ]; then
+    echo "LDFLAGS_FOR_BUILD=$LDFLAGS_FOR_BUILD" >> mconfig
 fi
 sub_info done.
 info Done!
