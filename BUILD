@@ -37,9 +37,10 @@ appropriate values for the configuration variables defined within. In particular
   
 Additionally, for cross-compilation, the following can be specified:
 
-  HOST_CXX : C++ compiler for compiling code to run on the build host
-  HOST_CXXFLAGS  : any options for compiling code to run on the host
-  HOST_LDFLAGS   : any options for linking code to run on the host
+  CXX_FOR_BUILD : C++ compiler for compiling code to run on the build host
+  CXXFLAGS_FOR_BUILD  : any options for compiling code to run on the build host
+  CPPFLAGS_FOR_BUILD  : any preprocessor options for code to run on the build host
+  LDFLAGS_FOR_BUILD   : any options for linking code to run on the build host
 
 Note that the "eg++" or "clang++" package must be installed on OpenBSD as the default "g++"
 compiler is too old. Clang is part of the base system in recent releases.
