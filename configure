@@ -205,7 +205,8 @@ for arg in "$@"; do
         |TEST_LDFLAGS_EXTRA=*|CPPFLAGS=*)
             envvar=$(expr "x$arg" : 'x\([^=]*\)=')
             envvar_value=$(expr "X$arg" : '[^=]*=\(.*\)') || envvar_value="" # Fix empty var bug
-            eval "$envvar=$envvar_value"
+            eval "$envvar=\$envvar_value"
+            export "${envvar?}"
         ;;
         *=*) warning Unknown variable: "$(expr "x$arg" : 'x\([^=]*\)=')" ;;
         *) warning Unknown argument: "$arg" ;;
