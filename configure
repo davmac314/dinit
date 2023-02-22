@@ -223,7 +223,6 @@ done
 : "${NO_SANITIZE:="auto"}"
 : "${SHUTDOWN_PREFIX:=""}"
 : "${CXXFLAGS_EXTRA:=""}"
-: "${TEST_CXXFLAGS:=""}"
 : "${TEST_CXXFLAGS_EXTRA:=""}"
 : "${CPPFLAGS:=""}"
 : "${LDFLAGS_EXTRA:=""}"
@@ -242,12 +241,18 @@ fi
 SBINDIR="$EPREFIX/$SBINDIR"
 MANDIR="$PREFIX/$MANDIR"
 
-## Finalize $CXXFLAGS, $LDFLAGS, $TEST_LDFLAGS
+## Finalize $CXXFLAGS, $TEST_CXXFLAGS, $LDFLAGS, $TEST_LDFLAGS
 if [ -z "${CXXFLAGS+IS_SET}" ]; then
     CXXFLAGS=""
     AUTO_CXXFLAGS="true"
 else
     AUTO_CXXFLAGS="false"
+fi
+if [ -z "${TEST_CXXFLAGS+IS_SET}" ]; then
+    TEST_CXXFLAGS=""
+    AUTO_TEST_CXXFLAGS="true"
+else
+    AUTO_TEST_CXXFLAGS="false"
 fi
 if [ -z "${LDFLAGS+IS_SET}" ]; then
     LDFLAGS=""
@@ -310,10 +315,16 @@ fi
 if [ "$PLATFORM" = "FreeBSD" ] && [ "$AUTO_LDFLAGS" = "true" ]; then
     try_ld_argument LDFLAGS -lrt
 fi
-if [ "${NO_SANITIZE:-}" = "auto" ] && [ "$AUTO_TEST_LDFLAGS" = "true" ]; then
-    try_ld_argument TEST_LDFLAGS -fsanitize=address,undefined
+if [ "${NO_SANITIZE:-}" = "auto" ] && [ "$AUTO_TEST_LDFLAGS" = "true" ] && \
+   [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
+    if try_ld_argument TEST_LDFLAGS -fsanitize=address,undefined; then
+        TEST_CXXFLAGS="-fsanitize=address,undefined"
+    fi
+elif [ "${NO_SANITIZE:-}" = "auto" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
+    try_cxx_argument TEST_CXXFLAGS -fsanitize=address,undefined
 elif [ "${NO_SANITIZE:-}" = "0" ]; then
-    TEST_LDFLAGS="-fsanitize=address,undefined"
+    TEST_CXXFLAGS="$TEST_CXXFLAGS -fsanitize=address,undefined"
+    TEST_LDFLAGS="$TEST_LDFLAGS -fsanitize=address,undefined"
 fi
 
 ## Create mconfig
