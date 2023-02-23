@@ -315,10 +315,10 @@ fi
 if [ "$PLATFORM" = "FreeBSD" ] && [ "$AUTO_LDFLAGS" = "true" ]; then
     try_ld_argument LDFLAGS -lrt
 fi
-if [ "${NO_SANITIZE:-}" = "auto" ] && [ "$AUTO_TEST_LDFLAGS" = "true" ] && \
-   [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
+if [ "${NO_SANITIZE:-}" = "auto" ] && [ "$AUTO_TEST_LDFLAGS" = "true" ]; then
     try_ld_argument TEST_LDFLAGS -fsanitize=address,undefined
-    if [ "$AUTO_TEST_LDFLAGS" = "-fsanitize=address,undefined" ]; then
+    if [ "$TEST_LDFLAGS" = "-fsanitize=address,undefined" ] &&\
+       [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
         TEST_CXXFLAGS="-fsanitize=address,undefined"
     fi
 elif [ "${NO_SANITIZE:-}" = "auto" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
