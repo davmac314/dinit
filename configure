@@ -49,11 +49,6 @@ sub_warning()
     echo
 }
 
-create_testfile_cc()
-{
-    echo "int main(int argc, char **argv) { return 0; }" > testfile.cc
-}
-
 findcxx()
 {
     if type "$1" > /dev/null 2>&1; then
@@ -104,7 +99,7 @@ try_ld_argument()
 
 usage()
 {
-    cat << EOF
+    cat << _EOF
 Usage: $0 [OPTION]...
 
 Defaults for the options are specified in brackets.
@@ -138,9 +133,9 @@ Optional options:
 
 Environment variables can be used:
   Note: environments vars can be passed as $0 argument.
-  Note: CXXFLAGS and LDFLAGS will be set to the options that the configure script uses as default for the platform,
-  filtered to remove any options not supported by the compiler/linker. For disable this thing just pass empty
-  value as CXXFLAGS and LDFLAGS or pass some flags as them.
+  Note: CXXFLAGS , TEST_CXXFLAGS, LDFLAGS and TEST_LDFLAGS will be set to the options that the configure 
+  script uses as default for the platform, filtered to remove any options not supported by the 
+  compiler/linker. For disable this thing just pass empty value as those things or pass some flags as them.
 
   CXX                           If you want to use specific C++ compiler.
   CXX_FOR_BUILD                 If you want to cross-compiling and set the native C++ compiler.
@@ -169,7 +164,7 @@ for this thing You need to use backslash (\) with double quotation (") for every
 For example: ./configure --sbindir="/usr/bin\ with\ space/"
 
 See BUILD file for more information.
-EOF
+_EOF
     exit 0
 }
 
@@ -177,7 +172,7 @@ EOF
 for arg in "$@"; do
     case "$arg" in
         --help) usage ;;
-        --quiet)
+        --quiet|--silent)
             info() { true; }
             sub_info() { true; }
             warning() { true; }
@@ -202,12 +197,8 @@ for arg in "$@"; do
         CXX=*|CXX_FOR_BUILD=*|CXXFLAGS_FOR_BUILD=*|CPPFLAGS_FOR_BUILD=*\
         |LDFLAGS_FOR_BUILD=*|CXXFLAGS=*|CXXFLAGS_EXTRA=*|TEST_CXXFLAGS=*\
         |TEST_CXXFLAGS_EXTRA|LDFLAGS=*|LDFLAGS_EXTRA=*|TEST_LDFLAGS=*\
-        |TEST_LDFLAGS_EXTRA=*|CPPFLAGS=*)
-            envvar=$(expr "x$arg" : 'x\([^=]*\)=')
-            envvar_value=$(expr "X$arg" : '[^=]*=\(.*\)') || envvar_value="" # Fix empty var bug
-            eval "$envvar=\$envvar_value"
-        ;;
-        *=*) warning Unknown variable: "$(expr "x$arg" : 'x\([^=]*\)=')" ;;
+        |TEST_LDFLAGS_EXTRA=*|CPPFLAGS=*) eval "${arg%%=*}=\${arg#*=}" ;;
+        *=*) warning Unknown variable: "${arg%%=*}" ;;
         *) warning Unknown argument: "$arg" ;;
     esac
 done
@@ -227,12 +218,12 @@ done
 : "${LDFLAGS_EXTRA:=""}"
 : "${TEST_LDFLAGS_EXTRA:=""}"
 if [ "$PLATFORM" = "Linux" ]; then
-    : "${BUILD_SHUTDOWN:=yes}"
-    : "${SUPPORT_CGROUPS:=1}"
+    : "${BUILD_SHUTDOWN:="yes"}"
+    : "${SUPPORT_CGROUPS:="1"}"
     : "${SYSCONTROLSOCKET:="/run/dinitctl"}"
 else
-    : "${BUILD_SHUTDOWN:=no}"
-    : "${SUPPORT_CGROUPS:=0}"
+    : "${BUILD_SHUTDOWN:="no"}"
+    : "${SUPPORT_CGROUPS:="0"}"
     : "${SYSCONTROLSOCKET:="/var/run/dinitctl"}"
 fi
 
@@ -274,7 +265,7 @@ if [ "$PLATFORM" != "Linux" ] && [ "$PLATFORM" != "FreeBSD" ] && \
 fi
 
 ## Create testfile.cc to test c++ compiler
-create_testfile_cc
+echo "int main(int argc, char **argv) { return 0; }" > testfile.cc || error Cant create test file
 
 ## Find and test C++ compiler
 if [ -z "${CXX:-}" ]; then
