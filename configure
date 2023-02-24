@@ -168,11 +168,25 @@ _EOF
     exit 0
 }
 
+## Don't take values from env for these variables
+for var in PREFIX \
+           EPREFIX \
+           SBINDIR \
+           MANDIR \
+           NO_SANITIZE \
+           SHUTDOWN_PREFIX \
+           BUILD_SHUTDOWN \
+           SUPPORT_CGROUPS \
+           SYSCONTROLSOCKET
+do
+    unset $var
+done
+
 ## Flag parser
 for arg in "$@"; do
     case "$arg" in
         --help) usage ;;
-        --quiet|--silent)
+        --quiet)
             info() { true; }
             sub_info() { true; }
             warning() { true; }
@@ -207,7 +221,6 @@ done
 : "${PLATFORM:=$(uname)}"
 : "${PREFIX:="/usr"}"
 : "${EPREFIX:="/"}"
-: "${NO_SANITIZE:="auto"}"
 : "${SBINDIR:="/sbin"}"
 : "${MANDIR:="/share/man/"}"
 : "${NO_SANITIZE:="auto"}"
