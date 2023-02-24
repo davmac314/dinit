@@ -97,6 +97,20 @@ try_ld_argument()
     fi
 }
 
+try_both_argument()
+{
+    info Checking whatever compiler/linker accepts "$3"...
+    if $CXX $CXXFLAGS $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA $3 testfile.cc -o testfile > /dev/null 2>&1; then
+        sub_info Yes.
+        eval "$1=\"\${$1} \$3\""
+        eval "$1=\${$1# }"
+        eval "$2=\"\${$2} \$3\""
+        eval "$2=\${$2# }"
+    else
+        sub_info No.
+    fi
+}
+
 usage()
 {
     cat << _EOF
@@ -308,24 +322,26 @@ if [ "$AUTO_CXXFLAGS" = "true" ]; then
     do
         try_cxx_argument CXXFLAGS $argument
     done
-    if [ "$PLATFORM" != "FreeBSD" ]; then
-        try_cxx_argument CXXFLAGS -flto
-    fi
     if [ "$PLATFORM" != "Darwin" ]; then
         try_cxx_argument CXXFLAGS -fno-rtti
     fi
 fi
-if [ "$PLATFORM" = "FreeBSD" ] && [ "$AUTO_LDFLAGS" = "true" ]; then
-    try_ld_argument LDFLAGS -lrt
+if [ "$AUTO_LDFLAGS" = "true" ] && [ "$AUTO_CXXFLAGS" = "true" ]; then
+    try_both_argument CXXFLAGS LDFLAGS -flto
 fi
-if [ "${NO_SANITIZE:-}" = "auto" ] && [ "$AUTO_TEST_LDFLAGS" = "true" ]; then
-    try_ld_argument TEST_LDFLAGS -fsanitize=address,undefined
-    if [ "$TEST_LDFLAGS" = "-fsanitize=address,undefined" ] &&\
-       [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
-        TEST_CXXFLAGS="-fsanitize=address,undefined"
+if [ "$AUTO_LDFLAGS" = "true" ]; then
+    if [ "$PLATFORM" = "FreeBSD" ]; then
+        try_ld_argument LDFLAGS -lrt
     fi
-elif [ "${NO_SANITIZE:-}" = "auto" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
-    try_cxx_argument TEST_CXXFLAGS -fsanitize=address,undefined
+fi
+if [ "${NO_SANITIZE:-}" = "auto" ]; then
+    if [ "$AUTO_TEST_LDFLAGS" = "true" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
+        try_both_argument TEST_CXXFLAGS TEST_LDFLAGS -fsanitize=address,undefined
+    elif [ "$AUTO_TEST_LDFLAGS" = "true" ]; then
+        try_ld_argument TEST_LDFLAGS -fsanitize=address,undefined
+    elif [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
+        try_cxx_argument TEST_CXXFLAGS -fsanitize=address,undefined
+    fi
 elif [ "${NO_SANITIZE:-}" = "0" ]; then
     TEST_CXXFLAGS="$TEST_CXXFLAGS -fsanitize=address,undefined"
     TEST_LDFLAGS="$TEST_LDFLAGS -fsanitize=address,undefined"
