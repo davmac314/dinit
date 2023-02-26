@@ -328,6 +328,13 @@ fi
 if [ "$AUTO_LDFLAGS" = "true" ] && [ "$PLATFORM" = "FreeBSD" ]; then
     try_ld_argument LDFLAGS -lrt
 fi
+# Add $CXXFLAGS and $LDFLAGS to $TEST_{LD,CXX}FLAGS when AUTO_TEST vars are true
+if [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
+    TEST_CXXFLAGS="$CXXFLAGS"
+fi
+if [ "$AUTO_TEST_LDFLAGS" = "true" ]; then
+    TEST_LDFLAGS="$LDFLAGS"
+fi
 if [ "$AUTO_TEST_LDFLAGS" = "true" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
     try_both_argument TEST_CXXFLAGS TEST_LDFLAGS -fsanitize=address,undefined
 fi
