@@ -140,8 +140,6 @@ Optional options:
   --disable-shutdown            Don't build shutdown, poweroff, reboot, halt programs
   --enable-cgroups              Enable Cgroups support [Enabled only on Linux based systems]
   --disable-cgroups             Disable Cgroups support
-  --enable-sanitize             Enable -fsanitize for Unit tests [auto]
-  --disable-sanitize            Disable -fsanitize for Unit tests
   --enable-utmpx                Enable manipulating the utmp/utmpx database via the related POSIX functions [auto]
   --disable-utmpx               Disable manipulating the utmp/utmpx database via the related POSIX functions
 
@@ -218,8 +216,6 @@ for arg in "$@"; do
         --disable-shutdown|--enable-shutdown=no) BUILD_SHUTDOWN=no ;;
         --enable-cgroups|--enable-cgroups=yes) SUPPORT_CGROUPS=1 ;;
         --disable-cgroups|--enable-cgroups=no) SUPPORT_CGROUPS=0 ;;
-        --enable-sanitize|--enable-sanitize=yes) NO_SANITIZE=0 ;;
-        --disable-sanitize|--enable-sanitize=no) NO_SANITIZE=1 ;;
         --enable-utmpx|--enable-utmpx=yes) USE_UTMPX=1 ;;
         --disable-utmpx|--enable-utmpx=no) USE_UTMPX=0 ;;
         CXX=*|CXX_FOR_BUILD=*|CXXFLAGS_FOR_BUILD=*|CPPFLAGS_FOR_BUILD=*\
@@ -329,22 +325,11 @@ fi
 if [ "$AUTO_LDFLAGS" = "true" ] && [ "$AUTO_CXXFLAGS" = "true" ]; then
     try_both_argument CXXFLAGS LDFLAGS -flto
 fi
-if [ "$AUTO_LDFLAGS" = "true" ]; then
-    if [ "$PLATFORM" = "FreeBSD" ]; then
-        try_ld_argument LDFLAGS -lrt
-    fi
+if [ "$AUTO_LDFLAGS" = "true" ] && [ "$PLATFORM" = "FreeBSD" ]; then
+    try_ld_argument LDFLAGS -lrt
 fi
-if [ "${NO_SANITIZE:-}" = "auto" ]; then
-    if [ "$AUTO_TEST_LDFLAGS" = "true" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
-        try_both_argument TEST_CXXFLAGS TEST_LDFLAGS -fsanitize=address,undefined
-    elif [ "$AUTO_TEST_LDFLAGS" = "true" ]; then
-        try_ld_argument TEST_LDFLAGS -fsanitize=address,undefined
-    elif [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
-        try_cxx_argument TEST_CXXFLAGS -fsanitize=address,undefined
-    fi
-elif [ "${NO_SANITIZE:-}" = "0" ]; then
-    TEST_CXXFLAGS="$TEST_CXXFLAGS -fsanitize=address,undefined"
-    TEST_LDFLAGS="$TEST_LDFLAGS -fsanitize=address,undefined"
+if [ "$AUTO_TEST_LDFLAGS" = "true" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
+    try_both_argument TEST_CXXFLAGS TEST_LDFLAGS -fsanitize=address,undefined
 fi
 
 ## Create mconfig
@@ -367,11 +352,15 @@ SYSCONTROLSOCKET=$SYSCONTROLSOCKET
 # FreeBSD: Cannot use LTO with default linker.
 
 CXX=$CXX
-CXXFLAGS=$CXXFLAGS $CXXFLAGS_EXTRA
-TEST_CXXFLAGS=$CXXFLAGS $TEST_CXXFLAGS $TEST_CXXFLAGS_EXTRA
+CXXFLAGS=$CXXFLAGS
+CXXFLAGS_EXTRA=$CXXFLAGS_EXTRA
+TEST_CXXFLAGS=$TEST_CXXFLAGS
+TEST_CXXFLAGS_EXTRA=$TEST_CXXFLAGS_EXTRA
 CPPFLAGS=$CPPFLAGS
-LDFLAGS=$LDFLAGS $LDFLAGS_EXTRA
-TEST_LDFLAGS=$LDFLAGS $TEST_LDFLAGS $TEST_LDFLAGS_EXTRA
+LDFLAGS=$LDFLAGS
+LDFLAGS_EXTRA=$LDFLAGS_EXTRA
+TEST_LDFLAGS=$TEST_LDFLAGS
+TEST_LDFLAGS_EXTRA=$TEST_LDFLAGS_EXTRA
 BUILD_SHUTDOWN=$BUILD_SHUTDOWN
 
 # Feature settings
