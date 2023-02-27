@@ -28,7 +28,7 @@ clean:
 	$(MAKE) -C doc/manpages clean
 
 mconfig:
-	@UNAME="INVALID";\
+	@UNAME=`uname`;\
 	if [ -f "./configs/mconfig.$$UNAME.sh" ]; then \
 	    echo "*** Found auto-configuration script for OS: $$UNAME"; \
 	    ( cd ./configs; sh "mconfig.$$UNAME.sh" ) \
