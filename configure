@@ -1,6 +1,8 @@
 #!/bin/sh
-### Custom configure script of Dinit.
-## Initial prepartion
+### Automatic build configuration script for Dinit.
+### This script generates an "mconfig" file suitable for building on the current system.
+
+## Initial preparation
 set -eu
 cd "$(dirname "$0")"
 
@@ -58,10 +60,10 @@ findcxx()
 
 cxx_works()
 {
-    info Checking "$1" works...
+    info Checking whether \""$1"\" is a working C++ compiler...
     if ! $CXX -o testfile.o testfile.cc; then
         rm -f testfile*
-        sub_error Seems like C++ compiler is not working!
+        sub_error It seems like \""$CXX"\" is not working a working C++ compiler. Please specify compiler.
     else
         rm -f testfile
         sub_info Yes.
@@ -70,7 +72,7 @@ cxx_works()
 
 try_cxx_argument()
 {
-    info Checking whatever compiler accepts "$2"...
+    info Checking whether the compiler accepts "$2"...
     if $CXX $CXXFLAGS $2 $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA testfile.cc -o testfile > /dev/null 2>&1; then
         rm testfile
         sub_info Yes.
@@ -78,7 +80,7 @@ try_cxx_argument()
         eval "$1=\${$1# }"
     else
         if [ "$2" = "-std=c++11" ]; then
-            sub_error "Seems like C++ compiler don't support $2 but It's required!"
+            sub_error "It seems like the C++ compiler don't support the (required) \"$2\" option!"
         else
             sub_info No.
         fi
@@ -87,7 +89,7 @@ try_cxx_argument()
 
 try_ld_argument()
 {
-    info Checking whatever linker accepts "$2"...
+    info Checking whether "$2" is accepted as a link-time option...
     if $CXX $CXXFLAGS $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA $2 testfile.cc -o testfile > /dev/null 2>&1; then
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
@@ -99,7 +101,7 @@ try_ld_argument()
 
 try_both_argument()
 {
-    info Checking whatever compiler/linker accepts "$3"...
+    info Checking whether the compiler/linker accept "$3"...
     if $CXX $CXXFLAGS $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA $3 testfile.cc -o testfile > /dev/null 2>&1; then
         sub_info Yes.
         eval "$1=\"\${$1} \$3\""
@@ -116,71 +118,71 @@ usage()
     cat << _EOF
 Usage: $0 [OPTION]...
 
+Generates build configuration for Dinit.
+
 Defaults for the options are specified in brackets.
 
   --help                        This help message.
   --quiet                       Don't print normal messages, just errors.
-  --clean                       Clear mconfig and configure's temp files.
+  --clean                       Clear mconfig and configure's temporary files.
 
 Target options:
   --platform=PLATFORM           Set the platform manually (Just for cross-platform cross-compile!) [autodetected]
-                                  For all cross-compiles (even this) don't forget to set correct CXX and CXX_FOR_BUILD!
+                                  Note: for all cross-compiles please specify correct CXX and CXX_FOR_BUILD!
 
 Installation directories:
-  --prefix=PREFIX               Main installtion prefix [/usr]
-  --exec-prefix=EPREFIX         Main executables location [/]
-  --sbindir=SBINDIR             Dinit executables [EPREFIX/sbin]
+  --prefix=PREFIX               Main installation prefix [/usr]
+  --exec-prefix=EPREFIX         Main executables prefix  [/]
+  --sbindir=SBINDIR             Dinit executables        [EPREFIX/sbin]
   --mandir=MANDIR               Dinit man-pages location [PREFIX/share/man]
-  --syscontrolsocket=SOCKETPATH Dinitctl socket location [/run/dinitctl] on Linux based systems
-                                                         [/var/run/dinitctl] on Other systems
+  --syscontrolsocket=SOCKETPATH Dinitctl socket location [/run/dinitctl] on Linux systems
+                                                         [/var/run/dinitctl] on other systems
 
 Optional options:
   --shutdown-prefix=PREFIX      Name prefix for shutdown, poweroff, reboot, halt programs []
-  --enable-shutdown             Build shutdown, poweroff, reboot, halt programs [Enabled only on Linux based systems]
+  --enable-shutdown             Build shutdown, poweroff, reboot, halt programs [Enabled only on Linux systems]
   --disable-shutdown            Don't build shutdown, poweroff, reboot, halt programs
   --enable-cgroups              Enable Cgroups support [Enabled only on Linux based systems]
   --disable-cgroups             Disable Cgroups support
   --enable-utmpx                Enable manipulating the utmp/utmpx database via the related POSIX functions [auto]
   --disable-utmpx               Disable manipulating the utmp/utmpx database via the related POSIX functions
 
-Environment variables can be used:
-  Note: environments vars can be passed as $0 argument.
-  Note: CXXFLAGS , TEST_CXXFLAGS, LDFLAGS and TEST_LDFLAGS will be set to the options that the configure 
-  script uses as default for the platform, filtered to remove any options not supported by the 
-  compiler/linker. For disable this thing just pass empty value as those things or pass some flags as them.
+Build variables:
+  Note: build variables can be passed in the environment, or as $0 argument (as "var=VALUE").
+  Note: CXXFLAGS, TEST_CXXFLAGS, LDFLAGS and TEST_LDFLAGS by default will be set to options considered suitable
+  for the platform, filtered to remove any options not supported by the  compiler/linker. To disable this,
+  specify the values explicitly (an empty string is accepted). To add options without removing the defaults,
+  set the variable with _EXTRA appended to the name (eg CXXFLAGS_EXTRA).
 
-  CXX                           If you want to use specific C++ compiler.
-  CXX_FOR_BUILD                 If you want to cross-compiling and set the native C++ compiler.
-  CXXFLAGS_FOR_BUILD            If you want to use some arguments in native C++ compiler.
-                                  By default it's same as CXXFLAGS.
-  CPPFLAGS_FOR_BUILD            If you want to use some arguments in native C++ compiler preprocessor.
-                                  By default it's same as CPPFLAGS.
-  LDFLAGS_FOR_BUILD             If you want to use some arguments in native Linker command line.
-                                  By default it's same as LDFLAGS.
-  CXXFLAGS                      If you want to use some arguments in C++ compiler command line.
-  CXXFLAGS_EXTRA                If you want to use some arguments in C++ compiler command line.
-                                  It's passed after CXXFLAGS without overwrite it.
-  TEST_CXXFLAGS                 If you want to use some arguments in C++ compiler for testing.
-  TEST_CXXFLAGS_EXTRA           If you want to use some arguments in C++ compiler for testing.
-                                  It's passed after TEST_CXXFLAGS without overwrite it.
-  CPPFLAGS                      If you want to use some arguments in C++ compiler preprocessor.
-  LDFLAGS                       If you want to use some arguments in Linker command line.
-  LDFLAGS_EXTRA                 If you want to use some arguments in Linker command line.
-                                  It's passed after LDFLAGS without overwrite it.
-  TEST_LDFLAGS                  If you want to use some arguments in Linker for testing.
-  TEST_LDFLAGS_EXTRA            If you want to use some arguments in Linker for testing.
-                                  It's passed after TEST_LDFLAGS without overwrite it.
+  CXX                           C++ compiler
+  CXX_FOR_BUILD                 C++ compiler generating code for the build system (for cross-compiles).
+  CXXFLAGS_FOR_BUILD            Flags to use when generating code for the build system.
+                                  Defaults to the value of CXXFLAGS.
+  CPPFLAGS_FOR_BUILD            Preprocessor flags to use when generating code for the build system.
+                                  Defaults to the value of CPPFLAGS.
+  LDFLAGS_FOR_BUILD             Link flags to use when generating code for the build system.
+                                  Defaults to the value of LDFLAGS.
+  CXXFLAGS                      Flags to use when compiling C++ code.
+  CXXFLAGS_EXTRA                Additional flags to use when compiling C++ code.
+  TEST_CXXFLAGS                 Flags to use when compiling C++ code in tests.
+  TEST_CXXFLAGS_EXTRA           Additional flags to use when compiling C++ code in tests.
+  CPPFLAGS                      Preprocessor flags to use when compiling C++ code. 
+  LDFLAGS                       Link flags.
+  LDFLAGS_EXTRA                 Additional link flags.
+  TEST_LDFLAGS                  Links flags when building test executables.
+  TEST_LDFLAGS_EXTRA            Additional link flags when building test executables.
 
-Note: be careful about passing a path with space as prefix/eprefix/sbindir/mandir:
-for this thing You need to use backslash (\) with double quotation (") for every space.
-For example: ./configure --sbindir="/usr/bin\ with\ space/"
+Note: paths specified via --prefix/--exec-prefix/--sbindir/--mandir, and build variable values, must be
+escaped for use in a makefile and in shell commands. If there are spaces in paths it is recommended to
+prepend a backslash (\) to them.
+For example: ./configure --prefix="/home/my\ home"
 
 See BUILD file for more information.
 _EOF
     exit 0
 }
 
-## Don't take values from env for these variables
+## Don't take values from environment for these variables:
 for var in PREFIX \
            EPREFIX \
            SBINDIR \
@@ -227,7 +229,7 @@ for arg in "$@"; do
     esac
 done
 
-## General Defines
+## Defaults for variables not specified by user
 : "${PLATFORM:=$(uname)}"
 : "${PREFIX:="/usr"}"
 : "${EPREFIX:="/"}"
@@ -288,7 +290,7 @@ if [ "$PLATFORM" != "Linux" ] && [ "$PLATFORM" != "FreeBSD" ] && \
 fi
 
 ## Create testfile.cc to test c++ compiler
-echo "int main(int argc, char **argv) { return 0; }" > testfile.cc || error Cant create test file
+echo "int main(int argc, char **argv) { return 0; }" > testfile.cc || error Can\'t create temporary file
 
 ## Find and test C++ compiler
 if [ -z "${CXX:-}" ]; then
@@ -344,7 +346,10 @@ rm -f testfile*
 info Creating mconfig...
 cat << _EOF > mconfig
 ## Auto-generated by "$0" for "$PLATFORM"
-# All changes will be lost if "$0" will be runned.
+# All changes will be lost if "$0" is re-run.
+
+# See BUILD for help on all variables.
+
 # Installation path options.
 
 SBINDIR=$SBINDIR
@@ -352,11 +357,6 @@ MANDIR=$MANDIR
 SYSCONTROLSOCKET=$SYSCONTROLSOCKET
 
 # General build options.
-
-# Linux (GCC): Note with GCC 5.x/6.x you must use the old ABI, with GCC 7.x you must use
-# the new ABI. See BUILD file for more information.
-# MacOS: Cannot use -fno-rtti: apparently prevents exception handling from working properly.
-# FreeBSD: Cannot use LTO with default linker.
 
 CXX=$CXX
 CXXFLAGS=$CXXFLAGS

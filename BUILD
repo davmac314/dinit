@@ -23,18 +23,18 @@ suitable build configuration is provided and will be used automatically if no ma
 is supplied - skip directly to running "make" (more details below) if you are on one of these
 systems and are happy to use the default configuration.
 
-For other systems, or to fine tune or correct the configuration, you need to create mconfig
-manally. you can use experimental "configure" script. Also make use this script if suitable config
-is not available by default. This script try to find C++ compiler and
-auto-detects OS and checks some options are supported or not and finally create mconfig.
-Also several options are available to control configuration, for more info use
+For other systems, the "configure" script will run and try to generate a suitable "mconfig" file
+which specifies the build configuration. If you would prefer, you can run configure yourself
+before running "make"; this allows you to specify various options and/or hand-edit the generated
+mconfig file.
+
+For more information on available options from the configure script, run:
 
     ./configure --help
 
-command to see all options.
-otherwise you can create and edit the "mconfig" file (start by copying one for a particular OS
-from the "configs" directory) to choose appropriate values for the configuration variables defined
-within. In particular:
+As an alternative to running "configure", you can create and edit the "mconfig" file completely by
+hand (or start by copying one for a particular OS from the "configs" directory) to choose
+appropriate values for the configuration variables defined within. In particular:
 
   CXX      : should be set to the name of the C++ compiler (and link driver)
   CXXFLAGS : are options passed to the compiler during compilation
@@ -60,7 +60,7 @@ such as on most BSD systems):
     make
 
 If everything goes smoothly this will build dinit, dinitctl, and optionally the shutdown
-utility. Use "make install" to install; you can specify an alternate installation by
+utility. Use "make install" to install; you can specify an alternate installation root by
 setting the "DESTDIR" variable, eg "make DESTDIR=/tmp/temporary-install-path install".
 
 All of the above variables can be specified on the "make" command line, for example:
