@@ -36,6 +36,5 @@ mconfig:
 	    echo "*** Found configuration for OS: $$UNAME"; \
 	    ln -sf "configs/mconfig.$$UNAME" mconfig; \
 	else \
-	    echo "*** No config available. Please create suitable mconfig file."; \
-	    exit 1; \
+	    ./configure; \
 	fi
