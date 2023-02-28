@@ -233,8 +233,8 @@ done
 : "${PLATFORM:=$(uname)}"
 : "${PREFIX:="/usr"}"
 : "${EPREFIX:="/"}"
-: "${SBINDIR:="/sbin"}"
-: "${MANDIR:="/share/man/"}"
+: "${SBINDIR:="${EPREFIX%%/}/sbin"}"
+: "${MANDIR:="${PREFIX%%/}/share/man"}"
 : "${NO_SANITIZE:="auto"}"
 : "${SHUTDOWN_PREFIX:=""}"
 : "${CXXFLAGS_EXTRA:=""}"
@@ -251,10 +251,6 @@ else
     : "${SUPPORT_CGROUPS:="0"}"
     : "${SYSCONTROLSOCKET:="/var/run/dinitctl"}"
 fi
-
-## Resolve final paths
-SBINDIR="$EPREFIX/$SBINDIR"
-MANDIR="$PREFIX/$MANDIR"
 
 ## Finalize $CXXFLAGS, $TEST_CXXFLAGS, $LDFLAGS, $TEST_LDFLAGS
 if [ -z "${CXXFLAGS+IS_SET}" ]; then
