@@ -8,70 +8,90 @@ Please keep in mind:
 1. Meson build system for Dinit is an experimental way to build Dinit. 
    it might have some bugs. Please report bugs on https://github.com/davmac314/dinit/issues
 2. Meson build system for Dinit is "extra" part. The main build system is GNU Make.
-   This means that the feature is first tested on Make. There may also be delays in adding new Dinit's features to Meson builds. 
+   This means that the feature is first tested on Make. There may also be delays
+   in adding new Dinit's features to Meson builds.
 3. If you found some bugs in Meson builds, Please also test it on GNU make builds.
 
 Buidling Dinit via Meson
 =-=-=-=-=-=-=-=-=-=-=-=-
 
 Buidling Dinit is available via two "Build system": meson & make.
-Its file tells everything you need to buidling Dinit via meson.
-Bulding dinit via meson requires "meson" and a C++11 compiler (GCC version 4.9 and later, or Clang ~5.0 and later, should be fine)
+This file contains instructions for building Dinit using meson.
+Bulding dinit via meson requires "meson" (0.47.0 or later) and a C++11 compiler
+(GCC version 4.9 and later, or Clang ~5.0 and later, should be fine).
 
-Meson configures all you need to build Dinit. It detects your OS, detects your compiler & sets something based on your system information.
+
+Short version
+=-=-=-=-=-=-=
+
+Run "meson setup builddir && meson compile -C builddir". Your system type will
+hopefully be detected automatically and appropriate configuration chosen, and Dinit
+will be built. Continue reading instructions at "Running the test suite" or skip
+straight to "Installation".
+
+If this fails, or if you are cross-compiling, read the "long version" instructions.
+
+
+Long version
+=-=-=-=-=-=-
+
+Meson configures all you need to build Dinit. It detects your OS, detects your
+compiler & sets something based on your system information.
 By Default no action is required & meson configures everything needed to build Dinit.
 
-Note that the "eg++" or "clang++" package must be installed on OpenBSD as the default "g++"
-compiler is too old. Clang is a part of the base system in recent releases.
+Note that the "eg++" or "clang++" package must be installed on OpenBSD
+as the default "g++" compiler is too old. Clang is a part of the base system
+in recent releases.
 
-in Meson you need to prepare "Buidling Dir". simply just type:
+In Meson you need to prepare the "build directory". simply just type:
 
     meson setup builddir/
 
-This command configures "Building dir" in builddir/.
-You can set desired directory (but we suggest dont use dinit's directory such as build/ & src/ or ... as "Buidling dir").
-If everything goes smoothly this will prepare everything to build dinit, dinitctl, and optionaly the shutdown/reboot/halt utilitys by default.
+This command configures "build directory" in builddir/. You can set desired
+directory (but we suggest don't use dinit's directory such as build/ & src/ or ...
+as "build dir"). If everything goes smoothly this will prepare everything to
+build dinit, dinitctl and optionaly the shutdown/reboot/halt utilitys by default.
 
-Everything is ready! you can compile Dinit with changing current directory to builddir/ & run:
+Everything is ready! you can compile Dinit with
 
-     meson compile
+     meson compile -C builddir
 
-Note: on old Mesons, you must use "ninja compile" instead of "meson compile".
-This command builds the dinit, dinitctl, and optionaly the shutdown/reboot/halt utilitys by default.
-
-Finally install them via this command:
-
-     meson install
-
-This command installs the programs. you can specify an alternate installation by setting the "DESTDIR" variable,
-eg "DESTDIR=/tmp/temporary-install-path meson install".
+This command builds the dinit, dinitctl and optionaly the shutdown/reboot/halt
+utilitys by default. Note: on Mesons older than 0.54, you need to use
+"ninja -C builddir" instead of "meson compile -C builddir".
 
 
 Dinit's custom options
 =-=-=-=-=-=-=-=-=-=-=-
 
-Dinit should generally build with no additional options, all required options/flags will be added automatically.
-Custom options can be passed with command line:
+Dinit should generally build with no additional options, all required
+options/flags will be added automatically. Custom options can be passed
+with command line:
 
      meson setup -Doption=value builddir/
 
 or users can modify original "meson_options.txt" and set values.
 
 Custom options:
- shutdown-prefix           : Name prefix for "shutdown", "halt" and "reboot" commands (if they are built).
-                             This affects both the output, and what command dinit will execute as part of system shutdown.
-                             If you want to install Dinit alongside another init system with its own shutdown/halt/reboot
-                             commands, set this (for eg. to "dinit-").
+ shutdown-prefix           : Name prefix for "shutdown", "halt" and "reboot"
+                             commands (if they are built).
+                             This affects both the output, and what command dinit
+                             will execute as part of system shutdown. If you want
+                             to install Dinit alongside another init system with
+                             its own shutdown/halt/reboot commands, set
+                             this (for eg. to "dinit-").
                              Available values : everything you want!
                              Default value : (empty)
 
- build-shutdown            : Whether to build the "shutdown" (and "halt" etc) utilities. 
-                             These are only useful if dinit is the system init (i.e. the PID 1 process). 
-                             You probably don't want this unless building for Linux.
+ build-shutdown            : Whether to build the "shutdown" (and "halt" etc) utilities.
+                             These are only useful if dinit is the system init
+                             (i.e. the PID 1 process). You probably don't want
+                             this unless building for Linux.
                              Available values : enabled, disabled, auto
                              Default value : auto
 
- dinit-control-socket-path : Default full path to the control socket, for when Dinit runs as system service manager.
+ dinit-control-socket-path : Default full path to the control socket, for when
+                             Dinit runs as system service manager.
                              Available values : anywhere you want!
                              Default value : /run/dinitctl
 
@@ -87,16 +107,21 @@ Custom options:
                              Available values : true, false
                              Default value : false
 
- use-utmpx                 : Whether to build support for manipulating the utmp/utmpx database via the related POSIX functions.
-                             This may be required (along with appropriate service configuration) for utilities
-                             like "who" to work correctly (the service configuration items "inittab-id" and "inittab-line" have no effect if this is disabled).
+ use-utmpx                 : Whether to build support for manipulating the
+                             utmp/utmpx database via the related POSIX functions.
+                             This may be required (along with appropriate service
+                             configuration) for utilities like "who" to work
+                             correctly (the service configuration items "inittab-id"
+                             and "inittab-line" have no effect if this is disabled).
                              If not set to any value, support is enabled for certain
                              systems automatically and disabled for all others.
                              Available values : enabled, disabled, auto
                              Default value : auto
 
  dinit-sbindir             : Default full path to the dinit executables.
-                             For some reasons Dinit dont follow Meson's default sbindir option. see "Why we use another option for sbindir?", below.
+                             For some reasons Dinit dont follow Meson's default
+                             sbindir option. see "Why we use another option
+                             for sbindir?", below.
                              Available values : anywhere you want!
                              Default value : /sbin
                              
@@ -120,46 +145,82 @@ Enable "unit-tests" option to run the test suite:
 
      meson setup -Dunit-tests=true builddir/
      
-Unlike Dinit's Make build system, We don't enable -fsanitize by default so if you need that use this option in meson setup step:
+In Dinit's make build system -fsanitize enabled for unit tests but in meson
+it's not enabled. so if you need that use this option in meson setup step:
 
-     meson setup -Db_sanitizes='address,undefined' dirbuild/
+     meson setup -Db_sanitizes='address,undefined' builddir/
+
+Note: Unlike Dinit's make build system, This flag enables sanitizers for
+entire build.
 
 Enable "igr-tests" to run the integration tests:
 
-     meson setup -Digr-tests=true dirbuild/
+     meson setup -Digr-tests=true builddir/
 
-(The integration tests are more fragile than the unit tests, but give a better indication that
-Dinit will actually work correctly on your system).
+(The integration tests are more fragile than the unit tests, but give a
+better indication that Dinit will actually work correctly on your system).
 
-Finally switch current directory to Your builddir (eg dirbuild), compile Dinit with meson compile and run tests via:
+Finally compile Dinit with "meson compile -C builddir" and run tests via:
 
-     meson test
+     meson test -C builddir
 
-Then Meson report test status.
+Then Meson report test status. All test logs available at
+"builddir/meson-logs/testlog.txt".
+
+
+Installation
+=-=-=-=-=-=-
+
+You can install dinit via this command:
+
+     meson install -C builddir
+
+If you want to install to an alternate root (eg for packaging purposes),
+specify that root via DESTDIR:
+
+     DESTDIR=/tmp/temporary-install-path meson install -C builddir
+
+The dinit executable will be put in "dinit-sbindir" option value (by default /sbin)
+(or rather, in $DESTDIR/sbin), which may not be on the path for normal users.
+Consider making a symbolic link to /usr/sbin/dinit.
 
 
 Running fuzzer
 =-=-=-=-=-=-=-
 
-In addition to the standard test suite, there is experimental support for fuzzing the control
-protocol handling using LLVM/clang's fuzzer (libFuzzer). Enable "fuzzer" option to build fuzzer.
+In addition to the standard test suite, there is experimental support for
+fuzzing the control protocol handling using LLVM/clang's fuzzer (libFuzzer).
+Enable "fuzzer" option to build fuzzer:
 
-    meson setup -Dfuzzer=true dirbuild
+    meson setup -Dfuzzer=true builddir
 
-Then changing current directory to Your builddir (eg dirbuild)/src/tests/cptests/, create a "corpus" directory and run the fuzzer:
+Then changing current directory to Your builddir (eg builddir)/src/tests/cptests/,
+create a "corpus" directory and run the fuzzer:
 
     mkdir corpus
     ./fuzz corpus
 
-This will auto-generate test data as it finds input which triggers new execution paths. Check
-libFuzzer documentation for further details.
+This will auto-generate test data as it finds input which triggers new
+execution paths. Check libFuzzer documentation for further details.
 
 
 Why we use another option for sbindir?
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-For some reasons, Old Mesons force sbindir will prefixed by Meson's prefix (eg /usr + sbin) but Dinit project use /sbin by default as sbindir. 
-in Newer Mesons that fixes this thing but we target Mesons's 0.47.0 as minimum version. So we use "dinit-sbindir" instead of default "sbindir".
+For some reasons, Old Mesons force sbindir will prefixed by Meson's prefix
+(eg /usr + sbin) but Dinit project use /sbin by default as sbindir.
+in Newer Mesons that fixes this thing but we target Mesons's 0.47.0 as
+minimum version. So we use "dinit-sbindir" instead of default "sbindir".
+
+
+Some notes
+=-=-=-=-=-
+
+1. Dinit use "custom" buildtype with "'optimization=s', 'debug=false'"
+   (-Os, no debug) by default.
+2. For building with debug symbols, use "meson setup -Ddebug=true builddir" or
+   a buildtype with "debug=true"
+3. For enabling LTO, use "meson setup -Db_lto=true builddir" command.
 
 
 Special note for GCC/Libstdc++
@@ -172,17 +233,18 @@ Compiling against the newer (C++11 and later) ABI can be achieved by adding
 -D_GLIBCXX_USE_CXX11_ABI=1 to the compiler command line; this uses a non-standard language
 extension to differently mangle symbol names in order to link against the new ABI versions.
 
-(Some systems may be configured to build with the new ABI by default, and in that case you
-build against the old ABI using -D_GLIBCXX_USE_CXX11_ABI=0).
+(Some systems may be configured to build with the new ABI by default, and in that
+case you build against the old ABI using -D_GLIBCXX_USE_CXX11_ABI=0).
 
-This is problematic for several reasons. First, it prevents linking against the new ABI with
-other compilers that do not understand the language extension (LLVM i.e. clang++ does so
-in recent versions, so this is perhaps no longer much of a problem in practice). Secondly,
-some aspects of library behaviour are ABI-dependent but cannot be changed using the ABI
-macro; in particular, exceptions thrown as a result of failed I/O operations are, in GCC
-versions 5.x and 6.x, always "old ABI" exceptions which cannot be caught by code compiled
-against the new ABI, and in GCC version 7.x they are always "new ABI" exceptions which cannot
-be caught by code compiled against the old ABI. Since the one library object now supposedly
+This is problematic for several reasons. First, it prevents linking against the
+new ABI with other compilers that do not understand the language extension
+(LLVM i.e. clang++ does so in recent versions, so this is perhaps no longer
+much of a problem in practice). Secondly, some aspects of library behaviour are
+ABI-dependent but cannot be changed using the ABI macro; in particular, exceptions
+thrown as a result of failed I/O operations are, in GCC versions 5.x and 6.x, always
+"old ABI" exceptions which cannot be caught by code compiled against the new ABI, and
+in GCC version 7.x they are always "new ABI" exceptions which cannot be caught by
+code compiled against the old ABI. Since the one library object now supposedly
 houses both ABIs, this means that at least one of the two ABIs is always broken.
 
 A blog post describing the dual ABI mechanism can be found here:
@@ -193,9 +255,9 @@ The bug regarding the issue with catching other-ABI exceptions is here:
 
     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66145
 
-Since Dinit is affected by this bug, the unfortunate possibility exists to break Dinit by
-upgrading GCC. If you have libstdc++ corresponding to GCC 5.x or 6.x, you *must* build with
-the old ABI, but Dinit will be broken if you upgrade to GCC 7. If you have libstdc++ from
-GCC 7, you *must* build with the new ABI. If the wrong ABI is used, Dinit may still run
-successfully but any attempt to load a non-existing service, for example, will cause Dinit
-to crash.
+Since Dinit is affected by this bug, the unfortunate possibility exists to break
+Dinit by upgrading GCC. If you have libstdc++ corresponding to GCC 5.x or 6.x,
+you *must* build with the old ABI, but Dinit will be broken if you upgrade to GCC 7.
+If you have libstdc++ from GCC 7, you *must* build with the new ABI. If the wrong
+ABI is used, Dinit may still run successfully but any attempt to load a non-existing
+service, for example, will cause Dinit to crash.
