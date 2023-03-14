@@ -51,13 +51,6 @@ sub_warning()
     echo
 }
 
-findcxx()
-{
-    if type "$1" > /dev/null 2>&1; then
-        CXX="$1"
-    fi
-}
-
 cxx_works()
 {
     info Checking whether \""$1"\" is a working C++ compiler...
@@ -292,8 +285,8 @@ echo "int main(int argc, char **argv) { return 0; }" > testfile.cc || error Can\
 if [ -z "${CXX:-}" ]; then
     info Checking C++ compiler...
     for guess in g++ clang++ c++; do
-        findcxx "$guess"
-        if [ -n "${CXX:-}" ]; then
+        if type "$guess" > /dev/null 2>&1; then
+            CXX="$guess"
             sub_info "$CXX"
             break # Found
         fi
