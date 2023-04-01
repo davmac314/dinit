@@ -19,7 +19,7 @@ Dinit on freebsd-amd64 CI_task:
   freebsd_instance:
     matrix:
       - image_family: freebsd-13-1
-      - image_family: freebsd-12-3
+      - image_family: freebsd-12-4
 
   Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install gmake m4 file
   Print clang++ architecture_script: clang++ -dumpmachine
