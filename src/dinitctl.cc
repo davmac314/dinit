@@ -44,7 +44,7 @@ static int unpin_service(int socknum, cpbuffer_t &, const char *service_name, bo
 static int unload_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
 static int reload_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
 static int list_services(int socknum, cpbuffer_t &);
-static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_name);
+static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_name, command_t command, bool verbose);
 static int shutdown_dinit(int soclknum, cpbuffer_t &, bool verbose);
 static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, const char *service_from,
         const char *service_to, dependency_type dep_type, bool verbose);
@@ -84,7 +84,9 @@ enum class command_t {
     SETENV,
     SET_TRIGGER,
     UNSET_TRIGGER,
-	CAT_LOG,
+    CAT_LOG,
+    IS_ACTIVE,
+    IS_FAILED,
 };
 
 class dinit_protocol_error
@@ -206,6 +208,12 @@ int dinitctl_main(int argc, char **argv)
             else if (strcmp(argv[i], "status") == 0) {
                 command = command_t::SERVICE_STATUS;
             }
+            else if (strcmp(argv[i], "is-active") == 0) {
+                command = command_t::IS_ACTIVE;
+            }
+            else if (strcmp(argv[i], "is-failed") == 0) {
+                command = command_t::IS_FAILED;
+            }
             else if (strcmp(argv[i], "shutdown") == 0) {
                 command = command_t::SHUTDOWN;
             }
@@ -326,6 +334,8 @@ int dinitctl_main(int argc, char **argv)
           "\n"
           "Usage:\n"
           "    dinitctl [options] status <service-name>\n"
+          "    dinitctl [options] is-active <service-name>\n"
+          "    dinitctl [options] is-failed <service-name>\n"
           "    dinitctl [options] start [options] <service-name>\n"
           "    dinitctl [options] stop [options] <service-name>\n"
           "    dinitctl [options] restart [options] <service-name>\n"
@@ -413,8 +423,8 @@ int dinitctl_main(int argc, char **argv)
         else if (command == command_t::LIST_SERVICES) {
             return list_services(socknum, rbuffer);
         }
-        else if (command == command_t::SERVICE_STATUS) {
-            return service_status(socknum, rbuffer, service_name);
+        else if (command == command_t::SERVICE_STATUS || command == command_t::IS_ACTIVE || command == command_t::IS_FAILED) {
+            return service_status(socknum, rbuffer, service_name, command, verbose);
         }
         else if (command == command_t::SHUTDOWN) {
             return shutdown_dinit(socknum, rbuffer, verbose);
@@ -1164,9 +1174,11 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
     return 0;
 }
 
-static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_name)
+static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_name, command_t command, bool verbose)
 {
     using namespace std;
+
+    bool is_status = command == command_t::SERVICE_STATUS;
 
     if (issue_load_service(socknum, service_name, true) == 1) {
         return 1;
@@ -1177,11 +1189,13 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
     handle_t handle;
 
     if (rbuffer[0] == DINIT_RP_NOSERVICE) {
-        cerr << "dinitctl: service not loaded." << endl;
+        if (is_status) {
+            cerr << "dinitctl: service not loaded." << endl;
+        }
         return 1;
     }
 
-    if (check_load_reply(socknum, rbuffer, &handle, nullptr) != 0) {
+    if (check_load_reply(socknum, rbuffer, &handle, nullptr, is_status) != 0) {
         return 1;
     }
 
@@ -1221,6 +1235,46 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
         }
         else {
             rbuffer.extract((char *)&exit_status, 6, sizeof(exit_status));
+        }
+
+        switch (command) {
+        case command_t::IS_ACTIVE:
+        case command_t::IS_FAILED:
+            if (verbose) {
+                switch (current) {
+                case service_state_t::STOPPED:
+                    cout << "STOPPED" << endl;
+                    break;
+                case service_state_t::STARTING:
+                    cout << "STARTING" << endl;
+                    break;
+                case service_state_t::STARTED:
+                    cout << "STARTED" << endl;
+                    break;
+                case service_state_t::STOPPING:
+                    cout << "STOPPING" << endl;
+                }
+            }
+            /* return 0 (success) for started */
+            if (command == command_t::IS_ACTIVE) {
+                return current != service_state_t::STARTED;
+            }
+            /* return 0 (success) for specific stopped reasons */
+            if (current == service_state_t::STOPPED) {
+                switch (stop_reason) {
+                case stopped_reason_t::DEPFAILED:
+                case stopped_reason_t::FAILED:
+                case stopped_reason_t::EXECFAILED:
+                case stopped_reason_t::TIMEDOUT:
+                    return 0;
+                default:
+                    break;
+                }
+            }
+            return 1;
+        default:
+            /* status */
+            break;
         }
 
         cout << "Service: " << service_name << "\n"
