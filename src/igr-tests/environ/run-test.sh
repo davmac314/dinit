@@ -19,7 +19,7 @@ rm -f ./env-record
 
 STATUS=FAIL
 if [ -e env-record ]; then
-   if [ "$(cat env-record)" = "$(echo $DINIT_SOCKET_PATH; echo gotenv1; echo hello; echo gotenv2; echo goodbye; echo 3; echo 2; echo 1)" ]; then
+   if [ "$(cat env-record)" = "$(echo $DINIT_SOCKET_PATH; echo checkenv; echo gotenv1; echo hello; echo gotenv2; echo goodbye; echo 3; echo 2; echo 1)" ]; then
        STATUS=PASS
    fi
 fi

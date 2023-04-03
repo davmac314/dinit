@@ -364,6 +364,13 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             fill_environment_userinfo(settings.run_as_uid, name, srv_env);
         }
 
+        /* set service name in environment if desired */
+        if (settings.export_service_name) {
+            std::string envname = "DINIT_SERVICE=";
+            envname += name;
+            srv_env.set_var(std::move(envname));
+        }
+
         // this mapping is temporary, for load substitutions
         // the reason for this is that the environment actually *may* change
         // after load, e.g. through dinitctl setenv (either from the outside

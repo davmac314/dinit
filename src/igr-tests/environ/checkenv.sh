@@ -2,6 +2,9 @@
 
 if [ "$TEST_VAR_ONE" = "hello" ]; then
     echo "$DINIT_SOCKET_PATH" >> ./env-record
+    if [ "$2" = "$DINIT_SERVICE" ]; then
+        echo "$DINIT_SERVICE" >> ./env-record
+    fi
 fi
 
 if [ "$1" = "hello" ]; then
