@@ -1,2 +1,3 @@
 type = process
 command = ./checkenv.sh
+restart = false

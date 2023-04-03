@@ -1,3 +1,4 @@
 type = process
 command = ./record-param.sh part2
 chain-to = part3
+restart = false

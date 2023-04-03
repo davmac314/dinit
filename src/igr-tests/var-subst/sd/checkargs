@@ -1,3 +1,4 @@
 type = process
 command = ./checkargs.sh xxx$TEST_VAR_ONE/yyy $TEST_VAR_TWO$TEST_VAR_THREE
 load-options = sub-vars
+restart = false

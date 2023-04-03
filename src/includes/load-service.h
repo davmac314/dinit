@@ -764,7 +764,7 @@ class service_settings_wrapper
     unsigned max_log_buffer_sz = 4096;
     service_flags_t onstart_flags;
     int term_signal = SIGTERM;  // termination signal
-    bool auto_restart = false;
+    bool auto_restart = true;
     bool smooth_recovery = false;
     string socket_path;
     int socket_perms = 0666;

@@ -1,3 +1,4 @@
 type = process
 command = ./setenv.sh setenv1
 depends-on = setenv2
+restart = false

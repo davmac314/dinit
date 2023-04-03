@@ -1,3 +1,4 @@
 type = process
 command = ./checkenv2.sh
 env-file = ./environment4
+restart = false

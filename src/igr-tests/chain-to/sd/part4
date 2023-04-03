@@ -2,3 +2,4 @@ type = process
 #options = always-chain
 command = ./record-param.sh part4
 chain-to = part5
+restart = false
