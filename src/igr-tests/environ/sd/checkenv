@@ -1,3 +1,4 @@
 type = process
-command = ./checkenv.sh $TEST_VAR_ONE
+command = ./checkenv.sh $TEST_VAR_ONE $DINIT_SERVICE
 restart = false
+load-options = export-service-name

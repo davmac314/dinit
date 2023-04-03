@@ -349,11 +349,14 @@ This directive can be specified multiple times to set additional options.
 .TP
 \fBload\-options\fR = \fIload_option\fR...
 Specifies options for interpreting other settings when loading this service description.
-Currently there is only one available option, \fBexport-passwd-vars\fR, which specifies that
-the environment variables `\fBUSER\fR', `\fBLOGNAME\fR' (same as `\fBUSER\fR'),
-`\fBHOME\fR', `\fBSHELL\fR', `\fBUID\fR', and `\fBGID\fR' should be exported into the
-service's load environment (that is, overriding any global environment including the
-global environment file, but being overridable by the service's environment file).
+Currently there are two available options. One is \fBexport-passwd-vars\fR, which
+specifies that the environment variables `\fBUSER\fR', `\fBLOGNAME\fR' (same as
+`\fBUSER\fR'), `\fBHOME\fR', `\fBSHELL\fR', `\fBUID\fR', and `\fBGID\fR' should
+be exported into the service's load environment (that is, overriding any global
+environment including the global environment file, but being overridable by the
+service's environment file). The other is \fBexport-service-name\fR, which will
+set the environment variable `\fBDINIT_SERVICE\fR' containing the name of the
+current service.
 .TP
 \fBinittab\-id\fR = \fIid-string\fR
 When this service is started, if this setting (or the \fBinittab\-line\fR setting) has a

@@ -804,6 +804,7 @@ class service_settings_wrapper
     string env_file;
 
     bool export_passwd_vars = false;
+    bool export_service_name = false;
 
     service_type_t service_type = service_type_t::INTERNAL;
     list<dep_type> depends;
@@ -1175,6 +1176,9 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
                     indexpair.second - indexpair.first);
             if (option_txt == "export-passwd-vars") {
                 settings.export_passwd_vars = true;
+            }
+            else if (option_txt == "export-service-name") {
+                settings.export_service_name = true;
             }
             else if (option_txt == "sub-vars") {
                 // noop: for backwards compatibility only
