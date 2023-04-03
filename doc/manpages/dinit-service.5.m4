@@ -173,6 +173,7 @@ The path specified is subject to variable substitution (see \fBVARIABLE SUBSTITU
 Indicates whether the service should automatically restart if it stops, including due to
 unexpected process termination or a dependency stopping.
 Note that if a service stops due to user request, automatic restart is inhibited.
+The default is to automatically restart.
 .TP
 \fBsmooth\-recovery\fR = {yes | true | no | false}
 Applies only to \fBprocess\fR and \fBbgprocess\fR services.
