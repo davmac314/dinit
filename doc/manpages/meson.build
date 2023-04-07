@@ -8,7 +8,14 @@ foreach man: ['dinit-service.5', 'dinit.8', 'dinitcheck.8', 'dinitctl.8', 'dinit
         man,
         input: man + '.m4',
         output: man,
-        command: ['m4', '-DVERSION='+version, '-DMONTH='+month, '-DYEAR='+year, '@INPUT@'],
+        command: [
+            'm4',
+            '-DVERSION='+version,
+            '-DMONTH='+month,
+            '-DYEAR='+year,
+            '-DSHUTDOWN_PREFIX='+shutdown_prefix,
+            '@INPUT@'
+        ],
         capture: true,
         install: true,
         install_dir: join_paths(get_option('mandir'), section),
@@ -20,7 +27,14 @@ if shutdown_build
             shutdown_man,
             input: 'shutdown.8.m4',
             output: shutdown_prefix + shutdown_man,
-            command: ['m4', '-DVERSION='+version, '-DMONTH='+month, '-DYEAR='+year, '@INPUT@'],
+            command: [
+                'm4',
+                '-DVERSION='+version,
+                '-DMONTH='+month,
+                '-DYEAR='+year,
+                '-DSHUTDOWN_PREFIX='+shutdown_prefix,
+                '@INPUT@'
+            ],
             capture: true,
             install: true,
             install_dir: join_paths(get_option('mandir'), section),
