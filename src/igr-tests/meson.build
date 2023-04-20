@@ -14,6 +14,7 @@ run_command([
 # Integration tests
 basic_test_script = files(meson.current_build_dir() + '/basic/run-test.sh')
 environ_test_script = files(meson.current_build_dir() + '/environ/run-test.sh')
+environ2_test_script = files(meson.current_build_dir() + '/environ2/run-test.sh')
 psenviron_test_script = files(meson.current_build_dir() + '/ps-environ/run-test.sh')
 chainto_test_script = files(meson.current_build_dir() + '/chain-to/run-test.sh')
 forcestop_test_script = files(meson.current_build_dir() + '/force-stop/run-test.sh')
@@ -38,6 +39,12 @@ test(
      environ_test_script,
      env : igr_tests_env,
      is_parallel : false,
+     suite : 'igr_tests'
+)
+test(
+     'environ2',
+     environ2_test_script,
+     env : igr_tests_env,
      suite : 'igr_tests'
 )
 test(
