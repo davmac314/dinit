@@ -70,6 +70,9 @@ dinitctl \- control services supervised by Dinit
 .HP
 .B dinitctl
 [\fIoptions\fR] \fBcatlog\fR [\fB--clear\fR] \fIservice-name\fR
+.HP
+.B dinitctl
+[\fIoptions\fR] \fBsignal\fR ( \fB\-\-list/\-l\fR | \fIsignal-number\fR \fIservice-name\fR )
 .\"
 .PD
 .hy
@@ -313,6 +316,18 @@ Show the contents of the log buffer for the named service.
 This is possible only if the log type of the service is set to \fBbuffer\fR.
 If the log is truncated or appears incomplete, a warning message follows the output.
 If the \fB\-\-clear\fR option is specified, the buffer is cleared after displaying its contents. 
+.TP
+\fBsignal\fR
+Send a signal to a specified service.
+The \fIsignal-number\fR can either be specified as integer or signal name.
+Signal names are only defined for these signals:
+\fBHUP\fR, \fBKILL\fR, \fBUSR1\fR, \fBUSR2\fR, \fBSTOP\fR, \fBINT\fR, \fBTERM\fR,
+\fBCONT\fR, \fBQUIT\fR and if system supports it; \fBINFO\fR.
+Other system specific signals, like Linux real-time signals, have to be specified as integer.
+Dinit will accept any signal which supported by \fBkill(2)\fR syscall.
+.sp
+The \fB--list\fR or \fB-l\fR option can be used (instead of \fIsignal-number\fR and \fIservice-name\fR)
+to list available signal names and their corresponding integer value for the current platform/system.
 .\"
 .SH SERVICE OPERATION
 .\"

@@ -53,6 +53,8 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
 static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names);
 static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool trigger_value);
 static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool do_clear);
+static int signal_send(int socknum, cpbuffer_t &rbuffer, const char *service_name, int sig_num);
+static int signal_list();
 
 static const char * describeState(bool stopped)
 {
@@ -85,6 +87,8 @@ enum class command_t {
     SET_TRIGGER,
     UNSET_TRIGGER,
     CAT_LOG,
+    SIG_SEND,
+    SIG_LIST,
     IS_STARTED,
     IS_FAILED,
 };
@@ -117,6 +121,9 @@ int dinitctl_main(int argc, char **argv)
     bool do_force = false;
     bool ignore_unstarted = false;
     bool use_passed_cfd = false;
+    bool show_siglist = false;
+    std::string sigstr;
+    int sig_num = -1;
     
     command_t command = command_t::NONE;
 
@@ -193,6 +200,15 @@ int dinitctl_main(int argc, char **argv)
                     break;
                 }
             }
+            else if (strcmp(argv[i], "--list") == 0 || strcmp(argv[i], "-l") == 0) {
+                if (command == command_t::SIG_SEND) {
+                    show_siglist = true;
+                }
+                else {
+                    cmdline_error = true;
+                    break;
+                }
+            }
             else {
                 cerr << "dinitctl: unrecognized/invalid option: " << argv[i] << " (use --help for help)\n";
                 return 1;
@@ -262,6 +278,9 @@ int dinitctl_main(int argc, char **argv)
             else if (strcmp(argv[i], "catlog") == 0) {
                 command = command_t::CAT_LOG;
             }
+            else if (strcmp(argv[i], "signal") == 0) {
+                command = command_t::SIG_SEND;
+            }
             else {
                 cerr << "dinitctl: unrecognized command: " << argv[i] << " (use --help for help)\n";
                 return 1;
@@ -304,6 +323,22 @@ int dinitctl_main(int argc, char **argv)
                 }
                 to_service_name = argv[i];
             }
+            else if (command == command_t::SIG_SEND) {
+                if (!show_siglist) {
+                    if (sigstr.empty()) {
+                        sigstr = argv[i];
+                    }
+                    else if (service_name == nullptr) {
+                        service_name = argv[i];
+                    }
+                    else {
+                        cmdline_error = true;
+                    }
+                }
+                else {
+                    cmdline_error = true;
+                }
+            }
             else {
                 cmd_args.push_back(argv[i]);
             }
@@ -324,8 +359,50 @@ int dinitctl_main(int argc, char **argv)
             cmdline_error = true;
         }
     }
+    else if (command == command_t::SIG_SEND) {
+        if (show_siglist) {
+            if (sigstr.empty()) {
+                command = command_t::SIG_LIST;
+            }
+            else {
+                cmdline_error = true;
+            }
+        }
+        else {
+            if (sigstr.empty()) {
+                cerr << "dinitctl: signal number/name must be specified" << std::endl;
+                return 1;
+            }
+            if (service_name == nullptr) {
+                cerr << "dinitctl: service name must be specified" << std::endl;
+                return 1;
+            }
+            sig_num = dinit_load::signal_name_to_number(sigstr);
+            if (sig_num == 0) {
+                cerr << "dinitctl: '" << sigstr
+                        << "' is not a valid signal name/number" << std::endl;
+                return 1;
+            }
+            else if (sig_num == -1) {
+                try {
+                    size_t pos;
+                    sig_num = std::stoi(sigstr, &pos);
+                    if (sigstr.size() != pos) {
+                        throw std::invalid_argument("");
+                    }
+                } // catch both invalid_argument and out_of_range
+                catch (std::exception) {
+                    cerr << "dinitctl: '" << sigstr
+                            << "' is not a valid signal name/number" << std::endl;
+                    return 1;
+                }
+            }
+        }
+    }
     else {
-        bool no_service_cmd = (command == command_t::LIST_SERVICES || command == command_t::SHUTDOWN);
+        bool no_service_cmd = (command == command_t::LIST_SERVICES
+                              || command == command_t::SHUTDOWN
+                              || command == command_t::SIG_LIST);
         if (no_service_cmd) {
             if (!cmd_args.empty()) {
                 cmdline_error = true;
@@ -375,6 +452,7 @@ int dinitctl_main(int argc, char **argv)
           "    dinitctl [options] untrigger <service-name>\n"
           "    dinitctl [options] setenv [name[=value] ...]\n"
           "    dinitctl [options] catlog <service-name>\n"
+          "    dinitctl [options] signal <signal> <service-name>\n"
           "\n"
           "Note: An activated service continues running when its dependents stop.\n"
           "\n"
@@ -401,6 +479,11 @@ int dinitctl_main(int argc, char **argv)
         return 1;
     }
     
+    // SIG_LIST doesn't need a control socket connection so handle it specially.
+    if (command == command_t::SIG_LIST) {
+        return signal_list();
+    }
+
     // Begin the real work: connect to dinit
 
     signal(SIGPIPE, SIG_IGN);
@@ -483,6 +566,9 @@ int dinitctl_main(int argc, char **argv)
                 throw cp_old_server_exception();
             }
             return cat_service_log(socknum, rbuffer, service_name, catlog_clear);
+        }
+        else if (command == command_t::SIG_SEND) {
+            return signal_send(socknum, rbuffer, service_name, sig_num);
         }
         else {
             return start_stop_service(socknum, rbuffer, service_name, command, do_pin, do_force,
@@ -1810,6 +1896,70 @@ static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service
         rbuffer.consume(1);
     }
 
+    return 0;
+}
+
+static int signal_send(int socknum, cpbuffer_t &rbuffer, const char *service_name, int sig_num)
+{
+    using namespace std;
+
+    handle_t handle;
+
+    if (!load_service(socknum, rbuffer, service_name, &handle, nullptr, true)) {
+        return 1;
+    }
+
+    // Issue SIGNAL command.
+    auto m = membuf()
+            .append<char>(DINIT_CP_SIGNAL)
+            .append(sig_num)
+            .append(handle);
+    write_all_x(socknum, m);
+
+    wait_for_reply(rbuffer, socknum);
+    if (rbuffer[0] == DINIT_RP_NAK) {
+        cerr << "dinitctl: cannot send signal to service.\n";
+        return 1;
+    }
+    if (rbuffer[0] == DINIT_RP_SIGNAL_NOPID) {
+        cerr << "dinitctl: could not get vaild PID of service; service is not process, "
+        "service in wrong state." << endl;
+        return 1;
+    }
+    if (rbuffer[0] == DINIT_RP_SIGNAL_BADSIG) {
+        cerr << "dinitctl: provided signal was invalid.\n";
+        return 1;
+    }
+    if (rbuffer[0] == DINIT_RP_SIGNAL_KILLERR) {
+        cerr << "dinitctl: failed sending signal to service.\n";
+        return 1;
+    }
+    if (rbuffer[0] != DINIT_RP_ACK) {
+        cerr << "dinitctl: protocol error.\n";
+        return 1;
+    }
+    rbuffer.consume(1);
+    return 0;
+}
+
+static int signal_list()
+{
+    using namespace std;
+    using namespace dinit_load;
+    cout << "dinitctl: The following signal names are supported:";
+    int skip_none = 0;
+    for (const auto &signal: signal_to_int_map) {
+        if (skip_none < 2) {
+            skip_none += 1;
+        }
+        else {
+            cout << endl << "dinitctl: ";
+            string sigpad = signal.first;
+            sigpad.resize(5,' ');
+            cout << sigpad << "-> " << signal.second;
+        }
+    }
+    cout << endl;
     return 0;
 }
 
