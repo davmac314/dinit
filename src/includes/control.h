@@ -165,6 +165,9 @@ class control_conn_t : private service_listener
     // Process a CATLOG packet.
     bool process_catlog();
 
+    // Process a SIGNAL packet.
+    bool process_signal();
+
     // List all loaded services and their state.
     bool list_services();
 
