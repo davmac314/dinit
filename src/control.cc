@@ -12,7 +12,7 @@
 
 // Control protocol versions:
 // 1 - dinit 0.16 and prior
-// 2 - dinit 0.17 (adds DINIT_CP_SETTRIGGER, DINIT_CP_CATLOG)
+// 2 - dinit 0.17 (adds DINIT_CP_SETTRIGGER, DINIT_CP_CATLOG, DINIT_CP_SIGNAL)
 
 namespace {
     constexpr auto OUT_EVENTS = dasynq::OUT_EVENTS;
@@ -118,6 +118,9 @@ bool control_conn_t::process_packet()
     }
     if (pktType == DINIT_CP_CATLOG) {
         return process_catlog();
+    }
+    if (pktType == DINIT_CP_SIGNAL) {
+        return process_signal();
     }
 
     // Unrecognized: give error response
@@ -985,6 +988,54 @@ bool control_conn_t::process_catlog()
         bps->clear_log_buffer();
     }
     return queue_packet(std::move(pkt));
+}
+
+bool control_conn_t::process_signal()
+{
+    // packet contains signal number and process handle
+    constexpr int pkt_size = 1 + sizeof(int) + sizeof(handle_t);
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    int sig_num;
+    rbuf.extract((char *) &sig_num, 1, sizeof(sig_num));
+    handle_t handle;
+    rbuf.extract((char *) &handle, 1 + sizeof(sig_num), sizeof(handle));
+    rbuf.consume(pkt_size);
+    chklen = 0;
+
+    service_record *service = find_service_for_key(handle);
+    if (service == nullptr) {
+        char nak_rep[] = { DINIT_RP_NAK };
+        return queue_packet(nak_rep, 1);
+    }
+
+    // Reply:
+    // 1 byte packet type = DINIT_RP_*
+
+    pid_t spid = service->get_pid();
+    // we probably don't want to kill/signal every process (in the current group),
+    // but get_pid() sometimes returns -1 if e.g. service is not 'started'
+    if (spid == -1 || spid == 0) {
+        char nak_rep[] = { DINIT_RP_SIGNAL_NOPID };
+        return queue_packet(nak_rep, 1);
+    }
+    else {
+        if (bp_sys::kill(spid, sig_num) != 0) {
+            if (errno == EINVAL) {
+                log(loglevel_t::ERROR, "Requested signal not in valid signal range.");
+                char nak_rep[] = { DINIT_RP_SIGNAL_BADSIG };
+                return queue_packet(nak_rep, 1);
+            }
+            log(loglevel_t::ERROR, "Error sending signal to process: ", strerror(errno));
+            char nak_rep[] = { DINIT_RP_SIGNAL_KILLERR };
+            return queue_packet(nak_rep, 1);
+        }
+    }
+    char ack_rep[] = { DINIT_RP_ACK };
+    return queue_packet(ack_rep, 1);
 }
 
 bool control_conn_t::query_load_mech()

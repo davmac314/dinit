@@ -60,6 +60,9 @@ constexpr static int DINIT_CP_SETTRIGGER = 19;
 // Retrieve buffered output
 constexpr static int DINIT_CP_CATLOG = 20;
 
+// Send Signal to process
+constexpr static int DINIT_CP_SIGNAL = 21;
+
 
 // Replies:
 
@@ -125,6 +128,10 @@ constexpr static int DINIT_RP_SERVICE_LOAD_ERR = 72;
 // Service log:
 constexpr static int DINIT_RP_SERVICE_LOG = 73;
 
+// Signal replies:
+constexpr static int DINIT_RP_SIGNAL_NOPID = 74;
+constexpr static int DINIT_RP_SIGNAL_BADSIG = 75;
+constexpr static int DINIT_RP_SIGNAL_KILLERR = 76;
 
 // Information (out-of-band):
 
