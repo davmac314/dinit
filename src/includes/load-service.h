@@ -150,18 +150,36 @@ inline string_iterator skipws(string_iterator i, string_iterator end) noexcept
     return i;
 }
 
-// Convert a signal name to the corresponding signal number
-inline int signal_name_to_number(std::string &signame) noexcept
+// The list to converting some strings/signals to int
+// The signal list is created statically with only those signals,
+// which are defined for the current architecture/system
+const std::pair<const char *, int> signal_to_int_map[] = {
+    { "none", 0 },
+    { "NONE", 0 },
+    { "HUP", SIGHUP },
+    { "INT", SIGINT },
+    { "QUIT", SIGQUIT },
+    { "KILL", SIGKILL },
+    { "USR1", SIGUSR1 },
+    { "USR2", SIGUSR2 },
+    { "TERM", SIGTERM },
+    { "CONT", SIGCONT },
+    { "STOP", SIGSTOP },
+#ifdef SIGINFO
+    { "INFO", SIGINFO },
+#endif
+};
+
+inline int signal_name_to_number(const std::string &signame) noexcept
 {
-    if (signame == "none" || signame == "NONE") return 0;
-    if (signame == "HUP") return SIGHUP;
-    if (signame == "INT") return SIGINT;
-    if (signame == "TERM") return SIGTERM;
-    if (signame == "QUIT") return SIGQUIT;
-    if (signame == "USR1") return SIGUSR1;
-    if (signame == "USR2") return SIGUSR2;
-    if (signame == "KILL") return SIGKILL;
-    return -1;
+    int sig = -1;
+    for (const auto &signal: signal_to_int_map) {
+        if (signal.first == signame) {
+            sig = signal.second;
+            break;
+        }
+    }
+    return sig;
 }
 
 // Read a setting/variable name; return empty string if no valid name
