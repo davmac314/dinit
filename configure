@@ -54,12 +54,12 @@ sub_warning()
 cxx_works()
 {
     info Checking whether \""$1"\" is a working C++ compiler...
-    if ! $CXX -o testfile.o testfile.cc; then
-        rm -f testfile*
-        sub_error It seems like \""$CXX"\" is not working a working C++ compiler. Please specify compiler.
-    else
+    if $CXX -o testfile.o testfile.cc; then
         rm -f testfile
         sub_info Yes.
+    else
+        rm -f testfile*
+        sub_error It seems like \""$CXX"\" is not working a working C++ compiler. Please specify compiler.
     fi
 }
 
