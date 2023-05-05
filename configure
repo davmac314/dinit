@@ -180,7 +180,6 @@ for var in PREFIX \
            EPREFIX \
            SBINDIR \
            MANDIR \
-           NO_SANITIZE \
            SHUTDOWN_PREFIX \
            BUILD_SHUTDOWN \
            SUPPORT_CGROUPS \
@@ -228,7 +227,6 @@ done
 : "${EPREFIX:="/"}"
 : "${SBINDIR:="${EPREFIX%%/}/sbin"}"
 : "${MANDIR:="${PREFIX%%/}/share/man"}"
-: "${NO_SANITIZE:="auto"}"
 : "${SHUTDOWN_PREFIX:=""}"
 : "${CXXFLAGS_EXTRA:=""}"
 : "${TEST_CXXFLAGS_EXTRA:=""}"
