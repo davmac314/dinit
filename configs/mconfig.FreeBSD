@@ -25,3 +25,10 @@ BUILD_SHUTDOWN=no
 #   -fsanitize=address,undefined :  Apply sanitizers (during unit tests)
 #
 # Old versions of FreeBSD had issues with -fno-plt/-fno-rtti.
+
+
+# Service defaults.
+
+DEFAULT_AUTO_RESTART=true
+DEFAULT_START_TIMEOUT=60
+DEFAULT_STOP_TIMEOUT=10

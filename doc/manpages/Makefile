@@ -36,7 +36,9 @@ dinit-monitor.8: dinit-monitor.8.m4
 	m4 -DVERSION=$(VERSION) -DMONTH=$(MONTH) -DYEAR=$(YEAR) dinit-monitor.8.m4 > dinit-monitor.8
 
 dinit-service.5: dinit-service.5.m4
-	m4 -DVERSION=$(VERSION) -DMONTH=$(MONTH) -DYEAR=$(YEAR) dinit-service.5.m4 > dinit-service.5
+	m4 -DVERSION=$(VERSION) -DMONTH=$(MONTH) -DYEAR=$(YEAR) -DDEFAULT_AUTO_RESTART=$(DEFAULT_AUTO_RESTART)\
+	   -DDEFAULT_START_TIMEOUT=$(DEFAULT_START_TIMEOUT)\
+	   -DDEFAULT_STOP_TIMEOUT=$(DEFAULT_STOP_TIMEOUT) dinit-service.5.m4 > dinit-service.5
 
 shutdown.8: shutdown.8.m4
 	m4 -DVERSION=$(VERSION) -DMONTH=$(MONTH) -DYEAR=$(YEAR) -DSHUTDOWN_PREFIX=$(SHUTDOWN_PREFIX) shutdown.8.m4 > shutdown.8

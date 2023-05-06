@@ -14,6 +14,9 @@ foreach man: ['dinit-service.5', 'dinit.8', 'dinitcheck.8', 'dinitctl.8', 'dinit
             '-DMONTH='+month,
             '-DYEAR='+year,
             '-DSHUTDOWN_PREFIX='+shutdown_prefix,
+            '-DDEFAULT_AUTO_RESTART='+default_auto_restart,
+            '-DDEFAULT_START_TIMEOUT='+default_start_timeout,
+            '-DDEFAULT_STOP_TIMEOUT='+default_stop_timeout,
             '@INPUT@'
         ],
         capture: true,

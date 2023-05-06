@@ -77,6 +77,15 @@ int main(int argc, char **argv)
     if (vars.find("SUPPORT_CGROUPS") != vars.end()) {
         cout << "#define SUPPORT_CGROUPS " << vars["SUPPORT_CGROUPS"] << "\n";
     }
+    if (vars.find("DEFAULT_AUTO_RESTART") != vars.end()) {
+	cout << "#define DEFAULT_AUTO_RESTART " << vars["DEFAULT_AUTO_RESTART"] << "\n";
+    }
+    if (vars.find("DEFAULT_START_TIMEOUT") != vars.end()) {
+	cout << "#define DEFAULT_START_TIMEOUT " << vars["DEFAULT_START_TIMEOUT"] << "\n";
+    }
+    if (vars.find("DEFAULT_STOP_TIMEOUT") != vars.end()) {
+    cout << "#define DEFAULT_STOP_TIMEOUT " << vars["DEFAULT_STOP_TIMEOUT"] << "\n";
+    }
 
     cout << "\n// Constants\n";
     cout << "\nconstexpr static char DINIT_VERSION[] = " << stringify(vars["VERSION"]) << ";\n";

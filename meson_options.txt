@@ -58,6 +58,24 @@ option(
     value : true,
     description : 'Building & installing man-pages.'
 )
+option(
+    'default-auto-restart',
+    type : 'boolean',
+    value : true,
+    description : 'Enable/disable auto-restart for services by default.'
+)
+option(
+    'default-start-timeout',
+    type : 'integer',
+    value : 60,
+    description : 'Default start-timeout for services in seconds'
+)
+option(
+    'default-stop-timeout',
+    type : 'integer',
+    value : 10,
+    description : 'Default stop-timeout for services in seconds'
+)
 
 ## Linux specific options
 option(
