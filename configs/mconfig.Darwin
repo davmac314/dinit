@@ -19,3 +19,10 @@ BUILD_SHUTDOWN=no
 
 # Notes:
 #   -flto (optional) : Use link-time optimisation
+
+
+# Service defaults.
+
+DEFAULT_AUTO_RESTART=true
+DEFAULT_START_TIMEOUT=60
+DEFAULT_STOP_TIMEOUT=10

@@ -814,7 +814,7 @@ class service_settings_wrapper
     unsigned max_log_buffer_sz = 4096;
     service_flags_t onstart_flags;
     int term_signal = SIGTERM;  // termination signal
-    bool auto_restart = true;
+    bool auto_restart = DEFAULT_AUTO_RESTART;
     bool smooth_recovery = false;
     string socket_path;
     int socket_perms = 0666;
@@ -827,8 +827,8 @@ class service_settings_wrapper
     timespec restart_interval = { .tv_sec = 10, .tv_nsec = 0 };
     int max_restarts = 3;
     timespec restart_delay = { .tv_sec = 0, .tv_nsec = 200000000 };
-    timespec stop_timeout = { .tv_sec = 10, .tv_nsec = 0 };
-    timespec start_timeout = { .tv_sec = 60, .tv_nsec = 0 };
+    timespec stop_timeout = { .tv_sec = DEFAULT_STOP_TIMEOUT, .tv_nsec = 0 };
+    timespec start_timeout = { .tv_sec = DEFAULT_START_TIMEOUT, .tv_nsec = 0 };
     std::vector<service_rlimits> rlimits;
 
     int readiness_fd = -1;      // readiness fd in service process

@@ -137,6 +137,24 @@ Custom options:
  man-pages                 : Building Dinit's man-pages.
                              Available values : true, false
                              Default value : true
+
+ default-auto-restart      : Enable/disable auto-restart for services by default.
+                             Available values : true, false
+                             Default value : true
+
+ default-start-timeout     : Default start-timeout for services by default.
+                             Specifies the time in seconds allowed for the service to start.
+                             If the service takes longer than this, its process group enters
+                             the "stopping" state.
+                             Available values : any positive integer
+                             Default value : 60
+
+ default-stop-timeout      : Default stop-timeout for services by default.
+                             Specifies the time in seconds allowed for the service to stop.
+                             If the service takes longer than this, its process group is sent
+                             a SIGKILL signal which should cause it to terminate immediately.
+                             Available values : any positive integer
+                             Default value : 10
                              
  support-cgroups           : Enable Cgroups supprot.
                              Available values : enabled, disabled, auto

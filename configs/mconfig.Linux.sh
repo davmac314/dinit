@@ -106,8 +106,19 @@ FEATURE_SETTINGS=$(
   echo "SUPPORT_CGROUPS=1"
 )
 
+SERVICE_DEFAULTS=$(
+  echo ""
+  echo ""
+  echo "# Service defaults"
+  echo ""
+  echo "DEFAULT_AUTO_RESTART=true"
+  echo "DEFAULT_START_TIMEOUT=60"
+  echo "DEFAULT_STOP_TIMEOUT=10"
+)
+
 (
   echo "$INST_PATH_OPTS"
   echo "$GENERAL_BUILD_SETTINGS" 
   echo "$FEATURE_SETTINGS"
+  echo "$SERVICE_DEFAULTS"
 ) >> ../mconfig
