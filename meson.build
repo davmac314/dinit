@@ -2,11 +2,10 @@
 project(
     'dinit', 
     'cpp', 
-    version : run_command(
-        ['sh', 'build/general_variables_for_meson.sh', 'version'],
-        check : true).stdout(),
+    version : run_command('grep', '^VERSION=', 'build/version.conf',
+        check : true).stdout().strip().split('=')[1],
     license : 'Apache-2.0',
-    meson_version : '>= 0.47.0',
+    meson_version : '>= 0.56.0',
     default_options : [
         'cpp_std=c++11',
         'optimization=s',
@@ -14,13 +13,17 @@ project(
     ]
 )
 
+## Import variables from build/version.conf
+kv = import('keyval')
+version_conf = kv.load('build/version.conf')
+
 ## General Defines
 compiler = meson.get_compiler('cpp')
 mconfig_data = configuration_data()
 version = meson.project_version()
 platform = host_machine.system()
-month = run_command('build/general_variables_for_meson.sh', 'month', check : true).stdout()
-year = run_command('build/general_variables_for_meson.sh', 'year', check : true).stdout()
+month = version_conf.get('MONTH')
+year = version_conf.get('YEAR')
 build_shutdown = get_option('build-shutdown')
 shutdown_prefix = get_option('shutdown-prefix')
 dinit_control_socket_path = get_option('dinit-control-socket-path')
