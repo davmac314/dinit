@@ -17,7 +17,7 @@ Buidling Dinit via Meson
 
 Buidling Dinit is available via two "Build system": meson & make.
 This file contains instructions for building Dinit using meson.
-Bulding dinit via meson requires "meson" (0.47.0 or later) and a C++11 compiler
+Bulding dinit via meson requires "meson" (0.56.0 or later) and a C++11 compiler
 (GCC version 4.9 and later, or Clang ~5.0 and later, should be fine).
 
 
@@ -57,8 +57,7 @@ Everything is ready! you can compile Dinit with
      meson compile -C builddir
 
 This command builds the dinit, dinitctl and optionaly the shutdown/reboot/halt
-utilitys by default. Note: on Mesons older than 0.54, you need to use
-"ninja -C builddir" instead of "meson compile -C builddir".
+utilitys by default.
 
 
 Dinit's custom options
@@ -209,7 +208,7 @@ Why we use another option for sbindir?
 
 For some reasons, Old Mesons force sbindir will prefixed by Meson's prefix
 (eg /usr + sbin) but Dinit project use /sbin by default as sbindir.
-in Newer Mesons that fixes this thing but we target Mesons's 0.47.0 as
+in Newer Mesons that fixes this thing but we target Mesons's 0.56.0 as
 minimum version. So we use "dinit-sbindir" instead of default "sbindir".
 
 
