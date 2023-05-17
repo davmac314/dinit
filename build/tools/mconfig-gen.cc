@@ -67,6 +67,9 @@ int main(int argc, char **argv)
     if (vars.find("USE_UTMPX") != vars.end()) {
         cout << "#define USE_UTMPX " << vars["USE_UTMPX"] << "\n";
     }
+    if (vars.find("USE_INITGROUPS") != vars.end()) {
+        cout << "#define USE_INITGROUPS " << vars["USE_INITGROUPS"] << "\n";
+    }
     if (vars.find("SUPPORT_CGROUPS") != vars.end()) {
         cout << "#define SUPPORT_CGROUPS " << vars["SUPPORT_CGROUPS"] << "\n";
     }

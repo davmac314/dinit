@@ -122,6 +122,10 @@ USE_UTMPX=1|0
     like "who" to work correctly (the service configuration items "inittab-id" and "inittab-line"
     have no effect if this is disabled). If not set to any value, support is enabled for certain
     systems automatically and disabled for all others.
+USE_INITGROUPS=1|0
+    Whether to initialize supplementary groups for run-as services. The C API for this is not
+    in POSIX, but is in practice supported on just about every relevant system, so it is enabled
+    by default. If it is not supported on yours, you can explicitly disable it.
 
 
 Running test suite

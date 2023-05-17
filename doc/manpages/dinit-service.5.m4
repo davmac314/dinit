@@ -156,6 +156,8 @@ Specifies which user to run the process(es) for this service as.
 Specify as a username or numeric ID.
 If specified by name, the group for the process will also be set to the primary
 group of the specified user.
+Supplementary groups will be initialized unless disabled, not supported on
+the platform, or the user could not be found in passwd database.
 .TP
 \fBenv\-file\fR = \fIfile\fR
 Specifies a file containing value assignments for environment variables, in the same

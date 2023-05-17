@@ -19,6 +19,15 @@ extern std::string cgroups_path;
 extern bool have_cgroups_path;
 #endif
 
+#ifndef USE_INITGROUPS
+// Don't do OS checks, as it's supported practically everwhere
+#define USE_INITGROUPS 1
+#endif
+
+#if USE_INITGROUPS
+#include <grp.h>
+#endif
+
 // Move an fd, if necessary, to another fd. The destination fd must be available (not open).
 // if fd is specified as -1, returns -1 immediately. Returns 0 on success.
 static int move_fd(int fd, int dest)
@@ -325,6 +334,18 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         err.stage = exec_stage::SET_UIDGID;
         // We must set group first (i.e. before we drop privileges)
         if (setregid(gid, gid) != 0) goto failure_out;
+#if USE_INITGROUPS
+        // Initialize supplementary groups unless disabled; non-POSIX API
+        if (gid != gid_t(-1)) {
+            errno = 0;
+            // null result with no errno indicates missing passwd entry
+            auto *pw = getpwuid(uid);
+            if (pw) {
+                if (initgroups(pw->pw_name, gid) != 0) goto failure_out;
+            }
+            else if (errno) goto failure_out;
+        }
+#endif
         if (setreuid(uid, uid) != 0) goto failure_out;
     }
 

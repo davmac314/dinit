@@ -41,6 +41,12 @@ option(
     description : 'Whether to build support for manipulating the utmp/utmpx database via the related POSIX functions.'
 )
 option(
+    'use-initgroups',
+    type : 'feature',
+    value : 'auto',
+    description : 'Whether to use initgroups to initialize supplementary groups for run-as services.'
+)
+option(
     'dinit-sbindir',
     type : 'string',
     value : '/sbin',
