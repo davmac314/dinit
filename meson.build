@@ -63,6 +63,11 @@ if use_utmpx.enabled()
 elif use_utmpx.disabled()
     mconfig_data.set('USE_UTMPX', '0')
 endif
+if use_initgroups.enabled()
+    mconfig_data.set('USE_INITGROUPS', '1')
+elif use_initgroups.disabled()
+    mconfig_data.set('USE_INITGROUPS', '0')
+endif
 
 ## Outputs
 subdir('src')

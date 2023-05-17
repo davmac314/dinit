@@ -139,6 +139,8 @@ Optional options:
   --disable-cgroups             Disable Cgroups support
   --enable-utmpx                Enable manipulating the utmp/utmpx database via the related POSIX functions [auto]
   --disable-utmpx               Disable manipulating the utmp/utmpx database via the related POSIX functions
+  --enable-initgroups           Enable initialization of supplementary groups for run-as [default]
+  --disable-initgroups          Disable initialization of supplementary groups for run-as
 
 Build variables:
   Note: build variables can be passed in the environment, or as $0 argument (as "var=VALUE").
@@ -183,6 +185,8 @@ for var in PREFIX \
            SHUTDOWN_PREFIX \
            BUILD_SHUTDOWN \
            SUPPORT_CGROUPS \
+           USE_UTMPX \
+           USE_INITGROUPS \
            SYSCONTROLSOCKET
 do
     unset $var
@@ -212,6 +216,8 @@ for arg in "$@"; do
         --disable-cgroups|--enable-cgroups=no) SUPPORT_CGROUPS=0 ;;
         --enable-utmpx|--enable-utmpx=yes) USE_UTMPX=1 ;;
         --disable-utmpx|--enable-utmpx=no) USE_UTMPX=0 ;;
+        --enable-initgroups|--enable-initgroups=yes) USE_INITGROUPS=1 ;;
+        --disable-initgroups|--enable-initgroups=no) USE_INITGROUPS=0 ;;
         CXX=*|CXX_FOR_BUILD=*|CXXFLAGS_FOR_BUILD=*|CPPFLAGS_FOR_BUILD=*\
         |LDFLAGS_FOR_BUILD=*|CXXFLAGS=*|CXXFLAGS_EXTRA=*|TEST_CXXFLAGS=*\
         |TEST_CXXFLAGS_EXTRA|LDFLAGS=*|LDFLAGS_EXTRA=*|TEST_LDFLAGS=*\
@@ -365,6 +371,9 @@ SHUTDOWN_PREFIX=${SHUTDOWN_PREFIX:-}
 _EOF
 if [ -n "${USE_UTMPX:-}" ]; then
     echo "USE_UTMPX=$USE_UTMPX" >> mconfig
+fi
+if [ -n "${USE_INITGROUPS:-}" ]; then
+    echo "USE_INITGROUPS=$USE_INITGROUPS" >> mconfig
 fi
 if [ -n "${CXX_FOR_BUILD:-}" ]; then
     {

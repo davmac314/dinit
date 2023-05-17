@@ -12,7 +12,8 @@ includes/mconfig.h: ../mconfig tools/mconfig-gen.cc version.conf
 	./tools/mconfig-gen SBINDIR=$(SBINDIR) SYSCONTROLSOCKET=$(SYSCONTROLSOCKET) \
 		SHUTDOWN_PREFIX=$(SHUTDOWN_PREFIX) VERSION=$(VERSION) \
 		$(if $(SUPPORT_CGROUPS),SUPPORT_CGROUPS=$(SUPPORT_CGROUPS),) \
-		$(if $(USE_UTMPX),USE_UTMPX=$(USE_UTMPX),) > includes/mconfig.h
+		$(if $(USE_UTMPX),USE_UTMPX=$(USE_UTMPX),) \
+		$(if $(USE_INITGROUPS),USE_INITGROUPS=$(USE_INITGROUPS),) > includes/mconfig.h
 
 clean:
 	rm -f includes/mconfig.h

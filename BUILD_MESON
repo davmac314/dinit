@@ -118,6 +118,16 @@ Custom options:
                              Available values : enabled, disabled, auto
                              Default value : auto
 
+ use-initgroups            : Whether to use initgroups to initialize supplementary
+                             groups in services that use run-as with a name. Without
+                             this the services may potentially misbehave as process
+                             and its child processes won't recognize being in the
+                             supplementary groups, only their primary group. However,
+                             some systems may not implement the initgroups API, so
+                             it may be necessary to disable it on those.
+                             Available vlaues : enabled, disabled, auto
+                             Default value : auto
+
  dinit-sbindir             : Default full path to the dinit executables.
                              For some reasons Dinit dont follow Meson's default
                              sbindir option. see "Why we use another option
