@@ -33,6 +33,7 @@ fuzzer = get_option('fuzzer')
 man_pages = get_option('man-pages')
 support_cgroups = get_option('support-cgroups')
 use_utmpx = get_option('use-utmpx')
+use_initgroups = get_option('use-initgroups')
 # We have custom sbindir for install programs (/sbin instead of /usr/sbin/ by default)
 # By default: Prefix = /usr
 # By default: Sbin = /sbin
