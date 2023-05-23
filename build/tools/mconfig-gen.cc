@@ -70,6 +70,10 @@ int main(int argc, char **argv)
     if (vars.find("USE_INITGROUPS") != vars.end()) {
         cout << "#define USE_INITGROUPS " << vars["USE_INITGROUPS"] << "\n";
     }
+    else {
+    	// Default to assuming initgroups(3) is available
+    	cout << "#define USE_INITGROUPS 1\n";
+    }
     if (vars.find("SUPPORT_CGROUPS") != vars.end()) {
         cout << "#define SUPPORT_CGROUPS " << vars["SUPPORT_CGROUPS"] << "\n";
     }

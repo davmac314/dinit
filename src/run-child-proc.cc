@@ -19,11 +19,6 @@ extern std::string cgroups_path;
 extern bool have_cgroups_path;
 #endif
 
-#ifndef USE_INITGROUPS
-// Don't do OS checks, as it's supported practically everwhere
-#define USE_INITGROUPS 1
-#endif
-
 #if USE_INITGROUPS
 #include <grp.h>
 #endif
