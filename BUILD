@@ -59,9 +59,9 @@ such as on most BSD systems):
 
     make
 
-If everything goes smoothly this will build dinit, dinitctl, and optionally the shutdown
-utility. Use "make install" to install; you can specify an alternate installation root by
-setting the "DESTDIR" variable, eg "make DESTDIR=/tmp/temporary-install-path install".
+If everything goes smoothly this will build dinit, dinitctl, and optionally the shutdown utility.
+Use "make install" to install; you can specify an alternate installation root by setting the
+"DESTDIR" variable, eg "make DESTDIR=/tmp/temporary-install-path install".
 
 All of the above variables can be specified on the "make" command line, for example:
 
@@ -86,11 +86,11 @@ Dinit should generally build fine with no additional options, other than:
 
 Recommended options, supported by at least GCC and Clang, are:
  -Os       : optimise for size
- -fno-rtti : disable RTTI (run-time type information), it is not required by Dinit.
-             However, on some platforms such as Mac OS (and historically FreeBSD, IIRC), this
-             prevents exceptions working correctly.
+ -fno-rtti : disable RTTI (run-time type information), it is not required by Dinit. However, on
+             some platforms such as Mac OS (and historically FreeBSD, IIRC), this prevents
+             exceptions working correctly.
  -fno-plt  : enables better code generation for non-static builds, but may cause unit test
-             failures on some older versions of FreeBSD (11.2-RELEASE-p4 with clang++ 6.0.0).
+             failures on some older versions of FreeBSD (eg 11.2-RELEASE-p4 with clang++ 6.0.0).
  -flto     : perform link-time optimisation (option required at compile and link).
 
 Consult compiler documentation for further information on the above options.
@@ -201,18 +201,18 @@ Compiling against the newer (C++11 and later) ABI can be achieved by adding
 -D_GLIBCXX_USE_CXX11_ABI=1 to the compiler command line; this uses a non-standard language
 extension to differently mangle symbol names in order to link against the new ABI versions.
 
-(Some systems may be configured to build with the new ABI by default, and in that case you
-build against the old ABI using -D_GLIBCXX_USE_CXX11_ABI=0).
+(Some systems may be configured to build with the new ABI by default, and in that case you build
+against the old ABI using -D_GLIBCXX_USE_CXX11_ABI=0).
 
-This is problematic for several reasons. First, it prevents linking against the new ABI with
-other compilers that do not understand the language extension (LLVM i.e. clang++ does so
-in recent versions, so this is perhaps no longer much of a problem in practice). Secondly,
-some aspects of library behaviour are ABI-dependent but cannot be changed using the ABI
-macro; in particular, exceptions thrown as a result of failed I/O operations are, in GCC
-versions 5.x and 6.x, always "old ABI" exceptions which cannot be caught by code compiled
-against the new ABI, and in GCC version 7.x they are always "new ABI" exceptions which cannot
-be caught by code compiled against the old ABI. Since the one library object now supposedly
-houses both ABIs, this means that at least one of the two ABIs is always broken.
+This is problematic for several reasons. First, it prevents linking against the new ABI with other
+compilers that do not understand the language extension (LLVM i.e. clang++ does so in recent
+versions, so this is perhaps no longer much of a problem in practice). Secondly, some aspects of
+library behaviour are ABI-dependent but cannot be changed using the ABI macro; in particular,
+exceptions thrown as a result of failed I/O operations are, in GCC versions 5.x and 6.x, always
+"old ABI" exceptions which cannot be caught by code compiled against the new ABI, and in GCC
+version 7.x they are always "new ABI" exceptions which cannot be caught by code compiled against
+the old ABI. Since the one library object now supposedly houses both ABIs, this means that at
+least one of the two ABIs is always broken.
 
 A blog post describing the dual ABI mechanism can be found here:
 
@@ -223,8 +223,7 @@ The bug regarding the issue with catching other-ABI exceptions is here:
     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66145
 
 Since Dinit is affected by this bug, the unfortunate possibility exists to break Dinit by
-upgrading GCC. If you have libstdc++ corresponding to GCC 5.x or 6.x, you *must* build with
-the old ABI, but Dinit will be broken if you upgrade to GCC 7. If you have libstdc++ from
-GCC 7, you *must* build with the new ABI. If the wrong ABI is used, Dinit may still run
-successfully but any attempt to load a non-existing service, for example, will cause Dinit
-to crash.
+upgrading GCC. If you have libstdc++ corresponding to GCC 5.x or 6.x, you *must* build with the
+old ABI, but Dinit will be broken if you upgrade to GCC 7. If you have libstdc++ from GCC 7, you
+*must* build with the new ABI. If the wrong ABI is used, Dinit may still run successfully but any
+attempt to load a non-existing service, for example, will cause Dinit to crash.
