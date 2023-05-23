@@ -956,8 +956,12 @@ class service_settings_wrapper
         // If socket_gid hasn't been explicitly set, but the socket_uid was specified as a name (and
         // we therefore recovered the primary group), use the primary group of the specified user.
         if (socket_gid == (gid_t)-1) socket_gid = socket_uid_gid;
-        // likewise for "run as" gid/uid.
+        // likewise for "run as" gid/uid, but only if we aren't supporting supplementary group initialisation
+        // (if we do support supplementary groups, run_as_gid==-1 means "use the user groups including
+        // supplementary groups" whereas run_as_gid==X means "use group X with no supplementary groups").
+#if !USE_INITGROUPS
         if (run_as_gid == (gid_t)-1) run_as_gid = run_as_uid_gid;
+#endif
     }
 };
 

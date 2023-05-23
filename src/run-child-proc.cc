@@ -328,17 +328,32 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     if (uid != uid_t(-1)) {
         err.stage = exec_stage::SET_UIDGID;
         // We must set group first (i.e. before we drop privileges)
-        if (setregid(gid, gid) != 0) goto failure_out;
 #if USE_INITGROUPS
         // Initialize supplementary groups unless disabled; non-POSIX API
         if (gid != gid_t(-1)) {
+        	// Specific group; use that, with no supplementary groups
+        	if (setregid(gid, gid) != 0) goto failure_out;
+        	if (setgroups(0, nullptr)) goto failure_out;
+        }
+        else {
+        	// No specific group; use groups associated with user.
             errno = 0;
-            // null result with no errno indicates missing passwd entry
             auto *pw = getpwuid(uid);
             if (pw) {
-                if (initgroups(pw->pw_name, gid) != 0) goto failure_out;
+                if (setregid(pw->pw_gid, pw->pw_gid) != 0) goto failure_out;
+                if (initgroups(pw->pw_name, pw->pw_gid) != 0) goto failure_out;
             }
-            else if (errno) goto failure_out;
+            else {
+                // null result with no errno indicates missing passwd entry; use ENOENT for want of a more
+            	// specific error code.
+            	if (errno == 0) errno = ENOENT;
+            	goto failure_out;
+            }
+        }
+#else
+        // No support for supplementary groups; just set the specified group.
+        if (gid != gid_t(-1)) {
+        	if (setregid(gid, gid) != 0) goto failure_out;
         }
 #endif
         if (setreuid(uid, uid) != 0) goto failure_out;
