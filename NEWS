@@ -5,7 +5,7 @@ Current sponsors include github users: brentfrow, brazeon, and q66 (Daniel Koles
 Chimera Linux). Development of Dinit has also received financial support from Artix Linux.
 I am grateful for all the support, both financial and otherwise, that has been received.
 
-Changes:
+New features:
  * ... TBC
  * New "triggered" service type, similar to "internal" except that it requires an external
    trigger before it will start (start of a triggered service is delayed until the external
@@ -14,9 +14,27 @@ Changes:
    before stopping the service. This can be used to ensure a cleaner system state and that
    filesystems can be unmounted (for example). Use with care; see dinit-service(5) for details.
  * "shutdown" now runs (if present) user-provided shutdown hooks; see shutdown(8) for details.
+ * New "dinitctl" subcommands "is-active" and "is-failed", to test for specific service statuses.
+   Contributed by Daniel Kolesa.
  * "dinitctl" now supports the "--use-passed-cfd" argument (as for shutdown).
+ * A "configure" script to generate suitable build configuration is included. It is used by
+   default when building on not-recognised systems. Contributed by Mobin Aydinfar.
  * Meson build system added (as an alternative to the existing makefile-based build) by Mobin
    Aydinfar.
+
+Changes:
+ * The default is now to restart services automatically (previously required "restart = yes").
+ * Services which specify "run-as" to run as a different user now run with the supplementary
+   groups of that user (this can be disabled at build time by setting USE_INITGROUPS=0).
+   Thanks to Daniel Kolesa.
+ * Some service defaults, including automatic restart, can now be configured at build time
+   (contributed by Mobin Aydinfar).
+ * Environment variables from the service-specific environment ("env-file" setting) can now be
+   substituted in service settings. Variable expansion now supports a limited subset of shell
+   expansions (such as "$(NAME:-word}" and "${NAME:+word}).
+
+Fixes:
+ * A bug in Dasynq which caused out-of-bounds vector access in dinit on shutdown has been fixed.
 
 == Version 0.16.1
 
