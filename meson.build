@@ -65,6 +65,7 @@ mconfig_data.set('SHUTDOWN_PREFIX', '"' + shutdown_prefix + '"')
 mconfig_data.set('DEFAULT_AUTO_RESTART', default_auto_restart)
 mconfig_data.set('DEFAULT_START_TIMEOUT', default_start_timeout)
 mconfig_data.set('DEFAULT_STOP_TIMEOUT', default_stop_timeout)
+mconfig_data.set10('USE_INITGROUPS', use_initgroups)
 if support_cgroups.auto() and platform == 'linux' or support_cgroups.enabled()
     mconfig_data.set('SUPPORT_CGROUPS', '1') 
 endif
@@ -72,11 +73,6 @@ if use_utmpx.enabled()
     mconfig_data.set('USE_UTMPX', '1')
 elif use_utmpx.disabled()
     mconfig_data.set('USE_UTMPX', '0')
-endif
-if use_initgroups.enabled()
-    mconfig_data.set('USE_INITGROUPS', '1')
-elif use_initgroups.disabled()
-    mconfig_data.set('USE_INITGROUPS', '0')
 endif
 
 ## Outputs

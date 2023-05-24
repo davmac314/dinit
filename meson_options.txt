@@ -42,8 +42,8 @@ option(
 )
 option(
     'use-initgroups',
-    type : 'feature',
-    value : 'auto',
+    type : 'boolean',
+    value : true,
     description : 'Whether to use initgroups to initialize supplementary groups for run-as services.'
 )
 option(
