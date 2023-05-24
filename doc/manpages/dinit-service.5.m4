@@ -175,10 +175,12 @@ That means this path is static and cannot itself have variable substitutions (se
 Indicates whether the service should automatically restart if it stops, including due to
 unexpected process termination or a dependency stopping.
 Note that if a service stops due to user request, automatic restart is inhibited.
-$$$ifelse(DEFAULT_AUTO_RESTART, true, The default is to automatically restart.,
-    The default is to not automatically restart.)
-@@@
-.TP
+$$$changequote(`,')dnl
+ifelse(DEFAULT_AUTO_RESTART, true,
+    ``The default is to automatically restart.'',
+    ``The default is to not automatically restart.'')
+changequote(`@@@',`$$$')dnl
+@@@.TP
 \fBsmooth\-recovery\fR = {yes | true | no | false}
 Applies only to \fBprocess\fR and \fBbgprocess\fR services.
 When set true/yes, an automatic process restart can be performed without first stopping any
@@ -209,17 +211,17 @@ If the service takes longer than this, its process group is sent a SIGINT signal
 and enters the "stopping" state (this may be subject to a stop timeout, as
 specified via \fBstop\-timeout\fR, after which the process group will be
 terminated via SIGKILL).
-The timeout period begins only when all dependencies have been stopped.
-The default timeout is $$$DEFAULT_START_TIMEOUT@@@ seconds.
-Specify a value of 0 to allow unlimited start time.
+The timeout period begins only when all dependencies have been satisfied.
+The default value is $$$DEFAULT_START_TIMEOUT@@@.
+A value of 0 allows unlimited start time.
 .TP
 \fBstop\-timeout\fR = \fIXXX.YYY\fR
 Specifies the time in seconds allowed for the service to stop.
 If the service takes longer than this, its process group is sent a SIGKILL signal
 which should cause it to terminate immediately.
 The timeout period begins only when all dependent services have already stopped.
-The default timeout is $$$DEFAULT_STOP_TIMEOUT@@@ seconds.
-Specify a value of 0 to allow unlimited stop time.
+The default value is $$$DEFAULT_STOP_TIMEOUT@@@.
+A value of 0 allows unlimited stop time.
 .TP
 \fBpid\-file\fR = \fIpath-to-file\fR
 For \fBbgprocess\fR type services only; specifies the path of the file where
