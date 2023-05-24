@@ -124,8 +124,8 @@ Custom options:
                              supplementary groups, only their primary group. However,
                              some systems may not implement the initgroups API, so
                              it may be necessary to disable it on those.
-                             Available vlaues : enabled, disabled, auto
-                             Default value : auto
+                             Available values : true, false
+                             Default value : true
 
  dinit-sbindir             : Default full path to the dinit executables.
                              For some reasons Dinit dont follow Meson's default
