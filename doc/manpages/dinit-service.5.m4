@@ -119,14 +119,19 @@ Values are interpreted literally, except that:
 White space (comprised of spaces, tabs, etc) is collapsed to a single space, except
 leading or trailing white space around the property value, which is stripped.
 .IP \(bu
+For settings which specify a command with arguments, the value is interpreted as a
+series of tokens separated by white space, rather than a single string of characters. 
+.IP \(bu
 Double quotes (") can be used around all or part of a property value, to
 prevent whitespace collapse and prevent interpretation of other special
 characters (such as "#") inside the quotes.
 The quote characters are not considered part of the property value.
+White space appearing inside quotes does not act as a delimiter for tokens.
 .IP \(bu
 A backslash (\\) can be used to escape the next character, causing it to
 lose any special meaning and become part of the property value.
 A double backslash (\\\\) is collapsed to a single backslash within the parameter value.
+White space preceded by a backslash will not separate tokens.
 .LP
 Setting a property generally overrides any previous setting (from prior lines).
 However some properties are set additively; these include dependency relationships and \fBoptions\fR
