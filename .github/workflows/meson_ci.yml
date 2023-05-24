@@ -1,0 +1,149 @@
+## This Workflow will run when a PR has "meson" label or when something pushed to master.
+
+name: Dinit Meson based CI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '**'
+      - 'build/version.conf'
+      - '!.*'
+      - '!README.md'
+      - '!NEWS'
+      - '!BUILD*'
+      - '!CONTRIBUTORS'
+      - '!TODO'
+      - '!LICENSE'
+      - '!**/Makefile'
+      - '!build/**'
+      - '!doc/CODE-STYLE'
+      - '!doc/COMPARISON'
+      - '!doc/CONTRIBUTING'
+      - '!doc/DESIGN'
+      - '!doc/getting_started.md'
+      - '!doc/manpages/README'
+      - '!doc/manpages/generate-html.sh'
+      - '!doc/linux/**'
+  pull_request:
+    types:
+      - labeled
+    branches:
+      - master
+    paths:
+      - '**'
+      - 'build/version.conf'
+      - '!.*'
+      - '!README.md'
+      - '!NEWS'
+      - '!BUILD*'
+      - '!CONTRIBUTORS'
+      - '!TODO'
+      - '!LICENSE'
+      - '!**/Makefile'
+      - '!build/**'
+      - '!doc/CODE-STYLE'
+      - '!doc/COMPARISON'
+      - '!doc/CONTRIBUTING'
+      - '!doc/DESIGN'
+      - '!doc/getting_started.md'
+      - '!doc/manpages/README'
+      - '!doc/manpages/generate-html.sh'
+      - '!doc/linux/**'
+  workflow_dispatch:
+
+jobs:
+
+  Debian-bullseye_build:
+
+    if: ${{ github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'meson') }}
+    runs-on: ubuntu-latest
+    container:
+      image: debian:bullseye
+    strategy:
+      matrix:
+        include:
+          - arch: 'amd64'
+          - arch: 'i386'
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Add i386 repos
+      if: ${{ matrix.arch == 'i386' }}
+      run: dpkg --add-architecture i386
+    - name: Getting depends (amd64)
+      if: ${{ matrix.arch == 'amd64' }}
+      run: |
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install g++ meson m4 -y
+    - name: Getting depends (i386)
+      if: ${{ matrix.arch == 'i386' }}
+      run: |
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install meson m4:i386 g++:i386 -y
+    - name: Setup
+      run: meson setup -Dunit-tests=true -Digr-tests=true dirbuild
+    - name: Build
+      run: meson compile -C dirbuild
+    - name: Unit tests
+      run: meson test -v --suite=unit_tests -C dirbuild
+    - name: Integration tests
+      run: meson test -v --suite=igr_tests -C dirbuild
+
+  MacOS-latest_build:
+
+    if: ${{ github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'meson') }}
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - arch: 'amd64'
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install meson via pip3
+      run: pip3 install meson
+    - name: Install ninja
+      run: brew install ninja
+    - name: Setup
+      run: meson setup -Dunit-tests=true -Digr-tests=true dirbuild
+    - name: Build
+      run: meson compile -C dirbuild
+    - name: Unit tests
+      run: meson test -v --suite=unit_tests -C dirbuild
+    - name: Integration tests
+      run: meson test -v --suite=igr_tests -C dirbuild
+
+  Alpine-latest_build:
+
+    if: ${{ github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'meson') }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: 'armv6'
+          - arch: 'armv7'
+          - arch: 'aarch64'
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: uraimo/run-on-arch-action@v2.5.0
+      name: Getting depends & setup & build & unit & integration tests
+      with:
+        arch: ${{ matrix.arch }}
+        distro: alpine_latest
+        run: |
+          apk add ncurses
+          echo "$(tput bold) !---- ${{ matrix.arch }} BUILD ----!$(tput sgr0)"
+          echo "$(tput bold) ----Getting depends---- :$(tput sgr0) apk update && apk add meson g++ m4"
+          apk update
+          apk add meson g++ m4
+          echo "$(tput bold) ----Setup---- :$(tput sgr0) meson setup -Dunit-tests=true -Digr-tests=true dirbuild"
+          meson setup -Dunit-tests=true -Digr-tests=true dirbuild
+          echo "$(tput bold) ----Build---- :$(tput sgr0) meson compile -C dirbuild"
+          meson compile -C dirbuild
+          echo "$(tput bold) ----Unit tests---- :$(tput sgr0) meson test -v --suite=unit_tests -C dirbuild"
+          meson test -v --suite=unit_tests -C dirbuild
+          echo "$(tput bold) ----Integration tests---- :$(tput sgr0) meson test -v --suite=igr_tests -C dirbuild"
+          meson test -v --suite=igr_tests -C dirbuild
