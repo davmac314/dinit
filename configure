@@ -250,6 +250,7 @@ done
 : "${DEFAULT_AUTO_RESTART:="true"}"
 : "${DEFAULT_START_TIMEOUT:="60"}"
 : "${DEFAULT_STOP_TIMEOUT:="10"}"
+: "${USE_INITGROUPS:="1"}"
 if [ "$PLATFORM" = "Linux" ]; then
     : "${BUILD_SHUTDOWN:="yes"}"
     : "${SUPPORT_CGROUPS:="1"}"
@@ -376,6 +377,7 @@ BUILD_SHUTDOWN=$BUILD_SHUTDOWN
 
 # Feature settings
 SUPPORT_CGROUPS=$SUPPORT_CGROUPS
+USE_INITGROUPS=$USE_INITGROUPS
 
 # Optional settings
 SHUTDOWN_PREFIX=${SHUTDOWN_PREFIX:-}
@@ -387,9 +389,6 @@ DEFAULT_STOP_TIMEOUT=$DEFAULT_STOP_TIMEOUT
 _EOF
 if [ -n "${USE_UTMPX:-}" ]; then
     echo "USE_UTMPX=$USE_UTMPX" >> mconfig
-fi
-if [ -n "${USE_INITGROUPS:-}" ]; then
-    echo "USE_INITGROUPS=$USE_INITGROUPS" >> mconfig
 fi
 if [ -n "${CXX_FOR_BUILD:-}" ]; then
     {
