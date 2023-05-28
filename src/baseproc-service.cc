@@ -107,6 +107,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
 
     const char * logfile = this->logfile.c_str();
     if (this->log_type == log_type_id::LOGFILE || this->log_type == log_type_id::NONE) {
+    	// Note: if log_type == NONE, logfile should be empty.
     	if (*logfile == 0) {
     		logfile = "/dev/null";
     	}

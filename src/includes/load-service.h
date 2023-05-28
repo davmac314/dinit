@@ -962,6 +962,10 @@ class service_settings_wrapper
 #if !USE_INITGROUPS
         if (run_as_gid == (gid_t)-1) run_as_gid = run_as_uid_gid;
 #endif
+
+        if (log_type != log_type_id::LOGFILE) {
+        	logfile.clear();
+        }
     }
 };
 
