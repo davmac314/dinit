@@ -590,7 +590,7 @@ Limited parameter expansion is also supported, specifically the forms `\fB${NAME
 (substitute `\fBword\fR' if variable is unset or empty), `\fB${NAME\-word}\fR' (substitute
 `\fBword\fR' if variable is unset), `\fB${NAME:+word}\fR' (substitute `\fBword\fR' if variable is
 set and non\-empty), and `\fB${NAME+word}\fR' (substitute `\fBword\fR' if variable is set).
-Unlike in shell expansion, the substituted \fBword\R does not itself undergo expansion and
+Unlike in shell expansion, the substituted \fBword\fR does not itself undergo expansion and
 cannot contain closing brace characters even if quoted.
 .sp
 The priority of environment variables, from highest to lowest, is the service \fBenv\-file\fR,
