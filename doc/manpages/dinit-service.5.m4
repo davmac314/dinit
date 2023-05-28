@@ -585,17 +585,18 @@ If a designated variable is not defined, it is replaced with an empty (zero-leng
 zero-length argument.
 .sp
 Variable substitution also supports a limited subset of shell syntax. You can use curly
-braces to enclose the variable, as in `\fB${NAME}\fR'. Limited parameter expansion is
-also supported, specifically the forms `\fB${NAME:\-word}\fR' (substitute `\fBword\fR'
-if variable is unset or empty), `\fB${NAME\-word}\fR' (substitute `\fBword\fR' if
-variable is unset), `\fB${NAME:+word}\fR' (substitute `\fBword\fR' if variable is
-set and non\-empty), and `\fB${NAME+word}\fR' (substitute `\fBword\fR' if variable
-is set).
+braces to enclose the variable, as in `\fB${NAME}\fR'.
+Limited parameter expansion is also supported, specifically the forms `\fB${NAME:\-word}\fR'
+(substitute `\fBword\fR' if variable is unset or empty), `\fB${NAME\-word}\fR' (substitute
+`\fBword\fR' if variable is unset), `\fB${NAME:+word}\fR' (substitute `\fBword\fR' if variable is
+set and non\-empty), and `\fB${NAME+word}\fR' (substitute `\fBword\fR' if variable is set).
+Unlike in shell expansion, the substituted \fBword\R does not itself undergo expansion and
+cannot contain closing brace characters even if quoted.
 .sp
 The priority of environment variables, from highest to lowest, is the service \fBenv\-file\fR,
 followed by variables set by the \fBset\-passwd\-vars\fR load option, followed by the global
-environment file of \fBdinit\fR, followed by the process environment of \fBdinit\fR. This
-applies to both the substitutions as well as the process environment of the service.
+environment file of \fBdinit\fR, followed by the process environment of \fBdinit\fR.
+This applies to both the substitutions as well as the process environment of the service.
 .\"
 .SH EXAMPLES
 .LP
