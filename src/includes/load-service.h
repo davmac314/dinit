@@ -166,7 +166,8 @@ inline int signal_name_to_number(std::string &signame) noexcept
 
 // Read a setting/variable name; return empty string if no valid name
 //
-// If env is set, dashes/dots are not allowed as they break correct envvar parsing
+// If env is set, dashes/dots are not allowed within names. They are not typically allowed by shells
+// and they interfere with substitution patterns.
 inline string read_config_name(string_iterator & i, string_iterator end, bool env = false) noexcept
 {
     using std::locale;
@@ -707,12 +708,11 @@ static void value_var_subst(const char *setting_name, std::string &line,
             }
             else {
                 // variable
+            	auto token_end = std::next(line.begin(), i->second);
                 bool brace = line[dindx + 1] == '{';
                 auto i = std::next(line.begin(), dindx + 1 + int(brace));
-                // read environment variable name as specified by POSIX; do
-                // not use read_config_name, it allows characters not allowed
-                // in env vars and breaks further parsing
-                string name = read_config_name(i, line.end(), true);
+                // read environment variable name
+                string name = read_config_name(i, token_end, true);
                 if (name.empty()) {
                     throw service_description_exc(setting_name, "invalid/missing variable name after '$'");
                 }
@@ -729,16 +729,17 @@ static void value_var_subst(const char *setting_name, std::string &line,
                         }
                     }
                     if (*i == '+' || *i == '-') {
-                        altmode = *i++;
-                        altbeg = altend = i;
-                        while (*altend != '}') {
-                            ++altend;
+                        altmode = *i;
+                        altbeg = ++i;
+                        while (i != token_end && *i != '}') {
+                            ++i;
                         }
-                        i = altend;
+                        altend = i;
                     }
-                    if (*i++ != '}') {
+                    if (*i != '}') {
                         throw service_description_exc(setting_name, "unmatched '{' in variable substitution");
                     }
+                    ++i;
                 }
                 size_t line_len_before = r_line.size();
                 auto *resolved = var_resolve(name, envmap);
