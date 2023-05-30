@@ -122,7 +122,8 @@ inline bool starts_with(const std::string &s, const char *prefix)
     return *prefix == 0;
 }
 
-// An allocator that doesn't value-initialise for construction
+// An allocator that doesn't value-initialise for construction. Eg for containers of primitive types this
+// allocator avoids the overhead of initialising new elements to 0.
 template <typename T>
 class default_init_allocator : public std::allocator<T>
 {
@@ -134,18 +135,17 @@ public:
         using other = default_init_allocator<U>;
     };
 
-    // Note this is only a template so that if there is no suitable constructor for T, we won't
-    // error out here
-    template <typename U>
-    void construct(U *obj)
+    template <typename U = std::enable_if<std::is_default_constructible<T>::value>>
+    void construct(T *obj)
     {
-        ::new(obj) U;
+    	// avoid value-initialisation:
+        ::new(obj) T;
     }
 
     template <typename ...Args>
-    void construct(T *obj, Args... args)
+    void construct(T *obj, Args&&... args)
     {
-        std::allocator<T>::construct(obj, args...);
+        std::allocator<T>::construct(obj, std::forward<Args>(args)...);
     }
 };
 
