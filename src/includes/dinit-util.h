@@ -17,6 +17,34 @@
 
 #include "baseproc-sys.h"
 
+// Check if a value is one of several possible values.
+// Use like:     value(x).is_in(1,2,3)
+template <typename T>
+class value_cls {
+	const T &v;
+public:
+	value_cls(const T &v) : v(v) {}
+
+	template <typename U>
+	bool is_in(U&& val)
+	{
+		return v == val;
+	}
+
+	template <typename U, typename ...V>
+	bool is_in(U&&val, V&&... vals) {
+		if (v == val)
+			return true;
+		return is_in(vals...);
+	}
+};
+
+template <typename T>
+value_cls<T> value(const T &v)
+{
+	return value_cls<T>(v);
+}
+
 // Complete read - read the specified size until end-of-file or error; continue read if
 // interrupted by signal.
 inline ssize_t complete_read(int fd, void * buf, size_t n)

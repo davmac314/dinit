@@ -447,6 +447,15 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                     }
                 #endif
 
+                // Cannot change log type
+                if (value(service->get_type()).is_in(service_type_t::PROCESS, service_type_t::BGPROCESS,
+                		service_type_t::SCRIPTED)) {
+                	base_process_service *bps = static_cast<base_process_service *>(service);
+                	if (bps->get_log_mode() != settings.log_type) {
+                		throw service_load_exc(name, "cannot change log-type for running service.");
+                	}
+                }
+
                 // Already started; we must replace settings on existing service record
                 create_new_record = false;
             }
