@@ -389,7 +389,7 @@ However, "who" and similar utilities may not work correctly without this setting
 (or \fBinittab\-line\fR) enabled appropriately.
 .sp
 This setting has no effect if Dinit was not built with support for writing to the "utmp"
-database.
+database. It applies only to \fBprocess\fR services.
 .TP
 \fBinittab\-line\fR = \fItty-name-string\fR
 This specifies the tty line that will be written to the "utmp" database when this service
