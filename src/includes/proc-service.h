@@ -311,6 +311,7 @@ class base_process_service : public service_record
             child_listener.unreserve(event_loop);
         }
         process_timer.deregister(event_loop);
+        set_log_mode(log_type_id::NONE);
     }
 
     // Set the command to run this service (executable and arguments, nul separated). The command_parts_p
@@ -361,6 +362,17 @@ class base_process_service : public service_record
     // Set log mode (NONE, BUFFER, FILE)
     void set_log_mode(log_type_id log_type) noexcept
     {
+        if (this->log_type == log_type) {
+        	return;
+        }
+    	if (log_output_fd != -1) {
+    		if (this->log_type == log_type_id::BUFFER) {
+    			log_output_listener.deregister(event_loop);
+    		}
+			bp_sys::close(log_output_fd);
+			bp_sys::close(log_input_fd);
+			log_output_fd = log_input_fd = -1;
+        }
         this->log_type = log_type;
     }
 
