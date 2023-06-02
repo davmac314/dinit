@@ -467,6 +467,24 @@ inline gid_t parse_gid_param(unsigned line_num, const std::string &param, const 
     return grent->gr_gid;
 }
 
+// Parse a permission param, specified as a octal number of permission (such as 0600)
+inline int parse_perms(unsigned line_num, string &paramval, const std::string &servicename,
+        const char * paramname)
+{
+    std::size_t ind = 0;
+    try {
+        int perms = std::stoi(paramval, &ind, 8);
+        if (ind != paramval.length()) {
+            throw std::logic_error("");
+        }
+        return perms;
+    }
+    catch (std::logic_error &exc) {
+        throw service_description_exc(servicename, std::string(paramname) + ": badly-formed or "
+                "out-of-range numeric value", line_num);
+    }
+}
+
 // Parse a time, specified as a decimal number of seconds (with optional fractional component after decimal
 // point or decimal comma).
 inline void parse_timespec(unsigned line_num, const std::string &paramval, const std::string &servicename,
@@ -813,6 +831,10 @@ class service_settings_wrapper
     list<std::string> after_svcs;
     log_type_id log_type = log_type_id::NONE;
     string logfile;
+    int logfile_perms = 0600;
+    uid_t logfile_uid = -1;
+    gid_t logfile_uid_gid = -1; // Primary group of logfile owner if known
+    gid_t logfile_gid = -1;
     unsigned max_log_buffer_sz = 4096;
     service_flags_t onstart_flags;
     int term_signal = SIGTERM;  // termination signal
@@ -958,6 +980,11 @@ class service_settings_wrapper
         // If socket_gid hasn't been explicitly set, but the socket_uid was specified as a name (and
         // we therefore recovered the primary group), use the primary group of the specified user.
         if (socket_gid == (gid_t)-1) socket_gid = socket_uid_gid;
+        // Also for logfile_uid/gid, we reset logfile ownership to dinit process uid/gid if uid/gid
+        // wasn't specified by service
+        if (logfile_uid == (uid_t) -1) logfile_uid = getuid();
+        if (logfile_uid_gid == (gid_t)-1) logfile_uid_gid = getgid();
+        if (logfile_gid == (gid_t)-1) logfile_gid = logfile_uid_gid;
         // likewise for "run as" gid/uid, but only if we aren't supporting supplementary group initialisation
         // (if we do support supplementary groups, run_as_gid==-1 means "use the user groups including
         // supplementary groups" whereas run_as_gid==X means "use group X with no supplementary groups").
@@ -1020,17 +1047,7 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
     }
     else if (setting == "socket-permissions") {
         string sock_perm_str = read_setting_value(line_num, i, end, nullptr);
-        std::size_t ind = 0;
-        try {
-            settings.socket_perms = std::stoi(sock_perm_str, &ind, 8);
-            if (ind != sock_perm_str.length()) {
-                throw std::logic_error("");
-            }
-        }
-        catch (std::logic_error &exc) {
-            throw service_description_exc(name, "socket-permissions: badly-formed or "
-                    "out-of-range numeric value", line_num);
-        }
+        settings.socket_perms = parse_perms(line_num, sock_perm_str, name, "socket-permissions");
     }
     else if (setting == "socket-uid") {
         string sock_uid_s = read_setting_value(line_num, i, end, nullptr);
@@ -1075,6 +1092,18 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         if (!settings.logfile.empty() && settings.log_type == log_type_id::NONE) {
             settings.log_type = log_type_id::LOGFILE;
         }
+    }
+    else if (setting == "logfile-permissions") {
+        string log_perm_str = read_setting_value(line_num, i, end, nullptr);
+        settings.logfile_perms = parse_perms(line_num, log_perm_str, name, "logfile-permissions");
+    }
+    else if (setting == "logfile-uid") {
+        string log_uid_s = read_setting_value(line_num, i, end, nullptr);
+        settings.logfile_uid = parse_uid_param(line_num, log_uid_s, name, "logfile-uid", &settings.logfile_uid_gid);
+    }
+    else if (setting == "logfile-gid") {
+        string log_gid_s = read_setting_value(line_num, i, end, nullptr);
+        settings.logfile_gid = parse_gid_param(line_num, log_gid_s, name, "logfile-gid");
     }
     else if (setting == "log-type") {
         string log_type_str = read_setting_value(line_num, i, end);
