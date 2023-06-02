@@ -360,6 +360,23 @@ This setting has no effect if the service is set to run on the console (via the 
 \fBstarts\-on\-console\fR, or \fBshares\-console\fR options).
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
+\fBlogfile\-permissions\fR = \fIoctal-permissions-mask\fR
+Gives the permissions for the logfile specified using \fBlogfile\fR. Normally this will be 600 (user access
+only), 640 (also readable by the group), or 644 (readable by all users).
+The default is 600.
+If the logfile already exists when the service starts, its permissions will be changed to those specified with this setting.
+.TP
+\fBlogfile\-uid\fR = {\fInumeric-user-id\fR | \fIusername\fR}
+Specifies the user (name or numeric ID) that should own the logfile.
+If \fBlogfile\-uid\fR is specified as a name without also specifying \fBlogfile-gid\fR, then
+the logfile group is the primary group of the specified user (as found in the
+system user database, normally \fI/etc/passwd\fR).
+If the logfile already exists when the service starts, its ownership will be changed according to the value of this setting.
+The default value is the user id of the \fBdinit\fR process.
+.TP
+\fBlogfile\-gid\fR = {\fInumeric-group-id\fR | \fIgroup-name\fR}
+Specifies the group of the logfile. See discussion of \fBlogfile\-uid\fR.
+.TP
 \fBoptions\fR = \fIoption\fR...
 Specifies various options for this service. See the \fBOPTIONS\fR section.
 This directive can be specified multiple times to set additional options.

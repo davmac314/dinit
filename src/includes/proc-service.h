@@ -176,7 +176,10 @@ class base_process_service : public service_record
     string env_file;          // file with environment settings for this service
 
     log_type_id log_type = log_type_id::NONE;
-    string logfile;           // log file name, empty string specifies /dev/null
+    string logfile;          // log file name, empty string specifies /dev/null
+    int logfile_perms = 0;   // logfile permissions("mode")
+    uid_t logfile_uid = -1;  // logfile owner user id
+    gid_t logfile_gid = -1;  // logfile group id
     unsigned log_buf_max = 0; // log buffer maximum size
     unsigned log_buf_size = 0; // log buffer current size
     std::vector<char, default_init_allocator<char>> log_buffer;
@@ -346,10 +349,13 @@ class base_process_service : public service_record
         stop_arg_parts = std::move(command_parts);
     }
 
-    // Set logfile (used if log mode is FILE)
-    void set_log_file(std::string &&logfile) noexcept
+    void set_logfile_details(string &&logfile, int logfile_perms, uid_t logfile_uid, gid_t logfile_gid)
+            noexcept
     {
         this->logfile = std::move(logfile);
+        this->logfile_perms = logfile_perms;
+        this->logfile_uid = logfile_uid;
+        this->logfile_gid = logfile_gid;
     }
 
     // Set log buffer maximum size (for if mode is BUFFER). Maximum allowed size is UINT_MAX / 2
