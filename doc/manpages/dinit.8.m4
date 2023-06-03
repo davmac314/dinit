@@ -129,8 +129,11 @@ They are named for the service they describe, and are found in \fI/etc/dinit.d\f
 for a system instance or \fI$HOME/.config/dinit.d\fR for a user instance.
 .LP
 Service description files are read by Dinit on an "as needed" basis.
-Once a service description has been read the configuration can be altered or reloaded via the
-\fBdinitctl\fR(8) program (with some limitations).
+Once loaded, a service description is never automatically unloaded (even if the service
+stops or fails).
+A service description can however be unloaded (if the service is stopped) or reloaded
+(with some limitations) via \fBdinitctl\fR(8) using the \fBunload\fR and \fBreload\fR subcommands
+respectively.
 .LP
 See \fBdinit-service\fR(5) for details of the format and available parameters.
 .\"
@@ -234,6 +237,12 @@ value from the original environment.
 Imports the value of the named variables from the original environment, overriding the effect of any
 value set previously as well as the effect of previous \fB!unset\fR and \fB!clear\fR commands.
 .RE
+.TP
+\fI/etc/dinit.d\fR, \fI/usr/local/lib/dinit.d\fR, \fI/lib/dinit.d\fR
+Default locations for service description files. The directories are searched in the order listed.
+.TP
+\fI$HOME/.config/dinit.d\fR
+Default location for service description files for user instances. 
 .\"
 .SH SIGNALS
 .LP

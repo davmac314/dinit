@@ -18,8 +18,9 @@ Service description files specify the various attributes of a service. A
 service description file is named after the service it represents, and is
 a plain-text file with simple key-value format.
 The description files are located in a service description directory; by default,
-the system process searches \fI/etc/dinit.d\fR, \fI/usr/local/lib/dinit.d\fR and
+the system \fBdinit\fR process searches \fI/etc/dinit.d\fR, \fI/usr/local/lib/dinit.d\fR and
 \fI/lib/dinit.d\fR, while a user process searches \fI$HOME/.config/dinit.d\fR.
+See \fBdinit\fR(8) for more details of how and when service descriptions are loaded.
 .LP
 All services have a \fItype\fR and a set of \fIdependencies\fR. These are discussed
 in the following subsections. The type, dependencies, and other attributes are
@@ -168,7 +169,7 @@ the platform, or the user could not be found in passwd database.
 .TP
 \fBenv\-file\fR = \fIfile\fR
 Specifies a file containing value assignments for environment variables, in the same
-format recognised by the \fBdinit\fR command's \fB\-\-env\-file\fR option (see \fBdinit\fR(5)).
+format recognised by the \fBdinit\fR command's \fB\-\-env\-file\fR option (see \fBdinit\fR(8)).
 The file is read when the service is loaded, therefore values from it can be used in variable
 substitutions (see \fBVARIABLE SUBSTITUTION\fR).
 Variable substitution is not performed on the \fBenv\-file\fR property value itself.
@@ -485,7 +486,7 @@ This service mounts the root filesystem read/write (or at least mounts the
 normal writable filesystems for the system).
 This prompts Dinit to attempt to create its control socket, if it has not already managed to do so,
 and similarly log boot time to the system \fBwtmp\fR(5) database (if supported) if not yet done.
-This option may be specified on multiple services, which may be useful if the wtmp database becomes
+This option may be specified on multiple services, which may be useful if the \fBwtmp\fR database becomes
 writable at a different stage than the control socket location becomes writable, for example.
 If the control socket has already been created, this option currently causes Dinit to check that
 the socket "file" still exists and re-create it if not. It is not recommended to rely on this
