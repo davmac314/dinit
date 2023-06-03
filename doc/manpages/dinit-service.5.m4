@@ -145,11 +145,13 @@ Specifies the service type; see the \fBSERVICE TYPES\fR section.
 \fBcommand\fR = \fIcommand-string\fR
 Specifies the command, including command-line arguments, for starting the process.
 Applies only to \fBprocess\fR, \fBbgprocess\fR and \fBscripted\fR services.
+The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBstop\-command\fR = \fIcommand-string\fR
 Specifies the command to stop the service (optional). Applicable to \fBprocess\fR, \fBbgprocess\fR and
 \fBscripted\fR services.  If specified for \fBprocess\fR or \fBbgprocess\fR services, the "stop
 command" will be executed in order to stop the service, instead of signalling the service process. 
+The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBworking\-dir\fR = \fIdirectory\fR
 Specifies the working directory for this service. For a scripted service, this
@@ -167,9 +169,9 @@ the platform, or the user could not be found in passwd database.
 \fBenv\-file\fR = \fIfile\fR
 Specifies a file containing value assignments for environment variables, in the same
 format recognised by the \fBdinit\fR command's \fB\-\-env\-file\fR option (see \fBdinit\fR(5)).
-The file is read when the service is loaded, therefore values from it can be used in substitutions.
-.sp
-That means this path is static and cannot itself have variable substitutions (see \fBVARIABLE SUBSTITUTION\fR).
+The file is read when the service is loaded, therefore values from it can be used in variable
+substitutions (see \fBVARIABLE SUBSTITUTION\fR).
+Variable substitution is not performed on the \fBenv\-file\fR property value itself.
 .TP
 \fBrestart\fR = {yes | true | no | false}
 Indicates whether the service should automatically restart if it stops, including due to
@@ -578,12 +580,7 @@ In each case the value of the named environment variable will be substituted.
 The name must begin with a non-punctuation, non-space, non-digit character, and ends
 before the first control character, space, or punctuation character other than `\fB_\fR'.
 To avoid substitution, a single `\fB$\fR' can be escaped with a second, as in `\fB$$\fR'.
-.sp
-Note command-line variable substitution occurs after splitting the line into separate arguments and so
-a single environment variable cannot be used to add multiple arguments to a command line.
-If a designated variable is not defined, it is replaced with an empty (zero-length) string, possibly producing a
-zero-length argument.
-.sp
+.P
 Variable substitution also supports a limited subset of shell syntax. You can use curly
 braces to enclose the variable, as in `\fB${NAME}\fR'.
 Limited parameter expansion is also supported, specifically the forms `\fB${NAME:\-word}\fR'
@@ -592,11 +589,30 @@ Limited parameter expansion is also supported, specifically the forms `\fB${NAME
 set and non\-empty), and `\fB${NAME+word}\fR' (substitute `\fBword\fR' if variable is set).
 Unlike in shell expansion, the substituted \fBword\fR does not itself undergo expansion and
 cannot contain closing brace characters or whitespace, even if quoted.
-.sp
-The priority of environment variables, from highest to lowest, is the service \fBenv\-file\fR,
-followed by variables set by the \fBset\-passwd\-vars\fR load option, followed by the global
-environment file of \fBdinit\fR, followed by the process environment of \fBdinit\fR.
-This applies to both the substitutions as well as the process environment of the service.
+.P
+Note command-line variable substitution occurs after splitting the line into separate arguments and so
+a single environment variable cannot be used to add multiple arguments to a command line.
+If a designated variable is not defined, it is replaced with an empty (zero-length) string, possibly producing a
+zero-length argument.
+.P
+Variable substitution occurs when the service is loaded.
+Therefore, it is typically not useful for dynamically changing service parameters (including
+command line) based on a variable that is inserted into \fBdinit\fR's environment once it is
+running (for example via \fBdinitctl setenv\fR). 
+.P
+The effective environment for variable substitution in setting values matches the environment supplied to the process
+for a service when it is launched. The priority of environment variables, from highest to lowest, for both is:
+.IP \(bu
+variables from the service \fBenv\-file\fR
+.IP \(bu
+variables set by the \fBexport\-passwd\-vars\fR and \fBexport\-service\-name\fR load options
+.IP \(bu
+the process environment of \fBdinit\fR (which is established on launch by the process environment of the
+parent, amended by loading the environment file (if any) as specified in \fBdinit\fR(8), and further
+amended via \fBdinitctl setenv\fR commands or equivalent).
+.P
+Note that since variable substitution is performed on service load, the values seen by a service process may differ from those
+used for substitution, if they have been changed in the meantime.
 .\"
 .SH EXAMPLES
 .LP
