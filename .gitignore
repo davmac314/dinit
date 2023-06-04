@@ -20,6 +20,7 @@
 /build/tools/mconfig-gen
 
 # Integration test output:
+/src/igr-tests/*/output/**
 /src/igr-tests/basic/basic-ran
 /src/igr-tests/environ/env-record
 /src/igr-tests/environ2/env-record

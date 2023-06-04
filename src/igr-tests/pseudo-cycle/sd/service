@@ -1,0 +1,4 @@
+type = process
+command = ./svc-script.sh
+restart = false
+before = boot

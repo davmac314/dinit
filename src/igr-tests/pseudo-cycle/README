@@ -1,0 +1,10 @@
+This test has three services, which have no cycle but do have a "before" relationship:
+
+boot
+   depends-on -->
+middle
+   depends-on -->
+service
+   before = boot
+
+This should not be considered a cyclic dependency. The service script should run.

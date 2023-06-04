@@ -14,7 +14,7 @@ int main(int argc, char **argv)
 {
     const char * const test_dirs[] = { "basic", "environ", "environ2", "ps-environ", "chain-to", "force-stop",
             "restart", "check-basic", "check-cycle", "check-cycle2", "check-lint", "reload1", "reload2",
-			"no-command-error", "add-rm-dep", "var-subst", "svc-start-fail", "dep-not-found" };
+			"no-command-error", "add-rm-dep", "var-subst", "svc-start-fail", "dep-not-found", "pseudo-cycle" };
     constexpr int num_tests = sizeof(test_dirs) / sizeof(test_dirs[0]);
 
     int passed = 0;
