@@ -516,21 +516,13 @@ bool control_conn_t::process_reload_service()
     }
     else {
         try {
-            // reload
-            auto *new_service = services->reload_service(service);
-            if (new_service != service) {
-                service->prepare_for_unload();
-                services->replace_service(service, new_service);
-                delete service;
-            }
-            else {
-                service->remove_listener(this);
-            }
-
             // drop handle
             key_service_map.erase(handle);
             service_key_map.erase(service);
 
+        	// reload
+            service->remove_listener(this);
+            services->reload_service(service);
             services->process_queues();
 
             // send ack

@@ -913,7 +913,7 @@ class service_set
     }
 
     // Re-load a service description from file. If the service type changes then this returns
-    // a new service instead (the old one should be removed and deleted by the caller).
+    // a new service instead (the old pointer is no longer valid).
     // Throws:
     //   service_load_exc (or subclass) on problem with service description
     //   std::bad_alloc on out-of-memory condition

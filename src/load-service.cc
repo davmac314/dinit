@@ -121,16 +121,7 @@ static void check_cycle(service_dep_list &deps, service_record *orig, const std:
     }
 }
 
-// Check for dependency cycles in "before" dependencies, _orig_ should be set to the service named in the "before ="
-// setting and _report_ should be the service being checked.
-static void check_cycle(service_dep_list &deps, service_record *orig, service_record *report)
-{
-	if (orig == report) {
-        throw service_cyclic_dependency(report->get_name());
-	}
-	check_cycle(deps, orig, report->get_name());
-}
-
+// Check for dependency cycles in "before" dependencies, _orig_ is where cycles will be identified.
 static void check_cycle(service_dep_list &deps, service_record *orig)
 {
 	check_cycle(deps, orig, orig->get_name());
@@ -340,14 +331,33 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
     bool create_new_record = true;
 
-    try {
-        if (reload_svc == nullptr) {
-            // Add a placeholder record now to prevent infinite recursion in case of cyclic dependency.
-            // We replace this with the real service later (or remove it if we find a configuration error).
-            dummy = new service_record(this, string(name), service_record::LOADING_TAG);
-            add_service(dummy);
+    auto exception_cleanup = [&]() {
+        // Must remove the dummy service record.
+        if (dummy != nullptr) {
+            records.erase(std::find(records.begin(), records.end(), dummy));
+            delete dummy;
         }
+        if (create_new_record && rval != nullptr) {
+        	rval->prepare_for_unload();
+        	delete rval;
+        }
+    };
 
+	if (reload_svc == nullptr) {
+		// Add a placeholder record now to prevent infinite recursion in case of cyclic dependency.
+		// We replace this with the real service later (or remove it if we find a configuration error).
+		try {
+			dummy = new service_record(this, string(name), service_record::LOADING_TAG);
+			add_service(dummy);
+		}
+		catch (...) {
+			delete dummy; // (no effect if dummy is null)
+			dummy = nullptr;
+			throw;
+		}
+	}
+
+	try {
         process_service_file(name, service_file,
                 [&](string &line, unsigned line_num, string &setting,
                         string_iterator &i, string_iterator &end) -> void {
@@ -493,37 +503,36 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         // Note, we need to be very careful to handle exceptions properly and roll back any changes that
         // we've made before the exception occurred.
 
-        // if we have "before" constraints, check them now, before we potentially do irreversible changes
-        // to an existing service. Only do this now if doing a reload (dummy == nullptr) since if a dummy
-        // is in place loading the "before" service might depend on this service (or a dependent that is
-        // currently also represented as a dummy) and incorrectly trigger cycle detection.
+        // if we have "before" constraints, check them now.
         std::list<service_dep> before_deps;
-        if (dummy == nullptr) {
-            for (const std::string &before_ent : settings.before_svcs) {
-                service_record *before_svc;
-                bool before_svc_is_new = false;
-                bool before_svc_added = false;
-                try {
-                    before_svc = find_service(before_ent.c_str());
-                    if (before_svc != nullptr) {
-                    	check_cycle(settings.depends, before_svc, rval);
-                    }
-                    else {
-                    	before_svc = new service_record(this, before_ent);
-                    	before_svc_is_new = true;
-                    	add_service(before_svc);
-                    	before_svc_added = true;
-                    }
-                    before_deps.emplace_back(before_svc, reload_svc, dependency_type::BEFORE);
-                    // (note, we may need to adjust the to-service if we create a new service record object)
-                }
-                catch (...) {
-                	if (before_svc_added) remove_service(before_svc);
-                	if (before_svc_is_new) delete before_svc;
-                	throw;
-                }
-            }
-        }
+		for (const std::string &before_ent : settings.before_svcs) {
+			service_record *before_svc;
+			bool before_svc_is_new = false;
+			bool before_svc_added = false;
+			try {
+				if (before_ent == name)
+					throw service_cyclic_dependency(name);
+
+				before_svc = find_service(before_ent.c_str());
+				if (before_svc != nullptr) {
+					check_cycle(settings.depends, before_svc, name);
+				}
+				else {
+					before_svc = new service_record(this, before_ent);
+					before_svc_is_new = true;
+					add_service(before_svc);
+					before_svc_added = true;
+				}
+
+				before_deps.emplace_back(before_svc, reload_svc, dependency_type::BEFORE);
+				// (note, we may need to adjust the to-service if we create a new service record object)
+			}
+			catch (...) {
+				if (before_svc_added) remove_service(before_svc);
+				if (before_svc_is_new) delete before_svc;
+				throw;
+			}
+		}
 
         if (service_type == service_type_t::PROCESS) {
             do_env_subst("command", settings.command, settings.command_offsets, srv_envmap);
@@ -663,54 +672,41 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         rval->set_chain_to(std::move(settings.chain_to_name));
         rval->set_environment(std::move(srv_env));
 
-        if (create_new_record && reload_svc != nullptr) {
+        if (create_new_record) {
             // switch dependencies on old record so that they refer to the new record
 
+        	// first link in all the (new) "before" dependents (one way at this stage):
             auto &dept_list = rval->get_dependents();
             for (auto &dept : before_deps) {
                 dept_list.push_back(&dept);
             }
 
-            // Add dependent-link for all dependencies. Add to the new service first, so we can rollback
-            // on failure:
-            int added_dep_links = 0;
-            try {
-                for (auto &dep : rval->get_dependencies()) {
-                    dep.get_to()->get_dependents().push_back(&dep);
-                    added_dep_links++;
-                }
-            }
-            catch (...) {
-                // exception caught; roll back any added dependencies and re-throw
-                for (auto &dep : rval->get_dependencies()) {
-                    if (added_dep_links-- == 0) break;
-                    dep.get_to()->get_dependents().pop_back();
-                }
-                throw;
-            }
-
             // --- Point of no return: mustn't fail from here ---
 
-            // Remove all "before" dependents from the original service
-            auto &reload_depts = reload_svc->get_dependents();
-            for (auto i = reload_depts.begin(); i != reload_depts.end(); ) {
-                auto next_i = std::next(i);
-                if ((*i)->dep_type == dependency_type::BEFORE) {
-                    (*i)->get_from()->rm_dep(**i);
-                }
-                i = next_i;
-            }
+            if (reload_svc != nullptr) {
+                // Complete dependency/dependent transfers.
 
-            // Transfer dependents from the original service record to the new record;
-            // set links in all dependents on the original to point to the new service:
-            auto first_new_before = dept_list.begin();
-            dept_list.splice(first_new_before, reload_depts);
-            for (auto &dept : dept_list) {
-                dept->set_to(rval);
-            }
+            	// Remove all "before" dependents from the original service
+				auto &reload_depts = reload_svc->get_dependents();
+				for (auto i = reload_depts.begin(); i != reload_depts.end(); ) {
+					auto next_i = std::next(i);
+					if ((*i)->dep_type == dependency_type::BEFORE) {
+						(*i)->get_from()->rm_dep(**i);
+					}
+					i = next_i;
+				}
 
-            // Remove dependent-link for all dependencies from the original:
-            reload_svc->prepare_for_unload();
+				// Transfer dependents from the original service record to the new record;
+				// set links in all dependents on the original to point to the new service:
+				auto first_new_before = dept_list.begin();
+				dept_list.splice(first_new_before, reload_depts);
+				for (auto &dept : dept_list) {
+					dept->set_to(rval);
+				}
+
+				// Remove dependent-link for all dependencies from the original:
+				reload_svc->prepare_for_unload();
+            }
 
             // Splice in the "before" dependencies
             auto i = before_deps.begin();
@@ -722,66 +718,20 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 from_deps.splice(from_deps.end(), before_deps, i);
                 i = j;
             }
-        }
 
-        if (dummy != nullptr) {
-            auto iter = std::find(records.begin(), records.end(), dummy);
-            *iter = rval;
-            delete dummy;
+            // Finally, replace the old service with the new one:
+            service_record *old_service = (reload_svc != nullptr) ? reload_svc : dummy;
 
-            // process before entries now. We must do it after "installing" the newly loaded service
-            // in the service set (which we do just above) in order to avoid triggering the cycle
-            // detection (in case the "before" service depends directly on this one) due to the dummy
-            // service.
-            auto ii = std::prev(rval->get_dependents().end());
-            auto i = settings.before_svcs.begin();
-            try {
-                for ( ; i != settings.before_svcs.end(); ++i) {
-                    const std::string &before_ent = *i;
-                    service_record *before_svc = find_service(before_ent.c_str());
-                    bool before_svc_is_new = false;
-                    bool before_svc_added = false;
-                    try {
-						if (before_svc != nullptr) {
-							check_cycle(settings.depends, before_svc, rval);
-						}
-						else {
-							before_svc = new service_record(this, before_ent);
-							before_svc_is_new = true;
-							add_service(before_svc);
-							before_svc_added = true;
-						}
-                    	before_svc->add_dep(rval, dependency_type::BEFORE);
-                    }
-                    catch (...) {
-                    	if (before_svc_added) remove_service(before_svc);
-                    	if (before_svc_is_new) delete before_svc;
-                    	throw;
-                    }
-                }
-            }
-            catch (...) {
-                // undo if unsuccessful:
-                for (auto j = std::next(ii); j != rval->get_dependents().end(); j = std::next(ii)) {
-                    (*j)->get_to()->rm_dep(**j);
-                }
-                dummy = nullptr;
-                rval->prepare_for_unload();
-                records.erase(std::find(records.begin(), records.end(), rval));
-                throw;
-            }
+            auto iter = std::find(records.begin(), records.end(), old_service);
+			*iter = rval;
+			delete old_service;
         }
 
         return rval;
     }
     catch (service_description_exc &setting_exc)
     {
-        // Must remove the dummy service record.
-        if (dummy != nullptr) {
-            records.erase(std::find(records.begin(), records.end(), dummy));
-            delete dummy;
-        }
-        if (create_new_record) delete rval;
+        exception_cleanup();
         if (setting_exc.service_name.empty()) {
             setting_exc.service_name = name;
         }
@@ -789,20 +739,12 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
     }
     catch (std::system_error &sys_err)
     {
-        if (dummy != nullptr) {
-            records.erase(std::find(records.begin(), records.end(), dummy));
-            delete dummy;
-        }
-        if (create_new_record) delete rval;
+        exception_cleanup();
         throw service_load_exc(name, sys_err.what());
     }
     catch (...) // (should only be std::bad_alloc or service_load_exc)
     {
-        if (dummy != nullptr) {
-            records.erase(std::find(records.begin(), records.end(), dummy));
-            delete dummy;
-        }
-        if (create_new_record) delete rval;
+        exception_cleanup();
         throw;
     }
 }
