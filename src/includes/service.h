@@ -280,6 +280,8 @@ class service_record
     bool in_auto_restart : 1;
     bool in_user_restart : 1;
 
+    bool is_loading : 1;        // used to detect cyclic dependencies when loading a service
+
     int required_by = 0;        // number of dependents wanting this service to be started
 
     // list of dependencies
@@ -303,7 +305,7 @@ class service_record
     int term_signal = SIGTERM;  // signal to use for process termination
     
     string socket_path; // path to the socket for socket-activation service
-    int socket_perms;   // socket permissions ("mode")
+    int socket_perms = 0;   // socket permissions ("mode")
     uid_t socket_uid = -1;  // socket user id or -1
     gid_t socket_gid = -1;  // socket group id or -1
 
@@ -444,6 +446,9 @@ class service_record
 
     public:
 
+    class loading_tag_cls { };
+    static const loading_tag_cls LOADING_TAG;
+
     service_record(service_set *set, const string &name)
         : service_name(name), service_state(service_state_t::STOPPED),
             desired_state(service_state_t::STOPPED), auto_restart(false), smooth_recovery(false),
@@ -452,11 +457,16 @@ class service_record
             waiting_for_execstat(false), start_explicit(false), prop_require(false), prop_release(false),
             prop_failure(false), prop_start(false), prop_stop(false), prop_pin_dpt(false),
             start_failed(false), start_skipped(false), in_auto_restart(false), in_user_restart(false),
-            force_stop(false)
+			is_loading(false), force_stop(false)
     {
         services = set;
-        record_type = service_type_t::DUMMY;
-        socket_perms = 0;
+        record_type = service_type_t::PLACEHOLDER;
+    }
+
+    // Construct a service record and mark it as a placeholder for a loading service
+    service_record(service_set *set, const string &name, loading_tag_cls tag)
+    	: service_record(set, name) {
+    	is_loading = true;
     }
 
     service_record(service_set *set, const string &name, service_type_t record_type_p,
@@ -597,9 +607,9 @@ class service_record
     }
 
     // Is this a dummy service (used only when loading a new service)?
-    bool is_dummy() noexcept
+    bool check_is_loading() noexcept
     {
-        return record_type == service_type_t::DUMMY;
+        return is_loading;
     }
     
     bool did_start_fail() noexcept

@@ -284,7 +284,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         // First try and find an existing record...
         service_record * rval = find_service(string(name));
         if (rval != nullptr) {
-            if (rval == avoid_circular || rval->is_dummy()) {
+            if (rval == avoid_circular || rval->check_is_loading()) {
                 throw service_cyclic_dependency(name);
             }
             return rval;
@@ -337,9 +337,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
     try {
         if (reload_svc == nullptr) {
-            // Add a dummy service record now to prevent infinite recursion in case of cyclic dependency.
+            // Add a placeholder record now to prevent infinite recursion in case of cyclic dependency.
             // We replace this with the real service later (or remove it if we find a configuration error).
-            dummy = new service_record(this, string(name));
+            dummy = new service_record(this, string(name), service_record::LOADING_TAG);
             add_service(dummy);
         }
 

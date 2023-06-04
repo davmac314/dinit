@@ -13,15 +13,15 @@ enum class service_state_t {
 
 /* Service types */
 enum class service_type_t {
-    DUMMY,      // Dummy service, used to detect cyclice dependencies
-    PROCESS,    // Service runs as a process, and can be stopped by
-                // sending the process a signal (usually SIGTERM)
-    BGPROCESS,  // Service runs as a process which "daemonizes" to run in the
-                // "background".
-    SCRIPTED,   // Service requires an external command to start,
-                // and a second command to stop
-    INTERNAL,   // Internal service, runs no external process
-    TRIGGERED   // Externally triggered service
+    PLACEHOLDER,  // Placeholder service, used for various reasons
+    PROCESS,      // Service runs as a process, and can be stopped by
+                  // sending the process a signal (usually SIGTERM)
+    BGPROCESS,    // Service runs as a process which "daemonizes" to run in the
+                  // "background".
+    SCRIPTED,     // Service requires an external command to start,
+                  // and a second command to stop
+    INTERNAL,     // Internal service, runs no external process
+    TRIGGERED     // Externally triggered service
 };
 
 /* Service events */
