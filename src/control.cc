@@ -591,8 +591,9 @@ bool control_conn_t::list_services()
     try {
         auto slist = services->list_services();
         for (auto sptr : slist) {
+        	if (sptr->get_type() == service_type_t::PLACEHOLDER) continue;
+
             std::vector<char> pkt_buf;
-            
             int hdrsize = 2 + STATUS_BUFFER_SIZE;
 
             const std::string &name = sptr->get_name();
