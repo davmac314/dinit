@@ -282,12 +282,17 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
     if (reload_svc == nullptr) {
         // First try and find an existing record...
-        service_record * rval = find_service(string(name));
-        if (rval != nullptr) {
-            if (rval == avoid_circular || rval->check_is_loading()) {
+        service_record *existing = find_service(string(name));
+        if (existing != nullptr) {
+            if (existing == avoid_circular || existing->check_is_loading()) {
                 throw service_cyclic_dependency(name);
             }
-            return rval;
+            if (existing->get_type() != service_type_t::PLACEHOLDER) {
+            	return existing;
+            }
+
+            // If we found a placeholder, we proceed as for a reload:
+            reload_svc = existing;
         }
     }
 
@@ -496,21 +501,27 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         if (dummy == nullptr) {
             for (const std::string &before_ent : settings.before_svcs) {
                 service_record *before_svc;
+                bool before_svc_is_new = false;
+                bool before_svc_added = false;
                 try {
-                    before_svc = load_service(before_ent.c_str());
+                    before_svc = find_service(before_ent.c_str());
+                    if (before_svc != nullptr) {
+                    	check_cycle(settings.depends, before_svc, rval);
+                    }
+                    else {
+                    	before_svc = new service_record(this, before_ent);
+                    	before_svc_is_new = true;
+                    	add_service(before_svc);
+                    	before_svc_added = true;
+                    }
+                    before_deps.emplace_back(before_svc, reload_svc, dependency_type::BEFORE);
+                    // (note, we may need to adjust the to-service if we create a new service record object)
                 }
-                catch (service_description_exc &sle) {
-                    log_service_load_failure(sle);
-                    throw service_load_exc(name, "could not load dependency.");
+                catch (...) {
+                	if (before_svc_added) remove_service(before_svc);
+                	if (before_svc_is_new) delete before_svc;
+                	throw;
                 }
-                catch (service_load_exc &sle) {
-                    log(loglevel_t::ERROR, "Could not load service ", sle.service_name, ": ",
-                            sle.exc_description);
-                    throw service_load_exc(name, "could not load dependency.");
-                }
-                before_deps.emplace_back(before_svc, reload_svc, dependency_type::BEFORE);
-                // (note, we may need to adjust the to-service if we create a new service record object)
-                check_cycle(settings.depends, before_svc, reload_svc);
             }
         }
 
@@ -727,9 +738,26 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             try {
                 for ( ; i != settings.before_svcs.end(); ++i) {
                     const std::string &before_ent = *i;
-                    service_record *before_svc = load_service(before_ent.c_str());
-                    check_cycle(settings.depends, before_svc, rval);
-                    before_svc->add_dep(rval, dependency_type::BEFORE);
+                    service_record *before_svc = find_service(before_ent.c_str());
+                    bool before_svc_is_new = false;
+                    bool before_svc_added = false;
+                    try {
+						if (before_svc != nullptr) {
+							check_cycle(settings.depends, before_svc, rval);
+						}
+						else {
+							before_svc = new service_record(this, before_ent);
+							before_svc_is_new = true;
+							add_service(before_svc);
+							before_svc_added = true;
+						}
+                    	before_svc->add_dep(rval, dependency_type::BEFORE);
+                    }
+                    catch (...) {
+                    	if (before_svc_added) remove_service(before_svc);
+                    	if (before_svc_is_new) delete before_svc;
+                    	throw;
+                    }
                 }
             }
             catch (...) {
