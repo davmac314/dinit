@@ -28,7 +28,7 @@ static service_record * find_service(const std::list<service_record *> & records
     list<service_record *>::const_iterator i = records.begin();
     for ( ; i != records.end(); ++i ) {
         if (strcmp((*i)->get_name().c_str(), name) == 0) {
-        	if ((*i)->get_type() == service_type_t::PLACEHOLDER) return nullptr;
+            if ((*i)->get_type() == service_type_t::PLACEHOLDER) return nullptr;
             return *i;
         }
     }

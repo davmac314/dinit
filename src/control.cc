@@ -74,7 +74,7 @@ bool control_conn_t::process_packet()
         }
         
         if (contains({shutdown_type_t::REMAIN, shutdown_type_t::HALT,
-            	shutdown_type_t::POWEROFF, shutdown_type_t::REBOOT}, rbuf[1])) {
+                shutdown_type_t::POWEROFF, shutdown_type_t::REBOOT}, rbuf[1])) {
             auto sd_type = static_cast<shutdown_type_t>(rbuf[1]);
 
             services->stop_all_services(sd_type);
@@ -117,7 +117,7 @@ bool control_conn_t::process_packet()
         return process_set_trigger();
     }
     if (pktType == DINIT_CP_CATLOG) {
-    	return process_catlog();
+        return process_catlog();
     }
 
     // Unrecognized: give error response
@@ -520,7 +520,7 @@ bool control_conn_t::process_reload_service()
             key_service_map.erase(handle);
             service_key_map.erase(service);
 
-        	// reload
+            // reload
             service->remove_listener(this);
             services->reload_service(service);
             services->process_queues();
@@ -591,7 +591,7 @@ bool control_conn_t::list_services()
     try {
         auto slist = services->list_services();
         for (auto sptr : slist) {
-        	if (sptr->get_type() == service_type_t::PLACEHOLDER) continue;
+            if (sptr->get_type() == service_type_t::PLACEHOLDER) continue;
 
             std::vector<char> pkt_buf;
             int hdrsize = 2 + STATUS_BUFFER_SIZE;
@@ -956,9 +956,9 @@ bool control_conn_t::process_set_trigger()
 
 bool control_conn_t::process_catlog()
 {
-	// 1 byte packet type
-	// 1 byte reserved for future use
-	// handle
+    // 1 byte packet type
+    // 1 byte reserved for future use
+    // handle
     constexpr int pkt_size = 2 + sizeof(handle_t);
 
     if (rbuf.get_length() < pkt_size) {
@@ -974,8 +974,8 @@ bool control_conn_t::process_catlog()
 
     service_record *service = find_service_for_key(handle);
     if (service == nullptr || (service->get_type() != service_type_t::PROCESS
-    		&& service->get_type() != service_type_t::BGPROCESS
-			&& service->get_type() != service_type_t::SCRIPTED)) {
+            && service->get_type() != service_type_t::BGPROCESS
+            && service->get_type() != service_type_t::SCRIPTED)) {
         char nak_rep[] = { DINIT_RP_NAK };
         return queue_packet(nak_rep, 1);
     }
