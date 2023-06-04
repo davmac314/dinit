@@ -28,6 +28,7 @@
 /src/igr-tests/restart/basic-ran
 /src/igr-tests/check-basic/output.txt
 /src/igr-tests/check-cycle/output.txt
+/src/igr-tests/check-cycle2/output.txt
 /src/igr-tests/check-lint/output.txt
 /src/igr-tests/reload1/sd
 /src/igr-tests/reload2/sd
