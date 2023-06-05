@@ -34,9 +34,9 @@ class base_process_service_test
         run_proc_err err;
         err.stage = exec_stage::DO_EXEC;
         err.st_errno = errcode;
-    	bsp->waiting_for_execstat = false;
-    	bsp->pid = -1;
-    	bsp->exec_failed(err);
+        bsp->waiting_for_execstat = false;
+        bsp->pid = -1;
+        bsp->exec_failed(err);
     }
 
     static void handle_exit(base_process_service *bsp, int exit_status)

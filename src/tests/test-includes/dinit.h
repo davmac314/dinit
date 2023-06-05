@@ -134,44 +134,44 @@ class eventloop_t
 
     class bidi_fd_watcher
     {
-    	int watched_fd = -1;
+        int watched_fd = -1;
 
-    	public:
-    	void set_watches(eventloop_t &eloop, int newFlags) noexcept
-    	{
+        public:
+        void set_watches(eventloop_t &eloop, int newFlags) noexcept
+        {
 
-    	}
+        }
 
-    	void add_watch(eventloop_t &eloop, int fd, int flags, int inprio = dasynq::DEFAULT_PRIORITY,
-    			int outprio = dasynq::DEFAULT_PRIORITY)
-    	{
-    		if (eloop.regd_bidi_watchers.find(fd) != eloop.regd_bidi_watchers.end()) {
-    			throw std::string("must not add_watch when already active");
-    		}
-    		eloop.regd_bidi_watchers[fd] = this;
-    		watched_fd = fd;
-    	}
+        void add_watch(eventloop_t &eloop, int fd, int flags, int inprio = dasynq::DEFAULT_PRIORITY,
+                int outprio = dasynq::DEFAULT_PRIORITY)
+        {
+            if (eloop.regd_bidi_watchers.find(fd) != eloop.regd_bidi_watchers.end()) {
+                throw std::string("must not add_watch when already active");
+            }
+            eloop.regd_bidi_watchers[fd] = this;
+            watched_fd = fd;
+        }
 
-    	int get_watched_fd() noexcept
-    	{
-    		return watched_fd;
-    	}
+        int get_watched_fd() noexcept
+        {
+            return watched_fd;
+        }
 
-    	void deregister(eventloop_t &eloop) noexcept
-    	{
-    		eloop.regd_bidi_watchers.erase(watched_fd);
-    		watched_fd = -1;
-    	}
+        void deregister(eventloop_t &eloop) noexcept
+        {
+            eloop.regd_bidi_watchers.erase(watched_fd);
+            watched_fd = -1;
+        }
 
-    	// In the real implementation these are not virtual, but it is easier for testing if they are:
-    	virtual rearm read_ready(eventloop_t &loop, int fd) noexcept = 0;
-    	virtual rearm write_ready(eventloop_t &loop, int fd) noexcept = 0;
+        // In the real implementation these are not virtual, but it is easier for testing if they are:
+        virtual rearm read_ready(eventloop_t &loop, int fd) noexcept = 0;
+        virtual rearm write_ready(eventloop_t &loop, int fd) noexcept = 0;
     };
 
     template <typename Derived> class bidi_fd_watcher_impl : public bidi_fd_watcher
-	{
+    {
 
-	};
+    };
 
     class timer
     {
@@ -219,8 +219,8 @@ class eventloop_t
     };
 
     std::unordered_set<timer *> active_timers;
-	std::map<int, bidi_fd_watcher *> regd_bidi_watchers;
-	std::map<int, fd_watcher *> regd_fd_watchers;
+    std::map<int, bidi_fd_watcher *> regd_bidi_watchers;
+    std::map<int, fd_watcher *> regd_fd_watchers;
 };
 
 inline void rootfs_is_rw() noexcept

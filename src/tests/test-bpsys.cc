@@ -17,13 +17,13 @@ std::vector<bool> usedfds = {true, true, true};
 
 struct read_result
 {
-	read_result(int errcode_p) : errcode(errcode_p) {}
+    read_result(int errcode_p) : errcode(errcode_p) {}
 
-	read_result(std::vector<char> &data_p) : errcode(0), data(data_p) {}
-	read_result(std::vector<char> &&data_p) : errcode(0), data(std::move(data_p)) {}
+    read_result(std::vector<char> &data_p) : errcode(0), data(data_p) {}
+    read_result(std::vector<char> &&data_p) : errcode(0), data(std::move(data_p)) {}
 
-	int errcode; // errno return
-	std::vector<char> data;  // data (if errcode == 0)
+    int errcode; // errno return
+    std::vector<char> data;  // data (if errcode == 0)
 };
 
 class read_cond : public std::vector<read_result>
@@ -90,12 +90,12 @@ int allocfd(write_handler *whndlr)
 // Supply data to be returned by read()
 void supply_read_data(int fd, std::vector<char> &data)
 {
-	read_data[fd].emplace_back(data);
+    read_data[fd].emplace_back(data);
 }
 
 void supply_read_data(int fd, std::vector<char> &&data)
 {
-	read_data[fd].emplace_back(std::move(data));
+    read_data[fd].emplace_back(std::move(data));
 }
 
 void set_blocking(int fd)
@@ -109,7 +109,7 @@ void extract_written_data(int fd, std::vector<char> &data)
     auto &whandler = write_hndlr_map[fd];
     if (whandler == nullptr) abort();
     default_write_handler *dwhndlr = static_cast<default_write_handler *>(whandler.get());
-	data = std::move(dwhndlr->data);
+    data = std::move(dwhndlr->data);
 }
 
 // Supply a file content
@@ -163,38 +163,38 @@ int kill(pid_t pid, int sig)
 
 ssize_t read(int fd, void *buf, size_t count)
 {
-	read_cond & rrs = read_data[fd];
-	if (rrs.empty()) {
-	    if (rrs.is_blocking) {
-	        errno = EAGAIN;
-	        return -1;
-	    }
-		return 0;
-	}
+    read_cond & rrs = read_data[fd];
+    if (rrs.empty()) {
+        if (rrs.is_blocking) {
+            errno = EAGAIN;
+            return -1;
+        }
+        return 0;
+    }
 
-	read_result &rr = rrs.front();
-	if (rr.errcode != 0) {
-		errno = rr.errcode;
-		// Remove the result record:
-		auto i = rrs.begin();
-		i++;
-		rrs.erase(rrs.begin(), i);
-		return -1;
-	}
+    read_result &rr = rrs.front();
+    if (rr.errcode != 0) {
+        errno = rr.errcode;
+        // Remove the result record:
+        auto i = rrs.begin();
+        i++;
+        rrs.erase(rrs.begin(), i);
+        return -1;
+    }
 
-	auto dsize = rr.data.size();
-	if (dsize <= count) {
-		// Consume entire result:
-		std::copy_n(rr.data.begin(), dsize, (char *)buf);
-		// Remove the result record:
-		rrs.erase(rrs.begin());
-		return dsize;
-	}
+    auto dsize = rr.data.size();
+    if (dsize <= count) {
+        // Consume entire result:
+        std::copy_n(rr.data.begin(), dsize, (char *)buf);
+        // Remove the result record:
+        rrs.erase(rrs.begin());
+        return dsize;
+    }
 
-	// Consume partial result:
-	std::copy_n(rr.data.begin(), count, (char *)buf);
-	rr.data.erase(rr.data.begin(), rr.data.begin() + count);
-	return count;
+    // Consume partial result:
+    std::copy_n(rr.data.begin(), count, (char *)buf);
+    rr.data.erase(rr.data.begin(), rr.data.begin() + count);
+    return count;
 }
 
 ssize_t write(int fd, const void *buf, size_t count)

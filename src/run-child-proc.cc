@@ -208,10 +208,10 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         if (notify_fd == 0 || move_fd(open("/dev/null", O_RDONLY), 0) == 0) {
             // stdin = 0. That's what we should have; proceed with opening stdout and stderr. We have to
             // take care not to clobber the notify_fd.
-        	if (output_fd == -1) {
-        		output_fd = open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
-        		if (output_fd == -1) goto failure_out;
-        	}
+            if (output_fd == -1) {
+                output_fd = open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
+                if (output_fd == -1) goto failure_out;
+            }
             if (notify_fd != 1) {
                 if (move_fd(output_fd, 1) != 0) {
                     goto failure_out;
@@ -331,12 +331,12 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
 #if USE_INITGROUPS
         // Initialize supplementary groups unless disabled; non-POSIX API
         if (gid != gid_t(-1)) {
-        	// Specific group; use that, with no supplementary groups
-        	if (setregid(gid, gid) != 0) goto failure_out;
-        	if (setgroups(0, nullptr)) goto failure_out;
+            // Specific group; use that, with no supplementary groups
+            if (setregid(gid, gid) != 0) goto failure_out;
+            if (setgroups(0, nullptr)) goto failure_out;
         }
         else {
-        	// No specific group; use groups associated with user.
+            // No specific group; use groups associated with user.
             errno = 0;
             auto *pw = getpwuid(uid);
             if (pw) {
@@ -345,15 +345,15 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             }
             else {
                 // null result with no errno indicates missing passwd entry; use ENOENT for want of a more
-            	// specific error code.
-            	if (errno == 0) errno = ENOENT;
-            	goto failure_out;
+                // specific error code.
+                if (errno == 0) errno = ENOENT;
+                goto failure_out;
             }
         }
 #else
         // No support for supplementary groups; just set the specified group.
         if (gid != gid_t(-1)) {
-        	if (setregid(gid, gid) != 0) goto failure_out;
+            if (setregid(gid, gid) != 0) goto failure_out;
         }
 #endif
         if (setreuid(uid, uid) != 0) goto failure_out;
