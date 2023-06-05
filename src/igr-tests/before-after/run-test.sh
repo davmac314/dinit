@@ -1,48 +1,38 @@
 #!/bin/sh
 
 set -eu
-
-DINIT_EXEC=${DINIT_EXEC:-../../dinit}
-DINITCTL_EXEC=${DINITCTL_EXE:-../../dinitctl}
-
-cd "$(dirname "$0")"
+. "$IGR_FUNCTIONS"
 
 # Tests around before/after link functionality.
 
-mkdir -p output
-rm -rf output/*
+rm -rf "$IGR_OUTPUT"/output/*
 
-"$DINIT_EXEC" -q -d sd1 -u -p socket  &
-
-# Give some time for startup
-sleep 0.2
+spawn_dinit
 
 # start parent; should start service2 and then service1 (due to before= in service2).
-"$DINITCTL_EXEC" --quiet -p socket start parent
+run_dinitctl $QUIET start parent || error "run_dinitctl returned $?!"
 
 # Note service1 takes longer to start, but has a "before" service2 so should still start first.
 # service3 is similarly "after" service2.
-if [ "$(cat output/script-output)" != "$(printf "one\ntwo\nthree\n")" ]; then
-    "$DINITCTL_EXEC" --quiet -p socket shutdown
-    return 1
+if ! compare_text "$IGR_OUTPUT"/output/script-output "$(printf "one\ntwo\nthree\n")"; then
+    error "$IGR_OUTPUT/output/script-output didn't contain expected result!"
 fi
 
-rm output/script-output
+rm "$IGR_OUTPUT"/output/script-output
 
 # unloading and reloading service2 should not lose the before= or after= relationship
-"$DINITCTL_EXEC" --quiet -p socket stop parent
-"$DINITCTL_EXEC" --quiet -p socket unload parent
-"$DINITCTL_EXEC" --quiet -p socket unload service2
+run_dinitctl $QUIET stop parent || error "run_dinitctl returned $?!"
+run_dinitctl $QUIET unload parent || error "run_dinitctl returned $?!"
+run_dinitctl $QUIET unload service2 || error "run_dinitctl returned $?!"
 
-"$DINITCTL_EXEC" --quiet -p socket reload service2
-"$DINITCTL_EXEC" --quiet -p socket start parent
+run_dinitctl $QUIET reload service2 || error "run_dinitctl returned $?!"
+run_dinitctl $QUIET start parent || error "run_dinitctl returned $?!"
 
-if [ "$(cat output/script-output)" != "$(printf "one\ntwo\nthree\n")" ]; then
-    "$DINITCTL_EXEC" --quiet -p socket shutdown
-    return 1
+if ! compare_text "$IGR_OUTPUT"/output/script-output "$(printf "one\ntwo\nthree\n")"; then
+    error "$IGR_OUTPUT/output/script-output didn't contain expected result!"
 fi
 
-rm output/script-output
+rm "$IGR_OUTPUT"/output/script-output
 
-"$DINITCTL_EXEC" --quiet -p socket shutdown
-# Success.
+stop_dinit
+exit 0

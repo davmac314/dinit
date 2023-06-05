@@ -82,7 +82,7 @@ int main(int argc, char **argv)
                 std::cout << "FAILED" << std::endl;
                 failed++;
             }
-            else if (WEXITSTATUS(wstatus) == 2) {
+            else if (WEXITSTATUS(wstatus) == 77) {
                 std::cout << "SKIPPED" << std::endl;
                 skipped++;
             }

@@ -1,33 +1,32 @@
 # Included from top-level meson.build
 
-## Prepare integration tests
-run_command([
-    'cp',
-    '-r',
-    './',
-    meson.current_build_dir()
-    ],
-    check : true
-)
+igr_tests_env += [
+     'IGR_FUNCTIONS=@0@/igr_functions'.format(meson.current_source_dir()),
+     'IGR_OUTPUT=@0@'.format(meson.current_build_dir()),
+     'DEBUG=yes'
+]
 
-## Outputs
 # Integration tests
-basic_test_script = files(meson.current_build_dir() + '/basic/run-test.sh')
-environ_test_script = files(meson.current_build_dir() + '/environ/run-test.sh')
-environ2_test_script = files(meson.current_build_dir() + '/environ2/run-test.sh')
-psenviron_test_script = files(meson.current_build_dir() + '/ps-environ/run-test.sh')
-chainto_test_script = files(meson.current_build_dir() + '/chain-to/run-test.sh')
-forcestop_test_script = files(meson.current_build_dir() + '/force-stop/run-test.sh')
-restart_test_script = files(meson.current_build_dir() + '/restart/run-test.sh')
-checkbasic_test_script = files(meson.current_build_dir() + '/check-basic/run-test.sh')
-checkcycle_test_script = files(meson.current_build_dir() + '/check-cycle/run-test.sh')
-checklint_test_script = files(meson.current_build_dir() + '/check-lint/run-test.sh')
-reload1_test_script = files(meson.current_build_dir() + '/reload1/run-test.sh')
-reload2_test_script = files(meson.current_build_dir() + '/reload2/run-test.sh')
-nocommanderror_test_script = files(meson.current_build_dir() + '/no-command-error/run-test.sh')
-addrmdep_test_script = files(meson.current_build_dir() + '/add-rm-dep/run-test.sh')
-varsubst_test_script = files(meson.current_build_dir() + '/var-subst/run-test.sh')
-svcstartfail_test_script = files(meson.current_build_dir() + '/svc-start-fail/run-test.sh')
+basic_test_script = files(meson.current_source_dir() + '/basic/run-test.sh')
+environ_test_script = files(meson.current_source_dir() + '/environ/run-test.sh')
+environ2_test_script = files(meson.current_source_dir() + '/environ2/run-test.sh')
+psenviron_test_script = files(meson.current_source_dir() + '/ps-environ/run-test.sh')
+chainto_test_script = files(meson.current_source_dir() + '/chain-to/run-test.sh')
+forcestop_test_script = files(meson.current_source_dir() + '/force-stop/run-test.sh')
+restart_test_script = files(meson.current_source_dir() + '/restart/run-test.sh')
+checkbasic_test_script = files(meson.current_source_dir() + '/check-basic/run-test.sh')
+checkcycle_test_script = files(meson.current_source_dir() + '/check-cycle/run-test.sh')
+checkcycle2_test_script = files(meson.current_source_dir() + '/check-cycle2/run-test.sh')
+checklint_test_script = files(meson.current_source_dir() + '/check-lint/run-test.sh')
+reload1_test_script = files(meson.current_source_dir() + '/reload1/run-test.sh')
+reload2_test_script = files(meson.current_source_dir() + '/reload2/run-test.sh')
+nocommanderror_test_script = files(meson.current_source_dir() + '/no-command-error/run-test.sh')
+addrmdep_test_script = files(meson.current_source_dir() + '/add-rm-dep/run-test.sh')
+varsubst_test_script = files(meson.current_source_dir() + '/var-subst/run-test.sh')
+svcstartfail_test_script = files(meson.current_source_dir() + '/svc-start-fail/run-test.sh')
+depnotfound_test_script = files(meson.current_source_dir() + '/dep-not-found/run-test.sh')
+pseudocycle_test_script = files(meson.current_source_dir() + '/pseudo-cycle/run-test.sh')
+beforeafter_test_script = files(meson.current_source_dir() + '/before-after/run-test.sh')
 test(
      'basic',
      basic_test_script,
@@ -38,7 +37,6 @@ test(
      'environ',
      environ_test_script,
      env : igr_tests_env,
-     is_parallel : false,
      suite : 'igr_tests'
 )
 test(
@@ -84,6 +82,12 @@ test(
      suite : 'igr_tests'
 )
 test(
+     'check-cycle2',
+     checkcycle2_test_script,
+     env : igr_tests_env,
+     suite : 'igr_tests'
+)
+test(
      'check-lint',
      checklint_test_script,
      env : igr_tests_env,
@@ -124,4 +128,22 @@ test(
      svcstartfail_test_script,
      env : igr_tests_env,
      suite : 'igr_tests'
+)
+test(
+     'dep-not-found',
+     depnotfound_test_script,
+     env : igr_tests_env,
+     suite : 'igr_tests'
+)
+test(
+     'pseudo-cycle',
+     pseudocycle_test_script,
+     env : igr_tests_env,
+     suite: 'igr_tests'
+)
+test(
+     'before-after',
+     beforeafter_test_script,
+     env : igr_tests_env,
+     suite: 'igr_tests'
 )

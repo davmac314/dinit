@@ -1,19 +1,15 @@
 #!/bin/sh
 
-cd "$(dirname "$0")"
+set -eu
+. "$IGR_FUNCTIONS"
 
-rm -f ./args-record
+rm -f "$IGR_OUTPUT"/output/args-record
 
 export TEST_VAR_ONE="var one" TEST_VAR_TWO=vartwo TEST_VAR_THREE=varthree
-"$DINIT_EXEC" -d sd -u -p socket -q \
-	checkargs
+spawn_dinit_oneshot checkargs
 
-STATUS=FAIL
-if [ -e args-record ]; then
-   if [ "$(cat args-record)" = "1:xxxvar one/yyy 2:vartwovarthree 3:varfour 4:" ]; then
-       STATUS=PASS
-   fi
+if ! compare_text "$IGR_OUTPUT"/output/args-record "1:xxxvar one/yyy 2:vartwovarthree 3:varfour 4:"; then
+    error "$IGR_OUTPUT/output/args-record didn't contain expected result!"
 fi
 
-if [ $STATUS = PASS ]; then exit 0; fi
-exit 1
+exit 0

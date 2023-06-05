@@ -1,19 +1,14 @@
 #!/bin/sh
 
-cd "$(dirname "$0")"
+set -eu
+. "$IGR_FUNCTIONS"
 
-mkdir -p output
-rm -rf output/*
+rm -rf "$IGR_OUTPUT"/output/*
 
-"$DINIT_EXEC" -d sd -u -p socket -q \
-	boot
+spawn_dinit_oneshot
 
-STATUS=FAIL
-if [ -e output/svc-script ]; then
-   if [ "$(cat output/svc-script)" = "ran" ]; then
-       STATUS=PASS
-   fi
+if ! compare_text "$IGR_OUTPUT"/output/svc-script "ran"; then
+    error "$IGR_OUTPUT/output/svc-script didn't contain expected result!"
 fi
 
-if [ $STATUS = PASS ]; then exit 0; fi
-exit 1
+exit 0

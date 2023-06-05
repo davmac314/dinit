@@ -1,38 +1,26 @@
 #!/bin/sh
 
-cd "$(dirname "$0")"
+set -eu
+. "$IGR_FUNCTIONS"
 
-"$DINIT_EXEC" -d sd -u -p socket -q &
-DINITPID=$!
+spawn_dinit
 
-# give time for socket to open
-while [ ! -e socket ]; do
-    sleep 0.1
-done
-
-DINITCTLOUT="$("$DINITCTL_EXEC" -p socket list)"
-if [ "$DINITCTLOUT" != "$(cat expected-1)" ]; then
-    echo "$DINITCTLOUT" > actual-1
-    kill $DINITPID; wait $DINITPID
-    exit 1
+if ! compare_cmd "run_dinitctl list" "expected-1"; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/actual-1
+    error "'run_dinitctl list' didn't contain expected result!" "Check $IGR_OUTPUT/output/actual-1"
 fi
 
-DINITCTLOUT="$("$DINITCTL_EXEC" -p socket stop critical 2>&1)"
-if [ "$DINITCTLOUT" != "$(cat expected-2.err)" ]; then
-    echo "$DINITCTLOUT" > actual-2.err
-    kill $DINITPID; wait $DINITPID
-    exit 1
+if ! compare_cmd "run_dinitctl stop critical" "expected-2.err" err; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/actual-2.err
+    error "'run_dinitctl stop critical 2>&1' didn't contain expected result!" "Check $IGR_OUTPUT/output/actual-2.err"
 fi
 
-DINITCTLOUT="$("$DINITCTL_EXEC" -p socket stop --force critical 2>&1)"
-if [ "$DINITCTLOUT" != "$(cat expected-3)" ]; then
-    echo "$DINITCTLOUT" > actual-3
-    kill $DINITPID; wait $DINITPID
-    exit 1;
+if ! compare_cmd "run_dinitctl stop --force critical" "expected-3" err; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/actual-3
+    error "'run_dinitctl stop --force critical 2>&1' didn't contain expected result!" "Check $IGR_OUTPUT/output/actual-3"
 fi
 
 # Note dinit should shutdown since all services stopped.
-wait $DINITPID
+wait "$DINITPID"
 
-# Passed:
 exit 0

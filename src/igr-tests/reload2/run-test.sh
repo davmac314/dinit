@@ -1,6 +1,7 @@
 #!/bin/sh
 
-cd "$(dirname "$0")"
+set -eu
+. "$IGR_FUNCTIONS"
 
 # Similar to reload1 test, but with boot service stopped while we reload.
 
@@ -8,49 +9,33 @@ cd "$(dirname "$0")"
 rm -rf sd
 cp -R sd1 sd
 
-"$DINIT_EXEC" -d sd -u -p socket -q &
-DINITPID=$!
+spawn_dinit
 
-# Give some time for startup
-sleep 0.2
+run_dinitctl $QUIET start hold
 
-"$DINITCTL_EXEC" --quiet -p socket start hold
-
-STATUS=PASS
-
-DINITCTLOUT="$("$DINITCTL_EXEC" -p socket list)"
-if [ "$DINITCTLOUT" != "$(cat initial.expected)" ]; then
-    echo "$DINITCTLOUT" > initial.actual
-    STATUS=FAIL
+if ! compare_cmd "run_dinitctl list" "initial.expected"; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/initial.actual
+    error "'run_dinitctl list' didn't contain expected result!" "Check $IGR_OUTPUT/output/inital.actual"
 fi
 
-"$DINITCTL_EXEC" --quiet -p socket stop boot
+run_dinitctl $QUIET stop boot
 
 # Put alternate descriptions in place: boot depends on b, c
-if [ "$STATUS" = PASS ]; then
-    rm -rf sd
-    cp -R sd2 sd
+rm -rf sd
+cp -R sd2 sd
 
-    # This should succeed since boot is stopped
-    DINITCTLOUT="$("$DINITCTL_EXEC" -p socket reload boot 2>&1)"
-    if [ "$DINITCTLOUT" != "$(cat output2.expected)" ]; then
-        echo "$DINITCTLOUT" > output2.actual
-        STATUS=FAIL
-    fi
-
+# This should succeed since boot is stopped
+if ! compare_cmd "run_dinitctl reload boot" "output2.expected" err; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/output2.actual
+    error "'run_dinitctl reload boot 2>&1' didn't contain expected result" "Check $IGR_OUTPUT/output/output2.actual"
 fi
 
-if [ "$STATUS" = PASS ]; then
-    "$DINITCTL_EXEC" --quiet -p socket start boot
-    DINITCTLOUT="$("$DINITCTL_EXEC" -p socket list)"
-    if [ "$DINITCTLOUT" != "$(cat output3.expected)" ]; then
-        echo "$DINITCTLOUT" > output3.actual
-        STATUS=FAIL
-    fi
+run_dinitctl $QUIET start boot
+if ! compare_cmd "run_dinitctl list" "output3.expected"; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/output3.actual
+    error "'run_dinitctl list' didn't contain expected result" "Check $IGR_OUTPUT/output/output3.actual"
 fi
 
-"$DINITCTL_EXEC" --quiet -p socket shutdown
-wait $DINITPID
+stop_dinit
 
-if [ $STATUS = PASS ]; then exit 0; fi
-exit 1
+exit 0

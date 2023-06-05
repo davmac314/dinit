@@ -1,4 +1,4 @@
 #!/bin/sh
 # basic test; record our run
 
-echo "ran" > ./basic-ran
+echo "ran" > "$IGR_OUTPUT"/output/basic-ran
