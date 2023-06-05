@@ -1,0 +1,230 @@
+# Included from run-test.sh files.
+# shellcheck disable=SC2034,SC2148 # Disable some false warnings/errors.
+
+### This file contain basic variables for running Integration tests of
+### Dinit.
+### FIXME: INCOMPLETE!
+### FIXME: be 'set -u' compatible.
+### FIXME: tests who use compare_cmd() must call error() instead of exit().
+### FIXME: Fix 'add-rm-dep' test.
+
+# SPDX-License-Identifier: Apache-2.0
+
+## Basic functions
+# According to POSIX, echo has some unspecified behavior in some cases, for example
+# when its first argument is "-n" or backslash ("\"). We prefer to rely on
+# POSIX documented things.
+# So we replace shell built-in echo with a printf based function.
+# For more info see http://www.etalabs.net/sh_tricks.html
+echo() {
+    IFS=" " printf %s\\n "$*"
+}
+error() {
+    >&2 echo "$0: Error: $*"
+    # Built-in sub_error
+    if [ -n "$2" ]; then
+        >&2 echo " ... $2"
+    fi
+    if [ -e "$SOCKET" ]; then
+        stop_dinit # A dinit instance is running, stopping...
+    fi
+    exit 1
+}
+warning() {
+    echo
+    >&2 echo "$0: Warning: $1"
+    # Built-in sub_warning
+    if [ -n "$2" ]; then
+        >&2 echo " ... $2"
+    fi
+    echo
+}
+
+## Executable path resolvers functions
+# These functions return 0 and set suitable variable when program found.
+# And return 1 on failure.
+__find_dinit() {
+    if [ -z "${DINIT:-}" ]; then
+        if [ -x "$EXEC_PREFIX/dinit" ]; then
+            export DINIT="$EXEC_PREFIX/dinit"
+        else
+            return 1
+        fi
+    fi
+    return 0
+}
+__find_dinitctl() {
+    if [ -z "${DINITCTL:-}" ]; then
+        if [ -x "$EXEC_PREFIX/dinitctl" ]; then
+            export DINITCTL="$EXEC_PREFIX/dinitctl"
+        else
+            return 1
+        fi
+    fi
+    return 0
+}
+__find_dinitcheck() {
+    if [ -z "${DINITCHECK:-}" ]; then
+        if [ -x "$EXEC_PREFIX/dinitcheck" ]; then
+            export DINITCHECK="$EXEC_PREFIX/dinitcheck"
+        else
+            return 1
+        fi
+    fi
+    return 0
+}
+__find_dinitmonitor() {
+    if [ -z "${DINITMONITOR:-}" ]; then
+        if [ -x "$EXEC_PREFIX/dinit-monitor" ]; then
+            export DINITMONITOR="$EXEC_PREFIX/dinit-monitor"
+        else
+            return 1
+        fi
+    fi
+    return 0
+}
+
+## General defines
+#TEST_NAME="$(dirname "$0" || error "Failed to guess service name")" #Broken!
+STATUS="FAIL" # By default a test fails unless test changes it.
+## Prepare $TEMP
+if [ -n "$MAKE" ]; then
+    TEMP="$(pwd || error "Failed to guess temp files location.")"
+    export TEMP
+else
+    # Igr tests called by meson.
+    TEMP="$TEMP/$TEST_NAME"
+    export TEMP
+fi
+mkdir -p "$TEMP"/output/
+export SOCKET="$TEMP/socket"
+if [ -n "${DEBUG:-}" ]; then
+    QUIET=""
+else
+    QUIET="--quiet"
+fi
+
+## Change directory to run-test.sh location
+cd "$(dirname "$0")" || error "Can't change directory to $(pwd)"
+
+## Integreation tests helper functions
+# This function spawn a dinit daemon with temp socket.
+# It's pass its flags as dinit daemon flags.
+# RESULT: return 0 & sets "SOCKET" & "DINITPID" variables on sccuess.
+#         throw an error on failure.
+spawn_dinit() {
+    __find_dinit || error "Cannot find dinit exec path." "Check 'EXEC_PREFIX' variable value"
+    "$DINIT" "$QUIET" -u -d sd -p "$SOCKET" "$@" &
+    DINITPID=$!
+    # Wait for Dinit socket shows up.
+    TIMEOUT=0
+    while [ ! -e  "$SOCKET" ]; do
+        if [ $TIMEOUT -le 600 ]; then
+            sleep 0.1
+            TIMEOUT=$((TIMEOUT+=1))
+        else
+            error "Dinit reaches timeout but socket didn't create."
+        fi
+    done
+    return 0
+}
+
+# This function stop current Dinit instance.
+# Doesn't accept anything.
+# RESULT: return 0 if Dinit stops.
+#         throw an error on failure.
+# NOTE: Don't use error(), using error() will result a inifinite cycle.
+stop_dinit() {
+    if __find_dinitctl && $DINITCTL "$QUIET" shutdown -p "$SOCKET"; then
+        wait "$DINITPID"
+        return 0
+    else
+        warning "Cannot stopping dinit via dinitctl." "Fallback to killing DINITPID."
+        kill "$DINITPID" || echo "Cannot stop Dinit instance!" && exit 1
+        wait "$DINITPID"
+    fi
+}
+
+# This function spawn a dinit daemon but blocks until dinit exits.
+# It's pass its flags as dinit daemon flags.
+# RESULT: waits for dinit daemon and return exit code of dinit on sccuess.
+#         throw an error on failure.
+spawn_dinit_oneshot() {
+    __find_dinit || error "Cannot find dinit exec path." "Check 'EXEC_PREFIX' variable value."
+    "$DINIT" "$QUIET" -u -d sd -p "$SOCKET" "$@"
+}
+
+# This function find dinitctl and allow access to dinit daemon via dinitctl.
+# It's pass its flags as dinitctl flags.
+# RESULT: Any return code from dinitctl on sccuess.
+#         Throw an error on failure.
+dinitctl() {
+    __find_dinitctl || error "Cannot find dinitctl exec path." "Check 'EXEC_PREFIX' variable value."
+    "$DINITCTL" -p "$SOCKET" "$@"
+}
+
+# This function find dinitcheck and allow access to dinitcheck.
+# It's pass its flags as dinitcheck flags.
+# RESULT: Any return code from dinitcheck on sccuess.
+#         Throw an error on failure.
+dinitcheck() {
+    __find_dinitcheck || error "Cannot find dinitcheck exec path." "Check 'EXEC_PREFIX' variable value."
+    "$DINITCHECK" -d sd "$@"
+}
+
+# This function compare content of given file with expected result.
+# Accpets file as $1 and a text as $2.
+# RESULT: return 0 if content of file is the same with given text.
+#         return 1 if content of file is not the same with given text.
+#         throw an error on any other failure.
+compare_text() {
+    if [ ! -e "$1" ]; then
+        error "$1 file isn't exist!"
+    fi
+    if [ "$(cat "$1" || error "Can't read given file!")" = "$2" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# This function compare content of given file with expected result in another file.
+# Accpets file as $1 and another file as $2.
+# RESULT: return 0 if content of file is the same with another file.
+#         return 1 if content of file is not the same with another file.
+#         throw an error on any other failure.
+compare_file() {
+    if [ ! -e "$1" ]; then
+        error "$1 file isn't exist!"
+    fi
+    if [ ! -e "$2" ]; then
+        error "$2 file isn't exist!"
+    fi
+    if cmp -s "$1" "$2"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# This function compare command result with content of a file.
+# Accpets file as $1  and expected file as $2.
+# Also if you need to capture stderr, set something as $3 (such as "err").
+# RESULT: return 0 if command output is the same with content of file and set.
+#         return 1 and set $CMD_OUT if command output isn't the same with content of file.
+#         throw an error on any other failure.
+compare_cmd() {
+    if [ ! -e "$2" ]; then
+        error "$2 file isn't exist!"
+    fi
+    if [ -n "$3" ]; then
+        CMD_OUT="$($1 2>&1 || true)"
+    else
+        CMD_OUT="$($1 || true)"
+    fi
+    if [ "$CMD_OUT" = "$(cat "$2")" ]; then
+        return 0
+    else
+        return 1
+    fi
+}

@@ -1,23 +1,17 @@
 #!/bin/sh
 
-cd "$(dirname "$0")"
+# FIXME
+exit 2
 
-"$DINIT_EXEC" -d sd -u -p socket -q main &
-DINITPID=$!
+set -e
+. "$IGR_FUNCTIONS"
 
-# give time for socket to open
-while [ ! -e socket ]; do
-    sleep 0.1
-done
-
-STATUS=FAIL
-
-DINITCTL=""$DINITCTL_EXEC" -p socket"
+spawn_dinit
 
 while
 
     stage=1
-    out=$($DINITCTL list)
+    out=$(dinitctl list)
     if [ $? != 0 ]; then break; fi
     if [ "$out" != "$(cat expected1)" ]; then break; fi
     # both "main" and "secondary" should be running

@@ -1,51 +1,34 @@
 #!/bin/sh
 
-cd "$(dirname "$0")"
+set -e
+. "$IGR_FUNCTIONS"
 
 # Start with boot depending on a,b
 rm -rf sd
 cp -R sd1 sd
 
-"$DINIT_EXEC" -d sd -u -p socket -q &
-DINITPID=$!
+spawn_dinit
 
-# Give some time for startup
-sleep 0.2
-
-STATUS=PASS
-
-DINITCTLOUT="$("$DINITCTL_EXEC" -p socket list)"
-if [ "$DINITCTLOUT" != "$(cat initial.expected)" ]; then
-    echo "$DINITCTLOUT" > initial.actual
-    STATUS=FAIL
+if ! compare_cmd "dinitctl list" "initial.expected"; then
+    echo "$CMD_OUT" > "$TEMP"/output/initial.actual
+    error "'dinitctl list' didn't contain expected result!"
 fi
 
 # Put alternate descriptions in place: boot depends on b, c
-if [ "$STATUS" = PASS ]; then
-    rm -rf sd
-    cp -R sd2 sd
-
-    # First attempt should fail, c not started
-    DINITCTLOUT="$("$DINITCTL_EXEC" --quiet -p socket reload boot 2>&1)"
-    if [ "$DINITCTLOUT" != "$(cat output2.expected)" ]; then
-        echo "$DINITCTLOUT" > output2.actual
-        STATUS=FAIL
-    fi
-
+rm -rf sd
+cp -R sd2 sd
+# First attempt should fail, c not started
+if ! compare_cmd "dinitctl --quiet reload boot" "output2.expected" err; then
+    echo "$CMD_OUT" > "$TEMP"/output/output2.actual
+    error "'dinitctl --quiet reload boot 2>&1' didn't contain expected result"
+fi
+dinitctl "$QUIET" start c
+dinitctl "$QUIET" reload boot
+if ! compare_cmd "dinitctl --quiet list" "output3.expected"; then
+    echo "$CMD_OUT" > "$TEMP"/output/output3.actual
+    error "'dinitctl --quiet list' didn't contain expected result!"
 fi
 
-if [ "$STATUS" = PASS ]; then
-    "$DINITCTL_EXEC" --quiet -p socket start c
-    "$DINITCTL_EXEC" --quiet -p socket reload boot
-    DINITCTLOUT="$("$DINITCTL_EXEC" --quiet -p socket list)"
-    if [ "$DINITCTLOUT" != "$(cat output3.expected)" ]; then
-        echo "$DINITCTLOUT" > output3.actual
-        STATUS=FAIL
-    fi
-fi
+stop_dinit
 
-"$DINITCTL_EXEC" --quiet -p socket shutdown
-wait $DINITPID
-
-if [ $STATUS = PASS ]; then exit 0; fi
-exit 1
+exit 0

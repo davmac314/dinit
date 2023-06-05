@@ -1,8 +1,8 @@
 #!/bin/sh
 # basic test; record our run
 
-echo "ran" > ./basic-ran
+echo "ran" > "$TEMP"/output/basic-ran
 
 while true; do
-    sleep .2
+    sleep 0.2
 done

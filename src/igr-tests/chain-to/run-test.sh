@@ -1,18 +1,14 @@
 #!/bin/sh
 
-cd "$(dirname "$0")"
+set -e
+. "$IGR_FUNCTIONS"
 
-rm -f ./recorded-output
+rm -f "$TEMP"/output/recorded-output
 
-"$DINIT_EXEC" -d sd -u -p socket -q \
-	part1
+spawn_dinit_oneshot part1
 
-STATUS=FAIL
-if [ -e recorded-output ]; then
-   if [ "$(cat recorded-output)" = "$(echo part1; echo part2; echo part3; echo part4)" ]; then
-       STATUS=PASS
-   fi
+if ! compare_file "$TEMP"/output/recorded-output expected-output; then
+    error "$TEMP/output/recorded-output didn't contain expected result!"
 fi
 
-if [ $STATUS = PASS ]; then exit 0; fi
-exit 1
+exit 0

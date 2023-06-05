@@ -18,9 +18,9 @@ int main(int argc, char **argv)
             "before-after"};
     constexpr int num_tests = sizeof(test_dirs) / sizeof(test_dirs[0]);
 
-    int passed = 0;
-    int skipped = 0;
-    int failed = 0;
+    unsigned short int passed = 0;
+    unsigned short int skipped = 0;
+    unsigned short int failed = 0;
 
     bool aborted_run = false;
 

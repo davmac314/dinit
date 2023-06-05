@@ -1,14 +1,13 @@
 #!/bin/sh
 
-cd "$(dirname "$0")"
+set -e
+. "$IGR_FUNCTIONS"
 
-"$DINITCHECK_EXEC" -d sd > output.txt 2>&1
-if [ $? != 1 ]; then exit 1; fi
+dinitcheck > "$TEMP"/output/output.txt 2>&1 && exit 1
+if [ $? != 1 ]; then exit 1; fi # Note dinitcheck must return 1 exit code.
 
-STATUS=FAIL
-if cmp -s expected.txt output.txt; then
-   STATUS=PASS
+if ! compare_file expected.txt "$TEMP"/output/output.txt; then
+   error "$TEMP/output/output.txt didn't contain expected result!"
 fi
 
-if [ $STATUS = PASS ]; then exit 0; fi
-exit 1
+exit 0

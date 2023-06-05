@@ -1,48 +1,31 @@
 #!/bin/sh
 
-cd "$(dirname "$0")"
+set -e
+. "$IGR_FUNCTIONS"
 
-rm -f ./basic-ran
+rm -f "$TEMP"/output/basic-ran
 
-"$DINIT_EXEC" -d sd -u -p socket -q \
-	parent &
-DINITPID=$!
-
-# give time for socket to open
-while [ ! -e socket ]; do
-    sleep 0.1
-done
+spawn_dinit
 
 # wait until parent (and therefore 'basic') has fully started
-"$DINITCTL_EXEC" --quiet -p socket start parent
+dinitctl --quiet start boot
 
 sleep 0.1 # time for file to be written
 
-STATUS=FAIL
-if [ -e basic-ran ]; then
-   if [ "$(cat basic-ran)" = "ran" ]; then
-       STATUS=PASS
-   fi
+if ! compare_text "$TEMP"/output/basic-ran "ran"; then
+    stop_dinit
+    error "$TEMP/output/basic-ran didn't contain expected result!"
 fi
 
-if [ $STATUS != PASS ]; then
-    "$DINITCTL_EXEC" --quiet -p socket shutdown
-    exit 1;
+rm "$TEMP"/output/basic-ran
+
+dinitctl --quiet restart basic
+sleep 0.1 # time for file write
+
+if ! compare_text "$TEMP"/output/basic-ran "ran"; then
+    stop_dinit
+    error "$TEMP/output/basic-ran didn't contain expected result!"
 fi
 
-rm basic-ran
-
-STATUS=FAIL
-"$DINITCTL_EXEC" --quiet -p socket restart basic
-sleep .1 # time for file write
-if [ -e basic-ran ]; then
-   if [ "$(cat basic-ran)" = "ran" ]; then
-       STATUS=PASS
-   fi
-fi
-
-"$DINITCTL_EXEC" --quiet -p socket shutdown
-wait $DINITPID
-
-if [ $STATUS = PASS ]; then exit 0; fi
-exit 1
+stop_dinit
+exit 0
