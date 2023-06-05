@@ -1,28 +1,28 @@
 #!/bin/sh
 
-cd "$(dirname "$0")"
+set -eu
+. "$IGR_FUNCTIONS"
 
-export DINIT_SOCKET_PATH="$(pwd)/socket"
+rm -f "$IGR_OUTPUT"/output/env-record
 
-rm -f ./env-record
+find_dinitctl # Scripts need dinitctl.
+export OUTPUT="$IGR_OUTPUT/output/env-record"
 
-"$DINIT_EXEC" -d sd -u -p socket -q \
-        -e environment1 \
-	checkenv
+spawn_dinit_oneshot -e environment1 checkenv
+spawn_dinit_oneshot -e environment2 checkenv
+spawn_dinit_oneshot setenv1
 
-"$DINIT_EXEC" -d sd -u -p socket -q \
-        -e environment2 \
-	checkenv
-
-"$DINIT_EXEC" -d sd -u -p socket -q \
-	setenv1
-
-STATUS=FAIL
-if [ -e env-record ]; then
-   if [ "$(cat env-record)" = "$(echo $DINIT_SOCKET_PATH; echo checkenv; echo gotenv1; echo hello; echo gotenv2; echo goodbye; echo 3; echo 2; echo 1)" ]; then
-       STATUS=PASS
-   fi
+if ! compare_text "$OUTPUT" "$(echo "$SOCKET";\
+                             echo checkenv;\
+                             echo gotenv1;\
+                             echo hello;\
+                             echo gotenv2;\
+                             echo goodbye;\
+                             echo 3;\
+                             echo 2;\
+                             echo 1)"
+then
+    error "$OUTPUT didn't contain expected result!"
 fi
 
-if [ $STATUS = PASS ]; then exit 0; fi
-exit 1
+exit 0

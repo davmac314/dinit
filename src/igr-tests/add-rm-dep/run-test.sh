@@ -1,69 +1,55 @@
 #!/bin/sh
 
-cd "$(dirname "$0")"
+set -eu
+. "$IGR_FUNCTIONS"
 
-"$DINIT_EXEC" -d sd -u -p socket -q main &
-DINITPID=$!
+spawn_dinit main
 
-# give time for socket to open
-while [ ! -e socket ]; do
-    sleep 0.1
-done
+STAGE=1
+if ! compare_cmd "run_dinitctl list" "expected1"; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/actual
+    error "'run_dinitctl list' didn't contain expected result!" "Check $IGR_OUTPUT/output/actual"
+fi
+# both "main" and "secondary" should be running
 
-STATUS=FAIL
+STAGE=2
+if ! compare_cmd "run_dinitctl rm-dep waits-for main secondary" "expected2"; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/actual
+    error "'run_dinitctl rm-dep waits-for main secondary' didn't contain expected result!" "Check $IGR_OUTPUT/output/actual"
+fi
+# "secondary" should stop
 
-DINITCTL=""$DINITCTL_EXEC" -p socket"
+STAGE=3
+if ! compare_cmd "run_dinitctl list" "expected3"; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/actual
+    error "'run_dinitctl list' didn't contain expected result!" "Check $IGR_OUTPUT/output/actual"
+fi
 
-while
+STAGE=4
+if ! compare_cmd "run_dinitctl add-dep waits-for main secondary" "expected4"; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/actual
+    error "'run_dinitctl add-dep waits-for main secondary' didn't contain expected result!" "Check $IGR_OUTPUT/output/actual"
+fi
+# "secondary" will not automatically start, this is a waits-for dep
 
-    stage=1
-    out=$($DINITCTL list)
-    if [ $? != 0 ]; then break; fi
-    if [ "$out" != "$(cat expected1)" ]; then break; fi
-    # both "main" and "secondary" should be running
+STAGE=5
+if ! compare_cmd "run_dinitctl list" "expected3"; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/actual
+    error "'run_dinitctl list' didn't contain expected result!" "Check $IGR_OUTPUT/output/actual"
+fi
 
-    stage=2
-    out=$($DINITCTL rm-dep waits-for main secondary)
-    if [ $? != 0 ]; then break; fi
-    if [ "$out" != "$(cat expected2)" ]; then break; fi
-    # "secondary" should stop
+STAGE=6
+if ! compare_cmd "run_dinitctl wake secondary" "expected5"; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/actual
+    error "'run_dinitctl wake secondary' didn't contain expected result!" "Check $IGR_OUTPUT/output/actual"
+fi
+# if we wake "secondary" it should start and remain started
 
-    stage=3
-    out=$($DINITCTL list)
-    if [ $? != 0 ]; then break; fi
-    if [ "$out" != "$(cat expected3)" ]; then break; fi
+STAGE=7
+if ! compare_cmd "run_dinitctl list" "expected1"; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/actual
+    error "'run_dinitctl list' didn't contain expected result!" "Check $IGR_OUTPUT/output/actual"
+fi
 
-    stage=4
-    out=$($DINITCTL add-dep waits-for main secondary)
-    if [ $? != 0 ]; then break; fi
-    if [ "$out" != "$(cat expected4)" ]; then break; fi
-    # "secondary" will not automatically start, this is a waits-for dep
-
-    stage=5
-    out=$($DINITCTL list)
-    if [ $? != 0 ]; then break; fi
-    if [ "$out" != "$(cat expected3)" ]; then break; fi
-
-    stage=6
-    out=$($DINITCTL wake secondary)
-    if [ $? != 0 ]; then break; fi
-    if [ "$out" != "$(cat expected5)" ]; then break; fi
-    # if we wake "secondary" it should start and remain started
-
-    stage=7
-    out=$($DINITCTL list)
-    if [ $? != 0 ]; then break; fi
-    if [ "$out" != "$(cat expected1)" ]; then break; fi
-
-    STATUS=PASS
-    false
-
-do :; done
-
-kill $DINITPID
-wait $DINITPID
-
-if [ $STATUS = PASS ]; then exit 0; fi
-echo "failed at stage $stage, with output:" > actual
-echo "$out" >> actual
-exit 1
+stop_dinit
+exit 0

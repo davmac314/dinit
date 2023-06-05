@@ -1,3 +1,3 @@
 #!/bin/sh
 
-echo "$TEST_VAR_ONE" >> ./env-record
+echo "$TEST_VAR_ONE" >> "$OUTPUT"

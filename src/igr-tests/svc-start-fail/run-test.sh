@@ -1,35 +1,22 @@
 #!/bin/sh
 
-cd "$(dirname "$0")"
+set -eu
+. "$IGR_FUNCTIONS"
 
-rm -f ./basic-ran
+rm -f "$IGR_OUTPUT"/output/basic-ran
 
-"$DINIT_EXEC" -d sd -u -p socket -q \
-	boot &
-DINITPID=$!
+spawn_dinit
 
-# give time for socket to open
-while [ ! -e socket ]; do
-    sleep 0.1
-done
-
-# try to start "bad-command" which will fail
-DINITCTLOUT="$("$DINITCTL_EXEC" -p socket start bad-command 2>&1)"
-if [ "$DINITCTLOUT" != "$(cat expected-1)" ]; then
-    echo "$DINITCTLOUT" > actual-1
-    kill $DINITPID; wait $DINITPID
-    exit 1
+if ! compare_cmd "run_dinitctl start bad-command" "expected-1" err; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/actual-1
+    error "'run_dinitctl start bad-command 2>&1' didn't contain expected result!" "Check $IGR_OUTPUT/output/actual-1"
 fi
 
-# try to start command which will timeout
-DINITCTLOUT="$("$DINITCTL_EXEC" -p socket start timeout-command 2>&1)"
-if [ "$DINITCTLOUT" != "$(cat expected-2)" ]; then
-    echo "$DINITCTLOUT" > actual-2
-    kill $DINITPID; wait $DINITPID
-    exit 1
+if ! compare_cmd "run_dinitctl start timeout-command" "expected-2" err; then
+    echo "$CMD_OUT" > "$IGR_OUTPUT"/output/actual-2
+    error "'run_dinitctl start timeout-command 2>&1' didn't contain expected result!" "Check $IGR_OUTPUT/output/actual-2"
 fi
 
-"$DINITCTL_EXEC" --quiet -p socket shutdown
-wait $DINITPID
+stop_dinit
 
 exit 0

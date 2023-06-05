@@ -25,12 +25,7 @@ shutdown_build = false
 
 ## src/'s defines for igr-tests/
 if igr_tests
-    igr_tests_env = [
-        'DINIT_EXEC=' + meson.current_build_dir() + '/dinit',
-        'DINITCTL_EXEC=' + meson.current_build_dir() + '/dinitctl',
-        'DINITCHECK_EXEC=' + meson.current_build_dir() + '/dinitcheck',
-        'DINITMONITOR_EXEC=' + meson.current_build_dir() + '/dinit-monitor'
-    ]
+    igr_tests_env = [ 'EXEC_PREFIX=@0@'.format(meson.current_build_dir()) ]
 endif
 
 ## Write mconfig.h
