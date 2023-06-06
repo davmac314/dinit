@@ -331,6 +331,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
     bool create_new_record = true;
 
+    // any "before" "dependencies" that were loaded
+    std::list<service_dep> before_deps;
+
     auto exception_cleanup = [&]() {
         // Must remove the dummy service record.
         if (dummy != nullptr) {
@@ -340,6 +343,15 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         if (create_new_record && rval != nullptr) {
         	rval->prepare_for_unload();
         	delete rval;
+        }
+        for (service_dep &before_dep : before_deps) {
+            service_record *before_svc = before_dep.get_from();
+            if (before_svc->get_type() == service_type_t::PLACEHOLDER) {
+                if (before_svc->is_unrefd()) {
+                    records.erase(std::find(records.begin(), records.end(), before_svc));
+                    delete before_svc;
+                }
+            }
         }
     };
 
@@ -484,11 +496,11 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
                 // Cannot change log type
                 if (value(service->get_type()).is_in(service_type_t::PROCESS, service_type_t::BGPROCESS,
-                		service_type_t::SCRIPTED)) {
-                	base_process_service *bps = static_cast<base_process_service *>(service);
-                	if (bps->get_log_mode() != settings.log_type) {
-                		throw service_load_exc(name, "cannot change log-type for running service.");
-                	}
+                        service_type_t::SCRIPTED)) {
+                    base_process_service *bps = static_cast<base_process_service *>(service);
+                    if (bps->get_log_mode() != settings.log_type) {
+                        throw service_load_exc(name, "cannot change log-type for running service.");
+                    }
                 }
 
                 // Already started; we must replace settings on existing service record
@@ -504,33 +516,30 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         // we've made before the exception occurred.
 
         // if we have "before" constraints, check them now.
-        std::list<service_dep> before_deps;
-		for (const std::string &before_ent : settings.before_svcs) {
-			service_record *before_svc;
-			bool before_svc_is_new = false;
-			bool before_svc_added = false;
-			try {
-				if (before_ent == name)
-					throw service_cyclic_dependency(name);
+        for (const std::string &before_ent : settings.before_svcs) {
+            service_record *before_svc;
+            if (before_ent == name)
+                throw service_cyclic_dependency(name);
 
-				before_svc = find_service(before_ent.c_str());
-				if (before_svc != nullptr) {
-					check_cycle(settings.depends, before_svc, name);
-				}
-				else {
-					before_svc = new service_record(this, before_ent);
-					before_svc_is_new = true;
-					add_service(before_svc);
-					before_svc_added = true;
-				}
+            before_svc = find_service(before_ent.c_str());
+            if (before_svc != nullptr) {
+                check_cycle(settings.depends, before_svc, name);
+            }
+            else {
+                bool before_svc_added = false;
+                try {
+                    before_svc = new service_record(this, before_ent);
+                    add_service(before_svc);
+                    before_svc_added = true;
+                }
+                catch (...) {
+                    if (before_svc_added) remove_service(before_svc);
+                    delete before_svc;
+                    throw;
+                }
 
-				before_deps.emplace_back(before_svc, reload_svc, dependency_type::BEFORE);
-				// (note, we may need to adjust the to-service if we create a new service record object)
-			}
-			catch (...) {
-				if (before_svc_added) remove_service(before_svc);
-				if (before_svc_is_new) delete before_svc;
-				throw;
+                before_deps.emplace_back(before_svc, reload_svc, dependency_type::BEFORE);
+                // (note, we may need to adjust the to-service if we create a new service record object)
 			}
 		}
 
@@ -683,15 +692,32 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
             // --- Point of no return: mustn't fail from here ---
 
+            // Splice in the "before" dependencies
+            auto i = before_deps.begin();
+            decltype(i) j;
+            while (i != before_deps.end()) {
+                j = std::next(i);
+                i->set_to(rval);
+                auto &from_deps = i->get_from()->get_dependencies();
+                from_deps.splice(from_deps.end(), before_deps, i);
+                i = j;
+            }
+
             if (reload_svc != nullptr) {
                 // Complete dependency/dependent transfers.
 
-            	// Remove all "before" dependents from the original service
+            	// Remove all "before" dependents from the original service (these were created by the
+                // original service itself)
 				auto &reload_depts = reload_svc->get_dependents();
 				for (auto i = reload_depts.begin(); i != reload_depts.end(); ) {
 					auto next_i = std::next(i);
 					if ((*i)->dep_type == dependency_type::BEFORE) {
-						(*i)->get_from()->rm_dep(**i);
+					    service_record *before_svc = (*i)->get_from();
+						before_svc->rm_dep(**i);
+						if (before_svc->get_type() == service_type_t::PLACEHOLDER && before_svc->is_unrefd()) {
+						    remove_service(before_svc);
+						    delete before_svc;
+						}
 					}
 					i = next_i;
 				}
@@ -706,17 +732,6 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
 				// Remove dependent-link for all dependencies from the original:
 				reload_svc->prepare_for_unload();
-            }
-
-            // Splice in the "before" dependencies
-            auto i = before_deps.begin();
-            decltype(i) j;
-            while (i != before_deps.end()) {
-                j = std::next(i);
-                i->set_to(rval);
-                auto &from_deps = i->get_from()->get_dependencies();
-                from_deps.splice(from_deps.end(), before_deps, i);
-                i = j;
             }
 
             // Finally, replace the old service with the new one:
