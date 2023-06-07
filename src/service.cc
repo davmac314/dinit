@@ -40,6 +40,36 @@ service_record * service_set::find_service(const std::string &name) noexcept
     return ::find_service(records, name.c_str());
 }
 
+void service_record::prepare_for_unload() noexcept
+{
+    // Remove all dependencies:
+    for (auto &dep : depends_on) {
+        service_record *dependency = dep.get_to();
+        auto &dep_dpts = dependency->dependents;
+        dep_dpts.erase(std::find(dep_dpts.begin(), dep_dpts.end(), &dep));
+        if (dep.dep_type == dependency_type::AFTER) {
+            if (dependency->get_type() == service_type_t::PLACEHOLDER) {
+                if (dependency->is_unrefd()) {
+                    services->remove_service(dependency);
+                    delete dependency;
+                }
+            }
+        }
+    }
+    depends_on.clear();
+
+    // Also remove all dependents. This should not be necessary except for "before" links.
+    // Note: this for loop might look odd, but it's correct!
+    for (auto i = dependents.begin(); i != dependents.end(); i = dependents.begin()) {
+        service_record *before_svc = (*i)->get_from();
+        before_svc->rm_dep(**i); // invalidates i
+        if (before_svc->get_type() == service_type_t::PLACEHOLDER && before_svc->is_unrefd()) {
+            services->remove_service(before_svc);
+            delete before_svc;
+        }
+    }
+}
+
 // Called when a service has actually stopped; dependents have stopped already, unless this stop
 // is due to an unexpected process termination.
 void service_record::stopped() noexcept

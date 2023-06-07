@@ -457,7 +457,7 @@ class service_record
             waiting_for_execstat(false), start_explicit(false), prop_require(false), prop_release(false),
             prop_failure(false), prop_start(false), prop_stop(false), prop_pin_dpt(false),
             start_failed(false), start_skipped(false), in_auto_restart(false), in_user_restart(false),
-			is_loading(false), force_stop(false)
+            is_loading(false), force_stop(false)
     {
         services = set;
         record_type = service_type_t::PLACEHOLDER;
@@ -465,8 +465,8 @@ class service_record
 
     // Construct a service record and mark it as a placeholder for a loading service
     service_record(service_set *set, const string &name, loading_tag_cls tag)
-    	: service_record(set, name) {
-    	is_loading = true;
+        : service_record(set, name) {
+        is_loading = true;
     }
 
     service_record(service_set *set, const string &name, service_type_t record_type_p,
@@ -635,7 +635,7 @@ class service_record
     }
     
     // Assuming there is one reference (from a control link), return true if this is the only reference,
-    // or false if there are others (including dependents).
+    // or false if there are others (including dependents, excluding dependents via "before" links).
     bool has_lone_ref(bool check_deps = true) noexcept
     {
         if (check_deps) {
@@ -651,22 +651,15 @@ class service_record
         return (++i == listeners.end());
     }
 
-    // Prepare this service to be unloaded.
-    void prepare_for_unload() noexcept
+    // Check whether this service has no dependents/dependencies/references that would keep it from
+    // unloading. Does not check listeners (i.e. mostly useful for placeholder services).
+    bool is_unrefd() noexcept
     {
-        // Remove all dependencies:
-        for (auto &dep : depends_on) {
-            auto &dep_dpts = dep.get_to()->dependents;
-            dep_dpts.erase(std::find(dep_dpts.begin(), dep_dpts.end(), &dep));
-        }
-        depends_on.clear();
-
-        // Also remove all dependents. This should not be necessary except for "before" links.
-        // Note: this for loop might look odd, but it's correct!
-        for (auto i = dependents.begin(); i != dependents.end(); i = dependents.begin()) {
-            (*i)->get_from()->rm_dep(**i);
-        }
+        return depends_on.empty() && dependents.empty();
     }
+
+    // Prepare this service to be unloaded.
+    void prepare_for_unload() noexcept;
 
     // Why did the service stop?
     stopped_reason_t get_stop_reason()
