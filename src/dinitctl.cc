@@ -1021,8 +1021,22 @@ static int reload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
     handle_t handle;
 
     if (rbuffer[0] == DINIT_RP_NOSERVICE) {
-        cerr << "dinitctl: service not loaded." << endl;
-        return 1;
+        rbuffer.consume(1);
+        // If the service isn't loaded yet at all, just do a basic load:
+        if (issue_load_service(socknum, service_name, false) == 1) {
+            return 1;
+        }
+
+        wait_for_reply(rbuffer, socknum);
+
+        if (check_load_reply(socknum, rbuffer, &handle, nullptr) != 0) {
+            return 1;
+        }
+
+        if (verbose) {
+            cout << "Service '" << service_name << "' reloaded." << endl;
+        }
+        return 0;
     }
 
     if (check_load_reply(socknum, rbuffer, &handle, nullptr) != 0) {
