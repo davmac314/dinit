@@ -3,4 +3,4 @@
 set -eu
 
 sleep "$2"
-echo "$1" >> output/script-output
+echo "$1" >> "$TEMP"/output/script-output

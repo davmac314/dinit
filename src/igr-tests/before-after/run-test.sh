@@ -1,46 +1,44 @@
 #!/bin/sh
 
 set -eu
-
-DINIT_EXEC=${DINIT_EXEC:-../../dinit}
-DINITCTL_EXEC=${DINITCTL_EXE:-../../dinitctl}
-
-cd "$(dirname "$0")"
+. "$IGR_FUNCTIONS"
 
 # Tests around before/after link functionality.
 
-mkdir -p output
-rm -rf output/*
+rm -rf "$TEMP"/output/*
 
-"$DINIT_EXEC" -q -d sd1 -u -p socket  &
+spawn_dinit -d sd1
 
-# Give some time for startup
-sleep 0.2
+# Custom error.
+__error() {
+    stop_dinit
+    exit 1
+}
 
 # start parent; should start service2 and then service1 (due to before= in service2).
-"$DINITCTL_EXEC" --quiet -p socket start parent
+dinitctl "$QUIET" start parent || __error
 
-if [ "$(cat output/script-output)" != "$(printf "two\none\n")" ]; then
-    "$DINITCTL_EXEC" --quiet -p socket shutdown
-    return 1
+if ! compare_text "$TEMP"/output/script-output "$(printf "two\none\n")"; then
+    stop_dinit
+    error "$TEMP/output/script-output didn't contain expected result!"
 fi
 
-rm output/script-output
+rm "$TEMP"/output/script-output
 
-# unloading and reloading service1 should not lose the before= relationship
-"$DINITCTL_EXEC" --quiet -p socket stop parent
-"$DINITCTL_EXEC" --quiet -p socket unload parent
-"$DINITCTL_EXEC" --quiet -p socket unload service1
+# unloading and reloading service1 should not lose the before= relationship.
+dinitctl "$QUIET" stop parent || __error
+dinitctl "$QUIET" unload parent || __error
+dinitctl "$QUIET" unload service1 || __error
 
-"$DINITCTL_EXEC" --quiet -p socket reload service1
-"$DINITCTL_EXEC" --quiet -p socket start parent
+dinitctl "$QUIET" reload service1 || __error
+dinitctl "$QUIET" start parent || __error
 
-if [ "$(cat output/script-output)" != "$(printf "two\none\n")" ]; then
-    "$DINITCTL_EXEC" --quiet -p socket shutdown
-    return 1
+if ! compare_text "$TEMP"/output/script-output "$(printf "two\none\n")"; then
+    stop_dinit
+    error "$TEMP/output/script-output didn't contain expected result!"
 fi
 
-rm output/script-output
+rm "$TEMP"/output/script-output
 
-"$DINITCTL_EXEC" --quiet -p socket shutdown
-# Success.
+stop_dinit
+exit 0
