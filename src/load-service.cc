@@ -506,7 +506,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 // Already started; we must replace settings on existing service record
                 create_new_record = false;
             }
-            else if (service_type != service->get_type()) {
+            else if (service_type == service->get_type()) {
                 // No need to create a new record if the type hasn't changed
                 create_new_record = false;
             }
