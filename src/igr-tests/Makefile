@@ -12,3 +12,5 @@ clean:
 	rm -f check-basic/output.txt check-lint/output.txt check-cycle/output.txt no-command-error/dinit-run.log
 	rm -rf reload1/sd
 	rm -rf reload2/sd
+	rm -rf pseudo-cycle/output/*
+	rm -rf before-after/output/*
