@@ -273,7 +273,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
     if (reload_svc == nullptr) {
         // First try and find an existing record...
-        service_record *existing = find_service(string(name));
+        service_record *existing = find_service(string(name), true);
         if (existing != nullptr) {
             if (existing == avoid_circular || existing->check_is_loading()) {
                 throw service_cyclic_dependency(name);
@@ -521,7 +521,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             if (before_ent == name)
                 throw service_cyclic_dependency(name);
 
-            before_svc = find_service(before_ent.c_str());
+            before_svc = find_service(before_ent.c_str(), true);
             if (before_svc != nullptr) {
                 check_cycle(settings.depends, before_svc, name);
             }

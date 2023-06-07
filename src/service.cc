@@ -20,7 +20,7 @@
  * See service.h for details.
  */
 
-// Find the requested service by name (will not find placeholder services).
+// Find the requested service by name.
 static service_record * find_service(const std::list<service_record *> & records,
                                     const char *name) noexcept
 {
@@ -28,16 +28,19 @@ static service_record * find_service(const std::list<service_record *> & records
     list<service_record *>::const_iterator i = records.begin();
     for ( ; i != records.end(); ++i ) {
         if (strcmp((*i)->get_name().c_str(), name) == 0) {
-            if ((*i)->get_type() == service_type_t::PLACEHOLDER) return nullptr;
             return *i;
         }
     }
     return nullptr;
 }
 
-service_record * service_set::find_service(const std::string &name) noexcept
+service_record * service_set::find_service(const std::string &name, bool find_placeholders) noexcept
 {
-    return ::find_service(records, name.c_str());
+    service_record *r = ::find_service(records, name.c_str());
+    if (r != nullptr && !find_placeholders && r->get_type() == service_type_t::PLACEHOLDER) {
+        return nullptr;
+    }
+    return r;
 }
 
 void service_record::prepare_for_unload() noexcept

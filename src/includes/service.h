@@ -889,7 +889,7 @@ class service_set
     }
 
     // Locate an existing service record.
-    service_record *find_service(const std::string &name) noexcept;
+    service_record *find_service(const std::string &name, bool find_placeholders = false) noexcept;
 
     // Load a service description, and dependencies, if there is no existing
     // record for the given name.
