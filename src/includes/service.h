@@ -196,6 +196,11 @@ class service_dep
     {
         to = new_to;
     }
+
+    void set_from(service_record *new_from) noexcept
+    {
+        from = new_from;
+    }
 };
 
 /* preliminary service dependency information */

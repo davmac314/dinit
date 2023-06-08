@@ -175,12 +175,18 @@ static void update_depenencies(service_record *service,
         throw;
     }
 
-    // Now remove all pre-existing dependencies (no exceptions possible from here).
+    // Now remove all pre-existing dependencies, except for "before" dependencies (which come from the
+    // linked service and so must be retained)
     for( ; first_preexisting != deps.end(); ) {
-        first_preexisting = service->rm_dep(first_preexisting);
+        if (first_preexisting->dep_type != dependency_type::BEFORE) {
+            first_preexisting = service->rm_dep(first_preexisting);
+        }
+        else {
+            ++first_preexisting;
+        }
     }
 
-    // Also remove pre-existing "before" dependents
+    // Also remove pre-existing "before" dependents (because they come from this service)
     for( ; first_pre_dept != depts.end(); ) {
         auto next_pre_dept = std::next(first_pre_dept);
         if ((*first_pre_dept)->dep_type == dependency_type::BEFORE) {
@@ -704,7 +710,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
             // --- Point of no return: mustn't fail from here ---
 
-            // Splice in the "before" dependencies
+            // Splice in the new "before" dependencies
             auto i = before_deps.begin();
             decltype(i) j;
             while (i != before_deps.end()) {
@@ -740,6 +746,18 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 				dept_list.splice(first_new_before, reload_depts);
 				for (auto &dept : dept_list) {
 					dept->set_to(rval);
+				}
+
+				// Transfer all "before" dependencies (which are actually created by other services) to the
+				// new service
+				auto &dep_list_prev = reload_svc->get_dependencies();
+				auto &dep_list = rval->get_dependencies();
+				for (auto i = dep_list_prev.begin(); i != dep_list_prev.end(); ++i) {
+				    if (i->dep_type == dependency_type::BEFORE) {
+				        i->set_from(rval);
+				        dep_list.splice(dep_list.end(), dep_list_prev, i++);
+				        continue;
+				    }
 				}
 
 				// Remove dependent-link for all dependencies from the original:
