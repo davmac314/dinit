@@ -686,8 +686,20 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         	// first link in all the (new) "before" dependents (one way at this stage):
             auto &dept_list = rval->get_dependents();
-            for (auto &dept : before_deps) {
-                dept_list.push_back(&dept);
+            unsigned added_dependents = 0;
+            try {
+                for (auto &dept : before_deps) {
+                    dept_list.push_back(&dept);
+                    ++added_dependents;
+                }
+            }
+            catch (...) {
+                // Undo, since the invalid state will cause issues when the new service is disposed of
+                while (added_dependents > 0) {
+                    dept_list.pop_back();
+                    --added_dependents;
+                }
+                throw;
             }
 
             // --- Point of no return: mustn't fail from here ---
