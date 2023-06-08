@@ -810,6 +810,7 @@ class service_settings_wrapper
     service_type_t service_type = service_type_t::INTERNAL;
     list<dep_type> depends;
     list<std::string> before_svcs;
+    list<std::string> after_svcs;
     log_type_id log_type = log_type_id::NONE;
     string logfile;
     unsigned max_log_buffer_sz = 4096;
@@ -1063,7 +1064,7 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
     }
     else if (setting == "after") {
         string after_name = read_setting_value(line_num, i, end);
-        settings.depends.emplace_back(load_service(after_name.c_str()), dependency_type::AFTER);
+        settings.after_svcs.emplace_back(std::move(after_name));
     }
     else if (setting == "before") {
         string before_name = read_setting_value(line_num, i, end);

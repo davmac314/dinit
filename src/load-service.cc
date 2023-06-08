@@ -154,8 +154,10 @@ static void update_depenencies(service_record *service,
         }
 
         // Insert all the new dependencies before the first pre-existing dependency
-        for (auto &new_dep : settings.depends) {
+        for (auto i = settings.depends.begin(); i != settings.depends.end(); ) {
+            auto &new_dep = *i;
             service->add_dep(new_dep.to, new_dep.dep_type, first_preexisting);
+            i = settings.depends.erase(i);
         }
     }
     catch (...) {
@@ -343,7 +345,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
     auto exception_cleanup = [&]() {
         // Must remove the dummy service record.
         if (dummy != nullptr) {
-            records.erase(std::find(records.begin(), records.end(), dummy));
+            remove_service(dummy);
             delete dummy;
         }
         if (create_new_record && rval != nullptr) {
@@ -354,9 +356,17 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             service_record *before_svc = before_dep.get_from();
             if (before_svc->get_type() == service_type_t::PLACEHOLDER) {
                 if (before_svc->is_unrefd()) {
-                    records.erase(std::find(records.begin(), records.end(), before_svc));
+                    remove_service(before_svc);
                     delete before_svc;
                 }
+            }
+        }
+        // Remove any "after" placeholders that were created while loading but not successfully added as
+        // dependencies on the new service (rval). (This requires that settings.depends has been cleared
+        // of any dependencies that were successfully added).
+        for (prelim_dep &dep : settings.depends) {
+            if (dep.dep_type == dependency_type::AFTER && dep.to->is_unrefd()) {
+                remove_service(dep.to);
             }
         }
     };
@@ -521,6 +531,44 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         // Note, we need to be very careful to handle exceptions properly and roll back any changes that
         // we've made before the exception occurred.
 
+        // If we have "after" constraints, load them now and treat them as regular dependencies. We need
+        // to do this now, after the other dependents are loaded, because we might create a placeholder
+        // instead (and we don't want to create a placeholder, have it added to the list of dependencies,
+        // then load the same service as a real dependency shortly afterwards, which would replace the
+        // placeholder but leave a dangling pointer to it in the list).
+        for (const std::string &after_ent : settings.after_svcs) {
+            service_record *after_svc;
+            if (after_ent == name) throw service_cyclic_dependency(name);
+
+            after_svc = find_service(after_ent.c_str(), true);
+            if (after_svc != nullptr) {
+                if (after_svc->check_is_loading()) {
+                    throw service_cyclic_dependency(name);
+                }
+            }
+            if (after_svc == nullptr) {
+                after_svc = new service_record(this, after_ent);
+                try {
+                    add_service(after_svc);
+                }
+                catch (...) {
+                    delete after_svc;
+                    throw;
+                }
+            }
+
+            try {
+                settings.depends.emplace_back(after_svc, dependency_type::AFTER);
+            }
+            catch (...) {
+                if (after_svc->is_unrefd()) {
+                    remove_service(after_svc);
+                    delete after_svc;
+                    throw;
+                }
+            }
+        }
+
         // if we have "before" constraints, check them now.
         for (const std::string &before_ent : settings.before_svcs) {
             service_record *before_svc;
@@ -557,6 +605,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             if (create_new_record) {
                 rvalps = new process_service(this, string(name), std::move(settings.command),
                         settings.command_offsets, settings.depends);
+                settings.depends.clear();
                 if (reload_svc != nullptr) {
                     check_cycle(settings.depends, reload_svc);
                 }
@@ -598,6 +647,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             if (create_new_record) {
                 rvalps = new bgproc_service(this, string(name), std::move(settings.command),
                         settings.command_offsets, settings.depends);
+                settings.depends.clear();
                 if (reload_svc != nullptr) {
                     check_cycle(settings.depends, reload_svc);
                 }
@@ -635,6 +685,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             if (create_new_record) {
                 rvalps = new scripted_service(this, string(name), std::move(settings.command),
                         settings.command_offsets, settings.depends);
+                settings.depends.clear();
                 if (reload_svc != nullptr) {
                     check_cycle(settings.depends, reload_svc);
                 }
@@ -669,6 +720,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                     /* TRIGGERED */
                     rval = new triggered_service(this, string(name), service_type, settings.depends);
                 }
+                settings.depends.clear();
                 if (reload_svc != nullptr) {
                     check_cycle(settings.depends, reload_svc);
                 }
