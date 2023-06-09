@@ -224,6 +224,92 @@ static void update_command_and_dependencies(base_process_service *service,
     }
 }
 
+// Check that the provided settings are compatible / ok to be applied to the specified (already loaded)
+// service.
+// Returns: true if a new service record must be created, false otherwise
+static bool check_settings_for_reload(service_record *service,
+        dinit_load::service_settings_wrapper<prelim_dep> &settings)
+{
+    using namespace dinit_load;
+
+    const std::string &name = service->get_name();
+
+    // To begin, assume a new record is needed
+    bool create_new_record = true;
+
+    if (service->get_state() != service_state_t::STOPPED) {
+        // Can not change type of a running service.
+        if (settings.service_type != service->get_type()) {
+            throw service_load_exc(name, "cannot change type of non-stopped service.");
+        }
+        // Can not alter a starting/stopping service, at least for now.
+        if (service->get_state() != service_state_t::STARTED) {
+            throw service_load_exc(name,
+                    "cannot alter settings for service which is currently starting/stopping.");
+        }
+
+        // Check validity of dependencies (if started, regular deps must be started)
+        for (auto &new_dep : settings.depends) {
+            if (new_dep.dep_type == dependency_type::REGULAR) {
+                if (new_dep.to->get_state() != service_state_t::STARTED) {
+                    throw service_load_exc(name,
+                            std::string("cannot add non-started dependency '")
+                                + new_dep.to->get_name() + "'.");
+                }
+            }
+        }
+
+        // Cannot change certain flags
+        auto current_flags = service->get_flags();
+        if (current_flags.starts_on_console != settings.onstart_flags.starts_on_console
+                || current_flags.shares_console != settings.onstart_flags.shares_console) {
+            throw service_load_exc(name, "cannot change starts_on_console/"
+                    "shares_console flags for a running service.");
+        }
+
+        // Cannot change pid file
+        if (service->get_type() == service_type_t::BGPROCESS) {
+            auto *bgp_service = static_cast<bgproc_service *>(service);
+            if (bgp_service->get_pid_file() != settings.pid_file) {
+                throw service_load_exc(name, "cannot change pid_file for running service.");
+            }
+        }
+
+        // Cannot change inittab_id/inittab_line
+        #if USE_UTMPX
+            if (service->get_type() == service_type_t::PROCESS) {
+                auto *proc_service = static_cast<process_service *>(service);
+                auto *svc_utmp_id = proc_service->get_utmp_id();
+                auto *svc_utmp_ln = proc_service->get_utmp_line();
+                if (strncmp(svc_utmp_id, settings.inittab_id, proc_service->get_utmp_id_size()) != 0
+                        || strncmp(svc_utmp_ln, settings.inittab_line,
+                                proc_service->get_utmp_line_size()) != 0) {
+                    throw service_load_exc(name, "cannot change inittab-id or inittab-line "
+                            "settings for running service.");
+                }
+            }
+        #endif
+
+        // Cannot change log type
+        if (value(service->get_type()).is_in(service_type_t::PROCESS, service_type_t::BGPROCESS,
+                service_type_t::SCRIPTED)) {
+            base_process_service *bps = static_cast<base_process_service *>(service);
+            if (bps->get_log_mode() != settings.log_type) {
+                throw service_load_exc(name, "cannot change log-type for running service.");
+            }
+        }
+
+        // Already started; we must replace settings on existing service record
+        create_new_record = false;
+    }
+    else if (settings.service_type == service->get_type()) {
+        // No need to create a new record if the type hasn't changed
+        create_new_record = false;
+    }
+
+    return create_new_record;
+}
+
 service_record * dirload_service_set::load_reload_service(const char *name, service_record *reload_svc,
         const service_record *avoid_circular)
 {
@@ -456,76 +542,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         if (reload_svc != nullptr) {
             // Make sure settings are able to be changed/are compatible
-            service_record *service = reload_svc;
-            if (service->get_state() != service_state_t::STOPPED) {
-                // Can not change type of a running service.
-                if (service_type != service->get_type()) {
-                    throw service_load_exc(name, "cannot change type of non-stopped service.");
-                }
-                // Can not alter a starting/stopping service, at least for now.
-                if (service->get_state() != service_state_t::STARTED) {
-                    throw service_load_exc(name,
-                            "cannot alter settings for service which is currently starting/stopping.");
-                }
-
-                // Check validity of dependencies (if started, regular deps must be started)
-                for (auto &new_dep : settings.depends) {
-                    if (new_dep.dep_type == dependency_type::REGULAR) {
-                        if (new_dep.to->get_state() != service_state_t::STARTED) {
-                            throw service_load_exc(name,
-                                    std::string("cannot add non-started dependency '")
-                                        + new_dep.to->get_name() + "'.");
-                        }
-                    }
-                }
-
-                // Cannot change certain flags
-                auto current_flags = service->get_flags();
-                if (current_flags.starts_on_console != settings.onstart_flags.starts_on_console
-                        || current_flags.shares_console != settings.onstart_flags.shares_console) {
-                    throw service_load_exc(name, "cannot change starts_on_console/"
-                            "shares_console flags for a running service.");
-                }
-
-                // Cannot change pid file
-                if (service->get_type() == service_type_t::BGPROCESS) {
-                    auto *bgp_service = static_cast<bgproc_service *>(service);
-                    if (bgp_service->get_pid_file() != settings.pid_file) {
-                        throw service_load_exc(name, "cannot change pid_file for running service.");
-                    }
-                }
-
-                // Cannot change inittab_id/inittab_line
-                #if USE_UTMPX
-                    if (service->get_type() == service_type_t::PROCESS) {
-                        auto *proc_service = static_cast<process_service *>(service);
-                        auto *svc_utmp_id = proc_service->get_utmp_id();
-                        auto *svc_utmp_ln = proc_service->get_utmp_line();
-                        if (strncmp(svc_utmp_id, settings.inittab_id, proc_service->get_utmp_id_size()) != 0
-                                || strncmp(svc_utmp_ln, settings.inittab_line,
-                                        proc_service->get_utmp_line_size()) != 0) {
-                            throw service_load_exc(name, "cannot change inittab-id or inittab-line "
-                                    "settings for running service.");
-                        }
-                    }
-                #endif
-
-                // Cannot change log type
-                if (value(service->get_type()).is_in(service_type_t::PROCESS, service_type_t::BGPROCESS,
-                        service_type_t::SCRIPTED)) {
-                    base_process_service *bps = static_cast<base_process_service *>(service);
-                    if (bps->get_log_mode() != settings.log_type) {
-                        throw service_load_exc(name, "cannot change log-type for running service.");
-                    }
-                }
-
-                // Already started; we must replace settings on existing service record
-                create_new_record = false;
-            }
-            else if (service_type == service->get_type()) {
-                // No need to create a new record if the type hasn't changed
-                create_new_record = false;
-            }
+            create_new_record = check_settings_for_reload(reload_svc, settings);
         }
 
         // Note, we need to be very careful to handle exceptions properly and roll back any changes that
@@ -572,8 +589,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         // if we have "before" constraints, check them now.
         for (const std::string &before_ent : settings.before_svcs) {
             service_record *before_svc;
-            if (before_ent == name)
-                throw service_cyclic_dependency(name);
+            if (before_ent == name) throw service_cyclic_dependency(name);
 
             before_svc = find_service(before_ent.c_str(), true);
             if (before_svc != nullptr) {
@@ -593,7 +609,8 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 }
 
                 before_deps.emplace_back(before_svc, reload_svc, dependency_type::BEFORE);
-                // (note, we may need to adjust the to-service if we create a new service record object)
+                // (note, we may need to adjust the to-service if we create a new service record object
+                // - this will be done later)
 			}
 		}
 
