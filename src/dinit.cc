@@ -597,7 +597,7 @@ int dinit_main(int argc, char **argv)
             log_service_load_failure(sde);
         }
         catch (service_load_exc &sle) {
-            log(loglevel_t::ERROR, sle.service_name, ": ", sle.exc_description);
+            log(loglevel_t::ERROR, sle.service_name, ": error loading: ", sle.exc_description);
         }
         catch (std::bad_alloc &badalloce) {
             log(loglevel_t::ERROR, "Out of memory when trying to start service: ", svc, ".");

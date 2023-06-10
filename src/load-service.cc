@@ -854,7 +854,8 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
     catch (std::system_error &sys_err)
     {
         exception_cleanup();
-        throw service_load_exc(name, sys_err.what());
+        // don't use sys_err.what() since libstdc++ sometimes includes class names (basic_filebuf):
+        throw service_load_exc(name, sys_err.code().message());
     }
     catch (...) // (should only be std::bad_alloc or service_load_exc)
     {
