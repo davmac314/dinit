@@ -20,22 +20,24 @@ sleep 0.2
 # start parent; should start service2 and then service1 (due to before= in service2).
 "$DINITCTL_EXEC" --quiet -p socket start parent
 
-if [ "$(cat output/script-output)" != "$(printf "two\none\n")" ]; then
+
+# Note service1 takes longer to start, but has a "before" service2 so should still start first.
+if [ "$(cat output/script-output)" != "$(printf "one\ntwo\n")" ]; then
     "$DINITCTL_EXEC" --quiet -p socket shutdown
     return 1
 fi
 
 rm output/script-output
 
-# unloading and reloading service1 should not lose the before= relationship
+# unloading and reloading service2 should not lose the before= relationship
 "$DINITCTL_EXEC" --quiet -p socket stop parent
 "$DINITCTL_EXEC" --quiet -p socket unload parent
-"$DINITCTL_EXEC" --quiet -p socket unload service1
+"$DINITCTL_EXEC" --quiet -p socket unload service2
 
-"$DINITCTL_EXEC" --quiet -p socket reload service1
+"$DINITCTL_EXEC" --quiet -p socket reload service2
 "$DINITCTL_EXEC" --quiet -p socket start parent
 
-if [ "$(cat output/script-output)" != "$(printf "two\none\n")" ]; then
+if [ "$(cat output/script-output)" != "$(printf "one\ntwo\n")" ]; then
     "$DINITCTL_EXEC" --quiet -p socket shutdown
     return 1
 fi
