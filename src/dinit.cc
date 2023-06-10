@@ -371,6 +371,10 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
         }
     }
     else {
+        if (argv[i][0] == '\0') {
+            cerr << "dinit: error: empty command-line argument\n";
+            return 1;
+        }
 #ifdef __linux__
         // If we are running as init (PID=1), the Linux kernel gives us all command line arguments it was
         // given but didn't recognize, and, uh, *some* that it did recognize, which means we can't assume
