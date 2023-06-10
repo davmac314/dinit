@@ -459,13 +459,11 @@ bool control_conn_t::process_unload_service()
     if (!service->has_lone_ref() || service->get_state() != service_state_t::STOPPED) {
         // Cannot unload: has other references
         char nak_rep[] = { DINIT_RP_NAK };
-        if (! queue_packet(nak_rep, 1)) return false;
+        if (!queue_packet(nak_rep, 1)) return false;
     }
     else {
-        // unload
-        service->prepare_for_unload();
-        services->remove_service(service);
-        delete service;
+        // unload (this may fail with bad_alloc)
+        services->unload_service(service);
 
         // drop handle
         service_key_map.erase(service);
@@ -473,7 +471,7 @@ bool control_conn_t::process_unload_service()
 
         // send ack
         char ack_buf[] = { (char) DINIT_RP_ACK };
-        if (! queue_packet(ack_buf, 1)) return false;
+        if (!queue_packet(ack_buf, 1)) return false;
     }
 
     // Clear the packet from the buffer
@@ -509,7 +507,7 @@ bool control_conn_t::process_reload_service()
         return true;
     }
 
-    if (! service->has_lone_ref(false)) {
+    if (!service->has_lone_ref(false)) {
         // Cannot unload: has other references
         char nak_rep[] = { DINIT_RP_NAK };
         if (! queue_packet(nak_rep, 1)) return false;

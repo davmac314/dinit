@@ -640,14 +640,17 @@ class service_record
     }
     
     // Assuming there is one reference (from a control link), return true if this is the only reference,
-    // or false if there are others (including dependents, excluding dependents via "before" links).
+    // or false if there are others (including dependents, excluding dependents via "before" and "after"
+    // links).
     bool has_lone_ref(bool check_deps = true) noexcept
     {
         if (check_deps) {
             for (auto *dept : dependents) {
                 // BEFORE links don't count because they are actually specified via the "to" service i.e.
-                // this service.
-                if (dept->dep_type != dependency_type::BEFORE) {
+                // this service. AFTER links don't count because, although they come from the dependent,
+                // they do not reflect an actual dependency, just an ordering, and this service can still
+                // be unloaded if they exist (and replaced with a placeholder).
+                if (!value(dept->dep_type).is_in(dependency_type::BEFORE, dependency_type::AFTER)) {
                     return false;
                 }
             }
@@ -947,6 +950,54 @@ class service_set
     {
         auto i = std::find(records.begin(), records.end(), orig);
         *i = replacement;
+    }
+
+    // Unload a service, possibly replacing it with a placeholder service. This can fail with bad_alloc.
+    // svc is no longer valid on return.
+    void unload_service(service_record *svc)
+    {
+        // Check if there are any "after" dependents, or any "before" dependencies. We need a placeholder
+        // if so. Note that the placeholder is created before making any destructive changes, so if we fail
+        // to create it no rollback is needed.
+        service_record *placeholder = nullptr;
+        auto make_placeholder = [&]() {
+            if (placeholder == nullptr) {
+                std::unique_ptr<service_record> ph { new service_record(this, svc->get_name()) };
+                add_service(ph.get());
+                placeholder = ph.release();
+            }
+        };
+
+        auto &svc_depts = svc->get_dependents();
+        for (auto i = svc_depts.begin(); i != svc_depts.end(); ) {
+            auto *dept = *i;
+            if (dept->dep_type == dependency_type::AFTER) {
+                make_placeholder();
+                dept->set_to(placeholder);
+                auto &ph_depts = placeholder->get_dependents();
+                ph_depts.splice(ph_depts.end(), svc_depts, i++);
+                continue;
+            }
+            ++i;
+        }
+
+        auto &svc_deps = svc->get_dependencies();
+        for (auto i = svc_deps.begin(); i != svc_deps.end(); ) {
+            auto &dep = *i;
+            if (dep.dep_type == dependency_type::BEFORE) {
+                make_placeholder();
+                dep.set_from(placeholder);
+                auto &ph_deps = placeholder->get_dependencies();
+                ph_deps.splice(ph_deps.end(), svc_deps, i++);
+                continue;
+            }
+            ++i;
+        }
+
+        // Proceed with unload.
+        svc->prepare_for_unload();
+        remove_service(svc);
+        delete svc;
     }
 
     // Get the list of all loaded services.
