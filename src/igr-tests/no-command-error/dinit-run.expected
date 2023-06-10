@@ -1,1 +1,1 @@
-dinit: no-command: 'command' setting not specified.
+dinit: no-command: error loading: 'command' setting not specified.
