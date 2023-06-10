@@ -400,9 +400,6 @@ class service_record
     // Release console (console must be currently held by this service)
     void release_console() noexcept;
     
-    // Started state reached
-    bool process_started() noexcept;
-
     // Initiate definite startup
     void initiate_start() noexcept;
 
