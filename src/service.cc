@@ -242,7 +242,7 @@ void service_record::initiate_start() noexcept
     waiting_for_deps = true;
 
     if (start_check_dependencies()) {
-        waiting_for_deps = false;
+        // Note: we can't set waiting_for_deps false here since ordering dependencies might still kick in
         services->add_transition_queue(this);
     }
 }
@@ -314,6 +314,7 @@ void service_record::execute_transition() noexcept
 {
     if (service_state == service_state_t::STARTING) {
         if (check_deps_started()) {
+            waiting_for_deps = false;
             all_deps_started();
         }
     }
@@ -407,6 +408,15 @@ bool service_record::start_check_dependencies() noexcept
         if (to->service_state != service_state_t::STARTED) {
             dep.waiting_on = true;
             all_deps_started = false;
+        }
+    }
+
+    for (auto * dept : dependents) {
+        if (!dept->waiting_on && dept->is_only_ordering()) {
+            service_record *from = dept->get_from();
+            if (from->get_state() == service_state_t::STARTING) {
+                dept->waiting_on = true;
+            }
         }
     }
 
