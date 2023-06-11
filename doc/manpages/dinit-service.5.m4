@@ -274,12 +274,15 @@ When starting this service, if the named service is also starting, wait for the 
 to finish starting before bringing this service up. This is similar to a \fBwaits\-for\fR
 dependency except no dependency relationship is implied; if the named service is not starting,
 starting this service will not cause it to start (nor wait for it in that case).
+It does not by itself cause the named service to be loaded (if loaded later, the "after"
+relationship will be enforced from that point).
 .TP
 \fBbefore\fR = \fIservice-name\fR
 When starting the named service, if this service is also starting, wait for this service
 to finish starting before bringing the named service up. This is largely equivalent to specifying
-an \fBafter\fR relationship to this service in the named service (but the relationship "belongs"
-to this service and so will be removed if this service is unloaded, for example).
+an \fBafter\fR relationship to this service from the named service.
+However, it does not by itself cause the named service to be loaded (if loaded later, the "before"
+relationship will be enforced from that point).
 .TP
 \fBchain\-to\fR = \fIservice-name\fR
 When this service terminates (i.e. starts successfully, and then stops of its
