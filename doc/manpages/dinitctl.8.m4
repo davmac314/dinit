@@ -18,10 +18,10 @@ dinitctl \- control services supervised by Dinit
 [\fIoptions\fR] \fBstatus\fR \fIservice-name\fR
 .HP
 .B dinitctl
-[\fIoptions\fR] \fBis-active\fR \fIservice-name\fR
+[\fIoptions\fR] \fBis\-started\fR \fIservice-name\fR
 .HP
 .B dinitctl
-[\fIoptions\fR] \fBis-failed\fR \fIservice-name\fR
+[\fIoptions\fR] \fBis\-failed\fR \fIservice-name\fR
 .HP
 .B dinitctl
 [\fIoptions\fR] \fBrestart\fR [\fB\-\-no\-wait\fR] [\fB\-\-ignore\-unstarted\fR] \fIservice-name\fR
@@ -172,10 +172,9 @@ ID (pid) if applicable.
 If the service is stopped for any reason other than a normal stop, the reason for the service
 stopping will be displayed (along with any further relevant information, if available).
 .TP
-\fBis\-active\fR
-Check if the specified service is currently active.
-The service counts as active if it is currently known to be started.
-Any other state, including protocol and parse errors, will exit without returning success.
+\fBis\-started\fR
+Check if the specified service is currently started.
+Any other state (including if the service is currently starting or stopping) will exit without returning success.
 Unless \fB\-\-quiet\fR is specified, the current service status (STOPPED, STARTING, STARTED, STOPPING)
 will be printed to standard output.
 .TP

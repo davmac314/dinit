@@ -85,7 +85,7 @@ enum class command_t {
     SET_TRIGGER,
     UNSET_TRIGGER,
     CAT_LOG,
-    IS_ACTIVE,
+    IS_STARTED,
     IS_FAILED,
 };
 
@@ -208,8 +208,8 @@ int dinitctl_main(int argc, char **argv)
             else if (strcmp(argv[i], "status") == 0) {
                 command = command_t::SERVICE_STATUS;
             }
-            else if (strcmp(argv[i], "is-active") == 0) {
-                command = command_t::IS_ACTIVE;
+            else if (strcmp(argv[i], "is-started") == 0) {
+                command = command_t::IS_STARTED;
             }
             else if (strcmp(argv[i], "is-failed") == 0) {
                 command = command_t::IS_FAILED;
@@ -334,7 +334,7 @@ int dinitctl_main(int argc, char **argv)
           "\n"
           "Usage:\n"
           "    dinitctl [options] status <service-name>\n"
-          "    dinitctl [options] is-active <service-name>\n"
+          "    dinitctl [options] is-started <service-name>\n"
           "    dinitctl [options] is-failed <service-name>\n"
           "    dinitctl [options] start [options] <service-name>\n"
           "    dinitctl [options] stop [options] <service-name>\n"
@@ -423,7 +423,8 @@ int dinitctl_main(int argc, char **argv)
         else if (command == command_t::LIST_SERVICES) {
             return list_services(socknum, rbuffer);
         }
-        else if (command == command_t::SERVICE_STATUS || command == command_t::IS_ACTIVE || command == command_t::IS_FAILED) {
+        else if (command == command_t::SERVICE_STATUS || command == command_t::IS_STARTED
+                || command == command_t::IS_FAILED) {
             return service_status(socknum, rbuffer, service_name, command, verbose);
         }
         else if (command == command_t::SHUTDOWN) {
@@ -1252,7 +1253,7 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
         }
 
         switch (command) {
-        case command_t::IS_ACTIVE:
+        case command_t::IS_STARTED:
         case command_t::IS_FAILED:
             if (verbose) {
                 switch (current) {
@@ -1269,11 +1270,12 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
                     cout << "STOPPING" << endl;
                 }
             }
-            /* return 0 (success) for started */
-            if (command == command_t::IS_ACTIVE) {
+            if (command == command_t::IS_STARTED) {
+                // return 0 (success) for started
                 return current != service_state_t::STARTED;
             }
-            /* return 0 (success) for specific stopped reasons */
+            // IS_FAILED:
+            // return 0 (success) for specific stopped reasons
             if (current == service_state_t::STOPPED) {
                 switch (stop_reason) {
                 case stopped_reason_t::DEPFAILED:
