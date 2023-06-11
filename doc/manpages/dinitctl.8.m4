@@ -130,8 +130,8 @@ will automatically stop. If a pinned-started service fails to start, the pin is 
 .sp
 Note that a pin takes effect while the service is starting/stopping, before it reaches the target
 state. Stopping or restarting a service that is pinned started and which is already starting or
-started is not possible. Similarly, starting a service which is pinned stopped and which is stopping
-or stopped is not possible.
+started is not possible.
+Similarly, starting a service which is pinned stopped and which is stopping or stopped is not possible.
 .TP
 \fB\-\-force\fR
 Stop the service even if it will require stopping other services which depend on the specified service.
@@ -152,8 +152,9 @@ If the service is currently stopping it will generally continue to stop before i
 \fBstop\fR
 Stop the specified service, and remove explicit activation.
 If the service has (non-soft) dependents, an error will be displayed and no further action taken,
-unless the \fB\-\-force\fR option is used. If the service is pinned started (and not already stopped or
-stopping) an error will be displayed and no further action taken.
+unless the \fB\-\-force\fR option is used.
+If the service is pinned started (and not already stopped or stopping) an error will be displayed
+and no further action taken.
 .sp
 The \fBrestart\fR option (see \fBdinit-service\fR(5)) applied to the stopped service will not cause the
 service to restart when it is stopped via this command (that is, this command inhibits automatic restart).
@@ -171,18 +172,20 @@ ID (pid) if applicable.
 If the service is stopped for any reason other than a normal stop, the reason for the service
 stopping will be displayed (along with any further relevant information, if available).
 .TP
-\fBis-active\fR
+\fBis\-active\fR
 Check if the specified service is currently active.
-The service counts as active if it is known it is currently started. Any other state, including
-protocol and parse errors, will exit without returning success. Unless quiet, the current service
-status (STOPPED, STARTING, STARTED, STOPPING) is printed out to standard output.
+The service counts as active if it is currently known to be started.
+Any other state, including protocol and parse errors, will exit without returning success.
+Unless \fB\-\-quiet\fR is specified, the current service status (STOPPED, STARTING, STARTED, STOPPING)
+will be printed to standard output.
 .TP
-\fBis-failed\fR
+\fBis\-failed\fR
 Check if the specified service is currently failed.
 The service counts as failed if it is known it is currently stopped either because of startup
-failure, timeout or dependency failure. Any other state, including protocol and parse errors,
-will exit without returning success. Unless quiet, the current srevice status is printed out
-to standard output like with \fBis-active\fR.
+failure, timeout or dependency failure.
+Any other state, including protocol and parse errors, will exit without returning success.
+Unless \fB\-\-quiet\fR is specified, the current service status (STOPPED, STARTING, STARTED, STOPPING)
+will be printed to standard output.
 .TP
 \fBrestart\fR
 Restart the specified service. The service will be stopped and then restarted, without affecting explicit
@@ -287,8 +290,8 @@ This will allow the service to finish starting.
 .TP
 \fBuntrigger\fR
 Clear the trigger for the specified service (which must be a \fItriggered\fR service).
-This will delay the service from starting, until the trigger is set. If the service has already started,
-this will have no immediate effect.
+This will delay the service from starting, until the trigger is set.
+If the service has already started, this will have no immediate effect.
 .TP
 \fBsetenv\fR
 Export one or more variables into the activation environment.
