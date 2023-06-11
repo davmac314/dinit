@@ -1,3 +1,4 @@
 type = internal
 depends-on = service1
 depends-on = service2
+depends-on = service3
