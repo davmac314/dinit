@@ -62,10 +62,9 @@ void service_record::prepare_for_unload() noexcept
     depends_on.clear();
 
     // Also remove all dependents. This should not be necessary except for "before" links.
-    // Note: this for loop might look odd, but it's correct!
-    for (auto i = dependents.begin(); i != dependents.end(); i = dependents.begin()) {
+    for (auto i = dependents.begin(); i != dependents.end();) {
         service_record *before_svc = (*i)->get_from();
-        before_svc->rm_dep(**i); // invalidates i
+        before_svc->rm_dep(**i++);
         if (before_svc->get_type() == service_type_t::PLACEHOLDER && before_svc->is_unrefd()) {
             services->remove_service(before_svc);
             delete before_svc;
