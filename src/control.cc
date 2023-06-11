@@ -1218,7 +1218,7 @@ bool control_conn_t::queue_packet(std::vector<char> &&pkt) noexcept
     }
     
     try {
-        outbuf.emplace_back(pkt);
+        outbuf.emplace_back(std::move(pkt));
         iob.set_watches(in_flag | OUT_EVENTS);
         return true;
     }
