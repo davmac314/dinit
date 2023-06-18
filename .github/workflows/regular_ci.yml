@@ -5,46 +5,24 @@ on:
     branches:
       - master
     paths:
-      - '**'
-      - '!.*'
-      - '!README.md'
-      - '!NEWS'
-      - '!BUILD*'
-      - '!CONTRIBUTORS'
-      - '!TODO'
-      - '!LICENSE'
+      - '.github/workflows/regular_ci.yml'
+      - 'build/**'
+      - 'configs/**'
+      - 'dasynq/**'
+      - 'src/**'
+      - '**/Makefile'
       - '!build/includes/README'
-      - '!doc/CODE-STYLE'
-      - '!doc/COMPARISON'
-      - '!doc/CONTRIBUTING'
-      - '!doc/DESIGN'
-      - '!doc/getting_started.md'
-      - '!doc/manpages/README'
-      - '!doc/manpages/generate-html.sh'
-      - '!doc/manpages/DINIT-AS-INIT.md'
-      - '!doc/linux/**'
   pull_request:
     branches:
       - master
     paths:
-      - '**'
-      - '!.*'
-      - '!README.md'
-      - '!NEWS'
-      - '!BUILD*'
-      - '!CONTRIBUTORS'
-      - '!TODO'
-      - '!LICENSE'
+      - '.github/workflows/regular_ci.yml'
+      - 'build/**'
+      - 'configs/**'
+      - 'dasynq/**'
+      - 'src/**'
+      - '**/Makefile'
       - '!build/includes/README'
-      - '!doc/CODE-STYLE'
-      - '!doc/COMPARISON'
-      - '!doc/CONTRIBUTING'
-      - '!doc/DESIGN'
-      - '!doc/getting_started.md'
-      - '!doc/manpages/README'
-      - '!doc/manpages/generate-html.sh'
-      - '!doc/manpages/DINIT-AS-INIT.md'
-      - '!doc/linux/**'
   workflow_dispatch:
 
 jobs:
@@ -55,6 +33,7 @@ jobs:
     container:
       image: debian:bullseye
     strategy:
+      fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
       matrix:
         include:
           - arch: 'amd64'
@@ -84,12 +63,19 @@ jobs:
     - name: Unit tests
       run: make check
     - name: Integration tests
-      run: make check-igr
+      run: make check-igr DEBUG=1
+    - name: Upload igr-tests output file(s) on failure
+      uses: actions/upload-artifact@v3.1.2
+      if: failure()
+      with:
+          name: igr-tests_output
+          path: src/igr-tests/*/output/*
 
   MacOS-latest_build:
 
     runs-on: macos-latest
     strategy:
+      fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
       matrix:
         include:
           - arch: 'amd64'
@@ -109,12 +95,19 @@ jobs:
     - name: Unit tests
       run: make check
     - name: Integration tests
-      run: make check-igr
+      run: make check-igr DEBUG=1
+    - name: Upload igr-tests output file(s) on failure
+      uses: actions/upload-artifact@v3.1.2
+      if: failure()
+      with:
+          name: igr-tests_output
+          path: src/igr-tests/*/output/*
 
   Alpine-latest_build:
 
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
       matrix:
         include:
           - arch: 'armv6'
@@ -142,5 +135,11 @@ jobs:
           file ./src/dinit
           echo "$(tput bold) ----Unit tests---- :$(tput sgr0) make check"
           make check
-          echo "$(tput bold) ----Integration tests---- :$(tput sgr0) make check-igr"
-          make check-igr
+          echo "$(tput bold) ----Integration tests---- :$(tput sgr0) make check-igr DEBUG=1"
+          make check-igr DEBUG=1
+    - name: Upload igr-tests output file(s) on failure
+      uses: actions/upload-artifact@v3.1.2
+      if: failure()
+      with:
+          name: igr-tests_output
+          path: src/igr-tests/*/output/*
