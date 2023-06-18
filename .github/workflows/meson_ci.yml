@@ -7,25 +7,13 @@ on:
     branches:
       - master
     paths:
-      - '**'
+      - '.github/workflows/meson_ci.yml'
       - 'build/version.conf'
-      - '!.*'
-      - '!README.md'
-      - '!NEWS'
-      - '!BUILD*'
-      - '!CONTRIBUTORS'
-      - '!TODO'
-      - '!LICENSE'
-      - '!**/Makefile'
-      - '!build/**'
-      - '!doc/CODE-STYLE'
-      - '!doc/COMPARISON'
-      - '!doc/CONTRIBUTING'
-      - '!doc/DESIGN'
-      - '!doc/getting_started.md'
-      - '!doc/manpages/README'
-      - '!doc/manpages/generate-html.sh'
-      - '!doc/linux/**'
+      - 'configs/**'
+      - 'dasynq/**'
+      - 'src/**'
+      - '**/meson.build'
+      - 'meson_options.txt'
   pull_request:
     types:
       - labeled
@@ -35,25 +23,13 @@ on:
     branches:
       - master
     paths:
-      - '**'
+      - '.github/workflows/meson_ci.yml'
       - 'build/version.conf'
-      - '!.*'
-      - '!README.md'
-      - '!NEWS'
-      - '!BUILD*'
-      - '!CONTRIBUTORS'
-      - '!TODO'
-      - '!LICENSE'
-      - '!**/Makefile'
-      - '!build/**'
-      - '!doc/CODE-STYLE'
-      - '!doc/COMPARISON'
-      - '!doc/CONTRIBUTING'
-      - '!doc/DESIGN'
-      - '!doc/getting_started.md'
-      - '!doc/manpages/README'
-      - '!doc/manpages/generate-html.sh'
-      - '!doc/linux/**'
+      - 'configs/**'
+      - 'dasynq/**'
+      - 'src/**'
+      - '**/meson.build'
+      - 'meson_options.txt'
   workflow_dispatch:
 
 jobs:
@@ -65,6 +41,7 @@ jobs:
     container:
       image: debian:bullseye
     strategy:
+      fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
       matrix:
         include:
           - arch: 'amd64'
@@ -93,12 +70,19 @@ jobs:
       run: meson test -v --suite=unit_tests -C dirbuild
     - name: Integration tests
       run: meson test -v --suite=igr_tests -C dirbuild
+    - name: Upload igr-tests output file(s) on failure
+      uses: actions/upload-artifact@v3.1.2
+      if: failure()
+      with:
+          name: igr-tests_output
+          path: dirbuild/src/igr-tests/*/output/*
 
   MacOS-latest_build:
 
     if: ${{ github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'meson') }}
     runs-on: macos-latest
     strategy:
+      fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
       matrix:
         include:
           - arch: 'amd64'
@@ -117,12 +101,19 @@ jobs:
       run: meson test -v --suite=unit_tests -C dirbuild
     - name: Integration tests
       run: meson test -v --suite=igr_tests -C dirbuild
+    - name: Upload igr-tests output file(s) on failure
+      uses: actions/upload-artifact@v3.1.2
+      if: failure()
+      with:
+          name: igr-tests_output
+          path: dirbuild/src/igr-tests/*/output/*
 
   Alpine-latest_build:
 
     if: ${{ github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'meson') }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
       matrix:
         include:
           - arch: 'armv6'
@@ -150,3 +141,9 @@ jobs:
           meson test -v --suite=unit_tests -C dirbuild
           echo "$(tput bold) ----Integration tests---- :$(tput sgr0) meson test -v --suite=igr_tests -C dirbuild"
           meson test -v --suite=igr_tests -C dirbuild
+    - name: Upload igr-tests output file(s) on failure
+      uses: actions/upload-artifact@v3.1.2
+      if: failure()
+      with:
+          name: igr-tests_output
+          path: dirbuild/src/igr-tests/*/output/*

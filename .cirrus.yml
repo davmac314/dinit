@@ -1,21 +1,10 @@
 Dinit on freebsd-amd64 CI_task:
-  skip: "changesIncludeOnly('.github/**',
-                             'README.md',
-                             'NEWS',
-                             'BUILD*',
-                             'CONTRIBUTORS',
-                             'TODO',
-                             'LICENSE',
-                             'build/includes/README',
-                             'doc/CODE-STYLE',
-                             'doc/COMPARISON',
-                             'doc/CONTRIBUTING',
-                             'doc/DESIGN',
-                             'doc/getting_started.md',
-                             'doc/manpages/README',
-                             'doc/manpages/generate-html.sh',
-                             'doc/manpages/DINIT-AS-INIT.md',
-                             'doc/linux/**')"
+  skip: "!changesInclude('.cirrus.yml',
+                         'build/**',
+                         'configs/**',
+                         'dasynq/**',
+                         'src/**',
+                         '**/Makefile')"
   freebsd_instance:
     matrix:
       - image_family: freebsd-13-1
