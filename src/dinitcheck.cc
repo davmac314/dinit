@@ -140,15 +140,15 @@ int main(int argc, char **argv)
             }
             // add chain_to to services_to_check
             if (!sr->chain_to.empty() && !contains(services_to_check, sr->chain_to)) {
-            	if (!contains(services_to_check, sr->chain_to)) {
-            		services_to_check.push_back(sr->chain_to);
-            	}
+                if (!contains(services_to_check, sr->chain_to)) {
+                    services_to_check.push_back(sr->chain_to);
+                }
             }
             // add before_svcs to services_to_check
             for (const std::string &before_name : sr->before_svcs) {
-            	if (!contains(services_to_check, before_name)) {
-            		services_to_check.push_back(before_name);
-            	}
+                if (!contains(services_to_check, before_name)) {
+                    services_to_check.push_back(before_name);
+                }
             }
         }
         catch (service_load_exc &exc) {
@@ -159,13 +159,13 @@ int main(int argc, char **argv)
 
     // For "before" reverse-dependencies, set up dependencies in the forwards direction (from the dependent)
     for (const auto &svc_name_record : service_set) {
-    	for (const std::string &before_name : svc_name_record.second->before_svcs) {
-    		auto before_svc_it = service_set.find(before_name);
-    		if (before_svc_it != service_set.end()) {
-    			before_svc_it->second->dependencies.emplace_back(svc_name_record.first,
-    					dependency_type::BEFORE);
-    		}
-    	}
+        for (const std::string &before_name : svc_name_record.second->before_svcs) {
+            auto before_svc_it = service_set.find(before_name);
+            if (before_svc_it != service_set.end()) {
+                before_svc_it->second->dependencies.emplace_back(svc_name_record.first,
+                        dependency_type::BEFORE);
+            }
+        }
     }
 
     // Check for circular dependencies
@@ -227,12 +227,12 @@ int main(int argc, char **argv)
         errors_found = true;
         std::cerr << "Found dependency cycle:\n";
         for (auto chain_link : service_chain) {
-        	service_record *svc = std::get<0>(chain_link);
+            service_record *svc = std::get<0>(chain_link);
             size_t dep_index = std::get<1>(chain_link);
             std::cerr << "    " << svc->name << " ->";
             auto dep_it = std::next(svc->dependencies.begin(), dep_index);
             if (dep_it->dep_type == dependency_type::BEFORE) {
-            	std::cerr << " (via 'before')";
+                std::cerr << " (via 'before')";
             }
             std::cerr << "\n";
         }

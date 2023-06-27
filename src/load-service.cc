@@ -124,7 +124,7 @@ static void check_cycle(service_dep_list &deps, service_record *orig, const std:
 // Check for dependency cycles in "before" dependencies, _orig_ is where cycles will be identified.
 static void check_cycle(service_dep_list &deps, service_record *orig)
 {
-	check_cycle(deps, orig, orig->get_name());
+    check_cycle(deps, orig, orig->get_name());
 }
 
 // Update the dependencies of the specified service atomically.
@@ -313,7 +313,7 @@ static bool check_settings_for_reload(service_record *service,
 service_record * dirload_service_set::load_reload_service(const char *name, service_record *reload_svc,
         const service_record *avoid_circular)
 {
-	// Load a new service, or reload an already-loaded service.
+    // Load a new service, or reload an already-loaded service.
 
     // For reload, we have the following problems:
     // - ideally want to allow changing service type, at least for stopped services. That implies creating
@@ -327,26 +327,26 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
     //   (which we can only do if the type doesn't change).
 
     // Approach:
-	// - determine whether we need a new service record or can alter the existing one
-	//   (loading a new service always creates a new record; reload only creates a new record if the service
-	//   type changes, and otherwise just changes the existing record in-place).
-	// - if loading a new service, a dummy record is created to enable easy cyclic dependency detection.
-	//   (In other cases cycles must be checked by walking the service graph).
-	//   The dummy is replaced with the real service once loading is complete (or is removed if it fails).
-	// - process settings from the service file (into a service_settings_wrapper).
+    // - determine whether we need a new service record or can alter the existing one
+    //   (loading a new service always creates a new record; reload only creates a new record if the service
+    //   type changes, and otherwise just changes the existing record in-place).
+    // - if loading a new service, a dummy record is created to enable easy cyclic dependency detection.
+    //   (In other cases cycles must be checked by walking the service graph).
+    //   The dummy is replaced with the real service once loading is complete (or is removed if it fails).
+    // - process settings from the service file (into a service_settings_wrapper).
     // - check that the new settings are valid (for reload, if the service is running, check if the settings
-	//   can be altered).
-	// - create the new record and install the new settings in it (or the existing record if not creating a
-	//   new record). If doing a reload, check for cycles at this point (there is no dummy record in this
-	//   case, so the quick cycle detection is not active).
-	// - (if doing a reload, with a new record) move the dependents on the original record to the new record.
-	//
-	// "Before" dependencies require special handling, as a "before = " specified in a service actually creates
-	// a dependency in the specified service on this service. Hence they always require explicit cycle checks
-	// (the quick cycle detection method using a dummy service cannot be used). For reloads this is done early,
-	// for new services it is done late (after the dummy has been removed).
-	//
-	// This is all an intricate dance. If failure occurs at any stage, we must restore the previous state.
+    //   can be altered).
+    // - create the new record and install the new settings in it (or the existing record if not creating a
+    //   new record). If doing a reload, check for cycles at this point (there is no dummy record in this
+    //   case, so the quick cycle detection is not active).
+    // - (if doing a reload, with a new record) move the dependents on the original record to the new record.
+    //
+    // "Before" dependencies require special handling, as a "before = " specified in a service actually creates
+    // a dependency in the specified service on this service. Hence they always require explicit cycle checks
+    // (the quick cycle detection method using a dummy service cannot be used). For reloads this is done early,
+    // for new services it is done late (after the dummy has been removed).
+    //
+    // This is all an intricate dance. If failure occurs at any stage, we must restore the previous state.
 
     // Limitations:
     // - caller must check there are no handles (or only a single requesting handle) to the service before
@@ -373,7 +373,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 throw service_cyclic_dependency(name);
             }
             if (existing->get_type() != service_type_t::PLACEHOLDER) {
-            	return existing;
+                return existing;
             }
 
             // If we found a placeholder, we proceed as for a reload:
@@ -435,8 +435,8 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             delete dummy;
         }
         if (create_new_record && rval != nullptr) {
-        	rval->prepare_for_unload();
-        	delete rval;
+            rval->prepare_for_unload();
+            delete rval;
         }
         for (service_dep &before_dep : before_deps) {
             service_record *before_svc = before_dep.get_from();
@@ -457,21 +457,21 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         }
     };
 
-	if (reload_svc == nullptr) {
-		// Add a placeholder record now to prevent infinite recursion in case of cyclic dependency.
-		// We replace this with the real service later (or remove it if we find a configuration error).
-		try {
-			dummy = new service_record(this, string(name), service_record::LOADING_TAG);
-			add_service(dummy);
-		}
-		catch (...) {
-			delete dummy; // (no effect if dummy is null)
-			dummy = nullptr;
-			throw;
-		}
-	}
+    if (reload_svc == nullptr) {
+        // Add a placeholder record now to prevent infinite recursion in case of cyclic dependency.
+        // We replace this with the real service later (or remove it if we find a configuration error).
+        try {
+            dummy = new service_record(this, string(name), service_record::LOADING_TAG);
+            add_service(dummy);
+        }
+        catch (...) {
+            delete dummy; // (no effect if dummy is null)
+            dummy = nullptr;
+            throw;
+        }
+    }
 
-	try {
+    try {
         process_service_file(name, service_file,
                 [&](string &line, unsigned line_num, string &setting,
                         string_iterator &i, string_iterator &end) -> void {
@@ -611,8 +611,8 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 before_deps.emplace_back(before_svc, reload_svc, dependency_type::BEFORE);
                 // (note, we may need to adjust the to-service if we create a new service record object
                 // - this will be done later)
-			}
-		}
+            }
+        }
 
         if (service_type == service_type_t::PROCESS) {
             do_env_subst("command", settings.command, settings.command_offsets, srv_envmap);
@@ -762,7 +762,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         if (create_new_record) {
             // switch dependencies on old record so that they refer to the new record
 
-        	// first link in all the (new) "before" dependents (one way at this stage):
+            // first link in all the (new) "before" dependents (one way at this stage):
             auto &dept_list = rval->get_dependents();
             unsigned added_dependents = 0;
             try {
@@ -796,52 +796,52 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             if (reload_svc != nullptr) {
                 // Complete dependency/dependent transfers.
 
-            	// Remove all "before" dependents from the original service (these were created by the
+                // Remove all "before" dependents from the original service (these were created by the
                 // original service itself)
-				auto &reload_depts = reload_svc->get_dependents();
-				for (auto i = reload_depts.begin(); i != reload_depts.end(); ) {
-					auto next_i = std::next(i);
-					if ((*i)->dep_type == dependency_type::BEFORE) {
-					    service_record *before_svc = (*i)->get_from();
-						before_svc->rm_dep(**i);
-						if (before_svc->get_type() == service_type_t::PLACEHOLDER && before_svc->is_unrefd()) {
-						    remove_service(before_svc);
-						    delete before_svc;
-						}
-					}
-					i = next_i;
-				}
+                auto &reload_depts = reload_svc->get_dependents();
+                for (auto i = reload_depts.begin(); i != reload_depts.end(); ) {
+                    auto next_i = std::next(i);
+                    if ((*i)->dep_type == dependency_type::BEFORE) {
+                        service_record *before_svc = (*i)->get_from();
+                        before_svc->rm_dep(**i);
+                        if (before_svc->get_type() == service_type_t::PLACEHOLDER && before_svc->is_unrefd()) {
+                            remove_service(before_svc);
+                            delete before_svc;
+                        }
+                    }
+                    i = next_i;
+                }
 
-				// Transfer dependents from the original service record to the new record;
-				// set links in all dependents on the original to point to the new service:
-				auto first_new_before = dept_list.begin();
-				dept_list.splice(first_new_before, reload_depts);
-				for (auto &dept : dept_list) {
-					dept->set_to(rval);
-				}
+                // Transfer dependents from the original service record to the new record;
+                // set links in all dependents on the original to point to the new service:
+                auto first_new_before = dept_list.begin();
+                dept_list.splice(first_new_before, reload_depts);
+                for (auto &dept : dept_list) {
+                    dept->set_to(rval);
+                }
 
-				// Transfer all "before" dependencies (which are actually created by other services) to the
-				// new service
-				auto &dep_list_prev = reload_svc->get_dependencies();
-				auto &dep_list = rval->get_dependencies();
-				for (auto i = dep_list_prev.begin(); i != dep_list_prev.end(); ++i) {
-				    if (i->dep_type == dependency_type::BEFORE) {
-				        i->set_from(rval);
-				        dep_list.splice(dep_list.end(), dep_list_prev, i++);
-				        continue;
-				    }
-				}
+                // Transfer all "before" dependencies (which are actually created by other services) to the
+                // new service
+                auto &dep_list_prev = reload_svc->get_dependencies();
+                auto &dep_list = rval->get_dependencies();
+                for (auto i = dep_list_prev.begin(); i != dep_list_prev.end(); ++i) {
+                    if (i->dep_type == dependency_type::BEFORE) {
+                        i->set_from(rval);
+                        dep_list.splice(dep_list.end(), dep_list_prev, i++);
+                        continue;
+                    }
+                }
 
-				// Remove dependent-link for all dependencies from the original:
-				reload_svc->prepare_for_unload();
+                // Remove dependent-link for all dependencies from the original:
+                reload_svc->prepare_for_unload();
             }
 
             // Finally, replace the old service with the new one:
             service_record *old_service = (reload_svc != nullptr) ? reload_svc : dummy;
 
             auto iter = std::find(records.begin(), records.end(), old_service);
-			*iter = rval;
-			delete old_service;
+            *iter = rval;
+            delete old_service;
         }
 
         return rval;

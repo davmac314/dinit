@@ -199,7 +199,7 @@ void service_record::release(bool issue_stop) noexcept
 
         if (service_state != service_state_t::STOPPED && service_state != service_state_t::STOPPING
                 && issue_stop) {
-        	stop_reason = stopped_reason_t::NORMAL;
+            stop_reason = stopped_reason_t::NORMAL;
             do_stop();
         }
     }
@@ -618,7 +618,7 @@ void service_record::stop(bool bring_down) noexcept
     if (bring_down && service_state != service_state_t::STOPPED) {
         // Note even if we are already STOPPING we should call do_stop for the case where we need
         // to interrupt any currently ongoing restart of dependents.
-    	stop_reason = stopped_reason_t::NORMAL;
+        stop_reason = stopped_reason_t::NORMAL;
         do_stop();
     }
 }

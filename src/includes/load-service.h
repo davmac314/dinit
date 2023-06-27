@@ -726,7 +726,7 @@ static void value_var_subst(const char *setting_name, std::string &line,
             }
             else {
                 // variable
-            	auto token_end = std::next(line.begin(), i->second);
+                auto token_end = std::next(line.begin(), i->second);
                 bool brace = line[dindx + 1] == '{';
                 auto i = std::next(line.begin(), dindx + 1 + int(brace));
                 // read environment variable name
@@ -993,7 +993,7 @@ class service_settings_wrapper
 #endif
 
         if (log_type != log_type_id::LOGFILE) {
-        	logfile.clear();
+            logfile.clear();
         }
     }
 };

@@ -239,7 +239,7 @@ int dinitctl_main(int argc, char **argv)
                 command = command_t::UNSET_TRIGGER;
             }
             else if (strcmp(argv[i], "catlog") == 0) {
-            	command = command_t::CAT_LOG;
+                command = command_t::CAT_LOG;
             }
             else {
                 cerr << "dinitctl: unrecognized command: " << argv[i] << " (use --help for help)\n";
@@ -251,17 +251,17 @@ int dinitctl_main(int argc, char **argv)
             if (command == command_t::ADD_DEPENDENCY || command == command_t::RM_DEPENDENCY) {
                 if (! dep_type_set) {
                     if (strcmp(argv[i], "regular") == 0) {
-                    	dep_type = dependency_type::REGULAR;
+                        dep_type = dependency_type::REGULAR;
                     }
                     else if (strcmp(argv[i], "milestone") == 0) {
-                    	dep_type = dependency_type::MILESTONE;
+                        dep_type = dependency_type::MILESTONE;
                     }
                     else if (strcmp(argv[i], "waits-for") == 0) {
-                    	dep_type = dependency_type::WAITS_FOR;
+                        dep_type = dependency_type::WAITS_FOR;
                     }
                     else {
-                    	show_help = true;
-                    	break;
+                        show_help = true;
+                        break;
                     }
                     dep_type_set = true;
                 }
@@ -1100,7 +1100,7 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
             rbuffer.extract((char *)&service_pid, 8, sizeof(service_pid));
         }
         else {
-        	rbuffer.extract((char *)&exit_status, 8, sizeof(exit_status));
+            rbuffer.extract((char *)&exit_status, 8, sizeof(exit_status));
         }
 
         fill_buffer_to(rbuffer, socknum, name_len + hdrsize);
@@ -1149,14 +1149,14 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
             cout << (did_fail ? 'X' : '-');
         }
         else {
-        	cout << ' ';
+            cout << ' ';
         }
         cout << (target == service_state_t::STOPPED ? '}' : ' ');
 
         cout << "] " << name;
 
         if (current != service_state_t::STOPPED && has_pid) {
-        	cout << " (pid: " << service_pid << ")";
+            cout << " (pid: " << service_pid << ")";
         }
         
         if (current == service_state_t::STOPPED && stop_reason == stopped_reason_t::TERMINATED) {
@@ -1169,10 +1169,10 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
         }
 
         if (has_console) {
-        	cout << " (has console)";
+            cout << " (has console)";
         }
         else if (waiting_console) {
-        	cout << " (waiting for console)";
+            cout << " (waiting for console)";
         }
 
         cout << endl;
@@ -1797,9 +1797,9 @@ static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service
 
     // Issue CATLOG
     auto m = membuf()
-    		 .append<char>(DINIT_CP_CATLOG)
-			 .append<char>(0)
-			 .append(handle);
+             .append<char>(DINIT_CP_CATLOG)
+             .append<char>(0)
+             .append(handle);
     write_all_x(socknum, m);
 
     wait_for_reply(rbuffer, socknum);
@@ -1819,26 +1819,26 @@ static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service
 
     // output the log
     if (bufsize > 0) {
-		cout << flush;
+        cout << flush;
 
-		bool trailing_nl = false;
-		char output_buf[rbuffer.get_size()];
-		while (bufsize > 0) {
-			unsigned l = rbuffer.get_length();
-			if (l == 0) {
-				fill_buffer_to(rbuffer, socknum, 1);
-			}
-			l = std::min(rbuffer.get_length(), bufsize);
-			rbuffer.extract(output_buf, 0, l);
-			write(STDOUT_FILENO, output_buf, l);
-			rbuffer.consume(l);
-			bufsize -= l;
-			trailing_nl = (output_buf[l - 1] == '\n');
-		}
+        bool trailing_nl = false;
+        char output_buf[rbuffer.get_size()];
+        while (bufsize > 0) {
+            unsigned l = rbuffer.get_length();
+            if (l == 0) {
+                fill_buffer_to(rbuffer, socknum, 1);
+            }
+            l = std::min(rbuffer.get_length(), bufsize);
+            rbuffer.extract(output_buf, 0, l);
+            write(STDOUT_FILENO, output_buf, l);
+            rbuffer.consume(l);
+            bufsize -= l;
+            trailing_nl = (output_buf[l - 1] == '\n');
+        }
 
-		if (!trailing_nl) {
-			cout << "\n(last line is truncated or incomplete)\n";
-		}
+        if (!trailing_nl) {
+            cout << "\n(last line is truncated or incomplete)\n";
+        }
     }
 
     return 0;

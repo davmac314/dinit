@@ -85,8 +85,8 @@ void process_service::exec_succeeded() noexcept
 
 void scripted_service::exec_succeeded() noexcept
 {
-	// For a scripted service, this means nothing other than that the start/stop
-	// script will now begin.
+    // For a scripted service, this means nothing other than that the start/stop
+    // script will now begin.
 }
 
 rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) noexcept
@@ -259,54 +259,54 @@ dasynq::rearm stop_child_watcher::status_change(eventloop_t &loop, pid_t child, 
 
 rearm log_output_watcher::fd_event(eventloop_t &eloop, int fd, int flags) noexcept
 {
-	// In case buffer size has been decreased, check if we are already at the limit:
-	if (service->log_buf_size >= service->log_buf_max) {
-		// If so, read and discard.
-		char buf[1024];
-		int r = bp_sys::read(fd, buf, 1024);
-		if (r == -1) {
-	    	if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-	    		return rearm::REARM;
-	    	}
-	    	goto bad_read;
-		}
-		if (r == 0) goto eof_read;
-		return rearm::REARM;
-	}
+    // In case buffer size has been decreased, check if we are already at the limit:
+    if (service->log_buf_size >= service->log_buf_max) {
+        // If so, read and discard.
+        char buf[1024];
+        int r = bp_sys::read(fd, buf, 1024);
+        if (r == -1) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+                return rearm::REARM;
+            }
+            goto bad_read;
+        }
+        if (r == 0) goto eof_read;
+        return rearm::REARM;
+    }
 
-	{
-		size_t max_read = std::max(service->log_buf_max / 8, 256u);
-		max_read = std::min((unsigned)max_read, service->log_buf_max - service->log_buf_size);
+    {
+        size_t max_read = std::max(service->log_buf_max / 8, 256u);
+        max_read = std::min((unsigned)max_read, service->log_buf_max - service->log_buf_size);
 
-		// ensure vector has size sufficient to read
-		unsigned new_size = service->log_buf_size + max_read;
-		if (!service->ensure_log_buffer_backing(new_size)) {
-			return rearm::DISARM;
-		}
+        // ensure vector has size sufficient to read
+        unsigned new_size = service->log_buf_size + max_read;
+        if (!service->ensure_log_buffer_backing(new_size)) {
+            return rearm::DISARM;
+        }
 
-		max_read = service->log_buffer.size() - service->log_buf_size;
+        max_read = service->log_buffer.size() - service->log_buf_size;
 
-		int r = bp_sys::read(fd, service->log_buffer.data() + service->log_buf_size, max_read);
-		if (r == -1) {
-			if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-				return rearm::REARM;
-			}
-			goto bad_read;
-		}
+        int r = bp_sys::read(fd, service->log_buffer.data() + service->log_buf_size, max_read);
+        if (r == -1) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+                return rearm::REARM;
+            }
+            goto bad_read;
+        }
 
-		if (r == 0) goto eof_read;
+        if (r == 0) goto eof_read;
 
-		service->log_buf_size += r;
-		return rearm::REARM;
-	}
+        service->log_buf_size += r;
+        return rearm::REARM;
+    }
 
     // error/end-of-stream handling:
 
     bad_read:
-	log(loglevel_t::WARN, "Service ", service->get_name(), " output not readable: ", strerror(errno));
+    log(loglevel_t::WARN, "Service ", service->get_name(), " output not readable: ", strerror(errno));
 
-	eof_read:
-	deregister(eloop);
+    eof_read:
+    deregister(eloop);
     close(fd);
     close(service->log_output_fd);
     service->log_input_fd = -1;
@@ -846,10 +846,10 @@ void process_service::kill_with_fire() noexcept
 
 void scripted_service::bring_down() noexcept
 {
-	if (pid != -1) {
-		// We're already running the stop script; nothing to do.
-		return;
-	}
+    if (pid != -1) {
+        // We're already running the stop script; nothing to do.
+        return;
+    }
 
     if (stop_command.length() == 0) {
         stopped();

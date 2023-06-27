@@ -21,28 +21,28 @@
 // Use like:     value(x).is_in(1,2,3)
 template <typename T>
 class value_cls {
-	const T &v;
+    const T &v;
 public:
-	value_cls(const T &v) : v(v) {}
+    value_cls(const T &v) : v(v) {}
 
-	template <typename U>
-	bool is_in(U&& val)
-	{
-		return v == val;
-	}
+    template <typename U>
+    bool is_in(U&& val)
+    {
+        return v == val;
+    }
 
-	template <typename U, typename ...V>
-	bool is_in(U&&val, V&&... vals) {
-		if (v == val)
-			return true;
-		return is_in(vals...);
-	}
+    template <typename U, typename ...V>
+    bool is_in(U&&val, V&&... vals) {
+        if (v == val)
+            return true;
+        return is_in(vals...);
+    }
 };
 
 template <typename T>
 value_cls<T> value(const T &v)
 {
-	return value_cls<T>(v);
+    return value_cls<T>(v);
 }
 
 // Complete read - read the specified size until end-of-file or error; continue read if
@@ -138,7 +138,7 @@ public:
     template <typename U = std::enable_if<std::is_default_constructible<T>::value>>
     void construct(T *obj)
     {
-    	// avoid value-initialisation:
+        // avoid value-initialisation:
         ::new(obj) T;
     }
 
