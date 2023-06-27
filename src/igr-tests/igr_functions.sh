@@ -3,8 +3,18 @@
 ### This file contain basic variables for running Integration tests of
 ### Dinit.
 
+# Input variables:
+
 # Directory containing executable binaries, if unset defaults to two-levels up from integration script
 DINIT_BINDIR="${DINIT_BINDIR-../..}"
+
+
+# On completion, the following output variables are set:
+#
+# IGR_OUTPUT - directory for test output files
+#
+# Also, the various functions defined below may be used.
+
 
 ## Basic functions
 # According to POSIX, echo has some unspecified behavior in some cases, for example
