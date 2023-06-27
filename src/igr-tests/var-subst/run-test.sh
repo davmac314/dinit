@@ -1,7 +1,8 @@
 #!/bin/sh
 
 set -eu
-. "$IGR_FUNCTIONS"
+cd "$(dirname "$0")"
+. ../igr_functions.sh
 
 rm -f "$IGR_OUTPUT"/output/args-record
 

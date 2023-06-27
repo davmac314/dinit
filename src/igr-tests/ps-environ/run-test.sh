@@ -1,7 +1,8 @@
 #!/bin/sh
 
 set -eu
-. "$IGR_FUNCTIONS"
+cd "$(dirname "$0")"
+. ../igr_functions.sh
 
 export OUTPUT="$IGR_OUTPUT/output/env-record"
 rm -f "$OUTPUT"

@@ -1,7 +1,6 @@
 # Included from top-level meson.build
 
 igr_tests_env += [
-     'IGR_FUNCTIONS=@0@/igr_functions'.format(meson.current_source_dir()),
      'IGR_OUTPUT=@0@'.format(meson.current_build_dir()),
      'DEBUG=yes'
 ]

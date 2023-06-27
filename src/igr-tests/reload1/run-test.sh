@@ -1,7 +1,8 @@
 #!/bin/sh
 
 set -eu
-. "$IGR_FUNCTIONS"
+cd "$(dirname "$0")"
+. ../igr_functions.sh
 
 # Start with boot depending on a,b
 rm -rf sd
