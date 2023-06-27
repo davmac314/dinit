@@ -41,48 +41,24 @@ warning() {
 }
 
 ## Executable path resolvers functions
-# These functions return 0 and set suitable variable when program found.
-# And return 1 on failure.
-find_dinit() {
-    if [ -z "${DINIT:-}" ]; then
-        if [ -x "$DINIT_BINDIR/dinit" ]; then
-            export DINIT="$DINIT_BINDIR/dinit"
+# These functions return 0 and set suitable variable when program found, or return 1 on failure.
+find_executable() {
+    exename=$1
+    varname=$2
+    if [ -z "$(eval "echo \${${varname}:-}")" ]; then
+        if [ -x "$DINIT_BINDIR/$exename" ]; then
+            export $varname="$DINIT_BINDIR/$exename"
         else
             return 1
         fi
     fi
-    return 0
 }
-find_dinitctl() {
-    if [ -z "${DINITCTL:-}" ]; then
-        if [ -x "$DINIT_BINDIR/dinitctl" ]; then
-            export DINITCTL="$DINIT_BINDIR/dinitctl"
-        else
-            return 1
-        fi
-    fi
-    return 0
-}
-find_dinitcheck() {
-    if [ -z "${DINITCHECK:-}" ]; then
-        if [ -x "$DINIT_BINDIR/dinitcheck" ]; then
-            export DINITCHECK="$DINIT_BINDIR/dinitcheck"
-        else
-            return 1
-        fi
-    fi
-    return 0
-}
-find_dinitmonitor() {
-    if [ -z "${DINITMONITOR:-}" ]; then
-        if [ -x "$DINIT_BINDIR/dinit-monitor" ]; then
-            export DINITMONITOR="$DINIT_BINDIR/dinit-monitor"
-        else
-            return 1
-        fi
-    fi
-    return 0
-}
+
+find_dinit() { find_executable dinit DINIT; }
+find_dinitctl() { find_executable dinitctl DINITCTL; }
+find_dinitcheck() { find_executable dinitcheck DINITCHECK; }
+find_dinitmonitor() { find_executable dinit-monitor DINITMONITOR; }
+
 
 ## Change directory to run-test.sh location
 cd "$(dirname "$0")" || error "Can't change directory to script location."
