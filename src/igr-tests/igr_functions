@@ -1,5 +1,4 @@
 # Included from run-test.sh files.
-# shellcheck disable=SC2034,SC2148 # Disable some false warnings/errors.
 
 ### This file contain basic variables for running Integration tests of
 ### Dinit.
