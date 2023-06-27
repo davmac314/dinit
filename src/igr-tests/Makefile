@@ -1,7 +1,7 @@
 include ../../mconfig
 
 check-igr: igr-runner
-	EXEC_PREFIX="../../" ./igr-runner
+	./igr-runner
 
 igr-runner: igr-runner.cc
 	$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(LDFLAGS) $(LDFLAGS_EXTRA) igr-runner.cc -o igr-runner

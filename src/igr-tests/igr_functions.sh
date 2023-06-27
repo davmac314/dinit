@@ -1,7 +1,10 @@
-# Included from run-test.sh files.
+# Included from run-test.sh files. Do not run independently.
 
 ### This file contain basic variables for running Integration tests of
 ### Dinit.
+
+# Directory containing executable binaries, if unset defaults to two-levels up from integration script
+DINIT_BINDIR="${DINIT_BINDIR-../..}"
 
 ## Basic functions
 # According to POSIX, echo has some unspecified behavior in some cases, for example
@@ -42,8 +45,8 @@ warning() {
 # And return 1 on failure.
 find_dinit() {
     if [ -z "${DINIT:-}" ]; then
-        if [ -x "$EXEC_PREFIX/dinit" ]; then
-            export DINIT="$EXEC_PREFIX/dinit"
+        if [ -x "$DINIT_BINDIR/dinit" ]; then
+            export DINIT="$DINIT_BINDIR/dinit"
         else
             return 1
         fi
@@ -52,8 +55,8 @@ find_dinit() {
 }
 find_dinitctl() {
     if [ -z "${DINITCTL:-}" ]; then
-        if [ -x "$EXEC_PREFIX/dinitctl" ]; then
-            export DINITCTL="$EXEC_PREFIX/dinitctl"
+        if [ -x "$DINIT_BINDIR/dinitctl" ]; then
+            export DINITCTL="$DINIT_BINDIR/dinitctl"
         else
             return 1
         fi
@@ -62,8 +65,8 @@ find_dinitctl() {
 }
 find_dinitcheck() {
     if [ -z "${DINITCHECK:-}" ]; then
-        if [ -x "$EXEC_PREFIX/dinitcheck" ]; then
-            export DINITCHECK="$EXEC_PREFIX/dinitcheck"
+        if [ -x "$DINIT_BINDIR/dinitcheck" ]; then
+            export DINITCHECK="$DINIT_BINDIR/dinitcheck"
         else
             return 1
         fi
@@ -72,8 +75,8 @@ find_dinitcheck() {
 }
 find_dinitmonitor() {
     if [ -z "${DINITMONITOR:-}" ]; then
-        if [ -x "$EXEC_PREFIX/dinit-monitor" ]; then
-            export DINITMONITOR="$EXEC_PREFIX/dinit-monitor"
+        if [ -x "$DINIT_BINDIR/dinit-monitor" ]; then
+            export DINITMONITOR="$DINIT_BINDIR/dinit-monitor"
         else
             return 1
         fi
@@ -111,7 +114,7 @@ fi
 # RESULT: return 0 & sets "$DINITPID" variable on success.
 #         throw an error on failure.
 spawn_dinit() {
-    find_dinit || error "Cannot find dinit exec path." "Check 'EXEC_PREFIX' variable value"
+    find_dinit || error "Cannot find dinit exec path." "Specify 'DINIT_BINDIR' and/or ensure dinit is compiled."
     "$DINIT" $QUIET -u -d sd -p "$SOCKET" "$@" &
     DINITPID=$!
     # Wait for Dinit socket shows up.
@@ -153,7 +156,7 @@ stop_dinit() {
 # RESULT: waits for dinit daemon and return exit code of dinit on sccuess.
 #         throw an error on failure.
 spawn_dinit_oneshot() {
-    find_dinit || error "Cannot find dinit exec path." "Check 'EXEC_PREFIX' variable value."
+    find_dinit || error "Cannot find dinit exec path." "Specify 'DINIT_BINDIR' and/or ensure dinit is compiled."
     "$DINIT" $QUIET -u -d sd -p "$SOCKET" "$@"
 }
 
@@ -162,7 +165,7 @@ spawn_dinit_oneshot() {
 # RESULT: Any return code from dinitctl on sccuess.
 #         Throw an error on failure.
 run_dinitctl() {
-    find_dinitctl || error "Cannot find dinitctl exec path." "Check 'EXEC_PREFIX' variable value."
+    find_dinitctl || error "Cannot find dinitctl exec path." "Specify 'DINIT_BINDIR' and/or ensure dinit is compiled."
     "$DINITCTL" -p "$SOCKET" "$@"
 }
 
@@ -171,7 +174,7 @@ run_dinitctl() {
 # RESULT: Any return code from dinitcheck on sccuess.
 #         Throw an error on failure.
 run_dinitcheck() {
-    find_dinitcheck || error "Cannot find dinitcheck exec path." "Check 'EXEC_PREFIX' variable value."
+    find_dinitcheck || error "Cannot find dinitcheck exec path." "Specify 'DINIT_BINDIR' and/or ensure dinit is compiled."
     "$DINITCHECK" -d sd "$@"
 }
 

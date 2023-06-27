@@ -25,7 +25,7 @@ shutdown_build = false
 
 ## src/'s defines for igr-tests/
 if igr_tests
-    igr_tests_env = [ 'EXEC_PREFIX=@0@'.format(meson.current_build_dir()) ]
+    igr_tests_env = [ 'DINIT_BINDIR=@0@'.format(meson.current_build_dir()) ]
 endif
 
 ## Write mconfig.h
