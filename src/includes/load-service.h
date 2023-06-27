@@ -467,7 +467,7 @@ inline gid_t parse_gid_param(unsigned line_num, const std::string &param, const 
     return grent->gr_gid;
 }
 
-// Parse a permission param, specified as a octal number of permission (such as 0600)
+// Parse a permissions mask parameter value, specified as an octal (such as 0600)
 inline int parse_perms(unsigned line_num, string &paramval, const std::string &servicename,
         const char * paramname)
 {

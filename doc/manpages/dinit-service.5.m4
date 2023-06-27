@@ -323,7 +323,7 @@ The default is 666.
 .TP
 \fBsocket\-uid\fR = {\fInumeric-user-id\fR | \fIusername\fR}
 Specifies the user (name or numeric ID) that should own the activation socket.
-If \fBsocket\-uid\fR is specified as a name without also specifying \fBsocket-gid\fR, then
+If \fBsocket\-uid\fR is specified as a name without also specifying \fBsocket\-gid\fR, then
 the socket group is the primary group of the specified user (as found in the
 system user database, normally \fI/etc/passwd\fR).
 If the \fBsocket\-uid\fR setting is not provided, the socket will be owned by the user id of the \fBdinit\fR process.
@@ -361,21 +361,23 @@ This setting has no effect if the service is set to run on the console (via the 
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBlogfile\-permissions\fR = \fIoctal-permissions-mask\fR
-Gives the permissions for the logfile specified using \fBlogfile\fR. Normally this will be 600 (user access
+Gives the permissions for the log file specified using \fBlogfile\fR. Normally this will be 600 (user access
 only), 640 (also readable by the group), or 644 (readable by all users).
-The default is 600.
-If the logfile already exists when the service starts, its permissions will be changed to those specified with this setting.
+If the log file already exists when the service starts, its permissions will be changed in accordance with
+the value of this setting.
+The default is value 600 (accessible to only the owning user).
 .TP
 \fBlogfile\-uid\fR = {\fInumeric-user-id\fR | \fIusername\fR}
-Specifies the user (name or numeric ID) that should own the logfile.
-If \fBlogfile\-uid\fR is specified as a name without also specifying \fBlogfile-gid\fR, then
-the logfile group is the primary group of the specified user (as found in the
+Specifies the user (name or numeric ID) that should own the log file.
+If \fBlogfile\-uid\fR is specified as a name without also specifying \fBlogfile\-gid\fR, then
+the log file group is the primary group of the specified user (as found in the
 system user database, normally \fI/etc/passwd\fR).
-If the logfile already exists when the service starts, its ownership will be changed according to the value of this setting.
+If the log file already exists when the service starts, its ownership will be changed in accordance with
+the value of this setting.
 The default value is the user id of the \fBdinit\fR process.
 .TP
 \fBlogfile\-gid\fR = {\fInumeric-group-id\fR | \fIgroup-name\fR}
-Specifies the group of the logfile. See discussion of \fBlogfile\-uid\fR.
+Specifies the group of the log file. See discussion of \fBlogfile\-uid\fR.
 .TP
 \fBoptions\fR = \fIoption\fR...
 Specifies various options for this service. See the \fBOPTIONS\fR section.
