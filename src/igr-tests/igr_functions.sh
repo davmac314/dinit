@@ -161,7 +161,7 @@ run_dinitcheck() {
 #         throw an error on any other failure.
 compare_text() {
     if [ ! -e "$1" ]; then
-        error "$1 file isn't exist!"
+        error "$1 file doesn't exist!"
     fi
     FILE="$(cat "$1" || error "Cannot read given file!")"
     if [ "$FILE" = "$2" ]; then
@@ -178,10 +178,10 @@ compare_text() {
 #         throw an error on any other failure.
 compare_file() {
     if [ ! -e "$1" ]; then
-        error "$1 file isn't exist!"
+        error "$1 file doesn't exist!"
     fi
     if [ ! -e "$2" ]; then
-        error "$2 file isn't exist!"
+        error "$2 file doesn't exist!"
     fi
     if cmp -s "$1" "$2"; then
         return 0
