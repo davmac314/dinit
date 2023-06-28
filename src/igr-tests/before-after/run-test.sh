@@ -36,4 +36,21 @@ fi
 rm "$IGR_OUTPUT"/output/script-output
 
 stop_dinit
+
+spawn_dinit
+
+# load without loading parent: force service2 loaded first
+
+run_dinitctl $QUIET reload service2
+run_dinitctl $QUIET reload service1
+
+run_dinitctl $QUIET start --no-wait service1
+run_dinitctl $QUIET start service2
+
+if ! compare_text "$IGR_OUTPUT"/output/script-output "$(printf "one\ntwo\n")"; then
+    error "$IGR_OUTPUT/output/script-output didn't contain expected result!"
+fi
+
+stop_dinit
+
 exit 0
