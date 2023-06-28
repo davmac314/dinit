@@ -607,11 +607,11 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                     delete before_svc;
                     throw;
                 }
-
-                before_deps.emplace_back(before_svc, reload_svc, dependency_type::BEFORE);
-                // (note, we may need to adjust the to-service if we create a new service record object
-                // - this will be done later)
             }
+
+            before_deps.emplace_back(before_svc, reload_svc, dependency_type::BEFORE);
+            // (note, we may need to adjust the to-service if we create a new service record object
+            // - this will be done later)
         }
 
         if (service_type == service_type_t::PROCESS) {
@@ -793,55 +793,54 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 i = j;
             }
 
-            if (reload_svc != nullptr) {
-                // Complete dependency/dependent transfers.
+            // Which service are we replacing? (It's either the one that's being reloaded, or a dummy)
+            service_record *orig_svc = (reload_svc != nullptr) ? reload_svc : dummy;
 
-                // Remove all "before" dependents from the original service (these were created by the
-                // original service itself)
-                auto &reload_depts = reload_svc->get_dependents();
-                for (auto i = reload_depts.begin(); i != reload_depts.end(); ) {
-                    auto next_i = std::next(i);
-                    if ((*i)->dep_type == dependency_type::BEFORE) {
-                        service_record *before_svc = (*i)->get_from();
-                        before_svc->rm_dep(**i);
-                        if (before_svc->get_type() == service_type_t::PLACEHOLDER && before_svc->is_unrefd()) {
-                            remove_service(before_svc);
-                            delete before_svc;
-                        }
-                    }
-                    i = next_i;
-                }
+            // Complete dependency/dependent transfers.
 
-                // Transfer dependents from the original service record to the new record;
-                // set links in all dependents on the original to point to the new service:
-                auto first_new_before = dept_list.begin();
-                dept_list.splice(first_new_before, reload_depts);
-                for (auto &dept : dept_list) {
-                    dept->set_to(rval);
-                }
-
-                // Transfer all "before" dependencies (which are actually created by other services) to the
-                // new service
-                auto &dep_list_prev = reload_svc->get_dependencies();
-                auto &dep_list = rval->get_dependencies();
-                for (auto i = dep_list_prev.begin(); i != dep_list_prev.end(); ++i) {
-                    if (i->dep_type == dependency_type::BEFORE) {
-                        i->set_from(rval);
-                        dep_list.splice(dep_list.end(), dep_list_prev, i++);
-                        continue;
+            // Remove all "before" dependents from the original service (these were created by the
+            // original service itself)
+            auto &reload_depts = orig_svc->get_dependents();
+            for (auto i = reload_depts.begin(); i != reload_depts.end(); ) {
+                auto next_i = std::next(i);
+                if ((*i)->dep_type == dependency_type::BEFORE) {
+                    service_record *before_svc = (*i)->get_from();
+                    before_svc->rm_dep(**i);
+                    if (before_svc->get_type() == service_type_t::PLACEHOLDER && before_svc->is_unrefd()) {
+                        remove_service(before_svc);
+                        delete before_svc;
                     }
                 }
-
-                // Remove dependent-link for all dependencies from the original:
-                reload_svc->prepare_for_unload();
+                i = next_i;
             }
 
-            // Finally, replace the old service with the new one:
-            service_record *old_service = (reload_svc != nullptr) ? reload_svc : dummy;
+            // Transfer dependents from the original service record to the new record;
+            // set links in all dependents on the original to point to the new service:
+            auto first_new_before = dept_list.begin();
+            dept_list.splice(first_new_before, reload_depts);
+            for (auto &dept : dept_list) {
+                dept->set_to(rval);
+            }
 
-            auto iter = std::find(records.begin(), records.end(), old_service);
+            // Transfer all "before" dependencies (which are actually created by other services) to the
+            // new service
+            auto &dep_list_prev = orig_svc->get_dependencies();
+            auto &dep_list = rval->get_dependencies();
+            for (auto i = dep_list_prev.begin(); i != dep_list_prev.end(); ++i) {
+                if (i->dep_type == dependency_type::BEFORE) {
+                    i->set_from(rval);
+                    dep_list.splice(dep_list.end(), dep_list_prev, i++);
+                    continue;
+                }
+            }
+
+            // Remove dependent-link for all dependencies from the original:
+            orig_svc->prepare_for_unload();
+
+            // Finally, replace the old service with the new one:
+            auto iter = std::find(records.begin(), records.end(), orig_svc);
             *iter = rval;
-            delete old_service;
+            delete orig_svc;
         }
 
         return rval;
