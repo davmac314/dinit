@@ -14,6 +14,7 @@ on:
       - 'src/**'
       - '**/meson.build'
       - 'meson_options.txt'
+      - '!**/Makefile'
   pull_request:
     types:
       - labeled
@@ -30,6 +31,7 @@ on:
       - 'src/**'
       - '**/meson.build'
       - 'meson_options.txt'
+      - '!**/Makefile'
   workflow_dispatch:
 
 jobs:

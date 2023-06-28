@@ -12,6 +12,7 @@ on:
       - 'src/**'
       - '**/Makefile'
       - '!build/includes/README'
+      - '!**/meson.build'
   pull_request:
     branches:
       - master
@@ -23,6 +24,7 @@ on:
       - 'src/**'
       - '**/Makefile'
       - '!build/includes/README'
+      - '!**/meson.build'
   workflow_dispatch:
 
 jobs:
