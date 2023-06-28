@@ -26,6 +26,7 @@ svcstartfail_test_script = files(meson.current_source_dir() + '/svc-start-fail/r
 depnotfound_test_script = files(meson.current_source_dir() + '/dep-not-found/run-test.sh')
 pseudocycle_test_script = files(meson.current_source_dir() + '/pseudo-cycle/run-test.sh')
 beforeafter_test_script = files(meson.current_source_dir() + '/before-after/run-test.sh')
+beforeafter2_test_script = files(meson.current_source_dir() + '/before-after2/run-test.sh')
 test(
      'basic',
      basic_test_script,
@@ -145,4 +146,10 @@ test(
      beforeafter_test_script,
      env : igr_tests_env,
      suite: 'igr_tests'
+)
+test(
+     'before-after2',
+     beforeafter2_test_script,
+     env : igr_tests_env,
+     suite : 'igr_tests'
 )
