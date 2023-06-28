@@ -4,7 +4,8 @@ Dinit on freebsd-amd64 CI_task:
                          'configs/**',
                          'dasynq/**',
                          'src/**',
-                         '**/Makefile')"
+                         '**/Makefile',
+                         '!**/meson.build')"
   freebsd_instance:
     matrix:
       - image_family: freebsd-13-1
