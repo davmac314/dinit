@@ -58,10 +58,10 @@ if platform == 'freebsd' and compiler.has_link_argument('-lrt')
 endif
 
 ## Prepare mconfig.h
-mconfig_data.set('DINIT_VERSION', '"' + meson.project_version() + '"')
-mconfig_data.set('SYSCONTROLSOCKET', '"' + dinit_control_socket_path + '"')
-mconfig_data.set('SBINDIR', '"' + sbindir + '"')
-mconfig_data.set('SHUTDOWN_PREFIX', '"' + shutdown_prefix + '"')
+mconfig_data.set_quoted('DINIT_VERSION', version)
+mconfig_data.set_quoted('SYSCONTROLSOCKET', dinit_control_socket_path)
+mconfig_data.set_quoted('SBINDIR', sbindir)
+mconfig_data.set_quoted('SHUTDOWN_PREFIX', shutdown_prefix)
 mconfig_data.set('DEFAULT_AUTO_RESTART', default_auto_restart)
 mconfig_data.set('DEFAULT_START_TIMEOUT', default_start_timeout)
 mconfig_data.set('DEFAULT_STOP_TIMEOUT', default_stop_timeout)
@@ -74,6 +74,10 @@ if use_utmpx.enabled()
 elif use_utmpx.disabled()
     mconfig_data.set('USE_UTMPX', '0')
 endif
+configure_file(
+    output : 'mconfig.h',
+    configuration : mconfig_data
+)
 
 ## Outputs
 subdir('src')

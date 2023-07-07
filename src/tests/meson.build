@@ -2,6 +2,7 @@
 
 ## Includes
 for_tests_incdir = include_directories(
+    '../../',
     'includes/',
     '../../dasynq/include/'
 )
@@ -18,12 +19,6 @@ for_tests_general_sources = [
     'test-bpsys.cc',
     'test-run-child-proc.cc'
 ]
-
-## Write mconfig.h from top-level meson.build
-configure_file(
-    output : 'mconfig.h',
-    configuration : mconfig_data
-)
 
 ## Prepare loadtests
 run_command([
