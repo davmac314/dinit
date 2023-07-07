@@ -11,6 +11,7 @@ on:
       - 'dasynq/**'
       - 'src/**'
       - '**/Makefile'
+      - '!build/mconfig.mesontemplate'
       - '!build/includes/README'
       - '!**/meson.build'
   pull_request:
@@ -23,6 +24,7 @@ on:
       - 'dasynq/**'
       - 'src/**'
       - '**/Makefile'
+      - '!build/mconfig.mesontemplate'
       - '!build/includes/README'
       - '!**/meson.build'
   workflow_dispatch:
