@@ -1,8 +1,9 @@
 # Included from top-level meson.build
 
 ## Includes
-# We include `./includes/` & `../dasynq/include/` as defualt_incdir
+# We include `../`, `./includes/` & `../dasynq/include/` as defualt_incdir
 default_incdir = include_directories(
+    '../',
     'includes/',
     '../dasynq/include/'
 )
@@ -27,12 +28,6 @@ shutdown_build = false
 if igr_tests
     igr_tests_env = [ 'DINIT_BINDIR=@0@'.format(meson.current_build_dir()) ]
 endif
-
-## Write mconfig.h
-configure_file(
-    output : 'mconfig.h',
-    configuration : mconfig_data
-)
 
 ## Outputs
 # Standard apps: dinit, dinitctl, dinitcheck, dinit-monitor

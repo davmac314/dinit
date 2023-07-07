@@ -2,6 +2,7 @@
 
 ## Includes
 incdir = include_directories(
+    '../../../',
     'includes',
     '../../../dasynq/include/'
 )
@@ -24,12 +25,6 @@ endif
 if fuzzer and compiler.get_id() != 'clang'
     error('Fuzz target must compiles with clang instead of @0@'.format(compiler.get_id()))
 endif
-
-## Write mconfig.h
-configure_file(
-    output : 'mconfig.h',
-    configuration : mconfig_data
-)
 
 ## Outputs
 # Cptests
