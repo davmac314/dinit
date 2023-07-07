@@ -75,6 +75,7 @@ elif use_utmpx.disabled()
     mconfig_data.set('USE_UTMPX', '0')
 endif
 configure_file(
+    input : 'build/mconfig.mesontemplate',
     output : 'mconfig.h',
     configuration : mconfig_data
 )
