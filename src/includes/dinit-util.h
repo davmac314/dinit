@@ -225,9 +225,9 @@ class dinit_equal_to
 {
 public:
     template <typename A, typename B>
-    bool operator()(const A &a, const B &b)
+    bool operator()(A &&a, B &&b)
     {
-        return a == b;
+        return std::forward<A>(a) == std::forward<B>(b);
     }
 };
 
@@ -381,7 +381,7 @@ private:
             // First, check if the value is already present
             bucket_num = hashval % buckets.size();
             auto list_it = std::find_if(buckets[bucket_num].begin(), buckets[bucket_num].end(),
-                    [&](key_type &k) { return key_equal_f(k,value); });
+                    [&](const key_type &k) { return key_equal_f(k,std::forward<V>(value)); });
             if (list_it != buckets[bucket_num].end()) {
                 return { { &buckets, list_it, bucket_num }, false };
             }
