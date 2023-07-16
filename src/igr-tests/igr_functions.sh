@@ -96,7 +96,7 @@ fi
 #         throw an error on failure.
 spawn_dinit() {
     find_dinit || error "Cannot find dinit exec path." "Specify 'DINIT_BINDIR' and/or ensure dinit is compiled."
-    "$DINIT" $QUIET -u -d sd -p "$SOCKET" "$@" &
+    "$DINIT" $QUIET -u -d sd -p "$SOCKET" -l /dev/null "$@" &
     DINITPID=$!
     # Wait for Dinit socket shows up.
     TIMEOUT=0
@@ -138,7 +138,7 @@ stop_dinit() {
 #         throw an error on failure.
 spawn_dinit_oneshot() {
     find_dinit || error "Cannot find dinit exec path." "Specify 'DINIT_BINDIR' and/or ensure dinit is compiled."
-    "$DINIT" $QUIET -u -d sd -p "$SOCKET" "$@"
+    "$DINIT" $QUIET -u -d sd -p "$SOCKET" -l /dev/null "$@"
 }
 
 # This function find dinitctl and allow access to dinit daemon via dinitctl.
