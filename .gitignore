@@ -21,20 +21,8 @@
 
 # Integration test output:
 /src/igr-tests/*/output/**
-/src/igr-tests/basic/basic-ran
-/src/igr-tests/environ/env-record
-/src/igr-tests/environ2/env-record
-/src/igr-tests/ps-environ/env-record
-/src/igr-tests/chain-to/recorded-output
-/src/igr-tests/restart/basic-ran
-/src/igr-tests/check-basic/output.txt
-/src/igr-tests/check-cycle/output.txt
-/src/igr-tests/check-cycle2/output.txt
-/src/igr-tests/check-lint/output.txt
 /src/igr-tests/reload1/sd
 /src/igr-tests/reload2/sd
-/src/igr-tests/no-command-error/dinit-run.log
-/src/igr-tests/var-subst/args-record
 
 # Generated man pages:
 /doc/manpages/*.5
