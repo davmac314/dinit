@@ -1,6 +1,6 @@
-# Included from run-test.sh files. Do not run independently.
+# Included from run-test.sh files. DO NOT run independently.
 
-### This file contain basic variables for running Integration tests of
+### This file contain basic variables & functions for running Integration tests of
 ### Dinit.
 
 # Input variables:
@@ -33,7 +33,7 @@ error() {
         >&2 echo " ... $2"
     fi
     if [ -n "${STAGE:-}" ]; then
-        echo "${TEST_NAME:-}: Failed at stage $STAGE."
+        >&2 echo "${TEST_NAME:-}: Failed at stage $STAGE."
     fi
     if [ -e "${SOCKET:-}" ]; then
         stop_dinit # A dinit instance is running, stopping...
@@ -57,31 +57,26 @@ find_executable() {
     varname=$2
     if [ -z "$(eval "echo \${${varname}:-}")" ]; then
         if [ -x "$DINIT_BINDIR/$exename" ]; then
-            export $varname="$DINIT_BINDIR/$exename"
+            export "$varname"="$DINIT_BINDIR/$exename"
         else
             return 1
         fi
     fi
 }
-
 find_dinit() { find_executable dinit DINIT; }
 find_dinitctl() { find_executable dinitctl DINITCTL; }
 find_dinitcheck() { find_executable dinitcheck DINITCHECK; }
 find_dinitmonitor() { find_executable dinit-monitor DINITMONITOR; }
 
-
-## Change directory to run-test.sh location
-cd "$(dirname "$0")" || error "Can't change directory to script location."
-
 ## Prepare $IGR_OUTPUT
 TEST_NAME="${PWD##*/}"
-if [ -z "$TEST_NAME" ]; then error "Failed to guess test name."; fi
+[ -n "$TEST_NAME" ] || error "Failed to guess test name."
 if [ -z "${IGR_OUTPUT:-}" ]; then
     IGR_OUTPUT="$PWD"
-    if [ -z "$IGR_OUTPUT" ]; then error "Failed to guess igr output files location."; fi
+    [ -n "$IGR_OUTPUT" ] || error "Failed to guess igr output files location."
     export IGR_OUTPUT
 else
-    # Igr tests are used by meson.
+    # Igr test is probably used by Meson.
     mkdir -p "$IGR_OUTPUT/$TEST_NAME/"
     IGR_OUTPUT="$IGR_OUTPUT/$TEST_NAME/"
     export IGR_OUTPUT
@@ -132,7 +127,7 @@ stop_dinit() {
         return 0
     else
         warning "Cannot stopping dinit via dinitctl." "Fallback to killing DINITPID."
-        kill "$DINITPID" || ( echo "${TEST_NAME:-}: Cannot stop Dinit instance!" && exit 1 )
+        kill "$DINITPID" || ( echo "${TEST_NAME:-}: Cannot stop Dinit instance!" && exit 1 ) >&2
         wait "$DINITPID"
     fi
 }
@@ -209,7 +204,7 @@ compare_file() {
 #         throw an error on any other failure.
 compare_cmd() {
     if [ ! -e "$2" ]; then
-        error "$2 file isn't exist!"
+        error "$2 file doesn't exist!"
     fi
     if [ "${3:-}" = "err" ]; then
         CMD_OUT="$($1 2>&1 || true)"
