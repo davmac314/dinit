@@ -1153,6 +1153,7 @@ bool control_conn_t::queue_packet(const char *pkt, unsigned size) noexcept
     // Create a vector out of the (remaining part of the) packet:
     try {
         outbuf.emplace_back(pkt, pkt + size);
+        outbuf_size += size;
         return true;
     }
     catch (std::bad_alloc &baexc) {
@@ -1202,6 +1203,7 @@ bool control_conn_t::queue_packet(std::vector<char> &&pkt) noexcept
     
     try {
         outbuf.emplace_back(std::move(pkt));
+        outbuf_size += pkt.size();
         return true;
     }
     catch (std::bad_alloc &baexc) {
@@ -1290,6 +1292,7 @@ bool control_conn_t::send_data() noexcept
     outpkt_index += written;
     if (outpkt_index == pkt.size()) {
         // We've finished this packet, move on to the next:
+        outbuf_size -= pkt.size();
         outbuf.pop_front();
         outpkt_index = 0;
         if (oom_close) {

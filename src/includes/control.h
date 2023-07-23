@@ -28,6 +28,7 @@ inline dasynq::rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *wa
 extern control_conn_t * rollback_handler_conn;
 
 extern int active_control_conns;
+constexpr int OUTBUF_LIMIT = 16384; // 16KB
 
 // "packet" format:
 // (1 byte) packet type
@@ -111,6 +112,8 @@ class control_conn_t : private service_listener
     
     // Buffer for outgoing packets. Each outgoing back is represented as a vector<char>.
     list<vector<char>> outbuf;
+    // Current output buffer size in bytes.
+    unsigned outbuf_size = 0;
     // Current index within the first outgoing packet (all previous bytes have been sent).
     unsigned outpkt_index = 0;
     
@@ -181,7 +184,7 @@ class control_conn_t : private service_listener
     bool data_ready() noexcept;
     
     bool send_data() noexcept;
-    
+
     // Check if any dependents will be affected by stopping a service, generate a response packet if so.
     // had_dependents will be set true if the service should not be stopped, false otherwise.
     // Returns false if the connection must be closed, true otherwise.
@@ -250,7 +253,7 @@ inline dasynq::rearm control_conn_cb(eventloop_t * loop, control_conn_watcher * 
     }
     
     int watch_flags = 0;
-    if (!conn->bad_conn_close) {
+    if (!conn->bad_conn_close && conn->outbuf_size < OUTBUF_LIMIT) {
         watch_flags |= dasynq::IN_EVENTS;
     }
     if (!conn->outbuf.empty() || conn->bad_conn_close) {
