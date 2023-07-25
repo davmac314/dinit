@@ -206,7 +206,6 @@ class control_conn_t : private service_listener
     {
         bad_conn_close = true;
         oom_close = true;
-        iob.set_watches(dasynq::OUT_EVENTS);
     }
     
     // Process service event broadcast.
@@ -250,6 +249,15 @@ inline dasynq::rearm control_conn_cb(eventloop_t * loop, control_conn_watcher * 
         }
     }
     
+    int watch_flags = 0;
+    if (!conn->bad_conn_close) {
+        watch_flags |= dasynq::IN_EVENTS;
+    }
+    if (!conn->outbuf.empty() || conn->bad_conn_close) {
+        watch_flags |= dasynq::OUT_EVENTS;
+    }
+    watcher->set_watches(watch_flags);
+
     return dasynq::rearm::NOOP;
 }
 
