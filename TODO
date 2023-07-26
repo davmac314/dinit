@@ -9,18 +9,14 @@ For version 0.17:
 * [in progress] process input/output chaining (for logging); "log-type = pipe".
 * Documentation for "log-type = buffer" and "log-type = pipe".
 * "offline" dinitctl enable/disable - i.e. enable or disable a service when dinit isn't running.
+* dinitctl command to signal running service process.
+
 
 For version 1.0 (release requirements):
 ---------------------------------------
 * Be able to boot and shutdown Linux and FreeBSD (or OpenBSD).
 * Documentation must be complete (mostly done; will need updates as other items are completed).
-
-
-Maybe for 1.0?
---------------
-* on shutdown, after a long interval with no activity, display information about
-  services we are waiting on (and/or, do this when prompted via ^C or C-A-D?)
-* Proper support for socket activation?
+* dinitcheck should be able to resolve variable substitutions using variables from running dinit.
 
 
 For later (post 1.0):
@@ -29,10 +25,13 @@ For later (post 1.0):
 * On linux when running with PID != 1, write PID to /proc/sys/kernel/cad_pid so
   that we still receive SIGINT from ctrl+alt+del (must be done after /proc is
   mounted, possibly could be left to a service script)
+* Proper support for socket activation?
 * Perhaps need a way to prevent script services from re-starting.
   (eg there's no need to mount filesystems twice; there might be various other
    system initialisations that can't or shouldn't really be "undone" and so do
    not need to be re-done).
+* on shutdown, after a long interval with no activity, display information about
+  services we are waiting on (and/or, do this when prompted via ^C or C-A-D?)
 * Internationalisation
 * A service can prevent shutdown/reboot by failing to stop. Maybe make
   multiple CTRL-ALT-DEL presses (or ^C since that's more portable) commence
@@ -52,7 +51,6 @@ For later (post 1.0):
     for receiving output from multiple services. This would require some kind of
     protocol for passing new output descriptors to the logger (for when a
     service starts).
-* dinitcheck should be able to resolve variable substitutions using variables from running dinit.
 
 
 Even later / Maybe never:
