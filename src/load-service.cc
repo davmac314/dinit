@@ -417,6 +417,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
     }
 
     service_settings_wrapper<prelim_dep> settings;
+    service_record *consumer_of_svc = nullptr;
 
     string line;
     // getline can set failbit if it reaches end-of-file, we don't want an exception in that case. There's
@@ -451,9 +452,20 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         // dependencies on the new service (rval). (This requires that settings.depends has been cleared
         // of any dependencies that were successfully added).
         for (prelim_dep &dep : settings.depends) {
-            if (dep.dep_type == dependency_type::AFTER && dep.to->is_unrefd()) {
-                remove_service(dep.to);
+            if (dep.to->get_type() == service_type_t::PLACEHOLDER) {
+                if (dep.dep_type == dependency_type::AFTER && dep.to->is_unrefd()) {
+                    remove_service(dep.to);
+                }
             }
+        }
+        // Remove any placeholder consumed service.
+        if (consumer_of_svc != nullptr) {
+           if (consumer_of_svc->get_type() == service_type_t::PLACEHOLDER) {
+               if (consumer_of_svc->is_unrefd()) {
+                   remove_service(consumer_of_svc);
+                   delete consumer_of_svc;
+               }
+           }
         }
     };
 
@@ -508,23 +520,21 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         environment srv_env;
 
-        /* fill user vars before reading env file */
+        // Fill user vars before reading env file
         if (settings.export_passwd_vars) {
             fill_environment_userinfo(settings.run_as_uid, name, srv_env);
         }
 
-        /* set service name in environment if desired */
+        // Set service name in environment if desired
         if (settings.export_service_name) {
             std::string envname = "DINIT_SERVICE=";
             envname += name;
             srv_env.set_var(std::move(envname));
         }
 
-        // this mapping is temporary, for load substitutions
-        // the reason for this is that the environment actually *may* change
-        // after load, e.g. through dinitctl setenv (either from the outside
-        // or from within services) and we want this to refresh for each
-        // process invocation
+        // This mapping is temporary, for load substitutions. (The environment actually *may* change
+        // after load, e.g. through dinitctl setenv, either from the outside or from within services,
+        // and so we need to calculate a fresh mapping on each process invocation).
         environment::env_map srv_envmap;
 
         if (!settings.env_file.empty()) {
@@ -543,10 +553,71 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         if (reload_svc != nullptr) {
             // Make sure settings are able to be changed/are compatible
             create_new_record = check_settings_for_reload(reload_svc, settings);
+            // If service current has an output consumer, make sure new settings are compatible
+            if (reload_svc->get_log_consumer() != nullptr) {
+                if (!value(service_type).is_in(service_type_t::PROCESS, service_type_t::BGPROCESS,
+                        service_type_t::SCRIPTED)) {
+                    throw service_load_exc(name, "service has output consumer; service type must correspond "
+                            "to output-producing service (process, bgprocess, or scripted)");
+                }
+                if (settings.log_type != log_type_id::PIPE) {
+                    throw service_load_exc(name, "service has output consumer; log type must be set "
+                            "to 'pipe'");
+                }
+            }
+            // We also don't allow a running service to change its consumed service. This is checked
+            // shortly.
+        }
+
+        bool have_consumed_svc = !settings.consumer_of_name.empty();
+        if (have_consumed_svc) {
+            consumer_of_svc = find_service(settings.consumer_of_name.c_str(), true);
+        }
+
+        if (reload_svc != nullptr && reload_svc->get_state() != service_state_t::STOPPED) {
+            auto *current_consumed = ((process_service *)reload_svc)->get_consumed();
+            if (current_consumed != consumer_of_svc) {
+                throw service_load_exc(name, "cannot change consumed service ('consumer-of') when not stopped");
+            }
         }
 
         // Note, we need to be very careful to handle exceptions properly and roll back any changes that
-        // we've made before the exception occurred.
+        // we've made before the exception occurred, including destroying any placeholder services that we
+        // create, etc.
+
+        if (have_consumed_svc) {
+            if (consumer_of_svc == nullptr) {
+                consumer_of_svc = new placeholder_service(this, settings.consumer_of_name);
+                try {
+                    add_service(consumer_of_svc);
+                }
+                catch (...) {
+                    delete consumer_of_svc;
+                    consumer_of_svc = nullptr;
+                    throw;
+                }
+            }
+            else {
+                auto consumed_type = consumer_of_svc->get_type();
+                if (!value(consumed_type).is_in(service_type_t::PROCESS, service_type_t::BGPROCESS,
+                        service_type_t::SCRIPTED, service_type_t::PLACEHOLDER)) {
+                    throw service_load_exc(name, "the 'consumer-of' setting specifies a service of a "
+                            "type that does not produce output");
+                }
+                if (consumed_type != service_type_t::PLACEHOLDER) {
+                    base_process_service *bps_consumed = static_cast<base_process_service *>(consumer_of_svc);
+                    if (bps_consumed->get_log_mode() != log_type_id::PIPE) {
+                        throw service_load_exc(name, "the 'consumer-of' setting specifies a service that "
+                                "does not log via a pipe ('log-type = pipe')");
+                    }
+                }
+                service_record *current_consumer = consumer_of_svc->get_log_consumer();
+                if (current_consumer != nullptr && current_consumer != reload_svc) {
+                    throw service_load_exc(name, "the 'consumer-of' setting specifies a service that "
+                            "already has a consumer");
+                }
+            }
+        }
 
         // If we have "after" constraints, load them now and treat them as regular dependencies. We need
         // to do this now, after the other dependents are loaded, because we might create a placeholder
@@ -564,7 +635,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 }
             }
             if (after_svc == nullptr) {
-                after_svc = new service_record(this, after_ent);
+                after_svc = new placeholder_service(this, after_ent);
                 try {
                     add_service(after_svc);
                 }
@@ -598,7 +669,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             else {
                 bool before_svc_added = false;
                 try {
-                    before_svc = new service_record(this, before_ent);
+                    before_svc = new placeholder_service(this, before_ent);
                     add_service(before_svc);
                     before_svc_added = true;
                 }
@@ -834,13 +905,40 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 }
             }
 
+            // Transfer any open file descriptors for (log) output to new service record
+            if (value(service_type).is_in(service_type_t::PROCESS, service_type_t::BGPROCESS, service_type_t::SCRIPTED)) {
+                ((process_service *)rval)->set_output_pipe_fds(orig_svc->transfer_output_pipe());
+                auto *orig_consumer = orig_svc->get_log_consumer();
+                if (orig_consumer != nullptr) {
+                    orig_consumer->set_consumer_for(rval);
+                }
+            }
+
             // Remove dependent-link for all dependencies from the original:
             orig_svc->prepare_for_unload();
+
+            // Remove consumer-for link from consumed service, if it's changing:
+            if (value(orig_svc->get_type()).is_in(service_type_t::PROCESS, service_type_t::BGPROCESS)) {
+                process_service *ps_orig = static_cast<process_service *>(orig_svc);
+                auto *orig_consumed = ps_orig->get_consumed();
+                if (orig_consumed != nullptr && orig_consumed != consumer_of_svc) {
+                    orig_consumed->set_log_consumer(nullptr);
+                }
+            }
 
             // Finally, replace the old service with the new one:
             auto iter = std::find(records.begin(), records.end(), orig_svc);
             *iter = rval;
             delete orig_svc;
+        }
+
+        // Mark as consumer for output of target service (if any)
+        if (value(service_type).is_in(service_type_t::PROCESS, service_type_t::BGPROCESS)) {
+            process_service *psvc = (process_service *)rval;
+            psvc->set_consumer_for(consumer_of_svc);
+            if (consumer_of_svc != nullptr) {
+                consumer_of_svc->set_log_consumer(psvc);
+            }
         }
 
         return rval;

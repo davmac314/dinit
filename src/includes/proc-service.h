@@ -43,6 +43,7 @@ struct run_proc_params
     uid_t uid;
     gid_t gid;
     const std::vector<service_rlimits> &rlimits;
+    int input_fd = -1;        // file descriptor to be used for input (STDIN)
 
     run_proc_params(const char * const *args, const char *working_dir, const char *logfile, int wpipefd,
             uid_t uid, gid_t gid, const std::vector<service_rlimits> &rlimits)
@@ -223,8 +224,8 @@ class base_process_service : public service_record
     bp_sys::exit_status exit_status; // Exit status, if the process has exited (pid == -1).
     int socket_fd = -1;  // For socket-activation services, this is the file descriptor for the socket.
     int notification_fd = -1;  // If readiness notification is via fd
-    int log_output_fd = -1; // If logging via buffer, write end of the log pipe
-    int log_input_fd = -1; // If logging via buffer, read end of the log pipe
+    int log_output_fd = -1; // If logging via buffer/pipe, write end of the pipe
+    int log_input_fd = -1; // If logging via buffer/pipe, read end of the pipe
 
     // Only one of waiting_restart_timer and waiting_stopstart_timer should be set at any time.
     // They indicate that the process timer is armed (and why).
@@ -283,6 +284,10 @@ class base_process_service : public service_record
     virtual bool interrupt_start() noexcept override;
 
     void becoming_inactive() noexcept override;
+
+    // Get the file descriptor which the process should read input from (STDIN).
+    // Return false on failure. If input_fd returned is -1, process has no specific input.
+    virtual bool get_input_fd(int *input_fd) noexcept { *input_fd = -1; return true; }
 
     // Kill with SIGKILL
     virtual void kill_with_fire() noexcept;
@@ -365,32 +370,69 @@ class base_process_service : public service_record
         this->log_buf_max = max_size;
     }
 
-    // Set log mode (NONE, BUFFER, FILE)
+    // Set log mode (NONE, BUFFER, FILE, PIPE) (must not change mode when service is not STOPPED).
     void set_log_mode(log_type_id log_type) noexcept
     {
         if (this->log_type == log_type) {
-        	return;
+            return;
         }
-    	if (log_output_fd != -1) {
-    		if (this->log_type == log_type_id::BUFFER) {
-    			log_output_listener.deregister(event_loop);
-    		}
-			bp_sys::close(log_output_fd);
-			bp_sys::close(log_input_fd);
-			log_output_fd = log_input_fd = -1;
+        if (log_output_fd != -1) {
+            if (this->log_type == log_type_id::BUFFER) {
+                log_output_listener.deregister(event_loop);
+            }
+            if (!value(log_type).is_in(log_type_id::BUFFER, log_type_id::PIPE)) {
+                bp_sys::close(log_output_fd);
+                bp_sys::close(log_input_fd);
+                log_output_fd = log_input_fd = -1;
+            }
         }
         this->log_type = log_type;
     }
 
     log_type_id get_log_mode() noexcept
     {
-    	return this->log_type;
+        return this->log_type;
+    }
+
+    // Set the output pipe descriptors (both read and write end). This is only valid to call for
+    // log mode PIPE and only when the service has just been loaded. It is intended for transfer
+    // of fds from a placeholder service.
+    void set_output_pipe_fds(std::pair<int,int> fds)
+    {
+        log_input_fd = fds.first;
+        log_output_fd = fds.second;
+    }
+
+    std::pair<int,int> transfer_output_pipe() noexcept override
+    {
+        std::pair<int,int> r { log_input_fd, log_output_fd };
+        if (log_type == log_type_id::BUFFER && log_output_fd != -1) {
+            log_output_listener.deregister(event_loop);
+        }
+        log_input_fd = log_output_fd = -1;
+        return r;
+    }
+
+    int get_output_pipe_fd() noexcept override
+    {
+        if (log_input_fd != -1) {
+            return log_input_fd;
+        }
+
+        int pipefds[2];
+        if (bp_sys::pipe2(pipefds, O_CLOEXEC) == -1) {
+            log(loglevel_t::ERROR, get_name(), ": Can't open output pipe: ", std::strerror(errno));
+            return -1;
+        }
+        log_input_fd = pipefds[0];
+        log_output_fd = pipefds[1];
+        return log_input_fd;
     }
 
     // Get the log buffer (address, length)
     std::pair<const char *, unsigned> get_log_buffer() noexcept
     {
-    	return {log_buffer.data(), log_buf_size};
+        return {log_buffer.data(), log_buf_size};
     }
 
     void set_env_file(const std::string &env_file_p)
@@ -527,6 +569,8 @@ class process_service : public base_process_service
 
     bool doing_smooth_recovery = false; // if we are performing smooth recovery
 
+    service_record *consumer_for = nullptr;
+
 #if USE_UTMPX
 
     private:
@@ -595,6 +639,19 @@ class process_service : public base_process_service
         return true;
     }
 
+    bool get_input_fd(int *input_fd) noexcept override
+    {
+        if (consumer_for == nullptr) {
+            *input_fd = -1;
+            return true;
+        }
+
+        int cfd = consumer_for->get_output_pipe_fd();
+        if (cfd == -1) return false;
+        *input_fd = cfd;
+        return true;
+    }
+
     process_service(service_set *sset, const string &name, service_type_t s_type, ha_string &&command,
             std::list<std::pair<unsigned,unsigned>> &command_offsets,
             const std::list<prelim_dep> &depends_p)
@@ -645,10 +702,24 @@ class process_service : public base_process_service
 
 #endif
 
+    // Set this service to consume output of specified service (only call while service stopped).
+    void set_consumer_for(service_record *consumed) noexcept
+    {
+        consumer_for = consumed;
+    }
+
+    service_record *get_consumed() noexcept
+    {
+        return consumer_for;
+    }
+
     ~process_service() noexcept
     {
         if (reserved_stop_watch) {
             stop_watcher.unreserve(event_loop);
+        }
+        if (consumer_for != nullptr) {
+            consumer_for->set_log_consumer(nullptr);
         }
     }
 };

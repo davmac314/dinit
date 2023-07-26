@@ -51,7 +51,7 @@ enum class stopped_reason_t
     // Start failures:
     DEPFAILED, // A dependency failed to start
     FAILED,    // failed to start (process terminated)
-	EXECFAILED, // failed to start (couldn't launch process)
+    EXECFAILED, // failed to start (couldn't launch process)
     TIMEDOUT,  // timed out when starting
 
     // Failure(?) after starting:
@@ -116,7 +116,8 @@ enum class log_type_id
 {
     NONE,     // discard all output
     LOGFILE,  // log to a file
-    BUFFER    // log to a buffer in memory
+    BUFFER,   // log to a buffer in memory
+    PIPE      // pipe to another process (service)
 };
 
 // Service set type identifiers:

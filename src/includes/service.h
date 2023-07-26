@@ -147,6 +147,7 @@
 class service_record;
 class service_set;
 class base_process_service;
+class process_service;
 
 /* Service dependency record */
 class service_dep
@@ -244,7 +245,7 @@ class service_record
     
     private:
     string service_name;
-    service_type_t record_type;  // service_type_t::DUMMY, PROCESS, SCRIPTED, or INTERNAL
+    service_type_t record_type;
 
     // 'service_state' can be any valid state: STARTED, STARTING, STOPPING, STOPPED.
     // 'desired_state' is only set to final states: STARTED or STOPPED.
@@ -302,6 +303,8 @@ class service_record
     
     std::unordered_set<service_listener *> listeners;
     
+    process_service *log_consumer = nullptr;
+
     // Process services:
     bool force_stop; // true if the service must actually stop. This is the
                      // case if for example the process dies; the service,
@@ -575,6 +578,16 @@ class service_record
         start_on_completion = std::move(chain_to);
     }
 
+    void set_log_consumer(process_service *consumer)
+    {
+        log_consumer = consumer;
+    }
+
+    process_service *get_log_consumer()
+    {
+        return log_consumer;
+    }
+
     const std::string &get_name() const noexcept { return service_name; }
     service_state_t get_state() const noexcept { return service_state; }
     
@@ -660,7 +673,15 @@ class service_record
     // unloading. Does not check listeners (i.e. mostly useful for placeholder services).
     bool is_unrefd() noexcept
     {
-        return depends_on.empty() && dependents.empty();
+        return depends_on.empty() && dependents.empty() && log_consumer == nullptr;
+    }
+
+    // Get fd corresponding to the read end of the pipe/socket connected to the write end used by the
+    // service process (if any). Opens the pipe if not already open; returns -1 if the service output
+    // cannot be piped (failure to open pipe, wrong service type, etc).
+    virtual int get_output_pipe_fd() noexcept
+    {
+        return -1;
     }
 
     // Prepare this service to be unloaded.
@@ -782,11 +803,68 @@ class service_record
     // Start a specific dependency of this service. Should only be called if this service is in an
     // appropriate state (started, starting). The dependency is marked as holding acquired; when
     // this service stops, the dependency will be released and may also stop.
-    void start_dep(service_dep &dep)
+    void start_dep(service_dep &dep) noexcept
     {
-        if (! dep.holding_acq) {
+        if (!dep.holding_acq) {
             dep.get_to()->require();
             dep.holding_acq = true;
+        }
+    }
+
+    // Transfer the file descriptors representing the output (logging) pipe for this service. The file
+    // descriptors are returned as a pair (read,write) (possibly with -1,-1 if there is no log pipe open)
+    // and disassociated from this service.
+    // This is used when a process is reloaded (for example) to transfer the pipe from the original service
+    // record to the new service record.
+    virtual std::pair<int,int> transfer_output_pipe() noexcept
+    {
+        return {-1,-1};
+    }
+};
+
+class placeholder_service : public service_record {
+    int log_output_fd = -1; // write end of the output pipe
+    int log_input_fd = -1; // read end of the output pipe
+
+    public:
+    placeholder_service(service_set *set, const string &name)
+        : service_record(set, name, service_type_t::PLACEHOLDER, {}) {
+    }
+
+    int get_output_pipe_fd() noexcept override
+    {
+        if (log_input_fd != -1) {
+            return log_input_fd;
+        }
+
+        int pipefds[2];
+        if (bp_sys::pipe2(pipefds, O_CLOEXEC) == -1) {
+            log(loglevel_t::ERROR, get_name(), " (placeholder): Can't open output pipe: ", std::strerror(errno));
+            return -1;
+        }
+        log_input_fd = pipefds[0];
+        log_output_fd = pipefds[1];
+        return log_input_fd;
+    }
+
+    std::pair<int,int> transfer_output_pipe() noexcept override
+    {
+        std::pair<int,int> r { log_input_fd, log_output_fd };
+        log_input_fd = log_output_fd = -1;
+        return r;
+    }
+
+    void set_output_pipe(std::pair<int,int> fds) noexcept
+    {
+        log_input_fd = fds.first;
+        log_output_fd = fds.second;
+    }
+
+    ~placeholder_service()
+    {
+        if (log_output_fd != -1) {
+            bp_sys::close(log_output_fd);
+            bp_sys::close(log_input_fd);
         }
     }
 };
@@ -956,14 +1034,20 @@ class service_set
         // Check if there are any "after" dependents, or any "before" dependencies. We need a placeholder
         // if so. Note that the placeholder is created before making any destructive changes, so if we fail
         // to create it no rollback is needed.
-        service_record *placeholder = nullptr;
+        placeholder_service *placeholder = nullptr;
         auto make_placeholder = [&]() {
             if (placeholder == nullptr) {
-                std::unique_ptr<service_record> ph { new service_record(this, svc->get_name()) };
+                std::unique_ptr<placeholder_service> ph { new placeholder_service(this, svc->get_name()) };
                 add_service(ph.get());
                 placeholder = ph.release();
             }
         };
+
+        auto *consumer = svc->get_log_consumer();
+        if (consumer != nullptr) {
+            make_placeholder();
+            placeholder->set_output_pipe(svc->transfer_output_pipe());
+        }
 
         auto &svc_depts = svc->get_dependents();
         for (auto i = svc_depts.begin(); i != svc_depts.end(); ) {

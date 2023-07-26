@@ -105,6 +105,11 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         return false;
     }
 
+    int input_fd;
+    if (!get_input_fd(&input_fd)) {
+        return false;
+    }
+
     const char * logfile = this->logfile.c_str();
     if (this->log_type == log_type_id::LOGFILE || this->log_type == log_type_id::NONE) {
         // Note: if log_type == NONE, logfile should be empty.
@@ -112,7 +117,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
             logfile = "/dev/null";
         }
     }
-    else /* log_type_id::BUFFER */ {
+    else /* log_type_id::BUFFER or ::PIPE */ {
         if (this->log_output_fd == -1) {
             int logfd[2];
             // Note: we set CLOEXEC on the file descriptors here; when the output file descriptor is dup'd
@@ -123,17 +128,19 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
             }
             this->log_input_fd = logfd[0];
             this->log_output_fd = logfd[1];
-            try {
-                this->log_output_listener.add_watch(event_loop, logfd[0], dasynq::IN_EVENTS,
-                        false /* not enabled */);
-            }
-            catch (...) {
-                log(loglevel_t::ERROR, get_name(), ": can't add output watch (insufficient resources)");
-                bp_sys::close(this->log_input_fd);
-                bp_sys::close(this->log_output_fd);
-                this->log_input_fd = -1;
-                this->log_output_fd = -1;
-                goto out_p;
+            if (this->log_type == log_type_id::BUFFER) {
+                try {
+                    this->log_output_listener.add_watch(event_loop, logfd[0], dasynq::IN_EVENTS,
+                            false /* not enabled */);
+                }
+                catch (...) {
+                    log(loglevel_t::ERROR, get_name(), ": can't add output watch (insufficient resources)");
+                    bp_sys::close(this->log_input_fd);
+                    bp_sys::close(this->log_output_fd);
+                    this->log_input_fd = -1;
+                    this->log_output_fd = -1;
+                    goto out_p;
+                }
             }
         }
         // (More is done below, after we have performed additional setup)
@@ -236,7 +243,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
 
         if (forkpid == 0) {
             const char * working_dir_c = nullptr;
-            if (! working_dir.empty()) working_dir_c = working_dir.c_str();
+            if (!working_dir.empty()) working_dir_c = working_dir.c_str();
             after_fork(getpid());
             run_proc_params run_params{cmd.data(), working_dir_c, logfile, pipefd[1], run_as_uid, run_as_gid, rlimits};
             run_params.on_console = on_console;
@@ -248,6 +255,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
             run_params.notify_var = notification_var.c_str();
             run_params.env_file = env_file.c_str();
             run_params.output_fd = log_output_fd;
+            run_params.input_fd = input_fd;
             #if SUPPORT_CGROUPS
             run_params.run_in_cgroup = run_in_cgroup.c_str();
             #endif

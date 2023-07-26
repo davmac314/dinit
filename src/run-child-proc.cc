@@ -23,7 +23,7 @@ extern bool have_cgroups_path;
 #include <grp.h>
 #endif
 
-// Move an fd, if necessary, to another fd. The destination fd must be available (not open).
+// Move an fd, if necessary, to another fd. The original destination fd will be closed.
 // if fd is specified as -1, returns -1 immediately. Returns 0 on success.
 static int move_fd(int fd, int dest)
 {
@@ -98,7 +98,14 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     run_proc_err err;
     err.stage = exec_stage::ARRANGE_FDS;
 
+    // We need to shuffle various file descriptors around to get them in the right places.
+
     int minfd = (socket_fd == -1) ? 3 : 4;
+
+    // If input_fd is set, deal with it now (move it to STDIN) so we can throw away that file descriptor
+    if (params.input_fd != -1) {
+        if (move_fd(params.input_fd, STDIN_FILENO) != 0) goto failure_out;
+    }
 
     if (force_notify_fd != -1) {
         // Move wpipefd/csfd/socket_fd to another fd if necessary:
@@ -199,13 +206,14 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     }
 
     if (!on_console) {
-        // Re-set stdin, stdout, stderr
-        for (int i = 0; i < 3; i++) {
+        // Re-set stdin (possibly), stdout, stderr
+        int begin = (params.input_fd == -1) ? 0 : 1;
+        for (int i = begin; i < 3; i++) {
             if (i != force_notify_fd) close(i);
         }
 
         err.stage = exec_stage::SETUP_STDINOUTERR;
-        if (notify_fd == 0 || move_fd(open("/dev/null", O_RDONLY), 0) == 0) {
+        if (notify_fd == 0 || params.input_fd != -1 || move_fd(open("/dev/null", O_RDONLY), 0) == 0) {
             // stdin = 0. That's what we should have; proceed with opening stdout and stderr. We have to
             // take care not to clobber the notify_fd.
             if (output_fd == -1) {

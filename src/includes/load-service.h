@@ -863,6 +863,7 @@ class service_settings_wrapper
     gid_t run_as_gid = -1;
 
     string chain_to_name;
+    string consumer_of_name;
 
     #if SUPPORT_CGROUPS
     string run_in_cgroup;
@@ -995,6 +996,12 @@ class service_settings_wrapper
         if (log_type != log_type_id::LOGFILE) {
             logfile.clear();
         }
+
+        if (!value(service_type).is_in(service_type_t::PROCESS, service_type_t::BGPROCESS)) {
+            if (!consumer_of_name.empty()) {
+                report_error("only a process or bgprocess service can be a log consumer ('consume-for') another service.");
+            }
+        }
     }
 };
 
@@ -1116,6 +1123,9 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         else if (log_type_str == "none") {
             settings.log_type = log_type_id::NONE;
         }
+        else if (log_type_str == "pipe") {
+            settings.log_type = log_type_id::PIPE;
+        }
         else {
             throw service_description_exc(name, "log type must be one of: \"file\", \"buffer\" or \"none\"",
                     line_num);
@@ -1126,6 +1136,10 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         unsigned bufsize = (unsigned)parse_unum_param(line_num, log_buffer_size_str, name,
                 std::numeric_limits<unsigned>::max() / 2);
         settings.max_log_buffer_sz = bufsize;
+    }
+    else if (setting == "consumer-of") {
+        string consumed_svc_name = read_setting_value(line_num, i, end);
+        settings.consumer_of_name = consumed_svc_name;
     }
     else if (setting == "restart") {
         string restart = read_setting_value(line_num, i, end);
