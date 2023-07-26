@@ -18,6 +18,8 @@
 
 // Control connection for dinit
 
+constexpr int OUTBUF_LIMIT = 16384; // Output buffer high-water mark
+
 class control_conn_t;
 class control_conn_watcher;
 
@@ -28,7 +30,6 @@ inline dasynq::rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *wa
 extern control_conn_t * rollback_handler_conn;
 
 extern int active_control_conns;
-constexpr int OUTBUF_LIMIT = 16384; // 16KB
 
 // "packet" format:
 // (1 byte) packet type
@@ -110,7 +111,7 @@ class control_conn_t : private service_listener
     std::unordered_multimap<service_record *, handle_t> service_key_map;
     std::map<handle_t, service_record *> key_service_map;
     
-    // Buffer for outgoing packets. Each outgoing back is represented as a vector<char>.
+    // Buffer for outgoing packets. Each outgoing packet is represented as a vector<char>.
     list<vector<char>> outbuf;
     // Current output buffer size in bytes.
     unsigned outbuf_size = 0;
@@ -252,6 +253,7 @@ inline dasynq::rearm control_conn_cb(eventloop_t * loop, control_conn_watcher * 
         }
     }
     
+    // Accept more commands unless the output buffer high water mark is exceeded
     int watch_flags = 0;
     if (!conn->bad_conn_close && conn->outbuf_size < OUTBUF_LIMIT) {
         watch_flags |= dasynq::IN_EVENTS;
