@@ -14,8 +14,8 @@ New features:
    before stopping the service. This can be used to ensure a cleaner system state and that
    filesystems can be unmounted (for example). Use with care; see dinit-service(5) for details.
  * "shutdown" now runs (if present) user-provided shutdown hooks; see shutdown(8) for details.
- * New "dinitctl" subcommands "is-active" and "is-failed", to test for specific service statuses.
-   Contributed by Daniel Kolesa.
+ * New "dinitctl" subcommands "is-started" and "is-failed", to test for specific service statuses
+   (intended to be useful in scripts, for example). Contributed by Daniel Kolesa.
  * "dinitctl" now supports the "--use-passed-cfd" argument (as for shutdown).
  * A "configure" script to generate suitable build configuration is included. It is used by
    default when building on not-recognised systems. Contributed by Mobin Aydinfar.
@@ -27,14 +27,20 @@ Changes:
  * Services which specify "run-as" to run as a different user now run with the supplementary
    groups of that user (this can be disabled at build time by setting USE_INITGROUPS=0).
    Thanks to Daniel Kolesa.
+ * Environment variables from the service-specific environment ("env-file" setting) can now be
+   substituted in many service settings. Variable expansion now supports a limited subset of shell
+   expansions (such as "$(NAME:-word}" and "${NAME:+word}). Behaviour is not identical to shell;
+   see documentation. Implemented by Daniel Kolesa.
+ * Environment variable expansion in service descriptions is no longer optional. The "sub-vars"
+   load option no in a service description no longer has any effect, and "no-sub-vars" is no
+   longer recognised at all.
  * Some service defaults, including automatic restart, can now be configured at build time
    (contributed by Mobin Aydinfar).
- * Environment variables from the service-specific environment ("env-file" setting) can now be
-   substituted in service settings. Variable expansion now supports a limited subset of shell
-   expansions (such as "$(NAME:-word}" and "${NAME:+word}).
 
 Fixes:
  * A bug in Dasynq which caused out-of-bounds vector access in dinit on shutdown has been fixed.
+ * Fixed a dinit bug that could cause communication on a control socket to block indefinitely,
+   which could theoretically cause dinitctl to hang.
 
 == Version 0.16.1
 

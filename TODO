@@ -1,11 +1,14 @@
 For version 0.17:
 -----------------
-* Limit memory use by control connections. Currently clients have command responses queued without
+* [DONE] Limit memory use by control connections. Currently clients have command responses queued without
   limit; it would be better to stop accepting new commands once a certain amount of response is
   buffered. 
-* Externally triggered services (to represent devices etc). Such services will not reach STARTED
+* [DONE] Externally triggered services (to represent devices etc). Such services will not reach STARTED
   state unless the external trigger occurs (eg "dinitctl trigger servicename", details to be
   determined).
+* [in progress] process input/output chaining (for logging); "log-type = pipe".
+* Documentation for "log-type = buffer" and "log-type = pipe".
+* "offline" dinitctl enable/disable - i.e. enable or disable a service when dinit isn't running.
 
 For version 1.0 (release requirements):
 ---------------------------------------
@@ -18,7 +21,6 @@ Maybe for 1.0?
 * on shutdown, after a long interval with no activity, display information about
   services we are waiting on (and/or, do this when prompted via ^C or C-A-D?)
 * Proper support for socket activation?
-* Chaining of service process input/output?
 
 
 For later (post 1.0):
