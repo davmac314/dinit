@@ -89,6 +89,14 @@ class environment
 
 public:
 
+    environment() = default;
+    environment(environment &&other) noexcept = default;
+    environment &operator=(environment &&other) noexcept = default;
+
+    // force move semantics
+    environment(const environment &other) = delete;
+    environment &operator=(const environment &other) = delete;
+
     struct env_map {
         // *non-owning* list of environment variables, i.e. list as suitable for exec
         std::vector<const char *> env_list;
