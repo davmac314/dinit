@@ -39,16 +39,15 @@ sub_error()
     exit 1
 }
 
+# warning() have a built-in extra information feild which is optional
+# $1: Info, $2: Extra info (Optional)
+# NOTE: Always quote your warning() messages
 warning()
 {
-    echo
-    echo "Warning: $*"
-}
-
-sub_warning()
-{
-    echo "  ... $*"
-    echo
+    >&2 echo
+    >&2 echo "Warning: $1"
+    [ -n "${2:-}" ] && >&2 echo "  ... $2"
+    >&2 echo
 }
 
 cxx_works()
@@ -115,9 +114,9 @@ Generates build configuration for Dinit.
 
 Defaults for the options are specified in brackets.
 
-  --help                        This help message.
-  --quiet                       Don't print normal messages, just errors.
-  --clean                       Clear mconfig and configure's temporary files.
+  -h, --help                    This help message.
+  -q, --quiet                   Don't print normal messages, just errors.
+  -c, --clear                   Clear mconfig and configure's temporary files.
 
 Target options:
   --platform=PLATFORM           Set the platform manually (Just for cross-platform cross-compile!) [autodetected]
@@ -137,9 +136,9 @@ Optional options:
   --disable-shutdown            Don't build shutdown, poweroff, reboot, halt programs
   --enable-cgroups              Enable Cgroups support [Enabled only on Linux based systems]
   --disable-cgroups             Disable Cgroups support
-  --enable-utmpx                Enable manipulating the utmp/utmpx database via the related POSIX functions [auto]
+  --enable-utmpx                Enable manipulating the utmp/utmpx database via the related POSIX functions [guessed]
   --disable-utmpx               Disable manipulating the utmp/utmpx database via the related POSIX functions
-  --enable-initgroups           Enable initialization of supplementary groups for run-as [default]
+  --enable-initgroups           Enable initialization of supplementary groups for run-as [Enabled]
   --disable-initgroups          Disable initialization of supplementary groups for run-as
   --enable-auto-restart         Enable auto-restart for services by default [Enabled]
   --disable-auto-restart        Disable auto-restart for services by default
@@ -199,14 +198,13 @@ done
 ## Flag parser
 for arg in "$@"; do
     case "$arg" in
-        --help) usage ;;
-        --quiet)
+        -h|--help) usage ;;
+        -q|--quiet)
             info() { true; }
             sub_info() { true; }
             warning() { true; }
-            sub_warning() { true; }
         ;;
-        --clean) rm -f test* & rm -f mconfig && exit 0 ;;
+        -c|--clear) rm -f test* & rm -f mconfig && exit 0 ;;
         --platform=*) PLATFORM="${arg#*=}" && shift ;;
         --prefix=*) PREFIX="${arg#*=}" && shift ;;
         --exec-prefix=*) EPREFIX="${arg#*=}" && shift;;
@@ -230,8 +228,8 @@ for arg in "$@"; do
         |LDFLAGS_FOR_BUILD=*|CXXFLAGS=*|CXXFLAGS_EXTRA=*|TEST_CXXFLAGS=*\
         |TEST_CXXFLAGS_EXTRA=*|LDFLAGS=*|LDFLAGS_EXTRA=*|TEST_LDFLAGS=*\
         |TEST_LDFLAGS_EXTRA=*|CPPFLAGS=*) eval "${arg%%=*}=\${arg#*=}" ;;
-        *=*) warning Unknown variable: "${arg%%=*}" ;;
-        *) warning Unknown argument: "$arg" ;;
+        *=*) warning "Unknown variable: ${arg%%=*}" ;;
+        *) warning "Unknown argument: $arg" ;;
     esac
 done
 
@@ -290,8 +288,7 @@ fi
 ## Verify PLATFORM value
 if [ "$PLATFORM" != "Linux" ] && [ "$PLATFORM" != "FreeBSD" ] && \
 [ "$PLATFORM" != "OpenBSD" ] && [ "$PLATFORM" != "Darwin" ]; then
-    warning "$PLATFORM" platform is unknown!
-    sub_warning Known Platforms are: Linux, FreeBSD, OpenBSD, Darwin
+    warning "$PLATFORM platform is unknown!" "Known Platforms are: Linux, FreeBSD, OpenBSD, Darwin"
 fi
 
 ## Create testfile.cc to test c++ compiler
@@ -391,11 +388,11 @@ if [ -n "${USE_UTMPX:-}" ]; then
     echo "USE_UTMPX=$USE_UTMPX" >> mconfig
 fi
 if [ -n "${CXX_FOR_BUILD:-}" ]; then
-    {
+    (
         echo ""
         echo "# For cross-compiling"
         echo "CXX_FOR_BUILD=$CXX_FOR_BUILD"
-    } >> mconfig
+    ) >> mconfig
 fi
 if [ -n "${CXXFLAGS_FOR_BUILD:-}" ]; then
     echo "CXXFLAGS_FOR_BUILD=$CXXFLAGS_FOR_BUILD" >> mconfig
