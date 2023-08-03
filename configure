@@ -228,7 +228,7 @@ for arg in "$@"; do
         --disable-auto-restart|--enable-auto-restart=no) DEFAULT_AUTO_RESTART=false ;;
         CXX=*|CXX_FOR_BUILD=*|CXXFLAGS_FOR_BUILD=*|CPPFLAGS_FOR_BUILD=*\
         |LDFLAGS_FOR_BUILD=*|CXXFLAGS=*|CXXFLAGS_EXTRA=*|TEST_CXXFLAGS=*\
-        |TEST_CXXFLAGS_EXTRA|LDFLAGS=*|LDFLAGS_EXTRA=*|TEST_LDFLAGS=*\
+        |TEST_CXXFLAGS_EXTRA=*|LDFLAGS=*|LDFLAGS_EXTRA=*|TEST_LDFLAGS=*\
         |TEST_LDFLAGS_EXTRA=*|CPPFLAGS=*) eval "${arg%%=*}=\${arg#*=}" ;;
         *=*) warning Unknown variable: "${arg%%=*}" ;;
         *) warning Unknown argument: "$arg" ;;
