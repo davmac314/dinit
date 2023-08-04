@@ -177,6 +177,7 @@ run_dinitcheck() {
 }
 
 # Compares the contents of a given file with an expected result (text).
+# Final newlines are stripped from file contents before comparison.
 # Accepts file as $1 and a text as $2.
 # RESULT: Returns 0 if content of file is the same with given text.
 #         Returns 1 if content of file is not the same with given text.
@@ -186,6 +187,26 @@ compare_text() {
         error "$1 file doesn't exist!"
     fi
     FILE="$(cat "$1")" || error "Cannot read given file!"
+    if [ "$FILE" = "$2" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Compares the contents of a given file with an expected result (text).
+# Newlines in file contents are preserved and compared.
+# Accepts file as $1 and a text as $2.
+# RESULT: Returns 0 if content of file is the same with given text.
+#         Returns 1 if content of file is not the same with given text.
+#         Exits with an error if the file doesn't exist.
+compare_text_nl() {
+    if [ ! -e "$1" ]; then
+        error "$1 file doesn't exist!"
+    fi
+    # capture file contents and preserve final newline (by appending an 'x' and removing it after)
+    FILE="$(cat "$1" && echo "x")" || error "Cannot read given file!"
+    FILE="${FILE%?}"
     if [ "$FILE" = "$2" ]; then
         return 0
     else
@@ -236,4 +257,19 @@ compare_cmd() {
     else
         return 1
     fi
+}
+
+# Capture the exact output of a command, including any final newlines.
+#  $1 - variable name to store output in
+#  $2...  command to run (with arguments following)
+capture_exact_output() {
+    name=$1; shift
+    cmd=$1; shift
+    # execute the command and output an additional '/' which is then stripped
+    # (the '/' inhibits the usual stripping of trailing newlines)
+    r=0
+    output="$(r=0; "$cmd" "$@" || r=$?; echo /; exit $r)" || r=$?
+    output="${output%/}"
+    eval "$name=\$output"
+    return $r
 }
