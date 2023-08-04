@@ -1812,10 +1812,10 @@ static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service
         return 1;
     }
 
-    fill_buffer_to(rbuffer, socknum, 1 + sizeof(unsigned));
+    fill_buffer_to(rbuffer, socknum, 2 + sizeof(unsigned));
     unsigned bufsize;
-    rbuffer.extract(&bufsize, 1, sizeof(unsigned));
-    rbuffer.consume(1 + sizeof(unsigned));
+    rbuffer.extract(&bufsize, 2, sizeof(unsigned));
+    rbuffer.consume(2 + sizeof(unsigned));
 
     // output the log
     if (bufsize > 0) {

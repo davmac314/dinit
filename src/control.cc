@@ -977,7 +977,7 @@ bool control_conn_t::process_catlog()
     const char *bufaddr = buffer_details.first;
     unsigned buflen = buffer_details.second;
 
-    std::vector<char> pkt = { (char)DINIT_RP_SERVICE_LOG };
+    std::vector<char> pkt = { (char)DINIT_RP_SERVICE_LOG, 0 /* flags; reserved for future */ };
     pkt.insert(pkt.end(), (char *)(&buflen), (char *)(&buflen + 1));
     pkt.insert(pkt.end(), bufaddr, bufaddr + buflen);
     return queue_packet(std::move(pkt));
