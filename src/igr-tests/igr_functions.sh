@@ -151,7 +151,9 @@ stop_dinit() {
 # RESULT: Returns exit code of dinit.
 spawn_dinit_oneshot() {
     find_dinit || error "Cannot find dinit exec path." "Specify 'DINIT_BINDIR' and/or ensure dinit is compiled."
-    "$DINIT" $QUIET -u -d sd -p "$SOCKET" -l /dev/null "$@"
+    exit_code=0
+    "$DINIT" $QUIET -u -d sd -p "$SOCKET" -l /dev/null "$@" || exit_code=$?
+    return $exit_code
 }
 
 # Run a dinitctl command against the currently running dinit instance.
@@ -159,7 +161,9 @@ spawn_dinit_oneshot() {
 # RESULT: Returns exit code from dinitctl.
 run_dinitctl() {
     find_dinitctl || error "Cannot find dinitctl exec path." "Specify 'DINIT_BINDIR' and/or ensure dinit is compiled."
-    "$DINITCTL" -p "$SOCKET" "$@"
+    exit_code=0
+    "$DINITCTL" -p "$SOCKET" "$@" || exit_code=$?
+    return $exit_code
 }
 
 # Run dinitcheck.
@@ -167,7 +171,9 @@ run_dinitctl() {
 # RESULT: Return exit code from dinitcheck.
 run_dinitcheck() {
     find_dinitcheck || error "Cannot find dinitcheck exec path." "Specify 'DINIT_BINDIR' and/or ensure dinit is compiled."
-    "$DINITCHECK" -d sd "$@"
+    exit_code=0
+    "$DINITCHECK" -d sd "$@" || exit_code=$?
+    return $exit_code
 }
 
 # Compares the contents of a given file with an expected result (text).
