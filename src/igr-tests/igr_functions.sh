@@ -185,7 +185,7 @@ compare_text() {
     if [ ! -e "$1" ]; then
         error "$1 file doesn't exist!"
     fi
-    FILE="$(cat "$1" || error "Cannot read given file!")"
+    FILE="$(cat "$1")" || error "Cannot read given file!"
     if [ "$FILE" = "$2" ]; then
         return 0
     else
