@@ -126,8 +126,8 @@ stop_dinit() {
         wait "$DINITPID"
         return 0
     else
-        warning "Cannot stopping dinit via dinitctl." "Fallback to killing DINITPID."
-        kill "$DINITPID" || ( echo "${TEST_NAME:-}: Cannot stop Dinit instance!" && exit 1 ) >&2
+        warning "Cannot stop dinit via dinitctl." "Falling back to killing DINITPID."
+        kill "$DINITPID" || { echo "${TEST_NAME:-}: Cannot stop Dinit instance!" && exit 1 } >&2
         wait "$DINITPID"
     fi
 }
