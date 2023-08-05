@@ -353,12 +353,41 @@ using the contents of the specified environment variable, which will be set by \
 execution to a file descriptor (chosen arbitrarily) attached to the write end of a pipe.
 .RE
 .TP
+\fBlog\-type\fR = {file | buffer | pipe | none}
+Specifies how the output of this service is logged.
+This setting is valid only for process-based services.
+.RS
+.IP \(bu
+\fBfile\fR: output will be written to a file; see the \fBlogfile\fR setting.
+.IP \(bu
+\fBbuffer\fR: output will be buffered in memory, up to a limit specified via the
+\fBlog\-buffer\-size\fR setting.
+.IP \(bu
+\fBpipe\fR: output will be written to a pipe, and may be consumed by another service
+(see the \fBconsumer\-of\fR setting); note that, if output is not consumed promptly, the pipe buffer
+may become full which may cause the service process to stall.
+.IP \(bu
+\fBnone\fR: output is discarded.
+.RE
+.IP
+The default log type is \fBnone\fR, unless the \fBlogfile\fR setting is specified in which case
+the default log type is \fBfile\fR. For \fBpipe\fR (and \fBbuffer\fR, which uses a pipe internally)
+note that the pipe created may outlive the service process and be re-used if the service is stopped
+and restarted.
+.\"
+.TP
 \fBlogfile\fR = \fIlog-file-path\fR
 Specifies the log file for the service.
-Output from the service process (standard output and standard error streams) will be appended to this file.
+Output from the service process (standard output and standard error streams) will be appended to this file,
+which will be created if it does not already exist. The file ownership and permissions are adjusted
+according to the \fBlogfile\-uid\fR, \fBlogfile\-gid\fR and \fBlogfile\-permissions\fR settings.
 This setting has no effect if the service is set to run on the console (via the \fBruns\-on\-console\fR,
 \fBstarts\-on\-console\fR, or \fBshares\-console\fR options).
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
+Note that if the directory in which the logfile resides does not exist (or is not otherwise accessible to
+\fBdinit\fR) when the service is started, the service will not start successfully.
+If this settings is specified and \fBlog\-type\fR is not specified or is currently \fBnone\fR, then
+the log type will be changed to \fBfile\fR.
 .TP
 \fBlogfile\-permissions\fR = \fIoctal-permissions-mask\fR
 Gives the permissions for the log file specified using \fBlogfile\fR. Normally this will be 600 (user access
@@ -378,6 +407,17 @@ The default value is the user id of the \fBdinit\fR process.
 .TP
 \fBlogfile\-gid\fR = {\fInumeric-group-id\fR | \fIgroup-name\fR}
 Specifies the group of the log file. See discussion of \fBlogfile\-uid\fR.
+.TP
+\fBlog\-buffer\-size\fR = \fIsize-in-bytes\fR
+If the log type (see \fBlog\-type\fR) is set to \fBbuffer\fR, this setting controls the maximum
+size of the buffer used to store process output. If the buffer becomes full, further output from
+the service process will be discarded.
+.TP
+\fBconsumer\-of\fR = \fIservice-name\fR
+Specifies that this service consumes (as its standard input) the output of another service.
+For example, this allows this service to act as a logging agent for another service.
+The named service must be a process-based service with \fBlog\-type\fR set to \fBpipe\fR.
+This setting is only valid for \fBprocess\fR and \fBbgprocess\fR services.
 .TP
 \fBoptions\fR = \fIoption\fR...
 Specifies various options for this service. See the \fBOPTIONS\fR section.

@@ -32,7 +32,8 @@ Line commands ("requests"):
 .in - set or adjust indent (if given an argument). Argument should be "7m" for example (m = em's,
       i = inches) i.e. ".in 7m"; "+7m" increases, "-7m" decreases current indent by specified amount.
       Without argument is supposed to restore indent from before previous .in, but mandoc gets this wrong
-      and always just restores initial indent value. 
+      and always just restores initial indent value. See also .RS/.RE which should normally be used in
+      preference.
 
 ... and macros (which behave like requests). Arguments can be quoted ("...") if they contain
 spaces.
@@ -44,7 +45,7 @@ spaces.
 .HP - begin a hanging paragraph (lines after the first are indented)
 .TP - begin an indented paragraph with unindented label (label is on the next line)
 .IP \(bu - indented paragraph with bullet point
-.RS - increase left margin by one level (and reset indentation). Should typically used instead of ".in".
+.RS - increase left margin by one level (and reset indentation). Should typically be used instead of ".in".
 .RE - decrease left margin by one level
 
 Structure:
