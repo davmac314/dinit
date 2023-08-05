@@ -575,9 +575,14 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         }
 
         if (reload_svc != nullptr && reload_svc->get_state() != service_state_t::STOPPED) {
-            auto *current_consumed = ((process_service *)reload_svc)->get_consumed();
-            if (current_consumed != consumer_of_svc) {
-                throw service_load_exc(name, "cannot change consumed service ('consumer-of') when not stopped");
+            if (value(service_type).is_in(service_type_t::PROCESS, service_type_t::BGPROCESS)) {
+                // Since it is not stopped, reload_svc type must be same as service_type, or
+                // check_settings_for_reload would have complained. So it's also either PROCESS or
+                // BGPROCESS.
+                auto *current_consumed = ((process_service *)reload_svc)->get_consumed();
+                if (current_consumed != consumer_of_svc) {
+                    throw service_load_exc(name, "cannot change consumed service ('consumer-of') when not stopped");
+                }
             }
         }
 
