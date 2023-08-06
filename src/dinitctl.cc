@@ -99,7 +99,8 @@ int dinitctl_main(int argc, char **argv)
 {
     using namespace std;
     
-    bool show_help = argc < 2;
+    bool cmdline_error = false;
+    bool show_help = argc < 2; // show help if no arguments
     const char *service_name = nullptr;
     const char *to_service_name = nullptr;
     dependency_type dep_type = dependency_type::AFTER; // avoid maybe-uninitialised warning
@@ -260,7 +261,7 @@ int dinitctl_main(int argc, char **argv)
                         dep_type = dependency_type::WAITS_FOR;
                     }
                     else {
-                        show_help = true;
+                        cmdline_error = true;
                         break;
                     }
                     dep_type_set = true;
@@ -272,13 +273,13 @@ int dinitctl_main(int argc, char **argv)
                     to_service_name = argv[i];
                 }
                 else {
-                    show_help = true;
+                    cmdline_error = true;
                     break;
                 }
             }
             else if (command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE) {
                 if (to_service_name != nullptr) {
-                    show_help = true;
+                    cmdline_error = true;
                     break;
                 }
                 to_service_name = argv[i];
@@ -291,38 +292,38 @@ int dinitctl_main(int argc, char **argv)
     
     // Additional argument checks for various commands:
 
-    if (command == command_t::NONE) {
-        show_help = true;
+    if (command == command_t::NONE && !show_help) {
+        cmdline_error = true;
     }
     else if (command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE) {
-        show_help |= (to_service_name == nullptr);
+        cmdline_error |= (to_service_name == nullptr);
     }
     else if (command == command_t::SETENV) {
         // Handle SETENV specially, since it needs arguments but they are not service names
         if (cmd_args.empty()) {
-            show_help = true;
+            cmdline_error = true;
         }
     }
     else {
         bool no_service_cmd = (command == command_t::LIST_SERVICES || command == command_t::SHUTDOWN);
         if (no_service_cmd) {
             if (!cmd_args.empty()) {
-                show_help = true;
+                cmdline_error = true;
             }
         }
         else {
             if (command == command_t::ADD_DEPENDENCY || command == command_t::RM_DEPENDENCY) {
                 if (! dep_type_set || service_name == nullptr || to_service_name == nullptr) {
-                    show_help = true;
+                    cmdline_error = true;
                 }
             }
             else if (cmd_args.empty()) {
-                show_help = true;
+                cmdline_error = true;
             }
             else {
                 // No command can currently accept more than one service argument:
                 if (cmd_args.size() > 1) {
-                    show_help = true;
+                    cmdline_error = true;
                 }
                 service_name = cmd_args.front();
             }
@@ -371,6 +372,12 @@ int dinitctl_main(int argc, char **argv)
           "  --no-wait        : don't wait for service startup/shutdown to complete\n"
           "  --pin            : pin the service in the requested state\n"
           "  --force          : force stop even if dependents will be affected\n";
+        return 0;
+    }
+
+    if (cmdline_error) {
+        cerr << "dinitctl: Invalid command line.\n"
+                "Try 'dinitctl --help' for more information.\n";
         return 1;
     }
     
