@@ -4,10 +4,10 @@ set -eu
 cd "$(dirname "$0")"
 . ../igr_functions.sh
 
-rm -f "$IGR_OUTPUT"/output/env-record
+rm -f "$IGR_OUTPUT"/env-record
 
 find_dinitctl # Scripts need dinitctl.
-export OUTPUT="$IGR_OUTPUT/output/env-record"
+export OUTPUT="$IGR_OUTPUT/env-record"
 
 spawn_dinit_oneshot -e environment1 checkenv
 spawn_dinit_oneshot -e environment2 checkenv

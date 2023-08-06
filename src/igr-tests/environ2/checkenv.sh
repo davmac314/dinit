@@ -1,6 +1,6 @@
 #!/bin/sh
 
-(
+{
     echo "$TEST_VAR"
     echo "$TEST_VAR_BASE"
     echo "$TEST_VAR_ONE"
@@ -9,4 +9,4 @@
     echo "$SHELL"
     echo "$UID"
     echo "$GID"
-) >> "$IGR_OUTPUT"/output/env-record
+} >> "$IGR_OUTPUT"/env-record

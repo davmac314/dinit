@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 
 # Tests around before/after link functionality.
 
-rm -rf "$IGR_OUTPUT"/output/*
+rm -rf "$IGR_OUTPUT"/*
 
 spawn_dinit
 
@@ -22,11 +22,11 @@ run_dinitctl $QUIET start service2
 
 
 # Note service1 takes longer to start, but has a "before" service2 so should still start first.
-if ! compare_text "$IGR_OUTPUT"/output/script-output "$(printf "one\ntwo\n")"; then
-    error "$IGR_OUTPUT/output/script-output didn't contain expected result!"
+if ! compare_text "$IGR_OUTPUT"/script-output "$(printf "one\ntwo\n")"; then
+    error "$IGR_OUTPUT/script-output didn't contain expected result!"
 fi
 
-rm "$IGR_OUTPUT"/output/script-output
+rm "$IGR_OUTPUT"/script-output
 
 stop_dinit
 

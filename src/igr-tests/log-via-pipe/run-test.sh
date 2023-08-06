@@ -5,7 +5,7 @@ set -eu
 cd "$(dirname "$0")"
 . ../igr_functions.sh
 
-rm -rf "$IGR_OUTPUT"/output/*
+rm -rf "$IGR_OUTPUT"/*
 
 spawn_dinit
 

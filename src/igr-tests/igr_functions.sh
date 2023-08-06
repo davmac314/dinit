@@ -81,12 +81,11 @@ find_dinitctl() { find_executable dinitctl DINITCTL; }
 find_dinitcheck() { find_executable dinitcheck DINITCHECK; }
 find_dinitmonitor() { find_executable dinit-monitor DINITMONITOR; }
 
-## Prepare $IGR_OUTPUT
+## Prepare IGR_OUTPUT
 TEST_NAME="${PWD##*/}"
 [ -n "$TEST_NAME" ] || error "Failed to guess test name."
 if [ -z "${IGR_OUTPUT:-}" ]; then
-    IGR_OUTPUT="$PWD"
-    [ -n "$IGR_OUTPUT" ] || error "Failed to guess igr output files location."
+    IGR_OUTPUT="$PWD"/output
     export IGR_OUTPUT
 else
     # Igr test is probably used by Meson.
@@ -95,7 +94,7 @@ else
     export IGR_OUTPUT
 fi
 export SOCKET="$IGR_OUTPUT/socket"
-mkdir -p "$IGR_OUTPUT"/output/
+mkdir -p "$IGR_OUTPUT"
 if [ -n "${DEBUG:-}" ]; then
     QUIET=""
 else

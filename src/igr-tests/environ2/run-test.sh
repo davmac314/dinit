@@ -4,7 +4,7 @@ set -eu
 cd "$(dirname "$0")"
 . ../igr_functions.sh
 
-rm -f "$IGR_OUTPUT"/output/env-record
+rm -f "$IGR_OUTPUT"/env-record
 
 RUSER=$(id -nu)
 RUID=$(id -u)
@@ -31,7 +31,7 @@ LOGNAME="$USER"
 # these are overriden in env files
 SHELL="/bogus/value"
 
-if ! compare_text "$IGR_OUTPUT"/output/env-record "$(echo helloworld;\
+if ! compare_text "$IGR_OUTPUT"/env-record "$(echo helloworld;\
                                              echo hello;\
                                              echo override;\
                                              echo "$USER";\
@@ -40,7 +40,7 @@ if ! compare_text "$IGR_OUTPUT"/output/env-record "$(echo helloworld;\
                                              echo "$RUID";\
                                              echo "$RGID")"
 then
-    error "$IGR_OUTPUT/output/env-record didn't contain expected result!"
+    error "$IGR_OUTPUT/env-record didn't contain expected result!"
 fi
 
 exit 0

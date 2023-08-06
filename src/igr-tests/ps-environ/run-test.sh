@@ -4,7 +4,7 @@ set -eu
 cd "$(dirname "$0")"
 . ../igr_functions.sh
 
-export OUTPUT="$IGR_OUTPUT/output/env-record"
+export OUTPUT="$IGR_OUTPUT/env-record"
 rm -f "$OUTPUT"
 
 export TEST_VAR_TWO=set-via-script
