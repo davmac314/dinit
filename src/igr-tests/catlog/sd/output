@@ -1,0 +1,4 @@
+type = scripted
+command = ./output.sh
+restart = false
+log-type = buffer
