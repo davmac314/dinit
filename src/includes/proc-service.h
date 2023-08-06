@@ -435,6 +435,13 @@ class base_process_service : public service_record
         return {log_buffer.data(), log_buf_size};
     }
 
+    void clear_log_buffer() noexcept
+    {
+        log_buffer.clear();
+        log_buffer.shrink_to_fit();
+        log_buf_size = 0;
+    }
+
     void set_env_file(const std::string &env_file_p)
     {
         env_file = env_file_p;

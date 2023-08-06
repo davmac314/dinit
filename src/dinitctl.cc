@@ -52,7 +52,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
         bool enable, bool verbose);
 static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names);
 static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool trigger_value);
-static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name);
+static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool do_clear);
 
 static const char * describeState(bool stopped)
 {
@@ -105,6 +105,7 @@ int dinitctl_main(int argc, char **argv)
     const char *to_service_name = nullptr;
     dependency_type dep_type = dependency_type::AFTER; // avoid maybe-uninitialised warning
     bool dep_type_set = false;
+    bool catlog_clear = false;
     
     std::string control_socket_str;
     const char * control_socket_path = nullptr;
@@ -177,6 +178,15 @@ int dinitctl_main(int argc, char **argv)
             else if (strcmp(argv[i], "--force") == 0 || strcmp(argv[i], "-f") == 0) {
                 if (command == command_t::STOP_SERVICE || command == command_t::RESTART_SERVICE) {
                     do_force = true;
+                }
+                else {
+                    cmdline_error = true;
+                    break;
+                }
+            }
+            else if (strcmp(argv[i], "--clear") == 0) {
+                if (command == command_t::CAT_LOG) {
+                    catlog_clear = true;
                 }
                 else {
                     cmdline_error = true;
@@ -472,7 +482,7 @@ int dinitctl_main(int argc, char **argv)
             if (daemon_protocol_ver < 2) {
                 throw cp_old_server_exception();
             }
-            return cat_service_log(socknum, rbuffer, service_name);
+            return cat_service_log(socknum, rbuffer, service_name, catlog_clear);
         }
         else {
             return start_stop_service(socknum, rbuffer, service_name, command, do_pin, do_force,
@@ -1803,7 +1813,7 @@ static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service
     return 0;
 }
 
-static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name)
+static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool do_clear)
 {
     using namespace std;
 
@@ -1812,10 +1822,12 @@ static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service
         return 1;
     }
 
+    char flags = do_clear ? 1 : 0;
+
     // Issue CATLOG
     auto m = membuf()
              .append<char>(DINIT_CP_CATLOG)
-             .append<char>(0)
+             .append<char>(flags)
              .append(handle);
     write_all_x(socknum, m);
 

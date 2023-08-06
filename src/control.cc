@@ -954,6 +954,7 @@ bool control_conn_t::process_catlog()
     }
 
     handle_t handle;
+    char flags = rbuf[1];
 
     rbuf.extract(&handle, 2, sizeof(handle));
     rbuf.consume(pkt_size);
@@ -980,6 +981,9 @@ bool control_conn_t::process_catlog()
     std::vector<char> pkt = { (char)DINIT_RP_SERVICE_LOG, 0 /* flags; reserved for future */ };
     pkt.insert(pkt.end(), (char *)(&buflen), (char *)(&buflen + 1));
     pkt.insert(pkt.end(), bufaddr, bufaddr + buflen);
+    if ((flags & 1) != 0) {
+        bps->clear_log_buffer();
+    }
     return queue_packet(std::move(pkt));
 }
 
