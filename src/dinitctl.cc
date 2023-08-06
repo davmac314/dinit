@@ -160,18 +160,28 @@ int dinitctl_main(int argc, char **argv)
             else if (strcmp(argv[i], "--use-passed-cfd") == 0) {
                 use_passed_cfd = true;
             }
-            else if ((command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE)
-                    && strcmp(argv[i], "--from") == 0) {
-                ++i;
-                if (i == argc) {
-                    cerr << "dinitctl: --from should be followed by a service name" << std::endl;
-                    return 1;
+            else if (strcmp(argv[i], "--from") == 0) {
+                if (command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE) {
+                    ++i;
+                    if (i == argc) {
+                        cerr << "dinitctl: --from should be followed by a service name" << std::endl;
+                        return 1;
+                    }
+                    service_name = argv[i];
                 }
-                service_name = argv[i];
+                else {
+                    cmdline_error = true;
+                    break;
+                }
             }
-            else if ((command == command_t::STOP_SERVICE || command == command_t::RESTART_SERVICE)
-                    && (strcmp(argv[i], "--force") == 0 || strcmp(argv[i], "-f") == 0)) {
-                do_force = true;
+            else if (strcmp(argv[i], "--force") == 0 || strcmp(argv[i], "-f") == 0) {
+                if (command == command_t::STOP_SERVICE || command == command_t::RESTART_SERVICE) {
+                    do_force = true;
+                }
+                else {
+                    cmdline_error = true;
+                    break;
+                }
             }
             else {
                 cerr << "dinitctl: unrecognized/invalid option: " << argv[i] << " (use --help for help)\n";
