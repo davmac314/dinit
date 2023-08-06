@@ -81,17 +81,19 @@ find_dinitctl() { find_executable dinitctl DINITCTL; }
 find_dinitcheck() { find_executable dinitcheck DINITCHECK; }
 find_dinitmonitor() { find_executable dinit-monitor DINITMONITOR; }
 
-## Prepare IGR_OUTPUT
+# Prepare IGR_OUTPUT.
+# Three basic modes:
+# - IGR_OUTPUT is already set
+# - IGR_OUTPUT_BASE is set, append test name and use result as IGR_OUTPUT
+# - neither, use "output" within current directory as IGR_OUTPUT
 TEST_NAME="${PWD##*/}"
 [ -n "$TEST_NAME" ] || error "Failed to guess test name."
 if [ -z "${IGR_OUTPUT:-}" ]; then
-    IGR_OUTPUT="$PWD"/output
-    export IGR_OUTPUT
-else
-    # Igr test is probably used by Meson.
-    mkdir -p "$IGR_OUTPUT/$TEST_NAME/"
-    IGR_OUTPUT="$IGR_OUTPUT/$TEST_NAME/"
-    export IGR_OUTPUT
+    if [ -n "${IGR_OUTPUT_BASE:-}" ]; then
+        export IGR_OUTPUT="${IGR_OUTPUT_BASE}/${TEST_NAME}"
+    else
+        export IGR_OUTPUT="$PWD"/output
+    fi
 fi
 export SOCKET="$IGR_OUTPUT/socket"
 mkdir -p "$IGR_OUTPUT"
