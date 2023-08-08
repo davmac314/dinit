@@ -912,7 +912,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
             // Transfer any open file descriptors for (log) output to new service record
             if (value(service_type).is_in(service_type_t::PROCESS, service_type_t::BGPROCESS, service_type_t::SCRIPTED)) {
-                ((process_service *)rval)->set_output_pipe_fds(orig_svc->transfer_output_pipe());
+                ((base_process_service *)rval)->set_output_pipe_fds(orig_svc->transfer_output_pipe());
                 auto *orig_consumer = orig_svc->get_log_consumer();
                 if (orig_consumer != nullptr) {
                     orig_consumer->set_consumer_for(rval);
