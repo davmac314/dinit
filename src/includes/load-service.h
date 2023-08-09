@@ -984,8 +984,8 @@ class service_settings_wrapper
         // Also for logfile_uid/gid, we reset logfile ownership to dinit process uid/gid if uid/gid
         // wasn't specified by service
         if (logfile_uid == (uid_t) -1) logfile_uid = getuid();
-        if (logfile_uid_gid == (gid_t)-1) logfile_uid_gid = getgid();
         if (logfile_gid == (gid_t)-1) logfile_gid = logfile_uid_gid;
+        if (logfile_gid == (gid_t)-1) logfile_gid = getgid();
         // likewise for "run as" gid/uid, but only if we aren't supporting supplementary group initialisation
         // (if we do support supplementary groups, run_as_gid==-1 means "use the user groups including
         // supplementary groups" whereas run_as_gid==X means "use group X with no supplementary groups").
