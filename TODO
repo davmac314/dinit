@@ -6,8 +6,8 @@ For version 0.17:
 * [DONE] Externally triggered services (to represent devices etc). Such services will not reach STARTED
   state unless the external trigger occurs (eg "dinitctl trigger servicename", details to be
   determined).
-* [in progress] process input/output chaining (for logging); "log-type = pipe".
-* Documentation for "log-type = buffer" and "log-type = pipe".
+* [DONE] process input/output chaining (for logging); "log-type = pipe".
+* [DONE] Documentation for "log-type = buffer" and "log-type = pipe".
 * "offline" dinitctl enable/disable - i.e. enable or disable a service when dinit isn't running.
 * dinitctl command to signal running service process.
 
