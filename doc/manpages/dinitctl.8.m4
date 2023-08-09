@@ -67,6 +67,9 @@ dinitctl \- control services supervised by Dinit
 .HP
 .B dinitctl
 [\fIoptions\fR] \fBsetenv\fR [\fIname\fR[=\fIvalue\fR] \fI...\fR]
+.HP
+.B dinitctl
+[\fIoptions\fR] \fBcatlog\fR [\fB--clear\fR] \fIservice-name\fR
 .\"
 .PD
 .hy
@@ -141,8 +144,14 @@ When applied to the \fBrestart\fR command, this will cause the dependent service
 If the service is not started or doesn't exist, ignore the command and return an exit code indicating
 success.
 .TP
+\fB\-\-clear\fR
+Clear the log buffer for the service after displaying it.
+.TP
 \fIservice-name\fR
 Specifies the name of the service to which the command applies.
+.\"
+.SH COMMAND DESCRIPTIONS
+.\"
 .TP
 \fBstart\fR
 Start the specified service.
@@ -298,6 +307,12 @@ The value can be provided on the command line or retrieved from the environment 
 called in.
 Any subsequently started or restarted service will have these environment variables available.
 This is particularly useful for user services that need access to session information.
+.TP
+\fBcatlog\fR
+Show the contents of the log buffer for the named service.
+This is possible only if the log type of the service is set to \fBbuffer\fR.
+If the log is truncated or appears incomplete, a warning message follows the output.
+If the \fB\-\-clear\fR option is specified, the buffer is cleared after displaying its contents. 
 .\"
 .SH SERVICE OPERATION
 .\"

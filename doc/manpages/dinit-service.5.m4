@@ -355,13 +355,14 @@ execution to a file descriptor (chosen arbitrarily) attached to the write end of
 .TP
 \fBlog\-type\fR = {file | buffer | pipe | none}
 Specifies how the output of this service is logged.
-This setting is valid only for process-based services.
+This setting is valid only for process-based services (including \fBscripted\fR services).
 .RS
 .IP \(bu
 \fBfile\fR: output will be written to a file; see the \fBlogfile\fR setting.
 .IP \(bu
 \fBbuffer\fR: output will be buffered in memory, up to a limit specified via the
 \fBlog\-buffer\-size\fR setting.
+The buffer contents can be examined via the \fBdinitctl\fR(8) \fBcatlog\fR subcommand. 
 .IP \(bu
 \fBpipe\fR: output will be written to a pipe, and may be consumed by another service
 (see the \fBconsumer\-of\fR setting); note that, if output is not consumed promptly, the pipe buffer
