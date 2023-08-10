@@ -15,9 +15,6 @@
 // 2 - dinit 0.17 (adds DINIT_CP_SETTRIGGER, DINIT_CP_CATLOG, DINIT_CP_SIGNAL)
 
 namespace {
-    constexpr auto OUT_EVENTS = dasynq::OUT_EVENTS;
-    constexpr auto IN_EVENTS = dasynq::IN_EVENTS;
-
     // Control protocol minimum compatible version and current version:
     constexpr uint16_t min_compat_version = 1;
     constexpr uint16_t cp_version = 2;
