@@ -579,10 +579,10 @@ int dinitctl_main(int argc, char **argv)
         }
     }
     catch (cp_old_client_exception &e) {
-        std::cerr << "dinitctl: too old (server reports newer protocol version)" << std::endl;
+        std::cerr << "dinitctl: too old (daemon reports newer protocol version)" << std::endl;
     }
     catch (cp_old_server_exception &e) {
-        std::cerr << "dinitctl: server too old or protocol error" << std::endl;
+        std::cerr << "dinitctl: daemon too old or protocol error" << std::endl;
     }
     catch (cp_read_exception &e) {
         cerr << "dinitctl: control socket read failure or protocol error" << endl;
@@ -594,7 +594,7 @@ int dinitctl_main(int argc, char **argv)
         cerr << "dinitctl: protocol error" << endl;
     }
     catch (general_error &ge) {
-        std::cerr << "dinit-client";
+        std::cerr << "dinitctl";
         if (ge.get_action() != nullptr) {
             std::cerr << ": " << ge.get_action();
             std::string &arg = ge.get_arg();
