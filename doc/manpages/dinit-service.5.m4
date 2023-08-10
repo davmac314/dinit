@@ -331,11 +331,14 @@ If the \fBsocket\-uid\fR setting is not provided, the socket will be owned by th
 \fBsocket\-gid\fR = {\fInumeric-group-id\fR | \fIgroup-name\fR}
 Specifies the group of the activation socket. See discussion of \fBsocket\-uid\fR.
 .TP
-\fBterm\-signal\fR = {none | HUP | INT | TERM | QUIT | USR1 | USR2 | KILL}
-Specifies the signal to send to the process when requesting it
-to terminate (applies to `process' and `bgprocess' services only).
-The default is SIGTERM.
-See also \fBstop\-timeout\fR.
+\fBterm\-signal\fR = {\fBnone\fR | \fIsignal-name\fR}
+Specifies the signal to send to the process when requesting it to terminate (applies to `process'
+and `bgprocess' services only).
+Signal names are specified as the POSIX signal name without the \fBSIG\fR- prefix.
+At least \fBHUP\fR, \fBTERM\fR, and \fBKILL\fR are supported (use \fBdinitctl signal \-\-list\fR
+for the full list of supported signals).
+The default is TERM (the SIGTERM signal).
+See also the discussion of \fBstop\-timeout\fR.
 .TP
 \fBready\-notification\fR = {\fBpipefd:\fR\fIfd-number\fR | \fBpipevar:\fR\fIenv-var-name\fR}
 Specifies the mechanism, if any, by which a process service will notify that it is ready
