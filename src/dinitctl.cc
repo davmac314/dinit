@@ -390,8 +390,8 @@ int dinitctl_main(int argc, char **argv)
                     if (sigstr.size() != pos) {
                         throw std::invalid_argument("");
                     }
-                } // catch both invalid_argument and out_of_range
-                catch (std::exception) {
+                }
+                catch (std::exception &) { // invalid_argument, out_of_range
                     cerr << "dinitctl: '" << sigstr
                             << "' is not a valid signal name/number" << std::endl;
                     return 1;
