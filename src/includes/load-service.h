@@ -150,8 +150,14 @@ inline string_iterator skipws(string_iterator i, string_iterator end) noexcept
     return i;
 }
 
+// Signal name and number (the std::pair constructor isn't constexpr in C++11, so we use a custom type).
+struct signal_name_number_pair {
+    const char *first; // signal name
+    int second; // number
+};
+
 // Supported signal names and the corresponding signal (number).
-constexpr std::pair<const char *, int> signal_to_int_map[] = {
+constexpr signal_name_number_pair signal_to_int_map[] = {
     { "none", 0 },
     { "NONE", 0 },
     { "HUP", SIGHUP },
@@ -168,6 +174,9 @@ constexpr std::pair<const char *, int> signal_to_int_map[] = {
 #endif
 };
 
+// Convert a signal name (without "SIG" prefix) to the corresponding signal number. May only
+// support a subset of signals. Returns 0 if signal name is "none"/"NONE", returns -1 if signal
+// is otherwise unrecognised.
 inline int signal_name_to_number(const std::string &signame) noexcept
 {
     int sig = -1;
