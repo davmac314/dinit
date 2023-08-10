@@ -27,6 +27,8 @@ depnotfound_test_script = files(meson.current_source_dir() + '/dep-not-found/run
 pseudocycle_test_script = files(meson.current_source_dir() + '/pseudo-cycle/run-test.sh')
 beforeafter_test_script = files(meson.current_source_dir() + '/before-after/run-test.sh')
 beforeafter2_test_script = files(meson.current_source_dir() + '/before-after2/run-test.sh')
+logviapipe_test_script = files(meson.current_source_dir() + '/log-via-pipe/run-test.sh')
+catlog_test_script = files(meson.current_source_dir() + '/catlog/run-test.sh')
 test(
      'basic',
      basic_test_script,
@@ -152,4 +154,16 @@ test(
      beforeafter2_test_script,
      env : igr_tests_env,
      suite : 'igr_tests'
+)
+test(
+    'log-via-pipe',
+    logviapipe_test_script,
+    env : igr_tests_env,
+    suite : 'igr_tests'
+)
+test(
+    'catlog',
+    catlog_test_script,
+    env : igr_tests_env,
+    suite : 'igr_tests'
 )
