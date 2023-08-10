@@ -150,10 +150,8 @@ inline string_iterator skipws(string_iterator i, string_iterator end) noexcept
     return i;
 }
 
-// The list to converting some strings/signals to int
-// The signal list is created statically with only those signals,
-// which are defined for the current architecture/system
-const std::pair<const char *, int> signal_to_int_map[] = {
+// Supported signal names and the corresponding signal (number).
+constexpr std::pair<const char *, int> signal_to_int_map[] = {
     { "none", 0 },
     { "NONE", 0 },
     { "HUP", SIGHUP },
