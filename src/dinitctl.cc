@@ -568,6 +568,9 @@ int dinitctl_main(int argc, char **argv)
             return cat_service_log(socknum, rbuffer, service_name, catlog_clear);
         }
         else if (command == command_t::SIG_SEND) {
+            if (daemon_protocol_ver < 2) {
+                throw cp_old_server_exception();
+            }
             return signal_send(socknum, rbuffer, service_name, sig_num);
         }
         else {
