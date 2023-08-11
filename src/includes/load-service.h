@@ -1014,7 +1014,13 @@ class service_settings_wrapper
         // likewise for "run as" gid/uid, but only if we aren't supporting supplementary group initialisation
         // (if we do support supplementary groups, run_as_gid==-1 means "use the user groups including
         // supplementary groups" whereas run_as_gid==X means "use group X with no supplementary groups").
-#if !USE_INITGROUPS
+#if USE_INITGROUPS
+        if (run_as_uid_gid == -1 && run_as_gid == -1) {
+            // run-as-UID specified by number; set run_as_gid to inhibit initialisation of
+            // supplementary groups
+            run_as_gid = getgid();
+        }
+#else // !USE_INITGROUPS
         if (run_as_gid == (gid_t)-1) run_as_gid = run_as_uid_gid;
 #endif
 

@@ -163,9 +163,11 @@ The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 Specifies which user to run the process(es) for this service as.
 Specify as a username or numeric ID.
 If specified by name, the group for the process will also be set to the primary
-group of the specified user.
-Supplementary groups will be initialized unless disabled, not supported on
-the platform, or the user could not be found in passwd database.
+group of the specified user, and supplementary groups will be initialised (unless support
+for them is disabled) according to the system's group database.
+If specified by number, the group for the process will remain the same as that of the
+running \fBdinit\fR process, and all supplementary groups will be dropped (unless support
+has been disabled).
 .TP
 \fBenv\-file\fR = \fIfile\fR
 Specifies a file containing value assignments for environment variables, in the same
