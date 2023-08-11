@@ -22,7 +22,10 @@ New features:
    log-type of "pipe".
  * New "triggered" service type, similar to "internal" except that it requires an external
    trigger before it will start (start of a triggered service is delayed until the external
-   trigger is received).
+   trigger is received). One potential use is to start services after hardware device nodes become
+   available (eg, start dhcp client on a network interface once it is available).
+ * New "dinictl" subcommand, "signal", to send a signal to a service process. See dinitctl(8).
+   Implemented by James Knippes and Mobin Aydinfar.
  * New "kill-all-on-stop" service option will cause dinit to kill all (other) processes just
    before stopping the service. This can be used to ensure a cleaner system state and that
    filesystems can be unmounted (for example). Use with care; see dinit-service(5) for details.
