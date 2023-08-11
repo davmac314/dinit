@@ -1116,6 +1116,9 @@ static void printVersion()
 #ifdef USE_UTMPX
             +1
 #endif
+#if USE_INITGROUPS
+            +1
+#endif
             ;
     if (feature_count != 0) {
         std::cout << "Supported features:"
@@ -1124,6 +1127,9 @@ static void printVersion()
 #endif
 #ifdef USE_UTMPX
                 " utmp"
+#endif
+#if USE_INITGROUPS
+                " supplemental-groups"
 #endif
                 "\n";
     }
