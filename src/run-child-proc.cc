@@ -345,9 +345,11 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
 #if USE_INITGROUPS
         // Initialize supplementary groups unless disabled; non-POSIX API
         if (gid != gid_t(-1)) {
-            // Specific group; use that, with no supplementary groups
-            if (setregid(gid, gid) != 0) goto failure_out;
+            // Specific group; use that, with no supplementary groups.
+            // Note: for compatibility with FreeBSD, clear the groups list first before setting the
+            // effective gid, because on FreeBSD setgroups also sets the effective gid.
             if (setgroups(0, nullptr)) goto failure_out;
+            if (setregid(gid, gid) != 0) goto failure_out;
         }
         else {
             // No specific group; use groups associated with user.
