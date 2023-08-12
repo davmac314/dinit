@@ -1,0 +1,6 @@
+From Vladyslav Kalashnykov-Travin
+(via https://github.com/davmac314/dinit/issues/112):
+
+"Just leaving my implementation of ZSH completions here. It might be useful someday :)
+Requires user to define $SRV_HOME variable (shouldn't contain trailing slash in the end).
+To test put this into a _dinit file in your ZSH completions folder."

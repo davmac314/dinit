@@ -1,0 +1,9 @@
+"Contrib" area for Dinit
+------------------------
+
+This directory is intended for "extras" that may have been contributed by others, that do not
+really belong as part of the main Dinit distribution. In some cases they may be incomplete
+and they have not necessarily been tested by Dinit maintainers. Please do not open issues or
+request help in using these extras. Patches with clear improvements are welcome.
+
+See the README in each subdirectory for relevant information.

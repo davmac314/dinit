@@ -1,0 +1,9 @@
+From Github user iacore, via https://github.com/davmac314/dinit/issues/201:
+
+I wrote a simple completion script here. Place it under ~/.config/fish/completions/dinitctl.fish to install.
+
+slight problem: dinitctl list doesn't have structured output. This might be flaky
+
+TODO
+
+* long/short opts for sub-commands

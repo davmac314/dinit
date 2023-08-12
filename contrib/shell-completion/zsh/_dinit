@@ -1,0 +1,88 @@
+#compdef dinitctl
+
+local current_context="$current_context" current_command
+local -a state commands arguments global_options command_options data home
+
+zstyle ':completion:*:sudo:*' environ SRV_HOME="/etc/dinit.d"
+
+home="$SRV_HOME/"
+
+commands=(
+    'status:datalay service status'
+    'start:start service (if not running yet)'
+    'restart:restart service (if already running)'
+    'stop:stop service'
+    'wake'
+    'release'
+    'unpin'
+    'unload'
+    'reload:reload service descriptor'
+    'list:list all loaded services'
+    'shutdown'
+    'add-dep'
+    'rm-dep'
+    'enable:enable service'
+    'disable:disable service'
+    'setenv'
+)
+
+global_options=(
+    '--help:show help'
+    '-s:control system daemon (default if run as root)]'
+    '--system:control system daemon (default if run as root)]'
+    '-u:control user daemon'
+    '--user:control user daemon'
+    '--quiet:suppress output (except errors)'
+    '--socket-path:specify socket for communication with daemon]'
+    '-p:specify socket for communication with daemon]'
+)
+
+arguments=()
+command_options=()
+
+if (( CURRENT == 2 )); then
+    _describe -t 'commands' 'command' commands
+fi
+
+current_command=${words[2]#--}
+current_context="${current_context%:*}-$current_command:"
+
+case $current_command in
+    status|enable|disable|unload|reload|unpin)
+        arguments+='1:service:->services'
+	;;
+    start|restart|stop|wake|release)
+        arguments+='1:service:->services'
+        command_options+=(
+            '--no-wait:dont wait for service startup/shutdown to complete'
+            '--pin:pin the service in the requested state'
+            '--force:force stop even if dependents will be affected'
+        )
+	;;
+    *)
+        :
+        ;;
+esac
+
+shift words
+(( CURRENT-- ))
+_arguments -C -A "-*" $arguments
+
+case $state in
+    services)
+        data=( $(find "$home" -type f -printf '%P\n') )
+        _describe -t 'services' 'service' data
+        ret=0
+        ;;
+    *)
+        ret=0
+        ;;
+esac
+
+if [[ -prefix - ]]; then
+    _describe -t 'global options' 'global option' global_options
+    _describe -t 'command options' 'command option' command_options
+    ret=0
+fi
+
+return $ret
