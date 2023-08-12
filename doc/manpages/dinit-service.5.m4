@@ -515,7 +515,7 @@ These options are specified via the \fBoptions\fR parameter.
 .TP
 \fBruns\-on\-console\fR
 Specifies that this service uses the console; its input and output should be
-directed to the console (or precisely, to the device to which Dinit's standard
+directed to the console (or precisely, to the device to which \fBdinit\fR's standard
 output stream is connected).
 A service running on the console prevents other services from running on the
 console (they will queue for the console).
@@ -524,10 +524,10 @@ Proper operation of this option (and related options) assumes that \fBdinit\fR
 is itself attached correctly to the console device (or a terminal, in which case
 that terminal will be used as the "console").
 .sp
-The \fIinterrupt\fR key (normally control-C) will be active for process / scripted
-services that run on the console.
-Handling of an interrupt is determined by the service process, but typically will
-cause it to terminate.
+The \fIinterrupt\fR key (normally control-C) may be active for process / scripted
+services that run on the console, depending on terminal configuration and operating-system
+specifics.
+The interrupt signal (SIGINT), however, is masked by default (but see \fBunmask\-intr\fR).
 .TP
 \fBstarts\-on\-console\fR
 Specifies that this service uses the console during service startup.
@@ -548,6 +548,27 @@ which require exclusive access to the console (see \fBstarts\-on\-console\fR,
 This is mutually exclusive with both \fBstarts\-on\-console\fR and \fBruns\-on\-console\fR;
 setting this option unsets both those options, and setting either of those options unsets
 this option.
+.TP
+\fBunmask\-intr\fR
+For services that run or start on the console, specifies that the terminal interrupt signal
+(SIGINT, normally invoked by control-C) should be unmasked.
+Handling of an interrupt is determined by the service process, but typically will
+cause it to terminate.
+This option may therefore be used to allow a service to be terminated by the user via
+a keypress combination.
+In combination with \fBskippable\fR, it may allow service startup to be skipped.
+.sp
+A service with this option will typically also have the \fBstart\-interruptible\fR option
+set.
+.sp
+Note that whether an interrupt can be generated, and the key combination required to do so,
+depends on the operating system's handling of the console device and, if it is a terminal,
+how the terminal is configured; see \fBstty\fR(1).
+.sp
+Note also that a process may choose to mask or unmask the interrupt signal of its own accord,
+once it has started.
+Shells, in particular, may unmask the signal; it might not be possible to reliably run a shell
+script on the console without allowing a user to interrupt it.
 .TP
 \fBstarts\-rwfs\fR
 This service mounts the root filesystem read/write (or at least mounts the
@@ -576,8 +597,9 @@ You should not use this option unless the service is designed to receive a Dinit
 control socket.
 .TP
 \fBstart\-interruptible\fR
-This service can have its startup interrupted (cancelled) if it becomes inactive
-while still starting, by sending it the SIGINT signal.
+Indicates that this service can have its startup interrupted (cancelled), by sending it the SIGINT signal.
+If service state changes such that this service will stop, but it is currently starting, and this option
+is set, then Dinit will attempt to interrupt it rather than waiting for its startup to complete.
 This is meaningful only for \fBbgprocess\fR and \fBscripted\fR services.
 .TP
 \fBskippable\fR

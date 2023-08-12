@@ -86,6 +86,8 @@ bool external_log_open = false;
 int active_control_conns = 0;
 int socket_ready_fd = -1;
 
+sigset_t orig_signal_mask; // signal mask when started
+
 // Control socket path. We maintain a string (control_socket_str) in case we need
 // to allocate storage, but control_socket_path is the authoritative value.
 static const char *control_socket_path = SYSCONTROLSOCKET;
@@ -470,12 +472,18 @@ int dinit_main(int argc, char **argv)
 
     /* Set up signal handlers etc */
     sigset_t sigwait_set;
-    sigemptyset(&sigwait_set);
-    sigaddset(&sigwait_set, SIGCHLD);
-    sigaddset(&sigwait_set, SIGINT);
-    sigaddset(&sigwait_set, SIGTERM);
-    if (am_system_mgr) sigaddset(&sigwait_set, SIGQUIT);
-    sigprocmask(SIG_BLOCK, &sigwait_set, NULL);
+    if (am_system_mgr) {
+        // Block all signals in system manager mode - don't want to chance provoking a signal that
+        // will suspend or terminate the process
+        sigfillset(&sigwait_set);
+    }
+    else {
+        sigemptyset(&sigwait_set);
+        sigaddset(&sigwait_set, SIGCHLD);
+        sigaddset(&sigwait_set, SIGINT);
+        sigaddset(&sigwait_set, SIGTERM);
+    }
+    sigprocmask(SIG_BLOCK, &sigwait_set, &orig_signal_mask);
 
     // Terminal access control signals - we ignore these so that dinit can't be
     // suspended if it writes to the terminal after some other process has claimed

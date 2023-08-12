@@ -24,6 +24,8 @@ extern bool have_cgroups_path;
 #include <grp.h>
 #endif
 
+extern sigset_t orig_signal_mask;
+
 // Move an fd, if necessary, to another fd. The original destination fd will be closed.
 // if fd is specified as -1, returns -1 immediately. Returns 0 on success.
 static int move_fd(int fd, int dest)
@@ -70,19 +72,14 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
 
     // If the console already has a session leader, presumably it is us. On the other hand
     // if it has no session leader, and we don't create one, then control inputs such as
-    // ^C will have no effect.
-    bool do_set_ctty = (tcgetsid(0) == -1);
+    // ^C will have no effect. (We check here, before we potentially re-assign STDIN).
+    bool do_set_ctty = on_console && (tcgetsid(0) == -1);
 
-    // Copy signal mask, but unmask signals that we masked on startup. For the moment, we'll
-    // also block all signals, since apparently dup() can be interrupted (!!! really, POSIX??).
-    sigset_t sigwait_set;
+    // For the moment, we'll block all signals, since apparently even dup() can be interrupted
+    // (thanks, POSIX...).
     sigset_t sigall_set;
     sigfillset(&sigall_set);
-    sigprocmask(SIG_SETMASK, &sigall_set, &sigwait_set);
-    sigdelset(&sigwait_set, SIGCHLD);
-    sigdelset(&sigwait_set, SIGINT);
-    sigdelset(&sigwait_set, SIGTERM);
-    sigdelset(&sigwait_set, SIGQUIT);
+    sigprocmask(SIG_SETMASK, &sigall_set, nullptr);
 
     constexpr int bufsz = 11 + ((CHAR_BIT * sizeof(pid_t) + 2) / 3) + 1;
     // "LISTEN_PID=" - 11 characters; the expression above gives a conservative estimate
@@ -261,9 +258,6 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         // will not see control signals from ^C etc.
 
         if (do_set_ctty) {
-            // Disable suspend (^Z) (and on some systems, delayed suspend / ^Y)
-            signal(SIGTSTP, SIG_IGN);
-
             // Become session leader
             setsid();
             ioctl(0, TIOCSCTTY, 0);
@@ -376,7 +370,26 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         if (setreuid(uid, uid) != 0) goto failure_out;
     }
 
-    sigprocmask(SIG_SETMASK, &sigwait_set, nullptr);
+    // Restore signal mask. If running on the console, we'll keep various control signals that can
+    // be invoked from the terminal masked, with the exception of SIGHUP and possibly SIGINT.
+    {
+        sigset_t sigwait_set = orig_signal_mask;
+        sigdelset(&sigwait_set, SIGCHLD);
+        sigdelset(&sigwait_set, SIGTERM);
+        if (on_console && params.in_foreground) {
+            if (params.unmask_sigint) {
+                sigdelset(&sigwait_set, SIGINT);
+            }
+            else {
+                sigaddset(&sigwait_set, SIGINT);
+            }
+            sigaddset(&sigwait_set, SIGQUIT);
+            sigaddset(&sigwait_set, SIGTSTP);
+            sigaddset(&sigwait_set, SIGTTIN);
+            sigaddset(&sigwait_set, SIGTTOU);
+        }
+        sigprocmask(SIG_SETMASK, &sigwait_set, nullptr);
+    }
 
     err.stage = exec_stage::DO_EXEC;
     // (on linux we could use execvpe, but it's not POSIX and not in eg FreeBSD).

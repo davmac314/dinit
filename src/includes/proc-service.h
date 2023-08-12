@@ -33,6 +33,7 @@ struct run_proc_params
     #endif
     bool on_console;          // whether to run on console
     bool in_foreground;       // if on console: whether to run in foreground
+    bool unmask_sigint = false; // if in foreground: whether to unmask SIGINT
     int wpipefd;              // pipe to which error status will be sent (if error occurs)
     int csfd;                 // control socket fd (or -1); may be moved
     int socket_fd;            // pre-opened socket fd (or -1); may be moved

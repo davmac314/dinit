@@ -248,6 +248,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
             run_proc_params run_params{cmd.data(), working_dir_c, logfile, pipefd[1], run_as_uid, run_as_gid, rlimits};
             run_params.on_console = on_console;
             run_params.in_foreground = !onstart_flags.shares_console;
+            run_params.unmask_sigint = onstart_flags.unmask_intr;
             run_params.csfd = control_socket[1];
             run_params.socket_fd = socket_fd;
             run_params.notify_fd = notify_pipe[1];

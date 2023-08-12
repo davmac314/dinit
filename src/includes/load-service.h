@@ -31,6 +31,7 @@ struct service_flags_t
     bool runs_on_console : 1;   // run "in the foreground"
     bool starts_on_console : 1; // starts in the foreground
     bool shares_console : 1;    // run on console, but not exclusively
+    bool unmask_intr : 1;       // (if runs/starts on console) unmask SIGINTR
     bool pass_cs_fd : 1;        // pass this service a control socket connection via fd
     bool start_interruptible : 1; // the startup of this service process is ok to interrupt with SIGINT
     bool skippable : 1;         // if interrupted the service is skipped (scripted services)
@@ -39,7 +40,7 @@ struct service_flags_t
     bool kill_all_on_stop : 1;  // kill all other processes before stopping this service
 
     service_flags_t() noexcept : rw_ready(false), log_ready(false),
-            runs_on_console(false), starts_on_console(false), shares_console(false),
+            runs_on_console(false), starts_on_console(false), shares_console(false), unmask_intr(false),
             pass_cs_fd(false), start_interruptible(false), skippable(false), signal_process_only(false),
             always_chain(false), kill_all_on_stop(false)
     {
@@ -1228,6 +1229,9 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
                 settings.onstart_flags.shares_console = true;
                 settings.onstart_flags.runs_on_console = false;
                 settings.onstart_flags.starts_on_console = false;
+            }
+            else if (option_txt == "unmask-intr") {
+                settings.onstart_flags.unmask_intr = true;
             }
             else if (option_txt == "pass-cs-fd") {
                 settings.onstart_flags.pass_cs_fd = true;
