@@ -35,6 +35,9 @@ New features:
    logfile-uid, and logfile-gid. Note that these have default values, which results in a change in
    behaviour from previous versions even if they are not specified in a service description (i.e.
    the logfile ownership and permissions are now always set).
+ * "before" and "after" ordering requirements in service descriptions no longer force the named
+   service to be loaded. This means that a service can be "before" another service even if the
+   other service might not be installed, for example.
  * New "dinitctl" subcommands "is-started" and "is-failed", to test for specific service statuses
    (intended to be useful in scripts, for example). Contributed by Daniel Kolesa.
  * The "dinitctl" utility now supports the "--use-passed-cfd" argument (as for shutdown).
