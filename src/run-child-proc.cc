@@ -13,6 +13,7 @@
 
 #include "service.h"
 #include "proc-service.h"
+#include "mconfig.h"
 
 #ifdef SUPPORT_CGROUPS
 extern std::string cgroups_path;
