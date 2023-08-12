@@ -118,12 +118,11 @@ Also provided in the util-linux package are standard utilities such as fsck
 and mount. You'll probably want e2fsprogs (or the equivalent for your chosen
 filesystem): http://e2fsprogs.sourceforge.net/
 
-The syslog daemon from GNU Inetutils is basic, but functional - which makes
-it a good fit for a Dinit-based system.  One alternative is sysklogd; the
-enhanced version by troglobit looks promising:
+There are plenty of syslog daemons; the one I recommend is troglobit's enhanced
+version of sysklogd. The syslog daemon from GNU Inetutils is another option. 
 
-- Inetutils: https://www.gnu.org/software/inetutils
 - Troglobit's sysklogd: https://github.com/troglobit/sysklogd
+- Inetutils: https://www.gnu.org/software/inetutils
 
 You will need a shell script interpreter / command line, for which you have
 a range of options. A common choice is GNU Bash, but many distributions are
@@ -175,10 +174,14 @@ which they are expected to start:
   
 - `early-filesystems` - this service has no dependencies and so is one of the earliest
   to start. It mounts virtual filesystems including _sysfs_, _devtmpfs_ (on `/dev`)
-  and _proc_, via the `early-filesystems.sh` shell script.
+  and _proc_, via the `early-filesystems.sh` shell script. Note that if startup is via
+  an initial ram disk (initrd, initfs) as is now common, these early filesystems are
+  most likely already mounted by that, so this service may not be needed or could be
+  edited to remove initrd-mounted filesystems. 
 - `udevd` - this services starts the device node manager, udevd (from the eudev package).
   This daemon receives notification of hotplug events from the kernel, and creates
-  device nodes (in `/dev`) according to its configuration.
+  device nodes (in `/dev`) according to its configuration. Note that "hotplug" events
+  includes initialisation of devices even when they are not "hot-pluggable".
 - `udev-trigger` - this is a scripted service which triggers device add actions
   for all currently present devices. This is required for `udevd` to process devices
   which already existed when it started.
@@ -186,7 +189,9 @@ which they are expected to start:
   device list has "settled", that is, there are no more attached devices which are still
   potentially to be found and reported by the kernel. This is something of a hack, and
   should not really be relied on, but is convenient to keep our example scripts
-  reasonably simple.
+  reasonably simple. A less hacky alternative would be to have triggered services
+  representing particular devices (disks, network interfaces, etc) that other services
+  require; see the 'netdev-enp3s0' service for example.
 - `hwclock` - this sets the current time (according to the kernel) from the hardware
   clock. It depends on `udevd` as it needs the hardware clock device node to be present.
 - `modules` - this service runs the `modules.sh` script, which checks whether the kernel
@@ -196,14 +201,14 @@ which they are expected to start:
   arguments.
 - `rootfscheck` - via the `rootfscheck.sh` script, this service runs a filesystem check
   on the root filesystem (if it is marked dirty). The script runs "on the console" so
-  that output is visible during boot, and is marked `starts-interruptible` and `skippable`
+  that output is visible during boot, and is marked `start-interruptible` and `skippable`
   so that pressing Ctrl+C can skip the check. The default `start-timeout` of 60 seconds is
   overridden to 0 (no start timeout), since a filesystem check may take some time. If the
   filesystem check requires manual intervention, the user is prompted to enter the root
   password and a maintenance shell is spawned (once it is exited, the system is rebooted).
   The system is also rebooted if the filesystem check makes automatic changes that require
   it.
-- `rootrw` - one the root filesystem has been checked, it can be mounted read-write (the
+- `rootrw` - once the root filesystem has been checked, it can be mounted read-write (the
   kernel normally mounts root as read-only).
 - `auxfscheck` - runs fsck for the auxillary filesystems (apart from the root filesystem)
   which are needed for general system operation. Any filesystems listed in `/etc/fstab`
@@ -225,8 +230,8 @@ By the time `rcboot` has started, the system is quite functional. The following 
 services can then start:
 
 - `syslogd` - the logging daemon. This service has the `starts-log` option set, so that
-  Dinit will commence logging (from its buffer) once the service starts. The service relies
-  on syslogd from GNU inetutils. Unfortunately it must be a `bgprocess` as it does not
+  Dinit will commence logging (from its buffer) once the service starts. The example service
+  relies on troglobit's sysklogd. Unfortunately it must be a `bgprocess` as it does not
   support signalling readiness via a file descriptor.
 - `late-filesystems` - check and mount any filesystems which are not needed for general
   system operation (i.e. "user" filesystems). It's not expected that other services will
