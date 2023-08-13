@@ -23,8 +23,8 @@ all: dinit dinitctl dinitcheck dinit-monitor $(SHUTDOWN)
 dinit: $(dinit_objects)
 	$(CXX) -o dinit $(dinit_objects) $(ALL_LDFLAGS)
 
-dinitctl: dinitctl.o
-	$(CXX) -o dinitctl dinitctl.o $(ALL_LDFLAGS)
+dinitctl: dinitctl.o options-processing.o
+	$(CXX) -o dinitctl dinitctl.o options-processing.o $(ALL_LDFLAGS)
 
 dinitcheck: dinitcheck.o options-processing.o
 	$(CXX) -o dinitcheck dinitcheck.o options-processing.o $(ALL_LDFLAGS)

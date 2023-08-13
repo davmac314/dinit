@@ -23,6 +23,7 @@
 #include "dinit-client.h"
 #include "load-service.h"
 #include "dinit-util.h"
+#include "options-processing.h"
 #include "mconfig.h"
 
 // dinitctl:  utility to control the Dinit daemon, including starting and stopping of services.
@@ -48,8 +49,8 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
 static int shutdown_dinit(int soclknum, cpbuffer_t &, bool verbose);
 static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, const char *service_from,
         const char *service_to, dependency_type dep_type, bool verbose);
-static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to,
-        bool enable, bool verbose);
+static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_opt &service_dir_opts,
+        const char *from, const char *to, bool enable, bool verbose);
 static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names);
 static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool trigger_value);
 static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool do_clear);
@@ -100,6 +101,8 @@ int dinitctl_main(int argc, char **argv)
     const char * control_socket_path = nullptr;
     bool verbose = true;
     bool user_dinit = (getuid() != 0);  // communicate with user daemon
+    service_dir_opt service_dir_opts;
+    bool offline = false;
 
     // general command options
     command_t command = command_t::NONE;
@@ -199,6 +202,18 @@ int dinitctl_main(int argc, char **argv)
                     cmdline_error = true;
                     break;
                 }
+            }
+            else if (strcmp(argv[i], "--services-dir") == 0 || strcmp(argv[i], "-d") == 0) {
+                if (++i < argc) {
+                    service_dir_opts.set_specified_service_dir(argv[i]);
+                }
+                else {
+                    cerr << "dinitcheck: '--services-dir' (-d) requires an argument" << endl;
+                    return 1;
+                }
+            }
+            else if (strcmp(argv[i], "--offline") == 0 || strcmp(argv[i], "-o") == 0) {
+                offline = true;
             }
             else {
                 cerr << "dinitctl: unrecognized/invalid option: " << argv[i] << " (use --help for help)\n";
@@ -455,12 +470,16 @@ int dinitctl_main(int argc, char **argv)
           "  --socket-path <path>, -p <path>\n"
           "                   : specify socket for communication with daemon\n"
           "  --use-passed-cfd : use the socket file descriptor identified by the DINIT_CS_FD\n"
-          "                     environment variable to communicate with the dinit daemon.\n"
+          "                     environment variable to communicate with the dinit daemon\n"
+          "  -o, --offline    : do not contact running dinit daemon\n"
+          "  -d, --services-dir <dir>\n"
+          "                   : specify directory for service definitions (offline mode)\n"
           "\n"
           "Command options:\n"
           "  --no-wait        : don't wait for service startup/shutdown to complete\n"
           "  --pin            : pin the service in the requested state\n"
-          "  --force          : force stop even if dependents will be affected\n";
+          "  --force          : force stop even if dependents will be affected\n"
+          "  -l, --list       : (signal) list supported signals\n";
         return 0;
     }
 
@@ -473,6 +492,26 @@ int dinitctl_main(int argc, char **argv)
     // SIG_LIST doesn't need a control socket connection so handle it specially.
     if (command == command_t::SIG_LIST) {
         return signal_list();
+    }
+
+    cpbuffer_t rbuffer;
+
+    if (offline) {
+        if (command != command_t::ENABLE_SERVICE && command != command_t::DISABLE_SERVICE) {
+            cerr << "dinitctl: offline mode (--offline/-o) not supported for this command\n";
+            return 1;
+        }
+
+        service_dir_opts.build_paths(!user_dinit);
+
+        if (command == command_t::ENABLE_SERVICE || command == command_t::DISABLE_SERVICE) {
+            // If only one service specified, assume that we enable for 'boot' service:
+            if (service_name == nullptr) {
+                service_name = "boot";
+            }
+            return enable_disable_service(-1, rbuffer, service_dir_opts, service_name, to_service_name,
+                    command == command_t::ENABLE_SERVICE, verbose);
+        }
     }
 
     // Begin the real work: connect to dinit
@@ -509,7 +548,6 @@ int dinitctl_main(int argc, char **argv)
         }
 
         // Start by querying protocol version:
-        cpbuffer_t rbuffer;
         uint16_t daemon_protocol_ver = check_protocol_version(min_cp_version, max_cp_version, rbuffer, socknum);
 
         if (command == command_t::UNPIN_SERVICE) {
@@ -540,7 +578,7 @@ int dinitctl_main(int argc, char **argv)
             if (service_name == nullptr) {
                 service_name = "boot";
             }
-            return enable_disable_service(socknum, rbuffer, service_name, to_service_name,
+            return enable_disable_service(socknum, rbuffer, service_dir_opts, service_name, to_service_name,
                     command == command_t::ENABLE_SERVICE, verbose);
         }
         else if (command == command_t::SETENV) {
@@ -1590,25 +1628,10 @@ static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer, bool verbose)
     return 0;
 }
 
-// exception for cancelling a service operation
-class service_op_cancel { };
-
-static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *from, const char *to,
-        bool enable, bool verbose)
+static std::vector<std::string> get_service_description_dirs(int socknum, cpbuffer_t &rbuffer)
 {
     using namespace std;
 
-    service_state_t from_state = service_state_t::STARTED;
-    handle_t from_handle;
-
-    handle_t to_handle;
-
-    if (!load_service(socknum, rbuffer, from, &from_handle, &from_state)
-            || !load_service(socknum, rbuffer, to, &to_handle, nullptr)) {
-        return 1;
-    }
-
-    // Get service load path
     char buf[1] = { DINIT_CP_QUERY_LOAD_MECH };
     write_all_x(socknum, buf, 1);
 
@@ -1616,7 +1639,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
 
     if (rbuffer[0] != DINIT_RP_LOADER_MECH) {
         cerr << "dinitctl: control socket protocol error" << endl;
-        return 1;
+        return {};
     }
 
     // Packet type, load mechanism type, packet size:
@@ -1624,7 +1647,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
 
     if (rbuffer[1] != SSET_TYPE_DIRLOAD) {
         cerr << "dinitctl: unknown configuration, unable to load service descriptions" << endl;
-        return 1;
+        return {};
     }
 
     vector<string> paths;
@@ -1652,7 +1675,63 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
         fill_buffer_to(rbuffer, socknum, sizeof(uint32_t));
         rbuffer.extract(&plen, 0, sizeof(uint32_t));
         rbuffer.consume(sizeof(uint32_t));
-        paths.push_back(read_string(socknum, rbuffer, plen));
+        //paths.push_back(read_string(socknum, rbuffer, plen));
+        string sd_rel_path = read_string(socknum, rbuffer, plen);
+        paths.push_back(combine_paths(dinit_cwd, sd_rel_path.c_str()));
+    }
+
+    return paths;
+}
+
+// find (and open) a service description file in a set of paths
+static void find_service_desc(const char *svc_name, const std::vector<std::string> &paths,
+        std::ifstream &service_file, std::string &service_file_path)
+{
+    using namespace std;
+
+    for (std::string path : paths) {
+        string test_path = combine_paths(path, svc_name);
+
+        service_file.open(test_path.c_str(), ios::in);
+        if (service_file) {
+            service_file_path = test_path;
+            break;
+        }
+    }
+}
+
+// exception for cancelling a service operation
+class service_op_cancel { };
+
+static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_opt &service_dir_opts,
+        const char *from, const char *to, bool enable, bool verbose)
+{
+    using namespace std;
+
+    service_state_t from_state = service_state_t::STARTED;
+    handle_t from_handle;
+
+    handle_t to_handle;
+
+    vector<string> paths;
+
+    if (socknum != -1) {
+        if (!load_service(socknum, rbuffer, from, &from_handle, &from_state)
+                || !load_service(socknum, rbuffer, to, &to_handle, nullptr)) {
+            return 1;
+        }
+
+        paths = get_service_description_dirs(socknum, rbuffer);
+        if (paths.empty()) {
+            return 1;
+        }
+    }
+    else {
+        // offline case
+        const auto &path_list = service_dir_opts.get_paths();
+        for (auto &path : path_list) {
+            paths.emplace_back(path.get_dir());
+        }
     }
 
     // all service directories are now in the 'paths' vector
@@ -1661,19 +1740,24 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
     ifstream service_file;
     string service_file_path;
 
-    for (std::string path : paths) {
-        string test_path = combine_paths(combine_paths(dinit_cwd, path.c_str()), from);
-
-        service_file.open(test_path.c_str(), ios::in);
-        if (service_file) {
-            service_file_path = test_path;
-            break;
-        }
-    }
-
-    if (! service_file) {
+    find_service_desc(from, paths, service_file, service_file_path);
+    if (!service_file) {
         cerr << "dinitctl: could not locate service file for service '" << from << "'" << endl;
         return 1;
+    }
+
+    ifstream to_service_file;
+    string to_service_file_path;
+    find_service_desc(to, paths, to_service_file, to_service_file_path);
+    if (!to_service_file) {
+        cerr << "dinitctl: ";
+        if (socknum >= 0) {
+            cerr << "warning: ";
+        }
+        cerr << "dinitctl: could not locate service file for target service '" << to << "'" << endl;
+        if (socknum < 0) {
+            return 1;
+        }
     }
 
     // We now need to read the service file, identify the waits-for.d directory (bail out if more than one),
@@ -1735,36 +1819,38 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
         }
     }
 
-    // warn if 'from' service is not started
-    if (enable && from_state != service_state_t::STARTED) {
-        cerr << "dinitctl: warning: enabling dependency for non-started service" << endl;
-    }
-
-    // add/remove dependency
-    constexpr int enable_pktsize = 2 + sizeof(handle_t) * 2;
-    char cmdbuf[enable_pktsize] = { char(enable ? DINIT_CP_ENABLESERVICE : DINIT_CP_REM_DEP),
-            char(dependency_type::WAITS_FOR)};
-    memcpy(cmdbuf + 2, &from_handle, sizeof(from_handle));
-    memcpy(cmdbuf + 2 + sizeof(from_handle), &to_handle, sizeof(to_handle));
-    write_all_x(socknum, cmdbuf, enable_pktsize);
-
-    wait_for_reply(rbuffer, socknum);
-
-    // check reply
-    if (rbuffer[0] == DINIT_RP_NAK) {
-        if (enable) {
-            cerr << "dinitctl: could not enable service: possible circular dependency" << endl;
+    if (socknum >= 0) {
+        // warn if 'from' service is not started
+        if (enable && from_state != service_state_t::STARTED) {
+            cerr << "dinitctl: warning: enabling dependency for non-started service" << endl;
         }
-        else {
-            cerr << "dinitctl: service not currently enabled" << endl;
+
+        // add/remove dependency
+        constexpr int enable_pktsize = 2 + sizeof(handle_t) * 2;
+        char cmdbuf[enable_pktsize] = { char(enable ? DINIT_CP_ENABLESERVICE : DINIT_CP_REM_DEP),
+                char(dependency_type::WAITS_FOR)};
+        memcpy(cmdbuf + 2, &from_handle, sizeof(from_handle));
+        memcpy(cmdbuf + 2 + sizeof(from_handle), &to_handle, sizeof(to_handle));
+        write_all_x(socknum, cmdbuf, enable_pktsize);
+
+        wait_for_reply(rbuffer, socknum);
+
+        // check reply
+        if (rbuffer[0] == DINIT_RP_NAK) {
+            if (enable) {
+                cerr << "dinitctl: could not enable service: possible circular dependency" << endl;
+            }
+            else {
+                cerr << "dinitctl: service not currently enabled" << endl;
+            }
+            return 1;
         }
-        return 1;
+        if (rbuffer[0] != DINIT_RP_ACK) {
+            cerr << "dinitctl: control socket protocol error" << endl;
+            return 1;
+        }
+        rbuffer.consume(1);
     }
-    if (rbuffer[0] != DINIT_RP_ACK) {
-        cerr << "dinitctl: control socket protocol error" << endl;
-        return 1;
-    }
-    rbuffer.consume(1);
 
     // create link
     if (enable) {
@@ -1784,38 +1870,45 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, const char *
         }
     }
 
-    // Check status of the service now
-    auto m = membuf()
-            .append<char>(DINIT_CP_SERVICESTATUS)
-            .append(to_handle);
-    write_all_x(socknum, m);
+    if (socknum >= 0) {
+        // Check status of the service now
+        auto m = membuf()
+                .append<char>(DINIT_CP_SERVICESTATUS)
+                .append(to_handle);
+        write_all_x(socknum, m);
 
-    wait_for_reply(rbuffer, socknum);
-    if (rbuffer[0] != DINIT_RP_SERVICESTATUS) {
-        cerr << "dinitctl: protocol error." << endl;
-        return 1;
-    }
-    rbuffer.consume(1);
+        wait_for_reply(rbuffer, socknum);
+        if (rbuffer[0] != DINIT_RP_SERVICESTATUS) {
+            cerr << "dinitctl: protocol error." << endl;
+            return 1;
+        }
+        rbuffer.consume(1);
 
-    int statussize = 6 + std::max(sizeof(pid_t), sizeof(int));;
-    fill_buffer_to(rbuffer, socknum, statussize + 1 /* reserved */);
-    rbuffer.consume(1);
-    service_state_t current = static_cast<service_state_t>(rbuffer[0]);
-    service_state_t target = static_cast<service_state_t>(rbuffer[1]);
-    rbuffer.consume(statussize);
+        int statussize = 6 + std::max(sizeof(pid_t), sizeof(int));;
+        fill_buffer_to(rbuffer, socknum, statussize + 1 /* reserved */);
+        rbuffer.consume(1);
+        service_state_t current = static_cast<service_state_t>(rbuffer[0]);
+        service_state_t target = static_cast<service_state_t>(rbuffer[1]);
+        rbuffer.consume(statussize);
 
-    if (verbose) {
-        cout << "Service '" << to << "' has been " << (enable ? "enabled" : "disabled") << "." << endl;
-    }
+        if (verbose) {
+            cout << "Service '" << to << "' has been " << (enable ? "enabled" : "disabled") << "." << endl;
+        }
 
-    if (enable) {
-        if (current != service_state_t::STARTED) {
-            wait_service_state(socknum, rbuffer, to_handle, to, false /* start */, verbose);
+        if (enable) {
+            if (current != service_state_t::STARTED) {
+                wait_service_state(socknum, rbuffer, to_handle, to, false /* start */, verbose);
+            }
+        }
+        else {
+            if (target != service_state_t::STOPPED) {
+                std::cerr << "dinitctl: note: disabled service may have other dependents\n";
+            }
         }
     }
     else {
-        if (target != service_state_t::STOPPED) {
-            std::cerr << "dinitctl: note: disabled service may have other dependents\n";
+        if (verbose) {
+            cout << "Service '" << to << "' has been " << (enable ? "enabled" : "disabled") << "." << endl;
         }
     }
 
