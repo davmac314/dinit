@@ -1,6 +1,37 @@
 Security concerns
 -----------------
 
+Trust and assumptions
+---------------------
+
+Dinit does assume that most input it receives is trusted and not produced maliciously. This
+includes:
+
+- service descriptions, including service names
+- "environment" file
+- commands received via the control socket
+
+Since it is trusted, Dinit will do no or minimal validation/sanitisation on these. Tools which
+allow creation or modification of these inputs should do so with care. (The control socket is
+treated with a little more care, in an attempt to guard against buggy or partially compromised
+clients, but untrusted applications/users should *not* be granted access to the socket).
+
+Dinit when run as system manager (naturally) also trusts and relies on the general integrity of
+the system on which it runs. It cannot defend against a fully compromised system and does not
+attempt to do so. It does *not* trust or rely on aspects of the system that are (or should not
+be) controlled by non-administrative users. In other words, Dinit should be secure but does not
+by itself aim to provide *additional system* security (except by having features to run services
+more securely).
+
+Dinit does not expect user identities to change during operation. If a service is configured to
+run as user xyz, the numeric ID of user xyz may be determined when the service is loaded rather
+than when the service is started. If the same ID is re-assigned to a different user, Dinit might
+run the service as that other user, create logfiles owned by that other user, etc.
+
+
+Specific concerns and details
+-----------------------------
+ 
 Dinit is designed to allow control by one system user. In the case of a system instance, this is
 the root user. Of course, the unix model allows users to change identity and so regular users can
 control a system dinit instance using sudo or su, for example.
@@ -18,7 +49,12 @@ otherwise obtain an open connection to the socket) will be able to execute arbit
 (or rather, as the user which dinit is running as). That said, errors or missing checks in the
 control protocol handling which could cause unspecified or undefined behaviour are considered a
 security concern (since they potentially allow minor flaws in clients to become arbitrary code
-execution within the dinit daemon). 
+execution within the dinit daemon).
+
+Dinit service descriptions may specify output files (sockets, logfiles) and these are opened
+without (or with minimal) checks. A malicious user in control of a service description could cause
+arbitrary system files to be overwritten.
+
 
 Reporting security issues
 -------------------------
