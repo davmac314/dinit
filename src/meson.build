@@ -41,6 +41,7 @@ executable(
 executable(
     'dinitctl',
     'dinitctl.cc',
+    'options-processing.cc',
     include_directories : default_incdir,
     install : true,
     install_dir : sbindir
