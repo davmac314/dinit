@@ -102,20 +102,25 @@ class dinit_protocol_error
 int dinitctl_main(int argc, char **argv)
 {
     using namespace std;
-    
+
+    // general options
     bool cmdline_error = false;
     bool show_help = argc < 2; // show help if no arguments
+    std::string control_socket_str;
+    const char * control_socket_path = nullptr;
+    bool verbose = true;
+    bool user_dinit = (getuid() != 0);  // communicate with user daemon
+
+    // general command options
+    command_t command = command_t::NONE;
+    std::vector<const char *> cmd_args;
+
+    // specific command options
     const char *service_name = nullptr;
     const char *to_service_name = nullptr;
     dependency_type dep_type = dependency_type::AFTER; // avoid maybe-uninitialised warning
     bool dep_type_set = false;
     bool catlog_clear = false;
-    
-    std::string control_socket_str;
-    const char * control_socket_path = nullptr;
-    
-    bool verbose = true;
-    bool user_dinit = (getuid() != 0);  // communicate with user daemon
     bool wait_for_service = true;
     bool do_pin = false;
     bool do_force = false;
@@ -124,11 +129,7 @@ int dinitctl_main(int argc, char **argv)
     bool show_siglist = false;
     std::string sigstr;
     int sig_num = -1;
-    
-    command_t command = command_t::NONE;
 
-    std::vector<const char *> cmd_args;
-        
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
             if (strcmp(argv[i], "--help") == 0) {
@@ -345,7 +346,7 @@ int dinitctl_main(int argc, char **argv)
         }
     }
     
-    // Additional argument checks for various commands:
+    // Additional argument checks/processing for various commands:
 
     if (command == command_t::NONE && !show_help) {
         cmdline_error = true;
