@@ -1,7 +1,15 @@
-Dinit is primarily written by Davin McCall.
+Dinit is maintained primarily by Davin McCall, the initial author.
 
-The following people have contributed:
+Extra-special thanks to co-maintainer, Mobin Aydinfar.
+
+Special thanks to those who have sponsored Dinit's development:
+ * Artix Linux (https://artixlinux.org/)
+ * brazeon (Github)
+ * Daniel Kolesa (Github: q66)
+ 
+The following people (in alphabetical order) have contributed:
  * Daniel Kolesa - Code, testing, documentation.
  * Edd Barrett - Testing, documentation.
  * Fabien Poussin - Code, services, documentation.
+ * James Knippes - Code
  * Mobin Aydinfar - Code, documentation, CI
