@@ -56,16 +56,6 @@ static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service
 static int signal_send(int socknum, cpbuffer_t &rbuffer, const char *service_name, int sig_num);
 static int signal_list();
 
-static const char * describeState(bool stopped)
-{
-    return stopped ? "stopped" : "started";
-}
-
-static const char * describeVerb(bool stop)
-{
-    return stop ? "stop" : "start";
-}
-
 enum class command_t {
     NONE,
     START_SERVICE,
@@ -625,6 +615,16 @@ int main(int argc, char **argv)
 // Size of service status info (in various packets)
 constexpr static unsigned STATUS_BUFFER_SIZE = 6 + ((sizeof(pid_t) > sizeof(int)) ? sizeof(pid_t) : sizeof(int));
 
+static const char * describe_state(bool stopped)
+{
+    return stopped ? "stopped" : "started";
+}
+
+static const char * describe_verb(bool stop)
+{
+    return stop ? "stop" : "start";
+}
+
 // Extract/read a string of specified length from the buffer/socket. The string is consumed
 // from the buffer.
 static std::string read_string(int socknum, cpbuffer_t &rbuffer, uint32_t length)
@@ -784,13 +784,13 @@ static int wait_service_state(int socknum, cpbuffer_t &rbuffer, handle_t handle,
                 if (ev_handle == handle) {
                     if (event == completionEvent) {
                         if (verbose) {
-                            cout << "Service '" << service_name << "' " << describeState(do_stop) << ".\n";
+                            cout << "Service '" << service_name << "' " << describe_state(do_stop) << ".\n";
                         }
                         return 0;
                     }
                     else if (event == cancelledEvent) {
                         if (verbose) {
-                            cout << "Service '" << service_name << "' " << describeVerb(do_stop) << " cancelled.\n";
+                            cout << "Service '" << service_name << "' " << describe_verb(do_stop) << " cancelled.\n";
                         }
                         return 1;
                     }
@@ -913,7 +913,7 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             bool already = (state == wanted_state);
             if (verbose) {
                 cout << "Service " << (already ? "(already) " : "")
-                        << describeState(do_stop) << "." << endl;
+                        << describe_state(do_stop) << "." << endl;
             }
             return 0; // success!
         }
@@ -978,7 +978,7 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
 
     if (! wait_for_service) {
         if (verbose) {
-            cout << "Issued " << describeVerb(do_stop) << " command successfully for service '"
+            cout << "Issued " << describe_verb(do_stop) << " command successfully for service '"
                     <<  service_name <<  "'." << endl;
         }
         return 0;
