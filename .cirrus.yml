@@ -1,19 +1,33 @@
-Dinit on freebsd-amd64 CI_task:
+Dinit with hardening CI_task:
   skip: "!changesInclude('.cirrus.yml',
                          'build/**',
                          'configs/**',
                          'dasynq/**',
                          'src/**',
                          '**/Makefile',
+                         'configure',
                          '!**/meson.build')"
+  environment:
+    CXX: /usr/local/bin/clang++15 # Default clang++14 isn't friendly with hardening
+    CXXFLAGS:
+      -std=c++11
+      -flto
+      -fstack-clash-protection
+      -fvisibility=hidden
+      -fsanitize=cfi
+      -fsanitize=signed-integer-overflow,integer-divide-by-zero
+      -fsanitize-trap=signed-integer-overflow,integer-divide-by-zero
+      -fno-sanitize-recover
+    TEST_LDFLAGS: # ASLR breaks -fsanitize=address,undefined
+
   freebsd_instance:
     matrix:
-      - image_family: freebsd-13-1
+      - image_family: freebsd-13-2
       - image_family: freebsd-12-4
 
-  Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install gmake m4 file
-  Print clang++ architecture_script: clang++ -dumpmachine
+  Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install gmake m4 file llvm15
+  Configure_script: ./configure
   Build_script: gmake
   Print dinit executive file architecture_script: file ./src/dinit
   Unit tests_script: gmake check
-  Integration tests_script: gmake check-igr
+  Integration tests_script: gmake check-igr DEBUG=1
