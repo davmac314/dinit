@@ -1,0 +1,88 @@
+#!/bin/bash
+
+if [ -d /etc/dinit.d/ ]; then
+    _etc_dinit_services_path="/etc/dinit.d/"
+else
+    _etc_dinit_services_path=""
+fi
+if [ -d /lib/dinit.d/ ]; then
+    _lib_dinit_services_path="/lib/dinit.d/"
+else
+    _lib_dinit_services_path=""
+fi
+if [ -d /usr/local/lib/dinit.d/ ]; then
+    _usr_dinit_services_path="/usr/local/lib/dinit.d/"
+else
+    _usr_dinit_services_path=""
+fi
+if [ -d $HOME/.config/dinit.d/ ]; then
+    _dinit_user_services_path="$HOME/.config/dinit.d/"
+else
+    _dinit_user_services_path=""
+fi
+
+_dinit_all_services() {
+    for path in $_etc_dinit_services_path $_usr_dinit_services_path\
+                $_lib_dinit_services_path $_dinit_user_services_path; do
+        ls $path
+    done
+}
+
+
+_dinitctl_comp() {
+    local cur=${COMP_WORDS[COMP_CWORD]}
+    local thr=1
+    local flags=()
+    for word in "${COMP_WORDS[@]}"; do
+        if [[ $word == -* || $word == --* ]]; then
+            flags+=("$word")
+        fi
+    done
+    ((thr+=${#flags[@]}))
+
+    if [ ${COMP_CWORD} -gt $(($thr + 2)) ]; then
+        return
+    fi
+
+    if [ ${COMP_CWORD} -eq $thr ]; then
+        COMPREPLY=($(compgen -W\
+                "status\
+                 list\
+                 start\
+                 stop\
+                 restart\
+                 enable\
+                 disable\
+                 is-started\
+                 is-failed\
+                 wake\
+                 release\
+                 unpin\
+                 unload\
+                 reload\
+                 shutdown\
+                 add-dep\
+                 rm-dep\
+                 trigger\
+                 untrigger\
+                 setenv\
+                 catlog\
+                 signal\
+        " -- "$cur"))
+        return
+    fi
+
+    local services
+    case "${COMP_WORDS[$thr]}" in
+        "start"|"stop"|"restart"|"status"|"disable"|"enable"|"is-started"|"is-failed"|\
+        "add-dep"|"rm-dep"|"trigger"|"untrigger"|"wake"|"release"|"unpin"|"unload"|\
+        "reload"|"catlog"|"signal")
+            services=$(_dinit_all_services)
+    esac
+    if [ -z "$services" ]; then
+        return
+    fi
+    COMPREPLY=($(compgen -W "$services" -- "$cur"))
+}
+
+complete -F _dinitctl_comp dinitctl

@@ -1,0 +1,10 @@
+Bash completion for Dinit
+-------------------------
+
+This directory contains "dinitctl" bash completion.
+
+ToDo:
+- More commands and flags
+
+For installation copy dinitctl file into your bash-completions directory,
+(Usually "/usr/share/bash-completion/completions/").
