@@ -35,7 +35,7 @@ same search paths (for service description files) as \fBdinit\fR.
 .SH OPTIONS
 .TP
 \fB\-d\fR \fIdir\fP, \fB\-\-services\-dir\fR \fIdir\fP
-Specifies \fIdir\fP as the directory containing service definition files (can
+Specifies \fIdir\fP as the directory containing service description files (can
 be given multiple times to specify multiple service directories).
 Default directories are not searched for services when this option is provided.
 .sp

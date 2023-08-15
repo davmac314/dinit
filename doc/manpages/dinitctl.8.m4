@@ -115,7 +115,18 @@ The file descriptor with the connection is identified by the contents of the DIN
 environment variable.
 .TP
 \fB\-\-quiet\fR
-Suppress status output, except for errors. 
+Suppress status output, except for errors.
+.TP
+\fB\-\-offline\fR, \fB\-o\fR
+Work "offline", without communicating with the \fBdinit\fR daemon.
+This is applicable only for the \fBenable\fR and \fBdisable\fR subcommands.
+.TP
+\fB\-\-services\-dir\fR \fIdir\fP, \fB\-d\fR \fIdir\fP
+Specifies \fIdir\fP as the directory containing service description files (can
+be given multiple times to specify multiple service directories).
+Default directories are not searched for services when this option is provided.
+This option is ignored when \fB\-\-offline\fR (\fB\-o\fR) is not also specified (otherwise,
+\fBdinitctl\fR can query the \fBdinit\fR daemon for the service description directories).
 .\"
 .SH COMMAND OPTIONS
 .TP
