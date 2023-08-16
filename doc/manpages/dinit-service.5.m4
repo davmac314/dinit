@@ -17,10 +17,9 @@ of the file corresponds to the name of the service it describes.
 Service description files specify the various attributes of a service. A
 service description file is named after the service it represents, and is
 a plain-text file with simple key-value format.
-The description files are located in a service description directory; by default,
-the system \fBdinit\fR process searches \fI/etc/dinit.d\fR, \fI/usr/local/lib/dinit.d\fR and
-\fI/lib/dinit.d\fR, while a user process searches \fI$HOME/.config/dinit.d\fR.
-See \fBdinit\fR(8) for more details of how and when service descriptions are loaded.
+The description files are located in a service description directory;
+See \fBdinit\fR(8) for more details of the default service description directories,
+and how and when service descriptions are loaded.
 .LP
 All services have a \fItype\fR and a set of \fIdependencies\fR. These are discussed
 in the following subsections. The type, dependencies, and other attributes are
@@ -728,7 +727,7 @@ depends-on = rcboot # Basic system services must be ready
 .fi
 .LP
 Here is an examples for a filesystem check "service", run by a script
-(\fI/etc/dinit.d/rootfscheck.sh\fR).
+(\fI/etc/dinit.d/scripts/rootfscheck.sh\fR).
 The script may need to reboot the system, but the control socket may not have been
 created, so it uses the \fBpass-cs-fd\fR option to allow the \fBreboot\fR command
 to issue control commands to Dinit.
@@ -741,7 +740,7 @@ using control-C, in which case the check is skipped but dependent services conti
 .ft CR
 # rootfscheck service
 type = scripted
-command = /etc/dinit.d/rootfscheck.sh
+command = /etc/dinit.d/scripts/rootfscheck.sh
 restart = false
 options = starts-on-console pass-cs-fd
 options = start-interruptible skippable

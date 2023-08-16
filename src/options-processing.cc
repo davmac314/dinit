@@ -11,7 +11,7 @@
 
 const char *service_dir_opt::user_home_path = nullptr;
 
-const char * service_dir_opt::get_user_home()
+const char *service_dir_opt::get_user_home()
 {
     if (user_home_path == nullptr) {
         user_home_path = getenv("HOME");
@@ -31,7 +31,7 @@ void service_dir_opt::build_paths(bool am_system_init)
         bool home_service_dir_set = false;
 
         /* service directory name */
-        if (! am_system_init) {
+        if (!am_system_init) {
             const char * user_home = get_user_home();
             if (user_home != nullptr) {
                 size_t user_home_len = strlen(user_home);
@@ -47,14 +47,15 @@ void service_dir_opt::build_paths(bool am_system_init)
             }
         }
 
-        if (! home_service_dir_set) {
+        if (!home_service_dir_set) {
             service_dir_paths.emplace_back("/etc/dinit.d", /*dyn_allocd=*/false);
+            service_dir_paths.emplace_back("/run/dinit.d", false);
             service_dir_paths.emplace_back("/usr/local/lib/dinit.d", false);
             service_dir_paths.emplace_back("/lib/dinit.d", false);
         }
     }
     else {
-        for (const char * dir : service_dirs) {
+        for (const char *dir : service_dirs) {
             service_dir_paths.emplace_back(dir, /*dyn_allocd=*/false);
         }
     }
