@@ -1,4 +1,4 @@
-== Version 0.17.0
+== Version 0.17.0 (Upcoming)
 
 Thank you to several new sponsors, as well as existing sponsors, for supporting this release.
 Current sponsors include github users: brentfrow, brazeon, and q66 (Daniel Kolesa, author of
@@ -6,7 +6,6 @@ Chimera Linux). Development of Dinit has also received financial support from Ar
 I am grateful for all the support, both financial and otherwise, that has been received.
 
 New features:
- * ... TBC
  * A "log-type" service setting allows for control over how a service output is processed. A new
    "buffer" type allows capturing service output to an in-memory buffer; this may be useful for
    service started early, before any logging daemon is available. The buffer contents can be
@@ -35,6 +34,8 @@ New features:
    logfile-uid, and logfile-gid. Note that these have default values, which results in a change in
    behaviour from previous versions even if they are not specified in a service description (i.e.
    the logfile ownership and permissions are now always set).
+ * A new "--offline" option for dinitctl enables using "enable" and "disable" subcommands to
+   enable/disable services when dinit is not running.
  * "before" and "after" ordering requirements in service descriptions no longer force the named
    service to be loaded. This means that a service can be "before" another service even if the
    other service might not be installed, for example.
@@ -58,6 +59,8 @@ Changes:
  * Environment variable expansion in service descriptions is no longer optional. The "sub-vars"
    load option no in a service description no longer has any effect, and "no-sub-vars" is no
    longer recognised at all.
+ * "/run/dinit.d" is now included in the default set of directories search for service description
+   files (in system mode).
  * Some service defaults, including automatic restart, can now be configured at build time
    (contributed by Mobin Aydinfar).
 
