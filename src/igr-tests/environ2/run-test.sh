@@ -14,11 +14,11 @@ RGID=$(id -g)
 for var in USER LOGNAME SHELL; do
     unset $var
 done
-# $UID & $GID are readonly on MacOS
-if [ "$(uname)" != "Darwin" ]; then
-    unset UID
-    unset GID
-fi
+# ignore $UID & $GID unsetting errors
+# Some shells make them readonly
+for var in UID GID; do
+    unset $var > /dev/null 2>&1 || :
+done
 
 # test whether vars from global environment propagate
 export TEST_VAR="helloworld"
