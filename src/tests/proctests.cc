@@ -15,6 +15,10 @@
 // These tests work mostly by completely mocking out the base_process_service class. The mock
 // implementations can be found in test-baseproc.cc.
 
+#ifdef NDEBUG
+#error "This file must be built with assertions ENABLED!"
+#endif
+
 extern eventloop_t event_loop;
 
 constexpr static auto REG = dependency_type::REGULAR;

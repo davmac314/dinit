@@ -7,6 +7,10 @@
 
 #include "dinit-env.h"
 
+#ifdef NDEBUG
+#error "This file must be built with assertions ENABLED!"
+#endif
+
 void test_env_1()
 {
     using namespace bp_sys;

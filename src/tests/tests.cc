@@ -7,6 +7,10 @@
 #include "test_service.h"
 #include "baseproc-sys.h"
 
+#ifdef NDEBUG
+#error "This file must be built with assertions ENABLED!"
+#endif
+
 constexpr static auto REG = dependency_type::REGULAR;
 constexpr static auto WAITS = dependency_type::WAITS_FOR;
 constexpr static auto MS = dependency_type::MILESTONE;

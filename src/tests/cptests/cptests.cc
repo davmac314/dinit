@@ -14,6 +14,9 @@
 #include "../test_procservice.h"
 
 // Control protocol tests.
+#ifdef NDEBUG
+#error "This file must be built with assertions ENABLED!"
+#endif
 
 class control_conn_t_test
 {
