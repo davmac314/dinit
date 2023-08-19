@@ -1,7 +1,11 @@
+# This example service for a syslog daemon is based on the use of Troglobit's sysklogd:
+#   https://github.com/troglobit/sysklogd
+# Unfortunately it does not support readiness notification, so we use a "bgprocess" service.
+
 type = bgprocess
 smooth-recovery = true
-command = /usr/libexec/syslogd
-pid-file = /var/run/syslog.pid
+command = /usr/sbin/syslogd
+pid-file = /var/run/syslogd.pid
 options = starts-log
 
 depends-on = rcboot
