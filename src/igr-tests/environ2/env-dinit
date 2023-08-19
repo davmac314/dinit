@@ -1,4 +1,4 @@
 TEST_VAR_BASE=hello
 TEST_VAR_ONE=world
-# this is set per-service, so override will do nothing
+# this is set per-service, so value given here should be overridden:
 LOGNAME=dinit-igr-test

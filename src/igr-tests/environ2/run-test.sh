@@ -10,12 +10,11 @@ RUSER=$(id -nu)
 RUID=$(id -u)
 RGID=$(id -g)
 
-# unset to make sure dinit can initialize this itself
+# unset variables to make sure the values seen in the test service were initialised by dinit:
 for var in USER LOGNAME SHELL; do
     unset $var
 done
-# ignore $UID & $GID unsetting errors
-# Some shells make them readonly
+# Ignore errors from unsetting UID & GID; some shells (bash, zsh) make them readonly.
 for var in UID GID; do
     unset $var > /dev/null 2>&1 || :
 done
