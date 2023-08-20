@@ -127,14 +127,17 @@ USE_INITGROUPS=1|0
     in POSIX, but is in practice supported on just about every relevant system, so it is enabled
     by default. If it is not supported on yours, you can explicitly disable it.
 DEFAULT_AUTO_RESTART=true|false
-    Enable/disable auto-restart for services by default. It's true by default.
+    Enable/disable auto-restart for services by default. The default if unspecified is "true".
 DEFAULT_START_TIMEOUT=XXX
     Specifies the time in seconds allowed for the service to start. If the service takes longer
-    than this, its process group enters the "stopping" state. It's 60 seconds by default.
+    than this, service startup will be cancelled (service processes will be signalled to cause
+    termination). The default if unspecified is 60 seconds. (The value can be overridden for
+    individual services via the service description).
 DEFAULT_STOP_TIMEOUT=XXX
     Specifies the time in seconds allowed for the service to stop. If the service takes longer than
     this, its process group is sent a SIGKILL signal which should cause it to terminate immediately.
-    It's 10 seconds by default.
+    The default if unspecified is 10 seconds. (The value can be overridden for individual services
+    via the service description).
 
 
 Running test suite
