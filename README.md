@@ -1,5 +1,5 @@
 # Dinit
-v0.17.0pre (alpha release #9)
+v0.17.0 (beta release)
 
 This is the README for Dinit, the service manager and init system. It is
 intended to provide an overview; For full documentation please check the manual pages. 
@@ -79,6 +79,19 @@ from many others. See [CONTRIBUTORS](CONTRIBUTORS).
 See [BUILD](BUILD) for information on how to build Dinit. See the [doc](doc)
 directory for information on design, code style, guidelines for contributions, and
 end-user-oriented documentation.
+
+Full documentation for Dinit is available in the form of manual (man) pages:
+- [dinit(8)](https://davmac.org/projects/dinit/man-pages-html/dinit.8.html) - the _dinit_ daemon
+- [dinit-service(5)](https://davmac.org/projects/dinit/man-pages-html/dinit-service.5.html) -
+  service description format and service settings
+- [dinitctl(8)](https://davmac.org/projects/dinit/man-pages-html/dinitctl.8.html) - _dinitctl_, a
+  utility to control the dinit daemon and manage services
+- [dinitcheck(8)](https://davmac.org/projects/dinit/man-pages-html/dinitcheck.8.html) - _dinitcheck_,
+  a utility to check service descriptions for errors/lint
+- [dinit-monitor(8)](https://davmac.org/projects/dinit/man-pages-html/dinit-monitor.8.html) -
+  _dinit-monitor_, a utility to monitor a service and run a command when service state changes
+
+A brief guide to some basic usage is included in the latter part of this README.
 
 
 ## Reporting issues

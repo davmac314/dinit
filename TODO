@@ -9,7 +9,7 @@ For version 0.17:
 * [DONE] process input/output chaining (for logging); "log-type = pipe".
 * [DONE] Documentation for "log-type = buffer" and "log-type = pipe".
 * [DONE] dinitctl command to signal running service process.
-* [In progress] "offline" dinitctl enable/disable - i.e. enable or disable a service when dinit isn't running.
+* [DONE] "offline" dinitctl enable/disable - i.e. enable or disable a service when dinit isn't running.
 
 
 For version 1.0 (release requirements):
@@ -39,14 +39,11 @@ For later (post 1.0):
 * When we take down a service or tty session, it would be ideal if we could kill
   the whole process tree, not just the leader process (need cgroups or pid
   namespace or other mechanism).
-* Allow logging tasks to memory (growing or circular buffer) and later
-  switching to disk logging (allows for filesystem mounted readonly on boot).
-  But perhaps this really the responsibility of another daemon.
 * Allow running services with different resource limits, chroot, cgroups,
   namespaces (pid/fs/uid), etc
 * Support chaining service output to another process (logger) input; if the
   service dies the file descriptor of its stdout isn't closed and is reassigned
-  when the service is restarted, so that minimal output is lost.
+  when the service is restarted, so that minimal output is lost. [Done!]
   - even more, it would be nice if a single logger process could be responsible
     for receiving output from multiple services. This would require some kind of
     protocol for passing new output descriptors to the logger (for when a
