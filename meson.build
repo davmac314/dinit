@@ -48,7 +48,7 @@ mandir = get_option('mandir')
 
 ## If Meson's default sbindir is modifed; Warn users about it:
 if get_option('sbindir') != 'sbin'
-    warning('Seems like Default "sbindir" is modified. Dinit dont follow Default "sbindir" option. Please use "dinit-sbindir" option instead!')
+    warning('It appears that "sbindir" has been set/modified. Dinit\'s build doesn\'t use the "sbindir" option. Please use "dinit-sbindir" option instead!')
 endif
 
 ## Use -lrt?

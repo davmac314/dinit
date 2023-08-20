@@ -1,24 +1,32 @@
 Meson build system for Dinit
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+Buidling Dinit via Meson
+=-=-=-=-=-=-=-=-=-=-=-=-
+
+Building Dinit is possible via two build systems: Meson and Make (makefiles).
+This file contains instructions for building Dinit using Meson.
+Bulding dinit via Meson requires Meson 0.56.0 or later and a C++11 compiler
+(GCC version 4.9 or later, or Clang ~5.0 or later, should be fine).
+
+
 <!> Special notes about building Dinit via Meson
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 Please keep in mind:
-1. Meson build system for Dinit is an experimental way to build Dinit. 
-   it might have some bugs. Please report bugs on https://github.com/davmac314/dinit/issues
-2. Meson build system for Dinit is "extra" part. The main build system is GNU Make.
-   This means that the feature is first tested on Make. There may also be delays
-   in adding new Dinit's features to Meson builds.
-3. If you found some bugs in Meson builds, Please also test it on GNU make builds.
 
-Buidling Dinit via Meson
-=-=-=-=-=-=-=-=-=-=-=-=-
+1. The Meson build system for Dinit is an experimental way to build Dinit. 
+   It may not work flawlessly in all cases. Please report bugs at
+   https://github.com/davmac314/dinit/issues.
+2. The primary build system is based on "make" (it requires GNU Make). It is documented in
+   the file BUILD. It is currently recommended as it is less likely to cause issues. However,
+   the Meson-based build has been proven to work for straight-forward builds that follow this
+   guide. 
 
-Buidling Dinit is available via two "Build system": meson & make.
-This file contains instructions for building Dinit using meson.
-Bulding dinit via meson requires "meson" (0.56.0 or later) and a C++11 compiler
-(GCC version 4.9 and later, or Clang ~5.0 and later, should be fine).
+The meson-based build system has the following limitations:
+1. Sanitizers cannot be enabled only for tests, as they are by default in a Make-based build.
+2. Test output from unit tests is inhibited. The logs must be inspected manually after test
+   execution.
 
 
 Short version
@@ -26,50 +34,43 @@ Short version
 
 Run "meson setup builddir && meson compile -C builddir". Your system type will
 hopefully be detected automatically and appropriate configuration chosen, and Dinit
-will be built. Continue reading instructions at "Running the test suite" or skip
-straight to "Installation".
+will be built. Skip to "Installation".
 
-If this fails, or if you are cross-compiling, read the "long version" instructions.
+If this fails, if you want to run the tests, or if you are cross-compiling, read the "long
+version" instructions.
 
 
 Long version
 =-=-=-=-=-=-
 
-Meson configures all you need to build Dinit. It detects your OS, detects your
-compiler & sets something based on your system information.
-By Default no action is required & meson configures everything needed to build Dinit.
+In general Meson will correctly determine the configuration required to build Dinit automatically.
 
-Note that the "eg++" or "clang++" package must be installed on OpenBSD
-as the default "g++" compiler is too old. Clang is a part of the base system
-in recent releases.
-
-In Meson you need to prepare the "build directory". simply just type:
+First prepare the "build directory":
 
     meson setup builddir/
 
-This command configures "build directory" in builddir/. You can set desired
-directory (but we suggest don't use dinit's directory such as build/ & src/ or ...
-as "build dir"). If everything goes smoothly this will prepare everything to
-build dinit, dinitctl and optionaly the shutdown/reboot/halt utilitys by default.
+This command configures a "build directory" in "builddir/". You can choose another name if
+desired, but don't use a directory that is part of the Dinit source tree such as build/ or src/.
 
-Everything is ready! you can compile Dinit with
+The "meson setup" command will prepare to build Dinit including the dinit daemon, dinitctl utility
+and the shutdown/reboot/halt utilities by default. Tests will not be built. If you wish to change
+the build options, see the next section. 
+
+Once "meson setup" has completed successfully, you can compile Dinit with:
 
      meson compile -C builddir
 
-This command builds the dinit, dinitctl and optionaly the shutdown/reboot/halt
-utilities by default.
 
 
-Dinit's custom options
-=-=-=-=-=-=-=-=-=-=-=-
+Custom build options
+=-=-=-=-=-=-=-=-=-=-
 
-Dinit should generally build with no additional options, all required
-options/flags will be added automatically. Custom options can be passed
-with command line:
+Dinit should generally build with no additional options, however if desired or necessary custom
+options can be passed via the "meson setup" command line:
 
      meson setup -Doption=value builddir/
 
-or users can modify original "meson_options.txt" and set values.
+It is also possible to modify the original "meson_options.txt" file and set values there.
 
 Custom options:
  shutdown-prefix           : Name prefix for "shutdown", "halt" and "reboot"
@@ -79,7 +80,7 @@ Custom options:
                              to install Dinit alongside another init system with
                              its own shutdown/halt/reboot commands, set
                              this (for eg. to "dinit-").
-                             Available values : everything you want!
+                             Available values : any string
                              Default value : (empty)
 
  build-shutdown            : Whether to build the "shutdown" (and "halt" etc) utilities.
@@ -91,18 +92,19 @@ Custom options:
 
  dinit-control-socket-path : Default full path to the control socket, for when
                              Dinit runs as system service manager.
-                             Available values : anywhere you want!
+                             Available values : any filesystem path
                              Default value : /run/dinitctl
 
- unit-tests                : Building Unit tests. see "Running test suite", below.
+ unit-tests                : Build and run unit tests. See "Running the test suite", below.
                              Available values: true, false
                              Default value : false
 
- igr-tests                 : Building Integration tests. see "Running test suite", below.
+ igr-tests                 : Build and run integration tests. See "Running the test suite", below.
                              Available values : true, false
                              Default value : false
  
- fuzzer                    : Building LLVM's Libfuzzer for Dinit. see "Running fuzzer", below.
+ fuzzer                    : Build Dinit's fuzzer tests (using LLVM's Libfuzzer). See "Running
+                             fuzzer", below.
                              Available values : true, false
                              Default value : false
 
@@ -117,24 +119,20 @@ Custom options:
                              Available values : enabled, disabled, auto
                              Default value : auto
 
- use-initgroups            : Whether to use initgroups to initialize supplementary
-                             groups in services that use run-as with a name. Without
-                             this the services may potentially misbehave as process
-                             and its child processes won't recognize being in the
-                             supplementary groups, only their primary group. However,
-                             some systems may not implement the initgroups API, so
-                             it may be necessary to disable it on those.
+ use-initgroups            : Whether to initialize supplementary groups for run-as services. The C
+                             API for this is not in POSIX, but is in practice supported on just
+                             about every relevant system, so it is enabled by default. If it is
+                             not supported on yours, you can explicitly disable it.
                              Available values : true, false
                              Default value : true
 
- dinit-sbindir             : Default full path to the dinit executables.
-                             For some reasons Dinit dont follow Meson's default
-                             sbindir option. see "Why we use another option
-                             for sbindir?", below.
-                             Available values : anywhere you want!
+ dinit-sbindir             : Default full path to the dinit executables. Note that Dinit doesn't
+                             use Meson's "sbindir" option; see "Why we use another option for
+                             sbindir?", below.
+                             Available values : any filesystem path
                              Default value : /sbin
                              
- man-pages                 : Building Dinit's man-pages.
+ man-pages                 : Build Dinit's man pages.
                              Available values : true, false
                              Default value : true
 
@@ -142,43 +140,45 @@ Custom options:
                              Available values : true, false
                              Default value : true
 
- default-start-timeout     : Default start-timeout for services by default.
-                             Specifies the time in seconds allowed for the service to start.
-                             If the service takes longer than this, its process group enters
-                             the "stopping" state.
+ default-start-timeout     : Default start-timeout for services. 
+                             Specifies the time in seconds allowed for the service to start. If
+                             the service takes longer than this, service startup will be cancelled
+                             (service processes will be signalled to cause termination). The
+                             default if unspecified is 60 seconds. (The value can be overridden
+                             for individual services via the service description).
                              Available values : any positive integer
                              Default value : 60
 
  default-stop-timeout      : Default stop-timeout for services by default.
-                             Specifies the time in seconds allowed for the service to stop.
-                             If the service takes longer than this, its process group is sent
-                             a SIGKILL signal which should cause it to terminate immediately.
+                             Specifies the time in seconds allowed for the service to stop. If the
+                             service takes longer than this, its process group is sent a SIGKILL
+                             signal which should cause it to terminate immediately. The default if
+                             unspecified is 10 seconds. (The value can be overridden for
+                             individual services via the service description).
                              Available values : any positive integer
                              Default value : 10
                              
- support-cgroups           : Enable Cgroups supprot.
+ support-cgroups           : Enable Cgroups support.
                              Available values : enabled, disabled, auto
                              Default value : auto
 
- build-shutdown            : Building shutdown/reboot/halt or not.
+ build-shutdown            : Whether to build the shutdown/reboot/halt utilities.
                              Available values : enabled, disabled, auto
                              Default value : auto
 
 
-Running test suite
-=-=-=-=-=-=-=-=-=-
+Running the test suite
+=-=-=-=-=-=-=-=-=-=-=-
 
-Enable "unit-tests" option to run the test suite:
+Enable the "unit-tests" option to run the unit tests:
 
      meson setup -Dunit-tests=true builddir/
      
-In Dinit's make build system -fsanitize enabled for unit tests but in meson
-it's not enabled. so if you need that use this option in meson setup step:
+In Dinit's make build system -fsanitize is usually enabled for unit tests. The meson build system
+doesn't support this, but you can opt to enable sanitizers for the entire build (including Dinit
+binaries) if you choose:
 
-     meson setup -Db_sanitizes='address,undefined' builddir/
-
-Note: Unlike Dinit's make build system, This flag enables sanitizers for
-entire build.
+     meson setup -Db_sanitize='address,undefined' builddir/
 
 Enable "igr-tests" to run the integration tests:
 
@@ -187,18 +187,19 @@ Enable "igr-tests" to run the integration tests:
 (The integration tests are more fragile than the unit tests, but give a
 better indication that Dinit will actually work correctly on your system).
 
-Finally compile Dinit with "meson compile -C builddir" and run tests via:
+Finally, compile Dinit and run tests:
 
+     meson compile -C builddir
      meson test -C builddir
 
-Then Meson report test status. All test logs available at
+The test status will be reported. The test logs will be available in
 "builddir/meson-logs/testlog.txt".
 
 
 Installation
 =-=-=-=-=-=-
 
-You can install dinit via this command:
+You can install Dinit via this command:
 
      meson install -C builddir
 
@@ -212,40 +213,40 @@ The dinit executable will be put in "dinit-sbindir" option value (by default /sb
 Consider making a symbolic link to /usr/sbin/dinit.
 
 
-Running fuzzer
-=-=-=-=-=-=-=-
+Running the fuzzer
+=-=-=-=-=-=-=-=-=-
 
 In addition to the standard test suite, there is experimental support for
 fuzzing the control protocol handling using LLVM/clang's fuzzer (libFuzzer).
-Enable "fuzzer" option to build fuzzer:
+Enable the "fuzzer" option to build the fuzzer:
 
     meson setup -Dfuzzer=true builddir
 
-Then changing current directory to Your builddir (eg builddir)/src/tests/cptests/,
-create a "corpus" directory and run the fuzzer:
+Then change current directory to builddir/src/tests/cptests/, create a "corpus" directory and run
+the fuzzer:
 
     mkdir corpus
     ./fuzz corpus
 
-This will auto-generate test data as it finds input which triggers new
-execution paths. Check libFuzzer documentation for further details.
+This will auto-generate test data as it finds input which triggers new execution paths. Check
+libFuzzer documentation for further details.
 
 
-Why we use another option for sbindir?
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+Why do we use another option for sbindir?
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-For some reasons, Old Mesons force sbindir will prefixed by Meson's prefix
-(eg /usr + sbin) but Dinit project use /sbin by default as sbindir.
-Meson 0.62.0 release fixes this thing but we target Mesons's 0.56.0 as
-minimum version. So we use "dinit-sbindir" instead of default "sbindir".
+Old versions of Meson force "sbindir" to be prefixed by the "prefix" property (eg /usr, resulting
+in /usr/sbin). For Dinit it is normal to use /sbin as the destination for executables, so the
+Meson build system for Dinit uses "dinit-sbindir" instead of the default "sbindir". (The
+underlying issue has been fixed in Meson 0.62.0, but for now Dinit continues to use the alternate
+setting to retain backwards compatibility with earlier versions of Meson).
 
 
 Some notes
 =-=-=-=-=-
 
-1. Dinit use "custom" buildtype with "'optimization=s', 'debug=false'"
+1. Dinit uses a "custom" buildtype with "'optimization=s', 'debug=false'"
    (-Os, no debug) by default.
-2. For building with debug symbols, use "meson setup -Ddebug=true builddir" or
+2. To build with debug symbols, use "meson setup -Ddebug=true builddir" or
    a buildtype with "debug=true"
-3. For enabling LTO, use "meson setup -Db_lto=true builddir" command.
-
+3. To enable LTO, use "meson setup -Db_lto=true builddir".
