@@ -1,0 +1,10 @@
+Some hacks for compatibility with sysvinit
+------------------------------------------
+
+These files designed for more smooth switching between sysvinit and dinit.
+
+Currently it has these files:
+
+- `40-dinit`: This script will forward sysv script to their equivalents if they have dinit equivalents.
+  Should be installed in directory that sourced by init-functions. For example in /lib/lsb/init-functions.d/
+  for Debian systems.

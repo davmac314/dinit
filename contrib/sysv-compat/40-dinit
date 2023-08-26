@@ -1,0 +1,49 @@
+### this is sourced at the beginning of any initscript
+### This file used for forward /etc/init.d/$sv to dinit service $sv
+
+## If this file exist, We forward any initscript which has dinit service
+[ -e /run/lsb.sysvredirectdinit ] || forcesysv=1
+
+## Dinit services directories
+[ -d /etc/dinit.d ] && etc_dinit="/etc/dinit.d"
+[ -d /lib/dinit.d ] && lib_dinit="/lib/dinit.d"
+[ -d /usr/local/lib/dinit.d ] && local_lib_dinit="/usr/local/lib/dinit.d"
+
+# Get the service basename and action, like 40-systemd
+if [ -n "${__init_d_script_name:-}" ]; then
+    service="$__init_d_script_name"
+    action="$1"
+    [ x"${2:-}" = 'x--force-sysv' ] && forcesysv=1
+elif [ "${0##*/}" = "init-d-script" ] || [ "${0##*/}" = "${1:-}" ]; then
+    service="$1"
+    action="$2"
+    [ x"${3:-}" = 'x--force-sysv' ] && forcesysv=1
+else
+    service="$0"
+    action="${1:-}"
+    [ x"${2:-}" = 'x--force-sysv' ] && forcesysv=1
+fi
+service=${service##*/}
+service="${service%.sh}"
+for dinitsrv in ${etc_dinit:-} ${lib_dinit:-} ${local_lib_dinit:-}; do
+    if [ -e "$dinitsrv"/"$service" ]; then
+        has_dinit=1
+        break
+    fi
+done
+if [ -z "${forcesysv:-}" ] && [ -n "${has_dinit:-}" ]; then # Forward
+    case "$action" in
+        start|stop|restart|reload|status)
+            dinitctl "$action" "$service" || true
+            exit 0
+        ;;
+        force-stop|force-reload|force-restart)
+            dinitctl --force "${action##*-}" "$service" || true
+            exit 0
+        ;;
+        *)
+            echo "WARNING: $action not supported by dinitctl, giving up"
+            exit 0
+        ;;
+    esac
+fi
