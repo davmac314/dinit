@@ -1171,6 +1171,10 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
     }
     else if (setting == "consumer-of") {
         string consumed_svc_name = read_setting_value(line_num, i, end);
+        if (consumed_svc_name == name) {
+            throw service_description_exc(name, "service cannot be its own consumer",
+                    line_num);
+        }
         settings.consumer_of_name = consumed_svc_name;
     }
     else if (setting == "restart") {
