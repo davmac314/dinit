@@ -187,14 +187,13 @@ changequote(`@@@',`$$$')dnl
 @@@.TP
 \fBsmooth\-recovery\fR = {yes | true | no | false}
 Applies only to \fBprocess\fR and \fBbgprocess\fR services.
-When set true/yes, an automatic process restart can be performed without first stopping any
-dependent services.
-This setting is meaningless if the \fBrestart\fR setting is set to false.
+When set to true/yes, if the process terminates unexpectedly (i.e. without a stop order having been
+issued), an automatic process restart is performed, without first stopping any dependent services
+and without the service changing state.
+The normal restart restrictions (such as \fBrestart\-limit\-count) apply.
 .TP
 \fBrestart\-delay\fR = \fIXXX.YYYY\fR
-Specifies the minimum time (in seconds) between automatic restarts. Enforcing a sensible
-minimum prevents Dinit from consuming a large number of process cycles in case a process
-continuously fails immediately after it is started.
+Specifies the minimum time (in seconds) between automatic restarts.
 The default is 0.2 (200 milliseconds).
 .TP
 \fBrestart\-limit\-interval\fR = \fIXXX.YYYY\fR
@@ -233,7 +232,8 @@ daemon will write its process ID before detaching.
 Dinit will read the contents of this file when starting the service, once the initial process
 exits, and will supervise the process with the discovered process ID.
 Dinit may also send signals to the process ID to stop the service; if \fBdinit\fR runs as a
-privileged user the path should therefore not be writable by unprivileged users.
+privileged user the path should have appropriate permissions to permit abuse by untrusted
+unprivileged processes.
 .sp
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
@@ -241,7 +241,7 @@ The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 This service depends on the named service.
 Starting this service will start the named service; the command to start this service will not be executed
 until the named service has started.
-If the named service is stopped then this service will also be stopped.
+If the named service stops then this service will also be stopped.
 .TP
 \fBdepends\-ms\fR = \fIservice-name\fR
 This service has a "milestone" dependency on the named service. Starting this
