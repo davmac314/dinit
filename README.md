@@ -1,5 +1,5 @@
 # Dinit
-v0.17.0 (beta release)
+v0.17.1pre (beta release)
 
 This is the README for Dinit, the service manager and init system. It is
 intended to provide an overview; For full documentation please check the manual pages. 
@@ -58,7 +58,7 @@ uses paths in the user's home directory for configuration).
 ### Target platforms
 
 Dinit is designed to work on POSIXy operating systems such as Linux and
-OpenBSD. It is written in C++ and uses the [Dasynq](http://davmac.org/projects/dasynq/)
+OpenBSD. It is written in C++ and uses the [Dasynq](https://davmac.org/projects/dasynq/)
 event handling library, which was written especially to support Dinit. (Note
 that a copy of Dasynq is bundled with Dinit, so a separate copy is not
 required for compilation; however, the bundled copy does not include the
