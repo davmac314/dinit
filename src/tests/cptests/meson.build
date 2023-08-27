@@ -3,7 +3,8 @@
 ## Includes
 incdir = include_directories(
     '../../../',
-    'includes',
+    '../test-includes/',
+    '../../includes/',
     '../../../dasynq/include/'
 )
 if fuzzer or unit_tests
