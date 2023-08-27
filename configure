@@ -131,6 +131,8 @@ Installation directories:
                                                          [/var/run/dinitctl] on other systems
 
 Optional options:
+  --enable-strip                Strip debug information in installation process [Enabled]
+  --disable-strip               Don't strip debug information in installation process
   --shutdown-prefix=PREFIX      Name prefix for shutdown, poweroff, reboot, halt programs []
   --enable-shutdown             Build shutdown, poweroff, reboot, halt programs [Enabled only on Linux systems]
   --disable-shutdown            Don't build shutdown, poweroff, reboot, halt programs
@@ -190,7 +192,8 @@ for var in PREFIX \
            SUPPORT_CGROUPS \
            USE_UTMPX \
            USE_INITGROUPS \
-           SYSCONTROLSOCKET
+           SYSCONTROLSOCKET \
+           STRIPOPTS
 do
     unset $var
 done
@@ -224,6 +227,8 @@ for arg in "$@"; do
         --disable-initgroups|--enable-initgroups=no) USE_INITGROUPS=0 ;;
         --enable-auto-restart|--enable-auto-restart=yes) DEFAULT_AUTO_RESTART=true ;;
         --disable-auto-restart|--enable-auto-restart=no) DEFAULT_AUTO_RESTART=false ;;
+        --enable-strip|--enable-strip=yes) STRIPOPTS="-s" ;;
+        --disable-strip|--enable-strip=no) STRIPOPTS="" ;;
         CXX=*|CXX_FOR_BUILD=*|CXXFLAGS_FOR_BUILD=*|CPPFLAGS_FOR_BUILD=*\
         |LDFLAGS_FOR_BUILD=*|CXXFLAGS=*|CXXFLAGS_EXTRA=*|TEST_CXXFLAGS=*\
         |TEST_CXXFLAGS_EXTRA=*|LDFLAGS=*|LDFLAGS_EXTRA=*|TEST_LDFLAGS=*\
@@ -259,7 +264,7 @@ else
     : "${SYSCONTROLSOCKET:="/var/run/dinitctl"}"
 fi
 
-## Finalize $CXXFLAGS, $TEST_CXXFLAGS, $LDFLAGS, $TEST_LDFLAGS
+## Finalize $CXXFLAGS, $TEST_CXXFLAGS, $LDFLAGS, $TEST_LDFLAGS, $STRIPOPTS
 if [ -z "${CXXFLAGS+IS_SET}" ]; then
     CXXFLAGS=""
     AUTO_CXXFLAGS="true"
@@ -284,6 +289,7 @@ if [ -z "${TEST_LDFLAGS+IS_SET}" ]; then
 else
     AUTO_TEST_LDFLAGS="false"
 fi
+[ -z "${STRIPOPTS+IS_SET}" ] && STRIPOPTS="-s"
 
 ## Verify PLATFORM value
 if [ "$PLATFORM" != "Linux" ] && [ "$PLATFORM" != "FreeBSD" ] && \
@@ -371,6 +377,7 @@ LDFLAGS_EXTRA=$LDFLAGS_EXTRA
 TEST_LDFLAGS=$TEST_LDFLAGS
 TEST_LDFLAGS_EXTRA=$TEST_LDFLAGS_EXTRA
 BUILD_SHUTDOWN=$BUILD_SHUTDOWN
+STRIPOPTS=$STRIPOPTS
 
 # Feature settings
 SUPPORT_CGROUPS=$SUPPORT_CGROUPS
