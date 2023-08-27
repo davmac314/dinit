@@ -126,12 +126,17 @@ control.cc - control protocol handling
 
 dinit-log.cc - logging subsystem
 
+dinit-env.cc - mainly a function to read an environment file into an "environment" wrapper (as
+        defined in dinit-env.h)
+
 tests/ - various tests
 igr-tests/ - integration tests
 
 The utility sources are:
 
 dinitctl.cc - the control/status utility
+dinitcheck.cc - dinitcheck utility
+dinit-monitor.cc - the dinit-monitor utility
 shutdown.cc - shutdown/halt/reboot utility
 
 
@@ -139,16 +144,12 @@ Testing
 -------
 
 The unit tests work by mocking out parts of Dinit, and some system calls, in order to isolate
-functional units. In the src/tests/test-includes directory are three mock headers. When compiling
-tests, the src/tests/includes directory is populated with (linked) copies of the standard headers
-from src/include, but with mocked headers taken from src/tests/test-includes instead.
+functional units. In the src/tests/test-includes directory are some mock headers. When compiling
+tests, these headers are put on the include path before the regular includes directory. 
 
-Note that systems calls are not mocked directly, instead:
-
- - system calls are wrapped in the bp_sys namespace, as defined in the baseproc-sys.h header;
- - for testing, the header is replaced with a mock header. 
-
-(This avoids problems that might arise from replacing important system calls, and in
+Note that systems calls are not mocked directly, instead, system calls are wrapped in the bp_sys
+namespace, as defined in the baseproc-sys.h header; this header is one of the headers mocked
+for tests. (This avoids problems that might arise from replacing important system calls, and in
 particular avoids interfering with the test harness itself).
 
 It is important when writing new code in Dinit to avoid calling system calls directly, and to
