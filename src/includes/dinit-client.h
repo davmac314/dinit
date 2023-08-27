@@ -4,9 +4,9 @@
 #include <sys/types.h>
 #include <pwd.h>
 
-#include "mconfig.h"
-#include "cpbuffer.h"
-#include "control-cmds.h"
+#include <mconfig.h>
+#include <cpbuffer.h>
+#include <control-cmds.h>
 
 // Client library for Dinit clients
 

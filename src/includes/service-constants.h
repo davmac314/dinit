@@ -1,7 +1,7 @@
 #ifndef SERVICE_CONSTANTS_H
 #define SERVICE_CONSTANTS_H
 
-#include "mconfig.h"
+#include <mconfig.h>
 
 /* Service states */
 enum class service_state_t {

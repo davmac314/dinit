@@ -5,7 +5,7 @@
 #include <cstring>
 #include <algorithm>
 
-#include "baseproc-sys.h"
+#include <baseproc-sys.h>
 
 // control protocol buffer, a circular buffer with fixed capacity.
 template <unsigned SIZE> class cpbuffer

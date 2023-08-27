@@ -10,7 +10,7 @@
 
 #include <cstdlib> // getenv
 
-#include "dasynq.h" // for pipe2
+#include <dasynq.h> // for pipe2
 
 #include <sys/uio.h> // writev
 #include <unistd.h>

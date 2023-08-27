@@ -15,11 +15,11 @@
 #include <grp.h>
 #include <pwd.h>
 
-#include "dinit-env.h"
-#include "dinit-utmp.h"
-#include "dinit-util.h"
-#include "service-constants.h"
-#include "mconfig.h"
+#include <dinit-env.h>
+#include <dinit-utmp.h>
+#include <dinit-util.h>
+#include <service-constants.h>
+#include <mconfig.h>
 
 struct service_flags_t
 {

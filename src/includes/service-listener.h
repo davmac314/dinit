@@ -1,7 +1,7 @@
 #ifndef SERVICE_LISTENER_H
 #define SERVICE_LISTENER_H
 
-#include "service-constants.h"
+#include <service-constants.h>
 
 class service_record;
 

@@ -15,7 +15,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "baseproc-sys.h"
+#include <baseproc-sys.h>
 
 // Check if a value is one of several possible values.
 // Use like:     value(x).is_in(1,2,3)

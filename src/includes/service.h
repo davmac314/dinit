@@ -8,17 +8,17 @@
 #include <unordered_set>
 #include <algorithm>
 
-#include "dasynq.h"
+#include <dasynq.h>
 
-#include "dinit.h"
-#include "control.h"
-#include "service-listener.h"
-#include "service-constants.h"
-#include "load-service.h"
-#include "dinit-ll.h"
-#include "dinit-log.h"
-#include "service-dir.h"
-#include "dinit-env.h"
+#include <dinit.h>
+#include <control.h>
+#include <service-listener.h>
+#include <service-constants.h>
+#include <load-service.h>
+#include <dinit-ll.h>
+#include <dinit-log.h>
+#include <service-dir.h>
+#include <dinit-env.h>
 
 /*
  * This header defines service_record, a data record maintaining information about a service,

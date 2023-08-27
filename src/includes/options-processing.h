@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "service-dir.h"
+#include <service-dir.h>
 
 class service_dir_opt
 {

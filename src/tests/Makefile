@@ -4,7 +4,7 @@ ALL_TEST_CXXFLAGS=$(CPPFLAGS) $(TEST_CXXFLAGS) $(TEST_CXXFLAGS_EXTRA)
 ALL_TEST_LDFLAGS=$(TEST_LDFLAGS) $(TEST_LDFLAGS_EXTRA)
 
 objects = tests.o test-dinit.o proctests.o loadtests.o envtests.o test-run-child-proc.o test-bpsys.o
-parent_objs = service.o proc-service.o dinit-log.o load-service.o baseproc-service.o dinit-env.o
+parent_objs = service.o proc-service.o dinit-log.o load-service.o baseproc-service.o dinit-env.o control.o
 
 check: build-tests run-tests
 
@@ -31,10 +31,10 @@ envtests: $(parent_objs) envtests.o test-dinit.o test-bpsys.o test-run-child-pro
 	$(CXX) -o envtests $(parent_objs) envtests.o test-dinit.o test-bpsys.o test-run-child-proc.o $(ALL_TEST_LDFLAGS)
 
 $(objects): %.o: %.cc
-	$(CXX) $(ALL_TEST_CXXFLAGS) -MMD -MP -Iincludes -I../../dasynq/include -I../../build/includes -c $< -o $@
+	$(CXX) $(ALL_TEST_CXXFLAGS) -MMD -MP -Itest-includes -I../../dasynq/include -I../../build/includes -I../includes -c $< -o $@
 
 $(parent_objs): %.o: ../%.cc
-	$(CXX) $(ALL_TEST_CXXFLAGS) -MMD -MP -Iincludes -I../../dasynq/include -I../../build/includes -c $< -o $@
+	$(CXX) $(ALL_TEST_CXXFLAGS) -MMD -MP -Itest-includes -I../../dasynq/include -I../../build/includes -I../includes -c $< -o $@
 
 clean:
 	$(MAKE) -C cptests clean

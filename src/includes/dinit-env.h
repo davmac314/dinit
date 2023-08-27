@@ -4,8 +4,8 @@
 #include <unordered_map>
 #include <string>
 
-#include "dinit-util.h"
-#include "baseproc-sys.h"
+#include <dinit-util.h>
+#include <baseproc-sys.h>
 
 class environment;
 extern environment main_env;

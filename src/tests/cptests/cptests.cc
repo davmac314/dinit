@@ -4,11 +4,11 @@
 #include <string>
 #include <set>
 
-#include "dinit.h"
-#include "service.h"
-#include "baseproc-sys.h"
-#include "proc-service.h"
-#include "control.h"
+#include <dinit.h>
+#include <service.h>
+#include <baseproc-sys.h>
+#include <proc-service.h>
+#include <control.h>
 
 #include "../test_service.h"
 #include "../test_procservice.h"

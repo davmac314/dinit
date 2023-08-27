@@ -10,11 +10,11 @@
 
 #include <unistd.h>
 
-#include "dinit.h"
-#include "dinit-log.h"
-#include "control-cmds.h"
-#include "service-listener.h"
-#include "cpbuffer.h"
+#include <dinit.h>
+#include <dinit-log.h>
+#include <control-cmds.h>
+#include <service-listener.h>
+#include <cpbuffer.h>
 
 // Control connection for dinit
 

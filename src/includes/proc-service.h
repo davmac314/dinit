@@ -5,9 +5,9 @@
 #include <sys/types.h>
 #include <sys/resource.h>
 
-#include "baseproc-sys.h"
-#include "service.h"
-#include "dinit-utmp.h"
+#include <baseproc-sys.h>
+#include <service.h>
+#include <dinit-utmp.h>
 
 // This header defines base_proc_service (base process service) and several derivatives, as well as some
 // utility functions and classes. See service.h for full details of services.
