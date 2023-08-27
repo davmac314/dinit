@@ -3,7 +3,8 @@
 ## Includes
 for_tests_incdir = include_directories(
     '../../',
-    'includes/',
+    'test-includes/',
+    '../includes/',
     '../../dasynq/include/'
 )
 for_tests_dinit_sources = [
@@ -12,7 +13,8 @@ for_tests_dinit_sources = [
     '../dinit-log.cc',
     '../load-service.cc',
     '../baseproc-service.cc',
-    '../dinit-env.cc'
+    '../dinit-env.cc',
+    '../control.cc'
 ]
 for_tests_general_sources = [
     'test-dinit.cc',
