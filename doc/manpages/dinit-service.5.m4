@@ -32,21 +32,23 @@ There are five basic types of service:
 .IP \(bu
 \fBProcess\fR services. This kind of service runs as a single process; starting
 the service simply requires starting the process; stopping the service is
-accomplished by stopping the process (via sending it a signal).
+accomplished by stopping the process (eg via sending it a signal).
+The service's start/stopped state is linked to the state of its associated process.
 .IP \(bu
 \fBBgprocess\fR services ("background process" services). This kind of
-service is similar to a regular process service, but the process daemonizes
-or otherwise forks from the original process which starts it, and the
-process ID is written to a file.
-Dinit can read the process ID from the file and, if it is running as the system
-init process, can supervise it.
+service is similar to a regular process service, but the process "daemonizes"
+or otherwise forks from the original process which starts it, and writes its
+new process ID to a file.
+Dinit can read the process ID from the file and, if running as the system init process or if the
+system provides the necessary facilities, can supervise the process.
 .IP \(bu
-\fBScripted\fR services are services which are started and stopped by a
-command (which need not actually be a script, despite the name).
-They can not be supervised.
+\fBScripted\fR services are services which are started and stopped by executing
+commands (which need not actually be scripts, despite the name).
+Once a command completes successfully the service is considered started (or stopped, as appropriate).
+Scripted services cannot be supervised.
 .IP \(bu
-\fBInternal\fR services do not run as an external process at all. They can
-be started and stopped without any external action.
+\fBInternal\fR services do not run as an external process at all.
+They can be started and stopped without any external action.
 They are useful for grouping other services (via service dependencies).
 .IP \(bu
 \fbTriggered\fR services are similar to internal processes, but an external
