@@ -1283,7 +1283,9 @@ bool control_conn_t::data_ready() noexcept
     // Note file descriptor is non-blocking
     if (r == -1) {
         if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-            log(loglevel_t::WARN, "Error reading from control connection: ", strerror(errno));
+            if (errno != ECONNRESET) {
+                log(loglevel_t::WARN, "Error reading from control connection: ", strerror(errno));
+            }
             return true;
         }
         return false;
