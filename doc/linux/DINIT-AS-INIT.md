@@ -1,17 +1,39 @@
 # Dinit as init: using Dinit as your Linux system's init
 
-You can use Dinit, in conjunction with other software, to boot your system and
-replace your current init system (which on most main distributions is now
-Systemd, Sys V init, or OpenRC).
+You can use Dinit, in conjunction with other software, to boot your system.
 
-Be warned that a modern Linux system is complex and changing your init system
-will require some effort and preparation. It is not a trivial task to take a
-system based on a typical Linux distribution that uses some particular init
-system and make it instead boot with Dinit. You need to set up suitable
-service description files for your system; at present there are no automated
-conversion tools for converting service descriptions or startup scripts from
-other systems. For example service files, please check the [services](services)
-subdirectory (and see descriptions of all of them below).
+This document is intended as a guide for building a system around Dinit. The
+reader is assumed to be knowledgeable about how a Linux system works and the
+various components that it may be comprised of. If making changes to an
+existing system, please make backups and/or be prepared to recover a system
+that fails to boot. Support cannot be provided.
+
+
+## Converting an existing system
+
+If running a Linux distribution, it is theoretically possible to replace your
+current init system (which on most main distributions is now Systemd, Sys V
+init, or OpenRC) with Dinit. However: Be warned that a modern Linux system is
+complex and changing your init system will require some effort and
+preparation. It is not a trivial task to take a system based on a typical
+distribution that uses some particular init system and make it instead boot
+with Dinit. You need to set up suitable service description files for your
+system; at present there are no automated conversion tools for converting
+service descriptions or startup scripts from other systems.
+
+This guide is focused mainly on building a new system "from scratch" rather
+than for converting an existing system to use Dinit. With care and preparation
+it may, however, still be possible to convert a system based on a distribution
+to use Dinit. The steps required to accomplish this will depend on the
+specific details of how the system boots and what services it runs; this is
+largely beyond the scope of this guide. Note that altering a system in this
+way is likely to cause changes in system behaviour, potentially causing
+breakages, and should not be attempted for any critical systems.
+
+The example services (see link below) are mostly designed for a system built
+"from scratch" rather than based on an existing distribution, and should be
+modified accordingly to keep existing functionality provided by your
+distribution and to work with its boot mechanism.
 
 Once you have service descriptions ready, you can test Dinit by adding
 "init=/sbin/dinit" (for example) to the kernel command line when booting. 
@@ -19,16 +41,20 @@ To have Dinit run as your system init (once you are satisfied that the service
 descriptions are correct and that the system is bootable via Dinit), replace
 your system's `/sbin/init` with a link to the `dinit` executable. 
 
-*Note*: if your system boots via an "initrd" (initial ramdisk image), you
-might need to either adjust the ramdisk image to include `dinit` or switch
-to mounting the root filesystem directly; consult kernel, bootloader and
-distribution documentation for details.
-
-The additional software required can be broken into _essential_ and
-_optional_ packages, which are detailed in following sections. 
+*Note*: if your system is based on a distribution and boots via an
+"initrd"/"initramfs" (initial RAM-disk image or RAM-based filesystem), it may
+or may not honour kernel options such as "init=...", and it may or may not
+pass options such as "single" on to Dinit (which enables single-user mode).
+In order to be able to follow the advice/instructions in this guide, you might
+need to either adjust the ramdisk image or switch to mounting the root
+filesystem directly; consult kernel, bootloader and distribution documentation
+for details (which are beyond the scope of this guide).
 
 
 ## General notes
+
+For example service description files, please check the [services](services)
+subdirectory (and see descriptions of all of them below).
 
 It is common to use "devtmpfs" on /dev, and the kernel can actually mount it
 there before it even starts the init process, which can be quite handy; for
@@ -61,7 +87,9 @@ days. They include:
   udev and some other programs
 
 These filesystems (particularly /sys, /proc and /run) need to be mounted
-quite early as they will be used by early-boot processes.
+quite early as they will be used by early-boot processes. It is typical for
+some or all of them to be mounted by an initramfs/initrd-based initial
+boot, in which case it may not be necessary to mount them via Dinit services.
 
 Many Linux distributions are now built around Systemd. Much of what Systemd
 manages was previously managed by other utilities/daemons (syslogd, inetd,
@@ -98,6 +126,9 @@ The basic procedure for boot (to be implemented by services) is as follows:
 The service description files and scripts in the `services` subdirectory
 provide a template for accomplishing the above, but may need some adjustment
 for your particular configuration.
+
+The additional software required can be broken into _essential_ and
+_optional_ packages, which are detailed in following sections. 
 
 
 ## Essential packages for building a Dinit-based system
@@ -175,7 +206,7 @@ which they are expected to start:
 - `early-filesystems` - this service has no dependencies and so is one of the earliest
   to start. It mounts virtual filesystems including _sysfs_, _devtmpfs_ (on `/dev`)
   and _proc_, via the `early-filesystems.sh` shell script. Note that if startup is via
-  an initial ram disk (initrd, initfs) as is now common, these early filesystems are
+  an initial ram disk (initrd, initramfs) as is now common, these early filesystems are
   most likely already mounted by that, so this service may not be needed or could be
   edited to remove initrd-mounted filesystems. 
 - `udevd` - this services starts the device node manager, udevd (from the eudev package).
@@ -300,4 +331,6 @@ For services which specify a `logfile`, the location must be writable when the s
 depend on the service that makes the root filesystem writable. For services that must start
 before the root filesystem becomes writable, it may be possible to log in `/run` or another
 directory that is mounted with a RAM-based filesystem; alternatively, the `shares-console`
-option can be used for these services so that their output is visible at startup.
+option can be used for these services so that their output is visible at startup. There is also
+the possibility of using the "log-type = buffer" setting to keep output buffered in memory
+instead.
