@@ -7,10 +7,9 @@ set -eu
 cd "$(dirname "$0")"
 
 ## Helper functions
-# According to POSIX, echo has some unspecified behavior in some cases, for example
-# when its first argument is "-n" or backslash ("\"). We prefer to rely on
-# POSIX documented things.
-# So we replace shell built-in echo with a printf based function.
+# POSIX "echo" behaviour is unspecified behavior in some cases, for example
+# when the first argument is "-n" or backslash ("\").
+# So, replace the shell built-in echo with a printf based function.
 # For more info see http://www.etalabs.net/sh_tricks.html
 echo()
 {
@@ -93,7 +92,7 @@ try_ld_argument()
 
 try_both_argument()
 {
-    info Checking whether the compiler/linker accept "$3"...
+    info Checking whether the compiler/linker accepts "$3"...
     if $CXX $CXXFLAGS $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA $3 testfile.cc -o testfile > /dev/null 2>&1; then
         sub_info Yes.
         eval "$1=\"\${$1} \$3\""
@@ -372,9 +371,11 @@ CXXFLAGS_EXTRA=$CXXFLAGS_EXTRA
 TEST_CXXFLAGS=$TEST_CXXFLAGS
 TEST_CXXFLAGS_EXTRA=$TEST_CXXFLAGS_EXTRA
 CPPFLAGS=$CPPFLAGS
-LDFLAGS=$LDFLAGS
+LDFLAGS_BASE=
+LDFLAGS=\$(LDFLAGS_BASE) $LDFLAGS
 LDFLAGS_EXTRA=$LDFLAGS_EXTRA
-TEST_LDFLAGS=$TEST_LDFLAGS
+TEST_LDFLAGS_BASE=
+TEST_LDFLAGS=\$(TEST_LDFLAGS_BASE) $TEST_LDFLAGS
 TEST_LDFLAGS_EXTRA=$TEST_LDFLAGS_EXTRA
 BUILD_SHUTDOWN=$BUILD_SHUTDOWN
 STRIPOPTS=$STRIPOPTS

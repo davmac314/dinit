@@ -80,13 +80,19 @@ GENERAL_BUILD_SETTINGS=$(
   echo "CXX=$compiler"
   echo "CXXFLAGS=$BUILD_OPTS"
   echo "CPPFLAGS=-D_GLIBCXX_USE_CXX11_ABI=1"
+  echo "LDFLAGS_BASE="
   if [ "$NOT_HAS_LTO" = 0 ]; then
-      echo "LDFLAGS=\$(CXXFLAGS)"
+      echo "LDFLAGS=\$(LDFLAGS_BASE) \$(CXXFLAGS)"
   else
-      echo "LDFLAGS="  
+      echo "LDFLAGS=\$(LDFLAGS_BASE)"  
   fi
   echo "TEST_CXXFLAGS=\$(CXXFLAGS) $SANITIZE_OPTS"
-  echo "TEST_LDFLAGS=\$(LDFLAGS) \$(TEST_CXXFLAGS)"
+  echo "TEST_LDFLAGS_BASE=\$(LDFLAGS_BASE)"
+  if [ "$NOT_HAS_LTO" = 0 ]; then
+      echo "TEST_LDFLAGS=\$(TEST_LDFLAGS_BASE) \$(TEST_CXXFLAGS)"
+  else
+      echo "TEST_LDFLAGS=\$(TEST_LDFLAGS_BASE)"  
+  fi  
   echo "BUILD_SHUTDOWN=yes"
   echo ""
   echo "# Notes:"

@@ -43,7 +43,17 @@ appropriate values for the configuration variables defined within. In particular
              (FreeBSD requires -lrt; link time optimisation requires -flto and other flags).
   TEST_CXXFLAGS : are options passed to the compiler when compiling code for tests
   TEST_LDFLAGS  : are options to be used when linking test code
-  
+
+For convenience, generated configuration also allows setting the following:
+
+  LDFLAGS_BASE : any link options that should be used by default for linking (including tests),
+                 if LDFLAGS is not overridden, to which CXXFLAGS will be added if the
+                 configuration enables link-time optimisation (LTO). This provides a simple way to
+                 change only link options not relevant to LTO, without having to override the
+                 values for both LDFLAGS and TEST_LDFLAGS.
+  TEST_LDFLAGS_BASE : as LDFLAGS_BASE but for tests. The default is to use the same value (if any)
+                      as specified for LDFLAGS_BASE.
+
 Additionally, for cross-compilation, the following can be specified:
 
   CXX_FOR_BUILD : C++ compiler for compiling code to run on the build host
