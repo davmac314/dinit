@@ -69,12 +69,10 @@ try_cxx_argument()
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
         eval "$1=\${$1# }"
+        return 0
     else
-        if [ "$2" = "-std=c++11" ]; then
-            sub_error "It seems like the C++ compiler don't support the (required) \"$2\" option!"
-        else
-            sub_info No.
-        fi
+        sub_info No.
+        return 1
     fi
 }
 
@@ -165,7 +163,7 @@ Build variables:
   CXXFLAGS_EXTRA                Additional flags to use when compiling C++ code.
   TEST_CXXFLAGS                 Flags to use when compiling C++ code in tests.
   TEST_CXXFLAGS_EXTRA           Additional flags to use when compiling C++ code in tests.
-  CPPFLAGS                      Preprocessor flags to use when compiling C++ code. 
+  CPPFLAGS                      Preprocessor flags to use when compiling C++ code.
   LDFLAGS                       Link flags.
   LDFLAGS_EXTRA                 Additional link flags.
   TEST_LDFLAGS                  Links flags when building test executables.
@@ -253,6 +251,7 @@ done
 : "${DEFAULT_START_TIMEOUT:="60"}"
 : "${DEFAULT_STOP_TIMEOUT:="10"}"
 : "${USE_INITGROUPS:="1"}"
+: "${HAS_LTO:=""}"
 if [ "$PLATFORM" = "Linux" ]; then
     : "${BUILD_SHUTDOWN:="yes"}"
     : "${SUPPORT_CGROUPS:="1"}"
@@ -320,22 +319,32 @@ fi
 
 ## Test compiler/linker supported arguments
 if [ "$AUTO_CXXFLAGS" = "true" ]; then
-    for argument in -std=c++11 \
-                    -Wall \
+    if ! try_cxx_argument CXXFLAGS -std=c++11; then
+        sub_error "It seems like the C++ compiler don't support the (required) \"$2\" option!"
+    fi
+    for argument in -Wall \
                     -Os \
                     -fno-plt
     do
-        try_cxx_argument CXXFLAGS $argument
+        try_cxx_argument CXXFLAGS $argument || :
     done
     if [ "$PLATFORM" != "Darwin" ]; then
-        try_cxx_argument CXXFLAGS -fno-rtti
+        try_cxx_argument CXXFLAGS -fno-rtti || :
     fi
 fi
 if [ "$AUTO_LDFLAGS" = "true" ] && [ "$AUTO_CXXFLAGS" = "true" ]; then
-    try_both_argument CXXFLAGS LDFLAGS -flto
+    if try_cxx_argument CXXFLAGS -flto; then
+        HAS_LTO="true"
+    else
+        HAS_LTO="false"
+    fi
 fi
 if [ "$AUTO_LDFLAGS" = "true" ] && [ "$PLATFORM" = "FreeBSD" ]; then
     try_ld_argument LDFLAGS -lrt
+fi
+# Add $CXXFLAGS to $LDFLAGS if -flto supported
+if [ "$HAS_LTO" = "true" ]; then
+    LDFLAGS="$LDFLAGS $CXXFLAGS"
 fi
 # Add $CXXFLAGS and $LDFLAGS to $TEST_{LD,CXX}FLAGS when AUTO_TEST vars are true
 if [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
