@@ -251,7 +251,6 @@ done
 : "${DEFAULT_START_TIMEOUT:="60"}"
 : "${DEFAULT_STOP_TIMEOUT:="10"}"
 : "${USE_INITGROUPS:="1"}"
-: "${HAS_LTO:=""}"
 if [ "$PLATFORM" = "Linux" ]; then
     : "${BUILD_SHUTDOWN:="yes"}"
     : "${SUPPORT_CGROUPS:="1"}"
@@ -261,6 +260,8 @@ else
     : "${SUPPORT_CGROUPS:="0"}"
     : "${SYSCONTROLSOCKET:="/var/run/dinitctl"}"
 fi
+
+HAS_LTO=""
 
 ## Finalize $CXXFLAGS, $TEST_CXXFLAGS, $LDFLAGS, $TEST_LDFLAGS, $STRIPOPTS
 if [ -z "${CXXFLAGS+IS_SET}" ]; then
