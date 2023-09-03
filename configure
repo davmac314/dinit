@@ -61,6 +61,11 @@ cxx_works()
     fi
 }
 
+# Test if the compiler accepts an argument (for compilation and link); if so add it to named variable.
+# $1 - the name of the variable to potentially add the argument to
+# $2 - the argument to add
+# CXX - the name of the compiler
+# CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags 
 try_cxx_argument()
 {
     info Checking whether the compiler accepts "$2"...
@@ -166,8 +171,13 @@ Build variables:
   CPPFLAGS                      Preprocessor flags to use when compiling C++ code.
   LDFLAGS                       Link flags.
   LDFLAGS_EXTRA                 Additional link flags.
+  LDFLAGS_BASE                  Link flags to use in addition to any link-time optimisation
+                                (LTO)-related options. Set this to control link options without
+                                disabling LTO. Ignored if LDFLAGS is set.
   TEST_LDFLAGS                  Links flags when building test executables.
   TEST_LDFLAGS_EXTRA            Additional link flags when building test executables.
+  TEST_LDFLAGS_BASE             Link flags to use when building test executables, in addition to
+                                LTO-releated options.
 
 Note: paths specified via --prefix/--exec-prefix/--sbindir/--mandir, and build variable values, must be
 escaped for use in a makefile and in shell commands. If there are spaces in paths it is recommended to
@@ -229,7 +239,7 @@ for arg in "$@"; do
         CXX=*|CXX_FOR_BUILD=*|CXXFLAGS_FOR_BUILD=*|CPPFLAGS_FOR_BUILD=*\
         |LDFLAGS_FOR_BUILD=*|CXXFLAGS=*|CXXFLAGS_EXTRA=*|TEST_CXXFLAGS=*\
         |TEST_CXXFLAGS_EXTRA=*|LDFLAGS=*|LDFLAGS_EXTRA=*|TEST_LDFLAGS=*\
-        |TEST_LDFLAGS_EXTRA=*|CPPFLAGS=*) eval "${arg%%=*}=\${arg#*=}" ;;
+        |TEST_LDFLAGS_EXTRA=*|CPPFLAGS=*|LDFLAGS_BASE=*|TEST_LDFLAGS_BASE=*) eval "${arg%%=*}=\${arg#*=}" ;;
         *=*) warning "Unknown variable: ${arg%%=*}" ;;
         *) warning "Unknown argument: $arg" ;;
     esac
@@ -288,6 +298,19 @@ if [ -z "${TEST_LDFLAGS+IS_SET}" ]; then
 else
     AUTO_TEST_LDFLAGS="false"
 fi
+if [ -z "${LDFLAGS_BASE+IS_SET}" ]; then
+    LDFLAGS_BASE=""
+    AUTO_LDFLAGS_BASE="true"
+else
+    AUTO_LDFLAGS=BASE="false"
+fi
+if [ -z "${TEST_LDFLAGS_BASE+IS_SET}" ]; then
+    TEST_LDFLAGS_BASE=""
+    AUTO_TEST_LDFLAGS_BASE="true"
+else
+    AUTO_TEST_LDFLAGS=BASE="false"
+fi
+
 [ -z "${STRIPOPTS+IS_SET}" ] && STRIPOPTS="-s"
 
 ## Verify PLATFORM value
@@ -340,22 +363,59 @@ if [ "$AUTO_LDFLAGS" = "true" ] && [ "$AUTO_CXXFLAGS" = "true" ]; then
         HAS_LTO="false"
     fi
 fi
-if [ "$AUTO_LDFLAGS" = "true" ] && [ "$PLATFORM" = "FreeBSD" ]; then
-    try_ld_argument LDFLAGS -lrt
+if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$PLATFORM" = FreeBSD ]; then
+    try_ld_argument LDFLAGS_BASE -lrt
 fi
-# Add $CXXFLAGS to $LDFLAGS if -flto supported
-if [ "$HAS_LTO" = "true" ]; then
-    LDFLAGS="$LDFLAGS $CXXFLAGS"
+if [ "$AUTO_TEST_LDFLAGS_BASE" = true ]; then
+    TEST_LDFLAGS_BASE="\$(LDFLAGS_BASE)"
+    established_TEST_LDFLAGS="$LDFLAGS_BASE"
+else
+    established_TEST_LDFLAGS="$TEST_LDFLAGS_BASE"
 fi
-# Add $CXXFLAGS and $LDFLAGS to $TEST_{LD,CXX}FLAGS when AUTO_TEST vars are true
+
+# Determine LDFLAGS/TEST_LDFLAGS. In the case of TEST_LDFLAGS we may still add sanitisation
+# options, shortly. 
+if [ "$HAS_LTO" = true ]; then
+    if [ "$AUTO_LDFLAGS" = true ]; then
+        LDFLAGS="\$(LDFLAGS_BASE) \$(CXXFLAGS)"
+    fi
+    if [ "$AUTO_TEST_LDFLAGS" = true ]; then
+        TEST_LDFLAGS="\$(TEST_LDFLAGS_BASE) \$(TEST_CXXFLAGS)"
+        established_TEST_LDFLAGS="$established_TEST_LDFLAGS $TEST_CXXFLAGS"
+    else
+        established_TEST_LDFLAGS="$TEST_LDFLAGS"
+    fi
+else
+    # default LDFLAGS are just $(LDFLAGS_BASE)
+    if [ "$AUTO_LDFLAGS" = true ]; then
+        LDFLAGS="\$(LDFLAGS_BASE)"
+    fi
+    if [ "$AUTO_TEST_LDFLAGS" = true ]; then
+        TEST_LDFLAGS="\$(TEST_LDFLAGS_BASE)"
+    else
+        established_TEST_LDFLAGS="$TEST_LDFLAGS"
+    fi
+fi
+
+# Default for test flags (TEST_CXXFLAGS, TEST_LDFLAGS) is to use the build flags
 if [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
-    TEST_CXXFLAGS="$CXXFLAGS"
+    TEST_CXXFLAGS="\$(CXXFLAGS)"
+    established_TEST_CXXFLAGS="$CXXFLAGS"
+else
+    established_TEST_CXXFLAGS="$TEST_CXXFLAGS"
 fi
-if [ "$AUTO_TEST_LDFLAGS" = "true" ]; then
-    TEST_LDFLAGS="$LDFLAGS"
-fi
+
+# Check whether sanitizers can be used for tests
 if [ "$AUTO_TEST_LDFLAGS" = "true" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
-    try_both_argument TEST_CXXFLAGS TEST_LDFLAGS -fsanitize=address,undefined
+    if [ "$HAS_LTO" = true ]; then
+        CXXFLAGS="$established_TEST_CXXFLAGS" CXXFLAGS_EXTRA="$TEST_CXXFLAGS_EXTRA" \
+                LDFLAGS="$established_TEST_LDFLAGS" LDFLAGS_EXTRA="$TEST_LDFLAGS_EXTRA" \
+                try_cxx_argument TEST_CXXFLAGS -fsanitize=address,undefined
+    else
+        CXXFLAGS=$established_TEST_CXXFLAGS CXXFLAGS_EXTRA=$TEST_CXXFLAGS_EXTRA \
+                LDFLAGS=$established_TEST_LDFLAGS LDFLAGS_EXTRA=$TEST_LDFLAGS_EXTRA \   
+                try_both_argument TEST_CXXFLAGS TEST_LDFLAGS -fsanitize=address,undefined
+    fi
 fi
 
 ## Create mconfig
@@ -382,10 +442,10 @@ TEST_CXXFLAGS=$TEST_CXXFLAGS
 TEST_CXXFLAGS_EXTRA=$TEST_CXXFLAGS_EXTRA
 CPPFLAGS=$CPPFLAGS
 LDFLAGS_BASE=
-LDFLAGS=\$(LDFLAGS_BASE) $LDFLAGS
+LDFLAGS=$LDFLAGS
 LDFLAGS_EXTRA=$LDFLAGS_EXTRA
 TEST_LDFLAGS_BASE=
-TEST_LDFLAGS=\$(TEST_LDFLAGS_BASE) $TEST_LDFLAGS
+TEST_LDFLAGS=$TEST_LDFLAGS
 TEST_LDFLAGS_EXTRA=$TEST_LDFLAGS_EXTRA
 BUILD_SHUTDOWN=$BUILD_SHUTDOWN
 STRIPOPTS=$STRIPOPTS
