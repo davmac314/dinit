@@ -52,7 +52,7 @@ jobs:
           - arch: 'i386'
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Add i386 repos
       if: ${{ matrix.arch == 'i386' }}
       run: dpkg --add-architecture i386
@@ -92,7 +92,7 @@ jobs:
           - arch: 'amd64'
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install meson via pip3
       run: pip3 install meson
     - name: Install ninja
@@ -125,7 +125,7 @@ jobs:
           - arch: 'aarch64'
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: uraimo/run-on-arch-action@v2.5.1
       name: Getting depends & setup & build & unit & integration tests
       with:
