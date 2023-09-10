@@ -412,8 +412,8 @@ if [ "$AUTO_TEST_LDFLAGS" = "true" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
                 LDFLAGS="$established_TEST_LDFLAGS" LDFLAGS_EXTRA="$TEST_LDFLAGS_EXTRA" \
                 try_cxx_argument TEST_CXXFLAGS -fsanitize=address,undefined
     else
-        CXXFLAGS=$established_TEST_CXXFLAGS CXXFLAGS_EXTRA=$TEST_CXXFLAGS_EXTRA \
-                LDFLAGS=$established_TEST_LDFLAGS LDFLAGS_EXTRA=$TEST_LDFLAGS_EXTRA \   
+        CXXFLAGS="$established_TEST_CXXFLAGS" CXXFLAGS_EXTRA="$TEST_CXXFLAGS_EXTRA" \
+                LDFLAGS="$established_TEST_LDFLAGS" LDFLAGS_EXTRA="$TEST_LDFLAGS_EXTRA" \
                 try_both_argument TEST_CXXFLAGS TEST_LDFLAGS -fsanitize=address,undefined
     fi
 fi
