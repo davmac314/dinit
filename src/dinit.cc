@@ -591,7 +591,7 @@ int dinit_main(int argc, char **argv)
     if (!am_system_init || log_specified) setup_external_log();
 
     if (env_file != nullptr) {
-        read_env_file(env_file, true, main_env);
+        read_env_file(env_file, true, main_env, false);
     }
 
     for (auto svc : services_to_start) {

@@ -13,8 +13,9 @@ extern environment main_env;
 // Read an environment file and set variables in the current environment.
 //   file - the file to read
 //   log_warnings - if true, syntactic errors are logged
+//   throw_on_open_failure - if true, failure to open file will result in a std::system_error exception
 // May throw bad_alloc or system_error.
-void read_env_file(const char *file, bool log_warnings, environment &env);
+void read_env_file(const char *file, bool log_warnings, environment &env, bool throw_on_open_failure);
 
 // Note that our sets (defined as part of environment class below) allow searching based on a name
 // only (string_view) or "NAME=VALUE" assignment pair (std::string). It is important to always
