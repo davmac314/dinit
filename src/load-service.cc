@@ -539,7 +539,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         if (!settings.env_file.empty()) {
             try {
-                read_env_file(settings.env_file.data(), false, srv_env);
+                read_env_file(settings.env_file.data(), false, srv_env, true);
             } catch (const std::system_error &se) {
                 throw service_load_exc(name, std::string("could not load environment file: ") + se.what());
             }
