@@ -176,6 +176,7 @@ format recognised by the \fBdinit\fR command's \fB\-\-env\-file\fR option (see \
 The file is read when the service is loaded, therefore values from it can be used in variable
 substitutions (see \fBVARIABLE SUBSTITUTION\fR).
 Variable substitution is not performed on the \fBenv\-file\fR property value itself.
+If the path is not absolute, the file is read relative to the service directory.
 .TP
 \fBrestart\fR = {yes | true | no | false}
 Indicates whether the service should automatically restart if it stops, including due to
