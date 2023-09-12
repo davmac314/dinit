@@ -389,10 +389,12 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
     int fail_load_errno = 0;
     std::string fail_load_path;
+    const char *sdir = nullptr;
 
     // Couldn't find one. Have to load it.
     for (auto &service_dir : service_dirs) {
-        service_filename = service_dir.get_dir();
+        sdir = service_dir.get_dir();
+        service_filename = sdir;
         if (*(service_filename.rbegin()) != '/') {
             service_filename += '/';
         }
@@ -539,7 +541,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         if (!settings.env_file.empty()) {
             try {
-                read_env_file(settings.env_file.data(), false, srv_env, true);
+                read_env_file(settings.env_file.data(), false, srv_env, true, sdir);
             } catch (const std::system_error &se) {
                 throw service_load_exc(name, std::string("could not load environment file: ") + se.what());
             }
