@@ -1,5 +1,7 @@
 #!/bin/sh
 
+cd ..
+
 case "$1" in
     setenv1)
         if [ "$FOO" = "foo" ] && [ "$BAR" = "bar" ] && [ "$BAZ" = "baz" ]; then

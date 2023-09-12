@@ -1,2 +1,2 @@
 type = scripted
-command = ./setenv.sh setenv3
+command = ../setenv.sh setenv3

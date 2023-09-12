@@ -1,4 +1,4 @@
 # timeout-command
 type = scripted
-command = ./timeout.sh
+command = ../timeout.sh
 start-timeout = 0.01

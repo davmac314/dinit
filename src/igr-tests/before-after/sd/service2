@@ -1,2 +1,2 @@
 type = scripted
-command = scripts/service.sh two 0.2
+command = ../scripts/service.sh two 0.2
