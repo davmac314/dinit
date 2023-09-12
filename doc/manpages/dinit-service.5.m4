@@ -157,7 +157,7 @@ The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBworking\-dir\fR = \fIdirectory\fR
 Specifies the working directory for this service. For a scripted service, this
-affects both the start command and the stop command.
+affects both the start command and the stop command. The default is the service directory.
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBrun\-as\fR = \fIuser-id\fR

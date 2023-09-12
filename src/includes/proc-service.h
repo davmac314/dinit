@@ -177,6 +177,7 @@ class base_process_service : public service_record
     string working_dir;       // working directory (or empty)
     string env_file;          // file with environment settings for this service
 
+    const char *working_dir_def; // working directory default (service dir)
     log_type_id log_type = log_type_id::NONE;
     string logfile;          // log file name, empty string specifies /dev/null
     int logfile_perms = 0;   // logfile permissions("mode")
@@ -500,14 +501,16 @@ class base_process_service : public service_record
     }
 
     // Set the working directory
-    void set_working_dir(const string &working_dir_p)
+    void set_working_dir(const string &working_dir_p, const char *def)
     {
         working_dir = working_dir_p;
+        working_dir_def = def;
     }
 
-    void set_working_dir(string &&working_dir_p) noexcept
+    void set_working_dir(string &&working_dir_p, const char *def) noexcept
     {
         working_dir = std::move(working_dir_p);
+        working_dir_def = def;
     }
 
     // Set the notification fd number that the service process will use
