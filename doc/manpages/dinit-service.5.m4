@@ -156,8 +156,9 @@ command" will be executed in order to stop the service, instead of signalling th
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBworking\-dir\fR = \fIdirectory\fR
-Specifies the working directory for this service. For a scripted service, this
-affects both the start command and the stop command. The default is the service directory.
+Specifies the working directory for this service.
+For a scripted service, this affects both the start command and the stop command.
+The default is the directory containing the service description.
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBrun\-as\fR = \fIuser-id\fR
@@ -176,7 +177,8 @@ format recognised by the \fBdinit\fR command's \fB\-\-env\-file\fR option (see \
 The file is read when the service is loaded, therefore values from it can be used in variable
 substitutions (see \fBVARIABLE SUBSTITUTION\fR).
 Variable substitution is not performed on the \fBenv\-file\fR property value itself.
-If the path is not absolute, the file is read relative to the service directory.
+If the path is not absolute, it is resolved relative to the directory containing the service
+description.
 .TP
 \fBrestart\fR = {yes | true | no | false}
 Indicates whether the service should automatically restart if it stops, including due to
