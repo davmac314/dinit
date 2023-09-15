@@ -318,7 +318,7 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
 {
     bool did_exit = exit_status.did_exit();
     bool was_signalled = exit_status.was_signalled();
-    auto service_state = get_state();
+    auto current_state = get_state();
 
     if (notification_fd != -1) {
         readiness_watcher.deregister(event_loop);
@@ -326,7 +326,7 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
         notification_fd = -1;
     }
 
-    if (!exit_status.did_exit_clean() && service_state != service_state_t::STOPPING) {
+    if (!exit_status.did_exit_clean() && current_state != service_state_t::STOPPING) {
         if (did_exit) {
             log(loglevel_t::ERROR, "Service ", get_name(), " process terminated with exit code ",
                     exit_status.get_exit_status());
@@ -348,14 +348,13 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
     }
 #endif
 
-    if (service_state == service_state_t::STARTING) {
+    if (current_state == service_state_t::STARTING) {
         // If state is STARTING, we must be waiting for readiness notification; the process has
         // terminated before becoming ready.
         stop_reason = stopped_reason_t::FAILED;
-        service_state = service_state_t::STOPPING;
         failed_to_start();
     }
-    else if (service_state == service_state_t::STOPPING) {
+    else if (current_state == service_state_t::STOPPING) {
         // We won't log a non-zero exit status or termination due to signal here -
         // we assume that the process died because we signalled it.
         if (waiting_stopstart_timer) {
@@ -371,7 +370,7 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
             initiate_start();
         }
     }
-    else if (smooth_recovery && service_state == service_state_t::STARTED && check_restart()) {
+    else if (smooth_recovery && current_state == service_state_t::STARTED && check_restart()) {
         // unexpected termination, with smooth recovery
         doing_smooth_recovery = true;
         do_smooth_recovery();
@@ -424,9 +423,9 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
     begin:
     bool did_exit = exit_status.did_exit();
     bool was_signalled = exit_status.was_signalled();
-    auto service_state = get_state();
+    auto current_state = get_state();
 
-    if (!exit_status.did_exit_clean() && service_state != service_state_t::STOPPING) {
+    if (!exit_status.did_exit_clean() && current_state != service_state_t::STOPPING) {
         if (did_exit) {
             log(loglevel_t::ERROR, "Service ", get_name(), " process terminated with exit code ",
                     exit_status.get_exit_status());
@@ -447,7 +446,7 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
 
         // We're either started, or stopping (i.e. we were requested to stop during smooth recovery).
 
-        if (service_state == service_state_t::STOPPING) {
+        if (current_state == service_state_t::STOPPING) {
             // Stop was issued during smooth recovery
             if ((did_exit && exit_status.get_exit_status() != 0) || was_signalled) {
                 if (!waiting_for_deps) {
@@ -517,14 +516,13 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
         }
     }
 
-    if (service_state == service_state_t::STARTING) {
+    if (current_state == service_state_t::STARTING) {
         if (exit_status.did_exit_clean()) {
             auto pid_result = read_pid_file(&exit_status);
             switch (pid_result) {
                 case pid_result_t::FAILED:
                     // Failed startup: no auto-restart.
                     stop_reason = stopped_reason_t::FAILED;
-                    service_state = service_state_t::STOPPING;
                     failed_to_start();
                     break;
                 case pid_result_t::TERMINATED:
@@ -538,11 +536,10 @@ void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcep
         }
         else {
             stop_reason = stopped_reason_t::FAILED;
-            service_state = service_state_t::STOPPING;
             failed_to_start();
         }
     }
-    else if (service_state == service_state_t::STOPPING) {
+    else if (current_state == service_state_t::STOPPING) {
         // We won't log a non-zero exit status or termination due to signal here -
         // we assume that the process died because we signalled it.
         if (stop_pid == -1 && !waiting_for_execstat) {
@@ -591,14 +588,14 @@ void scripted_service::handle_exit_status(bp_sys::exit_status exit_status) noexc
 {
     bool did_exit = exit_status.did_exit();
     bool was_signalled = exit_status.was_signalled();
-    auto service_state = get_state();
+    auto current_state = get_state();
 
     // For a scripted service, a termination occurs in one of three main cases:
     // - the start script completed (or failed), when service was STARTING
     // - the start script was interrupted to cancel startup; state is STOPPING
     // - the stop script complete (or failed), state is STOPPING
 
-    if (service_state == service_state_t::STOPPING) {
+    if (current_state == service_state_t::STOPPING) {
         // We might be running the stop script, or we might be running the start script and have issued
         // a cancel order via SIGINT:
         if (interrupting_start) {
@@ -664,7 +661,6 @@ void scripted_service::handle_exit_status(bp_sys::exit_status exit_status) noexc
                 log(loglevel_t::ERROR, "Service ", get_name(), " command terminated due to signal ",
                         exit_status.get_term_sig());
             }
-            service_state = service_state_t::STOPPED;
             stop_reason = stopped_reason_t::FAILED;
             failed_to_start();
         }
@@ -676,13 +672,12 @@ void scripted_service::exec_failed(run_proc_err errcode) noexcept
 {
     log(loglevel_t::ERROR, get_name(), ": execution failed - ",
             exec_stage_descriptions[static_cast<int>(errcode.stage)], ": ", strerror(errcode.st_errno));
-    auto service_state = get_state();
-    if (service_state == service_state_t::STARTING) {
+    auto current_state = get_state();
+    if (current_state == service_state_t::STARTING) {
         stop_reason = stopped_reason_t::EXECFAILED;
-        service_state = service_state_t::STOPPING;
         failed_to_start();
     }
-    else if (service_state == service_state_t::STOPPING) {
+    else if (current_state == service_state_t::STOPPING) {
         // We've logged the failure, but it's probably better not to leave the service in
         // STOPPING state:
         stopped();
