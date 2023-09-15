@@ -67,8 +67,8 @@ void process_service::exec_succeeded() noexcept
         }
     }
     else if (get_state() == service_state_t::STARTED) {
-        // Smooth recovery (is now complete)
-        if (waiting_stopstart_timer) {
+        // Smooth recovery (is now complete, if we don't need readiness notification)
+        if (waiting_stopstart_timer && notification_fd == -1) {
             process_timer.stop_timer(event_loop);
             waiting_stopstart_timer = false;
         }
