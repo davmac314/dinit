@@ -2352,27 +2352,27 @@ void test_waitsfor_restart()
 
 int main(int argc, char **argv)
 {
-//    RUN_TEST(test_proc_service_start, "    ");
-//    RUN_TEST(test_proc_notify_start, "     ");
-//    RUN_TEST(test_proc_unexpected_term, "  ");
-//    RUN_TEST(test_proc_term_start, "       ");
-//    RUN_TEST(test_proc_term_restart, "     ");
-//    RUN_TEST(test_proc_term_restart2, "    ");
-//    RUN_TEST(test_proc_term_restart3, "    ");
-//    RUN_TEST(test_proc_term_restart4, "    ");
-//    RUN_TEST(test_term_via_stop, "         ");
-//    RUN_TEST(test_term_via_stop2, "        ");
-//    RUN_TEST(test_term_via_stop3, "        ");
-//    RUN_TEST(test_proc_start_timeout, "    ");
-//    RUN_TEST(test_proc_start_timeout2, "   ");
-//    RUN_TEST(test_proc_start_execfail, "   ");
-//    RUN_TEST(test_proc_notify_fail, "      ");
-//    RUN_TEST(test_proc_stop_timeout, "     ");
-//    RUN_TEST(test_proc_smooth_recovery1, " ");
-//    RUN_TEST(test_proc_smooth_recovery2, " ");
-//    RUN_TEST(test_proc_smooth_recovery3, " ");
-//    RUN_TEST(test_proc_smooth_recovery4, " ");
-//    RUN_TEST(test_proc_smooth_recovery5, " ");
+    RUN_TEST(test_proc_service_start, "    ");
+    RUN_TEST(test_proc_notify_start, "     ");
+    RUN_TEST(test_proc_unexpected_term, "  ");
+    RUN_TEST(test_proc_term_start, "       ");
+    RUN_TEST(test_proc_term_restart, "     ");
+    RUN_TEST(test_proc_term_restart2, "    ");
+    RUN_TEST(test_proc_term_restart3, "    ");
+    RUN_TEST(test_proc_term_restart4, "    ");
+    RUN_TEST(test_term_via_stop, "         ");
+    RUN_TEST(test_term_via_stop2, "        ");
+    RUN_TEST(test_term_via_stop3, "        ");
+    RUN_TEST(test_proc_start_timeout, "    ");
+    RUN_TEST(test_proc_start_timeout2, "   ");
+    RUN_TEST(test_proc_start_execfail, "   ");
+    RUN_TEST(test_proc_notify_fail, "      ");
+    RUN_TEST(test_proc_stop_timeout, "     ");
+    RUN_TEST(test_proc_smooth_recovery1, " ");
+    RUN_TEST(test_proc_smooth_recovery2, " ");
+    RUN_TEST(test_proc_smooth_recovery3, " ");
+    RUN_TEST(test_proc_smooth_recovery4, " ");
+    RUN_TEST(test_proc_smooth_recovery5, " ");
     RUN_TEST(test_proc_smooth_recovery6, " ");
     RUN_TEST(test_bgproc_start, "          ");
     RUN_TEST(test_bgproc_start_fail, "     ");
