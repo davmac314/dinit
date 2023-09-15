@@ -340,6 +340,11 @@ void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexce
     if (waiting_stopstart_timer) {
         process_timer.stop_timer(event_loop);
         waiting_stopstart_timer = false;
+        if (current_state == service_state_t::STARTED) {
+            // Must have been in smooth recovery and waiting for readiness notification.
+            // Treat this the same as if we were STARTING:
+            current_state = service_state_t::STARTING;
+        }
     }
 
 #if USE_UTMPX

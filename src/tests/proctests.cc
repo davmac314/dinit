@@ -1160,6 +1160,69 @@ void test_proc_smooth_recovery6()
     sset.remove_service(&p);
 }
 
+// smooth recovery: termination while waiting for readiness notification
+void test_proc_smooth_recovery6a()
+{
+    using namespace std;
+
+    service_set sset;
+
+    ha_string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_smooth_recovery(true);
+    p.set_restart_delay(time_val {0, 1000});
+    p.set_start_timeout(time_val {1, 0});
+    p.set_notification_fd(3);
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    // readiness notification from process:
+    int nfd = base_process_service_test::get_notification_fd(&p);
+    char notifystr[] = "ok started\n";
+    std::vector<char> rnotifystr;
+    rnotifystr.insert(rnotifystr.end(), notifystr, notifystr + sizeof(notifystr));
+    bp_sys::supply_read_data(nfd, std::move(rnotifystr));
+    event_loop.regd_fd_watchers[nfd]->fd_event(event_loop, nfd, dasynq::IN_EVENTS);
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    pid_t first_instance = bp_sys::last_forked_pid;
+
+    assert(p.get_state() == service_state_t::STARTED);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    event_loop.advance_time(time_val {0, 1000});
+
+    // new process should've been forked:
+    assert(first_instance != bp_sys::last_forked_pid);
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_pid() == bp_sys::last_forked_pid);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    base_process_service_test::handle_exit(&p, 1);
+    sset.process_queues();
+
+    // The state should now be stopped:
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
 // simulate the launcher process forking a daemon process, and supply the process ID of that
 // daemon process in a pid file.
 static void supply_pid_contents(const char *pid_file, pid_t *daemon_instance_p = nullptr)
@@ -2374,6 +2437,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_smooth_recovery4, " ");
     RUN_TEST(test_proc_smooth_recovery5, " ");
     RUN_TEST(test_proc_smooth_recovery6, " ");
+    RUN_TEST(test_proc_smooth_recovery6a, "");
     RUN_TEST(test_bgproc_start, "          ");
     RUN_TEST(test_bgproc_start_fail, "     ");
     RUN_TEST(test_bgproc_start_fail_pid, " ");
