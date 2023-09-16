@@ -1,5 +1,5 @@
 #include <algorithm>
-#include <iostream>
+#include "dinit-iostream.h"
 #include <fstream>
 #include <cstring>
 #include <string>
@@ -71,7 +71,7 @@ static bool errors_found = false;
 
 int main(int argc, char **argv)
 {
-    using namespace std;
+    using namespace dio;
 
     service_dir_opt service_dir_opts;
     bool am_system_init = (getuid() == 0);
@@ -88,21 +88,21 @@ int main(int argc, char **argv)
                         service_dir_opts.set_specified_service_dir(argv[i]);
                     }
                     else {
-                        cerr << "dinitcheck: '--services-dir' (-d) requires an argument" << endl;
+                        printerr("dinitcheck: '--services-dir' (-d) requires an argument\n");
                         return 1;
                     }
                 }
                 else if (strcmp(argv[i], "--help") == 0) {
-                    cout << "dinitcheck: check dinit service descriptions\n"
-                            " --help                       display help\n"
-                            " --services-dir <dir>, -d <dir>\n"
-                            "                              set base directory for service description\n"
-                            "                              files, can be specified multiple times\n"
-                            " <service-name>               check service with name <service-name>\n";
+                    print("dinitcheck: check dinit service descriptions\n",
+                          " --help                       display help\n",
+                          " --services-dir <dir>, -d <dir>\n",
+                          "                              set base directory for service description\n",
+                          "                              files, can be specified multiple times\n",
+                          " <service-name>               check service with name <service-name>\n");
                     return EXIT_SUCCESS;
                 }
                 else {
-                    std::cerr << "dinitcheck: Unrecognized option: '" << argv[i] << "' (use '--help' for help)\n";
+                    printerr("dinitcheck: Unrecognized option: '", argv[i], "' (use '--help' for help)\n");
                     return EXIT_FAILURE;
                 }
             }
@@ -128,7 +128,7 @@ int main(int argc, char **argv)
 
     for (size_t i = 0; i < services_to_check.size(); ++i) {
         const std::string &name = services_to_check[i];
-        std::cout << "Checking service: " << name << "...\n";
+        dio::print("Checking service: ", name, "...\n");
         try {
             service_record *sr = load_service(service_set, name, service_dir_opts.get_paths());
             service_set[name] = sr;
@@ -152,7 +152,7 @@ int main(int argc, char **argv)
             }
         }
         catch (service_load_exc &exc) {
-            std::cerr << "Unable to load service '" << name << "': " << exc.exc_description << "\n";
+            dio::printerr("Unable to load service '", name, "': ", exc.exc_description, "\n");
             errors_found = true;
         }
     }
@@ -225,25 +225,25 @@ int main(int argc, char **argv)
 
     if (!service_chain.empty()) {
         errors_found = true;
-        std::cerr << "Found dependency cycle:\n";
+        dio::printerr("Found dependency cycle:\n");
         for (auto chain_link : service_chain) {
             service_record *svc = std::get<0>(chain_link);
             size_t dep_index = std::get<1>(chain_link);
-            std::cerr << "    " << svc->name << " ->";
+            dio::printerr("    ", svc->name, " ->");
             auto dep_it = std::next(svc->dependencies.begin(), dep_index);
             if (dep_it->dep_type == dependency_type::BEFORE) {
-                std::cerr << " (via 'before')";
+                dio::printerr(" (via 'before')");
             }
-            std::cerr << "\n";
+            dio::printerr("\n");
         }
-        std::cerr << "    " << std::get<0>(service_chain[0])->name << ".\n";
+        dio::printerr("    ", std::get<0>(service_chain[0])->name, ".\n");
     }
 
     if (! errors_found) {
-        std::cout << "No problems found.\n";
+        dio::print("No problems found.\n");
     }
     else {
-        std::cout << "One or more errors/warnings issued.\n";
+        dio::print("One or more errors/warnings issued.\n");
     }
 
     return errors_found ? EXIT_FAILURE : EXIT_SUCCESS;
@@ -252,20 +252,20 @@ int main(int argc, char **argv)
 static void report_service_description_err(const std::string &service_name, unsigned line_num,
         const std::string &what)
 {
-    std::cerr << "Service '" << service_name << "' (line " << line_num << "): " << what << "\n";
+    dio::printerr("Service '", service_name, "' (line ", line_num, "): ", what, "\n");
     errors_found = true;
 }
 
 static void report_service_description_err(const std::string &service_name, const char *setting_name,
         const std::string &what)
 {
-    std::cerr << "Service '" << service_name << "' setting '" << setting_name << "': " << what << "\n";
+    dio::printerr("Service '", service_name, "' setting '", setting_name, "': ", what, "\n");
     errors_found = true;
 }
 
 static void report_service_description_err(const std::string &service_name, const std::string &what)
 {
-    std::cerr << "Service '" << service_name << "': " << what << "\n";
+    dio::printerr("Service '", service_name, "': ", what, "\n");
     errors_found = true;
 }
 
@@ -281,14 +281,14 @@ static void report_service_description_exc(service_description_exc &exc)
 
 static void report_error(std::system_error &exc, const std::string &service_name)
 {
-    std::cerr << "Service '" << service_name << "', error reading service description: " << exc.what() << "\n";
+    dio::printerr("Service '", service_name, "', error reading service description: ", exc.what(), "\n");
     errors_found = true;
 }
 
 static void report_dir_error(const char *service_name, const std::string &dirpath)
 {
-    std::cerr << "Service '" << service_name << "', error reading dependencies from directory " << dirpath
-            << ": " << strerror(errno) << "\n";
+    dio::printerr("Service '", service_name, "', error reading dependencies from directory ", dirpath,
+            ": ", strerror(errno), "\n");
     errors_found = true;
 }
 
