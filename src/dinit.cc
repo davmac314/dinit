@@ -586,9 +586,14 @@ int dinit_main(int argc, char **argv)
         log(loglevel_t::NOTICE, false, "Starting system");
     }
     
-    // Only try to set up the external log (via syslog) now if we aren't the system init. (If we
-    // are the system init, wait until the log service starts, unless a logfile has been specified).
-    if (!am_system_init || log_specified) setup_external_log();
+    // If a log file was specified, open it now.
+    if (log_specified) {
+        setup_external_log();
+        if (!am_system_init && !external_log_open) {
+            flush_log(); // flush console messages
+            return EXIT_FAILURE;
+        }
+    }
 
     if (env_file != nullptr) {
         read_env_file(env_file, true, main_env, false, nullptr);
@@ -705,7 +710,7 @@ int dinit_main(int argc, char **argv)
         sigprocmask(SIG_UNBLOCK, &sigwait_set_int, NULL);
     }
     
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 // Get user confirmation before proceeding with restarting boot sequence.
@@ -817,7 +822,8 @@ void rootfs_is_rw() noexcept
 {
     open_control_socket(true);
     control_socket_ready();
-    if (!log_is_syslog) {
+    if (!log_is_syslog && !external_log_open) {
+        // Try (again) to open log file if we couldn't do so earlier.
         setup_external_log();
     }
     if (!did_log_boot) {
@@ -944,7 +950,7 @@ static void close_control_socket() noexcept
 
 void setup_external_log() noexcept
 {
-    if (! external_log_open) {
+    if (!external_log_open) {
         if (log_is_syslog) {
             const char * saddrname = log_path;
             size_t saddrname_len = strlen(saddrname);
@@ -1003,7 +1009,7 @@ void setup_external_log() noexcept
             else {
                 // log failure to log? It makes more sense than first appears, because we also log
                 // to console:
-                log(loglevel_t::ERROR, "Setting up log failed: ", strerror(errno));
+                log(loglevel_t::ERROR, "Opening log file failed: ", strerror(errno));
             }
         }
     }

@@ -67,10 +67,12 @@ socket is written on the file descriptor.
 \fB\-l\fR \fIpath\fP, \fB\-\-log\-file\fR \fIpath\fP
 Species \fIpath\fP as the path to the log file, to which Dinit will log status
 and error messages.
-Note that when running as the system service manager, Dinit
-does not begin logging until the log service has started.
 Using this option inhibits logging via the syslog facility, however, all logging messages are
-duplicated as usual to the console (so long as no service owns the console).
+duplicated as usual to the console (as long as \fB\-\-quiet\fR has not also been specified).
+Note that when running as the system init, Dinit will continue if it cannot open the specified
+file, and will attempt to open it again once the root file system is writable.
+If not running as the system init and the file cannot be opened, Dinit will immediately exit
+with an error.
 .TP
 \fB\-s\fR, \fB\-\-system\fR
 Run as the system service manager.
