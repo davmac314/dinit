@@ -362,7 +362,8 @@ template <class Base> class kqueue_loop : public Base
         EV_SET(&kev, fd, filter, EV_ADD | (enabled ? 0 : EV_DISABLE), fflags, 0, userdata);
         if (kevent(kqfd, &kev, 1, nullptr, 0, nullptr) == -1) {
             // Note that kqueue supports EVFILT_READ on regular file fd's, but not EVFILT_WRITE.
-            if (filter == EVFILT_WRITE && errno == EINVAL && emulate) {
+            // /dev/null apparently gives ENODEV.
+            if (filter == EVFILT_WRITE && (errno == EINVAL || errno == ENODEV) && emulate) {
                 return false; // emulate
             }
             throw std::system_error(errno, std::system_category());
