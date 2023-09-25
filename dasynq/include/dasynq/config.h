@@ -28,10 +28,10 @@
 //     #define DASYNQ_HAVE_EVENTFD 1
 //
 // If the pipe2 system call is available:
-//     #define HAVE_PIPE2 1
+//     #define DASYNQ_HAVE_PIPE2 1
 //
 // If the pselect system call is available:
-//     #define HAVE_PSELECT 1
+//     #define DASYNQ_HAVE_PSELECT 1
 //
 // A tag to include at the end of a class body for a class which is allowed to have zero size.
 // Normally, C++ mandates that all objects (except empty base subobjects) have non-zero size, but on some
@@ -44,6 +44,9 @@
 // A statement to tell the compiler that the current line of code is unreachable, that is, it will never be
 // the case that program execution flow reaches this statement:
 //     #define DASYNQ_UNREACHABLE /* compiler specific! */
+//
+// A compiler builtin to specify the expected (integral) value of an integral expression:
+//     #define DASYNQ_EXPECT(expr,expected) /* compiler specific! */
 
 // ---------------------------------------------------------------------------------------------------------
 // Part 2: Automatic configuration begins here; you should not need to edit beyond this point.
@@ -85,7 +88,7 @@
 
 // General feature availability
 
-#if (defined(__OpenBSD__) || defined(__linux__)) && ! defined(HAVE_PIPE2)
+#if (defined(__OpenBSD__) || defined(__linux__)) && ! defined(DASYNQ_HAVE_PIPE2)
 #define DASYNQ_HAVE_PIPE2 1
 #endif
 
@@ -104,6 +107,15 @@
 #if ! defined(DASYNQ_UNREACHABLE)
 #define DASYNQ_UNREACHABLE          __builtin_unreachable()
 #endif
+
+#if ! defined(DASYNQ_EXPECT)
+#define DASYNQ_EXPECT(a,b)          __builtin_expect(a,b)
+#endif
+
 #endif /* __GNUC__ */
+
+#if ! defined(DASYNQ_EXPECT)
+#define DASYNQ_EXPECT(a,b)          (a)
+#endif
 
 #endif /* DASYNQ_CONFIG_H_ */

@@ -230,6 +230,8 @@ public:
 
     void reserve(size_t amount)
     {
+        // Note that std::vector would throw length_error if amount > max_size(). We don't bother;
+        // allocation will certainly fail in that case, so we'll throw bad_alloc instead.
         if (!ensure_capacity(amount, true)) {
             throw std::bad_alloc();
         }

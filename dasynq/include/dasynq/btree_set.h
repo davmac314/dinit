@@ -3,6 +3,9 @@
 
 #include <functional>
 #include <utility>
+#include <cstddef>
+
+#include "config.h"
 
 namespace dasynq {
 
@@ -106,10 +109,10 @@ class btree_set
     septnode * left_sept = nullptr; // leftmost child (cache)
     septnode * sn_reserve = nullptr;
 
-    int num_alloced = 0;
-    int num_septs = 0;
-    int num_septs_needed = 0;
-    int next_sept = 1;  // next num_allocd for which we need another septnode in reserve.
+    size_t num_alloced = 0;
+    unsigned num_septs = 0;
+    unsigned num_septs_needed = 0;
+    unsigned next_sept = 1;  // next num_allocd for which we need another septnode in reserve.
 
     // Note that sept nodes are always at least half full, except for the root sept node.
     // For up to N nodes, one sept node is needed;
@@ -122,8 +125,10 @@ class btree_set
     void alloc_slot()
     {
         num_alloced++;
+        // No need to be concerned for overflow in num_alloced: if we've maxed out size_t then
+        // allocation would have failed much earlier on.
 
-        if (__builtin_expect(num_alloced == next_sept, 0)) {
+        if (DASYNQ_EXPECT(num_alloced == next_sept, 0)) {
             if (++num_septs_needed > num_septs) {
                 try {
                     septnode *new_res = new septnode();
@@ -136,6 +141,12 @@ class btree_set
                     num_alloced--;
                     throw;
                 }
+            }
+            if (num_septs_needed == 0) {
+                // wrapped around
+                num_septs_needed--;
+                num_alloced--;
+                throw std::bad_alloc();
             }
             next_sept += N/2;
         }
@@ -309,7 +320,7 @@ class btree_set
         num_alloced--;
 
         // Potentially release reserved sept node
-        if (__builtin_expect(num_alloced < next_sept - N/2, 0)) {
+        if (DASYNQ_EXPECT(num_alloced < next_sept - N/2, 0)) {
             next_sept -= N/2;
             num_septs_needed--;
             if (num_septs_needed < num_septs - 1) {
@@ -322,8 +333,9 @@ class btree_set
         }
     }
 
-    // Insert an allocated slot into the heap.
-    // Return true if it is the leftmost value.
+    // Insert an allocated slot, with a unique value, into the set. Does nothing if the value is
+    // already in the set.
+    // Return true if the value was inserted (or false if already present).
     bool insert(handle_t & hndl, P pval = P()) noexcept
     {
         if (root_sept == nullptr) {
@@ -332,8 +344,6 @@ class btree_set
         }
 
         septnode * srch_sept = root_sept;
-
-        bool leftmost = true;
 
         while (! srch_sept->is_leaf()) {
             int min = 0;
@@ -345,7 +355,7 @@ class btree_set
                     max = i - 1;
                 }
                 else if (srch_sept->prio[i] == pval) {
-                    // Already present?
+                    // Already present
                     return false;
                 }
                 else {
@@ -353,16 +363,12 @@ class btree_set
                 }
             }
 
-            if (min != 0) {
-                leftmost = false;
-            }
-
             // go up to the right:
             srch_sept = srch_sept->children[max + 1];
         }
 
         // We got to a leaf: does it have space?
-        // First check if we can add to a linked list
+        // First check if already present
         int children = srch_sept->num_vals();
 
         {
@@ -371,11 +377,11 @@ class btree_set
             while (min <= max) {
                 int i = (min + max) / 2;
 
-                if (srch_sept->hn_p[i] == nullptr || pval < srch_sept->prio[i]) {
+                if (pval < srch_sept->prio[i]) {
                     max = i - 1;
                 }
                 else if (srch_sept->prio[i] == pval) {
-                    // Already present?
+                    // Already present
                     return false;
                 }
                 else {
@@ -386,7 +392,6 @@ class btree_set
 
         septnode * left_down = nullptr; // left node going down
         septnode * right_down = nullptr; // right node going down
-        leftmost = leftmost && pval < srch_sept->prio[0];
 
         handle_t * hndl_p = &hndl;
 
@@ -488,7 +493,7 @@ class btree_set
         srch_sept->children[inspos] = left_down;
         srch_sept->children[inspos+1] = right_down;
         hndl_p->parent = srch_sept;
-        return leftmost;
+        return true;
     }
 
     // Remove a slot from the heap (but don't deallocate it)
