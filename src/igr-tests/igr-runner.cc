@@ -32,7 +32,7 @@ int main(int argc, char **argv)
         std::string prog_path = "./run-test.sh";
         char * const p_argv[2] = { const_cast<char *>(prog_path.c_str()), nullptr };
 
-        std::cout << test_dir << "... ";
+        std::cout << std::endl << "### " << test_dir << "... ";
 
         // "Use posix_spawn", they said. "It will be easy", they said.
 
