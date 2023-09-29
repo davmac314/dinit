@@ -30,32 +30,33 @@ specified via property settings, the format of which are documented in the
 .\"
 There are five basic types of service:
 .IP \(bu
-\fBProcess\fR services. This kind of service runs as a single process; starting
-the service simply requires starting the process; stopping the service is
-accomplished by stopping the process (eg via sending it a signal).
-The service's start/stopped state is linked to the state of its associated process.
+\fBProcess\fR services. This kind of service runs a single supervised process; the process
+is started when the service is started and stopped when the service is stopped. If the
+process stops this also affects the service state, i.e. the service's started/stopped state is
+linked to the state of its associated process.
 .IP \(bu
-\fBBgprocess\fR services ("background process" services). This kind of
-service is similar to a regular process service, but the process "daemonizes"
-or otherwise forks from the original process which starts it, and writes its
+\fBBgprocess\fR services ("background process" services).
+This kind of service is similar to a regular process service, but is for a process which
+"daemonizes" or otherwise forks from the original process which starts it, and writes its
 new process ID to a file.
-Dinit can read the process ID from the file and, if running as the system init process or if the
-system provides the necessary facilities, can supervise the process.
+Dinit will read the process ID from the file and, if running as the system init process or if the
+system provides the necessary facilities, can supervise the process just as for a \fBprocess\fR
+service.
+When starting a \fBbgprocess\fR service, Dinit will not consider the service to be fully started
+until the original process forks and terminates.
 .IP \(bu
-\fBScripted\fR services are services which are started and stopped by executing
-commands (which need not actually be scripts, despite the name).
-Once a command completes successfully the service is considered started (or stopped, as appropriate).
-Scripted services cannot be supervised.
+\fBScripted\fR services are services which are started and stopped by executing commands (which
+need not actually be scripts, despite the name).
+Once a command completes successfully the service is considered started (or stopped, as appropriate)
+by Dinit.
 .IP \(bu
 \fBInternal\fR services do not run as an external process at all.
 They can be started and stopped without any external action.
 They are useful for grouping other services (via service dependencies).
 .IP \(bu
-\fbTriggered\fR services are similar to internal processes, but an external
-trigger is required before they will start (i.e. their startup will pause until
-the trigger occurs).
-The \fBdinitctl trigger\fR command can be used to trigger such a service;
-see \fBdinitctl\fR(8).
+\fbTriggered\fR services are similar to internal processes, but an external trigger is required
+before they will start (i.e. Dinit will not consider them as started until the trigger is issued).
+The \fBdinitctl trigger\fR command can be used to trigger such a service; see \fBdinitctl\fR(8).
 .LP
 Independent of their type, the state of services can be linked to other
 services via dependency relationships, which are discussed in the next section.
@@ -63,7 +64,8 @@ services via dependency relationships, which are discussed in the next section.
 .SS SERVICE DEPENDENCIES
 .\"
 A service dependency relationship, broadly speaking, specifies that for one
-service to run, another must also be running.
+service to run, another must also be running; when starting a service Dinit will wait until
+dependencies are satisfied before starting any processes associated with the service.
 The first service is the \fIdependent\fR service and the latter is the \fIdependency\fR
 service (we will henceforth generally refer to the the dependency relationship as the
 \fIrelationship\fR and use \fIdependency\fR to refer to the service).
