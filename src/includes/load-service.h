@@ -143,7 +143,7 @@ inline string_iterator skipws(string_iterator i, string_iterator end) noexcept
     using std::isspace;
 
     while (i != end) {
-      if (! isspace(*i, locale::classic())) {
+      if (!isspace(*i, locale::classic())) {
         break;
       }
       ++i;
@@ -308,7 +308,7 @@ inline string read_setting_value(unsigned line_num, string_iterator & i, string_
             }
         }
         else if (isspace(c, locale::classic())) {
-            if (! new_part && part_positions != nullptr) {
+            if (!new_part && part_positions != nullptr) {
                 part_positions->emplace_back(part_start, rval.length());
                 new_part = true;
             }
