@@ -242,7 +242,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         }
 
         if (forkpid == 0) {
-            const char * working_dir_c = working_dir_def;
+            const char * working_dir_c = service_dsc_dir;
             if (!working_dir.empty()) working_dir_c = working_dir.c_str();
             after_fork(getpid());
             run_proc_params run_params{cmd.data(), working_dir_c, logfile, pipefd[1], run_as_uid, run_as_gid, rlimits};

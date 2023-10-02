@@ -1713,7 +1713,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 
     handle_t to_handle;
 
-    vector<string> paths;
+    vector<string> service_dir_paths;
 
     if (socknum != -1) {
         if (!load_service(socknum, rbuffer, from, &from_handle, &from_state)
@@ -1721,8 +1721,8 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
             return 1;
         }
 
-        paths = get_service_description_dirs(socknum, rbuffer);
-        if (paths.empty()) {
+        service_dir_paths = get_service_description_dirs(socknum, rbuffer);
+        if (service_dir_paths.empty()) {
             return 1;
         }
     }
@@ -1730,7 +1730,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
         // offline case
         const auto &path_list = service_dir_opts.get_paths();
         for (auto &path : path_list) {
-            paths.emplace_back(path.get_dir());
+            service_dir_paths.emplace_back(path.get_dir());
         }
     }
 
@@ -1740,7 +1740,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
     ifstream service_file;
     string service_file_path;
 
-    find_service_desc(from, paths, service_file, service_file_path);
+    find_service_desc(from, service_dir_paths, service_file, service_file_path);
     if (!service_file) {
         cerr << "dinitctl: could not locate service file for service '" << from << "'" << endl;
         return 1;
@@ -1748,7 +1748,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 
     ifstream to_service_file;
     string to_service_file_path;
-    find_service_desc(to, paths, to_service_file, to_service_file_path);
+    find_service_desc(to, service_dir_paths, to_service_file, to_service_file_path);
     if (!to_service_file) {
         cerr << "dinitctl: ";
         if (socknum >= 0) {

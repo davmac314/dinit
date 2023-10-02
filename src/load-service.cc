@@ -389,13 +389,13 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
     int fail_load_errno = 0;
     std::string fail_load_path;
-    const char *sdir = nullptr;
+    const char *service_dsc_dir = nullptr;
 
     // Couldn't find one. Have to load it.
     for (auto &service_dir : service_dirs) {
-        sdir = service_dir.get_dir();
-        service_filename = sdir;
-        if (*(service_filename.rbegin()) != '/') {
+        service_dsc_dir = service_dir.get_dir();
+        service_filename = service_dsc_dir;
+        if (service_filename.back() != '/') {
             service_filename += '/';
         }
         service_filename += name;
@@ -541,7 +541,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         if (!settings.env_file.empty()) {
             try {
-                read_env_file(settings.env_file.data(), false, srv_env, true, sdir);
+                read_env_file(settings.env_file.data(), false, srv_env, true, service_dsc_dir);
             } catch (const std::system_error &se) {
                 throw service_load_exc(name, std::string("could not load environment file: ") + se.what());
             }
@@ -711,8 +711,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             }
             rval = rvalps;
             // All of the following should be noexcept or must perform rollback on exception
+            rvalps->set_service_dsc_dir(service_dsc_dir);
             rvalps->set_stop_command(std::move(settings.stop_command), std::move(stop_arg_parts));
-            rvalps->set_working_dir(std::move(settings.working_dir), sdir);
+            rvalps->set_working_dir(std::move(settings.working_dir));
             rvalps->set_env_file(std::move(settings.env_file));
             #if SUPPORT_CGROUPS
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
@@ -754,8 +755,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             }
             rval = rvalps;
             // All of the following should be noexcept or must perform rollback on exception
+            rvalps->set_service_dsc_dir(service_dsc_dir);
             rvalps->set_stop_command(std::move(settings.stop_command), std::move(stop_arg_parts));
-            rvalps->set_working_dir(std::move(settings.working_dir), sdir);
+            rvalps->set_working_dir(std::move(settings.working_dir));
             rvalps->set_env_file(std::move(settings.env_file));
             #if SUPPORT_CGROUPS
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
@@ -793,8 +795,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             }
             rval = rvalps;
             // All of the following should be noexcept or must perform rollback on exception
+            rvalps->set_service_dsc_dir(service_dsc_dir);
             rvalps->set_stop_command(std::move(settings.stop_command), std::move(stop_arg_parts));
-            rvalps->set_working_dir(std::move(settings.working_dir), sdir);
+            rvalps->set_working_dir(std::move(settings.working_dir));
             rvalps->set_env_file(std::move(settings.env_file));
             #if SUPPORT_CGROUPS
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
