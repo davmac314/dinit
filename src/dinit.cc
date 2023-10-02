@@ -229,7 +229,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
     if (argv[i][0] == '-') {
         // An option...
         if (strcmp(argv[i], "--env-file") == 0 || strcmp(argv[i], "-e") == 0) {
-            if (++i < argc) {
+            if (++i < argc && argv[i][0] != '\0') {
                 env_file_set = true;
                 env_file = argv[i];
             }
@@ -239,7 +239,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             }
         }
         else if (strcmp(argv[i], "--services-dir") == 0 || strcmp(argv[i], "-d") == 0) {
-            if (++i < argc) {
+            if (++i < argc && argv[i][0] != '\0') {
                 service_dir_opts.set_specified_service_dir(argv[i]);
             }
             else {
@@ -262,7 +262,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             opts.process_sys_args = false;
         }
         else if (strcmp(argv[i], "--socket-path") == 0 || strcmp(argv[i], "-p") == 0) {
-            if (++i < argc) {
+            if (++i < argc && argv[i][0] != '\0') {
                 control_socket_path = argv[i];
                 control_socket_path_set = true;
             }
@@ -298,7 +298,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             }
         }
         else if (strcmp(argv[i], "--log-file") == 0 || strcmp(argv[i], "-l") == 0) {
-            if (++i < argc) {
+            if (++i < argc && argv[i][0] != '\0') {
                 log_path = argv[i];
                 log_is_syslog = false;
                 log_specified = true;
@@ -314,7 +314,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
         }
         #ifdef SUPPORT_CGROUPS
         else if (strcmp(argv[i], "--cgroup-path") == 0 || strcmp(argv[i], "-b") == 0) {
-            if (++i < argc) {
+            if (++i < argc && argv[i][0] != '\0') {
                 cgroups_path = argv[i];
                 have_cgroups_path = true;
             }
@@ -325,7 +325,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
         }
         #endif
         else if (strcmp(argv[i], "--service") == 0 || strcmp(argv[i], "-t") == 0) {
-            if (++i < argc) {
+            if (++i < argc && argv[i][0] != '\0') {
                 services_to_start.push_back(argv[i]);
             }
             else {
