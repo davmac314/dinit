@@ -256,6 +256,7 @@ class service_record
     service_flags_t onstart_flags;
     
     environment service_env; // holds the environment populated during load
+    const char *service_dsc_dir = nullptr; // directory containing service description file
 
     bool auto_restart : 1;    // whether to restart this (process) if it dies unexpectedly
     bool smooth_recovery : 1; // whether the service process can restart without bringing down service
@@ -534,6 +535,17 @@ class service_record
     bool is_marked_active() noexcept
     {
         return start_explicit;
+    }
+
+    // Set directory containing service description file
+    void set_service_dsc_dir(const char *dsc_dir) noexcept
+    {
+        service_dsc_dir = dsc_dir;
+    }
+
+    const char *get_service_dsc_dir() noexcept
+    {
+        return service_dsc_dir;
     }
 
     void set_environment(environment &&env) noexcept

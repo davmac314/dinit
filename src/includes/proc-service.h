@@ -174,7 +174,6 @@ class base_process_service : public service_record
     // pointer to each argument/part of the stop_command, and nullptr:
     std::vector<const char *> stop_arg_parts;
 
-    const char *service_dsc_dir = nullptr; // directory containing service description file
     string working_dir;       // working directory (or empty)
     string env_file;          // file with environment settings for this service
 
@@ -505,12 +504,6 @@ class base_process_service : public service_record
     void set_working_dir(string working_dir_p) noexcept
     {
         working_dir = std::move(working_dir_p);
-    }
-
-    // Set directory containing service description file
-    void set_service_dsc_dir(const char *dsc_dir) noexcept
-    {
-        service_dsc_dir = dsc_dir;
     }
 
     // Set the notification fd number that the service process will use

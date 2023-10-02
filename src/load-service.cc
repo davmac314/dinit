@@ -711,7 +711,6 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             }
             rval = rvalps;
             // All of the following should be noexcept or must perform rollback on exception
-            rvalps->set_service_dsc_dir(service_dsc_dir);
             rvalps->set_stop_command(std::move(settings.stop_command), std::move(stop_arg_parts));
             rvalps->set_working_dir(std::move(settings.working_dir));
             rvalps->set_env_file(std::move(settings.env_file));
@@ -755,7 +754,6 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             }
             rval = rvalps;
             // All of the following should be noexcept or must perform rollback on exception
-            rvalps->set_service_dsc_dir(service_dsc_dir);
             rvalps->set_stop_command(std::move(settings.stop_command), std::move(stop_arg_parts));
             rvalps->set_working_dir(std::move(settings.working_dir));
             rvalps->set_env_file(std::move(settings.env_file));
@@ -795,7 +793,6 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             }
             rval = rvalps;
             // All of the following should be noexcept or must perform rollback on exception
-            rvalps->set_service_dsc_dir(service_dsc_dir);
             rvalps->set_stop_command(std::move(settings.stop_command), std::move(stop_arg_parts));
             rvalps->set_working_dir(std::move(settings.working_dir));
             rvalps->set_env_file(std::move(settings.env_file));
@@ -832,6 +829,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             }
         }
 
+        rval->set_service_dsc_dir(service_dsc_dir);
         rval->set_auto_restart(settings.auto_restart);
         rval->set_smooth_recovery(settings.smooth_recovery);
         rval->set_flags(settings.onstart_flags);
