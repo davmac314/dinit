@@ -13,11 +13,12 @@
 // Control protocol versions:
 // 1 - dinit 0.16 and prior
 // 2 - dinit 0.17 (adds DINIT_CP_SETTRIGGER, DINIT_CP_CATLOG, DINIT_CP_SIGNAL)
+// 3 - (unreleased) (adds DINIT_CP_QUERYSERVICEDSCDIR)
 
 namespace {
     // Control protocol minimum compatible version and current version:
     constexpr uint16_t min_compat_version = 1;
-    constexpr uint16_t cp_version = 2;
+    constexpr uint16_t cp_version = 3;
 
     // check for value in a set
     template <typename T, int N, typename U>
@@ -118,6 +119,9 @@ bool control_conn_t::process_packet()
     }
     if (pktType == DINIT_CP_SIGNAL) {
         return process_signal();
+    }
+    if (pktType == DINIT_CP_QUERYSERVICEDSCDIR) {
+        return process_query_dsc_dir();
     }
 
     // Unrecognized: give error response
@@ -1033,6 +1037,43 @@ bool control_conn_t::process_signal()
     }
     char ack_rep[] = { DINIT_RP_ACK };
     return queue_packet(ack_rep, 1);
+}
+
+bool control_conn_t::process_query_dsc_dir()
+{
+    // packet contains command byte, spare byte, and service handle
+    constexpr int pkt_size = 2 + sizeof(handle_t);
+
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    bool spare_ok = (rbuf[1] == 0);
+    handle_t handle;
+    rbuf.extract(&handle, 2, sizeof(handle));
+    rbuf.consume(pkt_size);
+    chklen = 0;
+
+    service_record *service = find_service_for_key(handle);
+    if (service == nullptr || !spare_ok) {
+        char nak_rep[] = { DINIT_RP_NAK };
+        return queue_packet(nak_rep, 1);
+    }
+
+    // Reply:
+    // 1 byte packet type = DINIT_RP_SVCDSCDIR
+    // 4 bytes (uint32_t) = directory length (no nul terminator)
+    // N bytes            = directory (no nul)
+    std::vector<char> reppkt;
+    size_t sdir_len = strlen(service->get_service_dsc_dir());
+    reppkt.resize(1 + sizeof(uint32_t) + sdir_len);  // packet type, dir length, dir
+    reppkt[0] = DINIT_RP_SVCDSCDIR;
+    std::memcpy(&reppkt[1], &sdir_len, sizeof(sdir_len));
+    std::memcpy(&reppkt[1 + sizeof(uint32_t)], service->get_service_dsc_dir(), sdir_len);
+
+    if (! queue_packet(std::move(reppkt))) return false;
+    return true;
 }
 
 bool control_conn_t::query_load_mech()

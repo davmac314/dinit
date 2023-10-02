@@ -1683,6 +1683,63 @@ static std::vector<std::string> get_service_description_dirs(int socknum, cpbuff
     return paths;
 }
 
+// Get the service description directory for a loaded service
+static std::string get_service_description_dir(int socknum, cpbuffer_t &rbuffer, handle_t service_handle)
+{
+    auto m = membuf()
+            .append<char>(DINIT_CP_QUERYSERVICEDSCDIR)
+            .append<char>(0)
+            .append(service_handle);
+
+    write_all_x(socknum, m);
+    wait_for_reply(rbuffer, socknum);
+
+    if (rbuffer[0] != DINIT_RP_SVCDSCDIR) {
+        throw dinit_protocol_error();
+    }
+    rbuffer.consume(1);
+
+    fill_buffer_to(rbuffer, socknum, 4);
+
+    uint32_t sdir_len;
+    rbuffer.extract(&sdir_len, 0, sizeof(uint32_t));
+    rbuffer.consume(4);
+
+    std::string result_str;
+    static_assert(sizeof(unsigned) >= sizeof(uint32_t));
+    unsigned needed = sdir_len;
+
+    while (needed > 0) {
+        unsigned available = rbuffer.get_length();
+
+        if (available == 0) {
+            fill_some(rbuffer, socknum);
+            available = rbuffer.get_length();
+        }
+
+        unsigned to_use = std::min(available, needed);
+        size_t orig_len = result_str.length();
+        result_str.resize(orig_len + to_use);
+        rbuffer.extract(&result_str[orig_len], 0, to_use);
+        rbuffer.consume(to_use);
+        needed -= to_use;
+    }
+
+    return result_str;
+}
+
+static std::string get_service_descr_filename(int socknum, cpbuffer_t &rbuffer, handle_t serivce_handle,
+        const char *service_name)
+{
+    std::string r = get_service_description_dir(socknum, rbuffer, serivce_handle);
+    if (r.empty())
+        throw dinit_protocol_error();
+    if (r.back() != '/')
+        r.append(1, '/');
+    r.append(service_name);
+    return r;
+}
+
 // find (and open) a service description file in a set of paths
 static void find_service_desc(const char *svc_name, const std::vector<std::string> &paths,
         std::ifstream &service_file, std::string &service_file_path)
@@ -1693,7 +1750,7 @@ static void find_service_desc(const char *svc_name, const std::vector<std::strin
         string test_path = combine_paths(path, svc_name);
 
         service_file.open(test_path.c_str(), ios::in);
-        if (service_file) {
+        if (service_file || errno != ENOENT) {
             service_file_path = test_path;
             break;
         }
@@ -1715,7 +1772,12 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 
     vector<string> service_dir_paths;
 
-    if (socknum != -1) {
+    string service_file_path;
+    string to_service_file_path;
+    ifstream service_file;
+    ifstream to_service_file;
+
+    if (socknum >= 0) {
         if (!load_service(socknum, rbuffer, from, &from_handle, &from_state)
                 || !load_service(socknum, rbuffer, to, &to_handle, nullptr)) {
             return 1;
@@ -1725,6 +1787,17 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
         if (service_dir_paths.empty()) {
             return 1;
         }
+
+        service_file_path = get_service_descr_filename(socknum, rbuffer, from_handle, from);
+        to_service_file_path = get_service_descr_filename(socknum, rbuffer, to_handle, to);
+
+        // open from file
+        service_file.open(service_file_path.c_str());
+        if (!service_file) {
+            cerr << "dinitctl: could not open service description file '"
+                    << service_file_path << "': " << strerror(errno) << "\n";
+            return EXIT_FAILURE;
+        }
     }
     else {
         // offline case
@@ -1732,31 +1805,23 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
         for (auto &path : path_list) {
             service_dir_paths.emplace_back(path.get_dir());
         }
-    }
 
-    // all service directories are now in the 'paths' vector
-    // Load/read service description for 'from' service:
-
-    ifstream service_file;
-    string service_file_path;
-
-    find_service_desc(from, service_dir_paths, service_file, service_file_path);
-    if (!service_file) {
-        cerr << "dinitctl: could not locate service file for service '" << from << "'" << endl;
-        return 1;
-    }
-
-    ifstream to_service_file;
-    string to_service_file_path;
-    find_service_desc(to, service_dir_paths, to_service_file, to_service_file_path);
-    if (!to_service_file) {
-        cerr << "dinitctl: ";
-        if (socknum >= 0) {
-            cerr << "warning: ";
+        find_service_desc(from, service_dir_paths, service_file, service_file_path);
+        if (!service_file) {
+            if (errno == ENOENT) {
+                cerr << "dinitctl: could not locate service file for service '" << from << "'\n";
+            }
+            else {
+                cerr << "dinitctl: could not open service description file '"
+                        << service_file_path << "': " << strerror(errno) << "\n";
+            }
+            return EXIT_FAILURE;
         }
-        cerr << "dinitctl: could not locate service file for target service '" << to << "'" << endl;
-        if (socknum < 0) {
-            return 1;
+
+        find_service_desc(to, service_dir_paths, to_service_file, to_service_file_path);
+        if (!to_service_file) {
+            cerr << "dinitctl: could not locate service file for target service '" << to << "'" << endl;
+            return EXIT_FAILURE;
         }
     }
 
@@ -1854,7 +1919,31 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 
     // create link
     if (enable) {
-        if (symlink((string("../") + to).c_str(), dep_link_path.c_str()) == -1) {
+        // Guess a relative path to use as the symlink target. Note that if either the waits-for.d directory
+        // path, or the "to" service description file path, contains symbolic links or path segments with
+        // ".." or ".", this may not produce the "correct" result. We do a "reasonable effort". If the
+        // result isn't correct, the only consequence is that the link may be broken or point to the wrong
+        // file; Dinit itself won't be affected by this.
+        string symlink_target;
+        auto spos = waits_for_d_full.rfind('/');
+        if (spos != std::string::npos) {
+            if (strncmp(waits_for_d_full.c_str(), to_service_file_path.c_str(), spos) == 0) {
+                symlink_target = "../";
+                symlink_target.append(to_service_file_path, spos + 1, std::string::npos);
+            }
+        }
+        if (symlink_target.empty()) {
+            // not yet determined: try full path or just "../(to)"
+            if (to_service_file_path[0] == '/') {
+                symlink_target = to_service_file_path;
+            }
+            else {
+                symlink_target = "../";
+                symlink_target.append(to);
+            }
+        }
+
+        if (symlink(symlink_target.c_str(), dep_link_path.c_str()) == -1) {
             cerr << "dinitctl: could not create symlink at " << dep_link_path << ": " << strerror(errno);
             if (socknum >= 0) {
                 cerr << "\n" "dinitctl: note: service was enabled for now; persistent enable failed.";

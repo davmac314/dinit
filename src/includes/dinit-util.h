@@ -100,7 +100,7 @@ inline std::string parent_path(const std::string &p)
 }
 
 // Find the base name of a path (the name after the final '/').
-inline const char *base_name(const char *path)
+inline const char *base_name(const char *path) noexcept
 {
     const char * basen = path;
     const char * s = path;
@@ -112,7 +112,7 @@ inline const char *base_name(const char *path)
 }
 
 // Check if one string starts with another
-inline bool starts_with(const std::string &s, const char *prefix)
+inline bool starts_with(const std::string &s, const char *prefix) noexcept
 {
     const char *sp = s.c_str();
     while (*sp != 0 && *prefix != 0) {
