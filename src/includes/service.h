@@ -419,6 +419,12 @@ class service_record
         service_state = new_state;
     }
 
+    // Set the target state
+    void set_target_state(service_state_t new_target_state) noexcept
+    {
+        desired_state = new_target_state;
+    }
+
     // Virtual functions, to be implemented by service implementations:
 
     // Do any post-dependency startup; return false on failure. Should return true if service

@@ -629,6 +629,7 @@ class process_service : public base_process_service
                 // Within the restart limiting interval; check number of restarts
                 if (restart_interval_count >= max_restart_interval_count) {
                     log(loglevel_t::ERROR, "Service ", get_name(), " restarting too quickly; stopping.");
+                    set_target_state(service_state_t::STOPPED);
                     return false;
                 }
                 ++restart_interval_count;
