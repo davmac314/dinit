@@ -344,7 +344,7 @@ fi
 ## Test compiler/linker supported arguments
 if [ "$AUTO_CXXFLAGS" = "true" ]; then
     if ! try_cxx_argument CXXFLAGS -std=c++11; then
-        sub_error "It seems like the C++ compiler don't support the (required) \"$2\" option!"
+        sub_error "The C++ compiler ($CXX) doesn't accept '-std=c++11' and may be too old."
     fi
     for argument in -Wall \
                     -Os \
