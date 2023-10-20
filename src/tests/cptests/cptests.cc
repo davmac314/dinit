@@ -9,6 +9,7 @@
 #include <baseproc-sys.h>
 #include <proc-service.h>
 #include <control.h>
+#include "control-datatypes.h"
 
 #include "../test_service.h"
 #include "../test_procservice.h"
@@ -18,10 +19,13 @@
 #error "This file must be built with assertions ENABLED!"
 #endif
 
+// common communication datatypes
+using namespace dinit_ctypes;
+
 class control_conn_t_test
 {
     public:
-    static service_record * service_from_handle(control_conn_t *cc, control_conn_t::handle_t handle)
+    static service_record * service_from_handle(control_conn_t *cc, handle_t handle)
     {
         return cc->find_service_for_key(handle);
     }
@@ -112,7 +116,7 @@ void cptest_listservices()
     delete cc;
 }
 
-static control_conn_t::handle_t  find_service(int fd, const char *service_name,
+static handle_t  find_service(int fd, const char *service_name,
         service_state_t expected_state, service_state_t expected_target_state)
 {
     std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
@@ -134,14 +138,14 @@ static control_conn_t::handle_t  find_service(int fd, const char *service_name,
     // (handle_t) handle
     // (1 byte)   target state
 
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
+    assert(wdata.size() == 3 + sizeof(handle_t));
     assert(wdata[0] == DINIT_RP_SERVICERECORD);
     service_state_t s = static_cast<service_state_t>(wdata[1]);
     assert(s == expected_state);
     service_state_t ts = static_cast<service_state_t>(wdata[6]);
     assert(ts == expected_target_state);
 
-    control_conn_t::handle_t h1;
+    handle_t h1;
     std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(h1), reinterpret_cast<char *>(&h1));
 
     return h1;
@@ -290,7 +294,7 @@ void cptest_loadservice()
     std::vector<char> wdata;
     bp_sys::extract_written_data(fd, wdata);
 
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
+    assert(wdata.size() == 3 + sizeof(handle_t));
     assert(wdata[0] == DINIT_RP_SERVICERECORD);
     service_state_t s = static_cast<service_state_t>(wdata[1]);
     assert(s == service_state_t::STOPPED);
@@ -316,7 +320,7 @@ void cptest_loadservice()
 
     bp_sys::extract_written_data(fd, wdata);
 
-    assert(wdata.size() == 3 + sizeof(control_conn_t::handle_t));
+    assert(wdata.size() == 3 + sizeof(handle_t));
     assert(wdata[0] == DINIT_RP_SERVICERECORD);
     s = static_cast<service_state_t>(wdata[1]);
     assert(s == service_state_t::STOPPED);
@@ -342,7 +346,7 @@ void cptest_startstop()
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
     // Get a service handle:
-    control_conn_t::handle_t h = find_service(fd, service_name, service_state_t::STOPPED,
+    handle_t h = find_service(fd, service_name, service_state_t::STOPPED,
             service_state_t::STOPPED);
 
     // Issue start:
@@ -360,7 +364,7 @@ void cptest_startstop()
     assert(wdata[0] == DINIT_IP_SERVICEEVENT);
     // packetsize, key (handle), event
     assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
-    control_conn_t::handle_t ip_h;
+    handle_t ip_h;
     std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h);
     assert(wdata[6] == static_cast<int>(service_event_t::STARTED));
@@ -408,7 +412,7 @@ void cptest_start_pinned()
     s1->pin_stop();
 
     // Get a service handle:
-    control_conn_t::handle_t h = find_service(fd, service_name, service_state_t::STOPPED,
+    handle_t h = find_service(fd, service_name, service_state_t::STOPPED,
             service_state_t::STOPPED);
 
     // Issue start:
@@ -449,7 +453,7 @@ void cptest_gentlestop()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    control_conn_t::handle_t h = find_service(fd, test1_name, service_state_t::STARTED,
+    handle_t h = find_service(fd, test1_name, service_state_t::STARTED,
             service_state_t::STARTED);
 
     char * h_cp = reinterpret_cast<char *>(&h);
@@ -470,14 +474,14 @@ void cptest_gentlestop()
     // size_t: number of handles (N)
     // N * handle_t: handles for dependents that would be stopped
 
-    assert(wdata.size() == (1 + sizeof(size_t) + sizeof(control_conn_t::handle_t)));
+    assert(wdata.size() == (1 + sizeof(size_t) + sizeof(handle_t)));
     assert(wdata[0] == DINIT_RP_DEPENDENTS);
 
     size_t nhandles;
     memcpy(&nhandles, wdata.data() + 1, sizeof(nhandles));
     assert(nhandles == 1);
 
-    control_conn_t::handle_t rhandle;
+    handle_t rhandle;
     memcpy(&rhandle, wdata.data() + 1 + sizeof(size_t), sizeof(rhandle));
 
     service_record * rservice = control_conn_t_test::service_from_handle(cc, rhandle);
@@ -499,7 +503,7 @@ void cptest_queryname()
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
     // Get a service handle:
-    control_conn_t::handle_t h = find_service(fd, test1_name, service_state_t::STOPPED,
+    handle_t h = find_service(fd, test1_name, service_state_t::STOPPED,
             service_state_t::STOPPED);
 
     char * h_cp = reinterpret_cast<char *>(&h);
@@ -549,7 +553,7 @@ void cptest_unload()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    control_conn_t::handle_t h1 = find_service(fd, service_name1, service_state_t::STOPPED,
+    handle_t h1 = find_service(fd, service_name1, service_state_t::STOPPED,
             service_state_t::STOPPED);
 
     // Issue unload:
@@ -568,7 +572,7 @@ void cptest_unload()
     assert(wdata[0] == DINIT_RP_NAK);
 
 
-    control_conn_t::handle_t h2 = find_service(fd, service_name2, service_state_t::STOPPED,
+    handle_t h2 = find_service(fd, service_name2, service_state_t::STOPPED,
             service_state_t::STOPPED);
 
     // Issue unload for s2:
@@ -634,9 +638,9 @@ void cptest_addrmdeps()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    control_conn_t::handle_t h1 = find_service(fd, service_name1, service_state_t::STOPPED,
+    handle_t h1 = find_service(fd, service_name1, service_state_t::STOPPED,
             service_state_t::STOPPED);
-    control_conn_t::handle_t h2 = find_service(fd, service_name2, service_state_t::STOPPED,
+    handle_t h2 = find_service(fd, service_name2, service_state_t::STOPPED,
             service_state_t::STOPPED);
 
     // Add dep from s1 -> s2:
@@ -699,8 +703,8 @@ void cptest_enableservice()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    control_conn_t::handle_t h1 = find_service(fd, service_name1, service_state_t::STARTED, service_state_t::STARTED);
-    control_conn_t::handle_t h2 = find_service(fd, service_name2, service_state_t::STOPPED, service_state_t::STOPPED);
+    handle_t h1 = find_service(fd, service_name1, service_state_t::STARTED, service_state_t::STARTED);
+    handle_t h2 = find_service(fd, service_name2, service_state_t::STOPPED, service_state_t::STOPPED);
 
     // Enable from s1 -> s2:
     std::vector<char> cmd = { DINIT_CP_ENABLESERVICE, static_cast<char>(dependency_type::WAITS_FOR) };
@@ -719,7 +723,7 @@ void cptest_enableservice()
     assert(wdata[0] == DINIT_IP_SERVICEEVENT);
     // packetsize, key (handle), event
     assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
-    control_conn_t::handle_t ip_h;
+    handle_t ip_h;
     std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h2);
     assert(wdata[6] == static_cast<int>(service_event_t::STARTED));
@@ -755,7 +759,7 @@ void cptest_restart()
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
     // Get a service handle:
-    control_conn_t::handle_t h = find_service(fd, service_name, service_state_t::STOPPED,
+    handle_t h = find_service(fd, service_name, service_state_t::STOPPED,
             service_state_t::STOPPED);
 
     std::vector<char> wdata;
@@ -792,7 +796,7 @@ void cptest_restart()
     assert(wdata.size() == 7 + STATUS_BUFFER_SIZE + 1);  // info packet (service stopped) + ACK
     assert(wdata[0] == DINIT_IP_SERVICEEVENT);
     assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
-    control_conn_t::handle_t ip_h;
+    handle_t ip_h;
     std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h);
     assert(wdata[6] == static_cast<int>(service_event_t::STOPPED));
@@ -843,7 +847,7 @@ void cptest_wake()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    control_conn_t::handle_t h1 = find_service(fd, service_name1, service_state_t::STOPPED,
+    handle_t h1 = find_service(fd, service_name1, service_state_t::STOPPED,
             service_state_t::STOPPED);
 
     // Wake s1:
@@ -860,7 +864,7 @@ void cptest_wake()
     assert(wdata[0] == DINIT_IP_SERVICEEVENT);
     // packetsize, key (handle), event
     assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
-    control_conn_t::handle_t ip_h;
+    handle_t ip_h;
     std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h1);
     assert(wdata[6] == static_cast<int>(service_event_t::STARTED));
@@ -910,9 +914,9 @@ void cptest_servicestatus()
 
     auto STOPPED = service_state_t::STOPPED;
     auto STARTED = service_state_t::STARTED;
-    control_conn_t::handle_t h1 = find_service(fd, "test-service-1", STOPPED, STOPPED);
-    control_conn_t::handle_t h2 = find_service(fd, "test-service-2", STARTED, STARTED);
-    control_conn_t::handle_t h3 = find_service(fd, "test-service-3", STOPPED, STOPPED);
+    handle_t h1 = find_service(fd, "test-service-1", STOPPED, STOPPED);
+    handle_t h2 = find_service(fd, "test-service-2", STARTED, STARTED);
+    handle_t h3 = find_service(fd, "test-service-3", STOPPED, STOPPED);
 
     std::vector<char> cmd = { DINIT_CP_SERVICESTATUS };
     char * h_cp = reinterpret_cast<char *>(&h1);
@@ -979,7 +983,7 @@ void cptest_sendsignal()
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
     // Get a service handle:
-    control_conn_t::handle_t h = find_service(fd, "test-service", service_state_t::STARTED,
+    handle_t h = find_service(fd, "test-service", service_state_t::STARTED,
             service_state_t::STARTED);
 
     // Prepare a signal: (SIGHUP for example)

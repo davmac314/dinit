@@ -25,11 +25,15 @@
 #include "dinit-util.h"
 #include "options-processing.h"
 #include "mconfig.h"
+#include "control-datatypes.h"
 
 // dinitctl:  utility to control the Dinit daemon, including starting and stopping of services.
 
 // This utility communicates with the dinit daemon via a unix stream socket (as specified in
 // SYSCONTROLSOCKET, or $HOME/.dinitctl).
+
+// common communication datatypes
+using namespace dinit_ctypes;
 
 static constexpr uint16_t min_cp_version = 1;
 static constexpr uint16_t max_cp_version = 1;

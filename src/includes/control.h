@@ -15,6 +15,7 @@
 #include <control-cmds.h>
 #include <service-listener.h>
 #include <cpbuffer.h>
+#include <control-datatypes.h>
 
 // Control connection for dinit
 
@@ -84,11 +85,6 @@ class control_conn_t : private service_listener
 {
     friend rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents);
     friend class control_conn_t_test;
-    
-    public:
-    // A mapping between service records and their associated numerical identifier used
-    // in communction
-    using handle_t = uint32_t;
 
     private:
     control_conn_watcher iob;
@@ -108,8 +104,8 @@ class control_conn_t : private service_listener
     template <typename T> using list = std::list<T>;
     template <typename T> using vector = std::vector<T>;
     
-    std::unordered_multimap<service_record *, handle_t> service_key_map;
-    std::map<handle_t, service_record *> key_service_map;
+    std::unordered_multimap<service_record *, dinit_ctypes::handle_t> service_key_map;
+    std::map<dinit_ctypes::handle_t, service_record *> key_service_map;
     
     // Buffer for outgoing packets. Each outgoing packet is represented as a vector<char>.
     list<vector<char>> outbuf;
@@ -198,10 +194,10 @@ class control_conn_t : private service_listener
     bool check_dependents(service_record *service, bool &had_dependents);
 
     // Allocate a new handle for a service; may throw std::bad_alloc
-    handle_t allocate_service_handle(service_record *record);
+    dinit_ctypes::handle_t allocate_service_handle(service_record *record);
     
     // Find the service corresponding to a service handle; returns nullptr if not found.
-    service_record *find_service_for_key(handle_t key) noexcept
+    service_record *find_service_for_key(dinit_ctypes::handle_t key) noexcept
     {
         try {
             return key_service_map.at(key);
