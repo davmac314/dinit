@@ -14,8 +14,12 @@
 
 #include "dinit-client.h"
 #include "service-constants.h"
+#include "control-datatypes.h"
 
 // dinit-monitor: watch service states and report them via execution of a notification command
+
+// common communication datatypes
+using namespace dinit_ctypes;
 
 static constexpr uint16_t min_cp_version = 1;
 static constexpr uint16_t max_cp_version = 1;

@@ -6,6 +6,7 @@
 #include "control.h"
 #include "service.h"
 #include "proc-service.h"
+#include "control-datatypes.h"
 
 // Server-side control protocol implementation. This implements the functionality that allows
 // clients (such as dinitctl) to query service state and issue commands to control services.
@@ -14,6 +15,9 @@
 // 1 - dinit 0.16 and prior
 // 2 - dinit 0.17 (adds DINIT_CP_SETTRIGGER, DINIT_CP_CATLOG, DINIT_CP_SIGNAL)
 // 3 - (unreleased) (adds DINIT_CP_QUERYSERVICEDSCDIR)
+
+// common communication datatypes
+using namespace dinit_ctypes;
 
 namespace {
     // Control protocol minimum compatible version and current version:
@@ -1152,7 +1156,7 @@ bool control_conn_t::query_load_mech()
     }
 }
 
-control_conn_t::handle_t control_conn_t::allocate_service_handle(service_record *record)
+handle_t control_conn_t::allocate_service_handle(service_record *record)
 {
     // Try to find a unique handle (integer) in a single pass. Since the map is ordered, we can search until
     // we find a gap in the handle values.

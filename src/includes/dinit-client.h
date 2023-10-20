@@ -10,8 +10,6 @@
 
 // Client library for Dinit clients
 
-
-using handle_t = uint32_t;
 using cpbuffer_t = cpbuffer<1024>;
 
 class cp_read_exception
