@@ -928,7 +928,7 @@ bool control_conn_t::process_set_trigger()
     }
 
     handle_t handle;
-    char trigger_val;
+    trigger_val_t trigger_val;
 
     rbuf.extract(&handle, 1, sizeof(handle));
     rbuf.extract(&trigger_val, 1 + sizeof(handle), sizeof(trigger_val));
