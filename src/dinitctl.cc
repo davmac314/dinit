@@ -2076,7 +2076,7 @@ static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service
         auto m = membuf()
                 .append<char>(DINIT_CP_SETTRIGGER)
                 .append(handle)
-                .append<char>(trigger_value);
+                .append<trigger_val_t>(trigger_value);
         write_all_x(socknum, m);
 
         wait_for_reply(rbuffer, socknum);
