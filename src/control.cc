@@ -2,6 +2,7 @@
 #include <unordered_set>
 #include <climits>
 
+#include "control-cmds.h"
 #include "dinit-env.h"
 #include "control.h"
 #include "service.h"
@@ -13,11 +14,11 @@
 
 // Control protocol versions:
 // 1 - dinit 0.16 and prior
-// 2 - dinit 0.17 (adds DINIT_CP_SETTRIGGER, DINIT_CP_CATLOG, DINIT_CP_SIGNAL)
-// 3 - (unreleased) (adds DINIT_CP_QUERYSERVICEDSCDIR)
+// 2 - dinit 0.17 (adds SETTRIGGER, CATLOG, SIGNAL)
+// 3 - (unreleased) (adds QUERYSERVICEDSCDIR)
 
 // common communication datatypes
-using namespace dinit_ctypes;
+using namespace dinit_cptypes;
 
 namespace {
     // Control protocol minimum compatible version and current version:
@@ -41,8 +42,8 @@ bool control_conn_t::process_packet()
     // returns false it has either deleted the connection or marked it for deletion; we
     // shouldn't touch instance members after that point.
 
-    int pktType = rbuf[0];
-    if (pktType == DINIT_CP_QUERYVERSION) {
+    cp_cmd pktType = (cp_cmd)rbuf[0];
+    if (pktType == cp_cmd::QUERYVERSION) {
         // Responds with:
         // DINIT_RP_CVERSION, (2 byte) minimum compatible version, (2 byte) actual version
         char replyBuf[] = { DINIT_RP_CPVERSION, 0, 0, 0, 0 };
@@ -52,23 +53,23 @@ bool control_conn_t::process_packet()
         rbuf.consume(1);
         return true;
     }
-    if (pktType == DINIT_CP_FINDSERVICE || pktType == DINIT_CP_LOADSERVICE) {
+    if (pktType == cp_cmd::FINDSERVICE || pktType == cp_cmd::LOADSERVICE) {
         return process_find_load(pktType);
     }
-    if (pktType == DINIT_CP_STARTSERVICE || pktType == DINIT_CP_STOPSERVICE
-            || pktType == DINIT_CP_WAKESERVICE || pktType == DINIT_CP_RELEASESERVICE) {
+    if (pktType == cp_cmd::STARTSERVICE || pktType == cp_cmd::STOPSERVICE
+            || pktType == cp_cmd::WAKESERVICE || pktType == cp_cmd::RELEASESERVICE) {
         return process_start_stop(pktType);
     }
-    if (pktType == DINIT_CP_UNPINSERVICE) {
+    if (pktType == cp_cmd::UNPINSERVICE) {
         return process_unpin_service();
     }
-    if (pktType == DINIT_CP_UNLOADSERVICE) {
+    if (pktType == cp_cmd::UNLOADSERVICE) {
         return process_unload_service();
     }
-    if (pktType == DINIT_CP_RELOADSERVICE) {
+    if (pktType == cp_cmd::RELOADSERVICE) {
         return process_reload_service();
     }
-    if (pktType == DINIT_CP_SHUTDOWN) {
+    if (pktType == cp_cmd::SHUTDOWN) {
         // Shutdown/reboot
         if (rbuf.get_length() < 2) {
             chklen = 2;
@@ -91,40 +92,40 @@ bool control_conn_t::process_packet()
 
         // (otherwise fall through to below).
     }
-    if (pktType == DINIT_CP_LISTSERVICES) {
+    if (pktType == cp_cmd::LISTSERVICES) {
         return list_services();
     }
-    if (pktType == DINIT_CP_SERVICESTATUS) {
+    if (pktType == cp_cmd::SERVICESTATUS) {
         return process_service_status();
     }
-    if (pktType == DINIT_CP_ADD_DEP) {
+    if (pktType == cp_cmd::ADD_DEP) {
         return add_service_dep();
     }
-    if (pktType == DINIT_CP_REM_DEP) {
+    if (pktType == cp_cmd::REM_DEP) {
         return rm_service_dep();
     }
-    if (pktType == DINIT_CP_QUERY_LOAD_MECH) {
+    if (pktType == cp_cmd::QUERY_LOAD_MECH) {
         return query_load_mech();
     }
-    if (pktType == DINIT_CP_ENABLESERVICE) {
+    if (pktType == cp_cmd::ENABLESERVICE) {
         return add_service_dep(true);
     }
-    if (pktType == DINIT_CP_QUERYSERVICENAME) {
+    if (pktType == cp_cmd::QUERYSERVICENAME) {
         return process_query_name();
     }
-    if (pktType == DINIT_CP_SETENV) {
+    if (pktType == cp_cmd::SETENV) {
         return process_setenv();
     }
-    if (pktType == DINIT_CP_SETTRIGGER) {
+    if (pktType == cp_cmd::SETTRIGGER) {
         return process_set_trigger();
     }
-    if (pktType == DINIT_CP_CATLOG) {
+    if (pktType == cp_cmd::CATLOG) {
         return process_catlog();
     }
-    if (pktType == DINIT_CP_SIGNAL) {
+    if (pktType == cp_cmd::SIGNAL) {
         return process_signal();
     }
-    if (pktType == DINIT_CP_QUERYSERVICEDSCDIR) {
+    if (pktType == cp_cmd::QUERYSERVICEDSCDIR) {
         return process_query_dsc_dir();
     }
 
@@ -135,7 +136,7 @@ bool control_conn_t::process_packet()
     return true;
 }
 
-bool control_conn_t::process_find_load(int pktType)
+bool control_conn_t::process_find_load(cp_cmd pktType)
 {
     using std::string;
     
@@ -172,7 +173,7 @@ bool control_conn_t::process_find_load(int pktType)
     
     char fail_code = DINIT_RP_NOSERVICE;
 
-    if (pktType == DINIT_CP_LOADSERVICE) {
+    if (pktType == cp_cmd::LOADSERVICE) {
         // LOADSERVICE
         try {
             record = services->load_service(serviceName.c_str());
@@ -251,7 +252,7 @@ bool control_conn_t::check_dependents(service_record *service, bool &had_depende
     return true;
 }
 
-bool control_conn_t::process_start_stop(int pktType)
+bool control_conn_t::process_start_stop(cp_cmd pktType)
 {
     using std::string;
     
@@ -282,7 +283,7 @@ bool control_conn_t::process_start_stop(int pktType)
         char ack_buf[1] = { DINIT_RP_ACK };
         
         switch (pktType) {
-        case DINIT_CP_STARTSERVICE:
+        case cp_cmd::STARTSERVICE:
             // start service, mark as required
             if (services->is_shutting_down()) {
                 ack_buf[0] = DINIT_RP_SHUTTINGDOWN;
@@ -299,7 +300,7 @@ bool control_conn_t::process_start_stop(int pktType)
             services->process_queues();
             if (service->get_state() == service_state_t::STARTED) ack_buf[0] = DINIT_RP_ALREADYSS;
             break;
-        case DINIT_CP_STOPSERVICE:
+        case cp_cmd::STOPSERVICE:
         {
             // force service to stop
             bool do_restart = ((rbuf[1] & 4) == 4);
@@ -343,7 +344,7 @@ bool control_conn_t::process_start_stop(int pktType)
             if (service->get_state() == wanted_state && !do_restart) ack_buf[0] = DINIT_RP_ALREADYSS;
             break;
         }
-        case DINIT_CP_WAKESERVICE:
+        case cp_cmd::WAKESERVICE:
         {
             // re-attach a service to its (started) dependents, causing it to start.
             if (services->is_shutting_down()) {
@@ -377,13 +378,16 @@ bool control_conn_t::process_start_stop(int pktType)
             if (service->get_state() == service_state_t::STARTED) ack_buf[0] = DINIT_RP_ALREADYSS;
             break;
         }
-        case DINIT_CP_RELEASESERVICE:
+        case cp_cmd::RELEASESERVICE:
             // remove required mark, stop if not required by dependents
             if (do_pin) service->pin_stop();
             service->stop(false);
             services->process_queues();
             if (service->get_state() == service_state_t::STOPPED) ack_buf[0] = DINIT_RP_ALREADYSS;
             break;
+        default:
+            // avoid warning for unhandled switch/case values
+            return false;
         }
         
         if (! queue_packet(ack_buf, 1)) return false;

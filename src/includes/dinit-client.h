@@ -8,6 +8,8 @@
 #include <cpbuffer.h>
 #include <control-cmds.h>
 
+#include <control-datatypes.h>
+
 // Client library for Dinit clients
 
 using cpbuffer_t = cpbuffer<1024>;
@@ -236,7 +238,7 @@ template <typename Buf> inline void write_all_x(int fd, const Buf &b)
 inline uint16_t check_protocol_version(int minversion, int version, cpbuffer_t &rbuffer, int fd)
 {
     constexpr int bufsize = 1;
-    char buf[bufsize] = { DINIT_CP_QUERYVERSION };
+    char buf[bufsize] = { (char)cp_cmd::QUERYVERSION };
     write_all_x(fd, buf, bufsize);
 
     wait_for_reply(rbuffer, fd);

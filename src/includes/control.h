@@ -104,8 +104,8 @@ class control_conn_t : private service_listener
     template <typename T> using list = std::list<T>;
     template <typename T> using vector = std::vector<T>;
     
-    std::unordered_multimap<service_record *, dinit_ctypes::handle_t> service_key_map;
-    std::map<dinit_ctypes::handle_t, service_record *> key_service_map;
+    std::unordered_multimap<service_record *, dinit_cptypes::handle_t> service_key_map;
+    std::map<dinit_cptypes::handle_t, service_record *> key_service_map;
     
     // Buffer for outgoing packets. Each outgoing packet is represented as a vector<char>.
     list<vector<char>> outbuf;
@@ -135,10 +135,10 @@ class control_conn_t : private service_listener
     bool process_packet();
     
     // Process a STARTSERVICE/STOPSERVICE packet. May throw std::bad_alloc.
-    bool process_start_stop(int pktType);
+    bool process_start_stop(cp_cmd pktType);
     
     // Process a FINDSERVICE/LOADSERVICE packet. May throw std::bad_alloc.
-    bool process_find_load(int pktType);
+    bool process_find_load(cp_cmd pktType);
 
     // Process an UNPINSERVICE packet. May throw std::bad_alloc.
     bool process_unpin_service();
@@ -194,10 +194,10 @@ class control_conn_t : private service_listener
     bool check_dependents(service_record *service, bool &had_dependents);
 
     // Allocate a new handle for a service; may throw std::bad_alloc
-    dinit_ctypes::handle_t allocate_service_handle(service_record *record);
+    dinit_cptypes::handle_t allocate_service_handle(service_record *record);
     
     // Find the service corresponding to a service handle; returns nullptr if not found.
-    service_record *find_service_for_key(dinit_ctypes::handle_t key) noexcept
+    service_record *find_service_for_key(dinit_cptypes::handle_t key) noexcept
     {
         try {
             return key_service_map.at(key);

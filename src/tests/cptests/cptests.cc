@@ -20,7 +20,7 @@
 #endif
 
 // common communication datatypes
-using namespace dinit_ctypes;
+using namespace dinit_cptypes;
 
 class control_conn_t_test
 {
@@ -40,7 +40,7 @@ void cptest_queryver()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    bp_sys::supply_read_data(fd, { DINIT_CP_QUERYVERSION });
+    bp_sys::supply_read_data(fd, { (char)cp_cmd::QUERYVERSION });
 
     event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
 
@@ -71,7 +71,7 @@ void cptest_listservices()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    bp_sys::supply_read_data(fd, { DINIT_CP_LISTSERVICES });
+    bp_sys::supply_read_data(fd, { (char)cp_cmd::LISTSERVICES });
 
     event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
 
@@ -119,7 +119,7 @@ void cptest_listservices()
 static handle_t  find_service(int fd, const char *service_name,
         service_state_t expected_state, service_state_t expected_target_state)
 {
-    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
+    std::vector<char> cmd = { (char)cp_cmd::FINDSERVICE };
     uint16_t name_len = strlen(service_name);
     char *name_len_cptr = reinterpret_cast<char *>(&name_len);
     cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
@@ -216,7 +216,7 @@ void cptest_findservice3()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    std::vector<char> cmd = { DINIT_CP_FINDSERVICE };
+    std::vector<char> cmd = { (char)cp_cmd::FINDSERVICE };
     uint16_t name_len = strlen(service_name_2);
     char *name_len_cptr = reinterpret_cast<char *>(&name_len);
     cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
@@ -274,7 +274,7 @@ void cptest_loadservice()
     int fd = bp_sys::allocfd();
     auto *cc = new control_conn_t(event_loop, &sset, fd);
 
-    std::vector<char> cmd = { DINIT_CP_LOADSERVICE };
+    std::vector<char> cmd = { (char)cp_cmd::LOADSERVICE };
     uint16_t name_len = strlen(service_name_1);
     char *name_len_cptr = reinterpret_cast<char *>(&name_len);
     cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
@@ -304,7 +304,7 @@ void cptest_loadservice()
     assert(sset.service1 != nullptr);
     assert(sset.service2 == nullptr);
 
-    cmd = { DINIT_CP_LOADSERVICE };
+    cmd = { (char)cp_cmd::LOADSERVICE };
     cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
     cmd.insert(cmd.end(), service_name_2, service_name_2 + name_len);
 
@@ -350,7 +350,7 @@ void cptest_startstop()
             service_state_t::STOPPED);
 
     // Issue start:
-    std::vector<char> cmd = { DINIT_CP_STARTSERVICE, 0 /* don't pin */ };
+    std::vector<char> cmd = { (char)cp_cmd::STARTSERVICE, 0 /* don't pin */ };
     char * h_cp = reinterpret_cast<char *>(&h);
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
 
@@ -375,7 +375,7 @@ void cptest_startstop()
     assert(s1->get_state() == service_state_t::STARTED);
 
     // Issue stop:
-    cmd = { DINIT_CP_STOPSERVICE, 0 /* don't pin */ };
+    cmd = { (char)cp_cmd::STOPSERVICE, 0 /* don't pin */ };
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
 
     bp_sys::supply_read_data(fd, std::move(cmd));
@@ -416,7 +416,7 @@ void cptest_start_pinned()
             service_state_t::STOPPED);
 
     // Issue start:
-    std::vector<char> cmd = { DINIT_CP_STARTSERVICE, 0 /* don't pin */ };
+    std::vector<char> cmd = { (char)cp_cmd::STARTSERVICE, 0 /* don't pin */ };
     char * h_cp = reinterpret_cast<char *>(&h);
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
 
@@ -459,7 +459,7 @@ void cptest_gentlestop()
     char * h_cp = reinterpret_cast<char *>(&h);
 
     // Issue stop:
-    std::vector<char> cmd = { DINIT_CP_STOPSERVICE, 2 /* don't pin, gentle */ };
+    std::vector<char> cmd = { (char)cp_cmd::STOPSERVICE, 2 /* don't pin, gentle */ };
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
 
     bp_sys::supply_read_data(fd, std::move(cmd));
@@ -509,7 +509,7 @@ void cptest_queryname()
     char * h_cp = reinterpret_cast<char *>(&h);
 
     // Issue name query:
-    std::vector<char> cmd = { DINIT_CP_QUERYSERVICENAME, 0 /* reserved */ };
+    std::vector<char> cmd = { (char)cp_cmd::QUERYSERVICENAME, 0 /* reserved */ };
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
 
     bp_sys::supply_read_data(fd, std::move(cmd));
@@ -557,7 +557,7 @@ void cptest_unload()
             service_state_t::STOPPED);
 
     // Issue unload:
-    std::vector<char> cmd = { DINIT_CP_UNLOADSERVICE };
+    std::vector<char> cmd = { (char)cp_cmd::UNLOADSERVICE };
     char * h_cp = reinterpret_cast<char *>(&h1);
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h1));
 
@@ -577,7 +577,7 @@ void cptest_unload()
 
     // Issue unload for s2:
 
-    cmd = { DINIT_CP_UNLOADSERVICE };
+    cmd = { (char)cp_cmd::UNLOADSERVICE };
     h_cp = reinterpret_cast<char *>(&h2);
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h2));
 
@@ -592,7 +592,7 @@ void cptest_unload()
 
     // Now try to unload s1 again:
 
-    cmd = { DINIT_CP_UNLOADSERVICE };
+    cmd = { (char)cp_cmd::UNLOADSERVICE };
     h_cp = reinterpret_cast<char *>(&h1);
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h1));
 
@@ -606,7 +606,7 @@ void cptest_unload()
     assert(wdata[0] == DINIT_RP_ACK);
 
     // If we try to FIND service 1 now, it should not be there:
-    cmd = { DINIT_CP_FINDSERVICE };
+    cmd = { (char)cp_cmd::FINDSERVICE };
     uint16_t name_len = strlen(service_name1);
     char *name_len_cptr = reinterpret_cast<char *>(&name_len);
     cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
@@ -644,7 +644,7 @@ void cptest_addrmdeps()
             service_state_t::STOPPED);
 
     // Add dep from s1 -> s2:
-    std::vector<char> cmd = { DINIT_CP_ADD_DEP, static_cast<char>(dependency_type::REGULAR) };
+    std::vector<char> cmd = { (char)cp_cmd::ADD_DEP, static_cast<char>(dependency_type::REGULAR) };
     char * h1cp = reinterpret_cast<char *>(&h1);
     char * h2cp = reinterpret_cast<char *>(&h2);
     cmd.insert(cmd.end(), h1cp, h1cp + sizeof(h1));
@@ -659,7 +659,7 @@ void cptest_addrmdeps()
     assert(wdata[0] == DINIT_RP_ACK);
 
     // Issue start for S1. S2 should also start:
-    cmd = { DINIT_CP_STARTSERVICE, 0 /* don't pin */ };
+    cmd = { (char)cp_cmd::STARTSERVICE, 0 /* don't pin */ };
     cmd.insert(cmd.end(), h1cp, h1cp + sizeof(h1));
 
     bp_sys::supply_read_data(fd, std::move(cmd));
@@ -671,7 +671,7 @@ void cptest_addrmdeps()
     assert(s2->get_state() == service_state_t::STARTED);
 
     // Remove dependency from S1 -> S2:
-    cmd = { DINIT_CP_REM_DEP, static_cast<char>(dependency_type::REGULAR) };
+    cmd = { (char)cp_cmd::REM_DEP, static_cast<char>(dependency_type::REGULAR) };
     cmd.insert(cmd.end(), h1cp, h1cp + sizeof(h1));
     cmd.insert(cmd.end(), h2cp, h2cp + sizeof(h2));
 
@@ -707,7 +707,7 @@ void cptest_enableservice()
     handle_t h2 = find_service(fd, service_name2, service_state_t::STOPPED, service_state_t::STOPPED);
 
     // Enable from s1 -> s2:
-    std::vector<char> cmd = { DINIT_CP_ENABLESERVICE, static_cast<char>(dependency_type::WAITS_FOR) };
+    std::vector<char> cmd = { (char)cp_cmd::ENABLESERVICE, static_cast<char>(dependency_type::WAITS_FOR) };
     char * h1cp = reinterpret_cast<char *>(&h1);
     char * h2cp = reinterpret_cast<char *>(&h2);
     cmd.insert(cmd.end(), h1cp, h1cp + sizeof(h1));
@@ -767,7 +767,7 @@ void cptest_restart()
     assert(wdata.size() == 0);
 
     // Issue restart:
-    std::vector<char> cmd = { DINIT_CP_STOPSERVICE, 4 /* restart */ };
+    std::vector<char> cmd = { (char)cp_cmd::STOPSERVICE, 4 /* restart */ };
     char * h_cp = reinterpret_cast<char *>(&h);
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
 
@@ -851,7 +851,7 @@ void cptest_wake()
             service_state_t::STOPPED);
 
     // Wake s1:
-    std::vector<char> cmd = { DINIT_CP_WAKESERVICE, 0 /* don't pin */ };
+    std::vector<char> cmd = { (char)cp_cmd::WAKESERVICE, 0 /* don't pin */ };
     char * h_cp = reinterpret_cast<char *>(&h1);
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h1));
     bp_sys::supply_read_data(fd, std::move(cmd));
@@ -882,7 +882,7 @@ void cptest_wake()
     bp_sys::extract_written_data(fd, wdata);
 
     // Trying to wake s1 should now fail:
-    cmd = { DINIT_CP_WAKESERVICE, 0 /* don't pin */ };
+    cmd = { (char)cp_cmd::WAKESERVICE, 0 /* don't pin */ };
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h1));
     bp_sys::supply_read_data(fd, std::move(cmd));
 
@@ -918,7 +918,7 @@ void cptest_servicestatus()
     handle_t h2 = find_service(fd, "test-service-2", STARTED, STARTED);
     handle_t h3 = find_service(fd, "test-service-3", STOPPED, STOPPED);
 
-    std::vector<char> cmd = { DINIT_CP_SERVICESTATUS };
+    std::vector<char> cmd = { (char)cp_cmd::SERVICESTATUS };
     char * h_cp = reinterpret_cast<char *>(&h1);
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h1));
     bp_sys::supply_read_data(fd, std::move(cmd));
@@ -940,7 +940,7 @@ void cptest_servicestatus()
     assert(wdata[4] == 0); // various flags
 
     cmd.clear();
-    cmd.push_back(DINIT_CP_SERVICESTATUS);
+    cmd.push_back((char)cp_cmd::SERVICESTATUS);
     h_cp = reinterpret_cast<char *>(&h2);
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h1));
     bp_sys::supply_read_data(fd, std::move(cmd));
@@ -990,7 +990,7 @@ void cptest_sendsignal()
     int sig = SIGHUP;
 
     // Issue a signal:
-    std::vector<char> cmd = { DINIT_CP_SIGNAL };
+    std::vector<char> cmd = { (char)cp_cmd::SIGNAL };
     char * sig_cp = reinterpret_cast<char *>(&sig);
     char * h_cp = reinterpret_cast<char *>(&h);
     cmd.insert(cmd.end(), sig_cp, sig_cp + sizeof(sig));
@@ -1010,7 +1010,7 @@ void cptest_sendsignal()
     sig = SIGILL;
 
     // Issue a signal:
-    cmd = { DINIT_CP_SIGNAL };
+    cmd = { (char)cp_cmd::SIGNAL };
     sig_cp = reinterpret_cast<char *>(&sig);
     cmd.insert(cmd.end(), sig_cp, sig_cp + sizeof(sig));
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
