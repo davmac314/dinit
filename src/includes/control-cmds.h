@@ -1,71 +1,76 @@
 #ifndef DINIT_CONTROL_CMDS_H_INCLUDED
 #define DINIT_CONTROL_CMDS_H_INCLUDED 1
 
+#include <control-datatypes.h>
+
 // Dinit control command packet types
 
 // Requests:
 
-// Query protocol version:
-constexpr static int DINIT_CP_QUERYVERSION = 0;
 
-// Find (but don't load) a service:
-constexpr static int DINIT_CP_FINDSERVICE = 1;
+enum class cp_cmd :dinit_cptypes::cp_cmd_t {
+    // Query protocol version:
+    QUERYVERSION = 0,
 
-// Find or load a service:
-constexpr static int DINIT_CP_LOADSERVICE = 2;
+    // Find (but don't load) a service:
+    FINDSERVICE = 1,
 
-// Start or stop a service:
-constexpr static int DINIT_CP_STARTSERVICE = 3;
-constexpr static int DINIT_CP_STOPSERVICE  = 4;
-constexpr static int DINIT_CP_WAKESERVICE = 5;
-constexpr static int DINIT_CP_RELEASESERVICE = 6;
+    // Find or load a service:
+    LOADSERVICE = 2,
 
-constexpr static int DINIT_CP_UNPINSERVICE = 7;
+    // Start or stop a service:
+    STARTSERVICE = 3,
+    STOPSERVICE  = 4,
+    WAKESERVICE = 5,
+    RELEASESERVICE = 6,
 
-// List services:
-constexpr static int DINIT_CP_LISTSERVICES = 8;
+    UNPINSERVICE = 7,
 
-// Unload a service:
-constexpr static int DINIT_CP_UNLOADSERVICE = 9;
+    // List services:
+    LISTSERVICES = 8,
 
-// Shutdown:
-constexpr static int DINIT_CP_SHUTDOWN = 10;
- // followed by 1-byte shutdown type
+    // Unload a service:
+    UNLOADSERVICE = 9,
 
-// Add/remove dependency to existing service:
-constexpr static int DINIT_CP_ADD_DEP = 11;
-constexpr static int DINIT_CP_REM_DEP = 12;
+    // Shutdown:
+    SHUTDOWN = 10,
+     // followed by 1-byte shutdown type
 
-// Query service load path / mechanism:
-constexpr static int DINIT_CP_QUERY_LOAD_MECH = 13;
+    // Add/remove dependency to existing service:
+    ADD_DEP = 11,
+    REM_DEP = 12,
 
-// Add a waits for dependency from one service to another, and start the dependency:
-constexpr static int DINIT_CP_ENABLESERVICE = 14;
+    // Query service load path / mechanism:
+    QUERY_LOAD_MECH = 13,
 
-// Find the name of a service (from a handle)
-constexpr static int DINIT_CP_QUERYSERVICENAME = 15;
+    // Add a waits for dependency from one service to another, and start the dependency:
+    ENABLESERVICE = 14,
 
-// Reload a service:
-constexpr static int DINIT_CP_RELOADSERVICE = 16;
+    // Find the name of a service (from a handle)
+    QUERYSERVICENAME = 15,
 
-// Export a set of environment variables into activation environment:
-constexpr static int DINIT_CP_SETENV = 17;
+    // Reload a service:
+    RELOADSERVICE = 16,
 
-// Query status of an individual service
-constexpr static int DINIT_CP_SERVICESTATUS = 18;
+    // Export a set of environment variables into activation environment:
+    SETENV = 17,
 
-// Set trigger value for triggered services
-constexpr static int DINIT_CP_SETTRIGGER = 19;
+    // Query status of an individual service
+    SERVICESTATUS = 18,
 
-// Retrieve buffered output
-constexpr static int DINIT_CP_CATLOG = 20;
+    // Set trigger value for triggered services
+    SETTRIGGER = 19,
 
-// Send Signal to process
-constexpr static int DINIT_CP_SIGNAL = 21;
+    // Retrieve buffered output
+    CATLOG = 20,
 
-// Query service description directory
-constexpr static int DINIT_CP_QUERYSERVICEDSCDIR = 22;
+    // Send Signal to process
+    SIGNAL = 21,
 
+    // Query service description directory
+    QUERYSERVICEDSCDIR = 22,
+
+};
 
 // Replies:
 

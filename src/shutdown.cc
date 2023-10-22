@@ -21,6 +21,7 @@
 #include "dinit-client.h"
 #include "dinit-util.h"
 #include "mconfig.h"
+#include "control-datatypes.h"
 
 #include "dasynq.h"
 
@@ -349,7 +350,7 @@ int main(int argc, char **argv)
         constexpr int bufsize = 2;
         char buf[bufsize];
 
-        buf[0] = DINIT_CP_SHUTDOWN;
+        buf[0] = (dinit_cptypes::cp_cmd_t)cp_cmd::SHUTDOWN;
         buf[1] = static_cast<char>(shutdown_type);
 
         cout << "Issuing shutdown command..." << endl;

@@ -19,7 +19,7 @@
 // dinit-monitor: watch service states and report them via execution of a notification command
 
 // common communication datatypes
-using namespace dinit_ctypes;
+using namespace dinit_cptypes;
 
 static constexpr uint16_t min_cp_version = 1;
 static constexpr uint16_t max_cp_version = 1;
@@ -357,7 +357,7 @@ static std::vector<stringview> split_command(const char *cmd)
     return result;
 }
 
-// Issue a "load service" command (DINIT_CP_LOADSERVICE), without waiting for
+// Issue a "load service" command (LOADSERVICE), without waiting for
 // a response. Returns 1 on failure (with error logged), 0 on success.
 static int issue_load_service(int socknum, const char *service_name, bool find_only = false)
 {
@@ -368,7 +368,7 @@ static int issue_load_service(int socknum, const char *service_name, bool find_o
     std::unique_ptr<char[]> ubuf(new char[bufsize]);
     auto buf = ubuf.get();
 
-    buf[0] = find_only ? DINIT_CP_FINDSERVICE : DINIT_CP_LOADSERVICE;
+    buf[0] = (char)(find_only ? cp_cmd::FINDSERVICE : cp_cmd::LOADSERVICE);
     memcpy(buf + 1, &sname_len, 2);
     memcpy(buf + 3, service_name, sname_len);
 
