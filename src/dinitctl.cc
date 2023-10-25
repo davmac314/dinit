@@ -58,7 +58,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names);
 static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool trigger_value);
 static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool do_clear);
-static int signal_send(int socknum, cpbuffer_t &rbuffer, const char *service_name, int sig_num);
+static int signal_send(int socknum, cpbuffer_t &rbuffer, const char *service_name, sig_num_t sig_num);
 static int signal_list();
 
 enum class ctl_cmd {
@@ -125,7 +125,7 @@ int dinitctl_main(int argc, char **argv)
     bool use_passed_cfd = false;
     bool show_siglist = false;
     std::string sigstr;
-    int sig_num = -1;
+    sig_num_t sig_num = -1;
 
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -2098,7 +2098,7 @@ static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service
     return 0;
 }
 
-static int signal_send(int socknum, cpbuffer_t &rbuffer, const char *service_name, int sig_num)
+static int signal_send(int socknum, cpbuffer_t &rbuffer, const char *service_name, sig_num_t sig_num)
 {
     using namespace std;
 
