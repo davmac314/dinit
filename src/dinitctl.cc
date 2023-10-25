@@ -2023,12 +2023,13 @@ static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *>
     string buf;
 
     for (const char *envp : env_names) {
+        envvar_len_t envvar_len;
         buf.clear();
         buf.reserve(6);
         // protocol message and size space
         buf.push_back((char)cp_cmd::SETENV);
-        buf.append(2, 0);
-        const unsigned hdr_len = 3;
+        buf.append(sizeof(envvar_len), 0);
+        const unsigned hdr_len = 1 + sizeof(envvar_len);
         // either full var or name
         auto elen = strlen(envp);
         buf.append(envp, elen);
@@ -2040,7 +2041,7 @@ static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *>
                 buf.append(envv);
             }
         }
-        uint16_t bufs = buf.size() - hdr_len;
+        envvar_len = buf.size() - hdr_len;
         // sanitize length early on
         if (buf.size() > cpbuffer_t::get_size()) {
             auto eq = buf.find('=', hdr_len);
@@ -2049,7 +2050,7 @@ static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *>
             return 1;
         }
         // set size in protocol message
-        memcpy(&buf[1], &bufs, 2);
+        memcpy(&buf[1], &envvar_len, sizeof(envvar_len));
         // send
         write_all_x(socknum, buf.data(), buf.size());
         wait_for_reply(rbuffer, socknum);
