@@ -1008,10 +1008,10 @@ bool control_conn_t::process_signal()
         return true;
     }
 
-    int sig_num;
-    rbuf.extract((char *) &sig_num, 1, sizeof(sig_num));
+    sig_num_t sig_num;
+    rbuf.extract(&sig_num, 1, sizeof(sig_num));
     handle_t handle;
-    rbuf.extract((char *) &handle, 1 + sizeof(sig_num), sizeof(handle));
+    rbuf.extract(&handle, 1 + sizeof(sig_num), sizeof(handle));
     rbuf.consume(pkt_size);
     chklen = 0;
 

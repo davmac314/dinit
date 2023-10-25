@@ -987,7 +987,7 @@ void cptest_sendsignal()
             service_state_t::STARTED);
 
     // Prepare a signal: (SIGHUP for example)
-    int sig = SIGHUP;
+    sig_num_t sig = SIGHUP;
 
     // Issue a signal:
     std::vector<char> cmd = { (char)cp_cmd::SIGNAL };
