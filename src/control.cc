@@ -882,19 +882,19 @@ bool control_conn_t::process_setenv()
         return true;
     }
 
-    uint16_t envSize;
-    rbuf.extract((char *)&envSize, 1, 2);
-    if (envSize <= 0 || envSize > (1024 - 3)) {
+    envvar_len_t envvar_len;
+    rbuf.extract(&envvar_len, 1, sizeof(envvar_len));
+    if (envvar_len <= 0 || envvar_len > (1024 - 3)) {
         goto badreq;
     }
-    chklen = envSize + 3; // packet type + (2 byte) length + envvar
+    chklen = envvar_len + 1 + sizeof(envvar_len); // packet type + (2 byte) length + envvar
 
     if (rbuf.get_length() < chklen) {
         // packet not complete yet; read more
         return true;
     }
 
-    envVar = rbuf.extract_string(3, envSize);
+    envVar = rbuf.extract_string(3, envvar_len);
 
     eq = envVar.find('=');
     if (!eq || eq == envVar.npos) {
