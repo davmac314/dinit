@@ -362,15 +362,15 @@ static std::vector<stringview> split_command(const char *cmd)
 static int issue_load_service(int socknum, const char *service_name, bool find_only = false)
 {
     // Build buffer;
-    uint16_t sname_len = strlen(service_name);
-    int bufsize = 3 + sname_len;
+    srvname_len_t srvname_len = strlen(service_name);
+    int bufsize = 3 + srvname_len;
 
     std::unique_ptr<char[]> ubuf(new char[bufsize]);
     auto buf = ubuf.get();
 
     buf[0] = (char)(find_only ? cp_cmd::FINDSERVICE : cp_cmd::LOADSERVICE);
-    memcpy(buf + 1, &sname_len, 2);
-    memcpy(buf + 3, service_name, sname_len);
+    memcpy(buf + 1, &srvname_len, sizeof(srvname_len));
+    memcpy(buf + 3, service_name, srvname_len);
 
     write_all_x(socknum, buf, bufsize);
 

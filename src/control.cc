@@ -147,16 +147,16 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
         return true;
     }
     
-    uint16_t svcSize;
-    rbuf.extract((char *)&svcSize, 1, 2);
-    if (svcSize <= 0 || svcSize > (1024 - 3)) {
+    srvname_len_t srvname_len;
+    rbuf.extract(&srvname_len, 1, sizeof(srvname_len));
+    if (srvname_len <= 0 || srvname_len > (1024 - 3)) {
         // Queue error response / mark connection bad
         char badreqRep[] = { (char)cp_rply::BADREQ };
         if (! queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
         return true;
     }
-    chklen = svcSize + 3; // packet type + (2 byte) length + service name
+    chklen = srvname_len + 3; // packet type + (2 byte) length + service name
     
     if (rbuf.get_length() < chklen) {
         // packet not complete yet; read more
@@ -165,7 +165,7 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
     
     service_record * record = nullptr;
     
-    string serviceName = rbuf.extract_string(3, svcSize);
+    string service_name = rbuf.extract_string(3, srvname_len);
 
     // Clear the packet from the buffer
     rbuf.consume(chklen);
@@ -176,7 +176,7 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
     if (pktType == cp_cmd::LOADSERVICE) {
         // LOADSERVICE
         try {
-            record = services->load_service(serviceName.c_str());
+            record = services->load_service(service_name.c_str());
         }
         catch (service_description_exc &sdexc) {
             log_service_load_failure(sdexc);
@@ -195,7 +195,7 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
     }
     else {
         // FINDSERVICE
-        record = services->find_service(serviceName.c_str());
+        record = services->find_service(service_name.c_str());
     }
     
     if (record == nullptr) {
