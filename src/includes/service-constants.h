@@ -3,8 +3,10 @@
 
 #include <mconfig.h>
 
+#include <control-datatypes.h>
+
 /* Service states */
-enum class service_state_t {
+enum class service_state_t :dinit_cptypes::srvstate_t {
     STOPPED,    // service is not running.
     STARTING,   // service is starting, and will start (or fail to start) in time.
     STARTED,    // service is running,
