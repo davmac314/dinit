@@ -237,16 +237,17 @@ template <typename Buf> inline void write_all_x(int fd, const Buf &b)
 // throws an exception on protocol mismatch or error.
 inline uint16_t check_protocol_version(int minversion, int version, cpbuffer_t &rbuffer, int fd)
 {
+    using namespace dinit_cptypes;
     constexpr int bufsize = 1;
     char buf[bufsize] = { (char)cp_cmd::QUERYVERSION };
     write_all_x(fd, buf, bufsize);
 
     wait_for_reply(rbuffer, fd);
-    if (rbuffer[0] != DINIT_RP_CPVERSION) {
+    if (rbuffer[0] != (char)cp_rply::CPVERSION) {
         throw cp_read_exception{0};
     }
 
-    // DINIT_RP_CVERSION, (2 byte) minimum compatible version, (2 byte) actual version
+    // cp_rply::CVERSION, (2 byte) minimum compatible version, (2 byte) actual version
     constexpr int rbufsize = 1 + 2 * sizeof(uint16_t);
     fill_buffer_to(rbuffer, fd, rbufsize);
     uint16_t rminversion;

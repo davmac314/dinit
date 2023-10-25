@@ -361,7 +361,7 @@ int main(int argc, char **argv)
     
         wait_for_reply(rbuffer, socknum);
         
-        if (rbuffer[0] != DINIT_RP_ACK) {
+        if (rbuffer[0] != (dinit_cptypes::cp_rply_t)cp_rply::ACK) {
             cerr << "shutdown: control socket protocol error" << endl;
             return 1;
         }

@@ -45,8 +45,8 @@ bool control_conn_t::process_packet()
     cp_cmd pktType = (cp_cmd)rbuf[0];
     if (pktType == cp_cmd::QUERYVERSION) {
         // Responds with:
-        // DINIT_RP_CVERSION, (2 byte) minimum compatible version, (2 byte) actual version
-        char replyBuf[] = { DINIT_RP_CPVERSION, 0, 0, 0, 0 };
+        // cp_rply::CVERSION, (2 byte) minimum compatible version, (2 byte) actual version
+        char replyBuf[] = { (char)cp_rply::CPVERSION, 0, 0, 0, 0 };
         memcpy(replyBuf + 1, &min_compat_version, 2);
         memcpy(replyBuf + 3, &cp_version, 2);
         if (!queue_packet(replyBuf, sizeof(replyBuf))) return false;
@@ -81,7 +81,7 @@ bool control_conn_t::process_packet()
             auto sd_type = static_cast<shutdown_type_t>(rbuf[1]);
 
             services->stop_all_services(sd_type);
-            char ackBuf[] = { DINIT_RP_ACK };
+            char ackBuf[] = { (char)cp_rply::ACK };
             if (! queue_packet(ackBuf, 1)) return false;
 
             // Clear the packet from the buffer
@@ -130,7 +130,7 @@ bool control_conn_t::process_packet()
     }
 
     // Unrecognized: give error response
-    char outbuf[] = { DINIT_RP_BADREQ };
+    char outbuf[] = { (char)cp_rply::BADREQ };
     if (!queue_packet(outbuf, 1)) return false;
     bad_conn_close = true;
     return true;
@@ -151,7 +151,7 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
     rbuf.extract((char *)&svcSize, 1, 2);
     if (svcSize <= 0 || svcSize > (1024 - 3)) {
         // Queue error response / mark connection bad
-        char badreqRep[] = { DINIT_RP_BADREQ };
+        char badreqRep[] = { (char)cp_rply::BADREQ };
         if (! queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
         return true;
@@ -171,7 +171,7 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
     rbuf.consume(chklen);
     chklen = 0;
     
-    char fail_code = DINIT_RP_NOSERVICE;
+    cp_rply fail_code = cp_rply::NOSERVICE;
 
     if (pktType == cp_cmd::LOADSERVICE) {
         // LOADSERVICE
@@ -180,17 +180,17 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
         }
         catch (service_description_exc &sdexc) {
             log_service_load_failure(sdexc);
-            fail_code = DINIT_RP_SERVICE_DESC_ERR;
+            fail_code = cp_rply::SERVICE_DESC_ERR;
         }
         catch (service_not_found &snf) {
             log(loglevel_t::ERROR, "Could not load service ", snf.service_name, ": ",
                     snf.exc_description);
-            // fail_code = DINIT_RP_NOSERVICE;   (already set)
+            // fail_code = cp_rply::NOSERVICE;   (already set)
         }
         catch (service_load_exc &slexc) {
             log(loglevel_t::ERROR, "Could not load service ", slexc.service_name, ": ",
                     slexc.exc_description);
-            fail_code = DINIT_RP_SERVICE_LOAD_ERR;
+            fail_code = cp_rply::SERVICE_LOAD_ERR;
         }
     }
     else {
@@ -199,7 +199,7 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
     }
     
     if (record == nullptr) {
-        std::vector<char> rp_buf = { fail_code };
+        std::vector<char> rp_buf = { (char)fail_code };
         if (! queue_packet(std::move(rp_buf))) return false;
         return true;
     }
@@ -208,7 +208,7 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
     handle_t handle = allocate_service_handle(record);
     std::vector<char> rp_buf;
     rp_buf.reserve(7);
-    rp_buf.push_back(DINIT_RP_SERVICERECORD);
+    rp_buf.push_back((char)cp_rply::SERVICERECORD);
     rp_buf.push_back(static_cast<char>(record->get_state()));
     for (int i = 0; i < (int) sizeof(handle); i++) {
         rp_buf.push_back(*(((char *) &handle) + i));
@@ -233,7 +233,7 @@ bool control_conn_t::check_dependents(service_record *service, bool &had_depende
                 // packet type, size
                 reply_pkt.reserve(1 + sizeof(size_t) + sizeof(handle_t));
                 reply_pkt.resize(1 + sizeof(size_t));
-                reply_pkt[0] = DINIT_RP_DEPENDENTS;
+                reply_pkt[0] = (char)cp_rply::DEPENDENTS;
             }
             auto old_size = reply_pkt.size();
             reply_pkt.resize(old_size + sizeof(handle_t));
@@ -274,31 +274,31 @@ bool control_conn_t::process_start_stop(cp_cmd pktType)
     service_record *service = find_service_for_key(handle);
     if (service == nullptr) {
         // Service handle is bad
-        char badreqRep[] = { DINIT_RP_BADREQ };
+        char badreqRep[] = { (char)cp_rply::BADREQ };
         if (! queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
         return true;
     }
     else {
-        char ack_buf[1] = { DINIT_RP_ACK };
+        char ack_buf[1] = { (char)cp_rply::ACK };
         
         switch (pktType) {
         case cp_cmd::STARTSERVICE:
             // start service, mark as required
             if (services->is_shutting_down()) {
-                ack_buf[0] = DINIT_RP_SHUTTINGDOWN;
+                ack_buf[0] = (char)cp_rply::SHUTTINGDOWN;
                 break;
             }
             if ((service->get_state() == service_state_t::STOPPED
                     || service->get_state() == service_state_t::STOPPING)
                     && service->is_stop_pinned()) {
-                ack_buf[0] = DINIT_RP_PINNEDSTOPPED;
+                ack_buf[0] = (char)cp_rply::PINNEDSTOPPED;
                 break;
             }
             if (do_pin) service->pin_start();
             service->start();
             services->process_queues();
-            if (service->get_state() == service_state_t::STARTED) ack_buf[0] = DINIT_RP_ALREADYSS;
+            if (service->get_state() == service_state_t::STARTED) ack_buf[0] = (char)cp_rply::ALREADYSS;
             break;
         case cp_cmd::STOPSERVICE:
         {
@@ -306,13 +306,13 @@ bool control_conn_t::process_start_stop(cp_cmd pktType)
             bool do_restart = ((rbuf[1] & 4) == 4);
             bool gentle = ((rbuf[1] & 2) == 2);
             if (do_restart && services->is_shutting_down()) {
-                ack_buf[0] = DINIT_RP_SHUTTINGDOWN;
+                ack_buf[0] = (char)cp_rply::SHUTTINGDOWN;
                 break;
             }
             if ((service->get_state() == service_state_t::STARTED
                     || service->get_state() == service_state_t::STARTING)
                     && service->is_start_pinned()) {
-                ack_buf[0] = DINIT_RP_PINNEDSTARTED;
+                ack_buf[0] = (char)cp_rply::PINNEDSTARTED;
                 break;
             }
             if (gentle) {
@@ -329,7 +329,7 @@ bool control_conn_t::process_start_stop(cp_cmd pktType)
             service_state_t wanted_state;
             if (do_restart) {
                 if (! service->restart()) {
-                    ack_buf[0] = DINIT_RP_NAK;
+                    ack_buf[0] = (char)cp_rply::NAK;
                     break;
                 }
                 wanted_state = service_state_t::STARTED;
@@ -341,20 +341,20 @@ bool control_conn_t::process_start_stop(cp_cmd pktType)
                 wanted_state = service_state_t::STOPPED;
             }
             services->process_queues();
-            if (service->get_state() == wanted_state && !do_restart) ack_buf[0] = DINIT_RP_ALREADYSS;
+            if (service->get_state() == wanted_state && !do_restart) ack_buf[0] = (char)cp_rply::ALREADYSS;
             break;
         }
         case cp_cmd::WAKESERVICE:
         {
             // re-attach a service to its (started) dependents, causing it to start.
             if (services->is_shutting_down()) {
-                ack_buf[0] = DINIT_RP_SHUTTINGDOWN;
+                ack_buf[0] = (char)cp_rply::SHUTTINGDOWN;
                 break;
             }
             if ((service->get_state() == service_state_t::STOPPED
                     || service->get_state() == service_state_t::STOPPING)
                     && service->is_stop_pinned()) {
-                ack_buf[0] = DINIT_RP_PINNEDSTOPPED;
+                ack_buf[0] = (char)cp_rply::PINNEDSTOPPED;
                 break;
             }
             bool found_dpt = false;
@@ -370,12 +370,12 @@ bool control_conn_t::process_start_stop(cp_cmd pktType)
                 }
             }
             if (!found_dpt) {
-                ack_buf[0] = DINIT_RP_NAK;
+                ack_buf[0] = (char)cp_rply::NAK;
             }
 
             if (do_pin) service->pin_start();
             services->process_queues();
-            if (service->get_state() == service_state_t::STARTED) ack_buf[0] = DINIT_RP_ALREADYSS;
+            if (service->get_state() == service_state_t::STARTED) ack_buf[0] = (char)cp_rply::ALREADYSS;
             break;
         }
         case cp_cmd::RELEASESERVICE:
@@ -383,7 +383,7 @@ bool control_conn_t::process_start_stop(cp_cmd pktType)
             if (do_pin) service->pin_stop();
             service->stop(false);
             services->process_queues();
-            if (service->get_state() == service_state_t::STOPPED) ack_buf[0] = DINIT_RP_ALREADYSS;
+            if (service->get_state() == service_state_t::STOPPED) ack_buf[0] = (char)cp_rply::ALREADYSS;
             break;
         default:
             // avoid warning for unhandled switch/case values
@@ -420,7 +420,7 @@ bool control_conn_t::process_unpin_service()
     service_record *service = find_service_for_key(handle);
     if (service == nullptr) {
         // Service handle is bad
-        char badreqRep[] = { DINIT_RP_BADREQ };
+        char badreqRep[] = { (char)cp_rply::BADREQ };
         if (! queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
         return true;
@@ -428,7 +428,7 @@ bool control_conn_t::process_unpin_service()
 
     service->unpin();
     services->process_queues();
-    char ack_buf[] = { (char) DINIT_RP_ACK };
+    char ack_buf[] = { (char) cp_rply::ACK };
     if (! queue_packet(ack_buf, 1)) return false;
     
     // Clear the packet from the buffer
@@ -457,7 +457,7 @@ bool control_conn_t::process_unload_service()
     service_record *service = find_service_for_key(handle);
     if (service == nullptr) {
         // Service handle is bad
-        char badreq_rep[] = { DINIT_RP_BADREQ };
+        char badreq_rep[] = { (char)cp_rply::BADREQ };
         if (! queue_packet(badreq_rep, 1)) return false;
         bad_conn_close = true;
         return true;
@@ -465,7 +465,7 @@ bool control_conn_t::process_unload_service()
 
     if (!service->has_lone_ref() || service->get_state() != service_state_t::STOPPED) {
         // Cannot unload: has other references
-        char nak_rep[] = { DINIT_RP_NAK };
+        char nak_rep[] = { (char)cp_rply::NAK };
         if (!queue_packet(nak_rep, 1)) return false;
     }
     else {
@@ -477,7 +477,7 @@ bool control_conn_t::process_unload_service()
         key_service_map.erase(handle);
 
         // send ack
-        char ack_buf[] = { (char) DINIT_RP_ACK };
+        char ack_buf[] = { (char) cp_rply::ACK };
         if (!queue_packet(ack_buf, 1)) return false;
     }
 
@@ -507,7 +507,7 @@ bool control_conn_t::process_reload_service()
     service_record *service = find_service_for_key(handle);
     if (service == nullptr) {
         // Service handle is bad
-        char badreq_rep[] = { DINIT_RP_BADREQ };
+        char badreq_rep[] = { (char)cp_rply::BADREQ };
         if (! queue_packet(badreq_rep, 1)) return false;
         bad_conn_close = true;
         return true;
@@ -515,7 +515,7 @@ bool control_conn_t::process_reload_service()
 
     if (!service->has_lone_ref(false)) {
         // Cannot unload: has other references
-        char nak_rep[] = { DINIT_RP_NAK };
+        char nak_rep[] = { (char)cp_rply::NAK };
         if (! queue_packet(nak_rep, 1)) return false;
     }
     else {
@@ -530,13 +530,13 @@ bool control_conn_t::process_reload_service()
             services->process_queues();
 
             // send ack
-            char ack_buf[] = { (char) DINIT_RP_ACK };
+            char ack_buf[] = { (char) cp_rply::ACK };
             if (! queue_packet(ack_buf, 1)) return false;
         }
         catch (service_load_exc &slexc) {
             log(loglevel_t::ERROR, "Could not reload service ", slexc.service_name, ": ",
                     slexc.exc_description);
-            char nak_rep[] = { DINIT_RP_NAK };
+            char nak_rep[] = { (char)cp_rply::NAK };
             if (! queue_packet(nak_rep, 1)) return false;
         }
     }
@@ -604,7 +604,7 @@ bool control_conn_t::list_services()
             int nameLen = std::min((size_t)256, name.length());
             pkt_buf.resize(hdrsize + nameLen);
             
-            pkt_buf[0] = DINIT_RP_SVCINFO;
+            pkt_buf[0] = (char)cp_rply::SVCINFO;
             pkt_buf[1] = nameLen;
             
             fill_status_buffer(&pkt_buf[2], sptr);
@@ -616,7 +616,7 @@ bool control_conn_t::list_services()
             if (!queue_packet(std::move(pkt_buf))) return false;
         }
         
-        char ack_buf[] = { (char) DINIT_RP_LISTDONE };
+        char ack_buf[] = { (char) cp_rply::LISTDONE };
         if (! queue_packet(ack_buf, 1)) return false;
         
         return true;
@@ -643,17 +643,17 @@ bool control_conn_t::process_service_status()
 
     service_record *service = find_service_for_key(handle);
     if (service == nullptr || service->get_name().length() > std::numeric_limits<uint16_t>::max()) {
-        char nak_rep[] = { DINIT_RP_NAK };
+        char nak_rep[] = { (char)cp_rply::NAK };
         return queue_packet(nak_rep, 1);
     }
 
     // Reply:
-    // 1 byte packet type = DINIT_RP_SERVICESTATUS
+    // 1 byte packet type = cp_rply::SERVICESTATUS
     // 1 byte reserved ( = 0)
     // STATUS_BUFFER_SIZE bytes status
 
     std::vector<char> pkt_buf(2 + STATUS_BUFFER_SIZE);
-    pkt_buf[0] = DINIT_RP_SERVICESTATUS;
+    pkt_buf[0] = (char)cp_rply::SERVICESTATUS;
     pkt_buf[1] = 0;
     fill_status_buffer(pkt_buf.data() + 2, service);
 
@@ -683,7 +683,7 @@ bool control_conn_t::add_service_dep(bool do_enable)
     service_record *to_service = find_service_for_key(to_handle);
     if (from_service == nullptr || to_service == nullptr || from_service == to_service) {
         // Service handle is bad
-        char badreq_rep[] = { DINIT_RP_BADREQ };
+        char badreq_rep[] = { (char)cp_rply::BADREQ };
         if (!queue_packet(badreq_rep, 1)) return false;
         bad_conn_close = true;
         return true;
@@ -693,7 +693,7 @@ bool control_conn_t::add_service_dep(bool do_enable)
     int dep_type_int = rbuf[1];
     if (!contains({dependency_type::MILESTONE, dependency_type::REGULAR,
             dependency_type::WAITS_FOR}, dep_type_int)) {
-        char badreqRep[] = { DINIT_RP_BADREQ };
+        char badreqRep[] = { (char)cp_rply::BADREQ };
         if (!queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
     }
@@ -704,7 +704,7 @@ bool control_conn_t::add_service_dep(bool do_enable)
         if (from_service->get_state() != service_state_t::STOPPED &&
                 to_service->get_state() != service_state_t::STARTED) {
             // Cannot create dependency now since it would be contradicted:
-            char nak_rep[] = { DINIT_RP_NAK };
+            char nak_rep[] = { (char)cp_rply::NAK };
             if (! queue_packet(nak_rep, 1)) return false;
             rbuf.consume(pkt_size);
             chklen = 0;
@@ -725,7 +725,7 @@ bool control_conn_t::add_service_dep(bool do_enable)
             service_record * dep_to = dep.get_to();
             if (dep_to == from_service) {
                 // fail, circular dependency!
-                char nak_rep[] = { DINIT_RP_NAK };
+                char nak_rep[] = { (char)cp_rply::NAK };
                 if (! queue_packet(nak_rep, 1)) return false;
                 rbuf.consume(pkt_size);
                 chklen = 0;
@@ -769,7 +769,7 @@ bool control_conn_t::add_service_dep(bool do_enable)
         }
     }
 
-    char ack_rep[] = { DINIT_RP_ACK };
+    char ack_rep[] = { (char)cp_rply::ACK };
     if (! queue_packet(ack_rep, 1)) return false;
     rbuf.consume(pkt_size);
     chklen = 0;
@@ -799,7 +799,7 @@ bool control_conn_t::rm_service_dep()
     service_record *to_service = find_service_for_key(to_handle);
     if (from_service == nullptr || to_service == nullptr || from_service == to_service) {
         // Service handle is bad
-        char badreq_rep[] = { DINIT_RP_BADREQ };
+        char badreq_rep[] = { (char)cp_rply::BADREQ };
         if (! queue_packet(badreq_rep, 1)) return false;
         bad_conn_close = true;
         return true;
@@ -809,7 +809,7 @@ bool control_conn_t::rm_service_dep()
     int dep_type_int = rbuf[1];
     if (! contains({dependency_type::MILESTONE, dependency_type::REGULAR,
             dependency_type::WAITS_FOR}, dep_type_int)) {
-        char badreqRep[] = { DINIT_RP_BADREQ };
+        char badreqRep[] = { (char)cp_rply::BADREQ };
         if (! queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
     }
@@ -819,7 +819,7 @@ bool control_conn_t::rm_service_dep()
     bool did_remove = from_service->rm_dep(to_service, dep_type);
     services->process_queues();
 
-    char ack_rep[] = { did_remove ? (char)DINIT_RP_ACK : (char)DINIT_RP_NAK };
+    char ack_rep[] = { did_remove ? (char)cp_rply::ACK : (char)cp_rply::NAK };
     if (! queue_packet(ack_rep, 1)) return false;
     rbuf.consume(pkt_size);
     chklen = 0;
@@ -845,12 +845,12 @@ bool control_conn_t::process_query_name()
 
     service_record *service = find_service_for_key(handle);
     if (service == nullptr || service->get_name().length() > std::numeric_limits<uint16_t>::max()) {
-        char nak_rep[] = { DINIT_RP_NAK };
+        char nak_rep[] = { (char)cp_rply::NAK };
         return queue_packet(nak_rep, 1);
     }
 
     // Reply:
-    // 1 byte packet type = DINIT_RP_SERVICENAME
+    // 1 byte packet type = cp_rply::SERVICENAME
     // 1 byte reserved
     // uint16_t length
     // N bytes name
@@ -859,7 +859,7 @@ bool control_conn_t::process_query_name()
     const std::string &name = service->get_name();
     uint16_t name_length = name.length();
     reply.resize(2 + sizeof(uint16_t) + name_length);
-    reply[0] = DINIT_RP_SERVICENAME;
+    reply[0] = (char)cp_rply::SERVICENAME;
     memcpy(reply.data() + 2, &name_length, sizeof(name_length));
     memcpy(reply.data() + 2 + sizeof(uint16_t), name.c_str(), name_length);
 
@@ -874,8 +874,8 @@ bool control_conn_t::process_setenv()
     typename string::size_type eq;
 
     constexpr int pkt_size = 4;
-    char badreqRep[] = { DINIT_RP_BADREQ };
-    char okRep[] = { DINIT_RP_ACK };
+    char badreqRep[] = { (char)cp_rply::BADREQ };
+    char okRep[] = { (char)cp_rply::ACK };
 
     if (rbuf.get_length() < pkt_size) {
         chklen = pkt_size;
@@ -941,7 +941,7 @@ bool control_conn_t::process_set_trigger()
 
     service_record *service = find_service_for_key(handle);
     if (service == nullptr || service->get_type() != service_type_t::TRIGGERED) {
-        char nak_rep[] = { DINIT_RP_NAK };
+        char nak_rep[] = { (char)cp_rply::NAK };
         return queue_packet(nak_rep, 1);
     }
 
@@ -949,7 +949,7 @@ bool control_conn_t::process_set_trigger()
     tservice->set_trigger(trigger_val != 0);
     services->process_queues();
 
-    char ack_rep[] = { DINIT_RP_ACK };
+    char ack_rep[] = { (char)cp_rply::ACK };
     return queue_packet(ack_rep, 1);
 }
 
@@ -976,13 +976,13 @@ bool control_conn_t::process_catlog()
     if (service == nullptr || (service->get_type() != service_type_t::PROCESS
             && service->get_type() != service_type_t::BGPROCESS
             && service->get_type() != service_type_t::SCRIPTED)) {
-        char nak_rep[] = { DINIT_RP_NAK };
+        char nak_rep[] = { (char)cp_rply::NAK };
         return queue_packet(nak_rep, 1);
     }
 
     base_process_service *bps = static_cast<base_process_service *>(service);
     if (bps->get_log_mode() != log_type_id::BUFFER) {
-        char nak_rep[] = { DINIT_RP_NAK };
+        char nak_rep[] = { (char)cp_rply::NAK };
         return queue_packet(nak_rep, 1);
     }
 
@@ -990,7 +990,7 @@ bool control_conn_t::process_catlog()
     const char *bufaddr = buffer_details.first;
     unsigned buflen = buffer_details.second;
 
-    std::vector<char> pkt = { (char)DINIT_RP_SERVICE_LOG, 0 /* flags; reserved for future */ };
+    std::vector<char> pkt = { (char)cp_rply::SERVICE_LOG, 0 /* flags; reserved for future */ };
     pkt.insert(pkt.end(), (char *)(&buflen), (char *)(&buflen + 1));
     pkt.insert(pkt.end(), bufaddr, bufaddr + buflen);
     if ((flags & 1) != 0) {
@@ -1017,33 +1017,33 @@ bool control_conn_t::process_signal()
 
     service_record *service = find_service_for_key(handle);
     if (service == nullptr) {
-        char nak_rep[] = { DINIT_RP_NAK };
+        char nak_rep[] = { (char)cp_rply::NAK };
         return queue_packet(nak_rep, 1);
     }
 
     // Reply:
-    // 1 byte packet type = DINIT_RP_*
+    // 1 byte packet type = cp_rply::*
 
     pid_t spid = service->get_pid();
     // we probably don't want to kill/signal every process (in the current group),
     // but get_pid() sometimes returns -1 if e.g. service is not 'started'
     if (spid == -1 || spid == 0) {
-        char nak_rep[] = { DINIT_RP_SIGNAL_NOPID };
+        char nak_rep[] = { (char)cp_rply::SIGNAL_NOPID };
         return queue_packet(nak_rep, 1);
     }
     else {
         if (bp_sys::kill(spid, sig_num) != 0) {
             if (errno == EINVAL) {
                 log(loglevel_t::ERROR, "Requested signal not in valid signal range.");
-                char nak_rep[] = { DINIT_RP_SIGNAL_BADSIG };
+                char nak_rep[] = { (char)cp_rply::SIGNAL_BADSIG };
                 return queue_packet(nak_rep, 1);
             }
             log(loglevel_t::ERROR, "Error sending signal to process: ", strerror(errno));
-            char nak_rep[] = { DINIT_RP_SIGNAL_KILLERR };
+            char nak_rep[] = { (char)cp_rply::SIGNAL_KILLERR };
             return queue_packet(nak_rep, 1);
         }
     }
-    char ack_rep[] = { DINIT_RP_ACK };
+    char ack_rep[] = { (char)cp_rply::ACK };
     return queue_packet(ack_rep, 1);
 }
 
@@ -1065,18 +1065,18 @@ bool control_conn_t::process_query_dsc_dir()
 
     service_record *service = find_service_for_key(handle);
     if (service == nullptr || !spare_ok) {
-        char nak_rep[] = { DINIT_RP_NAK };
+        char nak_rep[] = { (char)cp_rply::NAK };
         return queue_packet(nak_rep, 1);
     }
 
     // Reply:
-    // 1 byte packet type = DINIT_RP_SVCDSCDIR
+    // 1 byte packet type = cp_rply::SVCDSCDIR
     // 4 bytes (uint32_t) = directory length (no nul terminator)
     // N bytes            = directory (no nul)
     std::vector<char> reppkt;
     size_t sdir_len = strlen(service->get_service_dsc_dir());
     reppkt.resize(1 + sizeof(uint32_t) + sdir_len);  // packet type, dir length, dir
-    reppkt[0] = DINIT_RP_SVCDSCDIR;
+    reppkt[0] = (char)cp_rply::SVCDSCDIR;
     std::memcpy(&reppkt[1], &sdir_len, sizeof(sdir_len));
     std::memcpy(&reppkt[1 + sizeof(uint32_t)], service->get_service_dsc_dir(), sdir_len);
 
@@ -1093,7 +1093,7 @@ bool control_conn_t::query_load_mech()
         dirload_service_set *dss = static_cast<dirload_service_set *>(services);
         std::vector<char> reppkt;
         reppkt.resize(2 + sizeof(uint32_t) * 2);  // packet type, loader type, packet size, # dirs
-        reppkt[0] = DINIT_RP_LOADER_MECH;
+        reppkt[0] = (char)cp_rply::LOADER_MECH;
         reppkt[1] = SSET_TYPE_DIRLOAD;
 
         // Number of directories in load path:
@@ -1114,7 +1114,7 @@ bool control_conn_t::query_load_mech()
             if (total_size < curpos) {
                 // Overflow. In theory we could now limit to size_t max, but the size must already
                 // be crazy long; let's abort.
-                char ack_rep[] = { DINIT_RP_NAK };
+                char ack_rep[] = { (char)cp_rply::NAK };
                 if (! queue_packet(ack_rep, 1)) return false;
                 return true;
             }
@@ -1126,7 +1126,7 @@ bool control_conn_t::query_load_mech()
             uint32_t new_try_path_size = try_path_size * uint32_t(2u);
             if (new_try_path_size < try_path_size) {
                 // Overflow.
-                char ack_rep[] = { DINIT_RP_NAK };
+                char ack_rep[] = { (char)cp_rply::NAK };
                 return queue_packet(ack_rep, 1);
             }
             try_path_size = new_try_path_size;
@@ -1155,7 +1155,7 @@ bool control_conn_t::query_load_mech()
     }
     else {
         // If we don't know how to deal with the service set type, send a NAK reply:
-        char ack_rep[] = { DINIT_RP_NAK };
+        char ack_rep[] = { (char)cp_rply::NAK };
         return queue_packet(ack_rep, 1);
     }
 }
@@ -1205,7 +1205,7 @@ void control_conn_t::service_event(service_record *service, service_event_t even
             std::vector<char> pkt;
             constexpr int pktsize = 3 + sizeof(key) + STATUS_BUFFER_SIZE;
             pkt.reserve(pktsize);
-            pkt.push_back(DINIT_IP_SERVICEEVENT);
+            pkt.push_back((char)cp_info::SERVICEEVENT);
             pkt.push_back(pktsize);
             char *p = (char *)&key;
             for (unsigned j = 0; j < sizeof(key); j++) {
@@ -1368,7 +1368,7 @@ bool control_conn_t::send_data() noexcept
     if (outbuf.empty() && bad_conn_close) {
         if (oom_close) {
             // Send oom response
-            char oomBuf[] = { DINIT_RP_OOM };
+            char oomBuf[] = { (char)cp_rply::OOM };
             bp_sys::write(iob.get_watched_fd(), oomBuf, 1);
         }
         return true;
@@ -1399,7 +1399,7 @@ bool control_conn_t::send_data() noexcept
         outbuf.pop_front();
         outpkt_index = 0;
         if (oom_close) {
-            // remain active, try to send DINIT_RP_OOM shortly
+            // remain active, try to send cp_rply::OOM shortly
             return false;
         }
         if (outbuf.empty() && bad_conn_close) {

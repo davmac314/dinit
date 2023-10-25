@@ -6,8 +6,6 @@
 // Dinit control command packet types
 
 // Requests:
-
-
 enum class cp_cmd :dinit_cptypes::cp_cmd_t {
     // Query protocol version:
     QUERYVERSION = 0,
@@ -73,81 +71,82 @@ enum class cp_cmd :dinit_cptypes::cp_cmd_t {
 };
 
 // Replies:
+enum class cp_rply :dinit_cptypes::cp_rply_t {
+    // Reply: ACK/NAK to request
+    ACK = 50,
+    NAK = 51,
 
-// Reply: ACK/NAK to request
-constexpr static int DINIT_RP_ACK = 50;
-constexpr static int DINIT_RP_NAK = 51;
+    // Request was bad (connection will be closed)
+    BADREQ = 52,
 
-// Request was bad (connection will be closed)
-constexpr static int DINIT_RP_BADREQ = 52;
+    // Connection being closed due to out-of-memory condition
+    OOM = 53,
 
-// Connection being closed due to out-of-memory condition
-constexpr static int DINIT_RP_OOM = 53;
+    // Start service replies:
+    SERVICELOADERR = 54,
+    SERVICEOOM = 55, // couldn't start due to out-of-memory
 
-// Start service replies:
-constexpr static int DINIT_RP_SERVICELOADERR = 54;
-constexpr static int DINIT_RP_SERVICEOOM = 55; // couldn't start due to out-of-memory
+    // Not (any longer?) used
+    //SSISSUED = 56,  // service start/stop was issued (includes 4-byte service handle)
+    //SSREDUNDANT = 57,  // service was already started/stopped (or for stop, not loaded)
 
-// Not (any longer?) used
-//constexpr static int DINIT_RP_SSISSUED = 56;  // service start/stop was issued (includes 4-byte service handle)
-//constexpr static int DINIT_RP_SSREDUNDANT = 57;  // service was already started/stopped (or for stop, not loaded)
+    // Query version response:
+    CPVERSION = 58,
 
-// Query version response:
-constexpr static int DINIT_RP_CPVERSION = 58;
+    // Service record loaded/found
+    SERVICERECORD = 59,
+    //     followed by 4-byte service handle, 1-byte service state
 
-// Service record loaded/found
-constexpr static int DINIT_RP_SERVICERECORD = 59;
-//     followed by 4-byte service handle, 1-byte service state
+    // Couldn't find/load service
+    NOSERVICE = 60,
 
-// Couldn't find/load service
-constexpr static int DINIT_RP_NOSERVICE = 60;
+    // Service is already started/stopped
+    ALREADYSS = 61,
 
-// Service is already started/stopped
-constexpr static int DINIT_RP_ALREADYSS = 61;
+    // Information on a service / list complete:
+    SVCINFO = 62,
+    LISTDONE = 63,
 
-// Information on a service / list complete:
-constexpr static int DINIT_RP_SVCINFO = 62;
-constexpr static int DINIT_RP_LISTDONE = 63;
+    // Service loader information:
+    LOADER_MECH = 64,
 
-// Service loader information:
-constexpr static int DINIT_RP_LOADER_MECH = 64;
+    // Dependent services prevent stopping/restarting. Includes size_t count, handle_t * N handles.
+    DEPENDENTS = 65,
 
-// Dependent services prevent stopping/restarting. Includes size_t count, handle_t * N handles.
-constexpr static int DINIT_RP_DEPENDENTS = 65;
+    // Service name:
+    SERVICENAME = 66,
 
-// Service name:
-constexpr static int DINIT_RP_SERVICENAME = 66;
+    // Service is pinned stopped/started:
+    PINNEDSTOPPED = 67,
+    PINNEDSTARTED = 68,
 
-// Service is pinned stopped/started:
-constexpr static int DINIT_RP_PINNEDSTOPPED = 67;
-constexpr static int DINIT_RP_PINNEDSTARTED = 68;
+    // Shutdown is in progress, can't start/restart/wake service:
+    SHUTTINGDOWN = 69,
 
-// Shutdown is in progress, can't start/restart/wake service:
-constexpr static int DINIT_RP_SHUTTINGDOWN = 69;
+    // Service status:
+    SERVICESTATUS = 70,
 
-// Service status:
-constexpr static int DINIT_RP_SERVICESTATUS = 70;
+    // Service description error:
+    SERVICE_DESC_ERR = 71,
+    // Service load error (general):
+    SERVICE_LOAD_ERR = 72,
 
-// Service description error:
-constexpr static int DINIT_RP_SERVICE_DESC_ERR = 71;
-// Service load error (general):
-constexpr static int DINIT_RP_SERVICE_LOAD_ERR = 72;
+    // Service log:
+    SERVICE_LOG = 73,
 
-// Service log:
-constexpr static int DINIT_RP_SERVICE_LOG = 73;
+    // Signal replies:
+    SIGNAL_NOPID = 74,
+    SIGNAL_BADSIG = 75,
+    SIGNAL_KILLERR = 76,
 
-// Signal replies:
-constexpr static int DINIT_RP_SIGNAL_NOPID = 74;
-constexpr static int DINIT_RP_SIGNAL_BADSIG = 75;
-constexpr static int DINIT_RP_SIGNAL_KILLERR = 76;
-
-// Service description directory:
-constexpr static int DINIT_RP_SVCDSCDIR = 77;
-
+    // Service description directory:
+    SVCDSCDIR = 77,
+};
 
 // Information (out-of-band):
-
-// Service event occurred (4-byte service handle, 1 byte event code)
-constexpr static int DINIT_IP_SERVICEEVENT = 100;
+enum class cp_info :dinit_cptypes::cp_info_t {
+    // Service event occurred (4-byte service handle, 1 byte event code)
+    SERVICEEVENT = 100,
+};
 
 #endif
