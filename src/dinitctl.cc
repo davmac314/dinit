@@ -732,7 +732,7 @@ static std::string get_service_name(int socknum, cpbuffer_t &rbuffer, handle_t h
 
     wait_for_reply(rbuffer, socknum);
 
-    if (rbuffer[0] != DINIT_RP_SERVICENAME) {
+    if (rbuffer[0] != (char)cp_rply::SERVICENAME) {
         throw cp_read_exception{0};
     }
 
@@ -814,7 +814,7 @@ static int wait_service_state(int socknum, cpbuffer_t &rbuffer, handle_t handle,
             unsigned pktlen = (unsigned char) rbuffer[1];
             fill_buffer_to(rbuffer, socknum, pktlen);
 
-            if (rbuffer[0] == DINIT_IP_SERVICEEVENT) {
+            if (rbuffer[0] == (char)cp_info::SERVICEEVENT) {
                 // earlier versions do not include status info, the size in that case is base_pkt_size:
                 constexpr unsigned base_pkt_size = 2 + sizeof(handle_t) + 1;
                 if (pktlen < base_pkt_size) {
@@ -951,9 +951,9 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
         write_all_x(socknum, m);
 
         wait_for_reply(rbuffer, socknum);
-        auto reply_pkt_h = rbuffer[0];
+        cp_rply reply_pkt_h = (cp_rply)rbuffer[0];
         rbuffer.consume(1); // consume header
-        if (reply_pkt_h == DINIT_RP_ALREADYSS) {
+        if (reply_pkt_h == cp_rply::ALREADYSS) {
             bool already = (state == wanted_state);
             if (verbose) {
                 cout << "Service " << (already ? "(already) " : "")
@@ -961,15 +961,15 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             }
             return 0; // success!
         }
-        if (reply_pkt_h == DINIT_RP_PINNEDSTARTED) {
+        if (reply_pkt_h == cp_rply::PINNEDSTARTED) {
             cerr << "dinitctl: cannot stop service '" << service_name << "' as it is pinned started\n";
             return 1;
         }
-        if (reply_pkt_h == DINIT_RP_PINNEDSTOPPED) {
+        if (reply_pkt_h == cp_rply::PINNEDSTOPPED) {
             cerr << "dinitctl: cannot start service '" << service_name << "' as it is pinned stopped\n";
             return 1;
         }
-        if (reply_pkt_h == DINIT_RP_DEPENDENTS && pcommand == cp_cmd::STOPSERVICE) {
+        if (reply_pkt_h == cp_rply::DEPENDENTS && pcommand == cp_cmd::STOPSERVICE) {
             cerr << "dinitctl: cannot stop service '" << service_name << "' due to the following dependents:\n";
             if (command != ctl_cmd::RESTART_SERVICE) {
                 cerr << "(only direct dependents are listed. Exercise caution before using '--force' !!)\n";
@@ -996,7 +996,7 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             cerr << "\n";
             return 1;
         }
-        if (reply_pkt_h == DINIT_RP_NAK && command == ctl_cmd::RESTART_SERVICE) {
+        if (reply_pkt_h == cp_rply::NAK && command == ctl_cmd::RESTART_SERVICE) {
             if (ignore_unstarted) {
                 if (verbose) {
                     cout << "Service '" << service_name << "' is not currently started.\n";
@@ -1006,15 +1006,15 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             cerr << "dinitctl: cannot restart service; service not started.\n";
             return 1;
         }
-        if (reply_pkt_h == DINIT_RP_NAK && command == ctl_cmd::WAKE_SERVICE) {
+        if (reply_pkt_h == cp_rply::NAK && command == ctl_cmd::WAKE_SERVICE) {
             cerr << "dinitctl: service has no active dependents, cannot wake.\n";
             return 1;
         }
-        if (reply_pkt_h == DINIT_RP_SHUTTINGDOWN) {
+        if (reply_pkt_h == cp_rply::SHUTTINGDOWN) {
             cerr << "dinitctl: cannot start/restart/wake service, shutdown is in progress.\n";
             return 1;
         }
-        if (reply_pkt_h != DINIT_RP_ACK && reply_pkt_h != DINIT_RP_ALREADYSS) {
+        if (reply_pkt_h != cp_rply::ACK && reply_pkt_h != cp_rply::ALREADYSS) {
             cerr << "dinitctl: protocol error." << endl;
             return 1;
         }
@@ -1057,7 +1057,8 @@ static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p
 {
     using namespace std;
     
-    if (rbuffer[0] == DINIT_RP_SERVICERECORD) {
+    cp_rply reply_pkt_h = (cp_rply)rbuffer[0];
+    if (reply_pkt_h == cp_rply::SERVICERECORD) {
         fill_buffer_to(rbuffer, socknum, 2 + sizeof(*handle_p));
         rbuffer.extract((char *) handle_p, 2, sizeof(*handle_p));
         if (state_p) *state_p = static_cast<service_state_t>(rbuffer[1]);
@@ -1065,21 +1066,21 @@ static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p
         rbuffer.consume(3 + sizeof(*handle_p));
         return 0;
     }
-    else if (rbuffer[0] == DINIT_RP_NOSERVICE) {
+    else if (reply_pkt_h == cp_rply::NOSERVICE) {
         if (write_error) {
             cerr << "dinitctl: failed to find service description.\n";
             cerr << "dinitctl: check service description file exists / service name spelling.\n";
         }
         return 1;
     }
-    else if (rbuffer[0] == DINIT_RP_SERVICE_DESC_ERR) {
+    else if (reply_pkt_h == cp_rply::SERVICE_DESC_ERR) {
         if (write_error) {
             cerr << "dinitctl: error in service description.\n";
             cerr << "dinitctl: try 'dinitcheck <service-name>' or check log for more information.\n";
         }
         return 1;
     }
-    else if (rbuffer[0] == DINIT_RP_SERVICE_LOAD_ERR) {
+    else if (reply_pkt_h == cp_rply::SERVICE_LOAD_ERR) {
         if (write_error) {
             cerr << "dinitctl: error loading service (or dependency of service).\n";
             cerr << "dinitctl: try 'dinitcheck <service-name>' or check log for more information.\n";
@@ -1110,7 +1111,7 @@ static int unpin_service(int socknum, cpbuffer_t &rbuffer, const char *service_n
         write_all_x(socknum, m);
         
         wait_for_reply(rbuffer, socknum);
-        if (rbuffer[0] != DINIT_RP_ACK) {
+        if (rbuffer[0] != (char)cp_rply::ACK) {
             cerr << "dinitctl: protocol error." << endl;
             return 1;
         }
@@ -1135,7 +1136,7 @@ static int unload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
 
     handle_t handle;
 
-    if (rbuffer[0] == DINIT_RP_NOSERVICE) {
+    if (rbuffer[0] == (char)cp_rply::NOSERVICE) {
         cerr << "dinitctl: service not loaded." << endl;
         return 1;
     }
@@ -1152,12 +1153,12 @@ static int unload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
         write_all_x(socknum, m);
 
         wait_for_reply(rbuffer, socknum);
-        if (rbuffer[0] == DINIT_RP_NAK) {
+        if (rbuffer[0] == (char)cp_rply::NAK) {
             cerr << "dinitctl: could not unload service; service not stopped, or is a dependency of "
                     "other service." << endl;
             return 1;
         }
-        if (rbuffer[0] != DINIT_RP_ACK) {
+        if (rbuffer[0] != (char)cp_rply::ACK) {
             cerr << "dinitctl: protocol error." << endl;
             return 1;
         }
@@ -1182,7 +1183,7 @@ static int reload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
 
     handle_t handle;
 
-    if (rbuffer[0] == DINIT_RP_NOSERVICE) {
+    if (rbuffer[0] == (char)cp_rply::NOSERVICE) {
         rbuffer.consume(1);
         // If the service isn't loaded yet at all, just do a basic load:
         if (issue_load_service(socknum, service_name, false) == 1) {
@@ -1213,12 +1214,12 @@ static int reload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
         write_all_x(socknum, m);
 
         wait_for_reply(rbuffer, socknum);
-        if (rbuffer[0] == DINIT_RP_NAK) {
+        if (rbuffer[0] == (char)cp_rply::NAK) {
             cerr << "dinitctl: could not reload service; service in wrong state, incompatible change, "
                     "or bad service description." << endl;
             return 1;
         }
-        if (rbuffer[0] != DINIT_RP_ACK) {
+        if (rbuffer[0] != (char)cp_rply::ACK) {
             cerr << "dinitctl: protocol error." << endl;
             return 1;
         }
@@ -1239,7 +1240,7 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
     write_all_x(socknum, cmdbuf, 1);
 
     wait_for_reply(rbuffer, socknum);
-    while (rbuffer[0] == DINIT_RP_SVCINFO) {
+    while (rbuffer[0] == (char)cp_rply::SVCINFO) {
         int hdrsize = 8 + std::max(sizeof(int), sizeof(pid_t));
         fill_buffer_to(rbuffer, socknum, hdrsize);
         unsigned name_len = (unsigned char)rbuffer[1];
@@ -1342,7 +1343,7 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
         wait_for_reply(rbuffer, socknum);
     }
 
-    if (rbuffer[0] != DINIT_RP_LISTDONE) {
+    if (rbuffer[0] != (char)cp_rply::LISTDONE) {
         cerr << "dinitctl: control socket protocol error" << endl;
         return 1;
     }
@@ -1364,7 +1365,7 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
 
     handle_t handle;
 
-    if (rbuffer[0] == DINIT_RP_NOSERVICE) {
+    if (rbuffer[0] == (char)cp_rply::NOSERVICE) {
         if (is_status) {
             cerr << "dinitctl: service not loaded." << endl;
         }
@@ -1383,7 +1384,7 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
         write_all_x(socknum, m);
 
         wait_for_reply(rbuffer, socknum);
-        if (rbuffer[0] != DINIT_RP_SERVICESTATUS) {
+        if (rbuffer[0] != (char)cp_rply::SERVICESTATUS) {
             cerr << "dinitctl: protocol error." << endl;
             return 1;
         }
@@ -1574,7 +1575,7 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
     wait_for_reply(rbuffer, socknum);
 
     // check reply
-    if (rbuffer[0] == DINIT_RP_NAK) {
+    if (rbuffer[0] == (char)cp_rply::NAK) {
         if (add) {
             cerr << "dinitctl: could not add dependency: circular dependency or wrong state" << endl;
         }
@@ -1583,7 +1584,7 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
         }
         return 1;
     }
-    if (rbuffer[0] != DINIT_RP_ACK) {
+    if (rbuffer[0] != (char)cp_rply::ACK) {
         cerr << "dinitctl: control socket protocol error" << endl;
         return 1;
     }
@@ -1607,7 +1608,7 @@ static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer, bool verbose)
 
     wait_for_reply(rbuffer, socknum);
 
-    if (rbuffer[0] != DINIT_RP_ACK) {
+    if (rbuffer[0] != (char)cp_rply::ACK) {
         cerr << "dinitctl: control socket protocol error" << endl;
         return 1;
     }
@@ -1643,7 +1644,7 @@ static std::vector<std::string> get_service_description_dirs(int socknum, cpbuff
 
     wait_for_reply(rbuffer, socknum);
 
-    if (rbuffer[0] != DINIT_RP_LOADER_MECH) {
+    if (rbuffer[0] != (char)cp_rply::LOADER_MECH) {
         cerr << "dinitctl: control socket protocol error" << endl;
         return {};
     }
@@ -1700,7 +1701,7 @@ static std::string get_service_description_dir(int socknum, cpbuffer_t &rbuffer,
     write_all_x(socknum, m);
     wait_for_reply(rbuffer, socknum);
 
-    if (rbuffer[0] != DINIT_RP_SVCDSCDIR) {
+    if (rbuffer[0] != (char)cp_rply::SVCDSCDIR) {
         throw dinit_protocol_error();
     }
     rbuffer.consume(1);
@@ -1907,7 +1908,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
         wait_for_reply(rbuffer, socknum);
 
         // check reply
-        if (rbuffer[0] == DINIT_RP_NAK) {
+        if (rbuffer[0] == (char)cp_rply::NAK) {
             if (enable) {
                 cerr << "dinitctl: could not enable service: possible circular dependency" << endl;
             }
@@ -1916,7 +1917,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
             }
             return 1;
         }
-        if (rbuffer[0] != DINIT_RP_ACK) {
+        if (rbuffer[0] != (char)cp_rply::ACK) {
             cerr << "dinitctl: control socket protocol error" << endl;
             return 1;
         }
@@ -1978,7 +1979,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
         write_all_x(socknum, m);
 
         wait_for_reply(rbuffer, socknum);
-        if (rbuffer[0] != DINIT_RP_SERVICESTATUS) {
+        if (rbuffer[0] != (char)cp_rply::SERVICESTATUS) {
             cerr << "dinitctl: protocol error." << endl;
             return 1;
         }
@@ -2052,10 +2053,10 @@ static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *>
         // send
         write_all_x(socknum, buf.data(), buf.size());
         wait_for_reply(rbuffer, socknum);
-        if (rbuffer[0] == DINIT_RP_BADREQ) {
+        if (rbuffer[0] == (char)cp_rply::BADREQ) {
             cerr << "dinitctl: failed to export environment." << endl;
             return 1;
-        } else if (rbuffer[0] != DINIT_RP_ACK) {
+        } else if (rbuffer[0] != (char)cp_rply::ACK) {
             throw dinit_protocol_error();
         }
         rbuffer.consume(1);
@@ -2082,11 +2083,11 @@ static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service
         write_all_x(socknum, m);
 
         wait_for_reply(rbuffer, socknum);
-        if (rbuffer[0] == DINIT_RP_NAK) {
+        if (rbuffer[0] == (char)cp_rply::NAK) {
             cerr << "dinitctl: cannot trigger a service that is not of 'triggered' type.\n";
             return 1;
         }
-        if (rbuffer[0] != DINIT_RP_ACK) {
+        if (rbuffer[0] != (char)cp_rply::ACK) {
             cerr << "dinitctl: protocol error.\n";
             return 1;
         }
@@ -2114,24 +2115,25 @@ static int signal_send(int socknum, cpbuffer_t &rbuffer, const char *service_nam
     write_all_x(socknum, m);
 
     wait_for_reply(rbuffer, socknum);
-    if (rbuffer[0] == DINIT_RP_NAK) {
+    cp_rply reply_pkt_h = (cp_rply)rbuffer[0];
+    if (reply_pkt_h == cp_rply::NAK) {
         cerr << "dinitctl: cannot send signal to service.\n";
         return 1;
     }
-    if (rbuffer[0] == DINIT_RP_SIGNAL_NOPID) {
+    if (reply_pkt_h == cp_rply::SIGNAL_NOPID) {
         cerr << "dinitctl: could not get vaild PID of service; service is not process, "
         "service in wrong state." << endl;
         return 1;
     }
-    if (rbuffer[0] == DINIT_RP_SIGNAL_BADSIG) {
+    if (reply_pkt_h == cp_rply::SIGNAL_BADSIG) {
         cerr << "dinitctl: provided signal was invalid.\n";
         return 1;
     }
-    if (rbuffer[0] == DINIT_RP_SIGNAL_KILLERR) {
+    if (reply_pkt_h == cp_rply::SIGNAL_KILLERR) {
         cerr << "dinitctl: failed sending signal to service.\n";
         return 1;
     }
-    if (rbuffer[0] != DINIT_RP_ACK) {
+    if (reply_pkt_h != cp_rply::ACK) {
         cerr << "dinitctl: protocol error.\n";
         return 1;
     }
@@ -2179,11 +2181,11 @@ static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service
     write_all_x(socknum, m);
 
     wait_for_reply(rbuffer, socknum);
-    if (rbuffer[0] == DINIT_RP_NAK) {
+    if (rbuffer[0] == (char)cp_rply::NAK) {
         cerr << "dinitctl: cannot cat log for service not configured to buffer output.\n";
         return 1;
     }
-    if (rbuffer[0] != DINIT_RP_SERVICE_LOG) {
+    if (rbuffer[0] != (char)cp_rply::SERVICE_LOG) {
         cerr << "dinitctl: protocol error.\n";
         return 1;
     }

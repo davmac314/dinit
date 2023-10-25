@@ -170,7 +170,7 @@ int dinit_monitor_main(int argc, char **argv)
                 int pktlen = (unsigned char) rbuffer[1];
                 fill_buffer_to(rbuffer, socknum, pktlen);
 
-                if (rbuffer[0] == DINIT_IP_SERVICEEVENT) {
+                if (rbuffer[0] == (char)cp_info::SERVICEEVENT) {
                     handle_t ev_handle;
                     rbuffer.extract((char *) &ev_handle, 2, sizeof(ev_handle));
                     service_event_t event = static_cast<service_event_t>(rbuffer[2 + sizeof(ev_handle)]);
@@ -383,7 +383,8 @@ static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p
 {
     using namespace std;
 
-    if (rbuffer[0] == DINIT_RP_SERVICERECORD) {
+    cp_rply reply_pkt_h = (cp_rply)rbuffer[0];
+    if (reply_pkt_h == cp_rply::SERVICERECORD) {
         fill_buffer_to(rbuffer, socknum, 2 + sizeof(*handle_p));
         rbuffer.extract((char *) handle_p, 2, sizeof(*handle_p));
         if (state_p) *state_p = static_cast<service_state_t>(rbuffer[1]);
@@ -391,7 +392,7 @@ static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p
         rbuffer.consume(3 + sizeof(*handle_p));
         return 0;
     }
-    else if (rbuffer[0] == DINIT_RP_NOSERVICE) {
+    else if (reply_pkt_h == cp_rply::NOSERVICE) {
         return 1;
     }
     else {

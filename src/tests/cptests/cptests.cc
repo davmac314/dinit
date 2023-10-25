@@ -52,7 +52,7 @@ void cptest_queryver()
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == 5);
-    assert(wdata[0] == DINIT_RP_CPVERSION);
+    assert(wdata[0] == (char)cp_rply::CPVERSION);
 
     delete cc;
 }
@@ -79,7 +79,7 @@ void cptest_listservices()
     //event_loop.regd_bidi_watchers[fd]->write_ready(event_loop, fd);
 
     // We expect, for each service:
-    // (1 byte)   DINIT_RP_SVCINFO
+    // (1 byte)   cp_rply::SVCINFO
     // (1 byte)   service name length
     // (1 byte)   state
     // (1 byte)   target state
@@ -96,7 +96,7 @@ void cptest_listservices()
 
     int pos = 0;
     for (int i = 0; i < 3; i++) {
-        assert(wdata[pos++] == DINIT_RP_SVCINFO);
+        assert(wdata[pos++] == (char)cp_rply::SVCINFO);
         unsigned char name_len_c = wdata[pos++];
         pos += 6;
 
@@ -133,13 +133,13 @@ static handle_t  find_service(int fd, const char *service_name,
     bp_sys::extract_written_data(fd, wdata);
 
     // We expect:
-    // (1 byte)   DINIT_RP_SERVICERECORD
+    // (1 byte)   cp_rply::SERVICERECORD
     // (1 byte)   state
     // (handle_t) handle
     // (1 byte)   target state
 
     assert(wdata.size() == 3 + sizeof(handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
+    assert(wdata[0] == (char)cp_rply::SERVICERECORD);
     service_state_t s = static_cast<service_state_t>(wdata[1]);
     assert(s == expected_state);
     service_state_t ts = static_cast<service_state_t>(wdata[6]);
@@ -227,13 +227,13 @@ void cptest_findservice3()
     event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
 
     // We expect:
-    // (1 byte)   DINIT_RP_NOSERVICE
+    // (1 byte)   cp_rply::NOSERVICE
 
     std::vector<char> wdata;
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == 1);
-    assert(wdata[0] == DINIT_RP_NOSERVICE);
+    assert(wdata[0] == (char)cp_rply::NOSERVICE);
 
     delete cc;
 }
@@ -286,7 +286,7 @@ void cptest_loadservice()
     event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
 
     // We expect:
-    // (1 byte)   DINIT_RP_SERVICERECORD
+    // (1 byte)   cp_rply::SERVICERECORD
     // (1 byte)   state
     // (handle_t) handle
     // (1 byte)   target state
@@ -295,7 +295,7 @@ void cptest_loadservice()
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == 3 + sizeof(handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
+    assert(wdata[0] == (char)cp_rply::SERVICERECORD);
     service_state_t s = static_cast<service_state_t>(wdata[1]);
     assert(s == service_state_t::STOPPED);
     service_state_t ts = static_cast<service_state_t>(wdata[6]);
@@ -313,7 +313,7 @@ void cptest_loadservice()
     event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
 
     // We expect:
-    // (1 byte)   DINIT_RP_SERVICERECORD
+    // (1 byte)   cp_rply::SERVICERECORD
     // (1 byte)   state
     // (handle_t) handle
     // (1 byte)   target state
@@ -321,7 +321,7 @@ void cptest_loadservice()
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == 3 + sizeof(handle_t));
-    assert(wdata[0] == DINIT_RP_SERVICERECORD);
+    assert(wdata[0] == (char)cp_rply::SERVICERECORD);
     s = static_cast<service_state_t>(wdata[1]);
     assert(s == service_state_t::STOPPED);
     ts = static_cast<service_state_t>(wdata[6]);
@@ -361,7 +361,7 @@ void cptest_startstop()
     std::vector<char> wdata;
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1 + 7 + STATUS_BUFFER_SIZE /* ACK reply + info packet */);
-    assert(wdata[0] == DINIT_IP_SERVICEEVENT);
+    assert(wdata[0] == (char)cp_info::SERVICEEVENT);
     // packetsize, key (handle), event
     assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
     handle_t ip_h;
@@ -371,7 +371,7 @@ void cptest_startstop()
 
     constexpr unsigned reply_start = 7 + STATUS_BUFFER_SIZE;
     // we get ALREADYSS since it started immediately:
-    assert(wdata[reply_start] == DINIT_RP_ALREADYSS);
+    assert(wdata[reply_start] == (char)cp_rply::ALREADYSS);
     assert(s1->get_state() == service_state_t::STARTED);
 
     // Issue stop:
@@ -384,14 +384,14 @@ void cptest_startstop()
 
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1 + 7 + STATUS_BUFFER_SIZE);
-    assert(wdata[0] == DINIT_IP_SERVICEEVENT);
+    assert(wdata[0] == (char)cp_info::SERVICEEVENT);
     // packetsize, key (handle), event
     assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
     std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h);
     assert(wdata[6] == static_cast<int>(service_event_t::STOPPED));
     // we get ALREADYSS since it stopped immediately:
-    assert(wdata[reply_start] == DINIT_RP_ALREADYSS);
+    assert(wdata[reply_start] == (char)cp_rply::ALREADYSS);
     assert(s1->get_state() == service_state_t::STOPPED);
 
     delete cc;
@@ -426,8 +426,8 @@ void cptest_start_pinned()
 
     std::vector<char> wdata;
     bp_sys::extract_written_data(fd, wdata);
-    assert(wdata.size() == 1 /* DINIT_RP_PINNEDSTOPPED */);
-    assert(wdata[0] == DINIT_RP_PINNEDSTOPPED);
+    assert(wdata.size() == 1 /* cp_rply::PINNEDSTOPPED */);
+    assert(wdata[0] == (char)cp_rply::PINNEDSTOPPED);
 
     delete cc;
 }
@@ -470,12 +470,12 @@ void cptest_gentlestop()
     bp_sys::extract_written_data(fd, wdata);
 
     // We expect:
-    // 1 byte: DINIT_RP_DEPENDENTS
+    // 1 byte: cp_rply::DEPENDENTS
     // size_t: number of handles (N)
     // N * handle_t: handles for dependents that would be stopped
 
     assert(wdata.size() == (1 + sizeof(size_t) + sizeof(handle_t)));
-    assert(wdata[0] == DINIT_RP_DEPENDENTS);
+    assert(wdata[0] == (char)cp_rply::DEPENDENTS);
 
     size_t nhandles;
     memcpy(&nhandles, wdata.data() + 1, sizeof(nhandles));
@@ -520,13 +520,13 @@ void cptest_queryname()
     bp_sys::extract_written_data(fd, wdata);
 
     // We expect:
-    // 1 byte packet type = DINIT_RP_SERVICENAME
+    // 1 byte packet type = cp_rply::SERVICENAME
     // 1 byte reserved
     // uint16_t length
     // N bytes name
 
     assert(wdata.size() == (2 + sizeof(uint16_t) + strlen(test1_name)));
-    assert(wdata[0] == DINIT_RP_SERVICENAME);
+    assert(wdata[0] == (char)cp_rply::SERVICENAME);
     assert(wdata[1] == 0);
     uint16_t len;
     memcpy(&len, wdata.data() + 2, sizeof(uint16_t));
@@ -569,7 +569,7 @@ void cptest_unload()
     std::vector<char> wdata;
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1);
-    assert(wdata[0] == DINIT_RP_NAK);
+    assert(wdata[0] == (char)cp_rply::NAK);
 
 
     handle_t h2 = find_service(fd, service_name2, service_state_t::STOPPED,
@@ -588,7 +588,7 @@ void cptest_unload()
     // We should receive ACK:
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1);
-    assert(wdata[0] == DINIT_RP_ACK);
+    assert(wdata[0] == (char)cp_rply::ACK);
 
     // Now try to unload s1 again:
 
@@ -603,7 +603,7 @@ void cptest_unload()
     // We should receive ACK:
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1);
-    assert(wdata[0] == DINIT_RP_ACK);
+    assert(wdata[0] == (char)cp_rply::ACK);
 
     // If we try to FIND service 1 now, it should not be there:
     cmd = { (char)cp_cmd::FINDSERVICE };
@@ -618,7 +618,7 @@ void cptest_unload()
 
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1);
-    assert(wdata[0] == DINIT_RP_NOSERVICE);
+    assert(wdata[0] == (char)cp_rply::NOSERVICE);
 
     delete cc;
 }
@@ -656,7 +656,7 @@ void cptest_addrmdeps()
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == 1);
-    assert(wdata[0] == DINIT_RP_ACK);
+    assert(wdata[0] == (char)cp_rply::ACK);
 
     // Issue start for S1. S2 should also start:
     cmd = { (char)cp_cmd::STARTSERVICE, 0 /* don't pin */ };
@@ -720,7 +720,7 @@ void cptest_enableservice()
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == 1 + 7 + STATUS_BUFFER_SIZE /* ACK reply + info packet */);
-    assert(wdata[0] == DINIT_IP_SERVICEEVENT);
+    assert(wdata[0] == (char)cp_info::SERVICEEVENT);
     // packetsize, key (handle), event
     assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
     handle_t ip_h;
@@ -729,7 +729,7 @@ void cptest_enableservice()
     assert(wdata[6] == static_cast<int>(service_event_t::STARTED));
 
     // and then the ack:
-    assert(wdata[7 + STATUS_BUFFER_SIZE] == DINIT_RP_ACK);
+    assert(wdata[7 + STATUS_BUFFER_SIZE] == (char)cp_rply::ACK);
 
     sset.process_queues();
 
@@ -778,7 +778,7 @@ void cptest_restart()
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == 1 /* NAK reply, wrong state */);
-    assert(wdata[0] == DINIT_RP_NAK);
+    assert(wdata[0] == (char)cp_rply::NAK);
 
     // Start the service now:
     s1->start();
@@ -794,13 +794,13 @@ void cptest_restart()
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == 7 + STATUS_BUFFER_SIZE + 1);  // info packet (service stopped) + ACK
-    assert(wdata[0] == DINIT_IP_SERVICEEVENT);
+    assert(wdata[0] == (char)cp_info::SERVICEEVENT);
     assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
     handle_t ip_h;
     std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h);
     assert(wdata[6] == static_cast<int>(service_event_t::STOPPED));
-    assert(wdata[7 + STATUS_BUFFER_SIZE] == DINIT_RP_ACK);
+    assert(wdata[7 + STATUS_BUFFER_SIZE] == (char)cp_rply::ACK);
 
     sset.process_queues();
     assert(s1->get_state() == service_state_t::STARTING);
@@ -812,7 +812,7 @@ void cptest_restart()
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == 7 + STATUS_BUFFER_SIZE);  /* info packet */
-    assert(wdata[0] == DINIT_IP_SERVICEEVENT);
+    assert(wdata[0] == (char)cp_info::SERVICEEVENT);
     // packetsize, key (handle), event
     assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
     std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
@@ -861,7 +861,7 @@ void cptest_wake()
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == 1 + 7 + STATUS_BUFFER_SIZE /* ACK reply + info packet */);
-    assert(wdata[0] == DINIT_IP_SERVICEEVENT);
+    assert(wdata[0] == (char)cp_info::SERVICEEVENT);
     // packetsize, key (handle), event
     assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
     handle_t ip_h;
@@ -870,7 +870,7 @@ void cptest_wake()
     assert(wdata[6] == static_cast<int>(service_event_t::STARTED));
 
     // and then the ack (already started):
-    assert(wdata[7 + STATUS_BUFFER_SIZE] == DINIT_RP_ALREADYSS);
+    assert(wdata[7 + STATUS_BUFFER_SIZE] == (char)cp_rply::ALREADYSS);
 
     // now stop s2 (and therefore s1):
     s2->stop(true);
@@ -890,7 +890,7 @@ void cptest_wake()
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == 1);
-    assert(wdata[0] == DINIT_RP_NAK);
+    assert(wdata[0] == (char)cp_rply::NAK);
 
     delete cc;
 }
@@ -930,11 +930,11 @@ void cptest_servicestatus()
 
     constexpr static int STATUS_BUFFER_SIZE = 6 + ((sizeof(pid_t) > sizeof(int)) ? sizeof(pid_t) : sizeof(int));
 
-    // 1 byte: DINIT_RP_SERVICESTATUS
+    // 1 byte: cp_rply::SERVICESTATUS
     // 1 byte: reserved
     // STATUS_BUFFER_SIZE bytes: status
     assert(wdata.size() == (2 + STATUS_BUFFER_SIZE));
-    assert(wdata[0] == DINIT_RP_SERVICESTATUS);
+    assert(wdata[0] == (char)cp_rply::SERVICESTATUS);
     assert(wdata[2] == (int)service_state_t::STOPPED); // state
     assert(wdata[3] == (int)service_state_t::STOPPED); // target state
     assert(wdata[4] == 0); // various flags
@@ -950,7 +950,7 @@ void cptest_servicestatus()
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == (2 + STATUS_BUFFER_SIZE));
-    assert(wdata[0] == DINIT_RP_SERVICESTATUS);
+    assert(wdata[0] == (char)cp_rply::SERVICESTATUS);
     assert(wdata[2] == (int)service_state_t::STARTED); // state
     assert(wdata[3] == (int)service_state_t::STARTED); // target state
     assert(wdata[4] == 8); // various flags; 8 = marked active
@@ -1002,7 +1002,7 @@ void cptest_sendsignal()
     std::vector<char> wdata;
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1);
-    assert(wdata[0] == DINIT_RP_ACK);
+    assert(wdata[0] == (char)cp_rply::ACK);
 
     assert(bp_sys::last_sig_sent == SIGHUP);
 
@@ -1021,7 +1021,7 @@ void cptest_sendsignal()
     wdata.clear();
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1);
-    assert(wdata[0] == DINIT_RP_ACK);
+    assert(wdata[0] == (char)cp_rply::ACK);
 
     assert(bp_sys::last_sig_sent == SIGILL);
 
