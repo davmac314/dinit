@@ -14,6 +14,7 @@ namespace dinit_cptypes {
     using srvname_len_t = uint16_t;
     using envvar_len_t = uint16_t;
     using sig_num_t = int;
+    using srvstate_t = uint8_t;
 } // namespace dinit_cptypes
 
 #endif
