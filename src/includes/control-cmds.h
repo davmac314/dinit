@@ -6,7 +6,7 @@
 // Dinit control command packet types
 
 // Requests:
-enum class cp_cmd :dinit_cptypes::cp_cmd_t {
+enum class cp_cmd : dinit_cptypes::cp_cmd_t {
     // Query protocol version:
     QUERYVERSION = 0,
 
@@ -71,7 +71,7 @@ enum class cp_cmd :dinit_cptypes::cp_cmd_t {
 };
 
 // Replies:
-enum class cp_rply :dinit_cptypes::cp_rply_t {
+enum class cp_rply : dinit_cptypes::cp_rply_t {
     // Reply: ACK/NAK to request
     ACK = 50,
     NAK = 51,
@@ -144,7 +144,7 @@ enum class cp_rply :dinit_cptypes::cp_rply_t {
 };
 
 // Information (out-of-band):
-enum class cp_info :dinit_cptypes::cp_info_t {
+enum class cp_info : dinit_cptypes::cp_info_t {
     // Service event occurred (4-byte service handle, 1 byte event code)
     SERVICEEVENT = 100,
 };
