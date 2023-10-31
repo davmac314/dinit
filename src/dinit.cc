@@ -226,6 +226,35 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
     service_dir_opt &service_dir_opts = opts.service_dir_opts;
     list<const char *> &services_to_start = opts.services_to_start;
 
+    auto arg_to_loglevel = [&](const char *option_name, loglevel_t &wanted_level) {
+        if (++i < argc && argv[i][0] != '\0') {
+            if (strcmp(argv[i], "none") == 0) {
+                wanted_level = loglevel_t::ZERO;
+            }
+            else if (strcmp(argv[i], "error") == 0) {
+                wanted_level = loglevel_t::ERROR;
+            }
+            else if (strcmp(argv[i], "warn") == 0) {
+                wanted_level = loglevel_t::WARN;
+            }
+            else if (strcmp(argv[i], "info") == 0) {
+                wanted_level = loglevel_t::NOTICE;
+            }
+            else if (strcmp(argv[i], "debug") == 0) {
+                wanted_level = loglevel_t::DEBUG;
+            }
+            else {
+                cerr << "dinit: '" << option_name << "' accepts only arguments: 'none', 'error', 'warn', 'info', 'debug'\n";
+                return false;
+            }
+            return true;
+        }
+        else {
+            cerr << "dinit: '" << option_name << "' requires an argument\n";
+            return false;
+        }
+    };
+
     if (argv[i][0] == '-') {
         // An option...
         if (strcmp(argv[i], "--env-file") == 0 || strcmp(argv[i], "-e") == 0) {
@@ -311,6 +340,16 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
         else if (strcmp(argv[i], "--quiet") == 0 || strcmp(argv[i], "-q") == 0) {
             console_service_status = false;
             log_level[DLOG_CONS] = loglevel_t::ZERO;
+        }
+        else if (strcmp(argv[i], "--console-level") == 0) {
+            loglevel_t wanted_level;
+            if (!arg_to_loglevel("--console-level", wanted_level)) return 1;
+            log_level[DLOG_CONS] = wanted_level;
+        }
+        else if (strcmp(argv[i], "--log-level") == 0) {
+            loglevel_t wanted_level;
+            if (!arg_to_loglevel("--log-level", wanted_level)) return 1;
+            log_level[DLOG_MAIN] = wanted_level;
         }
         #ifdef SUPPORT_CGROUPS
         else if (strcmp(argv[i], "--cgroup-path") == 0 || strcmp(argv[i], "-b") == 0) {
