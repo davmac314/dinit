@@ -29,7 +29,7 @@ static service_set *services = nullptr;  // Reference to service set
 loglevel_t log_level[DLOG_NUM] = { loglevel_t::NOTICE, loglevel_t::WARN };
 static_assert(DLOG_NUM == 2, "number of log streams has changed");
 
-bool console_service_status = true;  // show service status messages to console?
+bool console_service_status = true;  // always show service status messages to console?
 
 
 dasynq::time_val release_time; // time the log was released
@@ -422,21 +422,31 @@ template <typename ... T> static void do_log(loglevel_t lvl, bool to_cons, T ...
     }
 }
 
-template <typename ... T> static void do_log_cons(T ... args) noexcept
+// Log to the console only (only for service status)
+template <typename ... T> static void do_log_cons(loglevel_t lvl, T ... args) noexcept
 {
-    if (console_service_status) {
+    if (console_service_status || lvl >= log_level[DLOG_CONS]) {
         log_current_line[DLOG_CONS] = true;
         log_current_line[DLOG_MAIN] = false;
         push_to_log(DLOG_CONS, args...);
     }
 }
 
-// Log to the main facility at NOTICE level
-template <typename ... T> static void do_log_main(T ... args) noexcept
+template <typename ... T> static void do_log_cons(T ... args) noexcept
 {
+    do_log_cons(loglevel_t::NOTICE, args...);
+}
+
+// Log to the main facility (only; not console)
+template <typename ... T> static void do_log_main(loglevel_t lvl, T ... args) noexcept
+{
+    if (lvl < log_level[DLOG_MAIN]) {
+        return;
+    }
+
     log_current_line[DLOG_CONS] = false;
     log_current_line[DLOG_MAIN] = true;
-    
+
     if (log_format_syslog[DLOG_MAIN]) {
         char svcbuf[10];
         snprintf(svcbuf, 10, "<%d>", LOG_DAEMON | LOG_NOTICE);
@@ -445,6 +455,12 @@ template <typename ... T> static void do_log_main(T ... args) noexcept
     else {
         push_to_log(DLOG_MAIN, args...);
     }
+}
+
+// Log to the main facility at NOTICE level
+template <typename ... T> static void do_log_main(T ... args) noexcept
+{
+    do_log_main(loglevel_t::NOTICE, args...);
 }
 
 // Log a message. A newline will be appended.
@@ -523,18 +539,19 @@ void log_msg_end(const char *msg) noexcept
 
 void log_service_started(const char *service_name) noexcept
 {
-    do_log_cons("[  OK  ] ", service_name, "\n");
-    do_log_main("dinit: service ", service_name, " started.\n");
+    do_log_cons(loglevel_t::NOTICE, "[  OK  ] ", service_name, "\n");
+    do_log_main(loglevel_t::NOTICE, "dinit: service ", service_name, " started.\n");
 }
 
-void log_service_failed(const char *service_name) noexcept
+void log_service_failed(const char *service_name, bool dep_failed) noexcept
 {
-    do_log_cons("[FAILED] ", service_name, "\n");
-    do_log_main("dinit: service ", service_name, " failed to start.\n");
+    loglevel_t cons_lvl = dep_failed ? loglevel_t::WARN : loglevel_t::ERROR;
+    do_log_cons(cons_lvl, "[FAILED] ", service_name, "\n");
+    do_log_main(loglevel_t::ERROR, "dinit: service ", service_name, " failed to start.\n");
 }
 
 void log_service_stopped(const char *service_name) noexcept
 {
-    do_log_cons("[STOPPD] ", service_name, "\n");
-    do_log_main("dinit: service ", service_name, " stopped.\n");
+    do_log_cons(loglevel_t::NOTICE, "[STOPPD] ", service_name, "\n");
+    do_log_main(loglevel_t::NOTICE, "dinit: service ", service_name, " stopped.\n");
 }

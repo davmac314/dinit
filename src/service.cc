@@ -546,7 +546,7 @@ void service_record::failed_to_start(bool depfailed, bool immediate_stop) noexce
     }
 
     start_failed = true;
-    log_service_failed(get_name());
+    log_service_failed(get_name(), depfailed);
     notify_listeners(service_event_t::FAILEDSTART);
     pinned_started = false;
 

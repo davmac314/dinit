@@ -76,14 +76,11 @@ void log_msg_begin(loglevel_t lvl, const char *msg) noexcept;
 void log_msg_part(const char *msg) noexcept;
 void log_msg_end(const char *msg) noexcept;
 
-// Defined below:
 void log_service_started(const char *service_name) noexcept;
-void log_service_failed(const char *service_name) noexcept;
+void log_service_failed(const char *service_name, bool dep_failed) noexcept;
 void log_service_stopped(const char *service_name) noexcept;
 
 // Convenience methods which perform type conversion of the argument.
-// There is some duplication here that could possibly be avoided, but
-// it doesn't seem like a big deal.
 static inline void log(loglevel_t lvl, const std::string &str) noexcept
 {
     log(lvl, str.c_str());
@@ -133,9 +130,9 @@ static inline void log_service_started(const std::string &str) noexcept
     log_service_started(str.c_str());
 }
 
-static inline void log_service_failed(const std::string &str) noexcept
+static inline void log_service_failed(const std::string &str, bool dep_failed) noexcept
 {
-    log_service_failed(str.c_str());
+    log_service_failed(str.c_str(), dep_failed);
 }
 
 static inline void log_service_stopped(const std::string &str) noexcept
@@ -143,7 +140,8 @@ static inline void log_service_stopped(const std::string &str) noexcept
     log_service_stopped(str.c_str());
 }
 
-// It's not intended that methods in this namespace be called directly:
+// It's not intended that methods in this namespace be called directly from outside the logging
+// subsystem:
 namespace dinit_log {
     template <typename A> static inline void log_parts(const A &a) noexcept
     {
