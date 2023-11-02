@@ -99,7 +99,8 @@ The \fBdinit\fR daemon will simply exit rather than executing the \fB$$$SHUTDOWN
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR
 Run with no output to the terminal/console.
-This disables service status messages and sets the log level for the console log to \fBNONE\fR.
+This disables service status messages and sets the log level for the console log to \fBnone\fR.
+To re-enable (some) output, use the \fB\-\-console\-level\fR option after this option.
 .TP
 \fB\-b\fR \fIpath\fR, \fB\-\-cgroup\-path\fR \fIpath\fR
 Specify the path to resolve relative cgroup paths against.
@@ -123,6 +124,19 @@ be started.
 \fBNote:\fR on Linux, if \fBdinit\fR is running as PID 1 and with UID 0, it may ignore "naked"
 service names (without preceding \fB\-\-service\fR/\fB\-t\fR) provided on the command line.
 See the \fBCOMMAND LINE FROM KERNEL\fR section.
+.TP
+\fB\-\-console\-level\fR \fIlevel\fR
+Specify the minimum log level of messages that should be logged to the console.
+From highest to lowest, the levels are \fBerror\fR, \fBwarn\fR, \fBinfo\fR and \fBdebug\fR.
+Use a level of \fBnone\fR to suppress all messages.
+Note that unless \fB\-\-quiet\fR (\fB\-q\fR) is also specified, service state change messages
+(service started, stopped etc) are always output.
+.TP
+\fB\-\-log\-level\fR \fIlevel\fR
+Specify the minimum log level of messages that should be sent to the primary log (syslog facility
+or file).
+From highest to lowest, the levels are \fBerror\fR, \fBwarn\fR, \fBinfo\fR and \fBdebug\fR.
+Use a level of \fBnone\fR to suppress all messages.
 .\"
 .SH SERVICE DESCRIPTION FILES
 .\"
@@ -197,6 +211,26 @@ service management.
 System shutdown or restart need to be handled by the primary \fBinit\fR, which should start
 \fBdinit\fR on normal startup, and terminate \fBdinit\fR before shutdown, by signalling it and
 waiting for it to terminate after stopping services (possibly by invoking \fBdinitctl shutdown\fR).
+.\"
+.SH LOGGING
+Dinit "logs" via two mechanisms simultaneously: the "console" (standard output, not necessarily associated
+with an actual console if \fBdinit\fR was started with output directed elsewhere) and the "main log facility"
+which is the syslog facility by default but which may be directed to a file.
+
+Various options are available to control the types and "levels" of message that will be sent to each facility,
+and the destination of the main facility.
+The levels available (from low to high) are \fBdebug\fR, \fBnotice\fR, \fBwarn\fR, and \fBerror\fR.
+Selecting a particular log level for facility will cause the facility to receive messages of that level and higher.
+The special level \fBnone\fR inhibits a facility from receiving any messages.
+
+Service status messages (service started or stopped) have a nominal level of \fBnotice\fR, except for failure
+which has a level of \fBerror\fR or \fBwarn\fR in case of transitive failure (due to a dependency).
+These messages are, by default, always issued to the console regardless of level, unless the \fB\-\-quiet\fR
+(\fB\-q\fR) option has been used.
+
+To debug boot issues it may be useful to use \fB\-q\fR (which also sets the level to \fBnone\fR) and then
+also reset the level via the \fB\-\-console\-level\fR option to either \fBwarn\fR or \fBerror\fR.
+This will reduce noise in the output from successful service startup.
 .\"
 .SH COMMAND LINE FROM KERNEL
 .LP
