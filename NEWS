@@ -1,8 +1,42 @@
-== Version 0.17.1pre (?)
+== Version 0.17.1 (beta releas #2)
 
-* TBA...
+This is a 2nd beta release to follow up from 0.17.0. The changes are mostly minor; they include
+some bug fixes, and some behavioural changes, that are listed below; there are also new options
+for controlling logging.
 
-== Version 0.17.0
+New features:
+ * The console log level, and primary log facility (syslog or logfile) log level, can now be
+   specified via the new "--console-level" and "--log-level" options. See the documentation
+   in the dinit(8) man page. 
+
+Changes:
+ * The log file is opened immediately when starting even as a system manager, if possible. This
+   can make it easier to debug boot issues.
+ * The working directory for a service is now the directory containing the service description.
+   This can simplify specifying configuration files/script locations etc. Implemented by
+   Daniel Kolesa.
+ * The env-file (environment) path for a service is now relative to the service directory
+   containing the service description. Implemented by Daniel Kolesa.   
+ * Failure to open the env-file (environment) specified for a service is now treated as a hard
+   error (and will prevent a service starting). Implemented by Mobin Aydinfar.
+ 
+Fixes:
+ * A service that restarted too often, too quickly but which was a dependency of another service
+   also set to restart did not trigger the restart limit check; this has been fixed.
+ * Process services with the smooth-recovery option and with readiness notification did not check
+   that readiness notification was received after a smooth restart.
+ * Don't report ECONNRESET errors in control connections. These indicate that the client closed
+   the connection (possibly by terminating) and do not need to be reported. This prevents a
+   spurious warning on shutdown.
+ * Give an error when a service is specified as its own output consumer (avoids crash).
+   Thanks to Mobin Aydinfar. 
+ * A better effort to make the symlink created during a "dinitctl enable" operation actually point
+   to the enabled service. (This has no effect on operation).
+ * Various command line switches which require an additional argument (eg -d, -l) now check that
+   the argument supplied is now empty.
+ * configure script improvements/fixes by Mobin Aydinfar, and by Roze061
+
+== Version 0.17.0 (beta release #1)
 
 Thank you to several new sponsors, as well as existing sponsors, for supporting this release.
 Current sponsors include github users: brentfrow, brazeon, and q66 (Daniel Kolesa, author of

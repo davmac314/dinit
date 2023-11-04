@@ -1,5 +1,5 @@
 # Dinit
-v0.17.1pre (beta release)
+v0.17.1 (beta release)
 
 This is the README for Dinit, the service manager and init system. It is
 intended to provide an overview; For full documentation please check the manual pages. 

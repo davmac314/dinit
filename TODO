@@ -1,17 +1,3 @@
-For version 0.17:
------------------
-* [DONE] Limit memory use by control connections. Currently clients have command responses queued without
-  limit; it would be better to stop accepting new commands once a certain amount of response is
-  buffered. 
-* [DONE] Externally triggered services (to represent devices etc). Such services will not reach STARTED
-  state unless the external trigger occurs (eg "dinitctl trigger servicename", details to be
-  determined).
-* [DONE] process input/output chaining (for logging); "log-type = pipe".
-* [DONE] Documentation for "log-type = buffer" and "log-type = pipe".
-* [DONE] dinitctl command to signal running service process.
-* [DONE] "offline" dinitctl enable/disable - i.e. enable or disable a service when dinit isn't running.
-
-
 For version 1.0 (release requirements):
 ---------------------------------------
 * Be able to boot and shutdown Linux and FreeBSD (or OpenBSD).
@@ -22,9 +8,6 @@ For version 1.0 (release requirements):
 For later (post 1.0):
 ---------------------
 * jails support
-* On linux when running with PID != 1, write PID to /proc/sys/kernel/cad_pid so
-  that we still receive SIGINT from ctrl+alt+del (must be done after /proc is
-  mounted, possibly could be left to a service script)
 * Proper support for socket activation?
 * Perhaps need a way to prevent script services from re-starting.
   (eg there's no need to mount filesystems twice; there might be various other
@@ -39,8 +22,7 @@ For later (post 1.0):
 * When we take down a service or tty session, it would be ideal if we could kill
   the whole process tree, not just the leader process (need cgroups or pid
   namespace or other mechanism).
-* Allow running services with different resource limits, chroot, cgroups,
-  namespaces (pid/fs/uid), etc
+* Allow running services chroot, in namespaces (pid/fs/uid), etc
 * Support chaining service output to another process (logger) input; if the
   service dies the file descriptor of its stdout isn't closed and is reassigned
   when the service is restarted, so that minimal output is lost. [Done!]
