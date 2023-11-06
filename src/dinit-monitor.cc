@@ -37,6 +37,7 @@ static bool load_service(int socknum, cpbuffer_t &rbuffer, const char *name, han
 
 // dummy handler, so we can wait for children
 static void sigchld_handler(int) { }
+void issue_command(const char* service_name, const char* event_str,std::vector<stringview> &command_parts);
 
 int dinit_monitor_main(int argc, char **argv)
 {
@@ -44,6 +45,7 @@ int dinit_monitor_main(int argc, char **argv)
     std::string control_socket_str;
     const char *control_socket_path = nullptr;
     bool user_dinit = (getuid() != 0);  // communicate with user daemon
+    bool issue_init = false;  // request initial service state
 
     const char *command_str = nullptr;
     std::vector<const char *> services;
@@ -63,6 +65,9 @@ int dinit_monitor_main(int argc, char **argv)
             }
             else if (strcmp(argv[i], "--user") == 0 || strcmp(argv[i], "-u") == 0) {
                 user_dinit = true;
+            }
+            else if (strcmp(argv[i], "--initial") == 0 || strcmp(argv[i], "-i") == 0) {
+                issue_init = true;
             }
             else if (strcmp(argv[i], "--socket-path") == 0 || strcmp(argv[i], "-p") == 0) {
                 ++i;
@@ -96,6 +101,7 @@ int dinit_monitor_main(int argc, char **argv)
                 "  --help           : show this help\n"
                 "  -s, --system     : monitor system daemon (default if run as root)\n"
                 "  -u, --user       : monitor user daemon\n"
+                "  -i, --initial    : also execute command for initial service state\n"
                 "  --socket-path <path>, -p <path>\n"
                 "                   : specify socket for communication with daemon\n"
                 "  -c, --command    : specify command to execute on service status change\n"
@@ -160,6 +166,14 @@ int dinit_monitor_main(int argc, char **argv)
             }
 
             service_map.emplace(hndl, service_name);
+            if (issue_init) {
+                if (state == service_state_t::STARTED) {
+                    issue_command(service_name, "started", command_parts);
+                }
+                else if (state == service_state_t::STOPPED) {
+                    issue_command(service_name, "stopped", command_parts);
+                }
+            }
         }
 
         // Watch information packets; execute notification
@@ -190,78 +204,7 @@ int dinit_monitor_main(int argc, char **argv)
                     else {
                         goto consume_packet;
                     }
-
-                    std::vector<std::string> final_cmd_parts;
-                    std::vector<const char *> final_cmd_parts_cstr;
-
-                    for (stringview cmd_part : command_parts) {
-                        std::string cmd_part_str;
-                        cmd_part_str.reserve(cmd_part.len);
-
-                        for (size_t i = 0; i < cmd_part.len; ++i) {
-                            if (cmd_part.str[i] == '%') {
-                                ++i;
-                                if (i >= cmd_part.len) {
-                                    cmd_part_str.append(1, '%');
-                                    break;
-                                }
-                                if (cmd_part.str[i] == 'n') {
-                                    cmd_part_str.append(service_name);
-                                }
-                                else if (cmd_part.str[i] == 's') {
-                                    cmd_part_str.append(event_str);
-                                }
-                                else {
-                                    // invalid specifier, just output as is
-                                    cmd_part_str.append(1, '%');
-                                    cmd_part_str.append(1, cmd_part_str[i]);
-                                }
-                            }
-                            else if (cmd_part.str[i] == '"') {
-                                // consume.
-                            }
-                            else {
-                                cmd_part_str.append(1, cmd_part.str[i]);
-                            }
-                        }
-
-                        final_cmd_parts.emplace_back(std::move(cmd_part_str));
-                    }
-
-                    for (const std::string &cmd_part : final_cmd_parts) {
-                        final_cmd_parts_cstr.push_back(cmd_part.c_str());
-                    }
-                    final_cmd_parts_cstr.push_back(nullptr);
-
-                    pid_t child_pid = fork();
-                    if (child_pid == 0) {
-                        // we are the child
-                        char **argv = const_cast<char **>(final_cmd_parts_cstr.data());
-                        execvp(argv[0], argv);
-                        perror("dinit-monitor: exec");
-                    }
-                    else if (child_pid == -1) {
-                        perror("dinit-monitor: fork");
-                    }
-                    else {
-                        int wstatus;
-                        if (wait(&wstatus) != -1) {
-                            if (wstatus != 0) {
-                                if (WIFEXITED(wstatus)) {
-                                    std::cerr << "dinit-monitor: notification command terminated with exit status "
-                                            << WEXITSTATUS(wstatus) << "\n";
-                                }
-                                if (WIFSIGNALED(wstatus)) {
-                                    std::cerr << "dinit-monitor: notification command terminated due to signal "
-                                            << WTERMSIG(wstatus) << "\n";
-                                }
-                            }
-                        }
-
-                        // Don't bother clearing any pending SIGCHLD. POSIX says that:
-                        // - either SIGCHLD doesn't queue, in which case we're only leaving one pending signal
-                        // - or, it does queue, but wait() removes it from the queue.
-                    }
+                    issue_command(service_name, event_str, command_parts);
                 }
 
                 consume_packet:
@@ -315,6 +258,82 @@ int dinit_monitor_main(int argc, char **argv)
     }
 
     return 1;
+}
+
+
+void issue_command(const char* service_name, const char* event_str, std::vector<stringview> &command_parts) {
+    std::vector<std::string> final_cmd_parts;
+    std::vector<const char *> final_cmd_parts_cstr;
+
+    for (stringview cmd_part : command_parts) {
+        std::string cmd_part_str;
+        cmd_part_str.reserve(cmd_part.len);
+
+        for (size_t i = 0; i < cmd_part.len; ++i) {
+            if (cmd_part.str[i] == '%') {
+                ++i;
+                if (i >= cmd_part.len) {
+                    cmd_part_str.append(1, '%');
+                    break;
+                }
+                if (cmd_part.str[i] == 'n') {
+                    cmd_part_str.append(service_name);
+                }
+                else if (cmd_part.str[i] == 's') {
+                    cmd_part_str.append(event_str);
+                }
+                else {
+                    // invalid specifier, just output as is
+                    cmd_part_str.append(1, '%');
+                    cmd_part_str.append(1, cmd_part_str[i]);
+                }
+            }
+            else if (cmd_part.str[i] == '"') {
+                // consume.
+            }
+            else {
+                cmd_part_str.append(1, cmd_part.str[i]);
+            }
+        }
+
+        final_cmd_parts.emplace_back(std::move(cmd_part_str));
+    }
+
+    for (const std::string &cmd_part : final_cmd_parts) {
+        final_cmd_parts_cstr.push_back(cmd_part.c_str());
+    }
+    final_cmd_parts_cstr.push_back(nullptr);
+
+    pid_t child_pid = fork();
+    if (child_pid == 0) {
+        // we are the child
+        char **argv = const_cast<char **>(final_cmd_parts_cstr.data());
+        execvp(argv[0], argv);
+        perror("dinit-monitor: exec");
+    }
+    else if (child_pid == -1) {
+        perror("dinit-monitor: fork");
+    }
+    else {
+        int wstatus;
+        if (wait(&wstatus) != -1) {
+            if (wstatus != 0) {
+                if (WIFEXITED(wstatus)) {
+                    std::cerr << "dinit-monitor: notification command terminated with exit status "
+                            << WEXITSTATUS(wstatus) << "\n";
+                }
+                if (WIFSIGNALED(wstatus)) {
+                    std::cerr << "dinit-monitor: notification command terminated due to signal "
+                            << WTERMSIG(wstatus) << "\n";
+                }
+            }
+        }
+
+        // Don't bother clearing any pending SIGCHLD. POSIX says that:
+        // - either SIGCHLD doesn't queue, in which case we're only leaving one pending signal
+        // - or, it does queue, but wait() removes it from the queue.
+    }
+
 }
 
 int main(int argc, char **argv) {
