@@ -95,7 +95,7 @@ enum class cp_rply : dinit_cptypes::cp_rply_t {
 
     // Service record loaded/found
     SERVICERECORD = 59,
-    //     followed by 4-byte service handle, 1-byte service state
+    // 1-byte service state, followed by 4-byte service handle, followed by 1-byte service target state
 
     // Couldn't find/load service
     NOSERVICE = 60,
