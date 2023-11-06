@@ -15,7 +15,7 @@
 // Control protocol versions:
 // 1 - dinit 0.16 and prior
 // 2 - dinit 0.17 (adds SETTRIGGER, CATLOG, SIGNAL)
-// 3 - (unreleased) (adds QUERYSERVICEDSCDIR)
+// 3 - dinit 0.17.1 (adds QUERYSERVICEDSCDIR)
 
 // common communication datatypes
 using namespace dinit_cptypes;
@@ -1345,7 +1345,7 @@ bool control_conn_t::data_ready() noexcept
     }
     
     // complete packet?
-    if (rbuf.get_length() >= chklen) {
+    while (rbuf.get_length() >= chklen) {
         try {
             return !process_packet();
         }
@@ -1353,8 +1353,11 @@ bool control_conn_t::data_ready() noexcept
             do_oom_close();
             return false;
         }
+
+        chklen = std::max(chklen, 1u);
     }
-    else if (rbuf.get_length() == rbuf.get_size()) {
+
+    if (rbuf.get_length() == rbuf.get_size()) {
         // Too big packet
         log(loglevel_t::WARN, "Received too-large control packet; dropping connection");
         bad_conn_close = true;
