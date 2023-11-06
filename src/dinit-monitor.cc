@@ -46,6 +46,9 @@ int dinit_monitor_main(int argc, char **argv)
     const char *control_socket_path = nullptr;
     bool user_dinit = (getuid() != 0);  // communicate with user daemon
     bool issue_init = false;  // request initial service state
+    const char *str_started = "started";
+    const char *str_stopped = "stopped";
+    const char *str_failed = "failed";
 
     const char *command_str = nullptr;
     std::vector<const char *> services;
@@ -77,6 +80,30 @@ int dinit_monitor_main(int argc, char **argv)
                 }
                 control_socket_str = argv[i];
             }
+            else if (strcmp(argv[i], "--str-started") == 0) {
+                ++i;
+                if (i == argc) {
+                    std::cerr << "dinit-monitor: --str-started should be followed by a string\n";
+                    return 1;
+                }
+                str_started = argv[i];
+            }
+            else if (strcmp(argv[i], "--str-stopped") == 0) {
+                ++i;
+                if (i == argc) {
+                    std::cerr << "dinit-monitor: --str-stopped should be followed by a string\n";
+                    return 1;
+                }
+                str_stopped = argv[i];
+            }
+            else if (strcmp(argv[i], "--str-failed") == 0) {
+                ++i;
+                if (i == argc) {
+                    std::cerr << "dinit-monitor: --str-failed should be followed by a string\n";
+                    return 1;
+                }
+                str_failed = argv[i];
+            }
             else if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--command")) {
                 ++i;
                 if (i == argc) {
@@ -102,6 +129,12 @@ int dinit_monitor_main(int argc, char **argv)
                 "  -s, --system     : monitor system daemon (default if run as root)\n"
                 "  -u, --user       : monitor user daemon\n"
                 "  -i, --initial    : also execute command for initial service state\n"
+                "  --str-started <str>\n"
+                "                   : string substituted for %s when service is started\n"
+                "  --str-stopped <str>\n"
+                "                   : string substituted for %s when service is stopped\n"
+                "  --str-failed <str>\n"
+                "                   : string substituted for %s when service is failed\n"
                 "  --socket-path <path>, -p <path>\n"
                 "                   : specify socket for communication with daemon\n"
                 "  -c, --command    : specify command to execute on service status change\n"
@@ -168,10 +201,10 @@ int dinit_monitor_main(int argc, char **argv)
             service_map.emplace(hndl, service_name);
             if (issue_init) {
                 if (state == service_state_t::STARTED) {
-                    issue_command(service_name, "started", command_parts);
+                    issue_command(service_name, str_started, command_parts);
                 }
                 else if (state == service_state_t::STOPPED) {
-                    issue_command(service_name, "stopped", command_parts);
+                    issue_command(service_name, str_stopped, command_parts);
                 }
             }
         }
@@ -193,13 +226,13 @@ int dinit_monitor_main(int argc, char **argv)
                     const char *event_str;
 
                     if (event == service_event_t::STARTED) {
-                        event_str = "started";
+                        event_str = str_started;
                     }
                     else if (event == service_event_t::STOPPED) {
-                        event_str = "stopped";
+                        event_str = str_stopped;
                     }
                     else if (event == service_event_t::FAILEDSTART) {
-                        event_str = "failed";
+                        event_str = str_failed;
                     }
                     else {
                         goto consume_packet;
