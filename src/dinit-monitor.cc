@@ -44,6 +44,7 @@ int dinit_monitor_main(int argc, char **argv)
     std::string control_socket_str;
     const char *control_socket_path = nullptr;
     bool user_dinit = (getuid() != 0);  // communicate with user daemon
+    bool request_init = false;  // request initial service state
 
     const char *command_str = nullptr;
     std::vector<const char *> services;
@@ -63,6 +64,9 @@ int dinit_monitor_main(int argc, char **argv)
             }
             else if (strcmp(argv[i], "--user") == 0 || strcmp(argv[i], "-u") == 0) {
                 user_dinit = true;
+            }
+            else if (strcmp(argv[i], "--request") == 0 || strcmp(argv[i], "-r") == 0) {
+                request_init = true;
             }
             else if (strcmp(argv[i], "--socket-path") == 0 || strcmp(argv[i], "-p") == 0) {
                 ++i;
@@ -96,6 +100,7 @@ int dinit_monitor_main(int argc, char **argv)
                 "  --help           : show this help\n"
                 "  -s, --system     : monitor system daemon (default if run as root)\n"
                 "  -u, --user       : monitor user daemon\n"
+                "  -r, --request    : request initial state (of monitored services)\n"
                 "  --socket-path <path>, -p <path>\n"
                 "                   : specify socket for communication with daemon\n"
                 "  -c, --command    : specify command to execute on service status change\n"
@@ -160,6 +165,16 @@ int dinit_monitor_main(int argc, char **argv)
             }
 
             service_map.emplace(hndl, service_name);
+        }
+
+        if (request_init) {
+          for (auto service : service_map) {
+              handle_t handle = service.first;
+              auto m = membuf()
+                      .append((char)cp_cmd::EVENTREQUEST)
+                      .append(handle);
+              write_all_x(socknum, m);
+          }
         }
 
         // Watch information packets; execute notification

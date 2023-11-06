@@ -59,6 +59,7 @@ static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *>
 static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool trigger_value);
 static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool do_clear);
 static int signal_send(int socknum, cpbuffer_t &rbuffer, const char *service_name, sig_num_t sig_num);
+static int eventrequest(int socknum, cpbuffer_t &rbuffer, const char *service_name);
 static int signal_list();
 
 enum class ctl_cmd {
@@ -84,6 +85,7 @@ enum class ctl_cmd {
     CAT_LOG,
     SIG_SEND,
     SIG_LIST,
+    EVENTREQUEST,
     IS_STARTED,
     IS_FAILED,
 };
@@ -291,6 +293,9 @@ int dinitctl_main(int argc, char **argv)
             else if (strcmp(argv[i], "signal") == 0) {
                 command = ctl_cmd::SIG_SEND;
             }
+            else if (strcmp(argv[i], "eventrequest") == 0) {
+                command = ctl_cmd::EVENTREQUEST;
+            }
             else {
                 cerr << "dinitctl: unrecognized command: " << argv[i] << " (use --help for help)\n";
                 return 1;
@@ -344,6 +349,14 @@ int dinitctl_main(int argc, char **argv)
                     else {
                         cmdline_error = true;
                     }
+                }
+                else {
+                    cmdline_error = true;
+                }
+            }
+            else if (command == ctl_cmd::EVENTREQUEST) {
+                if (service_name == nullptr) {
+                    service_name = argv[i];
                 }
                 else {
                     cmdline_error = true;
@@ -407,6 +420,12 @@ int dinitctl_main(int argc, char **argv)
                     return 1;
                 }
             }
+        }
+    }
+    else if (command == ctl_cmd::EVENTREQUEST) {
+        if (service_name == nullptr) {
+            cerr << "dinitctl: service name must be specified" << std::endl;
+            return 1;
         }
     }
     else {
@@ -605,6 +624,12 @@ int dinitctl_main(int argc, char **argv)
                 throw cp_old_server_exception();
             }
             return signal_send(socknum, rbuffer, service_name, sig_num);
+        }
+        else if (command == ctl_cmd::EVENTREQUEST) {
+            if (daemon_protocol_ver < 2) {
+                throw cp_old_server_exception();
+            }
+            return eventrequest(socknum, rbuffer, service_name);
         }
         else {
             return start_stop_service(socknum, rbuffer, service_name, command, do_pin, do_force,
@@ -2139,6 +2164,27 @@ static int signal_send(int socknum, cpbuffer_t &rbuffer, const char *service_nam
         return 1;
     }
     rbuffer.consume(1);
+    return 0;
+}
+
+static int eventrequest(int socknum, cpbuffer_t &rbuffer, const char *service_name)
+{
+    using namespace std;
+
+    handle_t handle;
+
+    if (!load_service(socknum, rbuffer, service_name, &handle, nullptr, true)) {
+        return 1;
+    }
+
+    // Issue EVENTREQUEST command.
+    auto m = membuf()
+            .append((char)cp_cmd::EVENTREQUEST)
+            .append(handle);
+    write_all_x(socknum, m);
+
+    // as dinit-monitor does not handle anything than information packets
+    // dinitctl can't expect any feedback on the event request
     return 0;
 }
 

@@ -125,6 +125,9 @@ bool control_conn_t::process_packet()
     if (pktType == cp_cmd::SIGNAL) {
         return process_signal();
     }
+    if (pktType == cp_cmd::EVENTREQUEST) {
+        return process_eventrequest();
+    }
     if (pktType == cp_cmd::QUERYSERVICEDSCDIR) {
         return process_query_dsc_dir();
     }
@@ -1045,6 +1048,32 @@ bool control_conn_t::process_signal()
     }
     char ack_rep[] = { (char)cp_rply::ACK };
     return queue_packet(ack_rep, 1);
+}
+
+bool control_conn_t::process_eventrequest()
+{
+    // packet contains only process handle
+    constexpr int pkt_size = 1 + sizeof(handle_t);
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    handle_t handle;
+    rbuf.extract(&handle, 1 , sizeof(handle));
+    rbuf.consume(pkt_size);
+    chklen = 0;
+
+    service_record *service = find_service_for_key(handle);
+    if (service == nullptr) {
+        // this may break dinit-monitor?
+        // as it does not handle anything else than information messages
+        char nak_rep[] = { (char)cp_rply::NAK };
+        return queue_packet(nak_rep, 1);
+    } else {
+        service->notify_status();
+        return true;
+    }
 }
 
 bool control_conn_t::process_query_dsc_dir()

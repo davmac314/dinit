@@ -667,6 +667,21 @@ class service_record
         listeners.erase(listener);
     }
     
+    void notify_status() noexcept
+    {
+      switch(get_state()) {
+        case service_state_t::STARTED:
+          notify_listeners(service_event_t::STARTED);
+          break;
+        case service_state_t::STOPPED:
+          notify_listeners(service_event_t::STOPPED);
+          break;
+        default:
+          // Ignore STARTING and STOPPING states, as they result in an event anyways
+          break;
+      }
+    }
+    
     // Assuming there is one reference (from a control link), return true if this is the only reference,
     // or false if there are others (including dependents, excluding dependents via "before" and "after"
     // links).

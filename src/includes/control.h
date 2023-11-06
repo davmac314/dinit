@@ -164,6 +164,9 @@ class control_conn_t : private service_listener
     // Process a SIGNAL packet.
     bool process_signal();
 
+    // Process a SIGNAL packet.
+    bool process_eventrequest();
+
     // Process a QUERYSERVICEDSCDIR packet.
     bool process_query_dsc_dir();
 
