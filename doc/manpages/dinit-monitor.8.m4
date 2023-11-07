@@ -37,6 +37,14 @@ Control the user init process (this is the default when not run as root).
 This option determines the default path to the control socket used to communicate with the \fBdinit\fR daemon process
 (it does not override the \fB\-p\fR option).
 .TP
+\fB\-i\fR, \fB\-\-initial\fR
+Issue the specified command additionally for the initial status of a service.
+Otherwise, the command is only executed when the status changes for the first time.
+.TP
+\fB\-\-str\-started <str>\fR, \-\-str\-stopped <str>\fR, \-\-str\-failed <str>\fR
+Specify the string which gets used for the substituion of the status (\fB%s\fR) in the command.
+The default string is equivalent to the status name itself. (See \fB\-c\fR option)
+.TP
 \fB\-\-socket\-path\fR \fIsocket-path\fR, \fB\-p\fR \fIsocket-path\fR
 Specify the path to the socket used for communicating with the service manager daemon.
 When not specified, the \fIDINIT_SOCKET_PATH\fR environment variable is read, otherwise
