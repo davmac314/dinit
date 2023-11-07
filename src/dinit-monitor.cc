@@ -188,6 +188,7 @@ int dinit_monitor_main(int argc, char **argv)
 
         // Load all services
         std::unordered_map<handle_t, const char *> service_map;
+        std::vector<std::pair<const char *, service_state_t>> service_init_state;
 
         for (const char *service_name : services) {
 
@@ -199,12 +200,17 @@ int dinit_monitor_main(int argc, char **argv)
             }
 
             service_map.emplace(hndl, service_name);
-            if (issue_init) {
-                if (state == service_state_t::STARTED) {
-                    issue_command(service_name, str_started, command_parts);
+            service_init_state.push_back(std::make_pair(service_name, state));
+        }
+
+        // Issue initial status commands if requested
+        if (issue_init) {
+            for (auto state : service_init_state ) {
+                if (state.second == service_state_t::STARTED) {
+                    issue_command(state.first, str_started, command_parts);
                 }
-                else if (state == service_state_t::STOPPED) {
-                    issue_command(service_name, str_stopped, command_parts);
+                else if (state.second == service_state_t::STOPPED) {
+                    issue_command(state.first, str_stopped, command_parts);
                 }
             }
         }
