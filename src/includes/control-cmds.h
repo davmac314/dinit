@@ -68,6 +68,8 @@ enum class cp_cmd : dinit_cptypes::cp_cmd_t {
     // Query service description directory
     QUERYSERVICEDSCDIR = 22,
 
+    // "Close" a service handle
+    CLOSEHANDLE = 23,
 };
 
 // Replies:

@@ -1081,6 +1081,34 @@ void cptest_two_commands()
     delete cc;
 }
 
+void cptest_closehandle()
+{
+    service_set sset;
+
+    const char * const service_name_1 = "test-service-1";
+
+    service_record *s1 = new service_record(&sset, service_name_1, service_type_t::INTERNAL, {});
+    sset.add_service(s1);
+
+    int fd = bp_sys::allocfd();
+    auto *cc = new control_conn_t(event_loop, &sset, fd);
+
+    handle_t hndl = find_service(fd, service_name_1, service_state_t::STOPPED, service_state_t::STOPPED);
+
+    std::vector<char> cmd = { (char)cp_cmd::CLOSEHANDLE };
+    cmd.insert(cmd.end(), (char *)&hndl, (char *)&hndl + sizeof(hndl));
+    bp_sys::supply_read_data(fd, std::move(cmd));
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    std::vector<char> wdata;
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 1);
+    assert(wdata[0] == (char)cp_rply::ACK);
+
+    delete cc;
+}
+
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
@@ -1107,5 +1135,6 @@ int main(int argc, char **argv)
     RUN_TEST(cptest_servicestatus, "      ");
     RUN_TEST(cptest_sendsignal, "         ");
     RUN_TEST(cptest_two_commands, "       ");
+    RUN_TEST(cptest_closehandle, "        ");
     return 0;
 }

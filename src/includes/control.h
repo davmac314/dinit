@@ -140,6 +140,9 @@ class control_conn_t : private service_listener
     // Process a FINDSERVICE/LOADSERVICE packet. May throw std::bad_alloc.
     bool process_find_load(cp_cmd pktType);
 
+    // Process a CLOSEHANDLE packet.
+    bool process_close_handle();
+
     // Process an UNPINSERVICE packet. May throw std::bad_alloc.
     bool process_unpin_service();
     

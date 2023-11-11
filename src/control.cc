@@ -16,6 +16,7 @@
 // 1 - dinit 0.16 and prior
 // 2 - dinit 0.17 (adds SETTRIGGER, CATLOG, SIGNAL)
 // 3 - dinit 0.17.1 (adds QUERYSERVICEDSCDIR)
+// 4 - (unreleased) (adds CLOSEHANDLE)
 
 // common communication datatypes
 using namespace dinit_cptypes;
@@ -45,7 +46,7 @@ bool control_conn_t::process_packet()
     cp_cmd pktType = (cp_cmd)rbuf[0];
     if (pktType == cp_cmd::QUERYVERSION) {
         // Responds with:
-        // cp_rply::CVERSION, (2 byte) minimum compatible version, (2 byte) actual version
+        // cp_rply::CPVERSION, (2 byte) minimum compatible version, (2 byte) actual version
         char replyBuf[] = { (char)cp_rply::CPVERSION, 0, 0, 0, 0 };
         memcpy(replyBuf + 1, &min_compat_version, 2);
         memcpy(replyBuf + 3, &cp_version, 2);
@@ -55,6 +56,9 @@ bool control_conn_t::process_packet()
     }
     if (pktType == cp_cmd::FINDSERVICE || pktType == cp_cmd::LOADSERVICE) {
         return process_find_load(pktType);
+    }
+    if (pktType == cp_cmd::CLOSEHANDLE) {
+        return process_close_handle();
     }
     if (pktType == cp_cmd::STARTSERVICE || pktType == cp_cmd::STOPSERVICE
             || pktType == cp_cmd::WAKESERVICE || pktType == cp_cmd::RELEASESERVICE) {
@@ -219,6 +223,43 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
     return true;
 }
 
+bool control_conn_t::process_close_handle()
+{
+    constexpr int pkt_size = 1 + sizeof(handle_t);
+
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    handle_t handle;
+    rbuf.extract((char *) &handle, 1, sizeof(handle));
+
+    rbuf.consume(pkt_size);
+    chklen = 0;
+
+    auto key_it = key_service_map.find(handle);
+    if (key_it == key_service_map.end()) {
+        // Service handle is bad
+        char badreq_rep[] = { (char)cp_rply::BADREQ };
+        if (!queue_packet(badreq_rep, 1)) return false;
+        bad_conn_close = true;
+        return true;
+    }
+
+    service_record *service = key_it->second;
+    key_service_map.erase(key_it);
+
+    auto it = service_key_map.equal_range(service).first;
+    while (it->second != handle) {
+        ++it;
+    }
+    service_key_map.erase(it);
+
+    char ack_reply[] = { (char)cp_rply::ACK };
+    return queue_packet(ack_reply, sizeof(ack_reply));
+}
+
 bool control_conn_t::check_dependents(service_record *service, bool &had_dependents)
 {
     std::vector<char> reply_pkt;
@@ -275,7 +316,7 @@ bool control_conn_t::process_start_stop(cp_cmd pktType)
     if (service == nullptr) {
         // Service handle is bad
         char badreqRep[] = { (char)cp_rply::BADREQ };
-        if (! queue_packet(badreqRep, 1)) return false;
+        if (!queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
         return true;
     }
