@@ -1347,7 +1347,9 @@ bool control_conn_t::data_ready() noexcept
     // complete packet?
     while (rbuf.get_length() >= chklen) {
         try {
-            return !process_packet();
+            if (!process_packet()) {
+                return false;
+            }
         }
         catch (std::bad_alloc &baexc) {
             do_oom_close();

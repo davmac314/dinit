@@ -1030,6 +1030,57 @@ void cptest_sendsignal()
     delete cc;
 }
 
+// Two commands in one packet
+void cptest_two_commands()
+{
+    service_set sset;
+
+    const char * const service_name_1 = "test-service-1";
+    const char * const service_name_2 = "test-service-2";
+    const char * const service_name_3 = "test-service-3";
+
+    service_record *s1 = new service_record(&sset, service_name_1, service_type_t::INTERNAL, {});
+    sset.add_service(s1);
+    service_record *s2 = new service_record(&sset, service_name_2, service_type_t::INTERNAL, {});
+    sset.add_service(s2);
+    service_record *s3 = new service_record(&sset, service_name_3, service_type_t::INTERNAL, {});
+    sset.add_service(s3);
+
+    int fd = bp_sys::allocfd();
+    auto *cc = new control_conn_t(event_loop, &sset, fd);
+
+    std::vector<char> cmd = { (char)cp_cmd::FINDSERVICE };
+    uint16_t name_len = strlen(service_name_1);
+    char *name_len_cptr = reinterpret_cast<char *>(&name_len);
+    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
+    cmd.insert(cmd.end(), service_name_1, service_name_1 + name_len);
+
+    // Insert a 2nd FINDSERVICE command into the same vector:
+    cmd.push_back((char)cp_cmd::FINDSERVICE);
+    name_len = strlen(service_name_2);
+    cmd.insert(cmd.end(), name_len_cptr, name_len_cptr + sizeof(name_len));
+    cmd.insert(cmd.end(), service_name_2, service_name_2 + name_len);
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    std::vector<char> wdata;
+    bp_sys::extract_written_data(fd, wdata);
+
+    // We expect 2x:
+    // (1 byte)   cp_rply::SERVICERECORD
+    // (1 byte)   state
+    // (handle_t) handle
+    // (1 byte)   target state
+
+    assert(wdata.size() == 2 * (3 + sizeof(handle_t)));
+    assert(wdata[0] == (char)cp_rply::SERVICERECORD);
+    assert(wdata[3 + sizeof(handle_t)] == (char)cp_rply::SERVICERECORD);
+
+    delete cc;
+}
+
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
@@ -1055,5 +1106,6 @@ int main(int argc, char **argv)
     RUN_TEST(cptest_wake, "               ");
     RUN_TEST(cptest_servicestatus, "      ");
     RUN_TEST(cptest_sendsignal, "         ");
+    RUN_TEST(cptest_two_commands, "       ");
     return 0;
 }
