@@ -83,7 +83,7 @@ int dinit_monitor_main(int argc, char **argv)
             else if (strcmp(argv[i], "--str-started") == 0) {
                 ++i;
                 if (i == argc) {
-                    std::cerr << "dinit-monitor: --str-started should be followed by a string\n";
+                    std::cerr << "dinit-monitor: --str-started should be followed by an argument\n";
                     return 1;
                 }
                 str_started = argv[i];
@@ -91,7 +91,7 @@ int dinit_monitor_main(int argc, char **argv)
             else if (strcmp(argv[i], "--str-stopped") == 0) {
                 ++i;
                 if (i == argc) {
-                    std::cerr << "dinit-monitor: --str-stopped should be followed by a string\n";
+                    std::cerr << "dinit-monitor: --str-stopped should be followed by an argument\n";
                     return 1;
                 }
                 str_stopped = argv[i];
@@ -99,7 +99,7 @@ int dinit_monitor_main(int argc, char **argv)
             else if (strcmp(argv[i], "--str-failed") == 0) {
                 ++i;
                 if (i == argc) {
-                    std::cerr << "dinit-monitor: --str-failed should be followed by a string\n";
+                    std::cerr << "dinit-monitor: --str-failed should be followed by an argument\n";
                     return 1;
                 }
                 str_failed = argv[i];
@@ -129,12 +129,12 @@ int dinit_monitor_main(int argc, char **argv)
                 "  -s, --system     : monitor system daemon (default if run as root)\n"
                 "  -u, --user       : monitor user daemon\n"
                 "  -i, --initial    : also execute command for initial service state\n"
-                "  --str-started <str>\n"
-                "                   : string substituted for %s when service is started\n"
-                "  --str-stopped <str>\n"
-                "                   : string substituted for %s when service is stopped\n"
-                "  --str-failed <str>\n"
-                "                   : string substituted for %s when service is failed\n"
+                "  --str-started <started-text>\n"
+                "                   : specify text describing status when service starts\n"
+                "  --str-stopped <stopped-text>\n"
+                "                   : specify text describing status when service stops\n"
+                "  --str-failed <failed-text>\n"
+                "                   : specify text describing status when service fails\n"
                 "  --socket-path <path>, -p <path>\n"
                 "                   : specify socket for communication with daemon\n"
                 "  -c, --command    : specify command to execute on service status change\n"
