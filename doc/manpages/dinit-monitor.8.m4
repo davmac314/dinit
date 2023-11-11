@@ -38,12 +38,20 @@ This option determines the default path to the control socket used to communicat
 (it does not override the \fB\-p\fR option).
 .TP
 \fB\-i\fR, \fB\-\-initial\fR
-Issue the specified command additionally for the initial status of a service.
-Otherwise, the command is only executed when the status changes for the first time.
+Issue the specified command additionally for the initial status of the services (when \fBdinit\-monitor\fR is started).
+Without this option, the command is only executed whenever service status changes.
 .TP
-\fB\-\-str\-started <str>\fR, \-\-str\-stopped <str>\fR, \-\-str\-failed <str>\fR
-Specify the string which gets used for the substituion of the status (\fB%s\fR) in the command.
-The default string is equivalent to the status name itself. (See \fB\-c\fR option)
+\fB\-\-str\-started\fR \fIstarted-text\fR\br\fB\-\-test\fR
+Specify the text used for the substitution of the status in the command (as specified
+by the \fB\-\-command\fR option) when a service starts.
+.TP
+\fB\-\-str\-stopped\fR \fIstopped-text\fR
+Specify the text used for the substitution of the status in the command (as specified
+by the \fB\-\-command\fR option) when a service stops.
+.TP
+\fB\-\-str\-failed\fR \fIfailed-text\fR
+Specify the text used for the substitution of the status in the command (as specified
+by the \fB\-\-command\fR option) when a service fails to start.
 .TP
 \fB\-\-socket\-path\fR \fIsocket-path\fR, \fB\-p\fR \fIsocket-path\fR
 Specify the path to the socket used for communicating with the service manager daemon.
