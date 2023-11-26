@@ -1,4 +1,19 @@
-== Version 0.17.1 (beta releas #2)
+== Version ??? (upcoming)
+
+...
+
+New features:
+ * In dinit-monitor: support reporting initial service status, and using alternative
+   (user-supplied) wording for status texts. Thanks to James Knippes (helican).
+ * For service descriptions, a new form of variable expansion is available. When written as
+   "$/NAME" (or "$/{NAME}") the variable value undergoes word splitting and whitespace
+   collapse. This is convenient for allowing optional command line arguments to be specified via
+   the environment, for example.
+
+Fixes:
+ * Fix a latent control protocol processing issue (does not affect dinitctl).
+
+== Version 0.17.1 (beta release #2)
 
 This is a 2nd beta release to follow up from 0.17.0. The changes are mostly minor; they include
 some bug fixes, and some behavioural changes, that are listed below; there are also new options

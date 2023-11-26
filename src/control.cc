@@ -24,7 +24,7 @@ using namespace dinit_cptypes;
 namespace {
     // Control protocol minimum compatible version and current version:
     constexpr uint16_t min_compat_version = 1;
-    constexpr uint16_t cp_version = 3;
+    constexpr uint16_t cp_version = 4;
 
     // check for value in a set
     template <typename T, int N, typename U>
