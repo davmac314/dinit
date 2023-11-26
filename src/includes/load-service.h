@@ -143,10 +143,39 @@ inline string_iterator skipws(string_iterator i, string_iterator end) noexcept
     using std::isspace;
 
     while (i != end) {
-      if (!isspace(*i, locale::classic())) {
-        break;
-      }
-      ++i;
+        if (!isspace(*i, locale::classic())) {
+            break;
+        }
+        ++i;
+    }
+    return i;
+}
+
+// skipws using "char *" instead of iterator
+inline const char *skipws(const char *i, const char *end) noexcept
+{
+    using std::locale;
+    using std::isspace;
+
+    while (i != end) {
+        if (!isspace(*i, locale::classic())) {
+            break;
+        }
+        ++i;
+    }
+    return i;
+}
+
+inline const char *findws(const char *i, const char *end) noexcept
+{
+    using std::locale;
+    using std::isspace;
+
+    while (i != end) {
+        if (isspace(*i, locale::classic())) {
+            break;
+        }
+        ++i;
     }
     return i;
 }
@@ -703,11 +732,11 @@ void process_service_file(string name, std::istream &service_file, T func)
     }
 }
 
-// A dummy lint-reporting "function".
-static auto dummy_lint = [](const char *){};
+// A dummy lint-reporting function.
+inline void dummy_lint(const char *) {}
 
-// Resolve leading variables in paths using the environment
-static auto resolve_env_var = [](const string &name, environment::env_map const &envmap){
+// Resolve variables from an environment
+inline const char *resolve_env_var(const string &name, const environment::env_map &envmap){
     return envmap.lookup(name);
 };
 
@@ -734,13 +763,18 @@ static void value_var_subst(const char *setting_name, std::string &line,
     }
 
     auto i = offsets.begin();
-    unsigned xpos = 0; // position to copy from
+    unsigned xpos = 0; // position to copy from in original line
     std::string r_line;
     int offadj = 0;
 
     while (i != offsets.end()) {
 
         i->first += offadj; // don't adjust end yet
+
+        // inhibit_collapse is set if we process anything which may be empty but shouldn't collapse
+        // to "no argument"
+        bool inhibit_collapse = false;
+        bool do_collapse = false;
 
         while (i->second > dindx) {
             r_line.append(line, xpos, dindx - xpos); // copy unmatched part
@@ -753,54 +787,120 @@ static void value_var_subst(const char *setting_name, std::string &line,
             else {
                 // variable
                 auto token_end = std::next(line.begin(), i->second);
-                bool brace = line[dindx + 1] == '{';
-                auto i = std::next(line.begin(), dindx + 1 + int(brace));
+                auto spos = dindx + 1;
+                bool wsplit = line[spos] == '/';
+                if (wsplit) ++spos;
+                bool brace = line[spos] == '{';
+                if (brace) ++spos;
+                auto j = std::next(line.begin(), spos);
                 // read environment variable name
-                string name = read_config_name(i, token_end, true);
+                string name = read_config_name(j, token_end, true);
                 if (name.empty()) {
                     throw service_description_exc(setting_name, "invalid/missing variable name after '$'");
                 }
                 char altmode = '\0';
                 bool colon = false;
-                auto altbeg = i, altend = i;
+                auto altbeg = j, altend = j;
                 if (brace) {
                     /* ${foo+val}, ${foo-val}, ${foo:+val}, ${foo:-val} */
-                    if (*i == ':') {
+                    if (*j == ':') {
                         colon = true;
-                        ++i;
-                        if (*i != '+' && *i != '-') {
+                        ++j;
+                        if (*j != '+' && *j != '-') {
                             throw service_description_exc(setting_name, "invalid syntax in variable substitution");
                         }
                     }
-                    if (*i == '+' || *i == '-') {
-                        altmode = *i;
-                        altbeg = ++i;
-                        while (i != token_end && *i != '}') {
-                            ++i;
+                    if (*j == '+' || *j == '-') {
+                        altmode = *j;
+                        altbeg = ++j;
+                        while (j != token_end && *j != '}') {
+                            ++j;
                         }
-                        altend = i;
+                        altend = j;
                     }
-                    if (*i != '}') {
+                    if (*j != '}') {
                         throw service_description_exc(setting_name, "unmatched '{' in variable substitution");
                     }
-                    ++i;
+                    ++j;
                 }
                 size_t line_len_before = r_line.size();
+                string_view resolved_vw;
                 auto *resolved = var_resolve(name, envmap);
+                if (resolved) {
+                    resolved_vw = resolved;
+                }
                 /* apply shell-like substitutions */
                 if (altmode == '-') {
                     if (!resolved || (colon && !*resolved)) {
-                        r_line.append(altbeg, altend);
-                    } else if (resolved) {
-                        r_line.append(resolved);
+                        resolved_vw = {line.c_str() + (altbeg - line.begin()), (size_t)(altend - altbeg)};
                     }
                 } else if (altmode == '+') {
                     if (resolved && (!colon || *resolved)) {
-                        r_line.append(altbeg, altend);
+                        resolved_vw = {line.c_str() + (altbeg - line.begin()), (size_t)(altend - altbeg)};
                     }
-                } else if (resolved) {
-                    r_line.append(resolved);
                 }
+
+                xpos = j - line.begin();
+                int name_len = xpos - dindx;
+                offadj -= name_len;
+
+                if (!wsplit) {
+                    inhibit_collapse = true;
+                    do_collapse = false;
+                    if (!resolved_vw.empty()) {
+                        r_line.append(resolved_vw.data(), resolved_vw.length());
+                    }
+                }
+                else {
+                    // Must perform word splitting. Find first whitespace:
+                    auto r_vw_beg = resolved_vw.data();
+                    auto r_vw_end = r_vw_beg + resolved_vw.length();
+                    const char *wsp = findws(r_vw_beg, r_vw_end);
+
+                    // If we have whitespace, append up to that whitespace and then split:
+                    while (wsp != r_vw_end) {
+                        if (wsp != r_vw_beg) {
+                            r_line.append(r_vw_beg, wsp - r_vw_beg);
+                        }
+
+                        auto orig_i_second = i->second;
+
+                        size_t line_len_after = r_line.size();
+                        if (i->first == line_len_after && !inhibit_collapse) {
+                            // whitespace at the start of the word; just trim it
+                            goto next_section;
+                        }
+
+                        // Break here:
+                        i->second = r_line.length();
+
+                        r_line += ' ';
+                        ++line_len_after;
+
+                        if (line_len_after > (size_t)std::numeric_limits<int>::max()) {
+                            // (avoid potential overflow)
+                            throw service_description_exc(setting_name, "value too long (after substitution)");
+                        }
+
+                        // Create new argument from split:
+                        i = offsets.insert(std::next(i), {r_line.length(), orig_i_second});
+                        offadj += (int)line_len_after - (int)line_len_before;
+                        line_len_before = r_line.size();
+
+                        // Find the next break, if any:
+                        next_section:
+                        r_vw_beg = skipws(wsp, r_vw_end);
+                        wsp = findws(r_vw_beg, r_vw_end);
+                        inhibit_collapse = false;
+                    }
+
+                    if (r_vw_beg != r_vw_end) {
+                        r_line.append(r_vw_beg, r_vw_end - r_vw_beg);
+                    }
+
+                    do_collapse = !inhibit_collapse;
+                }
+
                 size_t line_len_after = r_line.size();
 
                 if (line_len_after > (size_t)std::numeric_limits<int>::max()) {
@@ -808,17 +908,20 @@ static void value_var_subst(const char *setting_name, std::string &line,
                     throw service_description_exc(setting_name, "value too long (after substitution)");
                 }
 
-                xpos = i - line.begin();
-                int name_len = xpos - dindx;
-
-                offadj += (int)line_len_after - (int)line_len_before - name_len;
+                offadj += (int)line_len_after - (int)line_len_before;
             }
 
             dindx = line.find('$', xpos);
         }
 
         i->second += offadj;
-        ++i;
+
+        if (do_collapse && i->first == i->second) {
+            i = offsets.erase(i);
+        }
+        else {
+            ++i;
+        }
 
         while (i != offsets.end() && i->second < dindx) {
             i->first += offadj;

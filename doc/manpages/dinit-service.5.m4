@@ -687,10 +687,14 @@ set and non\-empty), and `\fB${NAME+word}\fR' (substitute `\fBword\fR' if variab
 Unlike in shell expansion, the substituted \fBword\fR does not itself undergo expansion and
 cannot contain closing brace characters or whitespace, even if quoted.
 .P
-Note command-line variable substitution occurs after splitting the line into separate arguments and so
+Note that by default, command-line variable substitution occurs after splitting the line into
+separate arguments and so
 a single environment variable cannot be used to add multiple arguments to a command line.
 If a designated variable is not defined, it is replaced with an empty (zero-length) string, possibly producing a
 zero-length argument.
+To alter this behaviour use a slash after \fB$\fR, as in `\fB$/NAME\fR'; the expanded value will then
+be split into several arguments separate by whitespace or, if the value is empty or consists only
+of whitespace, will collapse (instead of producing an empty or whitespace argument).
 .P
 Variable substitution occurs when the service is loaded.
 Therefore, it is typically not useful for dynamically changing service parameters (including
@@ -710,6 +714,9 @@ amended via \fBdinitctl setenv\fR commands or equivalent).
 .P
 Note that since variable substitution is performed on service load, the values seen by a service process may differ from those
 used for substitution, if they have been changed in the meantime.
+Using environment variable values in service commands and parameters can be used as means to
+provide easily-adjustable service configuration, but is not ideal for this purpose and alternatives
+should be considered. 
 .\"
 .SH EXAMPLES
 .LP

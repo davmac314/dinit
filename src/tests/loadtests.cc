@@ -83,6 +83,90 @@ void test_env_subst2()
     assert((*std::next(offsets.begin(), 2) == std::pair<unsigned,unsigned>{11, 39}));
 }
 
+void test_env_subst3()
+{
+    auto resolve_env_var = [](const std::string &name, environment::env_map const &) {
+        if (name == "EMPTY") return "";
+        if (name == "WS") return "    ";
+        if (name == "PADDED") return " p ";
+        return "";
+    };
+
+    std::string line = "test $/EMPTY foo";
+    std::list<std::pair<unsigned,unsigned>> offsets;
+    std::string::iterator li = line.begin();
+    std::string::iterator le = line.end();
+    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+
+    auto check_arg = [&](unsigned idx, const char *val)
+    {
+        auto &offs = *std::next(offsets.begin(), idx);
+        assert(line.substr(offs.first, offs.second - offs.first) == val);
+    };
+
+    assert(line == "test  foo");
+    check_arg(1, "foo");
+
+    line = "test $EMPTY foo";
+    li = line.begin(); le = line.end(); offsets.clear();
+    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+
+    assert(line == "test  foo");
+    check_arg(1, "");
+    check_arg(2, "foo");
+
+    // adjacent collapsing
+    line = "test $/EMPTY$/EMPTY$/EMPTY foo";
+    li = line.begin(); le = line.end(); offsets.clear();
+    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+
+    assert(line == "test  foo");
+    check_arg(1, "foo");
+
+    // middle empty is non-collapsing:
+    line = "test $/EMPTY$EMPTY$/EMPTY foo";
+    li = line.begin(); le = line.end(); offsets.clear();
+    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+
+    assert(line == "test  foo");
+    check_arg(1, "");
+    check_arg(2, "foo");
+
+    // empty doesn't wordsplit:
+    line = "test abc$/{EMPTY}def";
+    li = line.begin(); le = line.end(); offsets.clear();
+    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+
+    assert(line == "test abcdef");
+    check_arg(1, "abcdef");
+
+    // whitespace does wordsplit:
+    line = "test abc$/{WS}def";
+    li = line.begin(); le = line.end(); offsets.clear();
+    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+
+    assert(line == "test abc def");
+    check_arg(1, "abc");
+    check_arg(2, "def");
+
+    // internal words handled correctly:
+    line = "test abc$/{PADDED}def";
+    li = line.begin(); le = line.end(); offsets.clear();
+    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+
+    assert(line == "test abc p def");
+    check_arg(1, "abc");
+    check_arg(2, "p");
+    check_arg(3, "def");
+}
+
 void test_nonexistent()
 {
     bool got_service_not_found = false;
@@ -243,6 +327,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_basic, "                ");
     RUN_TEST(test_env_subst, "            ");
     RUN_TEST(test_env_subst2, "           ");
+    RUN_TEST(test_env_subst3, "           ");
     RUN_TEST(test_nonexistent, "          ");
     RUN_TEST(test_settings, "             ");
     RUN_TEST(test_path_env_subst, "       ");
