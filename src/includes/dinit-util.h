@@ -158,20 +158,20 @@ class string_view
 public:
     string_view() = default;
     string_view(const string_view &other) = default;
-    string_view(const char *s_p, size_t count_p) : s(s_p), count(count_p) { }
-    string_view(const char *s_p) : s(s_p), count(strlen(s_p)) { }
+    string_view(const char *s_p, size_t count_p) noexcept : s(s_p), count(count_p) { }
+    string_view(const char *s_p) noexcept  : s(s_p), count(strlen(s_p)) { }
 
     string_view(const std::string &str) : s(str.data()), count(str.length()) { }
 
     string_view &operator=(const string_view &other) = default;
 
-    bool operator==(const string_view &other) const
+    bool operator==(const string_view &other) const noexcept
     {
         if (count != other.count) return false;
         return memcmp(s, other.s, count) == 0;
     }
 
-    bool operator==(const char *other) const
+    bool operator==(const char *other) const noexcept
     {
         if (strncmp(s, other, count) == 0) {
             if (other[count] == '\0') {
@@ -181,10 +181,10 @@ public:
         return false;
     }
 
-    const char *data() const { return s; }
-    size_t size() const { return count; }
-    size_t length() const { return count; }
-    bool empty() const { return count == 0; }
+    const char *data() const noexcept { return s; }
+    size_t size() const noexcept { return count; }
+    size_t length() const noexcept { return count; }
+    bool empty() const noexcept { return count == 0; }
 };
 
 inline size_t hash(const string_view &str)
