@@ -338,8 +338,10 @@ service_record *load_service(service_set_t &services, const std::string &name,
         return found->second;
     }
 
+    string service_wdir;
     string service_filename;
     ifstream service_file;
+    int dirfd;
 
     int fail_load_errno = 0;
     std::string fail_load_path;
@@ -347,6 +349,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
     // Couldn't find one. Have to load it.
     for (auto &service_dir : service_dirs) {
         service_filename = service_dir.get_dir();
+        service_wdir = service_filename;
         if (*(service_filename.rbegin()) != '/') {
             service_filename += '/';
         }
@@ -429,9 +432,25 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     settings.finalise(report_err, renvmap, report_err, resolve_var);
 
+    if (!settings.working_dir.empty()) {
+        service_wdir = settings.working_dir;
+    }
+    int oflags = O_DIRECTORY;
+#ifdef O_PATH
+    oflags |= O_PATH;
+#else
+    oflags |= O_RDONLY;
+#endif
+    dirfd = open(service_wdir.c_str(), oflags);
+    if (dirfd < 0) {
+        report_service_description_err(name,
+                std::string("could not open service working directory: ") + strerror(errno));
+        dirfd = AT_FDCWD;
+    }
+
     auto check_command = [&](const char *setting_name, const char *command) {
         struct stat command_stat;
-        if (stat(command, &command_stat) == -1) {
+        if (fstatat(dirfd, command, &command_stat, 0) == -1) {
             report_service_description_err(name,
                     std::string("could not stat ") + setting_name + " executable '" + command
                     + "': " + strerror(errno));
@@ -458,6 +477,10 @@ service_record *load_service(service_set_t &services, const std::string &name,
         int offset_end = settings.stop_command_offsets.front().second;
         check_command("stop command",
                 settings.stop_command.substr(offset_start, offset_end - offset_start).c_str());
+    }
+
+    if (dirfd != AT_FDCWD) {
+        close(dirfd);
     }
 
     return new service_record(name, settings.chain_to_name, settings.depends, settings.before_svcs);
