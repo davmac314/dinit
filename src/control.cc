@@ -251,10 +251,15 @@ bool control_conn_t::process_close_handle()
     key_service_map.erase(key_it);
 
     bool have_other_handle = false;
-    auto it = service_key_map.equal_range(service).first;
+    auto handle_range = service_key_map.equal_range(service);
+    auto it = handle_range.first;
     while (it->second != handle) {
         have_other_handle = true;
         ++it;
+    }
+    if (!have_other_handle) {
+        // check if more handles beyond the found handle
+        have_other_handle = std::next(it) != handle_range.second;
     }
     service_key_map.erase(it);
 
