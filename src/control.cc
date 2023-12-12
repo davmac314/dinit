@@ -250,11 +250,17 @@ bool control_conn_t::process_close_handle()
     service_record *service = key_it->second;
     key_service_map.erase(key_it);
 
+    bool have_other_handle = false;
     auto it = service_key_map.equal_range(service).first;
     while (it->second != handle) {
+        have_other_handle = true;
         ++it;
     }
     service_key_map.erase(it);
+
+    if (!have_other_handle) {
+        service->remove_listener(this);
+    }
 
     char ack_reply[] = { (char)cp_rply::ACK };
     return queue_packet(ack_reply, sizeof(ack_reply));
