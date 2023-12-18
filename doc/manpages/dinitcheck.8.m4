@@ -39,9 +39,9 @@ Specifies \fIdir\fP as the directory containing service description files (can
 be given multiple times to specify multiple service directories).
 Default directories are not searched for services when this option is provided.
 .sp
-If not specified, the default is \fI$HOME/.config/dinit.d\fR or, for the
-system service manager, each of \fI/etc/dinit.d/fR, \fI/run/dinit.d\fR,
-\fI/usr/local/lib/dinit.d\fR, and \fI/lib/dinit.d\fR (searched in that order).
+If not specified, the default for the user instance is \fI$XDG_CONFIG_HOME/dinit.d\fR
+and \fI$HOME/.config/dinit.d\fR or, for the system instance, each of \fI/etc/dinit.d\fR,
+\fI/run/dinit.d/\fR, \fI/usr/local/lib/dinit.d\fR, and \fI/lib/dinit.d\fR (searched in that order).
 .TP
 \fB\-\-help\fR
 Display brief help text and then exit.

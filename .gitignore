@@ -14,6 +14,7 @@
 /src/tests/cptests/corpus
 /src/tests/cptests/fuzz
 /src/igr-tests/igr-runner
+!/src/igr-tests/xdg-config/config/dinit.d/
 /mconfig
 
 /build/includes/*.h
