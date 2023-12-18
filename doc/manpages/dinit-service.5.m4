@@ -6,7 +6,7 @@ Dinit service description files
 .SH SYNOPSIS
 .\"
 .ft CR
-/etc/dinit.d/\fIservice-name\fR, $HOME/.config/dinit.d/\fIservice-name\fR
+/etc/dinit.d/\fIservice-name\fR, $XDG_CONFIG_HOME/dinit.d/\fIservice-name\fR
 .ft
 .\"
 .SH DESCRIPTION
