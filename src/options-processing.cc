@@ -33,8 +33,13 @@ void service_dir_opt::build_paths(bool am_system_init)
         /* service directory name */
         if (!am_system_init) {
             const char * xdg_config_home = getenv("XDG_CONFIG_HOME");
-            if (xdg_config_home != nullptr && strlen(xdg_config_home) != 0) {
-                size_t xdg_config_home_len = strlen(xdg_config_home);
+            size_t xdg_config_home_len;
+            if (xdg_config_home != nullptr && *xdg_config_home != '\0') {
+                xdg_config_home_len = strlen(xdg_config_home);
+                if (xdg_config_home[xdg_config_home_len - 1] == '/') {
+                    // strip any trailing slash
+                    --xdg_config_home_len;
+                }
                 size_t dinit_d_len = strlen("/dinit.d");
                 size_t full_len = xdg_config_home_len + dinit_d_len + 1;
                 char *service_dir_w = new char[full_len];
@@ -47,8 +52,16 @@ void service_dir_opt::build_paths(bool am_system_init)
             }
 
             const char * user_home = get_user_home();
-            if (user_home != nullptr) {
+            if (user_home != nullptr && *user_home != '\0') {
                 size_t user_home_len = strlen(user_home);
+                if (xdg_config_home != nullptr
+                        && xdg_config_home_len == (user_home_len + strlen("/.config"))
+                        && strncmp(xdg_config_home, user_home, user_home_len) == 0
+                        && strcmp(xdg_config_home + user_home_len, "/.config") == 0) {
+                    // don't add duplicate directories:
+                    goto done_user_home;
+                }
+
                 size_t dinit_d_len = strlen("/.config/dinit.d");
                 size_t full_len = user_home_len + dinit_d_len + 1;
                 char *service_dir_w = new char[full_len];
@@ -56,22 +69,12 @@ void service_dir_opt::build_paths(bool am_system_init)
                 std::memcpy(service_dir_w + user_home_len, "/.config/dinit.d", dinit_d_len);
                 service_dir_w[full_len - 1] = 0;
 
-                bool user_home_path_already_added = false;
-                for (auto &path : service_dir_paths) {
-                    if (strcmp(path.get_dir(), service_dir_w) == 0) {
-                        user_home_path_already_added = true;
-                        break;
-                    }
-                }
-
-                if (!user_home_path_already_added) {
-                    service_dir_paths.emplace_back(service_dir_w, /*dyn_allocd=*/true);
-                    home_service_dir_set = true;
-                } else {
-                    delete[] service_dir_w;
-                }
+                service_dir_paths.emplace_back(service_dir_w, /*dyn_allocd=*/true);
+                home_service_dir_set = true;
             }
         }
+
+        done_user_home:
 
         if (!home_service_dir_set) {
             service_dir_paths.emplace_back("/etc/dinit.d", /*dyn_allocd=*/false);
