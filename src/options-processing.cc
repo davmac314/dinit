@@ -56,8 +56,20 @@ void service_dir_opt::build_paths(bool am_system_init)
                 std::memcpy(service_dir_w + user_home_len, "/.config/dinit.d", dinit_d_len);
                 service_dir_w[full_len - 1] = 0;
 
-                service_dir_paths.emplace_back(service_dir_w, /*dyn_allocd=*/true);
-                home_service_dir_set = true;
+                bool user_home_path_already_added = false;
+                for (auto &path : service_dir_paths) {
+                    if (strcmp(path.get_dir(), service_dir_w) == 0) {
+                        user_home_path_already_added = true;
+                        break;
+                    }
+                }
+
+                if (!user_home_path_already_added) {
+                    service_dir_paths.emplace_back(service_dir_w, /*dyn_allocd=*/true);
+                    home_service_dir_set = true;
+                } else {
+                    delete[] service_dir_w;
+                }
             }
         }
 
