@@ -1,7 +1,7 @@
 # Installation path options.
 
-SBINDIR=/sbin
-MANDIR=/usr/share/man
+SBINDIR=/usr/local/sbin
+MANDIR=/usr/local/share/man
 SYSCONTROLSOCKET=/var/run/dinitctl
 
 
