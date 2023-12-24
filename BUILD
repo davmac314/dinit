@@ -208,8 +208,9 @@ DESTDIR:
 
     make DESTDIR=/some/path install
 
-The dinit executable will be put in /sbin (or rather, in $DESTDIR/sbin), which may not be on the
-path for normal users. Consider making a symbolic link to /usr/sbin/dinit.
+The dinit executable will be put in /sbin or /usr/local/sbin on MacOS (or rather, in $DESTDIR/sbin
+or $DESTDIR/usr/local/bin), which may not be on the path for normal users. Consider making a symbolic
+link to /usr/sbin/dinit.
 
 
 Special note for GCC/Libstdc++
