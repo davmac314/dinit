@@ -125,8 +125,10 @@ Target options:
                                   Note: for all cross-compiles please specify correct CXX and CXX_FOR_BUILD!
 
 Installation directories:
-  --prefix=PREFIX               Main installation prefix [/usr]
-  --exec-prefix=EPREFIX         Main executables prefix  [/]
+  --prefix=PREFIX               Main installation prefix [/usr/local] on MacOS/Darwin systems
+                                                         [/usr] on other systems
+  --exec-prefix=EPREFIX         Main executables prefix  [/usr/local] on MacOS/Darwin systems
+                                                         [/] on other systems
   --sbindir=SBINDIR             Dinit executables        [EPREFIX/sbin]
   --mandir=MANDIR               Dinit man-pages location [PREFIX/share/man]
   --syscontrolsocket=SOCKETPATH Dinitctl socket location [/run/dinitctl] on Linux systems
@@ -247,8 +249,13 @@ done
 
 ## Defaults for variables not specified by user
 : "${PLATFORM:=$(uname)}"
-: "${PREFIX:="/usr"}"
-: "${EPREFIX:="/"}"
+if [ "$PLATFORM" = "Darwin" ]; then
+    : "${PREFIX:="/usr/local"}"
+    : "${EPREFIX:="/usr/local"}"
+else
+    : "${PREFIX:="/usr"}"
+    : "${EPREFIX:="/"}"
+fi
 : "${SBINDIR:="${EPREFIX%%/}/sbin"}"
 : "${MANDIR:="${PREFIX%%/}/share/man"}"
 : "${SHUTDOWN_PREFIX:=""}"
