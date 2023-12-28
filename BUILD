@@ -2,39 +2,49 @@ Building Dinit
 =-=-=-=-=-=-=-
 
 Building Dinit should be a straight-forward process. It requires GNU make and a C++11 compiler
-(GCC version 4.9 and later, or Clang ~5.0 and later, should be fine).
+(GCC version 4.9 and later, or Clang ~5.0 and later, should be fine), as well as a handful of
+utilities that should be available on any POSIX-compliant system; in particular, the "m4"
+processor is required for the manual pages.
 
 
 Short version
 =-=-=-=-=-=-=
 
-Run "make" (or "gmake" if that is GNU make on your system). Your system type will hopefully be
-detected automatically and appropriate configuration chosen, and Dinit will be built. Continue
-reading instructions at "Running the test suite" or skip straight to "Installation".
+Run "make mconfig" (use "gmake mconfig" if GNU make is installed as "gmake"). Edit the generated
+"mconfig" file to your liking; typically you will want to adjust SBINDIR and MANDIR, which control
+the installation paths for executable files and  man pages respectively.
 
-If this fails, or if you are cross-compiling, read the "long version" instructions.
+Run "make"/"gmake" to build. Your system type will hopefully be detected automatically and
+appropriate configuration chosen, and Dinit will be built. Continue reading instructions at
+"Running the test suite" or skip straight to "Installation".
+
+If you run into any problems, or if you are cross-compiling, read the "long version" instructions.
 
 
 Long version 
 =-=-=-=-=-=-
 
-On the directly supported operating systems - Linux, OpenBSD, FreeBSD and Darwin (macOS) - a
-suitable build configuration is provided and will be used automatically if no manual configuration
-is supplied - skip directly to running "make" (more details below) if you are on one of these
-systems and are happy to use the default configuration.
+On the directly supported operating systems - Linux, OpenBSD, FreeBSD and Darwin (including
+macOS) - a suitable build configuration is provided and will be used automatically if no manual
+configuration is supplied - skip directly to running "make" (more details below) if you are on one
+of these systems and are happy to use the default configuration, but note that you will typically
+at least want to alter the installation location.
 
-For other systems, the "configure" script will run and try to generate a suitable "mconfig" file
-which specifies the build configuration. If you would prefer, you can run configure yourself
-before running "make"; this allows you to specify various options and/or hand-edit the generated
-mconfig file.
+If you are using a different system, or want to alter the default configuration, first run "make
+mconfig" to generate the "mconfig" file which contains the build configuration. You can then edit
+this file by hand, before proceeding with the build.
+
+An alternative to "make mconfig" is to use the provided "configure" script. It will try to
+generate a suitable "mconfig" file, based on sensible defaults and options provided on the command
+line when the script is run.
 
 For more information on available options from the configure script, run:
 
     ./configure --help
 
-As an alternative to running "configure", you can create and edit the "mconfig" file completely by
-hand (or start by copying one for a particular OS from the "configs" directory) to choose
-appropriate values for the configuration variables defined within. In particular:
+You can also create and edit the "mconfig" file completely by hand (or start by copying one for a
+particular OS from the "configs" directory) to choose appropriate values for the configuration
+variables defined within. In particular:
 
   CXX      : should be set to the name of the C++ compiler (and link driver)
   CXXFLAGS : are options passed to the compiler during compilation
@@ -86,7 +96,7 @@ to specify additional options without removing the defaults):
     TEST_LDFLAGS_EXTRA   : additional options to use when linking tests
 
    
-Recommended Compiler options
+Recommended compiler options
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 Dinit should generally build fine with no additional options, other than:
@@ -150,8 +160,8 @@ DEFAULT_STOP_TIMEOUT=XXX
     via the service description).
 
 
-Running test suite
-=-=-=-=-=-=-=-=-=-
+Running the test suite
+=-=-=-=-=-=-=-=-=-=-=-
 
 Build the "check" target in order to run the test suite:
 
@@ -210,6 +220,9 @@ DESTDIR:
 
 The dinit executable will be put in /sbin (or rather, in $DESTDIR/sbin), which may not be on the
 path for normal users. Consider making a symbolic link to /usr/sbin/dinit.
+
+Note that if you specify installation paths via variables on the "make" command line, you should
+specify the same values for both build and install steps.  
 
 
 Special note for GCC/Libstdc++
