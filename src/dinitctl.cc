@@ -531,10 +531,13 @@ int dinitctl_main(int argc, char **argv)
         }
     }
 
+    bool user_specified_cs_path = false;
+
     if (!use_passed_cfd) {
         // Locate control socket
         if (!control_socket_str.empty()) {
             control_socket_path = control_socket_str.c_str();
+            user_specified_cs_path = true;
         }
         else {
             control_socket_path = get_default_socket_path(control_socket_str, user_dinit);
@@ -625,6 +628,14 @@ int dinitctl_main(int argc, char **argv)
     }
     catch (dinit_protocol_error &e) {
         cerr << "dinitctl: protocol error" << endl;
+    }
+    catch (control_sock_conn_err &ce) {
+        cerr << "dinitctl: " << ce.get_action() << ": " << ce.get_arg() << ": " << strerror(ce.get_err()) << "\n";
+        if (user_dinit && ce.get_err() == ENOENT && !user_specified_cs_path) {
+            // It is common enough that users don't realise they need to have a user instance
+            // running in order to control it, so elaborate a little:
+            cerr << "dinitctl: perhaps no user instance is running?\n";
+        }
     }
     catch (general_error &ge) {
         std::cerr << "dinitctl";

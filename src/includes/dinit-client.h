@@ -58,6 +58,15 @@ public:
     std::string &get_arg() { return arg; }
 };
 
+// Specialise general_error for the case of connecting to the control socket
+class control_sock_conn_err : public general_error
+{
+public:
+    control_sock_conn_err(int err, std::string sockpath) : general_error(err, "connecting to socket", std::move(sockpath))
+    {
+    }
+};
+
 // static_membuf: a buffer of a fixed size (N) with one additional value (of type T). Don't use this
 // directly, construct via membuf.
 template <int N> class static_membuf
@@ -333,7 +342,7 @@ inline int connect_to_daemon(const char *control_socket_path)
     free(name);
 
     if (connr == -1) {
-        throw general_error(errno, "connecting to socket", control_socket_path);
+        throw control_sock_conn_err(errno, control_socket_path);
     }
 
     return socknum;
