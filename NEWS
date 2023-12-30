@@ -2,6 +2,14 @@
 
 ...
 
+Changes:
+ * For user instances, if the XDG_CONFIG_HOME environment is set, dinit now looks for services in
+   $XDG_CONFIG_HOME/dinit.d/ in addition to $HOME/.config/dinit.d (if they are different paths).
+   Implemented by Oliver Amann.   
+   Note that Dinit does not, and most likely never will, fully support the (flawed) XDG Base
+   Directory Specification.
+ * Various minor improvements to error messages, designed to provide a better end-user experience.
+
 New features:
  * In dinit-monitor: support reporting initial service status, and using alternative
    (user-supplied) wording for status texts. Thanks to James Knippes (helican).
