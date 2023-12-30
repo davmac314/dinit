@@ -1015,7 +1015,16 @@ class service_settings_wrapper
     //
     // Note: we have the do_report_lint parameter to prevent code (and strings) being emitted for lint
     // checks even when the dummy_lint function is used. (Ideally the compiler would optimise them away).
-    template <typename T, typename U = decltype(dummy_lint), typename V = decltype(resolve_env_var),
+    //
+    // Template parameters:
+    //     propagate_sde - whether to propagate service description errors (if false they are reported via report_err)
+    //     (remaining template parameters should be inferred)
+    // Parameters:
+    //     report_error - functor to report any errors
+    //     envmap - environment variables
+    //     report_line - functor to report lint (default: don't report)
+    //     var_subst - functor to resolve environment variable values
+    template <bool propagate_sde = false, typename T, typename U = decltype(dummy_lint), typename V = decltype(resolve_env_var),
             bool do_report_lint = !std::is_same<U, decltype(dummy_lint)>::value>
     void finalise(T &report_error, environment::env_map const &envmap, U &report_lint = dummy_lint, V &var_subst = resolve_env_var)
     {
@@ -1104,6 +1113,7 @@ class service_settings_wrapper
                     value_var_subst(setting_name, setting_value, offsets, var_subst, envmap);
                 }
                 catch (service_description_exc &exc) {
+                    if (propagate_sde) throw;
                     report_error((string() + setting_name + ": " + exc.exc_description).c_str());
                 }
             };

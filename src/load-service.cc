@@ -550,7 +550,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         srv_envmap = srv_env.build(main_env);
 
-        settings.finalise(report_err, srv_envmap);
+        settings.finalise<true>(report_err, srv_envmap);
         auto service_type = settings.service_type;
 
         if (reload_svc != nullptr) {
