@@ -69,8 +69,10 @@ inline bool did_finish(stopped_reason_t reason)
 enum class exec_stage {
     ARRANGE_FDS, READ_ENV_FILE, SET_NOTIFYFD_VAR, SETUP_ACTIVATION_SOCKET, SETUP_CONTROL_SOCKET,
     CHDIR, SETUP_STDINOUTERR, ENTER_CGROUP, SET_RLIMITS, SET_UIDGID,
+    OPEN_LOGFILE, // this is used instead of SETUP_STDINOUTERR if output is to logfile
+
     /* values for future expansion: */
-    SPARE1, SPARE2, SPARE3, SPARE4, SPARE5, SPARE6, SPARE7, SPARE8,
+    SPARE2, SPARE3, SPARE4, SPARE5, SPARE6, SPARE7, SPARE8,
     /* must be last: */ DO_EXEC
 };
 
@@ -90,7 +92,8 @@ const char * const exec_stage_descriptions[/* static_cast<int>(exec_stage::DO_EX
         #endif
         "setting resource limits",      // SET_RLIMITS
         "setting user/group ID",        // SET_UIDGID
-        nullptr,                        // SPARE1
+        "opening log file",             // OPEN_LOGFILE
+        // SPARE1 used
         nullptr,                        // SPARE2
         nullptr,                        // SPARE3
         nullptr,                        // SPARE4

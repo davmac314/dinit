@@ -216,7 +216,12 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             // take care not to clobber the notify_fd.
             if (output_fd == -1) {
                 output_fd = open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
-                if (output_fd == -1) goto failure_out;
+                if (output_fd == -1) {
+                    // On failure to open a log file, change the error stage to give more precise
+                    // information:
+                    if (this->log_type == log_type_id::LOGFILE) err.stage = exec_stage::OPEN_LOGFILE;
+                    goto failure_out;
+                }
                 // Set permission of logfile if present
                 // if log type is NONE, we don't want to change ownership/permissions of /dev/null!
                 if (this->log_type == log_type_id::LOGFILE) {
