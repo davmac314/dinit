@@ -388,12 +388,9 @@ int dinitctl_main(int argc, char **argv)
                 return 1;
             }
             sig_num = dinit_load::signal_name_to_number(sigstr);
-            if (sig_num == 0) {
-                cerr << "dinitctl: '" << sigstr
-                        << "' is not a valid signal name/number" << std::endl;
-                return 1;
-            }
-            else if (sig_num == -1) {
+            if (sig_num <= 0) {
+                // (0 actually means "none"/"NONE", but we'll just fall through and error out when
+                // it fails to parse as an integer)
                 try {
                     size_t pos;
                     sig_num = std::stoi(sigstr, &pos);
