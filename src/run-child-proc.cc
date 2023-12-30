@@ -211,37 +211,42 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         }
 
         err.stage = exec_stage::SETUP_STDINOUTERR;
-        if (notify_fd == 0 || params.input_fd != -1 || move_fd(open("/dev/null", O_RDONLY), 0) == 0) {
-            // stdin = 0. That's what we should have; proceed with opening stdout and stderr. We have to
-            // take care not to clobber the notify_fd.
+        // Either: notify_fd == 0, i.e. the notification fd is STDIN (bad form, but we'll allow it)
+        //         and in that case it's already open
+        //     or: params.input_fd != 1, i.e. our STDIN is already open
+        //     or: we most open STDIN ourself (from /dev/null)
+        if (notify_fd != 0 && params.input_fd == -1 && move_fd(open("/dev/null", O_RDONLY), 0) != 0) {
+            goto failure_out;
+        }
+
+        // stdin = 0. That's what we should have; proceed with opening stdout and stderr. We have to
+        // take care not to clobber the notify_fd.
+        if (output_fd == -1) {
+            output_fd = open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
             if (output_fd == -1) {
-                output_fd = open(logfile, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
-                if (output_fd == -1) {
-                    // On failure to open a log file, change the error stage to give more precise
-                    // information:
-                    if (this->log_type == log_type_id::LOGFILE) err.stage = exec_stage::OPEN_LOGFILE;
-                    goto failure_out;
-                }
-                // Set permission of logfile if present
-                // if log type is NONE, we don't want to change ownership/permissions of /dev/null!
-                if (this->log_type == log_type_id::LOGFILE) {
-                    if (fchown(output_fd, logfile_uid, logfile_gid) == -1) goto failure_out;
-                    if (fchmod(output_fd, logfile_perms) == -1) goto failure_out;
-                }
+                // On failure to open a log file, change the error stage to give more precise
+                // information:
+                if (this->log_type == log_type_id::LOGFILE) err.stage = exec_stage::OPEN_LOGFILE;
+                goto failure_out;
             }
-            if (notify_fd != 1) {
-                if (move_fd(output_fd, 1) != 0) {
-                    goto failure_out;
-                }
-                if (notify_fd != 2 && dup2(1, 2) != 2) {
-                    goto failure_out;
-                }
+            // Set permission of logfile if present
+            // if log type is NONE, we don't want to change ownership/permissions of /dev/null!
+            if (this->log_type == log_type_id::LOGFILE) {
+                if (fchown(output_fd, logfile_uid, logfile_gid) == -1) goto failure_out;
+                if (fchmod(output_fd, logfile_perms) == -1) goto failure_out;
             }
-            else if (move_fd(output_fd, 2) != 0) {
+        }
+        if (notify_fd != 1) {
+            if (move_fd(output_fd, 1) != 0) {
+                goto failure_out;
+            }
+            if (notify_fd != 2 && dup2(1, 2) != 2) {
                 goto failure_out;
             }
         }
-        else goto failure_out;
+        else if (move_fd(output_fd, 2) != 0) {
+            goto failure_out;
+        }
 
         // We have the option of creating a session and process group, or just a new process
         // group. If we just create a new process group, the child process cannot make itself
