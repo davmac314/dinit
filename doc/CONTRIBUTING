@@ -44,16 +44,21 @@ Code contributions
 ------------------
 
 In general, code contributions:
- - should follow existing style and conventions
+ - should follow existing style and conventions (also: read  and follow CODE-STYLE)
+ - should be appropriately* commented in accordance with existing style
  - should keep the design considerations in mind (read the DESIGN document)
  - should be accompanied by appropriate documentation additions/updates
  - should include tests where practical
 
+[*] There is a little lee-way for comments, "truly obvious" code does not need to be and should
+    not be commented.
+
 As the maintainer and original author, I maintain the right to reject or request modification to
 contributions, for failure to comply with the points listed above, for failure to adhere to a
 reasonable standard of conduct (see Contributor Conduct below), or because I deem that the
-contribution includes features outside the intended scope. Feel free to contact me to sound
-out whether I would be likely to accept a submission for a particular feature.
+contribution includes features outside the intended scope. I encourage anyone who is considering
+making a contribution to contact me to sound out whether I would be likely to accept a submission
+for a particular feature or behavioural change.
 
 Contributors should feel free to add themselves to the CONTRIBUTORS list as part of the patch/pull
 request.
@@ -72,8 +77,7 @@ be tolerated from contributors include but are not limited to:
  - discrimination generally, and especially if based on race, gender or gender identity, sexual
    preference, etc
  - personal attacks, insults, or harassment, or incitement thereof, against others
- - unnecessarily drawing attention to another's personal issues or conditions, or other personal
-   details
+ - unnecessarily drawing attention to another's private or personal details
 
 If a person is deemed to have engaged in negative behaviour such as from the list above,
 contributions from them will not be accepted and the perpetrator may be blocked from

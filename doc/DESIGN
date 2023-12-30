@@ -52,32 +52,14 @@ information can be found in comments at the beginning of the includes/service.h 
 The logging subsystem is designed to log to two different sinks - typically, one is the console
 and one is the syslog facility, but other arrangements are possible. It uses a circular buffer
 for each output sink, and if the buffer becomes full it discards additional messages to avoid
-blocking (though it flags that this has occurred and later outputs a message to the sink).
-Services may acquire the console and in this case output is discarded (though it will of
-course continue to be logged to the other sink).
+blocking (though it flags that this has occurred and later outputs an overflow indication to the
+sink). Services may acquire the console for their exclusive use, and in this case dinit's own
+logging output is discarded and no longer buffered (though it will of course continue to be logged
+to the other sink).
 
 Control protocol handling uses a circular receive buffer, but allocates storage for outgoing
 packets dynamically. If allocation fails an "out of memory" flag is set and the connection is
 closed after writing an "out of memory" information packet.
-
-
-Services
---------
-
-There are presently four service types: internal, process, bgprocess and scripted. The latter
-three share the fact that they execute external processes and so naturally share some
-implementation. The base service class is "service_record" - this directly supports "internal"
-services. The "base_process_service" class extends this and serves as a base class for the other
-three service types (which all manage external processes) and provides common functionality.
-
-Various functions in the service_record / base_process_service classes are virtual, so that they
-can be overridden by the subclasses.
-
-All execution of child processes related to services currently goes through
-service_record::run_child_proc() (after forking).
-
-Services are grouped in a "service_set". This provides the essential interface between the event
-loop and services.
 
 
 Key considerations
@@ -93,13 +75,49 @@ Note that blocking actions are avoided: non-blocking I/O is used where possible;
 remain responsive at all times.
 
 In general operation Dinit methods should avoid throwing exceptions and be declared as 'noexcept',
-or otherwise be clearly documented as throwing exceptions. Errors should always be handled as
-gracefully as possible and should not prevent Dinit's continued operation. Particular care is
-needed for dynamic allocations: C++ style allocations (including adding elements to C++
+or otherwise be clearly documented as throwing particular exceptions. Errors should always be
+handled as gracefully as possible and should not prevent Dinit's continued operation. Particular
+care is needed for dynamic allocations: C++ style allocations (including adding elements to C++
 containers, or appending to strings) will raise 'std::bad_alloc' if they cannot allocate memory,
-and this must be handled appropriately. Once it has started regular operation, dinit must not
-terminate due to an error condition, even if the error is an allocation failure or another
-exception.
+and this must be handled appropriately. Functions in 'std::vector' and 'std::string' are also able
+to raise 'std::length_error' and it should probably be assumed that other containers can do so as
+well (the C++ language specification is annoyingly unspecific) - although we don't expect to see
+'length_error' in practice, it should be handled anyway.
+
+Repeating for emphasis: Once it has started regular operation, dinit must not terminate due to an
+error condition, even if the error is an allocation failure or another exception.
+
+
+Services
+--------
+
+There are presently five "exposed" service types: internal, triggered, process, bgprocess and
+scripted. The latter three share the fact that they execute external processes and so naturally
+share some implementation. The base service class is "service_record" - this directly supports
+"internal" services (triggered services differ only slightly, but are still implemented via a
+subclass, "triggered_service"). 
+
+The "base_process_service" class extends service_record and serves as a base class for the
+remaining three service types (which all manage external processes) and provides common
+functionality.
+
+Various functions in the service_record / base_process_service classes are virtual, so that they
+can be overridden by the subclasses.
+
+All execution of child processes related to services currently goes through
+service_record::run_child_proc() (after forking).
+
+Services are grouped in a "service_set". This provides the essential interface between the event
+loop and services.
+
+A "placeholder_service" service type also exists; it is used as a placeholder for when a service
+needs to maintain a link to another service but that other service has not yet been loaded (this
+is used for example for "after" and "before" service ordering, since those don't require loading
+the linked service, and "consumer-of" for similar reasons). When any service is loaded, it
+replaces any placeholder service that already exists for it (and links from other services to the
+placeholder are updated to refer to the newly loaded service instead). In a similar way, a service
+which is unloaded but that still has persistent links from other services can be replaced with a
+placeholder. 
 
 
 Source code organisation
