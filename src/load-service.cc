@@ -24,10 +24,11 @@
 using string = std::string;
 using string_iterator = std::string::iterator;
 
-// Perform environment variable substitution on a command line, if specified.
+// Perform environment variable substitution on a command line or other setting.
 //   line -  the string storing the command and arguments
 //   offsets - the [start,end) pair of offsets of the command and each argument within the string
 //
+// throws:  std::bad_alloc, std::length_error, service_description_exc
 static void do_env_subst(const char *setting_name, ha_string &line,
         std::list<std::pair<unsigned,unsigned>> &offsets,
         environment::env_map const &envmap)
@@ -964,6 +965,11 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         exception_cleanup();
         // don't use sys_err.what() since libstdc++ sometimes includes class names (basic_filebuf):
         throw service_load_exc(name, sys_err.code().message());
+    }
+    catch (std::length_error &len_err) {
+        // This is pretty much only theoretically possible; we'd normally expect bad_alloc instead.
+        exception_cleanup();
+        throw service_load_exc(name, "supported length for string/container exceeded");
     }
     catch (...) // (should only be std::bad_alloc or service_load_exc)
     {

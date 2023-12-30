@@ -85,6 +85,7 @@ class service_not_found : public service_load_exc
     }
 };
 
+// Can't load service due to system error (eg error reading service file)
 class service_load_error : public service_load_exc
 {
     public:
@@ -103,6 +104,9 @@ class service_cyclic_dependency : public service_load_exc
     }
 };
 
+// Error in a service description
+// At least one out of line number and setting name will be available. Note that these are
+// constructed without supplying a service name, but it will be filled in later.
 class service_description_exc : public service_load_exc
 {
     public:
@@ -119,13 +123,15 @@ class service_description_exc : public service_load_exc
     {
     }
 
-    service_description_exc(const std::string &serviceName, std::string &&extraInfo, unsigned line_num)
-        : service_load_exc(serviceName, std::move(extraInfo)), line_num(line_num)
+    service_description_exc(const std::string &serviceName, std::string &&exc_info, unsigned line_num)
+        : service_load_exc(serviceName, std::move(exc_info)), line_num(line_num)
     {
     }
 
-    service_description_exc(const std::string &serviceName, std::string &&extraInfo, const char *setting_name)
-        : service_load_exc(serviceName, std::move(extraInfo)), setting_name(setting_name)
+    service_description_exc(const std::string &serviceName, std::string &&exc_info,
+            const char *setting_name, unsigned line_num = -1)
+        : service_load_exc(serviceName, std::move(exc_info)),
+          line_num(line_num), setting_name(setting_name)
     {
     }
 };
@@ -535,8 +541,8 @@ inline int parse_perms(unsigned line_num, string &paramval, const std::string &s
         return perms;
     }
     catch (std::logic_error &exc) {
-        throw service_description_exc(servicename, std::string(paramname) + ": badly-formed or "
-                "out-of-range numeric value", line_num);
+        throw service_description_exc(servicename, paramname,
+                "badly-formed or out-of-range numeric value", line_num);
     }
 }
 
@@ -745,8 +751,9 @@ inline const char *resolve_env_var(const string &name, const environment::env_ma
 // If you simply wish to substitute all variables in the given string, pass an offsets list
 // containing one pair with the string's bounds (0, size). '$$' resolves to a single '$'.
 //
-// throws: setting_exception if a $-substitution is ill-formed, or if the command line is too long;
-//         bad_alloc on allocation failure
+// throws: service_description_exc if a $-substitution is ill-formed
+//         std::length_error if string length limit exceeded or command line is too long
+//         std::bad_alloc on allocation failure
 template <typename T>
 static void value_var_subst(const char *setting_name, std::string &line,
         std::list<std::pair<unsigned,unsigned>> &offsets, T &var_resolve,
@@ -759,7 +766,7 @@ static void value_var_subst(const char *setting_name, std::string &line,
 
     if (line.length() > (size_t)std::numeric_limits<int>::max()) {
         // (avoid potential for overflow later)
-        throw service_description_exc(setting_name, "value too long");
+        throw std::length_error("string too long");
     }
 
     auto i = offsets.begin();
@@ -1163,6 +1170,7 @@ class service_settings_wrapper
 //                      arguments: decltype(settings.depends) &dependencies
 //                                 const string &waitsford - directory as specified in parameter
 //                                 dependency_type dep_type - type of dependency to add
+// throws: service_description_exc, std::bad_alloc, std::length_error (string too long; unlikely)
 template <typename settings_wrapper,
     typename load_service_t,
     typename process_dep_dir_t>
@@ -1263,7 +1271,7 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         }
         else {
             throw service_description_exc(name, "log type must be one of: \"file\", \"buffer\" or \"none\"",
-                    line_num);
+                    "log-type", line_num);
         }
     }
     else if (setting == "log-buffer-size") {
@@ -1275,7 +1283,7 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
     else if (setting == "consumer-of") {
         string consumed_svc_name = read_setting_value(line_num, i, end);
         if (consumed_svc_name == name) {
-            throw service_description_exc(name, "service cannot be its own consumer",
+            throw service_description_exc(name, "service cannot be its own consumer", "consumer-of",
                     line_num);
         }
         settings.consumer_of_name = consumed_svc_name;
@@ -1307,7 +1315,8 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         }
         else {
             throw service_description_exc(name, "service type must be one of: \"scripted\","
-                " \"process\", \"bgprocess\", \"internal\" or \"triggered\"", line_num);
+                " \"process\", \"bgprocess\", \"internal\" or \"triggered\"",
+                "type", line_num);
         }
     }
     else if (setting == "options") {
@@ -1359,7 +1368,8 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
                 settings.onstart_flags.kill_all_on_stop = true;
             }
             else {
-                throw service_description_exc(name, "Unknown option: " + option_txt, line_num);
+                throw service_description_exc(name, "unknown option: " + option_txt,
+                        "options", line_num);
             }
         }
     }
@@ -1380,7 +1390,8 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
                 // we don't support no-sub-vars anymore, however
             }
             else {
-                throw service_description_exc(name, "unknown load option: " + option_txt, line_num);
+                throw service_description_exc(name, "unknown load option: " + option_txt,
+                        "load-options", line_num);
             }
         }
     }
@@ -1390,7 +1401,7 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         int signo = signal_name_to_number(signame);
         if (signo == -1) {
             throw service_description_exc(name, "unknown/unsupported termination signal: "
-                    + signame, line_num);
+                    + signame, "term-signal", line_num);
         }
         else {
             settings.term_signal = signo;
@@ -1432,13 +1443,13 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         else if (starts_with(notify_setting, "pipevar:")) {
             settings.readiness_var = notify_setting.substr(8 /* len 'pipevar:' */);
             if (settings.readiness_var.empty()) {
-                throw service_description_exc(name, "invalid pipevar variable name "
-                        "in ready-notification", line_num);
+                throw service_description_exc(name, "invalid pipevar variable name",
+                        "ready-notification", line_num);
             }
         }
         else {
-            throw service_description_exc(name, "unknown ready-notification setting: "
-                    + notify_setting, line_num);
+            throw service_description_exc(name, "unrecognised setting: " + notify_setting,
+                    "ready-notification", line_num);
         }
     }
     else if (setting == "inittab-id") {

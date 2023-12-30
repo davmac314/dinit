@@ -221,11 +221,19 @@ class prelim_dep
 inline void log_service_load_failure(service_description_exc &exc)
 {
     if (exc.line_num != (unsigned)-1) {
-        log(loglevel_t::ERROR, "Couldn't load service '", exc.service_name, "' (line ", exc.line_num, "): ",
-                exc.exc_description);
+        if (exc.setting_name == nullptr) {
+            log(loglevel_t::ERROR, "Error in service description for '", exc.service_name, "' (line ", exc.line_num, "): ",
+                    exc.exc_description);
+        }
+        else {
+            log(loglevel_t::ERROR, "Error in service description for '", exc.service_name, "': setting '", exc.setting_name, "' "
+                    "(on line ", exc.line_num, "): ",
+                    exc.exc_description);
+        }
     }
     else {
-        log(loglevel_t::ERROR, "Couldn't load service '", exc.service_name, "' setting '", exc.setting_name, "': ",
+        // If no line number, setting name must be present
+        log(loglevel_t::ERROR, "Error in service description for '", exc.service_name, "' setting '", exc.setting_name, "': ",
                 exc.exc_description);
     }
 }
