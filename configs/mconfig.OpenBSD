@@ -1,3 +1,5 @@
+# Default build configuration for OpenBSD.
+
 # Installation path options.
 
 SBINDIR=/sbin

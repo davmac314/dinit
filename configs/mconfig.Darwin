@@ -1,3 +1,5 @@
+# Default build configuration for Darwin-based OSes including MacOS, PureDarwin
+
 # Installation path options.
 
 SBINDIR=/sbin
@@ -7,7 +9,7 @@ SYSCONTROLSOCKET=/var/run/dinitctl
 
 # General build options.
 
-# MacOS: use g++ (which may alias clang++):
+# Use g++ (which may alias clang++):
 # Cannot use -fno-rtti: apparently prevents exception handling from working properly.
 CXX=g++
 CXXFLAGS=-std=c++11 -Os -Wall -flto

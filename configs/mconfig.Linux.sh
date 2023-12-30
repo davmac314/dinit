@@ -1,4 +1,5 @@
 #!/bin/sh
+# Generate build configuration for Linux.
 
 rm -f ../mconfig
 

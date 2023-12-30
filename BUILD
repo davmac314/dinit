@@ -32,7 +32,9 @@ at least want to alter the installation location.
 
 If you are using a different system, or want to alter the default configuration, first run "make
 mconfig" to generate the "mconfig" file which contains the build configuration. You can then edit
-this file by hand, before proceeding with the build.
+this file by hand, before proceeding with the build. Note that the the generated "mconfig" may be
+a symbolic link to a system-specific default config file. It is not necessary to edit the file; you
+can override variables on the "make" command line if you prefer.
 
 An alternative to "make mconfig" is to use the provided "configure" script. It will try to
 generate a suitable "mconfig" file, based on sensible defaults and options provided on the command
@@ -44,7 +46,33 @@ For more information on available options from the configure script, run:
 
 You can also create and edit the "mconfig" file completely by hand (or start by copying one for a
 particular OS from the "configs" directory) to choose appropriate values for the configuration
-variables defined within. In particular:
+variables defined within.
+
+
+Main build variables
+=-=-=-=-=-=-=-=-=-=-
+
+There are some build variables that may typically require adjustment. In particular, some
+variables control installation paths or paths that are used at runtime; they are:
+
+  SBINDIR  : set to the directory where the executable files should be installed
+  MANDIR   : set to the directory where manual pages should be installed 
+  SYSCONTROLSOCKET : set to the default location of the control socket when Dinit is run as a system
+                     manager (as opposed to a user service manager)
+
+Some variables affect whether the "shutdown" utility is included and how it is named:
+
+  BUILD_SHUTDOWN : (yes|no)
+    Whether to build the "shutdown" (and "halt" etc) utilities. These are only useful
+    if dinit is the system init (i.e. the PID 1 process). You probably don't want this
+    unless building for Linux as shutdown is not supported on other systems (yet).
+  SHUTDOWN_PREFIX :
+    Name prefix for "shutdown", "halt" and "reboot" commands (if they are built). This affects
+    both the output, and what command dinit will execute as part of system shutdown.
+    If you want to install Dinit alongside another init system with its own shutdown/halt/reboot
+    commands, set this (for eg. to "dinit-").
+
+The following variables affect compilation and link options:
 
   CXX      : should be set to the name of the C++ compiler (and link driver)
   CXXFLAGS : are options passed to the compiler during compilation
@@ -58,20 +86,24 @@ For convenience, generated configuration also allows setting the following:
 
   LDFLAGS_BASE : any link options that should be used by default for linking (including tests),
                  if LDFLAGS is not overridden, to which CXXFLAGS will be added if the
-                 configuration enables link-time optimisation (LTO). This provides a simple way to
-                 change only link options not relevant to LTO, without having to override the
-                 values for both LDFLAGS and TEST_LDFLAGS.
+                 configuration enables link-time optimisation (LTO). Will be ignored if LDFLAGS
+                 is set.
   TEST_LDFLAGS_BASE : as LDFLAGS_BASE but for tests. The default is to use the same value (if any)
-                      as specified for LDFLAGS_BASE.
+                      as specified for LDFLAGS_BASE. Ignored if TEST_LDFLAGS is set.
 
-Additionally, for cross-compilation, the following can be specified:
+Together, LDFLAGS_BASE and TEST_LDFLAGS_BASE provide a simple way to adjust link options without
+interfering with link-time optimisation (LTO). With LTO enabled, LDFLAGS must usually include the
+same options used for compilation; by adjusting LDFLAGS_BASE instead, you do not have to
+specifically include the compilation options as they will be included in LDFLAGS automatically.
+
+For cross-compilation, the following can be specified:
 
   CXX_FOR_BUILD : C++ compiler for compiling code to run on the build host
   CXXFLAGS_FOR_BUILD  : any options for compiling code to run on the build host
   CPPFLAGS_FOR_BUILD  : any preprocessor options for code to run on the build host
   LDFLAGS_FOR_BUILD   : any options for linking code to run on the build host
 
-Note that the "eg++" or "clang++" package must be installed on OpenBSD as the default "g++"
+Note that the "eg++" or "clang++" package may need to be installed on OpenBSD if the default "g++"
 compiler is too old. Clang is part of the base system in recent releases.
 
 Then, from the top-level directory, run "make" (or "gmake" if the system make is not GNU make,
@@ -121,21 +153,6 @@ Other configuration variables
 
 There are a number of other variables you can set in the mconfig file which affect the build:
 
-SBINDIR=...
-    Where the "/sbin" directory is. Executables will be installed here.
-MANDIR=...
-    Where the "man" directory is. Man pages will be installed here.
-SYSCONTROLSOCKET=...
-    Default full path to the control socket, for when Dinit runs as system service manager.
-BUILD_SHUTDOWN=yes|no
-    Whether to build the "shutdown" (and "halt" etc) utilities. These are only useful
-    if dinit is the system init (i.e. the PID 1 process). You probably don't want this
-    unless building for Linux.
-SHUTDOWN_PREFIX=...
-    Name prefix for "shutdown", "halt" and "reboot" commands (if they are built). This affects
-    both the output, and what command dinit will execute as part of system shutdown.
-    If you want to install Dinit alongside another init system with its own shutdown/halt/reboot
-    commands, set this (for eg. to "dinit-").
 USE_UTMPX=1|0
     Whether to build support for manipulating the utmp/utmpx database via the related POSIX
     functions. This may be required (along with appropriate service configuration) for utilities

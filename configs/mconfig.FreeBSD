@@ -1,3 +1,5 @@
+# Default build configuration for FreeBSD.
+
 # Installation path options.
 
 SBINDIR=/sbin
