@@ -7,13 +7,15 @@
 #include <mconfig.h>
 #include <cpbuffer.h>
 #include <control-cmds.h>
-
 #include <control-datatypes.h>
+#include <dinit-util.h>
+#include <service-constants.h>
 
 // Client library for Dinit clients
 
 using cpbuffer_t = cpbuffer<1024>;
 
+// read error on control socket
 class cp_read_exception
 {
     public:
@@ -21,6 +23,7 @@ class cp_read_exception
     cp_read_exception(int err) : errcode(err) { }
 };
 
+// write error on control socket
 class cp_write_exception
 {
     public:
@@ -28,15 +31,12 @@ class cp_write_exception
     cp_write_exception(int err) : errcode(err) { }
 };
 
-class cp_old_client_exception
-{
-    // no body
-};
+class dinit_protocol_error {};
+class cp_old_client_exception : public dinit_protocol_error {};
+class cp_old_server_exception : public dinit_protocol_error {};
 
-class cp_old_server_exception
-{
-    // no body
-};
+// Unrecognised service directory configuration
+class dinit_unknown_sd_conf : public dinit_protocol_error {};
 
 class general_error
 {
@@ -371,4 +371,88 @@ inline int get_passed_cfd()
         }
     }
     return socknum;
+}
+
+// Extract/read a string of specified length from the buffer/socket. The string is consumed
+// from the buffer.
+inline std::string read_string(int socknum, cpbuffer_t &rbuffer, uint32_t length)
+{
+    int rb_len = rbuffer.get_length();
+    if (uint32_t(rb_len) >= length) {
+        std::string r = rbuffer.extract_string(0, length);
+        rbuffer.consume(length);
+        return r;
+    }
+
+    std::string r = rbuffer.extract_string(0, rb_len);
+    uint32_t rlen = length - rb_len;
+    uint32_t clen;
+    do {
+        rbuffer.reset();
+        fill_some(rbuffer, socknum);
+        char *bptr = rbuffer.get_ptr(0);
+        clen = rbuffer.get_length();
+        clen = std::min(clen, rlen);
+        r.append(bptr, clen);
+        rlen -= clen;
+    } while (rlen > 0);
+
+    rbuffer.consume(clen);
+
+    return r;
+}
+
+// Get the service description directories configured for the daemon as a vector of strings.
+// throws: dinit_unknown_sd_conf, dinit_protocol_error, cp_read_exception, cp_write_exception
+inline std::vector<std::string> get_service_description_dirs(int socknum, cpbuffer_t &rbuffer)
+{
+    using namespace std;
+
+    char buf[1] = { (char)cp_cmd::QUERY_LOAD_MECH };
+    write_all_x(socknum, buf, 1);
+
+    wait_for_reply(rbuffer, socknum);
+
+    if (rbuffer[0] != (char)cp_rply::LOADER_MECH) {
+        throw dinit_protocol_error();
+    }
+
+    // Packet type, load mechanism type, packet size:
+    fill_buffer_to(rbuffer, socknum, 2 + sizeof(uint32_t));
+
+    if (rbuffer[1] != SSET_TYPE_DIRLOAD) {
+        throw dinit_unknown_sd_conf();
+    }
+
+    vector<string> paths;
+
+    uint32_t pktsize;
+    rbuffer.extract(&pktsize, 2, sizeof(uint32_t));
+
+    fill_buffer_to(rbuffer, socknum, 2 + sizeof(uint32_t) * 3); // path entries, cwd length
+
+    uint32_t path_entries;  // number of service directories
+    rbuffer.extract(&path_entries, 2 + sizeof(uint32_t), sizeof(uint32_t));
+
+    uint32_t cwd_len;
+    rbuffer.extract(&cwd_len, 2 + sizeof(uint32_t) * 2, sizeof(uint32_t));
+    rbuffer.consume(2 + sizeof(uint32_t) * 3);
+    pktsize -= 2 + sizeof(uint32_t) * 3;
+
+    // Read current working directory of daemon:
+    std::string dinit_cwd = read_string(socknum, rbuffer, cwd_len);
+
+    // dinit daemon base directory against which service paths are resolved is in dinit_cwd
+
+    for (uint32_t i = 0; i < path_entries; ++i) {
+        uint32_t plen;
+        fill_buffer_to(rbuffer, socknum, sizeof(uint32_t));
+        rbuffer.extract(&plen, 0, sizeof(uint32_t));
+        rbuffer.consume(sizeof(uint32_t));
+        //paths.push_back(read_string(socknum, rbuffer, plen));
+        string sd_rel_path = read_string(socknum, rbuffer, plen);
+        paths.push_back(combine_paths(dinit_cwd, sd_rel_path.c_str()));
+    }
+
+    return paths;
 }

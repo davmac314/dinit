@@ -29,8 +29,6 @@ struct stringview {
     size_t len;
 };
 
-class dinit_protocol_error {};
-
 static std::vector<stringview> split_command(const char *cmd);
 static bool load_service(int socknum, cpbuffer_t &rbuffer, const char *name, handle_t *handle,
         service_state_t *state);

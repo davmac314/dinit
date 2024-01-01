@@ -88,11 +88,6 @@ enum class ctl_cmd {
     IS_FAILED,
 };
 
-class dinit_protocol_error
-{
-    // no body
-};
-
 // Entry point.
 int dinitctl_main(int argc, char **argv)
 {
@@ -539,7 +534,7 @@ int dinitctl_main(int argc, char **argv)
         else {
             control_socket_path = get_default_socket_path(control_socket_str, user_dinit);
             if (control_socket_path == nullptr) {
-                cerr << "dinitctl: cannot locate user home directory (set XDG_RUNTIME_DIR, HOME, check /etc/passwd file, or "
+                cerr << "dinitctl: cannot determine control socket directory (set XDG_RUNTIME_DIR or HOME, check /etc/passwd file, or "
                         "specify socket path via -p)" << endl;
                 return 1;
             }
@@ -673,35 +668,6 @@ static const char * describe_state(bool stopped)
 static const char * describe_verb(bool stop)
 {
     return stop ? "stop" : "start";
-}
-
-// Extract/read a string of specified length from the buffer/socket. The string is consumed
-// from the buffer.
-static std::string read_string(int socknum, cpbuffer_t &rbuffer, uint32_t length)
-{
-    int rb_len = rbuffer.get_length();
-    if (uint32_t(rb_len) >= length) {
-        std::string r = rbuffer.extract_string(0, length);
-        rbuffer.consume(length);
-        return r;
-    }
-
-    std::string r = rbuffer.extract_string(0, rb_len);
-    uint32_t rlen = length - rb_len;
-    uint32_t clen;
-    do {
-        rbuffer.reset();
-        fill_some(rbuffer, socknum);
-        char *bptr = rbuffer.get_ptr(0);
-        clen = rbuffer.get_length();
-        clen = std::min(clen, rlen);
-        r.append(bptr, clen);
-        rlen -= clen;
-    } while (rlen > 0);
-
-    rbuffer.consume(clen);
-
-    return r;
 }
 
 // Load a service: issue load command, wait for reply. Return true on success, display error message
@@ -1643,61 +1609,6 @@ static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer, bool verbose)
     return 0;
 }
 
-static std::vector<std::string> get_service_description_dirs(int socknum, cpbuffer_t &rbuffer)
-{
-    using namespace std;
-
-    char buf[1] = { (char)cp_cmd::QUERY_LOAD_MECH };
-    write_all_x(socknum, buf, 1);
-
-    wait_for_reply(rbuffer, socknum);
-
-    if (rbuffer[0] != (char)cp_rply::LOADER_MECH) {
-        cerr << "dinitctl: control socket protocol error" << endl;
-        return {};
-    }
-
-    // Packet type, load mechanism type, packet size:
-    fill_buffer_to(rbuffer, socknum, 2 + sizeof(uint32_t));
-
-    if (rbuffer[1] != SSET_TYPE_DIRLOAD) {
-        cerr << "dinitctl: unknown configuration, unable to load service descriptions" << endl;
-        return {};
-    }
-
-    vector<string> paths;
-
-    uint32_t pktsize;
-    rbuffer.extract(&pktsize, 2, sizeof(uint32_t));
-
-    fill_buffer_to(rbuffer, socknum, 2 + sizeof(uint32_t) * 3); // path entries, cwd length
-
-    uint32_t path_entries;  // number of service directories
-    rbuffer.extract(&path_entries, 2 + sizeof(uint32_t), sizeof(uint32_t));
-
-    uint32_t cwd_len;
-    rbuffer.extract(&cwd_len, 2 + sizeof(uint32_t) * 2, sizeof(uint32_t));
-    rbuffer.consume(2 + sizeof(uint32_t) * 3);
-    pktsize -= 2 + sizeof(uint32_t) * 3;
-
-    // Read current working directory of daemon:
-    std::string dinit_cwd = read_string(socknum, rbuffer, cwd_len);
-
-    // dinit daemon base directory against which service paths are resolved is in dinit_cwd
-
-    for (uint32_t i = 0; i < path_entries; ++i) {
-        uint32_t plen;
-        fill_buffer_to(rbuffer, socknum, sizeof(uint32_t));
-        rbuffer.extract(&plen, 0, sizeof(uint32_t));
-        rbuffer.consume(sizeof(uint32_t));
-        //paths.push_back(read_string(socknum, rbuffer, plen));
-        string sd_rel_path = read_string(socknum, rbuffer, plen);
-        paths.push_back(combine_paths(dinit_cwd, sd_rel_path.c_str()));
-    }
-
-    return paths;
-}
-
 // Get the service description directory for a loaded service
 static std::string get_service_description_dir(int socknum, cpbuffer_t &rbuffer, handle_t service_handle)
 {
@@ -1798,9 +1709,11 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
             return 1;
         }
 
-        service_dir_paths = get_service_description_dirs(socknum, rbuffer);
-        if (service_dir_paths.empty()) {
-            return 1;
+        try {
+            service_dir_paths = get_service_description_dirs(socknum, rbuffer);
+        }
+        catch (dinit_protocol_error &) {
+            cerr << "dinitctl: unknown configuration or protocol error, unable to load service descriptions" << endl;
         }
 
         service_file_path = get_service_descr_filename(socknum, rbuffer, from_handle, from);
