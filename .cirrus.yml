@@ -8,7 +8,7 @@ Dinit with hardening CI_task:
                          'configure',
                          '!**/meson.build')"
   environment:
-    CXX: /usr/local/bin/clang++15 # Default clang++14 isn't friendly with hardening
+    CXX: /usr/local/bin/clang++15 # Default clang++14 doesn't support CFI
     CXXFLAGS:
       -std=c++11
       -flto
@@ -22,8 +22,7 @@ Dinit with hardening CI_task:
 
   freebsd_instance:
     matrix:
-      - image_family: freebsd-13-2
-      - image_family: freebsd-12-4
+      - image_family: freebsd-14-0
 
   Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install gmake m4 file llvm15
   Configure_script: ./configure
