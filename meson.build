@@ -85,7 +85,7 @@ subdir('src')
 if unit_tests
     subdir('src/tests/')
 endif
-if fuzzer
+if unit_tests or fuzzer
     subdir('src/tests/cptests/')
 endif
 if igr_tests
