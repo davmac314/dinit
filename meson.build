@@ -3,7 +3,7 @@ project(
     'dinit', 
     'cpp', 
     version : run_command('grep', '^VERSION=', 'build/version.conf',
-        check : true).stdout().strip().split('=')[1],
+        check: true).stdout().strip().split('=')[1],
     license : 'Apache-2.0',
     meson_version : '>= 0.56.0',
     default_options : [
@@ -14,8 +14,7 @@ project(
 )
 
 ## Import variables from build/version.conf
-kv = import('keyval')
-version_conf = kv.load('build/version.conf')
+version_conf = import('keyval').load('build/version.conf')
 
 ## General Defines
 compiler = meson.get_compiler('cpp')

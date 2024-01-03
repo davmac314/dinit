@@ -10,21 +10,21 @@ foreach man: ['dinit-service.5', 'dinit.8', 'dinitcheck.8', 'dinitctl.8', 'dinit
         output: man,
         command: [
             'm4',
-            '-DVERSION='+version,
-            '-DMONTH='+month,
-            '-DYEAR='+year,
-            '-DSHUTDOWN_PREFIX='+shutdown_prefix,
-            '-DDEFAULT_AUTO_RESTART='+default_auto_restart,
-            '-DDEFAULT_START_TIMEOUT='+default_start_timeout,
-            '-DDEFAULT_STOP_TIMEOUT='+default_stop_timeout,
+            '-DVERSION=' + version,
+            '-DMONTH=' + month,
+            '-DYEAR=' + year,
+            '-DSHUTDOWN_PREFIX=' + shutdown_prefix,
+            '-DDEFAULT_AUTO_RESTART=' + default_auto_restart,
+            '-DDEFAULT_START_TIMEOUT=' + default_start_timeout,
+            '-DDEFAULT_STOP_TIMEOUT=' + default_stop_timeout,
             '@INPUT@'
         ],
         capture: true,
         install: true,
-        install_dir: join_paths(get_option('mandir'), section),
+        install_dir: join_paths(mandir, section),
     )
 endforeach
-if shutdown_build
+if shutdown_built
     foreach shutdown_man: ['shutdown.8', 'reboot.8', 'halt.8']
         custom_target(
             shutdown_man,
@@ -32,10 +32,10 @@ if shutdown_build
             output: shutdown_prefix + shutdown_man,
             command: [
                 'm4',
-                '-DVERSION='+version,
-                '-DMONTH='+month,
-                '-DYEAR='+year,
-                '-DSHUTDOWN_PREFIX='+shutdown_prefix,
+                '-DVERSION=' + version,
+                '-DMONTH=' + month,
+                '-DYEAR=' + year,
+                '-DSHUTDOWN_PREFIX=' + shutdown_prefix,
                 '@INPUT@'
             ],
             capture: true,

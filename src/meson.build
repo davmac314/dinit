@@ -22,7 +22,12 @@ dinit_source_files = [
 ]
 
 ## src/'s Defines
-shutdown_build = false
+shutdown_built = false
+misc_args = {
+    'include_directories': default_incdir,
+    'install': true,
+    'install_dir': sbindir
+}
 
 ## src/'s defines for igr-tests/
 if igr_tests
@@ -34,43 +39,33 @@ endif
 executable(
     'dinit',
     dinit_source_files,
-    include_directories : default_incdir,
-    install : true,
-    install_dir : sbindir
+    kwargs: misc_args
 )
 executable(
     'dinitctl',
     'dinitctl.cc',
     'options-processing.cc',
-    include_directories : default_incdir,
-    install : true,
-    install_dir : sbindir
+    kwargs: misc_args
 )
 executable(
     'dinitcheck',
     'dinitcheck.cc',
     'options-processing.cc',
-    include_directories : default_incdir,
-    install : true,
-    install_dir : sbindir
+    kwargs: misc_args
 )
 executable(
     'dinit-monitor',
     'dinit-monitor.cc',
-    include_directories : default_incdir,
-    install : true,
-    install_dir : sbindir
+    kwargs: misc_args
 )
 # Shutdown/reboot/halt
 if build_shutdown.auto() and platform == 'linux' or build_shutdown.enabled()
-    shutdown_build = true
+    shutdown_built = true
     foreach exec: ['shutdown', 'reboot', 'halt']
         executable(
             shutdown_prefix + exec,
             'shutdown.cc',
-            include_directories : default_incdir,
-            install : true,
-            install_dir : sbindir
+            kwargs: misc_args
         )
     endforeach
 endif
