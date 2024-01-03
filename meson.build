@@ -68,9 +68,10 @@ mconfig_data.set10('USE_INITGROUPS', use_initgroups)
 if support_cgroups.auto() and platform == 'linux' or support_cgroups.enabled()
     mconfig_data.set('SUPPORT_CGROUPS', '1') 
 endif
-if use_utmpx.enabled()
+if use_utmpx.enabled() or (use_utmpx.auto() and compiler.has_header_symbol('utmpx.h', '_PATH_UTMPX') and
+        compiler.has_header_symbol('utmpx.h', '_PATH_WTMPX'))
     mconfig_data.set('USE_UTMPX', '1')
-elif use_utmpx.disabled()
+else
     mconfig_data.set('USE_UTMPX', '0')
 endif
 configure_file(

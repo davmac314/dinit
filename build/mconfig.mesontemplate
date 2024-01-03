@@ -5,6 +5,7 @@
 
 // Defines
 
+#mesondefine USE_UTMPX
 #mesondefine USE_INITGROUPS
 #mesondefine SUPPORT_CGROUPS
 #mesondefine DEFAULT_AUTO_RESTART
