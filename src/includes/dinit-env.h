@@ -99,7 +99,8 @@ public:
     environment &operator=(const environment &other) = delete;
 
     struct env_map {
-        // *non-owning* list of environment variables, i.e. list as suitable for exec
+        // *non-owning* list of environment variables, i.e. list as suitable for exec, including
+        // null at end of list
         std::vector<const char *> env_list;
 
         // map of variable name (via string_view) to its index in env_list
@@ -138,7 +139,8 @@ public:
     // Build a mapping excluding named variables (only called if the parent is the real environment).
     // Note that the return is non-owning, i.e. the variable values are backed by the environment object
     // and their lifetime is bounded to it.
-    env_map build(const env_names &exclude) const {
+    env_map build(const env_names &exclude) const
+    {
         env_map mapping;
 
         if (keep_parent_env) {
@@ -241,6 +243,12 @@ public:
         mapping.env_list.push_back(nullptr);
 
         return mapping;
+    }
+
+    // build a mapping, where parent is the real environment
+    env_map build() const
+    {
+        return build(env_names());
     }
 
     void set_var(std::string &&var_and_val)

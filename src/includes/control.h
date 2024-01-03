@@ -185,6 +185,9 @@ class control_conn_t : private service_listener
     // Query service path / load mechanism.
     bool query_load_mech();
 
+    // Get the complete environment
+    bool process_getallenv();
+
     // Notify that data is ready to be read from the socket. Returns true if the connection should
     // be closed.
     bool data_ready() noexcept;

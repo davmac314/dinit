@@ -70,6 +70,9 @@ enum class cp_cmd : dinit_cptypes::cp_cmd_t {
 
     // "Close" a service handle
     CLOSEHANDLE = 23,
+
+    // Retrieve complete environment
+    GETALLENV = 24,
 };
 
 // Replies:
@@ -143,6 +146,9 @@ enum class cp_rply : dinit_cptypes::cp_rply_t {
 
     // Service description directory:
     SVCDSCDIR = 77,
+
+    // Retrieve complete environment
+    ALLENV = 78,
 };
 
 // Information (out-of-band):

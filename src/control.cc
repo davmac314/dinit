@@ -16,7 +16,7 @@
 // 1 - dinit 0.16 and prior
 // 2 - dinit 0.17 (adds SETTRIGGER, CATLOG, SIGNAL)
 // 3 - dinit 0.17.1 (adds QUERYSERVICEDSCDIR)
-// 4 - (unreleased) (adds CLOSEHANDLE)
+// 4 - (unreleased) (adds CLOSEHANDLE, GETALLENV)
 
 // common communication datatypes
 using namespace dinit_cptypes;
@@ -119,6 +119,9 @@ bool control_conn_t::process_packet()
     }
     if (pktType == cp_cmd::SETENV) {
         return process_setenv();
+    }
+    if (pktType == cp_cmd::GETALLENV) {
+        return process_getallenv();
     }
     if (pktType == cp_cmd::SETTRIGGER) {
         return process_set_trigger();
@@ -966,8 +969,51 @@ bool control_conn_t::process_setenv()
 
 badreq:
     // Queue error response / mark connection bad
-    if (! queue_packet(badreqRep, 1)) return false;
+    if (!queue_packet(badreqRep, 1)) return false;
     bad_conn_close = true;
+    return true;
+}
+
+bool control_conn_t::process_getallenv()
+{
+    // 1 byte packet type
+    // 1 byte reserved - must be 0
+
+    constexpr int pkt_size = 2;
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    uint8_t reserved_byte = rbuf[1];
+    if (reserved_byte != 0) {
+        char badreqRep[] = { (char)cp_rply::BADREQ };
+        if (!queue_packet(badreqRep, 1)) return false;
+        bad_conn_close = true;
+        return true;
+    }
+
+    // The reply looks like:
+    // 1 byte - reply type
+    // sizeof(size_t) - reply data size
+    // n bytes - reply data (NAME=VALUE, separated by nul characters)
+
+    std::vector<char> env_block;
+    constexpr size_t env_block_hdr_size = sizeof(size_t) + 1;
+    env_block.resize(env_block_hdr_size);
+
+    rbuf.consume(pkt_size);
+    auto env = main_env.build();
+    for (const char *env_var : env.env_list) {
+        if (env_var != nullptr) {
+            env_block.insert(env_block.end(), env_var, env_var + strlen(env_var) + 1);
+        }
+    }
+
+    env_block[0] = (char)cp_rply::ALLENV;
+    size_t block_size = env_block.size() - env_block_hdr_size;
+    memcpy(env_block.data() + 1, &block_size, sizeof(block_size));
+    if (!queue_packet(std::move(env_block))) return false;
     return true;
 }
 
