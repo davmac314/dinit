@@ -45,6 +45,69 @@ value_cls<T> value(const T &v)
     return value_cls<T>(v);
 }
 
+// Since we are C++11, we don't have a std::string_view.
+class string_view
+{
+    const char *s = nullptr;
+    size_t count = 0;
+
+public:
+    string_view() = default;
+    string_view(const string_view &other) = default;
+    string_view(const char *s_p, size_t count_p) noexcept : s(s_p), count(count_p) { }
+    string_view(const char *s_p) noexcept  : s(s_p), count(strlen(s_p)) { }
+
+    string_view(const std::string &str) : s(str.data()), count(str.length()) { }
+
+    string_view &operator=(const string_view &other) = default;
+
+    bool operator==(const string_view &other) const noexcept
+    {
+        if (count != other.count) return false;
+        return memcmp(s, other.s, count) == 0;
+    }
+
+    bool operator==(const char *other) const noexcept
+    {
+        if (strncmp(s, other, count) == 0) {
+            if (other[count] == '\0') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    const char *data() const noexcept { return s; }
+    size_t size() const noexcept { return count; }
+    size_t length() const noexcept { return count; }
+    bool empty() const noexcept { return count == 0; }
+    string_view substr(size_t begin, size_t len) const noexcept
+    {
+        return string_view(s + begin, std::min(len, count - begin));
+    }
+
+    const char *begin() const noexcept { return s; }
+    const char *end() const noexcept { return s + count; }
+    std::reverse_iterator<const char *> rbegin() const noexcept { return std::reverse_iterator<const char *>(end()); }
+    std::reverse_iterator<const char *> rend() const noexcept { return std::reverse_iterator<const char *>(begin()); }
+
+    size_t find(char c) const noexcept {
+        auto it = std::find(begin(), end(), c);
+        if (it == end()) return std::string::npos;
+        return (it - begin());
+    }
+    size_t rfind(char c) const noexcept {
+        auto it = std::find(rbegin(), rend(), c);
+        if (it == rend()) return std::string::npos;
+        return (&(*it) - begin());
+    }
+
+    operator std::string() const
+    {
+        return std::string(s, count);
+    }
+};
+
 // Complete read - read the specified size until end-of-file or error; continue read if
 // interrupted by signal.
 inline ssize_t complete_read(int fd, void * buf, size_t n)
@@ -76,24 +139,24 @@ inline ssize_t complete_read(int fd, void * buf, size_t n)
 
 // Combine two paths to produce a path. If the second path is absolute, it is returned unmodified;
 // otherwise, it is appended to the first path (with a slash separator added if needed).
-inline std::string combine_paths(const std::string &p1, const char * p2)
+inline std::string combine_paths(string_view p1, const char * p2)
 {
-    if (*p2 == 0) return p1;
+    if (*p2 == 0) return (std::string)p1;
     if (p1.empty()) return std::string(p2);
 
     if (p2[0] == '/') return p2;
 
-    if (*(p1.rbegin()) == '/') return p1 + p2;
-    return p1 + '/' + p2;
+    if (*(p1.rbegin()) == '/') return (std::string)p1 + p2;
+    return (std::string)p1 + '/' + p2;
 }
 
 // Find the parent path of a given path, which should refer to a named file or directory (not . or ..).
 // If the path contains no directory, returns the empty string.
-inline std::string parent_path(const std::string &p)
+inline string_view parent_path(string_view p)
 {
     auto spos = p.rfind('/');
     if (spos == std::string::npos) {
-        return std::string {};
+        return string_view {};
     }
 
     return p.substr(0, spos + 1);
@@ -147,44 +210,6 @@ public:
     {
         std::allocator<T>::construct(obj, std::forward<Args>(args)...);
     }
-};
-
-// Since we are C++11, we don't have a std::string_view.
-class string_view
-{
-    const char *s = nullptr;
-    size_t count = 0;
-
-public:
-    string_view() = default;
-    string_view(const string_view &other) = default;
-    string_view(const char *s_p, size_t count_p) noexcept : s(s_p), count(count_p) { }
-    string_view(const char *s_p) noexcept  : s(s_p), count(strlen(s_p)) { }
-
-    string_view(const std::string &str) : s(str.data()), count(str.length()) { }
-
-    string_view &operator=(const string_view &other) = default;
-
-    bool operator==(const string_view &other) const noexcept
-    {
-        if (count != other.count) return false;
-        return memcmp(s, other.s, count) == 0;
-    }
-
-    bool operator==(const char *other) const noexcept
-    {
-        if (strncmp(s, other, count) == 0) {
-            if (other[count] == '\0') {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    const char *data() const noexcept { return s; }
-    size_t size() const noexcept { return count; }
-    size_t length() const noexcept { return count; }
-    bool empty() const noexcept { return count == 0; }
 };
 
 inline size_t hash(const string_view &str)
