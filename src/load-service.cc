@@ -542,7 +542,14 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         if (!settings.env_file.empty()) {
             try {
-                read_env_file(settings.env_file.data(), false, srv_env, true, service_dsc_dir);
+                if (settings.env_file[0] == '/') {
+                    // (don't allocate a string if we don't have to)
+                    read_env_file(settings.env_file.c_str(), false, srv_env, true);
+                }
+                else {
+                    std::string fullpath = combine_paths(service_dsc_dir, settings.env_file.c_str());
+                    read_env_file(fullpath.c_str(), false, srv_env, true);
+                }
             } catch (const std::system_error &se) {
                 throw service_load_exc(name, std::string("could not load environment file: ") + se.what());
             }

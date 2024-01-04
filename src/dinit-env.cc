@@ -18,20 +18,9 @@ static void log_bad_env_cmd(int linenum)
 }
 
 // Read and set environment variables from a file. May throw std::bad_alloc, std::system_error.
-void read_env_file(const char *env_file_path, bool log_warnings, environment &env, bool throw_on_open_failure, const char *basedir)
+void read_env_file(const char *env_file_path, bool log_warnings, environment &env, bool throw_on_open_failure)
 {
-    std::ifstream env_file;
-
-    if (!basedir || env_file_path[0] == '/') {
-        env_file.open(env_file_path);
-    } else {
-        std::string envp = basedir;
-        if (*envp.rbegin() != '/') {
-            envp += '/';
-        }
-        envp += env_file_path;
-        env_file.open(envp.c_str());
-    }
+    std::ifstream env_file(env_file_path);
     if (!env_file) {
         if (throw_on_open_failure) {
             throw std::system_error(errno, std::generic_category());
