@@ -7,15 +7,19 @@
 #include <list>
 #include <map>
 
-#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <signal.h>
+#include <unistd.h>
 #include <pwd.h>
 #include <dirent.h>
 
 #include "dinit-util.h"
+#include "dinit-client.h"
 #include "service-constants.h"
 #include "load-service.h"
 #include "options-processing.h"
@@ -24,6 +28,9 @@
 
 using string = std::string;
 using string_iterator = std::string::iterator;
+
+static constexpr uint16_t min_cp_version = 1;
+static constexpr uint16_t max_cp_version = 1;
 
 static void report_service_description_err(const std::string &service_name, const std::string &what);
 
@@ -68,13 +75,87 @@ template <typename T> bool contains(std::vector<T> vec, const T& elem)
 }
 
 static bool errors_found = false;
+static bool offline_operation = true;
+
+// environment - populated from running dinit instance if possible
+environment menv;
+
+// Get the environment from remote dinit instance
+static void get_remote_env(int csfd, cpbuffer_t &rbuffer)
+{
+    char buf[2] = { (char)cp_cmd::GETALLENV, 0 };
+    write_all_x(csfd, buf, 2);
+
+    wait_for_reply(rbuffer, csfd);
+
+    if (rbuffer[0] != (char)cp_rply::ALLENV) {
+        throw dinit_protocol_error();
+    }
+
+    // 1-byte packet header, then size_t data size
+    constexpr size_t allenv_hdr_size = 1 + sizeof(size_t);
+    rbuffer.fill_to(csfd, allenv_hdr_size);
+
+    size_t data_size;
+    rbuffer.extract(&data_size, 1, sizeof(data_size));
+    rbuffer.consume(allenv_hdr_size);
+
+    if (data_size == 0) return;
+
+    if (rbuffer.get_length() == 0) {
+        fill_some(rbuffer, csfd);
+    }
+
+    std::string env_var;
+
+    while (data_size > 0) {
+        // look for a nul terminator
+        get_var:
+        unsigned contig_len = rbuffer.get_contiguous_length(rbuffer.get_ptr(0));
+        unsigned check_len = std::min((size_t) contig_len, data_size);
+        for (unsigned i = 0; i < check_len; ++i) {
+            if (rbuffer[i] == '\0') {
+                // append the last portion
+                env_var.append(rbuffer.get_ptr(0), rbuffer.get_ptr(0) + i);
+                rbuffer.consume(i + 1);
+                data_size -= (i + 1);
+
+                menv.set_var(std::move(env_var));
+                env_var.clear();
+
+                if (data_size == 0) {
+                    // that's the last one
+                    return;
+                }
+
+                goto get_var;
+            }
+        }
+
+        // copy what we have so far to the string, and fill some more
+        env_var.append(rbuffer.get_ptr(0), rbuffer.get_ptr(0) + check_len);
+        rbuffer.consume(check_len);
+        data_size -= check_len;
+
+        if (data_size == 0) {
+            // This shouldn't happen, we didn't find the nul terminator at the end
+            throw dinit_protocol_error();
+        }
+
+        if (rbuffer.get_length() == 0) {
+            fill_some(rbuffer, csfd);
+        }
+    }
+}
 
 int main(int argc, char **argv)
 {
     using namespace std;
 
     service_dir_opt service_dir_opts;
-    bool am_system_init = (getuid() == 0);
+    bool user_dinit = (getuid() != 0);  // communicate with user daemon
+    std::string control_socket_str;
+    const char * control_socket_path = nullptr;
 
     std::vector<std::string> services_to_check;
 
@@ -92,12 +173,36 @@ int main(int argc, char **argv)
                         return 1;
                     }
                 }
+                else if (strcmp(argv[i], "--system") == 0 || strcmp(argv[i], "-s") == 0) {
+                    user_dinit = false;
+                }
+                else if (strcmp(argv[i], "--user") == 0 || strcmp(argv[i], "-u") == 0) {
+                    user_dinit = true;
+                }
+                else if (strcmp(argv[i], "--socket-path") == 0 || strcmp(argv[i], "-p") == 0) {
+                    ++i;
+                    if (i == argc) {
+                        cerr << "dinitcheck: --socket-path/-p should be followed by socket path" << std::endl;
+                        return 1;
+                    }
+                    control_socket_str = argv[i];
+                }
+                else if (strcmp(argv[i], "--online") == 0 || strcmp(argv[i], "-n") == 0) {
+                    offline_operation = false;
+                }
                 else if (strcmp(argv[i], "--help") == 0) {
                     cout << "dinitcheck: check dinit service descriptions\n"
                             " --help                       display help\n"
                             " --services-dir <dir>, -d <dir>\n"
                             "                              set base directory for service description\n"
                             "                              files, can be specified multiple times\n"
+                            " --online, -n                 use service dirs and environment from running\n"
+                            "                              dinit instance\n"
+                            " --socket-path <path>, -p <path>\n"
+                            "                              use specified socket to connect to daemon (online\n"
+                            "                              mode)\n"
+                            " --system, -s                 use defaults for system manager mode\n"
+                            " --user, -u                   use defaults for user mode\n"
                             " <service-name>               check service with name <service-name>\n";
                     return EXIT_SUCCESS;
                 }
@@ -112,7 +217,82 @@ int main(int argc, char **argv)
         }
     }
 
-    service_dir_opts.build_paths(am_system_init);
+    int socknum = -1;
+    cpbuffer_t rbuffer;
+    signal(SIGPIPE, SIG_IGN);
+
+    service_dir_pathlist service_dir_paths;
+    std::vector<std::string> service_dir_strs; // storage if needed for service_dir_paths
+
+    if (offline_operation) {
+        service_dir_opts.build_paths(!user_dinit);
+        service_dir_paths = std::move(service_dir_opts.get_paths());
+        // TODO read default environment into menv
+    }
+    else {
+        if (!control_socket_str.empty()) {
+            control_socket_path = control_socket_str.c_str();
+        }
+        else {
+            control_socket_path = get_default_socket_path(control_socket_str, user_dinit);
+            if (control_socket_path == nullptr) {
+                cerr << "dinitcheck: cannot locate user home directory (set XDG_RUNTIME_DIR, HOME, check /etc/passwd file, or "
+                        "specify socket path via -p)" << endl;
+                return 1;
+            }
+        }
+
+        try {
+            socknum = connect_to_daemon(control_socket_path);
+
+            // Start by querying protocol version:
+            check_protocol_version(min_cp_version, max_cp_version, rbuffer, socknum);
+
+            // Read service directories
+            service_dir_strs = get_service_description_dirs(socknum, rbuffer);
+            for (const std::string &service_dir : service_dir_strs) {
+                service_dir_paths.emplace_back(dir_entry(service_dir.c_str(), false));
+            }
+
+            menv.clear_no_inherit();
+            get_remote_env(socknum, rbuffer);
+        }
+        catch (cp_old_client_exception &e) {
+            std::cerr << "dinitcheck: too old (daemon reports newer protocol version)" << std::endl;
+            return EXIT_FAILURE;
+        }
+        catch (cp_old_server_exception &e) {
+            std::cerr << "dinitcheck: daemon too old or protocol error" << std::endl;
+            return EXIT_FAILURE;
+        }
+        catch (cp_read_exception &e) {
+            cerr << "dinitcheck: control socket read failure or protocol error" << endl;
+            return EXIT_FAILURE;
+        }
+        catch (cp_write_exception &e) {
+            cerr << "dinitcheck: control socket write error: " << std::strerror(e.errcode) << endl;
+            return EXIT_FAILURE;
+        }
+        catch (dinit_protocol_error &e) {
+            cerr << "dinitcheck: protocol error" << endl;
+            return EXIT_FAILURE;
+        }
+        catch (general_error &ge) {
+            std::cerr << "dinitcheck";
+            if (ge.get_action() != nullptr) {
+                std::cerr << ": " << ge.get_action();
+                std::string &arg = ge.get_arg();
+                if (!arg.empty()) {
+                    std::cerr << " " << arg;
+                }
+            }
+            if (ge.get_err() != 0) {
+                std::cerr << ": " << strerror(ge.get_err());
+            }
+            std::cerr << '\n';
+            return EXIT_FAILURE;
+        }
+    }
 
     if (services_to_check.empty()) {
         services_to_check.push_back("boot");
@@ -130,7 +310,7 @@ int main(int argc, char **argv)
         const std::string &name = services_to_check[i];
         std::cout << "Checking service: " << name << "...\n";
         try {
-            service_record *sr = load_service(service_set, name, service_dir_opts.get_paths());
+            service_record *sr = load_service(service_set, name, service_dir_paths);
             service_set[name] = sr;
             // add dependencies to services_to_check
             for (auto &dep : sr->dependencies) {
@@ -375,9 +555,6 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     service_settings_wrapper<prelim_dep> settings;
 
-    environment menv{};
-    environment renv{};
-
     string line;
     service_file.exceptions(ios::badbit);
 
@@ -419,12 +596,51 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     bool issued_var_subst_warning = false;
 
-    environment::env_map renvmap = renv.build(menv);
+    environment srv_env{};
+
+    // Fill user vars before reading env file
+    if (settings.export_passwd_vars) {
+        try {
+            fill_environment_userinfo(settings.run_as_uid, name, srv_env);
+        }
+        catch (service_load_exc &load_exc) {
+            report_service_description_err(name, load_exc.exc_description);
+        }
+    }
+
+    // Set service name in environment if desired
+    if (settings.export_service_name) {
+        std::string envname = "DINIT_SERVICE=";
+        envname += name;
+        srv_env.set_var(std::move(envname));
+    }
+
+    if (!settings.env_file.empty()) {
+        try {
+            std::string fullpath = combine_paths(service_wdir, settings.env_file.c_str());
+
+            auto log_inv_env_setting = [&](int line_num) {
+                report_service_description_err(name,
+                        std::string("Invalid environment variable setting in environment file " + fullpath
+                                + " (line ") + std::to_string(line_num) + ")");
+            };
+            auto log_bad_env_command = [&](int line_num) {
+                report_service_description_err(name,
+                        std::string("Bad command in environment file ") + fullpath + " (line " + std::to_string(line_num) + ")");
+            };
+
+            read_env_file_inline(fullpath.c_str(), false, srv_env, true, log_inv_env_setting, log_bad_env_command);
+        } catch (const std::system_error &se) {
+            report_service_description_err(name, std::string("could not load environment file: ") + se.what());
+        }
+    }
+
+    environment::env_map renvmap = srv_env.build(menv);
 
     auto resolve_var = [&](const string &name, environment::env_map const &envmap) {
-        if (!issued_var_subst_warning) {
+        if (offline_operation && !issued_var_subst_warning) {
             report_service_description_err(name, "warning: variable substitution performed by dinitcheck "
-                    "for file paths may not match dinitd (environment may differ)");
+                    "for file paths may not match dinit daemon (environment may differ)");
             issued_var_subst_warning = true;
         }
         return resolve_env_var(name, envmap);
