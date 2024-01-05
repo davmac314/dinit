@@ -472,6 +472,11 @@ static void report_dir_error(const char *service_name, const std::string &dirpat
     errors_found = true;
 }
 
+static void report_general_warning(string_view msg)
+{
+    std::cerr << "dinitcheck: Warning: " << msg.data() << "\n";
+}
+
 // Process a dependency directory - filenames contained within correspond to service names which
 // are loaded and added as a dependency of the given type. Expected use is with a directory
 // containing symbolic links to other service descriptions, but this isn't required.
@@ -639,8 +644,9 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     auto resolve_var = [&](const string &name, environment::env_map const &envmap) {
         if (offline_operation && !issued_var_subst_warning) {
-            report_service_description_err(name, "warning: variable substitution performed by dinitcheck "
-                    "for file paths may not match dinit daemon (environment may differ)");
+            report_general_warning("Variable substitution performed by dinitcheck "
+                    "for file paths may not match dinit daemon (environment may differ); "
+                    "use --online to avoid this warning");
             issued_var_subst_warning = true;
         }
         return resolve_env_var(name, envmap);
