@@ -706,12 +706,12 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             process_service *rvalps;
             if (create_new_record) {
-                rvalps = new process_service(this, string(name), std::move(settings.command),
-                        settings.command_offsets, settings.depends);
-                settings.depends.clear();
                 if (reload_svc != nullptr) {
                     check_cycle(settings.depends, reload_svc);
                 }
+                rvalps = new process_service(this, string(name), std::move(settings.command),
+                        settings.command_offsets, settings.depends);
+                settings.depends.clear();
             }
             else {
                 rvalps = static_cast<process_service *>(reload_svc);
@@ -749,12 +749,12 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             bgproc_service *rvalps;
             if (create_new_record) {
-                rvalps = new bgproc_service(this, string(name), std::move(settings.command),
-                        settings.command_offsets, settings.depends);
-                settings.depends.clear();
                 if (reload_svc != nullptr) {
                     check_cycle(settings.depends, reload_svc);
                 }
+                rvalps = new bgproc_service(this, string(name), std::move(settings.command),
+                        settings.command_offsets, settings.depends);
+                settings.depends.clear();
             }
             else {
                 rvalps = static_cast<bgproc_service *>(reload_svc);
@@ -788,12 +788,12 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             scripted_service *rvalps;
             if (create_new_record) {
-                rvalps = new scripted_service(this, string(name), std::move(settings.command),
-                        settings.command_offsets, settings.depends);
-                settings.depends.clear();
                 if (reload_svc != nullptr) {
                     check_cycle(settings.depends, reload_svc);
                 }
+                rvalps = new scripted_service(this, string(name), std::move(settings.command),
+                        settings.command_offsets, settings.depends);
+                settings.depends.clear();
             }
             else {
                 rvalps = static_cast<scripted_service *>(reload_svc);
@@ -819,6 +819,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         }
         else {
             if (create_new_record) {
+                if (reload_svc != nullptr) {
+                    check_cycle(settings.depends, reload_svc);
+                }
                 if (service_type == service_type_t::INTERNAL) {
                     rval = new service_record(this, string(name), service_type, settings.depends);
                 }
@@ -827,9 +830,6 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                     rval = new triggered_service(this, string(name), service_type, settings.depends);
                 }
                 settings.depends.clear();
-                if (reload_svc != nullptr) {
-                    check_cycle(settings.depends, reload_svc);
-                }
             }
             else {
                 rval = reload_svc;
