@@ -197,7 +197,7 @@ Applies only to \fBprocess\fR and \fBbgprocess\fR services.
 When set to true/yes, if the process terminates unexpectedly (i.e. without a stop order having been
 issued), an automatic process restart is performed, without first stopping any dependent services
 and without the service changing state.
-The normal restart restrictions (such as \fBrestart\-limit\-count) apply.
+The normal restart restrictions (such as \fBrestart\-limit\-count\fR) apply.
 .TP
 \fBrestart\-delay\fR = \fIXXX.YYYY\fR
 Specifies the minimum time (in seconds) between automatic restarts.
