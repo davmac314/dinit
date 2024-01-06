@@ -1,0 +1,3 @@
+type = internal
+depends-on = ac1
+depends-on = ac2
