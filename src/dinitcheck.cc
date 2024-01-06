@@ -153,9 +153,10 @@ int main(int argc, char **argv)
     using namespace std;
 
     service_dir_opt service_dir_opts;
-    bool user_dinit = (getuid() != 0);  // communicate with user daemon
+    bool user_dinit = (getuid() != 0);  // use user instance defaults/daemon instance
     std::string control_socket_str;
     const char * control_socket_path = nullptr;
+    std::string env_file;
 
     std::vector<std::string> services_to_check;
 
@@ -165,7 +166,7 @@ int main(int argc, char **argv)
             if (argv[i][0] == '-') {
                 // An option...
                 if (strcmp(argv[i], "--services-dir") == 0 || strcmp(argv[i], "-d") == 0) {
-                    if (++i < argc) {
+                    if (++i < argc && argv[i][0] != '\0') {
                         service_dir_opts.set_specified_service_dir(argv[i]);
                     }
                     else {
@@ -181,14 +182,22 @@ int main(int argc, char **argv)
                 }
                 else if (strcmp(argv[i], "--socket-path") == 0 || strcmp(argv[i], "-p") == 0) {
                     ++i;
-                    if (i == argc) {
-                        cerr << "dinitcheck: --socket-path/-p should be followed by socket path" << std::endl;
+                    if (i == argc || argv[i][0] == '\0') {
+                        cerr << "dinitcheck: --socket-path/-p should be followed by socket path\n";
                         return 1;
                     }
                     control_socket_str = argv[i];
                 }
                 else if (strcmp(argv[i], "--online") == 0 || strcmp(argv[i], "-n") == 0) {
                     offline_operation = false;
+                }
+                else if (strcmp(argv[i], "--env-file") == 0 || strcmp(argv[i], "-e") == 0) {
+                    ++i;
+                    if (i == argc || argv[i][0] == '\0') {
+                        cerr << "dinitcheck: --env-file/-e should be followed by environment file path\n";
+                        return 1;
+                    }
+                    env_file = argv[i];
                 }
                 else if (strcmp(argv[i], "--help") == 0) {
                     cout << "dinitcheck: check dinit service descriptions\n"
@@ -201,6 +210,7 @@ int main(int argc, char **argv)
                             " --socket-path <path>, -p <path>\n"
                             "                              use specified socket to connect to daemon (online\n"
                             "                              mode)\n"
+                            " --env-file, -e <file>        read environment from specified file\n"
                             " --system, -s                 use defaults for system manager mode\n"
                             " --user, -u                   use defaults for user mode\n"
                             " <service-name>               check service with name <service-name>\n";
@@ -227,7 +237,30 @@ int main(int argc, char **argv)
     if (offline_operation) {
         service_dir_opts.build_paths(!user_dinit);
         service_dir_paths = std::move(service_dir_opts.get_paths());
-        // TODO read default environment into menv
+        if (env_file.empty()) {
+            if (!user_dinit) {
+                env_file = "/etc/dinit/environment";
+            }
+        }
+        if (!env_file.empty()) {
+            auto log_inv_env_setting = [&](int line_num) {
+                std::cerr << "dinitcheck: warning: Invalid environment variable setting in environment file "
+                        << env_file << " (line " << std::to_string(line_num) << ")\n";
+            };
+            auto log_bad_env_command = [&](int line_num) {
+                std::cerr << "dinitcheck: warning: Bad command in environment file "
+                        << env_file << " (line " << std::to_string(line_num) << ")\n";
+            };
+
+            try {
+                read_env_file_inline(env_file.c_str(), true, menv, false, log_inv_env_setting, log_bad_env_command);
+            }
+            catch (std::system_error &err) {
+                std::cerr << "dinitcheck: error read environment file " << env_file << ": "
+                        << err.code().message() << "\n";
+                return EXIT_FAILURE;
+            }
+        }
     }
     else {
         if (!control_socket_str.empty()) {
@@ -238,7 +271,7 @@ int main(int argc, char **argv)
             if (control_socket_path == nullptr) {
                 cerr << "dinitcheck: cannot locate user home directory (set XDG_RUNTIME_DIR, HOME, check /etc/passwd file, or "
                         "specify socket path via -p)" << endl;
-                return 1;
+                return EXIT_FAILURE;
             }
         }
 
