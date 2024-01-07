@@ -4,4 +4,6 @@ Service 'boot': 'working-dir' specified, but ignored for the specified (or defau
 Service 'boot': 'run-as' specified, but ignored for the specified (or default) service type.
 Service 'boot': 'socket-listen' specified, but ignored for the specified (or default) service type'.
 Service 'boot': could not stat command executable '/this/command/does/not/exist': No such file or directory
+Performing secondary checks...
+Secondary checks complete.
 One or more errors/warnings issued.

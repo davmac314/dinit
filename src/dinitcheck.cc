@@ -387,6 +387,8 @@ int main(int argc, char **argv)
         }
     }
 
+    std::cout << "Performing secondary checks...\n";
+
     for (const auto &svc_name_record : service_set) {
         if (!svc_name_record.second->consumer_of_name.empty()) {
             auto consumer_of_it = service_set.find(svc_name_record.second->consumer_of_name);
@@ -495,6 +497,8 @@ int main(int argc, char **argv)
         }
         std::cerr << "    " << std::get<0>(service_chain[0])->name << ".\n";
     }
+
+    std::cerr << "Secondary checks complete.\n";
 
     if (! errors_found) {
         std::cout << "No problems found.\n";
