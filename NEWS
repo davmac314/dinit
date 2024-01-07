@@ -8,9 +8,10 @@ Changes:
    Implemented by Oliver Amann.   
    Note that Dinit does not, and most likely never will, fully support the (flawed) XDG Base
    Directory Specification.
- * Various minor improvements to error messages, designed to provide a better end-user experience.
 
 New features:
+ * dinitcheck now supports an "online" mode of operation (--online, -n) in which it will query the
+   service directories and service manager environment from a running dinit instance.
  * In dinit-monitor: support reporting initial service status, and using alternative
    (user-supplied) wording for status texts. Thanks to James Knippes (helican).
  * For service descriptions, a new form of variable expansion is available. When written as
@@ -20,6 +21,8 @@ New features:
 
 Fixes:
  * Fix a latent control protocol processing issue (does not affect dinitctl).
+ * Various minor improvements to error messages, designed to provide a better end-user experience.
+ * Fixes to minor build issues in Meson build (Mobin Aydinfar).
 
 == Version 0.17.1 (beta release #2)
 
