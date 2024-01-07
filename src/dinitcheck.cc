@@ -52,9 +52,9 @@ class service_record
 public:
     service_record(const std::string &name_p, const std::string &chain_to_p,
             std::list<prelim_dep> dependencies_p, const std::list<string> &before_svcs, const std::list<string> &after_svcs,
-            std::string consumer_of_name)
+            std::string consumer_of_name, log_type_id log_type)
                 : name(name_p), dependencies(dependencies_p), before_svcs(before_svcs), after_svcs(after_svcs),
-                  consumer_of_name(consumer_of_name)
+                  consumer_of_name(consumer_of_name), log_type(log_type)
     {
         // (constructor)
     }
@@ -65,6 +65,7 @@ public:
     std::list<string> before_svcs;
     std::list<string> after_svcs;
     std::string consumer_of_name;
+    log_type_id log_type;
 
     bool visited = false;  // flag used to detect cyclic dependencies
     bool cycle_free = false;
@@ -386,10 +387,25 @@ int main(int argc, char **argv)
         }
     }
 
-    // "before" ordering links are like reverse-dependencies: set up dependencies in the forwards direction
-    // (from the dependent). Similarly for "after" links set up a dependency. These dependencies allow cycle
-    // checking.
     for (const auto &svc_name_record : service_set) {
+        if (!svc_name_record.second->consumer_of_name.empty()) {
+            auto consumer_of_it = service_set.find(svc_name_record.second->consumer_of_name);
+            if (consumer_of_it != service_set.end()) {
+                if (consumer_of_it->second->log_type != log_type_id::PIPE) {
+                    std::cerr << "Service '" << svc_name_record.first << "': specified as consumer of service '"
+                            << consumer_of_it->first << "' which has log-type that is not 'pipe'\n";
+                    errors_found = true;
+                }
+            }
+            else {
+                std::cerr << "Warning: Service '" << svc_name_record.first << "' specified as consumer of service '"
+                        << consumer_of_it->first << "' which was not found\n";
+            }
+        }
+
+        // "before" ordering links are like reverse-dependencies: set up dependencies in the forwards direction
+        // (from the dependent). Similarly for "after" links set up a dependency. These dependencies allow cycle
+        // checking.
         for (const std::string &before_name : svc_name_record.second->before_svcs) {
             auto before_svc_it = service_set.find(before_name);
             if (before_svc_it != service_set.end()) {
@@ -767,5 +783,5 @@ service_record *load_service(service_set_t &services, const std::string &name,
     }
 
     return new service_record(name, settings.chain_to_name, settings.depends, settings.before_svcs,
-            settings.after_svcs, settings.consumer_of_name);
+            settings.after_svcs, settings.consumer_of_name, settings.log_type);
 }
