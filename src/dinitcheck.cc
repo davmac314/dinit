@@ -51,13 +51,20 @@ class service_record
 {
 public:
     service_record(const std::string &name_p, const std::string &chain_to_p,
-            std::list<prelim_dep> dependencies_p, std::list<string> before_svcs)
-                : name(name_p), dependencies(dependencies_p), before_svcs(before_svcs) {}
+            std::list<prelim_dep> dependencies_p, const std::list<string> &before_svcs, const std::list<string> &after_svcs,
+            std::string consumer_of_name)
+                : name(name_p), dependencies(dependencies_p), before_svcs(before_svcs), after_svcs(after_svcs),
+                  consumer_of_name(consumer_of_name)
+    {
+        // (constructor)
+    }
 
     std::string name;
     std::string chain_to;
     std::list<prelim_dep> dependencies;
     std::list<string> before_svcs;
+    std::list<string> after_svcs;
+    std::string consumer_of_name;
 
     bool visited = false;  // flag used to detect cyclic dependencies
     bool cycle_free = false;
@@ -357,11 +364,20 @@ int main(int argc, char **argv)
                     services_to_check.push_back(sr->chain_to);
                 }
             }
-            // add before_svcs to services_to_check
+            // add before_svcs and after_svcs to services_to_check
             for (const std::string &before_name : sr->before_svcs) {
                 if (!contains(services_to_check, before_name)) {
                     services_to_check.push_back(before_name);
                 }
+            }
+            for (const std::string &after_name : sr->after_svcs) {
+                if (!contains(services_to_check, after_name)) {
+                    services_to_check.push_back(after_name);
+                }
+            }
+            // add consumed service (if any) to services to check
+            if (!sr->consumer_of_name.empty()) {
+                services_to_check.push_back(sr->consumer_of_name);
             }
         }
         catch (service_load_exc &exc) {
@@ -370,7 +386,9 @@ int main(int argc, char **argv)
         }
     }
 
-    // For "before" reverse-dependencies, set up dependencies in the forwards direction (from the dependent)
+    // "before" ordering links are like reverse-dependencies: set up dependencies in the forwards direction
+    // (from the dependent). Similarly for "after" links set up a dependency. These dependencies allow cycle
+    // checking.
     for (const auto &svc_name_record : service_set) {
         for (const std::string &before_name : svc_name_record.second->before_svcs) {
             auto before_svc_it = service_set.find(before_name);
@@ -378,6 +396,13 @@ int main(int argc, char **argv)
                 before_svc_it->second->dependencies.emplace_back(svc_name_record.first,
                         dependency_type::BEFORE);
             }
+        }
+        for (const std::string &after_name : svc_name_record.second->after_svcs) {
+        	auto after_svc_it = service_set.find(after_name);
+        	if (after_svc_it != service_set.end()) {
+        		svc_name_record.second->dependencies.emplace_back(after_svc_it->first,
+        				dependency_type::AFTER);
+        	}
         }
     }
 
@@ -446,6 +471,9 @@ int main(int argc, char **argv)
             auto dep_it = std::next(svc->dependencies.begin(), dep_index);
             if (dep_it->dep_type == dependency_type::BEFORE) {
                 std::cerr << " (via 'before')";
+            }
+            if (dep_it->dep_type == dependency_type::AFTER) {
+            	std::cerr << " (via 'after')";
             }
             std::cerr << "\n";
         }
@@ -738,5 +766,6 @@ service_record *load_service(service_set_t &services, const std::string &name,
         close(dirfd);
     }
 
-    return new service_record(name, settings.chain_to_name, settings.depends, settings.before_svcs);
+    return new service_record(name, settings.chain_to_name, settings.depends, settings.before_svcs,
+            settings.after_svcs, settings.consumer_of_name);
 }
