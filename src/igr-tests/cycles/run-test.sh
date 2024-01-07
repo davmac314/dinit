@@ -21,3 +21,6 @@ if ! compare_cmd "run_dinitctl start ba" "expected-ba" err; then
     echo "$CMD_OUT" > "$IGR_OUTPUT"/actual-ba
     error "'dinitctl start ba' didn't produce expected result." "Check $IGR_OUTPUT/actual-ba."
 fi
+
+stop_dinit
+exit 0
