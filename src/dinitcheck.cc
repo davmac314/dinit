@@ -50,16 +50,18 @@ class prelim_dep
 class service_record
 {
 public:
-    service_record(const std::string &name_p, const std::string &chain_to_p,
-            std::list<prelim_dep> dependencies_p, const std::list<string> &before_svcs, const std::list<string> &after_svcs,
-            std::string consumer_of_name, log_type_id log_type)
-                : name(name_p), dependencies(dependencies_p), before_svcs(before_svcs), after_svcs(after_svcs),
-                  consumer_of_name(consumer_of_name), log_type(log_type)
+    service_record(const std::string &name_p, service_type_t service_type, const std::string &chain_to_p,
+            std::list<prelim_dep> dependencies_p, const std::list<string> &before_svcs,
+            const std::list<string> &after_svcs, std::string consumer_of_name, log_type_id log_type)
+                : name(name_p), service_type(service_type), dependencies(dependencies_p),
+                  before_svcs(before_svcs), after_svcs(after_svcs), consumer_of_name(consumer_of_name),
+                  log_type(log_type)
     {
         // (constructor)
     }
 
     std::string name;
+    service_type_t service_type;
     std::string chain_to;
     std::list<prelim_dep> dependencies;
     std::list<string> before_svcs;
@@ -395,13 +397,19 @@ int main(int argc, char **argv)
             if (consumer_of_it != service_set.end()) {
                 if (consumer_of_it->second->log_type != log_type_id::PIPE) {
                     std::cerr << "Service '" << svc_name_record.first << "': specified as consumer of service '"
-                            << consumer_of_it->first << "' which has log-type that is not 'pipe'\n";
+                            << consumer_of_it->first << "' which has log-type that is not 'pipe'.\n";
+                    errors_found = true;
+                }
+                else if (!value(consumer_of_it->second->service_type).is_in(service_type_t::PROCESS,
+                        service_type_t::BGPROCESS, service_type_t::SCRIPTED)) {
+                    std::cerr << "Service '" << svc_name_record.first << "': specified as consumer of service '"
+                            << consumer_of_it->first << "' which is not a process-based service.\n";
                     errors_found = true;
                 }
             }
             else {
                 std::cerr << "Warning: Service '" << svc_name_record.first << "' specified as consumer of service '"
-                        << consumer_of_it->first << "' which was not found\n";
+                        << consumer_of_it->first << "' which was not found.\n";
             }
         }
 
@@ -786,6 +794,6 @@ service_record *load_service(service_set_t &services, const std::string &name,
         close(dirfd);
     }
 
-    return new service_record(name, settings.chain_to_name, settings.depends, settings.before_svcs,
-            settings.after_svcs, settings.consumer_of_name, settings.log_type);
+    return new service_record(name, settings.service_type, settings.chain_to_name, settings.depends,
+            settings.before_svcs, settings.after_svcs, settings.consumer_of_name, settings.log_type);
 }
