@@ -790,6 +790,23 @@ service_record *load_service(service_set_t &services, const std::string &name,
                 settings.stop_command.substr(offset_start, offset_end - offset_start).c_str());
     }
 
+    if (settings.log_type == log_type_id::LOGFILE && !settings.logfile.empty()) {
+        string logfile_dir = parent_path(settings.logfile);
+        if (!logfile_dir.empty()) {
+            struct stat logfile_dir_stat;
+            if (fstatat(dirfd, logfile_dir.c_str(), &logfile_dir_stat, 0) == -1) {
+                report_service_description_err(name,
+                        std::string("could not access logfile directory '") + logfile_dir + "': " + strerror(errno));
+            }
+            else {
+                if ((logfile_dir_stat.st_mode & S_IFDIR) == 0) {
+                    report_service_description_err(name, std::string("logfile directory '")
+                            + logfile_dir + "' exists but is not a directory.");
+                }
+            }
+        }
+    }
+
     if (dirfd != AT_FDCWD) {
         close(dirfd);
     }
