@@ -30,6 +30,8 @@ beforeafter2_test_script = files(meson.current_source_dir() + '/before-after2/ru
 logviapipe_test_script = files(meson.current_source_dir() + '/log-via-pipe/run-test.sh')
 catlog_test_script = files(meson.current_source_dir() + '/catlog/run-test.sh')
 offlineenable_test_script = files(meson.current_source_dir() + '/offline-enable/run-test.sh')
+xdgconfig_test_script = files(meson.current_source_dir() + '/xdg-config/run-test.sh')
+cycles_test_script = files(meson.current_source_dir() + '/cycles/run-test.sh')
 test(
      'basic',
      basic_test_script,
@@ -171,6 +173,18 @@ test(
 test(
     'offline-enable',
     offlineenable_test_script,
+    env: igr_tests_env,
+    suite: 'igr_tests'
+)
+test(
+    'xdg-config',
+    xdgconfig_test_script,
+    env: igr_tests_env,
+    suite: 'igr_tests'
+)
+test(
+    'cycles',
+    cycles_test_script,
     env: igr_tests_env,
     suite: 'igr_tests'
 )
