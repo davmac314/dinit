@@ -1,6 +1,9 @@
-== Version ??? (upcoming)
+== Version 0.18.0 (beta release #3)
 
-...
+This is a beta release focused on improving user experience, which also introduces some minor new
+features.
+
+Thanks to current sponsors: Paweł Zmarzły, Wesley Moore, brazeon, q66
 
 Changes:
  * For user instances, if the XDG_CONFIG_HOME environment is set, dinit now looks for services in
