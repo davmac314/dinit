@@ -62,10 +62,12 @@ cxx_works()
 }
 
 # Test if the compiler accepts an argument (for compilation and link); if so add it to named variable.
+# NOTE: This function will return 1 on unsupported flag, use try_optional_cxx_argument() when
+# flag is not required or check its return.
 # $1 - the name of the variable to potentially add the argument to
 # $2 - the argument to add
 # CXX - the name of the compiler
-# CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags 
+# CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
 try_cxx_argument()
 {
     info Checking whether the compiler accepts "$2"...
@@ -79,6 +81,12 @@ try_cxx_argument()
         sub_info No.
         return 1
     fi
+}
+
+# Same as try_cxx_argument but doesn't return 1 on unsupported flag
+try_optional_cxx_argument()
+{
+    try_cxx_argument "$1" "$2" || :
 }
 
 try_ld_argument()
@@ -350,10 +358,10 @@ if [ "$AUTO_CXXFLAGS" = "true" ]; then
                     -Os \
                     -fno-plt
     do
-        try_cxx_argument CXXFLAGS $argument || :
+        try_optional_cxx_argument CXXFLAGS $argument
     done
     if [ "$PLATFORM" != "Darwin" ]; then
-        try_cxx_argument CXXFLAGS -fno-rtti || :
+        try_optional_cxx_argument CXXFLAGS -fno-rtti
     fi
 fi
 if [ "$AUTO_LDFLAGS" = "true" ] && [ "$AUTO_CXXFLAGS" = "true" ]; then
@@ -410,7 +418,7 @@ if [ "$AUTO_TEST_LDFLAGS" = "true" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
     if [ "$HAS_LTO" = true ]; then
         CXXFLAGS="$established_TEST_CXXFLAGS" CXXFLAGS_EXTRA="$TEST_CXXFLAGS_EXTRA" \
                 LDFLAGS="$established_TEST_LDFLAGS" LDFLAGS_EXTRA="$TEST_LDFLAGS_EXTRA" \
-                try_cxx_argument TEST_CXXFLAGS -fsanitize=address,undefined
+                try_optional_cxx_argument TEST_CXXFLAGS -fsanitize=address,undefined
     else
         CXXFLAGS="$established_TEST_CXXFLAGS" CXXFLAGS_EXTRA="$TEST_CXXFLAGS_EXTRA" \
                 LDFLAGS="$established_TEST_LDFLAGS" LDFLAGS_EXTRA="$TEST_LDFLAGS_EXTRA" \
