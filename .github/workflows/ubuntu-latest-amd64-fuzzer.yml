@@ -21,7 +21,7 @@ jobs:
     - name: Run fuzzer
       run: src/tests/cptests/fuzz -max_total_time=21000
     - name: Upload crash file(s)
-      uses: actions/upload-artifact@v4.3.0
+      uses: actions/upload-artifact@v4.3.1
       if: failure()
       with:
           name: Dinit-fuzzer_crash
