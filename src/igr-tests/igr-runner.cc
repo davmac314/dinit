@@ -5,13 +5,22 @@
 #include <spawn.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+
+#include "igr.h"
 
 extern char **environ;
 
 // Integration test suite runner.
 
+std::string igr_output_basedir;
+std::string igr_dinit_socket_path;
+
+void basic_test();
+
 int main(int argc, char **argv)
 {
+    void (*test_funcs[])() = { basic_test };
     const char * const test_dirs[] = { "basic", "environ", "environ2", "ps-environ", "chain-to", "force-stop",
             "restart", "check-basic", "check-cycle", "check-cycle2", "check-lint", "reload1", "reload2",
             "no-command-error", "add-rm-dep", "var-subst", "svc-start-fail", "dep-not-found", "pseudo-cycle",
@@ -19,21 +28,58 @@ int main(int argc, char **argv)
             "cycles" };
     constexpr int num_tests = sizeof(test_dirs) / sizeof(test_dirs[0]);
 
+    dinit_bindir = "../.."; // XXX
+    igr_output_basedir = "igr-output"; // XXX
+
     int passed = 0;
     int skipped = 0;
     int failed = 0;
 
     bool aborted_run = false;
 
+    char *env_igr_output_base = getenv("IGR_OUTPUT_BASE");
+    if (env_igr_output_base != nullptr) {
+        igr_output_basedir = env_igr_output_base;
+    }
+
+    igr_dinit_socket_path = igr_output_basedir + "/dinit.socket";
+
     std::cout << "============== INTEGRATION TESTS =====================" << std::endl;
+
+    if (mkdir(igr_output_basedir.c_str(), 0700) == -1 && errno != EEXIST) {
+        std::system_error(errno, std::generic_category(), std::string("mkdir: ") + igr_output_basedir);
+    }
 
     for (int i = 0; i < num_tests; i++) {
         const char * test_dir = test_dirs[i];
 
+        std::cout << test_dir << "... ";
+
+        if (i < (sizeof(test_funcs) / sizeof(test_funcs[0]))) {
+            // run function instead
+            bool success;
+            try {
+                test_funcs[i]();
+                success = true;
+            }
+            catch (igr_failure_exc &exc) {
+                success = false;
+            }
+
+            if (success) {
+                std::cout << "PASSED" << std::endl;
+                passed++;
+            }
+            else {
+                std::cout << "FAILED" << std::endl;
+                failed++;
+            }
+
+            continue;
+        }
+
         std::string prog_path = "./run-test.sh";
         char * const p_argv[2] = { const_cast<char *>(prog_path.c_str()), nullptr };
-
-        std::cout << test_dir << "... ";
 
         // "Use posix_spawn", they said. "It will be easy", they said.
 
@@ -119,4 +165,26 @@ int main(int argc, char **argv)
     }
 
     return failed == 0 ? 0 : 1;
+}
+
+void basic_test()
+{
+    std::string output_dir = igr_output_basedir + "/basic";
+    if (mkdir(output_dir.c_str(), 0700) == -1 && errno != EEXIST) {
+        std::system_error(errno, std::generic_category(), std::string("mkdir: ") + output_dir);
+    }
+
+    setenv("IGR_OUTPUT", output_dir.c_str(), true);
+
+    // Start the "basic" service. This creates an output file, "basic-ran", containing "ran\n".
+    dinit_proc dinit_p;
+    dinit_p.start("basic", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q", "basic"});
+    dinit_p.wait_for_term({1,0} /* max 1 second */);
+
+    igr_assert_eq("", dinit_p.get_stdout());
+    igr_assert_eq("", dinit_p.get_stderr());
+
+    check_file_contents(igr_output_basedir + "/basic/basic-ran", "ran\n");
+
+    unsetenv("IGR_OUTPUT");
 }

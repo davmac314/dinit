@@ -1,10 +1,11 @@
 include ../../mconfig
 
 check-igr: igr-runner
-	./igr-runner
+	mkdir -p igr-output
+	IGR_OUTPUT_BASE=$$PWD/igr-output ./igr-runner
 
-igr-runner: igr-runner.cc
-	$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(LDFLAGS) $(LDFLAGS_EXTRA) igr-runner.cc -o igr-runner
+igr-runner: igr-runner.cc igr.h
+	$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -I../../dasynq/include  $(LDFLAGS) $(LDFLAGS_EXTRA) igr-runner.cc -o igr-runner
 
 clean:
 	rm -f igr-runner
