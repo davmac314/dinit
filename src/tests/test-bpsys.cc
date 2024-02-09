@@ -138,6 +138,11 @@ int open(const char *pathname, int flags)
     return nfd;
 }
 
+int open(const char *pathname, int flags, mode_t mode)
+{
+    return open(pathname, flags);
+}
+
 int pipe2(int fds[2], int flags)
 {
     fds[0] = allocfd();
