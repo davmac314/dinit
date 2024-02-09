@@ -57,7 +57,15 @@ envtests_exec = executable(
     include_directories: for_tests_incdir,
     dependencies: [libcap_dep]
 )
+iostreamtests_exec = executable(
+    'iostreamtests',
+    'iostreamtests.cc',
+    '../dinit-iostream.cc',
+    'test-bpsys.cc',
+    include_directories: for_tests_incdir
+)
 test('tests', tests_exec, suite: 'unit_tests')
 test('proctests', proctests_exec, suite: 'unit_tests')
 test('loadtests', loadtests_exec, workdir: meson.current_source_dir(), suite: 'unit_tests')
 test('envtests', envtests_exec, suite: 'unit_tests')
+test('iostreamtests', iostreamtests_exec, suite: 'unit_tests')
