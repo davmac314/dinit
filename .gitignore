@@ -11,6 +11,7 @@
 /src/tests/proctests
 /src/tests/loadtests
 /src/tests/envtests
+/src/tests/iostreamtests
 /src/tests/cptests/cptests
 /src/tests/cptests/corpus
 /src/tests/cptests/fuzz
