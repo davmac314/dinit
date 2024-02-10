@@ -310,7 +310,7 @@ if [ -z "${LDFLAGS_BASE+IS_SET}" ]; then
     LDFLAGS_BASE=""
     AUTO_LDFLAGS_BASE="true"
 else
-    AUTO_LDFLAGS=BASE="false"
+    AUTO_LDFLAGS_BASE="false"
 fi
 if [ -z "${TEST_LDFLAGS_BASE+IS_SET}" ]; then
     TEST_LDFLAGS_BASE=""
