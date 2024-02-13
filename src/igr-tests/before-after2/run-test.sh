@@ -15,7 +15,7 @@ spawn_dinit
 run_dinitctl $QUIET reload service2
 
 # however, we'll remove the depends-on dependency before starting both
-run_dinitctl $QUIET rm-dep regular service2 service1
+run_dinitctl $QUIET rm-dep need service2 service1
 
 run_dinitctl $QUIET start --no-wait service1
 run_dinitctl $QUIET start service2
