@@ -295,7 +295,7 @@ int dinitctl_main(int argc, char **argv)
             // service name / other non-option
             if (command == ctl_cmd::ADD_DEPENDENCY || command == ctl_cmd::RM_DEPENDENCY) {
                 if (! dep_type_set) {
-                    if (strcmp(argv[i], "regular") == 0) {
+                    if (strcmp(argv[i], "need") == 0 || strcmp(argv[i], "regular") == 0) {
                         dep_type = dependency_type::REGULAR;
                     }
                     else if (strcmp(argv[i], "milestone") == 0) {

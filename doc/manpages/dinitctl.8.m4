@@ -277,14 +277,14 @@ If issued to the system instance of Dinit, this will also shut down the system.
 .TP
 \fBadd-dep\fR
 Add a dependency between two services.
-The \fIdependency-type\fR must be one of \fBregular\fR, \fBmilestone\fR or \fBwaits-for\fR.
-Note that adding a regular dependency requires that the service states are consistent with the
+The \fIdependency-type\fR must be one of \fBneed\fR, \fBmilestone\fR or \fBwaits-for\fR.
+Note that adding a \fBneed\fR dependency requires that the service states are consistent with the
 dependency (i.e. if the "from" service is started, the "to" service must also be started).
 Circular dependency chains may not be created.
 .TP
 \fBrm-dep\fR
 Remove a dependency between two services.
-The \fIdependency-type\fR must be one of \fBregular\fR, \fBmilestone\fR or \fBwaits-for\fR.
+The \fIdependency-type\fR must be one of \fBneed\fR, \fBmilestone\fR or \fBwaits-for\fR.
 If the "to" service is not otherwise active it may be stopped as a result of removing the dependency.
 .TP
 \fBenable\fR
