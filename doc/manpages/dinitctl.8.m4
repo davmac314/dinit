@@ -281,6 +281,8 @@ The \fIdependency-type\fR must be one of \fBneed\fR, \fBmilestone\fR or \fBwaits
 Note that adding a \fBneed\fR dependency requires that the service states are consistent with the
 dependency (i.e. if the "from" service is started, the "to" service must also be started).
 Circular dependency chains may not be created.
+.sp
+(deprecated) The \fIdependency-type\fR \fBregular\fR is an old alias of \fBneed\fR.
 .TP
 \fBrm-dep\fR
 Remove a dependency between two services.
