@@ -54,7 +54,7 @@ void service_dir_opt::build_paths(bool am_system_init)
             const char * user_home = get_user_home();
             if (user_home != nullptr && *user_home != '\0') {
                 size_t user_home_len = strlen(user_home);
-                if (xdg_config_home != nullptr
+                if (xdg_config_home != nullptr && *xdg_config_home != '\0'
                         && xdg_config_home_len == (user_home_len + strlen("/.config"))
                         && strncmp(xdg_config_home, user_home, user_home_len) == 0
                         && strcmp(xdg_config_home + user_home_len, "/.config") == 0) {
