@@ -17,10 +17,11 @@ std::string igr_output_basedir;
 std::string igr_dinit_socket_path;
 
 void basic_test();
+void environ_test();
 
 int main(int argc, char **argv)
 {
-    void (*test_funcs[])() = { basic_test };
+    void (*test_funcs[])() = { basic_test, environ_test };
     const char * const test_dirs[] = { "basic", "environ", "environ2", "ps-environ", "chain-to", "force-stop",
             "restart", "check-basic", "check-cycle", "check-cycle2", "check-lint", "reload1", "reload2",
             "no-command-error", "add-rm-dep", "var-subst", "svc-start-fail", "dep-not-found", "pseudo-cycle",
@@ -171,7 +172,7 @@ void basic_test()
 {
     std::string output_dir = igr_output_basedir + "/basic";
     if (mkdir(output_dir.c_str(), 0700) == -1 && errno != EEXIST) {
-        std::system_error(errno, std::generic_category(), std::string("mkdir: ") + output_dir);
+        throw std::system_error(errno, std::generic_category(), std::string("mkdir: ") + output_dir);
     }
 
     setenv("IGR_OUTPUT", output_dir.c_str(), true);
@@ -185,6 +186,50 @@ void basic_test()
     igr_assert_eq("", dinit_p.get_stderr());
 
     check_file_contents(igr_output_basedir + "/basic/basic-ran", "ran\n");
+
+    unsetenv("IGR_OUTPUT");
+}
+
+void environ_test()
+{
+    std::string output_dir = igr_output_basedir + "/environ";
+    if (mkdir(output_dir.c_str(), 0700) == -1 && errno != EEXIST) {
+        throw std::system_error(errno, std::generic_category(), std::string("mkdir: ") + output_dir);
+    }
+
+    setenv("IGR_OUTPUT", output_dir.c_str(), true);
+
+    std::string output_file = output_dir + "/env-record";
+    if (unlink(output_file.c_str()) == -1 && errno != ENOENT) {
+        throw std::system_error(errno, std::generic_category(),
+                std::string("unlink " + output_file + ": ") + output_dir);
+    }
+
+    setenv("OUTPUT", (output_dir + "/env-record").c_str(), true);
+    setenv("SOCKET", igr_dinit_socket_path.c_str(), true);
+    setenv("DINITCTL", (dinit_bindir + "/dinitctl").c_str(), true);
+
+    dinit_proc dinit_p;
+    dinit_p.start("environ", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q", "-e", "environment1", "checkenv"});
+    dinit_p.wait_for_term({1,0} /* max 1 second */);
+
+    dinit_p.start("environ", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q", "-e", "environment2", "checkenv"});
+    dinit_p.wait_for_term({1,0} /* max 1 second */);
+
+    dinit_p.start("environ", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, /* "-q", */ "setenv1"});
+    dinit_p.wait_for_term({1,0} /* max 1 second */);
+
+    check_file_contents(output_file, igr_dinit_socket_path + "\n" +
+            "checkenv\n" +
+            "gotenv1\n" +
+            "hello\n" +
+            "gotenv2\n" +
+            "goodbye\n" +
+            "3\n2\n1\n");
+
+    unsetenv("DINITCTL");
+    unsetenv("SOCKET");
+    unsetenv("OUTPUT");
 
     unsetenv("IGR_OUTPUT");
 }
