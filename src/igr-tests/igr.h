@@ -99,7 +99,7 @@ public:
         if (fcntl(fds[0], F_SETFD, FD_CLOEXEC) != 0) {
             throw std::system_error(errno, std::generic_category(), "pipe_consume_buffer: fcntl");
         }
-        if (fcntl(fds[0], F_SETFL, O_ASYNC) != 0) {
+        if (fcntl(fds[0], F_SETFL, O_NONBLOCK) != 0) {
             throw std::system_error(errno, std::generic_category(), "pipe_consume_buffer: fcntl");
         }
 
