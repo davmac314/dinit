@@ -21,7 +21,7 @@ public:
 class igr_proc_watch : public event_loop_t::child_proc_watcher_impl<igr_proc_watch>
 {
 public:
-    bool did_exit = false;
+    bool did_exit = true;
     pid_t child_pid = -1;
     int status = 0;
 
@@ -35,6 +35,11 @@ public:
 
     pid_t fork(event_loop_t &eloop, bool from_reserved = false, int prio = dasynq::DEFAULT_PRIORITY)
     {
+        if (child_pid != -1) {
+            throw std::logic_error("igr_proc_watch: attempted to fork when already watching a process");
+        }
+
+        did_exit = false;
         child_pid = event_loop_t::child_proc_watcher_impl<igr_proc_watch>::fork(eloop, from_reserved, prio);
         return child_pid;
     }
