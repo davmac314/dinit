@@ -169,11 +169,14 @@ public:
     void start(const char *wdir, std::vector<std::string> args = {})
     {
         std::string dinit_exec = dinit_bindir + "/dinit";
-        char **arg_arr = new char *[args.size() + 1];
+        char **arg_arr = new char *[args.size() + 2];
         arg_arr[0] = const_cast<char *>(dinit_exec.c_str());
-        for (unsigned i = 0; i < args.size(); ++i) {
+
+        unsigned i;
+        for (i = 0; i < args.size(); ++i) {
             arg_arr[i + 1] = const_cast<char *>(args[i].c_str());
         }
+        arg_arr[++i] = nullptr;
 
         pid_t pid = pwatch.fork(event_loop);
         if (pid == 0) {
@@ -184,6 +187,8 @@ public:
             execv(dinit_exec.c_str(), arg_arr);
             exit(EXIT_FAILURE);
         }
+
+        delete[] arg_arr;
     }
 
     void wait_for_term(dasynq::time_val timeout)
