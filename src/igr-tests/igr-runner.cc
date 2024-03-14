@@ -13,7 +13,6 @@ extern char **environ;
 
 // Integration test suite runner.
 
-std::string igr_output_basedir;
 std::string igr_dinit_socket_path;
 
 void basic_test();
@@ -170,12 +169,7 @@ int main(int argc, char **argv)
 
 void basic_test()
 {
-    std::string output_dir = igr_output_basedir + "/basic";
-    if (mkdir(output_dir.c_str(), 0700) == -1 && errno != EEXIST) {
-        throw std::system_error(errno, std::generic_category(), std::string("mkdir: ") + output_dir);
-    }
-
-    setenv("IGR_OUTPUT", output_dir.c_str(), true);
+    igr_test_setup setup("basic");
 
     // Start the "basic" service. This creates an output file, "basic-ran", containing "ran\n".
     dinit_proc dinit_p;
@@ -186,28 +180,22 @@ void basic_test()
     igr_assert_eq("", dinit_p.get_stderr());
 
     check_file_contents(igr_output_basedir + "/basic/basic-ran", "ran\n");
-
-    unsetenv("IGR_OUTPUT");
 }
 
 void environ_test()
 {
-    std::string output_dir = igr_output_basedir + "/environ";
-    if (mkdir(output_dir.c_str(), 0700) == -1 && errno != EEXIST) {
-        throw std::system_error(errno, std::generic_category(), std::string("mkdir: ") + output_dir);
-    }
+    igr_test_setup setup("environ");
 
-    setenv("IGR_OUTPUT", output_dir.c_str(), true);
-
+    const std::string &output_dir = setup.get_output_dir();
     std::string output_file = output_dir + "/env-record";
     if (unlink(output_file.c_str()) == -1 && errno != ENOENT) {
         throw std::system_error(errno, std::generic_category(),
                 std::string("unlink " + output_file + ": ") + output_dir);
     }
 
-    setenv("OUTPUT", (output_dir + "/env-record").c_str(), true);
-    setenv("SOCKET", igr_dinit_socket_path.c_str(), true);
-    setenv("DINITCTL", (dinit_bindir + "/dinitctl").c_str(), true);
+    igr_env_var_setup env_output("OUTPUT", (output_dir + "/env-record").c_str());
+    igr_env_var_setup env_socket("SOCKET", igr_dinit_socket_path.c_str());
+    igr_env_var_setup env_dinitctl("DINITCTL", (dinit_bindir + "/dinitctl").c_str());
 
     dinit_proc dinit_p;
     dinit_p.start("environ", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q", "-e", "environment1", "checkenv"});
@@ -226,10 +214,4 @@ void environ_test()
             "gotenv2\n" +
             "goodbye\n" +
             "3\n2\n1\n");
-
-    unsetenv("DINITCTL");
-    unsetenv("SOCKET");
-    unsetenv("OUTPUT");
-
-    unsetenv("IGR_OUTPUT");
 }

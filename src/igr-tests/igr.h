@@ -9,6 +9,10 @@ event_loop_t event_loop;
 // directory containing built executables
 std::string dinit_bindir;
 
+// directory for all test output (each test under a named subdir)
+std::string igr_output_basedir;
+
+
 // exception to be thrown on failure
 class igr_failure_exc
 {
@@ -220,6 +224,63 @@ public:
     std::string get_stderr()
     {
         return err.get_output();
+    }
+};
+
+// perform basic setup for a test (with automatic teardown)
+class igr_test_setup
+{
+    std::string output_dir;
+
+public:
+    igr_test_setup(const std::string &test_name)
+    {
+        output_dir = igr_output_basedir + "/" + test_name;
+        if (mkdir(output_dir.c_str(), 0700) == -1 && errno != EEXIST) {
+            throw std::system_error(errno, std::generic_category(), std::string("mkdir: ") + output_dir);
+        }
+
+        setenv("IGR_OUTPUT", output_dir.c_str(), true);
+    }
+
+    ~igr_test_setup()
+    {
+        unsetenv("IGR_OUTPUT");
+    }
+
+    const std::string &get_output_dir()
+    {
+        return output_dir;
+    }
+};
+
+// set an environment variable (with automatic restore of original value at teardown)
+class igr_env_var_setup
+{
+    std::string orig_value;
+    std::string var_name;
+    bool had_value;
+
+public:
+    igr_env_var_setup(const char *var_name_p, const char *value)
+    {
+        var_name = var_name_p;
+        const char *orig_value_cp = getenv(var_name_p);
+        had_value = (orig_value_cp != nullptr);
+        if (had_value) {
+            orig_value = orig_value_cp;
+        }
+        setenv(var_name_p, value, true);
+    }
+
+    ~igr_env_var_setup()
+    {
+        if (had_value) {
+            setenv(var_name.c_str(), orig_value.c_str(), true);
+        }
+        else {
+            unsetenv(var_name.c_str());
+        }
     }
 };
 
