@@ -270,7 +270,16 @@ public:
         if (had_value) {
             orig_value = orig_value_cp;
         }
-        setenv(var_name_p, value, true);
+        int r;
+        if (value != nullptr) {
+            r = setenv(var_name_p, value, true);
+        }
+        else {
+            r = unsetenv(var_name_p);
+        }
+        if (r == -1) {
+            throw std::system_error(errno, std::generic_category(), "setenv/unsetenv");
+        }
     }
 
     ~igr_env_var_setup()
@@ -280,6 +289,20 @@ public:
         }
         else {
             unsetenv(var_name.c_str());
+        }
+    }
+
+    void set(const char *value)
+    {
+        int r;
+        if (value != nullptr) {
+            r = setenv(var_name.c_str(), value, true);
+        }
+        else {
+            r = unsetenv(var_name.c_str());
+        }
+        if (r == -1) {
+            throw std::system_error(errno, std::generic_category(), "setenv/unsetenv");
         }
     }
 };

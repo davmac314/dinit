@@ -2,10 +2,12 @@
 #include <iostream>
 #include <cstring>
 
+#include <pwd.h>
 #include <spawn.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include "igr.h"
 
@@ -17,10 +19,11 @@ std::string igr_dinit_socket_path;
 
 void basic_test();
 void environ_test();
+void environ2_test();
 
 int main(int argc, char **argv)
 {
-    void (*test_funcs[])() = { basic_test, environ_test };
+    void (*test_funcs[])() = { basic_test, environ_test, environ2_test };
     const char * const test_dirs[] = { "basic", "environ", "environ2", "ps-environ", "chain-to", "force-stop",
             "restart", "check-basic", "check-cycle", "check-cycle2", "check-lint", "reload1", "reload2",
             "no-command-error", "add-rm-dep", "var-subst", "svc-start-fail", "dep-not-found", "pseudo-cycle",
@@ -55,7 +58,7 @@ int main(int argc, char **argv)
 
         std::cout << test_dir << "... ";
 
-        if (i < (sizeof(test_funcs) / sizeof(test_funcs[0]))) {
+        if ((unsigned)i < (sizeof(test_funcs) / sizeof(test_funcs[0]))) {
             // run function instead
             bool success;
             try {
@@ -214,4 +217,47 @@ void environ_test()
             "gotenv2\n" +
             "goodbye\n" +
             "3\n2\n1\n");
+}
+
+void environ2_test()
+{
+    igr_test_setup setup("environ2");
+
+    const std::string &output_dir = setup.get_output_dir();
+    std::string output_file = output_dir + "/env-record";
+    if (unlink(output_file.c_str()) == -1 && errno != ENOENT) {
+        throw std::system_error(errno, std::generic_category(),
+                std::string("unlink " + output_file + ": ") + output_dir);
+    }
+
+    uid_t my_uid = getuid();
+    gid_t my_gid = getgid();
+    struct passwd *my_pwd_ent = getpwuid(my_uid);
+    if (my_pwd_ent == nullptr) {
+        throw std::system_error(errno, std::generic_category(), "getpwuid");
+    }
+
+    // unset variables to make sure the values seen in the test service were initialised by dinit:
+    igr_env_var_setup env_user("USER", nullptr);
+    igr_env_var_setup env_logname("LOGNAME", nullptr);
+    igr_env_var_setup env_shell("SHELL", nullptr);
+    igr_env_var_setup env_uid("UID", nullptr);
+    igr_env_var_setup env_gid("GID", nullptr);
+
+    // test whether vars from global environment propagate
+    igr_env_var_setup env_test_var("TEST_VAR", "helloworld");
+
+    dinit_proc dinit_p;
+    dinit_p.start("environ2", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q", "-e", "env-dinit", "checkenv"});
+    dinit_p.wait_for_term({1,0} /* max 1 second */);
+
+    check_file_contents(output_file,
+            std::string("helloworld\n") +
+            "hello\n" +
+            "override\n" +
+            my_pwd_ent->pw_name + "\n" +
+            my_pwd_ent->pw_name + "\n" +
+            "/bogus/value\n" +
+            std::to_string(my_uid) + "\n" +
+            std::to_string(my_gid) + "\n");
 }
