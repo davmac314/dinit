@@ -75,6 +75,7 @@ void service_dir_opt::build_paths(bool am_system_init)
         }
 
         done_user_home:
+        service_dir_paths.emplace_back("/etc/dinit.d/user", /*dyn_allocd=*/false);
 
         if (!home_service_dir_set) {
             service_dir_paths.emplace_back("/etc/dinit.d", /*dyn_allocd=*/false);
