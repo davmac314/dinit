@@ -175,6 +175,7 @@ int main(int argc, char **argv)
 void basic_test()
 {
     igr_test_setup setup("basic");
+    std::string ran_file = setup.prep_output_file("basic-ran");
 
     // Start the "basic" service. This creates an output file, "basic-ran", containing "ran\n".
     dinit_proc dinit_p;
@@ -184,21 +185,15 @@ void basic_test()
     igr_assert_eq("", dinit_p.get_stdout());
     igr_assert_eq("", dinit_p.get_stderr());
 
-    check_file_contents(igr_output_basedir + "/basic/basic-ran", "ran\n");
+    check_file_contents(ran_file.c_str(), "ran\n");
 }
 
 void environ_test()
 {
     igr_test_setup setup("environ");
+    std::string output_file = setup.prep_output_file("env-record");
 
-    const std::string &output_dir = setup.get_output_dir();
-    std::string output_file = output_dir + "/env-record";
-    if (unlink(output_file.c_str()) == -1 && errno != ENOENT) {
-        throw std::system_error(errno, std::generic_category(),
-                std::string("unlink " + output_file + ": ") + output_dir);
-    }
-
-    igr_env_var_setup env_output("OUTPUT", (output_dir + "/env-record").c_str());
+    igr_env_var_setup env_output("OUTPUT", output_file.c_str());
     igr_env_var_setup env_socket("SOCKET", igr_dinit_socket_path.c_str());
     igr_env_var_setup env_dinitctl("DINITCTL", (dinit_bindir + "/dinitctl").c_str());
 
