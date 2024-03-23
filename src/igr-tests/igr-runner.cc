@@ -20,10 +20,12 @@ std::string igr_dinit_socket_path;
 void basic_test();
 void environ_test();
 void environ2_test();
+void ps_environ_test();
+void chain_to_test();
 
 int main(int argc, char **argv)
 {
-    void (*test_funcs[])() = { basic_test, environ_test, environ2_test };
+    void (*test_funcs[])() = { basic_test, environ_test, environ2_test, ps_environ_test, chain_to_test };
     const char * const test_dirs[] = { "basic", "environ", "environ2", "ps-environ", "chain-to", "force-stop",
             "restart", "check-basic", "check-cycle", "check-cycle2", "check-lint", "reload1", "reload2",
             "no-command-error", "add-rm-dep", "var-subst", "svc-start-fail", "dep-not-found", "pseudo-cycle",
@@ -56,7 +58,7 @@ int main(int argc, char **argv)
     for (int i = 0; i < num_tests; i++) {
         const char * test_dir = test_dirs[i];
 
-        std::cout << test_dir << "... ";
+        std::cout << test_dir << "... " << std::flush;
 
         if ((unsigned)i < (sizeof(test_funcs) / sizeof(test_funcs[0]))) {
             // run function instead
@@ -222,13 +224,7 @@ void environ_test()
 void environ2_test()
 {
     igr_test_setup setup("environ2");
-
-    const std::string &output_dir = setup.get_output_dir();
-    std::string output_file = output_dir + "/env-record";
-    if (unlink(output_file.c_str()) == -1 && errno != ENOENT) {
-        throw std::system_error(errno, std::generic_category(),
-                std::string("unlink " + output_file + ": ") + output_dir);
-    }
+    std::string output_file = setup.prep_output_file("env-record");
 
     uid_t my_uid = getuid();
     gid_t my_gid = getgid();
@@ -260,4 +256,45 @@ void environ2_test()
             "/bogus/value\n" +
             std::to_string(my_uid) + "\n" +
             std::to_string(my_gid) + "\n");
+}
+
+void ps_environ_test()
+{
+    igr_test_setup setup("ps-environ");
+    std::string output_file = setup.prep_output_file("env-record");
+
+    igr_env_var_setup env_output("OUTPUT", output_file.c_str());
+    igr_env_var_setup env_test_var_two("TEST_VAR_TWO", "set-via-script");
+
+    dinit_proc dinit_p;
+    dinit_p.start("ps-environ", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q", "checkenv1"});
+    dinit_p.wait_for_term({1,0} /* max 1 second */);
+
+    dinit_p.start("ps-environ", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q", "checkenv2"});
+    dinit_p.wait_for_term({1,0} /* max 1 second */);
+
+    dinit_p.start("ps-environ", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q", "checkenv3"});
+    dinit_p.wait_for_term({1,0} /* max 1 second */);
+
+    // "set-in-dinit-env"
+    dinit_p.start("ps-environ", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q", "-e", "dinit-environment", "checkenv4"});
+    dinit_p.wait_for_term({1,0} /* max 1 second */);
+
+    // "set-via-script" (as per above)
+    dinit_p.start("ps-environ", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q", "checkenv4"});
+    dinit_p.wait_for_term({1,0} /* max 1 second */);
+
+    check_file_contents(output_file, read_file_contents("./ps-environ/env-expected"));
+}
+
+void chain_to_test()
+{
+    igr_test_setup setup("chain-to");
+    std::string output_file = setup.prep_output_file("recorded-output");
+
+    dinit_proc dinit_p;
+    dinit_p.start("chain-to", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q", "part1"});
+    dinit_p.wait_for_term({1,0} /* max 1 second */);
+
+    check_file_contents(output_file, read_file_contents("./chain-to/expected-output"));
 }

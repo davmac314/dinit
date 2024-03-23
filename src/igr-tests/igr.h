@@ -252,6 +252,17 @@ public:
     {
         return output_dir;
     }
+
+    // Prepare an output file in the output directory: determine full path name, unlink any existing file
+    std::string prep_output_file(const std::string &filename)
+    {
+        std::string full_filename = output_dir + "/" + filename;
+        if (unlink(full_filename.c_str()) == -1 && errno != ENOENT) {
+            throw std::system_error(errno, std::generic_category(),
+                    std::string("unlink " + full_filename));
+        }
+        return full_filename;
+    }
 };
 
 // set an environment variable (with automatic restore of original value at teardown)
@@ -335,6 +346,9 @@ inline void check_file_contents(const std::string &file_path, const std::string 
 {
     std::string contents = read_file_contents(file_path);
     if (contents != expected_contents) {
+        std::cout << "File contents mismatch:\n";
+        std::cout << "expected: " + expected_contents + "\n";
+        std::cout << "actual  : " + contents + "\n";
         throw igr_failure_exc(std::string("File contents do not match expected for file ") + file_path);
     }
 }
