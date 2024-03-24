@@ -23,11 +23,12 @@ void environ2_test();
 void ps_environ_test();
 void chain_to_test();
 void force_stop_test();
+void restart_test();
 
 int main(int argc, char **argv)
 {
     void (*test_funcs[])() = { basic_test, environ_test, environ2_test, ps_environ_test, chain_to_test,
-            force_stop_test };
+            force_stop_test, restart_test };
     const char * const test_dirs[] = { "basic", "environ", "environ2", "ps-environ", "chain-to", "force-stop",
             "restart", "check-basic", "check-cycle", "check-cycle2", "check-lint", "reload1", "reload2",
             "no-command-error", "add-rm-dep", "var-subst", "svc-start-fail", "dep-not-found", "pseudo-cycle",
@@ -330,4 +331,35 @@ void force_stop_test()
 
     // dinit should stop since all services are now stopped
     dinit_p.wait_for_term({1, 0});
+}
+
+void restart_test()
+{
+    igr_test_setup setup("restart");
+    std::string output_file = setup.prep_output_file("basic-ran");
+
+    dinit_proc dinit_p;
+    dinit_p.start("restart", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q"}, true);
+
+    // "dinitctl start boot" - wait until "boot" has fully started:
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("restart", {"-p", igr_dinit_socket_path, "start", "boot"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+
+    // "basic" is a process service. It has started, but we need to give it a little time to
+    // write its output:
+    nanosleepx(0, 1000000000u / 10u);
+
+    igr_assert_eq("ran\n", read_file_contents(output_file));
+    if (unlink(output_file.c_str()) == -1) {
+        throw std::system_error(errno, std::generic_category(), "unlink");
+    }
+
+    // "dinitctl restart basic"
+    dinitctl_p.start("restart", {"-p", igr_dinit_socket_path, "restart", "basic"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+
+    nanosleepx(0, 1000000000u / 10u);
+
+    igr_assert_eq("ran\n", read_file_contents(output_file));
 }

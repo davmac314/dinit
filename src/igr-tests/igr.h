@@ -233,6 +233,11 @@ public:
     {
         return err.get_output();
     }
+
+    void signal(int signo)
+    {
+        pwatch.send_signal(event_loop, signo);
+    }
 };
 
 // dinit process
@@ -242,7 +247,19 @@ class dinit_proc : public igr_proc
 
 public:
     dinit_proc() {}
-    ~dinit_proc() {}
+
+    ~dinit_proc() {
+        // Signal (if not yet terminated) and allow a second for termination
+        igr_proc::signal(SIGTERM);
+        try {
+            wait_for_term({1, 0});
+        }
+        catch (igr_failure_exc &exc) {
+            // timeout, but
+            // a) we are in destructor and shouldn't throw
+            // b) this isn't critical, the process will be KILL'd anyway
+        }
+    }
 
     void start(const char *wdir, std::vector<std::string> args = {}, bool with_ready_wait = false)
     {
@@ -405,5 +422,16 @@ inline void igr_assert_eq(const std::string &expected, const std::string &actual
 {
     if (expected != actual) {
         throw igr_failure_exc(std::string("Test assertion failed:\n") + "Expected: " + expected + "\nActual: " + actual);
+    }
+}
+
+inline void nanosleepx(decltype(std::declval<timespec>().tv_sec) seconds,
+        decltype(std::declval<timespec>().tv_nsec) nanoseconds)
+{
+    timespec sleep_time;
+    sleep_time.tv_sec = 0;
+    sleep_time.tv_nsec = 1000000000 / 10;  // .1 seconds
+    if (nanosleep(&sleep_time, nullptr) == -1) {
+        throw std::system_error(errno, std::generic_category(), "nanosleep");
     }
 }
