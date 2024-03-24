@@ -19,6 +19,7 @@ class igr_failure_exc
     std::string message;
 public:
     igr_failure_exc(std::string message_p) : message(message_p) { }
+    const std::string &get_message() { return message; }
 };
 
 // A process watcher that cleans up by terminating the child process
@@ -137,6 +138,11 @@ public:
         return buffer;
     }
 
+    void clear()
+    {
+        buffer.clear();
+    }
+
     dasynq::rearm fd_event(event_loop_t &loop, int fd, int flags)
     {
         // read all we can
@@ -162,24 +168,26 @@ public:
     }
 };
 
-// dinit process
-class dinit_proc
+// External process, for which all output is stored in a buffer (separately for stdout/stderr).
+class igr_proc
 {
     igr_proc_watch pwatch;
     pipe_consume_buffer out;
     pipe_consume_buffer err;
 
 public:
-    dinit_proc() {}
+    igr_proc() {}
 
-    ~dinit_proc() {}
+    ~igr_proc() {}
 
-    // start, in specified working directory, with given arguments
-    void start(const char *wdir, std::vector<std::string> args = {})
+    // Start, in specified working directory, with given arguments
+    void start(const char *wdir, const char *executable, std::vector<std::string> args = {})
     {
-        std::string dinit_exec = dinit_bindir + "/dinit";
+        out.clear();
+        err.clear();
+
         char **arg_arr = new char *[args.size() + 2];
-        arg_arr[0] = const_cast<char *>(dinit_exec.c_str());
+        arg_arr[0] = const_cast<char *>(executable);
 
         unsigned i;
         for (i = 0; i < args.size(); ++i) {
@@ -193,7 +201,7 @@ public:
             dup2(out.get_output_fd(), STDOUT_FILENO);
             dup2(err.get_output_fd(), STDERR_FILENO);
 
-            execv(dinit_exec.c_str(), arg_arr);
+            execv(executable, arg_arr);
             exit(EXIT_FAILURE);
         }
 
@@ -224,6 +232,46 @@ public:
     std::string get_stderr()
     {
         return err.get_output();
+    }
+};
+
+// dinit process
+class dinit_proc : public igr_proc
+{
+    std::unique_ptr<pipe_consume_buffer> ready_pipe_ptr;
+
+public:
+    dinit_proc() {}
+    ~dinit_proc() {}
+
+    void start(const char *wdir, std::vector<std::string> args = {}, bool with_ready_wait = false)
+    {
+        if (with_ready_wait) {
+            ready_pipe_ptr.reset(new pipe_consume_buffer());
+            args.insert(args.begin(), std::to_string(ready_pipe_ptr->get_output_fd()));
+            args.insert(args.begin(), "--ready-fd");
+        }
+
+        igr_proc::start(wdir, (dinit_bindir + "/dinit").c_str(), args);
+
+        if (with_ready_wait) {
+            while (ready_pipe_ptr->get_output().empty()) {
+                event_loop.run();
+            }
+        }
+    }
+};
+
+// dinitctl process
+class dinitctl_proc : public igr_proc
+{
+public:
+    dinitctl_proc() {}
+    ~dinitctl_proc() {}
+
+    void start(const char *wdir, std::vector<std::string> args = {}, bool with_ready_wait = false)
+    {
+        igr_proc::start(wdir, (dinit_bindir + "/dinitctl").c_str(), args);
     }
 };
 

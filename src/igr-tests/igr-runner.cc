@@ -22,10 +22,12 @@ void environ_test();
 void environ2_test();
 void ps_environ_test();
 void chain_to_test();
+void force_stop_test();
 
 int main(int argc, char **argv)
 {
-    void (*test_funcs[])() = { basic_test, environ_test, environ2_test, ps_environ_test, chain_to_test };
+    void (*test_funcs[])() = { basic_test, environ_test, environ2_test, ps_environ_test, chain_to_test,
+            force_stop_test };
     const char * const test_dirs[] = { "basic", "environ", "environ2", "ps-environ", "chain-to", "force-stop",
             "restart", "check-basic", "check-cycle", "check-cycle2", "check-lint", "reload1", "reload2",
             "no-command-error", "add-rm-dep", "var-subst", "svc-start-fail", "dep-not-found", "pseudo-cycle",
@@ -63,21 +65,24 @@ int main(int argc, char **argv)
         if ((unsigned)i < (sizeof(test_funcs) / sizeof(test_funcs[0]))) {
             // run function instead
             bool success;
+            std::string failure_msg;
             try {
                 test_funcs[i]();
                 success = true;
             }
             catch (igr_failure_exc &exc) {
                 success = false;
+                failure_msg = exc.get_message();
             }
 
             if (success) {
-                std::cout << "PASSED" << std::endl;
+                std::cout << "PASSED\n";
                 passed++;
             }
             else {
-                std::cout << "FAILED" << std::endl;
+                std::cout << "FAILED\n";
                 failed++;
+                std::cout << failure_msg << std::endl;
             }
 
             continue;
@@ -292,4 +297,37 @@ void chain_to_test()
     dinit_p.wait_for_term({1,0} /* max 1 second */);
 
     check_file_contents(output_file, read_file_contents("./chain-to/expected-output"));
+}
+
+void force_stop_test()
+{
+    igr_test_setup setup("force-stop");
+
+    dinit_proc dinit_p;
+    dinit_p.start("force-stop", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q"}, true);
+
+    // "dinitctl list"
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("force-stop", {"-p", igr_dinit_socket_path, "list"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+
+    igr_assert_eq(read_file_contents("./force-stop/expected-1"), dinitctl_p.get_stdout());
+    igr_assert_eq("", dinitctl_p.get_stderr());
+
+    // "dinitctl stop critical"
+    dinitctl_p.start("force-stop", {"-p", igr_dinit_socket_path, "stop", "critical"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+
+    igr_assert_eq("", dinitctl_p.get_stdout());
+    igr_assert_eq(read_file_contents("./force-stop/expected-2.err"), dinitctl_p.get_stderr());
+
+    // "dinitctl stop --force critical"
+    dinitctl_p.start("force-stop", {"-p", igr_dinit_socket_path, "stop", "--force", "critical"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+
+    igr_assert_eq(read_file_contents("./force-stop/expected-3"), dinitctl_p.get_stdout());
+    igr_assert_eq("", dinitctl_p.get_stderr());
+
+    // dinit should stop since all services are now stopped
+    dinit_p.wait_for_term({1, 0});
 }
