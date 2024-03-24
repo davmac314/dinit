@@ -425,7 +425,7 @@ namespace dprivate {
     // lock; they are also free to use it to protect their own internal data structures.
     template <typename Traits, typename LoopTraits> class event_dispatch
     {
-        friend class dasynq::event_loop<typename LoopTraits::mutex_t, LoopTraits>;;
+        friend class dasynq::event_loop<typename LoopTraits::mutex_t, LoopTraits>;
 
         public:
         using mutex_t = typename LoopTraits::mutex_t;
@@ -2050,7 +2050,7 @@ class child_proc_watcher : private dprivate::base_child_watcher
     // already terminated.
     int send_signal(event_loop_t &loop, int signo) noexcept
     {
-        auto reaper_mutex = loop.get_reaper_mutex();
+        auto reaper_mutex = loop.get_reaper_lock();
         std::lock_guard<decltype(reaper_mutex)> guard(reaper_mutex);
 
         if (this->child_termd) {
