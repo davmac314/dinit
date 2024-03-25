@@ -44,9 +44,9 @@ This can be specified multiple times for multiple service directories.
 The default directories are not searched for services when this option is provided.
 .sp
 If not specified, the default for the user instance is \fI$XDG_CONFIG_HOME/dinit.d\fR, 
-\fI$HOME/.config/dinit.d\fR and \fI/etc/dinit.d/user\fR or, for the system instance, each of 
-\fI/etc/dinit.d\fR, \fI/run/dinit.d/\fR, \fI/usr/local/lib/dinit.d\fR, and \fI/lib/dinit.d\fR
-(searched in that order).
+\fI$HOME/.config/dinit.d\fR, \fI/etc/dinit.d/user\fR, \fI/usr/lib/dinit.d/user\fR and
+\fI/usr/local/lib/dinit.d/user\fR or, for the system instance, each of \fI/etc/dinit.d\fR, \fI/run/dinit.d/\fR,
+\fI/usr/local/lib/dinit.d\fR, and \fI/lib/dinit.d\fR (searched in that order).
 .TP
 \fB\-e\fR \fIfile\fP, \fB\-\-env\-file\fR \fIfile\fP
 Read initial environment from \fIfile\fP.
