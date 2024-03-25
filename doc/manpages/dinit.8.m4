@@ -32,8 +32,8 @@ See \fBRUNNING AS SYSTEM MANAGER / PRIMARY INIT\fR.
 Dinit reads service descriptions from files located in a service
 description directory, normally one of \fI/etc/dinit.d\fR, \fI/run/dinit.d\fR,
 \fI/usr/local/lib/dinit.d\fR and \fI/lib/dinit.d\fR for the system instance
-or \fI$XDG_CONFIG_HOME/dinit.d\fR, \fI$HOME/.config/dinit.d\fR and \fI/etc/dinit.d/user\fR when run
-as a user process.
+or \fI$XDG_CONFIG_HOME/dinit.d\fR, \fI$HOME/.config/dinit.d\fR, \fI/etc/dinit.d/user\fR,
+\fI/usr/lib/dinit.d/user\fR and \fI/usr/local/lib/dinit.d/user\fR when run as a user process.
 See \fBSERVICE DESCRIPTION FILES\fR for details of the service description format.
 .\"
 .SH OPTIONS
