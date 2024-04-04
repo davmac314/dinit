@@ -71,7 +71,7 @@ cxx_works()
 try_cxx_argument()
 {
     info Checking whether the compiler accepts "$2"...
-    if $CXX $CXXFLAGS $2 $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA testfile.cc -o testfile > /dev/null 2>&1; then
+    if $CXX -c $CXXFLAGS $2 $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA testfile.cc -o testfile > /dev/null 2>&1; then
         rm testfile
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
