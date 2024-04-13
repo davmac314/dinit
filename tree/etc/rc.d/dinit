@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: dinit
+# REQUIRE: LOGIN FILESYSTEMS
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="dinit"
+desc="Simple Init System"
+rcvar="dinit_enable"
+command="/usr/sbin/dinitd"
+command_args="-p /var/run/dinitctl"
+start_precmd="dinit_configtest"
+reload_precmd="dinit_configtest"
+restart_precmd="dinit_configtest"
+configtest_cmd="dinit_configtest"
+pidfile="/var/run/${name}.pid"
+extra_commands="configtest reload"
+
+dinit_configtest()
+{
+	echo "Performing sanity check on ${name} configuration."
+	eval dinitcheck
+}
+
+load_rc_config $name
+run_rc_command "$1"

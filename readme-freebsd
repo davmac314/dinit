@@ -1,0 +1,7 @@
+meson setup -Ddinit-control-socket-path=/var/run/dinitctl build2
+cd build2
+ninja install
+cd ..
+rsync -r tree/ /
+/etc/rc.d/dinit enable
+/etc/rc.d/dinit start
