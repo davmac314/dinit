@@ -1,4 +1,4 @@
-On FreeBSD, launch dinit from /etc/rc.d/dinit
+Support files for launching dinit from /etc/rc.d/ on FreeBSD
 
 ```
 # Build dinit with correct path
