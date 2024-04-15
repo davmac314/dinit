@@ -24,11 +24,16 @@ void ps_environ_test();
 void chain_to_test();
 void force_stop_test();
 void restart_test();
+void check_basic_test();
+void check_cycle_test();
+void check_cycle2_test();
+void check_lint_test();
 
 int main(int argc, char **argv)
 {
-    void (*test_funcs[])() = { basic_test, environ_test, environ2_test, ps_environ_test, chain_to_test,
-            force_stop_test, restart_test };
+    void (*test_funcs[])() = { basic_test, environ_test, environ2_test, ps_environ_test,
+            chain_to_test, force_stop_test, restart_test, check_basic_test, check_cycle_test,
+            check_cycle2_test, check_lint_test };
     const char * const test_dirs[] = { "basic", "environ", "environ2", "ps-environ", "chain-to", "force-stop",
             "restart", "check-basic", "check-cycle", "check-cycle2", "check-lint", "reload1", "reload2",
             "no-command-error", "add-rm-dep", "var-subst", "svc-start-fail", "dep-not-found", "pseudo-cycle",
@@ -362,4 +367,40 @@ void restart_test()
     nanosleepx(0, 1000000000u / 10u);
 
     igr_assert_eq("ran\n", read_file_contents(output_file));
+}
+
+void check_basic_test()
+{
+    igr_test_setup setup("check-basic");
+
+    auto check_result = run_dinitcheck("check-basic", {"-d", "sd"});
+    igr_assert_eq(read_file_contents("./check-basic/expected.txt"), check_result.first);
+    igr_assert(WEXITSTATUS(check_result.second) == 1, "dinitcheck exit status == 1");
+}
+
+void check_cycle_test()
+{
+    igr_test_setup setup("check-cycle");
+
+    auto check_result = run_dinitcheck("check-cycle", {"-d", "sd"});
+    igr_assert_eq(read_file_contents("./check-cycle/expected.txt"), check_result.first);
+    igr_assert(WEXITSTATUS(check_result.second) == 1, "dinitcheck exit status == 1");
+}
+
+void check_cycle2_test()
+{
+    igr_test_setup setup("check-cycle2");
+
+    auto check_result = run_dinitcheck("check-cycle2", {"-d", "sd"});
+    igr_assert_eq(read_file_contents("./check-cycle2/expected.txt"), check_result.first);
+    igr_assert(WEXITSTATUS(check_result.second) == 1, "dinitcheck exit status == 1");
+}
+
+void check_lint_test()
+{
+    igr_test_setup setup("check-lint");
+
+    auto check_result = run_dinitcheck("check-lint", {"-d", "sd"});
+    igr_assert_eq(read_file_contents("./check-lint/expected.txt"), check_result.first);
+    igr_assert(WEXITSTATUS(check_result.second) == 1, "dinitcheck exit status == 1");
 }

@@ -181,7 +181,8 @@ public:
     ~igr_proc() {}
 
     // Start, in specified working directory, with given arguments
-    void start(const char *wdir, const char *executable, std::vector<std::string> args = {})
+    void start(const char *wdir, const char *executable, std::vector<std::string> args = {},
+            bool combine_out_err = false)
     {
         out.clear();
         err.clear();
@@ -199,7 +200,12 @@ public:
         if (pid == 0) {
             chdir(wdir);
             dup2(out.get_output_fd(), STDOUT_FILENO);
-            dup2(err.get_output_fd(), STDERR_FILENO);
+            if (combine_out_err) {
+                dup2(out.get_output_fd(), STDERR_FILENO);
+            }
+            else {
+                dup2(err.get_output_fd(), STDERR_FILENO);
+            }
 
             execv(executable, arg_arr);
             exit(EXIT_FAILURE);
@@ -208,9 +214,9 @@ public:
         delete[] arg_arr;
     }
 
-    void wait_for_term(dasynq::time_val timeout)
+    int wait_for_term(dasynq::time_val timeout)
     {
-        if (pwatch.did_exit) return;
+        if (pwatch.did_exit) return pwatch.status;
 
         simple_timer timer;
         timer.arm(timeout);
@@ -222,6 +228,8 @@ public:
         if (!pwatch.did_exit) {
             throw igr_failure_exc("timeout waiting for termination");
         }
+
+        return pwatch.status;
     }
 
     std::string get_stdout()
@@ -286,9 +294,22 @@ public:
     dinitctl_proc() {}
     ~dinitctl_proc() {}
 
-    void start(const char *wdir, std::vector<std::string> args = {}, bool with_ready_wait = false)
+    void start(const char *wdir, std::vector<std::string> args = {})
     {
         igr_proc::start(wdir, (dinit_bindir + "/dinitctl").c_str(), args);
+    }
+};
+
+// dinitcheck process
+class dinitcheck_proc : public igr_proc
+{
+public:
+    dinitcheck_proc() {}
+    ~dinitcheck_proc() {}
+
+    void start(const char *wdir, std::vector<std::string> args = {})
+    {
+        igr_proc::start(wdir, (dinit_bindir + "/dinitcheck").c_str(), args, true /* combine stdout/err */);
     }
 };
 
@@ -421,7 +442,15 @@ inline void check_file_contents(const std::string &file_path, const std::string 
 inline void igr_assert_eq(const std::string &expected, const std::string &actual)
 {
     if (expected != actual) {
-        throw igr_failure_exc(std::string("Test assertion failed:\n") + "Expected: " + expected + "\nActual: " + actual);
+        throw igr_failure_exc(std::string("Test assertion failed:\n") + "Expected: " + expected
+                + "\nActual: " + actual);
+    }
+}
+
+inline void igr_assert(bool value, const char *msg)
+{
+    if (!value) {
+        throw igr_failure_exc(std::string("Test assertion failed: ") + msg);
     }
 }
 
@@ -434,4 +463,15 @@ inline void nanosleepx(decltype(std::declval<timespec>().tv_sec) seconds,
     if (nanosleep(&sleep_time, nullptr) == -1) {
         throw std::system_error(errno, std::generic_category(), "nanosleep");
     }
+}
+
+// Run dinitcheck, return { stdout combined with stderr, exit code }
+inline std::pair<std::string, int> run_dinitcheck(const char *wdir,
+        std::vector<std::string> args = {})
+{
+    dinitcheck_proc dc_proc;
+    dc_proc.start(wdir, args);
+    int exit_status = dc_proc.wait_for_term({1, 0}  /* max 1 second */);
+
+    return { dc_proc.get_stdout(), exit_status };
 }
