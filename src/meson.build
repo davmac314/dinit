@@ -61,7 +61,7 @@ executable(
 # Shutdown/reboot/halt
 if build_shutdown.auto() and platform == 'linux' or build_shutdown.enabled()
     shutdown_built = true
-    foreach exec: ['shutdown', 'reboot', 'halt']
+    foreach exec: ['shutdown', 'reboot', 'halt', 'poweroff']
         executable(
             shutdown_prefix + exec,
             'shutdown.cc',
