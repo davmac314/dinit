@@ -214,7 +214,7 @@ inline int write_all(int fd, const void *buf, int count)
         int r = write(fd, cbuf, count);
         if (r == -1) {
             if (errno == EINTR) continue;
-            return (count > 0) ? count : r;
+            return (w > 0) ? w : r;
         }
         w += r;
         cbuf += r;
