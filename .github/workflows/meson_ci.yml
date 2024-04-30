@@ -93,10 +93,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Install meson via pip3
-      run: pip3 install meson
-    - name: Install ninja
-      run: brew install ninja
+    - name: Install meson
+      run: brew install meson
     - name: Setup
       run: meson setup -Dunit-tests=true -Digr-tests=true dirbuild
     - name: Build
