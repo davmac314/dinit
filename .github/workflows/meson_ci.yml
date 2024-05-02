@@ -38,12 +38,12 @@ on:
 
 jobs:
 
-  Debian-bullseye_build:
+  Debian-bookworm_build:
 
     if: ${{ github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'meson') }}
     runs-on: ubuntu-latest
     container:
-      image: debian:bullseye
+      image: debian:bookworm
     strategy:
       fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
       matrix:
