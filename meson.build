@@ -5,7 +5,7 @@ project(
     version : run_command('grep', '^VERSION=', 'build/version.conf',
         check: true).stdout().strip().split('=')[1],
     license : 'Apache-2.0',
-    meson_version : '>= 0.56.0',
+    meson_version : '>= 0.61.0',
     default_options : [
         'cpp_std=c++11',
         'optimization=s',
