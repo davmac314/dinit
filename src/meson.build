@@ -61,11 +61,16 @@ executable(
 # Shutdown/reboot/halt
 if build_shutdown.auto() and platform == 'linux' or build_shutdown.enabled()
     shutdown_built = true
-    foreach exec: ['shutdown', 'reboot', 'halt', 'poweroff']
-        executable(
-            shutdown_prefix + exec,
-            'shutdown.cc',
-            kwargs: misc_args
+    executable(
+        shutdown_prefix + 'shutdown',
+        'shutdown.cc',
+        kwargs: misc_args
+    )
+    foreach exec: ['reboot', 'halt', 'poweroff']
+        install_symlink(
+            exec,
+            pointing_to: 'shutdown',
+            install_dir: sbindir
         )
     endforeach
 endif
