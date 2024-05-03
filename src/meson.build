@@ -68,8 +68,8 @@ if build_shutdown.auto() and platform == 'linux' or build_shutdown.enabled()
     )
     foreach exec: ['reboot', 'halt', 'poweroff']
         install_symlink(
-            exec,
-            pointing_to: 'shutdown',
+            shutdown_prefix + exec,
+            pointing_to: shutdown_prefix + 'shutdown',
             install_dir: sbindir
         )
     endforeach
