@@ -1,8 +1,12 @@
 Support files for launching dinit from /etc/rc.d/ on FreeBSD
 
-```
-# Build dinit with correct path
+To install dinit on FreeBSD, run the following commands as root:
 
+```
+# (Optional) Install build dependencies
+pkg install -y meson rsync
+
+# Build dinit with correct path
 pushd ../..
 meson setup -Ddinit-control-socket-path=/var/run/dinitctl build2
 cd build2
