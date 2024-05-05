@@ -9,9 +9,9 @@ cd build2
 ninja install
 popd
 
-# Install rc.d
-cp tree/etc/rc.d/dinit /etc/rc.d/dinit
-cp tree/usr/sbin/dinitd /usr/sbin/dinitd
+# Install dinit as rc.d service
+rsync -r tree/ /
+mkdir -p /etc/dinit.d/boot.d
 
 # enable dinit (to start on next boot)
 /etc/rc.d/dinit enable

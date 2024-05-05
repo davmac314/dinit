@@ -1,0 +1,4 @@
+# The primary service
+
+type = internal
+waits-for.d = boot.d
