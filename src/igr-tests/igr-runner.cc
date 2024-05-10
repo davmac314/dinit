@@ -28,12 +28,13 @@ void check_basic_test();
 void check_cycle_test();
 void check_cycle2_test();
 void check_lint_test();
+void reload1_test();
 
 int main(int argc, char **argv)
 {
     void (*test_funcs[])() = { basic_test, environ_test, environ2_test, ps_environ_test,
             chain_to_test, force_stop_test, restart_test, check_basic_test, check_cycle_test,
-            check_cycle2_test, check_lint_test };
+            check_cycle2_test, check_lint_test, reload1_test };
     const char * const test_dirs[] = { "basic", "environ", "environ2", "ps-environ", "chain-to", "force-stop",
             "restart", "check-basic", "check-cycle", "check-cycle2", "check-lint", "reload1", "reload2",
             "no-command-error", "add-rm-dep", "var-subst", "svc-start-fail", "dep-not-found", "pseudo-cycle",
@@ -403,4 +404,65 @@ void check_lint_test()
     auto check_result = run_dinitcheck("check-lint", {"-d", "sd"});
     igr_assert_eq(read_file_contents("./check-lint/expected.txt"), check_result.first);
     igr_assert(WEXITSTATUS(check_result.second) == 1, "dinitcheck exit status == 1");
+}
+
+void reload1_test()
+{
+    igr_test_setup setup("reload1");
+
+    std::string service_dir = setup.get_output_dir() + "/sd";
+    auto cwd = getfullcwd();
+
+    // This test requires reloading services after modifying a service description,
+    // which for convenience we do by replacing the entire service directory (sd1 with sd2).
+    // In order to do that we create a symlink to sd1 and use the link as the directory, then we retarget
+    // the link at sd2.
+
+    std::string sd_dir = setup.get_output_dir() + "/sd";
+    unlink(sd_dir.c_str());
+    if (symlink((cwd + "/reload1/sd1").c_str(), sd_dir.c_str()) == -1) {
+        throw std::system_error(errno, std::generic_category(), "symlink");
+    }
+
+    dinit_proc dinit_p;
+    dinit_p.start("reload1", {"-u", "-d", sd_dir.c_str(), "-p", igr_dinit_socket_path, "-q"}, true);
+
+    // "dinitctl list" and check output
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("reload1", {"-p", igr_dinit_socket_path, "list"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+
+    igr_assert_eq("", dinitctl_p.get_stderr());
+    igr_assert_eq(read_file_contents("./reload1/initial.expected"), dinitctl_p.get_stdout());
+
+    // Replace service directory with sd2
+    unlink(sd_dir.c_str());
+    if (symlink((cwd + "/reload1/sd2").c_str(), sd_dir.c_str()) == -1) {
+        throw std::system_error(errno, std::generic_category(), "symlink");
+    }
+
+    // reload should fail: c not started but is a dependency in the new service description
+    dinitctl_p.start("reload1", {"--quiet", "-p", igr_dinit_socket_path, "reload", "boot"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+
+    igr_assert_eq(read_file_contents("./reload1/output2.expected"), dinitctl_p.get_stderr());
+    igr_assert_eq("", dinitctl_p.get_stdout());
+
+    // if we start c, should then be able to do the reload
+    dinitctl_p.start("reload1", {"--quiet", "-p", igr_dinit_socket_path, "start", "c"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+    igr_assert_eq("", dinitctl_p.get_stderr());
+    igr_assert_eq("", dinitctl_p.get_stdout());
+
+    dinitctl_p.start("reload1", {"--quiet", "-p", igr_dinit_socket_path, "reload", "boot"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+    igr_assert_eq("", dinitctl_p.get_stderr());
+    igr_assert_eq("", dinitctl_p.get_stdout());
+
+    // list again and check output
+    dinitctl_p.start("reload1", {"-p", igr_dinit_socket_path, "list"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+
+    igr_assert_eq("", dinitctl_p.get_stderr());
+    igr_assert_eq(read_file_contents("./reload1/output3.expected"), dinitctl_p.get_stdout());
 }

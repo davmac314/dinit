@@ -475,3 +475,27 @@ inline std::pair<std::string, int> run_dinitcheck(const char *wdir,
 
     return { dc_proc.get_stdout(), exit_status };
 }
+
+// get the current working directory, as a string. This is a wrapper around getcwd().
+inline std::string getfullcwd()
+{
+    size_t cursize = 1024;
+    char *s = new char[cursize];
+
+    char *r = getcwd(s, cursize);
+    while (r == nullptr && errno == ERANGE) {
+        delete[] s;
+        cursize *= 2;
+        s = new char[cursize];
+        r = getcwd(s, cursize);
+    }
+
+    if (r == nullptr) {
+        delete[] s;
+        throw std::system_error(errno, std::generic_category(), "getcwd");
+    }
+
+    std::string retstr = s;
+    delete[] s;
+    return retstr;
+}
