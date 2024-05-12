@@ -54,7 +54,7 @@ by Dinit.
 They can be started and stopped without any external action.
 They are useful for grouping other services (via service dependencies).
 .IP \(bu
-\fbTriggered\fR services are similar to internal processes, but an external trigger is required
+\fBTriggered\fR services are similar to internal processes, but an external trigger is required
 before they will start (i.e. Dinit will not consider them as started until the trigger is issued).
 The \fBdinitctl trigger\fR command can be used to trigger such a service; see \fBdinitctl\fR(8).
 .LP
