@@ -23,6 +23,9 @@ clean:
 html: generate
 	./generate-html.sh
 
+lint: generate
+	./mandoc-lint.sh
+
 dinit.8: dinit.8.m4
 	m4 -DVERSION=$(VERSION) -DMONTH=$(MONTH) -DYEAR=$(YEAR) -DSHUTDOWN_PREFIX=$(SHUTDOWN_PREFIX) dinit.8.m4 > dinit.8
 
