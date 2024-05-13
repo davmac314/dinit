@@ -1,0 +1,34 @@
+name: Dinit man-pages lint CI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/ubuntu-latest-man-lint.yml'
+      - 'doc/manpages/*.m4'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/ubuntu-latest-man-lint.yml'
+      - 'doc/manpages/*.m4'
+  workflow_dispatch:
+
+jobs:
+
+  Ubuntu-latest-manpages_lint:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Getting depends
+      run: |
+        sudo apt-get update
+        DEBIAN_FRONTEND=noninteractive sudo apt-get install make m4 mandoc -y
+    - name: Configure
+      # We don't want to waste our time on checking compiler for man-page generation.
+      run: ./configure CXX="true" CXXFLAGS="" LDFLAGS="" TEST_CXXFLAGS="" TEST_LDFLAGS=""
+    - name: Lint man-pages
+      run: make -C doc/manpages lint
