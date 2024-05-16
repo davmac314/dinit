@@ -14,6 +14,12 @@ std::string dinit_bindir;
 // directory for all test output (each test under a named subdir)
 std::string igr_output_basedir;
 
+// A pair of name, function for keeping test names along with their function
+struct test
+{
+    const char *name;
+    void (*func)();
+};
 
 // exception to be thrown on failure
 class igr_failure_exc
