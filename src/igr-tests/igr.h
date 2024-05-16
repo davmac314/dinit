@@ -14,6 +14,9 @@ std::string dinit_bindir;
 // directory for all test output (each test under a named subdir)
 std::string igr_output_basedir;
 
+// directory for all test input files
+std::string igr_input_basedir;
+
 // A pair of name, function for keeping test names along with their function
 struct test
 {
@@ -285,7 +288,7 @@ public:
             args.insert(args.begin(), "--ready-fd");
         }
 
-        igr_proc::start(wdir, (dinit_bindir + "/dinit").c_str(), args);
+        igr_proc::start((igr_input_basedir + wdir).c_str(), (dinit_bindir + "/dinit").c_str(), args);
 
         if (with_ready_wait) {
             while (ready_pipe_ptr->get_output().empty()) {
@@ -304,7 +307,7 @@ public:
 
     void start(const char *wdir, std::vector<std::string> args = {})
     {
-        igr_proc::start(wdir, (dinit_bindir + "/dinitctl").c_str(), args);
+        igr_proc::start((igr_input_basedir + wdir).c_str(), (dinit_bindir + "/dinitctl").c_str(), args);
     }
 };
 
@@ -317,7 +320,8 @@ public:
 
     void start(const char *wdir, std::vector<std::string> args = {})
     {
-        igr_proc::start(wdir, (dinit_bindir + "/dinitcheck").c_str(), args, true /* combine stdout/err */);
+        igr_proc::start((igr_input_basedir + wdir).c_str(), (dinit_bindir + "/dinitcheck").c_str(), args,
+                true /* combine stdout/err */);
     }
 };
 
@@ -357,6 +361,16 @@ public:
                     std::string("unlink " + full_filename));
         }
         return full_filename;
+    }
+
+    std::string prep_socket_path()
+    {
+        std::string full_socket_path = output_dir + "/" + "dinit.socket";
+        if (unlink(full_socket_path.c_str()) == -1 && errno != ENOENT) {
+            throw std::system_error(errno, std::generic_category(),
+                    std::string("unlink " + full_socket_path));
+        }
+        return full_socket_path;
     }
 };
 
