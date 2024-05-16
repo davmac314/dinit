@@ -10,6 +10,7 @@
 #include <sys/types.h>
 
 #include "igr.h"
+#include "../../build/includes/mconfig.h"
 
 extern char **environ;
 
@@ -29,12 +30,15 @@ void check_cycle_test();
 void check_cycle2_test();
 void check_lint_test();
 void reload1_test();
+void reload2_test();
+void no_command_error_test();
+
 
 int main(int argc, char **argv)
 {
     void (*test_funcs[])() = { basic_test, environ_test, environ2_test, ps_environ_test,
             chain_to_test, force_stop_test, restart_test, check_basic_test, check_cycle_test,
-            check_cycle2_test, check_lint_test, reload1_test };
+            check_cycle2_test, check_lint_test, reload1_test, reload2_test, no_command_error_test };
     const char * const test_dirs[] = { "basic", "environ", "environ2", "ps-environ", "chain-to", "force-stop",
             "restart", "check-basic", "check-cycle", "check-cycle2", "check-lint", "reload1", "reload2",
             "no-command-error", "add-rm-dep", "var-subst", "svc-start-fail", "dep-not-found", "pseudo-cycle",
@@ -410,7 +414,6 @@ void reload1_test()
 {
     igr_test_setup setup("reload1");
 
-    std::string service_dir = setup.get_output_dir() + "/sd";
     auto cwd = getfullcwd();
 
     // This test requires reloading services after modifying a service description,
@@ -465,4 +468,90 @@ void reload1_test()
 
     igr_assert_eq("", dinitctl_p.get_stderr());
     igr_assert_eq(read_file_contents("./reload1/output3.expected"), dinitctl_p.get_stdout());
+}
+
+void reload2_test()
+{
+    igr_test_setup setup("reload2");
+
+    auto cwd = getfullcwd();
+
+    // This test requires reloading services after modifying a service description,
+    // which for convenience we do by replacing the entire service directory (sd1 with sd2).
+    // In order to do that we create a symlink to sd1 and use the link as the directory, then we retarget
+    // the link at sd2.
+
+    std::string sd_dir = setup.get_output_dir() + "/sd";
+    unlink(sd_dir.c_str());
+    if (symlink((cwd + "/reload2/sd1").c_str(), sd_dir.c_str()) == -1) {
+        throw std::system_error(errno, std::generic_category(), "symlink");
+    }
+
+    dinit_proc dinit_p;
+    dinit_p.start("reload2", {"-u", "-d", sd_dir.c_str(), "-p", igr_dinit_socket_path, "-q"}, true);
+
+    // Start "hold" service (allows us to stop "boot" without stopping dinit)
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("reload2", {"-p", igr_dinit_socket_path, "start", "hold"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+
+    // "dinitctl list" and check output
+    dinitctl_p.start("reload2", {"-p", igr_dinit_socket_path, "list"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+
+    igr_assert_eq("", dinitctl_p.get_stderr());
+    igr_assert_eq(read_file_contents("./reload2/initial.expected"), dinitctl_p.get_stdout());
+
+    // "dinitctl stop boot"
+    dinitctl_p.start("reload2", {"-p", igr_dinit_socket_path, "stop", "boot"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+
+    // Replace service directory with sd2
+    unlink(sd_dir.c_str());
+    if (symlink((cwd + "/reload2/sd2").c_str(), sd_dir.c_str()) == -1) {
+        throw std::system_error(errno, std::generic_category(), "symlink");
+    }
+
+    // "dinitctl reload boot", should succeed
+    dinitctl_p.start("reload2", {"-p", igr_dinit_socket_path, "reload", "boot"});
+    int dinitctl_result = dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+    igr_assert(WEXITSTATUS(dinitctl_result) == 0, "\"dinitctl reload boot\" returned unexpected status");
+    igr_assert_eq(read_file_contents("./reload2/output2.expected"), dinitctl_p.get_stdout());
+    igr_assert_eq("", dinitctl_p.get_stderr());
+
+    // "dinitctl start boot"
+    dinitctl_p.start("reload2", {"-p", igr_dinit_socket_path, "start", "boot"});
+    dinitctl_result = dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+    igr_assert(WEXITSTATUS(dinitctl_result) == 0, "\"dinitctl start boot\" returned unexpected status");
+
+    // "dinitctl list"
+    dinitctl_p.start("reload2", {"-p", igr_dinit_socket_path, "list"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+    igr_assert_eq(read_file_contents("./reload2/output3.expected"), dinitctl_p.get_stdout());
+    igr_assert_eq("", dinitctl_p.get_stderr());
+}
+
+void no_command_error_test()
+{
+    // Check that a service without a command configured causes the appropriate error.
+
+    igr_test_setup setup("no-command-error");
+
+    std::string sd_dir = setup.get_output_dir() + "/sd";
+
+    std::vector<std::string> dinit_args {"-u", "-d", "sd", "-p", igr_dinit_socket_path};
+    if (SUPPORT_CGROUPS) {
+        // If cgroups support, supply cgroup base path to avoid potential "unable to determine cgroup" message
+        dinit_args.push_back("-b");
+        dinit_args.push_back("/");
+    }
+
+    // #no-command -l "$IGR_OUTPUT"/dinit-run.log
+    dinit_args.push_back("no-command");
+
+    dinit_proc dinit_p;
+    dinit_p.start("no-command-error", dinit_args);
+    dinit_p.wait_for_term({1, 0}  /* max 1 second */);
+
+    igr_assert_eq(read_file_contents("./no-command-error/dinit-run.expected"), dinit_p.get_stdout());
 }
