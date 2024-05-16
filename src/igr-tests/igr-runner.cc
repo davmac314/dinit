@@ -47,27 +47,26 @@ void cycles_test();
 
 int main(int argc, char **argv)
 {
-    void (*test_funcs[])() = { basic_test, environ_test, environ2_test, ps_environ_test,
-            chain_to_test, force_stop_test, restart_test, check_basic_test, check_cycle_test,
-            check_cycle2_test, check_lint_test, reload1_test, reload2_test, no_command_error_test,
-            add_rm_dep_test, var_subst_test, svc_start_fail_test, dep_not_found_test,
-            pseudo_cycle_test, before_after_test, before_after2_test, log_via_pipe_test,
-            catlog_test, offline_enable_test, xdg_config_test, cycles_test };
-    const char * const test_dirs[] = { "basic", "environ", "environ2", "ps-environ", "chain-to", "force-stop",
-            "restart", "check-basic", "check-cycle", "check-cycle2", "check-lint", "reload1", "reload2",
-            "no-command-error", "add-rm-dep", "var-subst", "svc-start-fail", "dep-not-found", "pseudo-cycle",
-            "before-after", "before-after2", "log-via-pipe", "catlog", "offline-enable", "xdg-config",
-            "cycles" };
-    constexpr int num_tests = sizeof(test_dirs) / sizeof(test_dirs[0]);
+    struct test tests[] = { { "basic", basic_test }, { "environ", environ_test },
+            { "environ2", environ2_test }, { "ps-environ", ps_environ_test },
+            { "chain-to", chain_to_test }, { "force-stop", force_stop_test },
+            { "restart", restart_test }, { "check-basic", check_basic_test },
+            { "check-cycle", check_cycle_test }, { "check-cycle2", check_cycle2_test },
+            { "check-lint", check_lint_test }, { "reload1", reload1_test },
+            { "reload2", reload2_test }, { "no-command-error", no_command_error_test },
+            { "add-rm-dep", add_rm_dep_test }, { "var-subst", var_subst_test },
+            { "svc-start-fail", svc_start_fail_test, }, { "dep-not-found", dep_not_found_test },
+            { "pseudo-cycle", pseudo_cycle_test }, { "before-after", before_after_test},
+            { "before-after2", before_after2_test }, { "log-via-pipe", log_via_pipe_test },
+            { "catlog", catlog_test }, { "offline-enable", offline_enable_test },
+            { "xdg-config", xdg_config_test }, { "cycles", cycles_test } };
+    constexpr int num_tests = sizeof(tests) / sizeof(tests[0]);
 
     dinit_bindir = "../.."; // XXX
     igr_output_basedir = "igr-output"; // XXX
 
     int passed = 0;
-    int skipped = 0;
     int failed = 0;
-
-    bool aborted_run = false;
 
     char *env_igr_output_base = getenv("IGR_OUTPUT_BASE");
     if (env_igr_output_base != nullptr) {
@@ -82,121 +81,61 @@ int main(int argc, char **argv)
         throw std::system_error(errno, std::generic_category(), std::string("mkdir: ") + igr_output_basedir);
     }
 
+    // A single test can be requested through single argument
+    if (argc == 2) {
+        for (struct test test : tests) {
+            if (strcmp(test.name, argv[1]) == 0) {
+                std::cout << test.name << "... " << std::flush;
+                try {
+                    test.func();
+                    std::cout << "PASSED" << std::endl;
+                }
+                catch (igr_failure_exc &exc) {
+                    std::cout << exc.get_message() << std::endl;
+                    std::cout << "FAILED" << std::endl;
+                    return 1;
+                }
+                return 0;
+            }
+        }
+        std::cerr << "Couldn't find the test: " << argv[1] << std::endl;
+        return 1;
+    }
+
     for (int i = 0; i < num_tests; i++) {
-        const char * test_dir = test_dirs[i];
+        std::cout << tests[i].name << "... " << std::flush;
 
-        std::cout << test_dir << "... " << std::flush;
-
-        if ((unsigned)i < (sizeof(test_funcs) / sizeof(test_funcs[0]))) {
-            // run function instead
-            bool success;
-            std::string failure_msg;
-            try {
-                test_funcs[i]();
-                success = true;
-            }
-            catch (igr_failure_exc &exc) {
-                success = false;
-                failure_msg = exc.get_message();
-            }
-
-            if (success) {
-                std::cout << "PASSED\n";
-                passed++;
-            }
-            else {
-                std::cout << "FAILED\n";
-                failed++;
-                std::cout << failure_msg << std::endl;
-            }
-
-            continue;
+        bool success;
+        std::string failure_msg;
+        try {
+            tests[i].func();
+            success = true;
+        }
+        catch (igr_failure_exc &exc) {
+            success = false;
+            failure_msg = exc.get_message();
         }
 
-        std::string prog_path = "./run-test.sh";
-        char * const p_argv[2] = { const_cast<char *>(prog_path.c_str()), nullptr };
-
-        // "Use posix_spawn", they said. "It will be easy", they said.
-
-        if (chdir(test_dir) != 0) {
-            std::cerr << "Couldn't chdir: " << test_dir << ": " << strerror(errno) << std::endl;
-            continue;
-        }
-
-        posix_spawn_file_actions_t p_actions;
-        posix_spawnattr_t p_attr;
-
-        if (posix_spawn_file_actions_init(&p_actions) != 0) {
-            // out of memory?
-            std::cerr << "Error launching process: " << test_dir << "/run-test.sh: " << strerror(errno) << std::endl;
-            aborted_run = true;
-            break;
-        }
-
-        if (posix_spawnattr_init(&p_attr) != 0) {
-            // out of memory?
-            std::cerr << "Error launching process: " << test_dir << "/run-test.sh: " << strerror(errno) << std::endl;
-            aborted_run = true;
-            break;
-        }
-
-        pid_t subproc_pid;
-        if (posix_spawn(&subproc_pid, prog_path.c_str(), &p_actions, &p_attr, p_argv, environ) != 0) {
-            // fail out
-            std::cerr << "Failed to run run-test.sh in " << test_dir << std::endl;
-            continue;
-        }
-
-        int wstatus;
-        if (waitpid(subproc_pid, &wstatus, 0) == -1) {
-            std::cout << "(unknown)" << std::endl;
-            std::cerr << "waitpid() failed" << std::endl;
-            aborted_run = true;
-            break;
-        }
-
-        if (WIFEXITED(wstatus)) {
-            if (WEXITSTATUS(wstatus) == 0) {
-                std::cout << "PASSED" << std::endl;
-                passed++;
-            }
-            else if (WEXITSTATUS(wstatus) == 1) {
-                std::cout << "FAILED" << std::endl;
-                failed++;
-            }
-            else if (WEXITSTATUS(wstatus) == 77) {
-                std::cout << "SKIPPED" << std::endl;
-                skipped++;
-            }
-            else {
-                std::cout << "???" << std::endl;
-            }
+        if (success) {
+            std::cout << "PASSED\n";
+            passed++;
         }
         else {
-            std::cout << "*** terminated abnormally ***" << std::endl;
-            aborted_run = true;
-            break;
+            std::cout << "FAILED\n";
+            failed++;
+            std::cout << failure_msg << std::endl;
         }
 
-        posix_spawnattr_destroy(&p_attr);
-        posix_spawn_file_actions_destroy(&p_actions);
-        chdir("..");
+        continue;
     }
 
     std::cout << "======================================================" << std::endl;
 
-    if (! aborted_run) {
-        std::cout << "Test run finished.\n"
-                "Passed: " << passed << "\n"
-                "Failed: " << failed;
-        if (failed != 0) {
-            std::cout << " XXX";
-        }
-        std::cout << "\n"
-                "Skipped: " << skipped << std::endl;
-    }
-    else {
-        std::cout << "Test run aborted." << std::endl;
+    std::cout << "Test run finished.\n"
+            "Passed: " << passed << "\n"
+            "Failed: " << failed;
+    if (failed != 0) {
+        std::cout << " XXX";
     }
 
     return failed == 0 ? 0 : 1;
