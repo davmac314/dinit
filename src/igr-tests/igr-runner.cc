@@ -540,13 +540,13 @@ void no_command_error_test()
     std::string sd_dir = setup.get_output_dir() + "/sd";
 
     std::vector<std::string> dinit_args {"-u", "-d", "sd", "-p", igr_dinit_socket_path};
-    if (SUPPORT_CGROUPS) {
-        // If cgroups support, supply cgroup base path to avoid potential "unable to determine cgroup" message
-        dinit_args.push_back("-b");
-        dinit_args.push_back("/");
-    }
 
-    // #no-command -l "$IGR_OUTPUT"/dinit-run.log
+#if SUPPORT_CGROUPS
+    // If cgroups support, supply dummy cgroup base path to avoid "unable to determine cgroup" message
+    dinit_args.push_back("-b");
+    dinit_args.push_back("/");
+#endif
+
     dinit_args.push_back("no-command");
 
     dinit_proc dinit_p;
