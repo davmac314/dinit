@@ -18,6 +18,7 @@
 #include "cpbuffer.h"
 #include "control-cmds.h"
 #include "service-constants.h"
+#include "static-string.h"
 #include "dinit-client.h"
 #include "dinit-util.h"
 #include "mconfig.h"
@@ -30,6 +31,8 @@
 
 static constexpr uint16_t min_cp_version = 1;
 static constexpr uint16_t max_cp_version = 1;
+
+static constexpr auto reboot_execname = cts::literal(SHUTDOWN_PREFIX) + cts::literal("reboot");
 
 using loop_t = dasynq::event_loop_n;
 using rearm = dasynq::rearm;
@@ -253,7 +256,7 @@ int main(int argc, char **argv)
     auto shutdown_type = shutdown_type_t::POWEROFF;
 
     const char *execname = base_name(argv[0]);
-    if (strcmp(execname, "reboot") == 0) {
+    if (strcmp(execname, reboot_execname) == 0) {
         shutdown_type = shutdown_type_t::REBOOT;
     }
         
