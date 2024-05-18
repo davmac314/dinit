@@ -1473,19 +1473,19 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
             }
             break;
         case service_state_t::STARTING:
-            cout << "STARTING";
+            cout << "\x1b[32mSTARTING\x1b[0m";
             if (target == service_state_t::STOPPED) {
                 cout << " (target state: STOPPED)";
             }
             break;
         case service_state_t::STARTED:
-            cout << "STARTED";
+            cout << "\x1b[32mSTARTED\x1b[0m";
             if (was_skipped) {
                 cout << " (startup skipped)";
             }
             break;
         case service_state_t::STOPPING:
-            cout << "STOPPING";
+            cout << "\x1b[31mSTOPPING\x1b[0m";
             if (target == service_state_t::STARTED) {
                 cout << " (target state: STARTED)";
             }
