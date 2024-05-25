@@ -1434,7 +1434,7 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
 
         switch (current) {
         case service_state_t::STOPPED:
-            cout << COLOR_RED, "STOPPED", COLOR_RESET;
+            cout << COLOR_RED "STOPPED" COLOR_RESET;
             switch (stop_reason) {
             case stopped_reason_t::DEPRESTART:
                 cout << " (dependency restarted)";
@@ -1473,19 +1473,19 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
             }
             break;
         case service_state_t::STARTING:
-            cout << COLOR_YELLOW, "STARTING", COLOR_RESET;
+            cout << COLOR_YELLOW "STARTING" COLOR_RESET;
             if (target == service_state_t::STOPPED) {
                 cout << " (target state: STOPPED)";
             }
             break;
         case service_state_t::STARTED:
-            cout << COLOR_GREEN, "STARTED", COLOR_RESET;
+            cout << COLOR_GREEN "STARTED" COLOR_RESET;
             if (was_skipped) {
                 cout << " (startup skipped)";
             }
             break;
         case service_state_t::STOPPING:
-            cout << COLOR_GREEN, "STOPPING", COLOR_RESET;
+            cout << COLOR_GREEN "STOPPING" COLOR_RESET;
             if (target == service_state_t::STARTED) {
                 cout << " (target state: STARTED)";
             }
