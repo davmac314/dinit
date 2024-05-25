@@ -1,0 +1,104 @@
+[
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinit.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinit.p/dinit-main.cc.o -MF src/dinit.p/dinit-main.cc.o.d -o src/dinit.p/dinit-main.cc.o -c ../src/dinit-main.cc",
+    "file": "../src/dinit-main.cc",
+    "output": "src/dinit.p/dinit-main.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinit.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinit.p/dinit.cc.o -MF src/dinit.p/dinit.cc.o.d -o src/dinit.p/dinit.cc.o -c ../src/dinit.cc",
+    "file": "../src/dinit.cc",
+    "output": "src/dinit.p/dinit.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinit.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinit.p/load-service.cc.o -MF src/dinit.p/load-service.cc.o.d -o src/dinit.p/load-service.cc.o -c ../src/load-service.cc",
+    "file": "../src/load-service.cc",
+    "output": "src/dinit.p/load-service.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinit.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinit.p/service.cc.o -MF src/dinit.p/service.cc.o.d -o src/dinit.p/service.cc.o -c ../src/service.cc",
+    "file": "../src/service.cc",
+    "output": "src/dinit.p/service.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinit.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinit.p/proc-service.cc.o -MF src/dinit.p/proc-service.cc.o.d -o src/dinit.p/proc-service.cc.o -c ../src/proc-service.cc",
+    "file": "../src/proc-service.cc",
+    "output": "src/dinit.p/proc-service.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinit.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinit.p/baseproc-service.cc.o -MF src/dinit.p/baseproc-service.cc.o.d -o src/dinit.p/baseproc-service.cc.o -c ../src/baseproc-service.cc",
+    "file": "../src/baseproc-service.cc",
+    "output": "src/dinit.p/baseproc-service.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinit.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinit.p/control.cc.o -MF src/dinit.p/control.cc.o.d -o src/dinit.p/control.cc.o -c ../src/control.cc",
+    "file": "../src/control.cc",
+    "output": "src/dinit.p/control.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinit.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinit.p/dinit-log.cc.o -MF src/dinit.p/dinit-log.cc.o.d -o src/dinit.p/dinit-log.cc.o -c ../src/dinit-log.cc",
+    "file": "../src/dinit-log.cc",
+    "output": "src/dinit.p/dinit-log.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinit.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinit.p/run-child-proc.cc.o -MF src/dinit.p/run-child-proc.cc.o.d -o src/dinit.p/run-child-proc.cc.o -c ../src/run-child-proc.cc",
+    "file": "../src/run-child-proc.cc",
+    "output": "src/dinit.p/run-child-proc.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinit.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinit.p/options-processing.cc.o -MF src/dinit.p/options-processing.cc.o.d -o src/dinit.p/options-processing.cc.o -c ../src/options-processing.cc",
+    "file": "../src/options-processing.cc",
+    "output": "src/dinit.p/options-processing.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinit.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinit.p/dinit-env.cc.o -MF src/dinit.p/dinit-env.cc.o.d -o src/dinit.p/dinit-env.cc.o -c ../src/dinit-env.cc",
+    "file": "../src/dinit-env.cc",
+    "output": "src/dinit.p/dinit-env.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinitctl.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinitctl.p/dinitctl.cc.o -MF src/dinitctl.p/dinitctl.cc.o.d -o src/dinitctl.p/dinitctl.cc.o -c ../src/dinitctl.cc",
+    "file": "../src/dinitctl.cc",
+    "output": "src/dinitctl.p/dinitctl.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinitctl.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinitctl.p/options-processing.cc.o -MF src/dinitctl.p/options-processing.cc.o.d -o src/dinitctl.p/options-processing.cc.o -c ../src/options-processing.cc",
+    "file": "../src/options-processing.cc",
+    "output": "src/dinitctl.p/options-processing.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinitcheck.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinitcheck.p/dinitcheck.cc.o -MF src/dinitcheck.p/dinitcheck.cc.o.d -o src/dinitcheck.p/dinitcheck.cc.o -c ../src/dinitcheck.cc",
+    "file": "../src/dinitcheck.cc",
+    "output": "src/dinitcheck.p/dinitcheck.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinitcheck.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinitcheck.p/options-processing.cc.o -MF src/dinitcheck.p/options-processing.cc.o.d -o src/dinitcheck.p/options-processing.cc.o -c ../src/options-processing.cc",
+    "file": "../src/options-processing.cc",
+    "output": "src/dinitcheck.p/options-processing.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/dinit-monitor.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/dinit-monitor.p/dinit-monitor.cc.o -MF src/dinit-monitor.p/dinit-monitor.cc.o.d -o src/dinit-monitor.p/dinit-monitor.cc.o -c ../src/dinit-monitor.cc",
+    "file": "../src/dinit-monitor.cc",
+    "output": "src/dinit-monitor.p/dinit-monitor.cc.o"
+  },
+  {
+    "directory": "/home/thenofis/soft/1/dinit/build",
+    "command": "c++ -Isrc/shutdown.p -Isrc -I../src -I. -I.. -I../src/includes -I../dasynq/include -fdiagnostics-color=always -D_GLIBCXX_ASSERTIONS=1 -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c++11 -Os -MD -MQ src/shutdown.p/shutdown.cc.o -MF src/shutdown.p/shutdown.cc.o.d -o src/shutdown.p/shutdown.cc.o -c ../src/shutdown.cc",
+    "file": "../src/shutdown.cc",
+    "output": "src/shutdown.p/shutdown.cc.o"
+  }
+]
