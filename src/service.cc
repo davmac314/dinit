@@ -652,7 +652,28 @@ void service_record::do_stop(bool with_restart) noexcept
     in_user_restart = false;
 
     // Will we restart? desired state of STOPPED inhibits auto-restart
-    bool for_restart = with_restart || (auto_restart && desired_state == service_state_t::STARTED);
+    bool do_auto_restart = false;
+    if (auto_restart == auto_restart_mode::ALWAYS) {
+        do_auto_restart = true;
+    }
+    else if (auto_restart == auto_restart_mode::ON_FAILURE) {
+        if (get_type() == service_type_t::PROCESS || get_type() == service_type_t::BGPROCESS) {
+            auto exit_status = get_exit_status();
+            if (exit_status.was_signalled()) {
+                if (exit_status.get_term_sig() != SIGHUP && exit_status.get_term_sig() != SIGINT &&
+                        exit_status.get_term_sig() != SIGUSR1 && exit_status.get_term_sig() != SIGUSR2 &&
+                        exit_status.get_term_sig() != SIGTERM) {
+                    do_auto_restart = true;
+                }
+            }
+            else {
+                if (exit_status.get_exit_status() != 0) {
+                    do_auto_restart = true;
+                }
+            }
+        }
+    }
+    bool for_restart = with_restart || (do_auto_restart && desired_state == service_state_t::STARTED);
     bool restart_deps = with_restart;
 
     if (!with_restart && for_restart) {
