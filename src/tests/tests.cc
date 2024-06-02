@@ -159,7 +159,7 @@ void basic_test4()
     test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
     service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
     service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
-    s2->set_auto_restart(true);
+    s2->set_auto_restart(auto_restart_mode::ALWAYS);
     sset.add_service(s1);
     sset.add_service(s2);
     sset.add_service(s3);
@@ -306,7 +306,7 @@ void basic_test7()
     service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
     service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
     service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
-    s2->set_auto_restart(true);
+    s2->set_auto_restart(auto_restart_mode::ALWAYS);
     sset.add_service(s1);
     sset.add_service(s2);
     sset.add_service(s3);
@@ -512,7 +512,7 @@ void test_pin1()
     service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
     service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
     service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
-    s2->set_auto_restart(true);
+    s2->set_auto_restart(auto_restart_mode::ALWAYS);
     sset.add_service(s1);
     sset.add_service(s2);
     sset.add_service(s3);
@@ -554,7 +554,7 @@ void test_pin2()
     service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
     service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
     service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
-    s2->set_auto_restart(true);
+    s2->set_auto_restart(auto_restart_mode::ALWAYS);
     sset.add_service(s1);
     sset.add_service(s2);
     sset.add_service(s3);
@@ -589,7 +589,7 @@ void test_pin3()
     service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
     service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
     service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
-    s2->set_auto_restart(true);
+    s2->set_auto_restart(auto_restart_mode::ALWAYS);
     sset.add_service(s1);
     sset.add_service(s2);
     sset.add_service(s3);
@@ -826,7 +826,7 @@ void test_pin10()
     service_record *s1 = new service_record(&sset, "test-service-1", service_type_t::INTERNAL, {});
     service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, REG}});
     service_record *s3 = new service_record(&sset, "test-service-3", service_type_t::INTERNAL, {{s2, REG}});
-    s2->set_auto_restart(true);
+    s2->set_auto_restart(auto_restart_mode::ALWAYS);
     sset.add_service(s1);
     sset.add_service(s2);
     sset.add_service(s3);
@@ -1042,7 +1042,7 @@ void test_softdep7()
 
     test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
     service_record *s2 = new service_record(&sset, "test-service-2", service_type_t::INTERNAL, {{s1, WAITS}});
-    s1->set_auto_restart(true);
+    s1->set_auto_restart(auto_restart_mode::ALWAYS);
     sset.add_service(s1);
     sset.add_service(s2);
 
