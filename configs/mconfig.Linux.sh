@@ -118,7 +118,7 @@ SERVICE_DEFAULTS=$(
   echo ""
   echo "# Service defaults"
   echo ""
-  echo "DEFAULT_AUTO_RESTART=true"
+  echo "DEFAULT_AUTO_RESTART=ALWAYS"
   echo "DEFAULT_START_TIMEOUT=60"
   echo "DEFAULT_STOP_TIMEOUT=10"
 )

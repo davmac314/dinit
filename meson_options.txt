@@ -60,9 +60,10 @@ option(
 )
 option(
     'default-auto-restart',
-    type : 'boolean',
-    value : true,
-    description : 'Enable/disable auto-restart for services by default.'
+    type : 'combo',
+    choices : ['ALWAYS', 'ON_FAILURE', 'NEVER'],
+    value : 'ALWAYS',
+    description : 'Always/"on-failure"/never auto-restart for services by default. See BUILD_MESON for more info.'
 )
 option(
     'default-start-timeout',

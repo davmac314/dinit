@@ -163,8 +163,11 @@ USE_INITGROUPS=1|0
     Whether to initialize supplementary groups for run-as services. The C API for this is not
     in POSIX, but is in practice supported on just about every relevant system, so it is enabled
     by default. If it is not supported on yours, you can explicitly disable it.
-DEFAULT_AUTO_RESTART=true|false
-    Enable/disable auto-restart for services by default. The default if unspecified is "true".
+DEFAULT_AUTO_RESTART=ALWAYS|ON_FAILURE|NEVER
+    Default for when to automatically restart services. This controls the default for the
+    "restart" service setting. ON_FAILURE restarts process/bgprocess services only if they exit
+    with a non-zero status or are terminated via (most) signals; for other service types it
+    behaves the same as NEVER. See documentation (dinit-service(5) man page) for details.
 DEFAULT_START_TIMEOUT=XXX
     Specifies the time in seconds allowed for the service to start. If the service takes longer
     than this, service startup will be cancelled (service processes will be signalled to cause

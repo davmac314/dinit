@@ -125,6 +125,13 @@ enum class log_type_id
     PIPE      // pipe to another process (service)
 };
 
+enum class auto_restart_mode
+{
+    NEVER,      // Never automatically restart
+    ALWAYS,     // Always restart
+    ON_FAILURE, // Only restart when process fails
+};
+
 // Service set type identifiers:
 constexpr int SSET_TYPE_NONE = 0;
 constexpr int SSET_TYPE_DIRLOAD = 1;

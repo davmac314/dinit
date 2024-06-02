@@ -266,7 +266,7 @@ class service_record
     environment service_env; // holds the environment populated during load
     const char *service_dsc_dir = nullptr; // directory containing service description file
 
-    bool auto_restart : 1;    // whether to restart this (process) if it dies unexpectedly
+    auto_restart_mode auto_restart; // whether to restart this (process) if it dies unexpectedly
     bool smooth_recovery : 1; // whether the service process can restart without bringing down service
 
     // Pins. Start pins are directly transitive (hence pinned_started and dept_pinned_started) whereas
@@ -458,7 +458,7 @@ class service_record
     // any appropriate cleanup.
     virtual void becoming_inactive() noexcept { }
 
-    // Check whether the service should automatically restart (assuming auto_restart is true)
+    // Check whether the service should automatically restart (assuming auto_restart is ALWAYS or ON_FAILURE)
     virtual bool check_restart() noexcept
     {
         return true;
@@ -471,8 +471,8 @@ class service_record
 
     service_record(service_set *set, const string &name)
         : service_name(name), service_state(service_state_t::STOPPED),
-            desired_state(service_state_t::STOPPED), auto_restart(false), smooth_recovery(false),
-            pinned_stopped(false), pinned_started(false), dept_pinned_started(false),
+            desired_state(service_state_t::STOPPED), auto_restart(auto_restart_mode::NEVER),
+            smooth_recovery(false), pinned_stopped(false), pinned_started(false), dept_pinned_started(false),
             waiting_for_deps(false), waiting_for_console(false), have_console(false),
             waiting_for_execstat(false), start_explicit(false), prop_require(false), prop_release(false),
             prop_failure(false), prop_start(false), prop_stop(false), prop_pin_dpt(false),
@@ -568,11 +568,11 @@ class service_record
     }
 
     // Set whether this service should automatically restart when it dies
-    void set_auto_restart(bool auto_restart) noexcept
+    void set_auto_restart(auto_restart_mode auto_restart) noexcept
     {
         this->auto_restart = auto_restart;
     }
-    
+
     void set_smooth_recovery(bool smooth_recovery) noexcept
     {
         this->smooth_recovery = smooth_recovery;
@@ -736,7 +736,7 @@ class service_record
 
     virtual bp_sys::exit_status get_exit_status()
     {
-        return bp_sys::exit_status{};
+        return {};
     }
 
     dep_list & get_dependencies()
