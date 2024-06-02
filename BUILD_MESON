@@ -136,9 +136,10 @@ Custom options:
                              Available values : true, false
                              Default value : true
 
- default-auto-restart      : Enable/disable auto-restart for services by default.
-                             Available values : true, false
-                             Default value : true
+ default-auto-restart      : Always/never/only on non-zero exit or on signalled process with any other
+                             signal than HUP, INT, USR1, USR2, TERM auto-restart for services by default.
+                             Available : ALWAYS, ON_FAILURE, NEVER
+                             Default value : ALWAYS
 
  default-start-timeout     : Default start-timeout for services. 
                              Specifies the time in seconds allowed for the service to start. If
