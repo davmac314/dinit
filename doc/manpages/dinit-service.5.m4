@@ -173,13 +173,21 @@ Variable substitution is not performed on the \fBenv\-file\fR property value its
 If the path is not absolute, it is resolved relative to the directory containing the service
 description.
 .TP
-\fBrestart\fR = {yes | true | no | false}
+\fBrestart\fR = {yes | true | on-failure | no | false}
 Indicates whether the service should automatically restart if it stops, including due to
 unexpected process termination or a dependency stopping.
+Specifying \fBon-failure\fR for a \fBprocess\fR or \fBbgprocess\fR service causes the service to
+be restarted only when the exit status of the service process is non-zero, or if the process was
+terminated via a signal (other than SIGHUP, SIGINT, SIGUSR1, SIGUSR2 or SIGTERM, which indicate
+deliberate termination).
+Specifying \fBon-failure\fR for any other type of service is the same as specifying \fBfalse\fR
+(the service will not restart automatically).
 Note that if a service stops due to user request, automatic restart is inhibited.
 $$$changequote(`,')dnl
-ifelse(DEFAULT_AUTO_RESTART, true,
+ifelse(DEFAULT_AUTO_RESTART, ALWAYS,
     ``The default is to automatically restart.'',
+    DEFAULT_AUTO_RESTART, ON_FAILURE,
+    ``The default is to automatically restart only on process failure (\fBon-failure\fR).'',
     ``The default is to not automatically restart.'')
 changequote(`@@@',`$$$')dnl
 @@@.TP
