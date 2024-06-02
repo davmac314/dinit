@@ -182,13 +182,18 @@ Variable substitution is not performed on the \fBenv\-file\fR property value its
 If the path is not absolute, it is resolved relative to the directory containing the service
 description.
 .TP
-\fBrestart\fR = {yes | true | no | false}
+\fBrestart\fR = {yes | true | on-failure | no | false}
 Indicates whether the service should automatically restart if it stops, including due to
-unexpected process termination or a dependency stopping.
+unexpected process termination or a dependency stopping; "on-failure" indicates auto-restart
+should happen only when exit code of process is not equal to 0 or signalled with any signal
+other than SIGHUP, SIGINT, SIGUSR1, SIGUSR2 or SIGTERM. dinit only applies this setting for
+"process" and "bgprocess" services.
 Note that if a service stops due to user request, automatic restart is inhibited.
 $$$changequote(`,')dnl
-ifelse(DEFAULT_AUTO_RESTART, true,
+ifelse(DEFAULT_AUTO_RESTART, ALWAYS,
     ``The default is to automatically restart.'',
+    DEFAULT_AUTO_RESTART, FAIL_ONLY,
+    ``the default is to automatically restart only on unexpectedly exit as described above.'',
     ``The default is to not automatically restart.'')
 changequote(`@@@',`$$$')dnl
 @@@.TP
