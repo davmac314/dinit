@@ -538,6 +538,11 @@ class base_process_service : public service_record
         return exit_status.as_int();
     }
 
+    int get_term_sig() noexcept override
+    {
+        return exit_status.get_term_sig();
+    }
+
     // Get reason for failure to exec process (if stop reason indicates exec failure)
     run_proc_err get_exec_err_info()
     {
