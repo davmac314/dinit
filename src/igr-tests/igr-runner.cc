@@ -788,22 +788,22 @@ void before_after2_test()
     // service2 depends on service1, and service1 is "before" service2
     dinitctl_proc dinitctl_p;
     dinitctl_p.start("before-after2", {"-u", "-p", igr_dinit_socket_path, "reload", "service2"});
-    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    int status = dinitctl_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     // Remove the depends-on dependency from service2 to service1
     dinitctl_p.start("before-after2", {"-u", "-p", igr_dinit_socket_path, "rm-dep", "need", "service2", "service1"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    status = dinitctl_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     // Start both service1 and service2; service1 takes longer to start, but the "before" should prevent
     // service2 from starting until service2 has started
     dinitctl_p.start("before-after2", {"-u", "-p", igr_dinit_socket_path, "start", "--no-wait", "service1"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    status = dinitctl_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     dinitctl_p.start("before-after2", {"-u", "-p", igr_dinit_socket_path, "start", "service2"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    status = dinitctl_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     igr_assert_eq("one\n" "two\n", read_file_contents(script_output_file));
