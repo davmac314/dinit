@@ -565,7 +565,14 @@ inline void rm_r(const char *dir)
         throw std::system_error(errno, std::generic_category(), "rm_r: open");
     }
 
-    rm_r(dirfd);
+    try {
+        rm_r(dirfd);
+        close(dirfd);
+    }
+    catch (...) {
+        close(dirfd);
+        throw;
+    }
 
     if (rmdir(dir) == -1) {
         throw std::system_error(errno, std::generic_category(), "rm_r: rmdir");
