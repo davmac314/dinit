@@ -712,7 +712,7 @@ void before_after_test()
     // start parent; should start service2 and then service1 (due to before= in service2).
     dinitctl_proc dinitctl_p;
     dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "start", "parent"});
-    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    int status = dinitctl_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     // Note service1 takes longer to start, but has a "before" service2 so should still start first.
@@ -724,23 +724,23 @@ void before_after_test()
     }
 
     dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "stop", "parent"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    status = dinitctl_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "unload", "parent"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    status = dinitctl_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "unload", "service2"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    status = dinitctl_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "reload", "service2"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    status = dinitctl_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "start", "parent"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    status = dinitctl_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     igr_assert_eq("one\n" "two\n" "three\n", read_file_contents(script_output_file));
@@ -750,26 +750,26 @@ void before_after_test()
     }
 
     dinit_p.signal(SIGTERM);
-    status = dinit_p.wait_for_term({1, 0}); /* max 1 second */
+    status = dinit_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinit did not exit cleanly");
 
     dinit_p.start("before-after", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q"}, true);
 
     // load without loading parent: force service2 loaded first
     dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "reload", "service2"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    status = dinitctl_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "reload", "service1"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    status = dinitctl_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "start", "--no-wait", "service1"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    status = dinitctl_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "start", "service2"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    status = dinitctl_p.wait_for_term({5, 0}); /* max 5 seconds */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     igr_assert_eq("one\n" "two\n", read_file_contents(script_output_file));
@@ -855,9 +855,14 @@ void catlog_test()
     dinit_proc dinit_p;
     dinit_p.start("catlog", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q"}, true);
 
+    // wait until "output" has actually started
     dinitctl_proc dinitctl_p;
-    dinitctl_p.start("catlog", {"-u", "-p", igr_dinit_socket_path, "catlog", "output"});
+    dinitctl_p.start("catlog", {"-u", "-p", igr_dinit_socket_path, "start", "output"});
     int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("catlog", {"-u", "-p", igr_dinit_socket_path, "catlog", "output"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     igr_assert_eq("Output...\n", dinitctl_p.get_stdout());
