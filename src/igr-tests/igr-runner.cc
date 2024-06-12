@@ -890,7 +890,7 @@ void offline_enable_test()
 
     std::string sd_dir = setup.get_output_dir() + "/sd";
 
-    if (faccessat(AT_FDCWD, sd_dir.c_str(), F_OK, AT_EACCESS | AT_SYMLINK_NOFOLLOW) == -1) {
+    if (faccessat(AT_FDCWD, sd_dir.c_str(), F_OK, AT_EACCESS) == -1) {
         if (errno != ENOENT) {
             throw std::system_error(errno, std::generic_category(), std::string("faccessat: ") + sd_dir);
         }
@@ -898,9 +898,6 @@ void offline_enable_test()
     else {
         rm_r(sd_dir.c_str());
     }
-
-    // cp -pr sd "$IGR_OUTPUT"
-    // mkdir -p "$IGR_OUTPUT/sd/boot.d"
 
     mkdir(sd_dir.c_str(), S_IRWXU);
     cp_file("./offline-enable/sd/A", (sd_dir + "/A").c_str());
@@ -913,10 +910,7 @@ void offline_enable_test()
     int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
-    //if [ ! -f "$IGR_OUTPUT/sd/boot.d/A" ]; then
-    //    error "Service A not enabled after enable command; $IGR_OUTPUT/sd/boot.d/A does not exist"
-    //fi
-    if (faccessat(AT_FDCWD, (sd_dir + "/boot.d/A").c_str(), F_OK, AT_EACCESS | AT_SYMLINK_NOFOLLOW) == -1) {
+    if (faccessat(AT_FDCWD, (sd_dir + "/boot.d/A").c_str(), F_OK, AT_EACCESS) == -1) {
         throw std::system_error(errno, std::generic_category(), std::string("faccessat: ") + sd_dir);
     }
 
@@ -925,7 +919,7 @@ void offline_enable_test()
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     bool file_gone = false;
-    if (faccessat(AT_FDCWD, (sd_dir + "/boot.d/A").c_str(), F_OK, AT_EACCESS | AT_SYMLINK_NOFOLLOW) == -1) {
+    if (faccessat(AT_FDCWD, (sd_dir + "/boot.d/A").c_str(), F_OK, AT_EACCESS) == -1) {
         if (errno == ENOENT) {
             file_gone = true;
         }
