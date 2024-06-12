@@ -32,13 +32,27 @@ void check_lint_test();
 void reload1_test();
 void reload2_test();
 void no_command_error_test();
-
+void add_rm_dep_test();
+void var_subst_test();
+void svc_start_fail_test();
+void dep_not_found_test();
+void pseudo_cycle_test();
+void before_after_test();
+void before_after2_test();
+void log_via_pipe_test();
+void catlog_test();
+void offline_enable_test();
+void xdg_config_test();
+void cycles_test();
 
 int main(int argc, char **argv)
 {
     void (*test_funcs[])() = { basic_test, environ_test, environ2_test, ps_environ_test,
             chain_to_test, force_stop_test, restart_test, check_basic_test, check_cycle_test,
-            check_cycle2_test, check_lint_test, reload1_test, reload2_test, no_command_error_test };
+            check_cycle2_test, check_lint_test, reload1_test, reload2_test, no_command_error_test,
+            add_rm_dep_test, var_subst_test, svc_start_fail_test, dep_not_found_test,
+            pseudo_cycle_test, before_after_test, before_after2_test, log_via_pipe_test,
+            catlog_test, offline_enable_test, xdg_config_test, cycles_test };
     const char * const test_dirs[] = { "basic", "environ", "environ2", "ps-environ", "chain-to", "force-stop",
             "restart", "check-basic", "check-cycle", "check-cycle2", "check-lint", "reload1", "reload2",
             "no-command-error", "add-rm-dep", "var-subst", "svc-start-fail", "dep-not-found", "pseudo-cycle",
@@ -65,7 +79,7 @@ int main(int argc, char **argv)
     std::cout << "============== INTEGRATION TESTS =====================" << std::endl;
 
     if (mkdir(igr_output_basedir.c_str(), 0700) == -1 && errno != EEXIST) {
-        std::system_error(errno, std::generic_category(), std::string("mkdir: ") + igr_output_basedir);
+        throw std::system_error(errno, std::generic_category(), std::string("mkdir: ") + igr_output_basedir);
     }
 
     for (int i = 0; i < num_tests; i++) {
@@ -414,7 +428,7 @@ void reload1_test()
 {
     igr_test_setup setup("reload1");
 
-    auto cwd = getfullcwd();
+    auto cwd = get_full_cwd();
 
     // This test requires reloading services after modifying a service description,
     // which for convenience we do by replacing the entire service directory (sd1 with sd2).
@@ -474,7 +488,7 @@ void reload2_test()
 {
     igr_test_setup setup("reload2");
 
-    auto cwd = getfullcwd();
+    auto cwd = get_full_cwd();
 
     // This test requires reloading services after modifying a service description,
     // which for convenience we do by replacing the entire service directory (sd1 with sd2).
@@ -554,4 +568,430 @@ void no_command_error_test()
     dinit_p.wait_for_term({1, 0}  /* max 1 second */);
 
     igr_assert_eq(read_file_contents("./no-command-error/dinit-run.expected"), dinit_p.get_stdout());
+}
+
+void add_rm_dep_test()
+{
+    // Tests for adding/removing dependencies at run time
+    igr_test_setup setup("add-rm-dep");
+
+    dinit_proc dinit_p;
+    dinit_p.start("add-rm-dep", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q", "main"}, true);
+
+    // "main" and "secondary" should both be running
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("add-rm-dep", {"-p", igr_dinit_socket_path, "list"});
+    dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert_eq(read_file_contents("./add-rm-dep/expected1"), dinitctl_p.get_stdout());
+
+    // remove dependency from main to secondary
+    dinitctl_p.start("add-rm-dep", {"-p", igr_dinit_socket_path, "rm-dep", "waits-for", "main", "secondary"});
+    dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert_eq(read_file_contents("./add-rm-dep/expected2"), dinitctl_p.get_stdout());
+
+    // "secondary" should stop as a result
+    dinitctl_p.start("add-rm-dep", {"-p", igr_dinit_socket_path, "list"});
+    dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert_eq(read_file_contents("./add-rm-dep/expected3"), dinitctl_p.get_stdout());
+
+    // re-add the dependency
+    dinitctl_p.start("add-rm-dep", {"-p", igr_dinit_socket_path, "add-dep", "waits-for", "main", "secondary"});
+    dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert_eq(read_file_contents("./add-rm-dep/expected4"), dinitctl_p.get_stdout());
+
+    // re-adding won't affect "secondary", it remains stopped (soft dependency)
+    dinitctl_p.start("add-rm-dep", {"-p", igr_dinit_socket_path, "list"});
+    dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert_eq(read_file_contents("./add-rm-dep/expected3"), dinitctl_p.get_stdout());
+
+    // It should be possible to "wake" the "secondary" service since it has a soft dependent
+    dinitctl_p.start("add-rm-dep", {"-p", igr_dinit_socket_path, "wake", "secondary"});
+    dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert_eq(read_file_contents("./add-rm-dep/expected5"), dinitctl_p.get_stdout());
+
+    // Check final state of services (same as original state)
+    dinitctl_p.start("add-rm-dep", {"-p", igr_dinit_socket_path, "list"});
+    dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert_eq(read_file_contents("./add-rm-dep/expected1"), dinitctl_p.get_stdout());
+}
+
+void var_subst_test()
+{
+    // Tests for variable substitution
+    igr_test_setup setup("var-subst");
+
+    setup.prep_output_file("args-record");
+
+    igr_env_var_setup env_test_var_one("TEST_VAR_ONE", "var one");
+    igr_env_var_setup env_test_var_two("TEST_VAR_TWO", "vartwo");
+    igr_env_var_setup env_test_var_three("TEST_VAR_THREE", "varthree");
+
+    dinit_proc dinit_p;
+    dinit_p.start("var-subst", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q", "checkargs"}, false);
+    int status = dinit_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(WIFEXITED(status) && WEXITSTATUS(status) == 0, "dinit did not exit cleanly");
+
+    igr_assert_eq("1:xxxvar one/yyy 2:vartwovarthree 3:varfour 4:\n",
+            read_file_contents(setup.get_output_dir() + "/args-record"));
+}
+
+void svc_start_fail_test()
+{
+    // Tests for service start failure
+    igr_test_setup setup("svc-start-fail");
+
+    dinit_proc dinit_p;
+    dinit_p.start("svc-start-fail", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q"}, true);
+
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("svc-start-fail",{"-u", "-p", igr_dinit_socket_path, "start", "bad-command"});
+    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+
+    igr_assert(WIFEXITED(status) && WEXITSTATUS(status) == 1, "dinitctl did not return error code");
+    igr_assert_eq(read_file_contents("./svc-start-fail/expected-1"), dinitctl_p.get_stdout());
+
+    dinitctl_p.start("svc-start-fail",{"-u", "-p", igr_dinit_socket_path, "start", "timeout-command"});
+    status = dinitctl_p.wait_for_term({2, 0}); /* max 2 seconds */
+
+    igr_assert(WIFEXITED(status) && WEXITSTATUS(status) == 1, "dinitctl did not return error code");
+    igr_assert_eq(read_file_contents("./svc-start-fail/expected-2"), dinitctl_p.get_stdout());
+    igr_assert_eq("", dinitctl_p.get_stderr());
+}
+
+void dep_not_found_test()
+{
+    igr_test_setup setup("dep-not-found");
+
+    dinit_proc dinit_p;
+    dinit_p.start("dep-not-found", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q"}, true);
+
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("svc-start-fail", {"-u", "-p", igr_dinit_socket_path, "start", "missing-dep-svc"});
+    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+
+    igr_assert(WIFEXITED(status) && WEXITSTATUS(status) == 1, "dinitctl did not return error code");
+    igr_assert_eq(read_file_contents("./dep-not-found/output.expected"), dinitctl_p.get_stderr());
+    igr_assert_eq("", dinitctl_p.get_stdout());
+}
+
+void pseudo_cycle_test()
+{
+    igr_test_setup setup("pseudo-cycle");
+
+    // This test has three services, which have no cycle but do have a "before" relationship:
+    //
+    // boot
+    //    depends-on -->
+    // middle
+    //    depends-on -->
+    // service
+    //    before = boot
+    //
+    // This should not be considered a cyclic dependency. The service script should run.
+
+    std::string output_file = setup.prep_output_file("svc-script");
+
+    dinit_proc dinit_p;
+    dinit_p.start("pseudo-cycle", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q"}, true);
+    int status = dinit_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(WIFEXITED(status) && WEXITSTATUS(status) == 0, "dinit did not exit cleanly");
+
+    igr_assert_eq("ran\n", read_file_contents(output_file));
+}
+
+void before_after_test()
+{
+    // Tests around before/after link functionality
+    igr_test_setup setup("before-after");
+
+    std::string script_output_file = setup.prep_output_file("script-output");
+
+    dinit_proc dinit_p;
+    dinit_p.start("before-after", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q"}, true);
+
+    // start parent; should start service2 and then service1 (due to before= in service2).
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "start", "parent"});
+    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    // Note service1 takes longer to start, but has a "before" service2 so should still start first.
+    // service3 is similarly "after" service2.
+    igr_assert_eq("one\n" "two\n" "three\n", read_file_contents(script_output_file));
+
+    if (unlink(script_output_file.c_str()) != 0) {
+        throw std::system_error(errno, std::generic_category(), std::string("unlink: ") + script_output_file);
+    }
+
+    dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "stop", "parent"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "unload", "parent"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "unload", "service2"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "reload", "service2"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "start", "parent"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    igr_assert_eq("one\n" "two\n" "three\n", read_file_contents(script_output_file));
+
+    if (unlink(script_output_file.c_str()) != 0) {
+        throw std::system_error(errno, std::generic_category(), std::string("unlink: ") + script_output_file);
+    }
+
+    dinit_p.signal(SIGTERM);
+    status = dinit_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinit did not exit cleanly");
+
+    dinit_p.start("before-after", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q"}, true);
+
+    // load without loading parent: force service2 loaded first
+    dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "reload", "service2"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "reload", "service1"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "start", "--no-wait", "service1"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("before-after", {"-u", "-p", igr_dinit_socket_path, "start", "service2"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    igr_assert_eq("one\n" "two\n", read_file_contents(script_output_file));
+}
+
+void before_after2_test()
+{
+    // Tests around before/after link functionality
+    igr_test_setup setup("before-after2");
+
+    std::string script_output_file = setup.prep_output_file("script-output");
+
+    dinit_proc dinit_p;
+    dinit_p.start("before-after2", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q"}, true);
+
+    // service2 depends on service1, and service1 is "before" service2
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("before-after2", {"-u", "-p", igr_dinit_socket_path, "reload", "service2"});
+    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    // Remove the depends-on dependency from service2 to service1
+    dinitctl_p.start("before-after2", {"-u", "-p", igr_dinit_socket_path, "rm-dep", "need", "service2", "service1"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    // Start both service1 and service2; service1 takes longer to start, but the "before" should prevent
+    // service2 from starting until service2 has started
+    dinitctl_p.start("before-after2", {"-u", "-p", igr_dinit_socket_path, "start", "--no-wait", "service1"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("before-after2", {"-u", "-p", igr_dinit_socket_path, "start", "service2"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    igr_assert_eq("one\n" "two\n", read_file_contents(script_output_file));
+}
+
+void log_via_pipe_test()
+{
+    igr_test_setup setup("log-via-pipe");
+
+    std::string logged_output_file = setup.prep_output_file("logged-output");
+
+    dinit_proc dinit_p;
+    dinit_p.start("log-via-pipe", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q"}, true);
+
+    nanosleepx(0, 1000000000u / 10u);
+
+    igr_assert_eq(read_file_contents(logged_output_file), "");
+
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("log-via-pipe", {"-u", "-p", igr_dinit_socket_path, "start", "producer"});
+    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("log-via-pipe", {"-u", "-p", igr_dinit_socket_path, "stop", "producer"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    nanosleepx(0, (1000000000u / 10u) * 2u);
+
+    igr_assert_eq(read_file_contents(logged_output_file), "Producing output...\n");
+
+    dinitctl_p.start("log-via-pipe", {"-u", "-p", igr_dinit_socket_path, "start", "producer"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("log-via-pipe", {"-u", "-p", igr_dinit_socket_path, "stop", "producer"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    nanosleepx(0, (1000000000u / 10u) * 2u);
+
+    igr_assert_eq(read_file_contents(logged_output_file), "Producing output...\n" "Producing output...\n");
+}
+
+void catlog_test()
+{
+    igr_test_setup setup("catlog");
+
+    dinit_proc dinit_p;
+    dinit_p.start("catlog", {"-u", "-d", "sd", "-p", igr_dinit_socket_path, "-q"}, true);
+
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("catlog", {"-u", "-p", igr_dinit_socket_path, "catlog", "output"});
+    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    igr_assert_eq("Output...\n", dinitctl_p.get_stdout());
+
+    // Check output again, this time also clear the buffer
+
+    dinitctl_p.start("catlog", {"-u", "-p", igr_dinit_socket_path, "catlog", "--clear", "output"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    igr_assert_eq("Output...\n", dinitctl_p.get_stdout());
+
+    // Check a third time, buffer should be clear now
+
+    dinitctl_p.start("catlog", {"-u", "-p", igr_dinit_socket_path, "catlog", "--clear", "output"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    igr_assert_eq("", dinitctl_p.get_stdout());
+}
+
+void offline_enable_test()
+{
+    igr_test_setup setup("offline-enable");
+
+    std::string sd_dir = setup.get_output_dir() + "/sd";
+
+    if (faccessat(AT_FDCWD, sd_dir.c_str(), F_OK, AT_EACCESS | AT_SYMLINK_NOFOLLOW) == -1) {
+        if (errno != ENOENT) {
+            throw std::system_error(errno, std::generic_category(), std::string("faccessat: ") + sd_dir);
+        }
+    }
+    else {
+        rm_r(sd_dir.c_str());
+    }
+
+    // cp -pr sd "$IGR_OUTPUT"
+    // mkdir -p "$IGR_OUTPUT/sd/boot.d"
+
+    mkdir(sd_dir.c_str(), S_IRWXU);
+    cp_file("./offline-enable/sd/A", (sd_dir + "/A").c_str());
+    cp_file("./offline-enable/sd/boot", (sd_dir + "/boot").c_str());
+    mkdir((sd_dir + "/boot.d").c_str(), S_IRWXU);
+
+    // run_dinitctl $QUIET --offline -d "$IGR_OUTPUT/sd" enable A
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("offline-enable", {"-u", "--offline", "-d", sd_dir.c_str(), "enable", "A"});
+    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    //if [ ! -f "$IGR_OUTPUT/sd/boot.d/A" ]; then
+    //    error "Service A not enabled after enable command; $IGR_OUTPUT/sd/boot.d/A does not exist"
+    //fi
+    if (faccessat(AT_FDCWD, (sd_dir + "/boot.d/A").c_str(), F_OK, AT_EACCESS | AT_SYMLINK_NOFOLLOW) == -1) {
+        throw std::system_error(errno, std::generic_category(), std::string("faccessat: ") + sd_dir);
+    }
+
+    dinitctl_p.start("offline-enable", {"-u", "--offline", "-d", sd_dir.c_str(), "disable", "A"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    bool file_gone = false;
+    if (faccessat(AT_FDCWD, (sd_dir + "/boot.d/A").c_str(), F_OK, AT_EACCESS | AT_SYMLINK_NOFOLLOW) == -1) {
+        if (errno == ENOENT) {
+            file_gone = true;
+        }
+        else {
+            throw std::system_error(errno, std::generic_category(), std::string("faccessat: ") + sd_dir);
+        }
+    }
+
+    igr_assert(file_gone, "Service A not disabled after disable command; sd/boot.d/A still exists");
+}
+
+void xdg_config_test()
+{
+    igr_test_setup setup("xdg-config");
+
+    std::string ran_marker_file = setup.prep_output_file("basic-ran");
+
+    std::string cwd = get_full_cwd();
+    std::string config_dir = cwd + "/xdg-config/config";
+
+    igr_env_var_setup env_output("XDG_CONFIG_HOME", config_dir.c_str());
+
+    dinit_proc dinit_p;
+    dinit_p.start("xdg-config", {"-u", "-p", igr_dinit_socket_path, "-q", "basic"}, false);
+    dinit_p.wait_for_term({1, 0}); /* max 1 second */
+
+    igr_assert_eq("ran\n", read_file_contents(ran_marker_file));
+}
+
+void cycles_test()
+{
+    igr_test_setup setup("cycles");
+
+    dinit_proc dinit_p;
+    dinit_p.start("cycles", {"-u", "-p", igr_dinit_socket_path, "-d", "sd", "-q"}, true);
+
+    // "after"-cycle:
+    //  ac depends-on ac1, ac2
+    //  ac1 is "after" ac2
+    //  ac2 is "after" ac1
+
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("cycles", {"-u", "-p", igr_dinit_socket_path, "start", "ac"});
+    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status != 0, "dinitctl unexpectedly exited cleanly");
+
+    igr_assert_eq(read_file_contents("cycles/expected-ac"), dinitctl_p.get_stderr());
+
+    // before-after conflict:
+    //  ba depends on ba1, ba2
+    //  ba2 is both before and after ba1
+
+    dinitctl_p.start("cycles", {"-u", "-p", igr_dinit_socket_path, "start", "ba"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status != 0, "dinitctl unexpectedly exited cleanly");
+
+    igr_assert_eq(read_file_contents("cycles/expected-ba"), dinitctl_p.get_stderr());
+
+    // "before_self" is before itself
+
+    dinitctl_p.start("cycles", {"-u", "-p", igr_dinit_socket_path, "start", "before_self"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status != 0, "dinitctl unexpectedly exited cleanly");
+
+    igr_assert_eq(read_file_contents("cycles/expected-before_self"), dinitctl_p.get_stderr());
+
+    // "after_self" is after itself
+
+    dinitctl_p.start("cycles", {"-u", "-p", igr_dinit_socket_path, "start", "after_self"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status != 0, "dinitctl unexpectedly exited cleanly");
+
+    igr_assert_eq(read_file_contents("cycles/expected-after_self"), dinitctl_p.get_stderr());
 }

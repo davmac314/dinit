@@ -1,5 +1,7 @@
+#include <dirent.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include <dasynq.h>
 
@@ -313,7 +315,8 @@ public:
     }
 };
 
-// perform basic setup for a test (with automatic teardown)
+// Perform basic setup for a test (with automatic teardown).
+// Sets IGR_OUTPUT to the base directory for test output; creates the directory if necessary.
 class igr_test_setup
 {
     std::string output_dir;
@@ -477,7 +480,7 @@ inline std::pair<std::string, int> run_dinitcheck(const char *wdir,
 }
 
 // get the current working directory, as a string. This is a wrapper around getcwd().
-inline std::string getfullcwd()
+inline std::string get_full_cwd()
 {
     size_t cursize = 1024;
     char *s = new char[cursize];
@@ -498,4 +501,112 @@ inline std::string getfullcwd()
     std::string retstr = s;
     delete[] s;
     return retstr;
+}
+
+// Recursively remove files and directories (does not remove the top-level directory identified by fd)
+inline void rm_r(int dirfd)
+{
+    DIR *dd = fdopendir(dirfd);
+    if (dd == nullptr) {
+        throw std::system_error(errno, std::generic_category(), "rm_r: fdopendir");
+    }
+
+    try {
+        errno = 0;
+        struct dirent *ent = readdir(dd);
+        while (ent != nullptr) {
+            if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
+                ent = readdir(dd);
+                continue;
+            }
+
+            // unsigned char d_type = ent->d_type; // Doesn't exist in POSIX
+            struct stat ent_statbuf;
+            if (fstatat(dirfd, ent->d_name, &ent_statbuf, AT_SYMLINK_NOFOLLOW) == -1) {
+                throw std::system_error(errno, std::generic_category(), "rm_r: fstatat");
+            }
+            if (S_ISDIR(ent_statbuf.st_mode)) {
+                // recurse
+                int subdirfd = openat(dirfd, ent->d_name, O_RDONLY | O_DIRECTORY);
+                if (subdirfd == -1) {
+                    throw std::system_error(errno, std::generic_category(), "rm_r: openat");
+                }
+                rm_r(subdirfd);
+                close(subdirfd);
+                if (unlinkat(dirfd, ent->d_name, AT_REMOVEDIR) == -1) {
+                    throw std::system_error(errno, std::generic_category(), "rm_r: unlinkat");
+                }
+            }
+            else {
+                // remove
+                if (unlinkat(dirfd, ent->d_name, 0) == -1) {
+                    throw std::system_error(errno, std::generic_category(), "rm_r: unlinkat");
+                }
+            }
+
+            ent = readdir(dd);
+        }
+
+        if (errno != 0) {
+            throw std::system_error(errno, std::generic_category(), "readdir");
+        }
+    }
+    catch (...) {
+        closedir(dd);
+        throw;
+    }
+}
+
+// Recursively remove a directory and all files within
+inline void rm_r(const char *dir)
+{
+    int dirfd = open(dir, O_RDONLY | O_DIRECTORY);
+    if (dirfd == -1) {
+        throw std::system_error(errno, std::generic_category(), "rm_r: open");
+    }
+
+    rm_r(dirfd);
+
+    if (rmdir(dir) == -1) {
+        throw std::system_error(errno, std::generic_category(), "rm_r: rmdir");
+    }
+}
+
+// Copy a file
+inline void cp_file(const char *src, const char *dest)
+{
+    int srcfd = open(src, O_RDONLY);
+    if (srcfd == -1) {
+        throw std::system_error(errno, std::generic_category(), "cp_file: open");
+    }
+
+    int destfd = open(dest, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
+    if (destfd == -1) {
+        close(srcfd);
+        throw std::system_error(errno, std::generic_category(), "cp_file: open");
+    }
+
+    char buf[4096];
+
+    while (true) {
+        int r = read(srcfd, buf, sizeof(buf));
+        if (r == 0) break;
+        if (r == -1) {
+            close(srcfd);
+            close(destfd);
+            throw std::system_error(errno, std::generic_category(), "cp_file: read");
+        }
+        char *wbuf = buf;
+        int w = write(destfd, wbuf, r);
+        while (r > w) {
+            if (w == -1) {
+                close(srcfd);
+                close(destfd);
+                throw std::system_error(errno, std::generic_category(), "cp_file: write");
+            }
+            r -= w;
+            wbuf += w;
+            w = write(srcfd, wbuf, r);
+        }
+    }
 }
