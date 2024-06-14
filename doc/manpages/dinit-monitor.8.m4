@@ -41,7 +41,7 @@ This option determines the default path to the control socket used to communicat
 Issue the specified command additionally for the initial status of the services (when \fBdinit\-monitor\fR is started).
 Without this option, the command is only executed whenever service status changes.
 .TP
-\fB\-\-str\-started\fR \fIstarted-text\fR\br\fB\-\-test\fR
+\fB\-\-str\-started\fR \fIstarted-text\fR
 Specify the text used for the substitution of the status in the command (as specified
 by the \fB\-\-command\fR option) when a service starts.
 .TP
