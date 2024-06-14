@@ -640,7 +640,6 @@ is suggested, i.e. every other service should either be a (possibly transitive) 
 dependent of the service with this option set.
 .sp
 This option can be used for scripted and internal services only.
-.RE
 .\"
 .SS RESOURCE LIMITS
 .\"
