@@ -47,6 +47,8 @@ spaces.
 .IP \(bu - indented paragraph with bullet point
 .RS - increase left margin by one level (and reset indentation). Should typically be used instead of ".in".
 .RE - decrease left margin by one level
+.EX - begin example (monospace font, line ends as they appear in source)
+.EE - end example
 
 Structure:
 Documents should start with a .TH header line ("8" is the man section):

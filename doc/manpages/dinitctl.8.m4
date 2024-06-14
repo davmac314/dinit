@@ -248,17 +248,16 @@ If any hard dependencies are added to a running service, the dependencies must a
 List loaded services and their state.
 Before each service, one of the following state indicators is displayed:
 .sp
-.RS
-.nf
-\f[C]\m[blue][{+}\ \ \ \ \ ]\m[]\fR \[em] service has started.
-\f[C]\m[blue][{\ }<<\ \ \ ]\m[]\fR \[em] service is starting.
-\f[C]\m[blue][\ \ \ <<{\ }]\m[]\fR \[em] service is starting, will stop once started.
-\f[C]\m[blue][{\ }>>\ \ \ ]\m[]\fR \[em] service is stopping, will start once stopped.
-\f[C]\m[blue][\ \ \ >>{\ }]\m[]\fR \[em] service is stopping.
-\f[C]\m[blue][\ \ \ \ \ {-}]\m[]\fR \[em] service has stopped.
-.fi
+.EX
+\m[blue][{+}\ \ \ \ \ ]\m[]\fR \[em] service has started.
+\m[blue][{\ }<<\ \ \ ]\m[]\fR \[em] service is starting.
+\m[blue][\ \ \ <<{\ }]\m[]\fR \[em] service is starting, will stop once started.
+\m[blue][{\ }>>\ \ \ ]\m[]\fR \[em] service is stopping, will start once stopped.
+\m[blue][\ \ \ >>{\ }]\m[]\fR \[em] service is stopping.
+\m[blue][\ \ \ \ \ {-}]\m[]\fR \[em] service has stopped.
+.EE
 .sp
-The << and >> symbols represent a transition state (starting and stopping respectively); curly braces
+The '<<' and '>>' symbols represent a transition state (starting and stopping respectively); curly braces
 indicate the target state (left: started, right: stopped); square brackets are used if the service
 is marked active (target state will always be started if this is the case).
 .sp
@@ -269,7 +268,6 @@ service process unexpectedly terminated with an error status or signal while run
 .sp
 Additional information, if available, will be printed after the service name: whether the service owns,
 or is waiting to acquire, the console; the process ID; the exit status or signal that caused termination.
-.RE
 .TP
 \fBshutdown\fR
 Stop all services (without restart) and terminate Dinit.
