@@ -10,7 +10,7 @@
 #include <sys/types.h>
 
 #include "igr.h"
-#include "../../build/includes/mconfig.h"
+#include "mconfig.h"
 
 extern char **environ;
 

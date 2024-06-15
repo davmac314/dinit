@@ -8,7 +8,7 @@ igr_tests_env += [
 runner = executable(
     'igr-runner',
     'igr-runner.cc',
-    include_directories: '../../dasynq/include',
+    include_directories: include_directories('../../dasynq/include', '../..'),
     install: false
 )
 
