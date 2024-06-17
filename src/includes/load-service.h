@@ -141,6 +141,29 @@ namespace dinit_load {
 using string = std::string;
 using string_iterator = std::string::iterator;
 
+// skip whitespace and embedded comments.
+inline string_iterator skipcomment(string_iterator i, string_iterator end, unsigned & count) noexcept
+{
+    using std::locale;
+    using std::isspace;
+
+    bool comment = false;
+    while (i != end) {
+        if (*i == '#') {
+            comment = true;
+        }
+        else if (*i == '\n') {
+            ++count;
+            comment = false;
+        }
+
+        if (!comment && !isspace(*i, locale::classic())) break;
+        ++i;
+    }
+
+    return i;
+}
+
 // Utility function to skip white space. Returns an iterator at the
 // first non-white-space position (or at end).
 inline string_iterator skipws(string_iterator i, string_iterator end) noexcept
@@ -169,6 +192,23 @@ inline const char *skipws(const char *i, const char *end) noexcept
         }
         ++i;
     }
+    return i;
+}
+
+// skipws, but newlines increment an integer reference.
+inline string_iterator skipwsln(string_iterator i, string_iterator end, unsigned & count) noexcept
+{
+    using std::locale;
+    using std::isspace;
+
+    while (i != end) {
+        if (*i == '\n') ++count;
+        if (!isspace(*i, locale::classic())) {
+            break;
+        }
+        ++i;
+    }
+
     return i;
 }
 
@@ -289,7 +329,7 @@ inline string read_setting_value(unsigned line_num, string_iterator & i, string_
     using std::locale;
     using std::isspace;
 
-    i = skipws(i, end);
+    i = skipwsln(i, end, line_num);
 
     string rval;
     bool new_part = true;
@@ -347,9 +387,8 @@ inline string read_setting_value(unsigned line_num, string_iterator & i, string_
                 part_positions->emplace_back(part_start, rval.length());
                 new_part = true;
             }
-            i = skipws(i, end);
+            i = skipcomment(i, end, line_num);
             if (i == end) break;
-            if (*i == '#') break; // comment
             rval += ' ';  // collapse ws to a single space
             continue;
         }
@@ -717,23 +756,44 @@ void process_service_file(string name, std::istream &service_file, T func)
     unsigned line_num = 0;
 
     while (getline(service_file, line)) {
-        ++line_num;
+        unsigned line_num_after = ++line_num;
+
+        while (line.back() == '\\') {
+            string nextline;
+            string::iterator j;
+            string::iterator endnext;
+
+            line.back() = '\n';
+            if (!getline(service_file, nextline)) {
+                throw service_description_exc(line_num_after, "end-of-file follows backslash escape character (`\\')");
+            }
+            ++line_num_after;
+
+            j = nextline.begin();
+            endnext = nextline.end();
+            j = skipws(j, endnext);
+            if (j == nextline.begin()) {
+                throw service_description_exc(line_num_after, "new line following backslash (`\\') does not begin with whitespace character");
+            }
+            line.append(nextline);
+        }
+
         string::iterator i = line.begin();
         string::iterator end = line.end();
 
-        i = skipws(i, end);
+        i = skipwsln(i, end, line_num);
         if (i != end) {
-            if (*i == '#') {
-                continue;  // comment line
-            }
+            if (*i == '#') continue; // comment without setting
             string setting = read_config_name(i, end);
-            i = skipws(i, end);
+            i = skipwsln(i, end, line_num);
             if (setting.empty() || i == end || (*i != '=' && *i != ':')) {
                 throw service_description_exc(name, "badly formed line.", line_num);
             }
-            i = skipws(++i, end);
+
+            i = skipwsln(++i, end, line_num);
 
             func(line, line_num, setting, i, end);
+            line_num = line_num_after;
         }
     }
 }

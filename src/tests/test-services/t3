@@ -1,0 +1,6 @@
+command = command1 $arg arg1 \
+  # insert info about command2 here\
+  command2 $arg arg2\
+  command3 $arg # insert info about command3 here\
+  arg3
+type = process

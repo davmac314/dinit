@@ -27,6 +27,24 @@ void test_basic()
     assert(t1->get_name() == "t1");
 }
 
+void test_newline()
+{
+    dirload_service_set sset(test_service_dir.c_str());
+    bp_sys::setenv("arg", "t3", true);
+    auto t3 = static_cast<base_process_service *>(sset.load_service("t3"));
+    auto exec_parts = t3->get_exec_arg_parts();
+    assert(t3->get_type() == service_type_t::PROCESS);
+    assert(strcmp(exec_parts[0], "command1") == 0);
+    assert(strcmp(exec_parts[1], "t3") == 0);
+    assert(strcmp(exec_parts[2], "arg1") == 0);
+    assert(strcmp(exec_parts[3], "command2") == 0);
+    assert(strcmp(exec_parts[4], "t3") == 0);
+    assert(strcmp(exec_parts[5], "arg2") == 0);
+    assert(strcmp(exec_parts[6], "command3") == 0);
+    assert(strcmp(exec_parts[7], "t3") == 0);
+    assert(strcmp(exec_parts[8], "arg3") == 0);
+}
+
 void test_env_subst()
 {
     dirload_service_set sset(test_service_dir.c_str());
@@ -328,6 +346,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_env_subst, "            ");
     RUN_TEST(test_env_subst2, "           ");
     RUN_TEST(test_env_subst3, "           ");
+    RUN_TEST(test_newline, "              ");
     RUN_TEST(test_nonexistent, "          ");
     RUN_TEST(test_settings, "             ");
     RUN_TEST(test_path_env_subst, "       ");
