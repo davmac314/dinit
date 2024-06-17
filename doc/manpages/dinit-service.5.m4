@@ -133,7 +133,8 @@ The quote characters are not considered part of the property value.
 White space appearing inside quotes does not act as a delimiter for tokens.
 .IP \(bu
 A backslash (\\) can be used to escape the next character, causing it to
-lose any special meaning and become part of the property value.
+lose any special meaning and become part of the property value (escaped newlines are an
+exception; they mark the end of a comment, and are treated as a unescaped space).
 A double backslash (\\\\) is collapsed to a single backslash within the parameter value.
 White space preceded by a backslash will not separate tokens.
 .LP
