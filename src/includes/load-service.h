@@ -758,6 +758,7 @@ void process_service_file(string name, std::istream &service_file, T func)
     while (getline(service_file, line)) {
         unsigned line_num_after = ++line_num;
 
+        if (line.empty()) continue;
         while (line.back() == '\\') {
             string nextline;
             string::iterator j;
