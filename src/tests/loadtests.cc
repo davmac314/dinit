@@ -27,24 +27,6 @@ void test_basic()
     assert(t1->get_name() == "t1");
 }
 
-void test_newline()
-{
-    dirload_service_set sset(test_service_dir.c_str());
-    bp_sys::setenv("arg", "t3", true);
-    auto t3 = static_cast<base_process_service *>(sset.load_service("t3"));
-    auto exec_parts = t3->get_exec_arg_parts();
-    assert(t3->get_type() == service_type_t::PROCESS);
-    assert(strcmp(exec_parts[0], "command1") == 0);
-    assert(strcmp(exec_parts[1], "t3") == 0);
-    assert(strcmp(exec_parts[2], "arg1") == 0);
-    assert(strcmp(exec_parts[3], "command2") == 0);
-    assert(strcmp(exec_parts[4], "t3") == 0);
-    assert(strcmp(exec_parts[5], "arg2") == 0);
-    assert(strcmp(exec_parts[6], "command3") == 0);
-    assert(strcmp(exec_parts[7], "t3") == 0);
-    assert(strcmp(exec_parts[8], "arg3") == 0);
-}
-
 void test_env_subst()
 {
     dirload_service_set sset(test_service_dir.c_str());
@@ -334,6 +316,80 @@ void test_path_env_subst()
     assert(settings.logfile == "/some/testsuccess/dir");
 }
 
+void test_newline()
+{
+    dirload_service_set sset(test_service_dir.c_str());
+    bp_sys::setenv("arg", "t3", true);
+    auto t3 = static_cast<base_process_service *>(sset.load_service("t3"));
+    auto exec_parts = t3->get_exec_arg_parts();
+    assert(t3->get_type() == service_type_t::PROCESS);
+    assert(strcmp(exec_parts[0], "command1") == 0);
+    assert(strcmp(exec_parts[1], "t3") == 0);
+    assert(strcmp(exec_parts[2], "arg1") == 0);
+    assert(strcmp(exec_parts[3], "command2") == 0);
+    assert(strcmp(exec_parts[4], "t3") == 0);
+    assert(strcmp(exec_parts[5], "arg2") == 0);
+    assert(strcmp(exec_parts[6], "command3") == 0);
+    assert(strcmp(exec_parts[7], "t3") == 0);
+    assert(strcmp(exec_parts[8], "arg3") == 0);
+}
+
+void test_newline_err()
+{
+    using string = std::string;
+    using string_iterator = std::string::iterator;
+    using sstream = std::stringstream;
+    using prelim_dep = test_prelim_dep;
+
+    unsigned errcount = 0;
+
+    auto test_inner = [&](std::stringstream &ss)
+    {
+        dinit_load::service_settings_wrapper<prelim_dep> settings;
+
+        process_service_file("test-service", ss,
+                [&](string &line, unsigned line_num, string &setting, string_iterator &i, string_iterator &end) -> void {
+
+            auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
+                    dependency_type dep_type) -> void {
+                //process_dep_dir(name.c_str(), service_filename, deplist, waitsford, dep_type);
+            };
+
+            auto load_service_n = [&](const string &dep_name) -> const string & {
+                return dep_name;
+            };
+
+            process_service_line(settings, "test-service", line, line_num, setting, i, end, load_service_n, process_dep_dir_n);
+        });
+    };
+
+    try {
+        sstream ss;
+        ss << "type = process\n"
+                "command = /something/test\\\n"
+                " # comment with leading space\\\n"
+                "# comment without leading space";
+        test_inner(ss);
+    }
+    catch (service_description_exc &exc)
+    {
+        if (exc.line_num == 4) ++errcount;
+    }
+
+    try {
+        sstream ss;
+        ss << "type = process\n"
+                "command = EOF\\";
+        test_inner(ss);
+    }
+    catch (service_description_exc &exc)
+    {
+        if (exc.line_num == 2) ++errcount;
+    }
+
+    assert(errcount == 2);
+}
+
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
     name(); \
@@ -347,6 +403,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_env_subst2, "           ");
     RUN_TEST(test_env_subst3, "           ");
     RUN_TEST(test_newline, "              ");
+    RUN_TEST(test_newline_err, "          ");
     RUN_TEST(test_nonexistent, "          ");
     RUN_TEST(test_settings, "             ");
     RUN_TEST(test_path_env_subst, "       ");
