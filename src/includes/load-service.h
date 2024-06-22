@@ -318,7 +318,7 @@ inline string read_config_name(string_iterator & i, string_iterator end, bool en
 // Throws service_description_exc (with service name unset) on error.
 //
 // Params:
-//    service_name - the name of the service to which the setting applies
+//    line_num - the line number on which the setting appears (starts), used for error reporting
 //    i  -  reference to string iterator through the line
 //    end -   iterator at end of line (not including newline character if any)
 //    part_positions -  list of <int,int> to which the position of each setting value
