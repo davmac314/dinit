@@ -390,6 +390,28 @@ void test_newline_err()
     assert(errcount == 2);
 }
 
+void test_comments()
+{
+    std::string line = "one two three # comment";
+    std::list<std::pair<unsigned,unsigned>> offsets;
+    std::string::iterator li = line.begin();
+    std::string::iterator le = line.end();
+    std::string val = dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+
+    assert(val == "one two three");
+    assert(offsets.size() == 3);
+
+    auto i = offsets.begin();
+    assert(i->first == 0);
+    assert(i->second == 3);
+    ++i;
+    assert(i->first == 4);
+    assert(i->second == 7);
+    ++i;
+    assert(i->first == 8);
+    assert(i->second == 13);
+}
+
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
     name(); \
@@ -407,6 +429,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_path_env_subst, "       ");
     RUN_TEST(test_newline, "              ");
     RUN_TEST(test_newline_err, "          ");
+    RUN_TEST(test_comments, "             ");
     bp_sys::clearenv();
     return 0;
 }

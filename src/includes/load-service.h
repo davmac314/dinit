@@ -408,7 +408,7 @@ inline string read_setting_value(unsigned line_num, string_iterator & i, string_
     }
 
     // Got to end:
-    if (part_positions != nullptr) {
+    if (!new_part && part_positions != nullptr) {
         part_positions->emplace_back(part_start, rval.length());
     }
 
