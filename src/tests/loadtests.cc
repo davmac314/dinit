@@ -33,7 +33,7 @@ void test_env_subst()
     bp_sys::setenv("ONEVAR", "a", true);
     bp_sys::setenv("TWOVAR", "hellohello", true);
     bp_sys::setenv("THREEVAR", "", true);
-    // leave THREEVAR undefined
+    // leave FOURVAR undefined
     auto t2 = static_cast<base_process_service *>(sset.load_service("t2"));
     auto exec_parts = t2->get_exec_arg_parts();
     assert(strcmp("echo", exec_parts[0]) == 0);
