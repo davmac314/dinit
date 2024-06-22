@@ -402,11 +402,11 @@ int main(int argc, char **argv)
     RUN_TEST(test_env_subst, "            ");
     RUN_TEST(test_env_subst2, "           ");
     RUN_TEST(test_env_subst3, "           ");
-    RUN_TEST(test_newline, "              ");
-    RUN_TEST(test_newline_err, "          ");
     RUN_TEST(test_nonexistent, "          ");
     RUN_TEST(test_settings, "             ");
     RUN_TEST(test_path_env_subst, "       ");
+    RUN_TEST(test_newline, "              ");
+    RUN_TEST(test_newline_err, "          ");
     bp_sys::clearenv();
     return 0;
 }
