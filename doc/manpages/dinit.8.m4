@@ -190,6 +190,50 @@ the process may be re-started, according to the configuration in the service des
 Once all services stop, the \fBdinit\fR daemon will itself terminate (or, if
 running as system manager, will perform the appropriate type of system shutdown).
 .\"
+.SS SERVICE ACTIVATION MODEL
+.\"
+Dinit maintains a set of running services, some of which have been explicitly activated and some of
+which are active only because they are a dependency of another active service.
+Initially, only the \fBboot\fR service (or another service or services as specified via the command line)
+will be explicitly activated.
+There are both "hard" dependencies between services, and (various types of) "soft" dependencies;
+see \fBdinit-service\fR(5) for details.
+
+For a service to start, all its hard dependencies must first start successfully; if any of them fail,
+the dependent will not be started.
+
+In the case of services which are associated with an external process, the process will not be started
+until all hard dependencies have already started; in the case of a service which fails to start due
+to a dependency failing, the service command will never be run.
+
+If a process associated with a running service terminates, the service will stop automatically
+(this can be affected by service settings, and the service may also restart automatically).
+If the service will not be automatically restarted, any explicit activation will be removed.
+When stopping a service with an associated running process, the process will not be signalled for
+termination (or have its termination command executed) until all dependent services have been stopped.
+
+If a service stops, and is a hard dependency of another service, the other service must also stop
+(and will be stopped automatically, though may restart automatically if configured to do so, which
+may in turn also cause the dependency to restart). 
+
+Services can be explicitly activated using the \fBdinitctl\fR(8) subcommand, \fBstart\fR (activating
+a service will also cause it to start, if it is not already started).
+Explicit activation can be removed using the \fBrelease\fR subcommand (which will stop the service only if
+it is not also a dependency of another active service). Note that the \fBstop\fR subcommand also removes
+explicit activation, but can fail with no effect if the service will not be stopped (due to being a
+dependency of another active service).
+
+If a running service is not explicitly activated and has no running dependents, it will be stopped.
+As a consequence, a service stopping may result in some or all of its dependencies also stopping.
+A general rule is that starting a service by explicitly activating it will also start any of its
+dependencies which are not currently started, and that then stopping the same service will result
+in the same set of dependencies also stopping; there are exceptions to this, however - in particular,
+a stopped service which is a soft dependency of an otherwise unrelated active service may be
+started as a result of the starting of a third service, of which it is also a dependency, and in
+this case the third service stopping again will not cause the first to stop, since the second
+service remains an active dependent (it is not likely that this particular quirk of behaviour
+will ever be problematic or even noticed, but it is described here for completeness).
+.\"
 .SS CHARACTER SET HANDLING
 .\"
 Dinit does no character set translation.

@@ -94,18 +94,8 @@ not prevent the dependent from starting.
 If the dependency starts, stopping it will have no effect on the dependent.
 This type of relationship is specified using a \fBwaits-for\fR property.
 .LP
-Note that process-based services always wait for their dependency relationships
-to be satisfied (by the dependency starting, or failing to start in case of a waits-for
-relationship) before their process is launched.
-Conversely, a termination signal will not in general be sent to a service process until
-the service has no active dependents.
-.LP
-Since in general dependencies should remain started so long as their dependent
-does, an attachment forms between the two once both are started.
-This attachment is released when the dependent stops, and the dependency will then stop, unless
-it has other attachments or it has been explicitly started independently.
-Attachments between a dependent and dependency are re-created if a dependency
-starts (or starts again) while the dependent is still started.
+See the SERVICE ACTIVATION MODEL section in \fBdinit\fR(8) for more details of how service
+dependencies affect starting and stopping of services.
 .\"
 .SS SERVICE PROPERTIES
 .\"
