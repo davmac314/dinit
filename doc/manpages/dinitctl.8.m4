@@ -211,11 +211,10 @@ will be printed to standard output.
 .TP
 \fBrestart\fR
 Restart the specified service. The service will be stopped and then restarted, without affecting explicit
-activation status or dependency links from dependents.
+activation status.
 .TP
 \fBwake\fR
-Start the specified service after reattaching dependency links from all active dependents of the specified
-service.
+Start the specified service.
 The service will not be marked explicitly activated, and so will stop if all the dependents stop.
 .TP
 \fBrelease\fR
