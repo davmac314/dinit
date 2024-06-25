@@ -867,7 +867,7 @@ static int wait_service_state(int socknum, cpbuffer_t &rbuffer, handle_t handle,
     return 1;
 }
 
-// Start/stop a service
+// Start/stop/restart a service
 static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *service_name,
         ctl_cmd command, bool do_pin, bool do_force, bool wait_for_service, bool ignore_unstarted,
         bool verbose)
@@ -909,9 +909,12 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             pcommand = cp_cmd::STOPSERVICE;
     }
 
-    // Need to issue STOPSERVICE/STARTSERVICE
+    // Need to issue command (eg STOPSERVICE/STARTSERVICE)
     // We'll do this regardless of the current service state / target state, since issuing
     // start/stop also sets or clears the "explicitly started" flag on the service.
+    // (For other commands we could potentially avoid sending the command if we had more
+    // information about the service state, but it doesn't seem worth the effort to implement
+    // that optimisation).
     {
         char flags = (do_pin ? 1 : 0) | ((pcommand == cp_cmd::STOPSERVICE && !do_force) ? 2 : 0);
         if (command == ctl_cmd::RESTART_SERVICE) {
@@ -1000,6 +1003,13 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
                     <<  service_name <<  "'." << endl;
         }
         return 0;
+    }
+
+    if (command == ctl_cmd::RESTART_SERVICE) {
+        // for restart we want to display both "stopped" and "started" statuses
+        if (wait_service_state(socknum, rbuffer, handle, service_name, true, verbose) != 0) {
+            return EXIT_FAILURE;
+        }
     }
 
     return wait_service_state(socknum, rbuffer, handle, service_name, do_stop, verbose);
