@@ -88,7 +88,7 @@ void service_record::stopped() noexcept
     bool will_restart = desired_state == service_state_t::STARTED && !pinned_stopped;
 
     // If we won't restart, break soft dependencies now
-    if (! will_restart) {
+    if (!will_restart) {
         for (auto dept : dependents) {
             if (!dept->is_hard()) {
                 // waits-for or soft dependency:
@@ -135,7 +135,7 @@ void service_record::stopped() noexcept
     }
 
     // Start failure will have been logged already, only log if we are stopped for other reasons:
-    if (! start_failed) {
+    if (!start_failed) {
         log_service_stopped(service_name);
 
         // If this service chains to another, start the chained service now, if:
