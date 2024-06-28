@@ -5,6 +5,12 @@
 
 #include <control-datatypes.h>
 
+// Service set log color:
+#define COLOR_GREEN "\x1b[32m" // green
+#define COLOR_RED "\x1b[33m" // red
+#define COLOR_YELLOW "\x1b[31m" // yellow
+#define COLOR_RESET "\x1b[0m" // reset
+
 /* Service states */
 enum class service_state_t : dinit_cptypes::srvstate_t {
     STOPPED,    // service is not running.
