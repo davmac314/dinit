@@ -458,6 +458,109 @@ void test_proc_term_restart4()
     sset.remove_service(&p);
 }
 
+// Unexpected termination but only restarts on non-zero exit code.
+void test_proc_term_restart5()
+{
+    using namespace std;
+
+    service_set sset;
+
+    ha_string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+
+    p.set_auto_restart(auto_restart_mode::ON_FAILURE);
+
+    sset.add_service(&p);
+
+    // Start the service
+    p.start();
+    sset.process_queues();
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_target_state() == service_state_t::STARTED);
+
+    // Unexpected termination - should restart because of 1 exit code
+    base_process_service_test::handle_exit(&p, 1);
+    sset.process_queues();
+    assert(p.get_target_state() == service_state_t::STARTED);
+    assert(p.get_state() == service_state_t::STARTING);
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_target_state() == service_state_t::STARTED);
+
+    // 2nd unexpected termination - should stop because of 0 exit code
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+    assert(p.get_target_state() == service_state_t::STOPPED);
+    assert(p.get_state() == service_state_t::STOPPED);
+
+    sset.remove_service(&p);
+}
+
+// Unexpected termination but only restarts on specific signals.
+void test_proc_term_restart6()
+{
+    using namespace std;
+
+    service_set sset;
+
+    ha_string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+
+    p.set_auto_restart(auto_restart_mode::ON_FAILURE);
+
+    sset.add_service(&p);
+
+    // Start the service
+    p.start();
+    sset.process_queues();
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_target_state() == service_state_t::STARTED);
+
+    // Unexpected termination - should restart because of SIGQUIT signal
+    base_process_service_test::handle_signal_exit(&p, SIGQUIT);
+    sset.process_queues();
+    assert(p.get_target_state() == service_state_t::STARTED);
+    assert(p.get_state() == service_state_t::STARTING);
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_target_state() == service_state_t::STARTED);
+
+    int signals[] = { SIGHUP, SIGINT, SIGUSR1, SIGUSR2, SIGTERM };
+    for (auto signal: signals) {
+        // unexpected termination - should stop because of specific signal
+        base_process_service_test::handle_signal_exit(&p, signal);
+        sset.process_queues();
+        assert(p.get_target_state() == service_state_t::STOPPED);
+        assert(p.get_state() == service_state_t::STOPPED);
+
+        // explicit restart
+        p.start();
+        sset.process_queues();
+        base_process_service_test::exec_succeeded(&p);
+        sset.process_queues();
+        assert(p.get_state() == service_state_t::STARTED);
+        assert(p.get_target_state() == service_state_t::STARTED);
+    }
+
+    sset.remove_service(&p);
+}
+
 // Failure to restart should propagate to dependent
 void test_proc_term_restart_fail()
 {
@@ -2492,6 +2595,8 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_term_restart2, "    ");
     RUN_TEST(test_proc_term_restart3, "    ");
     RUN_TEST(test_proc_term_restart4, "    ");
+    RUN_TEST(test_proc_term_restart5, "    ");
+    RUN_TEST(test_proc_term_restart6, "    ");
     RUN_TEST(test_proc_term_restart_fail, "");
     RUN_TEST(test_term_via_stop, "         ");
     RUN_TEST(test_term_via_stop2, "        ");
