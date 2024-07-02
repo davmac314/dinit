@@ -125,6 +125,15 @@ enum class log_type_id
     PIPE      // pipe to another process (service)
 };
 
+enum class auto_restart_mode
+{
+    NEVER,      // Never do auto-restart
+    ALWAYS,     // Always do auto-restart
+    ON_FAILURE, // Only do auto-restart when exit unexpectedly.
+                // unexpected exit means exit_code != 0 or  signalled with any signal
+                // other than SIGHUP, SIGINT, SIGUSR1, SIGUSR2 or SIGTERM.
+};
+
 // Service set type identifiers:
 constexpr int SSET_TYPE_NONE = 0;
 constexpr int SSET_TYPE_DIRLOAD = 1;

@@ -1035,7 +1035,7 @@ class service_settings_wrapper
     unsigned max_log_buffer_sz = 4096;
     service_flags_t onstart_flags;
     int term_signal = SIGTERM;  // termination signal
-    bool auto_restart = DEFAULT_AUTO_RESTART;
+    auto_restart_mode auto_restart = auto_restart_mode::DEFAULT_AUTO_RESTART;
     bool smooth_recovery = false;
     string socket_path;
     int socket_perms = 0666;
@@ -1369,7 +1369,15 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
     }
     else if (setting == "restart") {
         string restart = read_setting_value(line_num, i, end);
-        settings.auto_restart = (restart == "yes" || restart == "true");
+        if (restart == "yes" || restart == "true") {
+            settings.auto_restart = auto_restart_mode::ALWAYS;
+        }
+        else if (restart == "on-failure") {
+            settings.auto_restart = auto_restart_mode::ON_FAILURE;
+        }
+        else {
+            settings.auto_restart = auto_restart_mode::NEVER;
+        }
     }
     else if (setting == "smooth-recovery") {
         string recovery = read_setting_value(line_num, i, end);
