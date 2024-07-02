@@ -256,9 +256,9 @@ Starting this service will automatically start the named service.
 If the named service fails to start, this service will start as usual (subject to
 other dependencies being met).
 .TP
-\fBwaits\-for.d\fR = \fIdirectory-path\fR
+\fBdepends\-on.d\fR = \fIdirectory-path\fR
 For each file name in \fIdirectory-path\fR which does not begin with a dot,
-add a \fBwaits-for\fR dependency to the service with the same name.
+add a \fBdepends-on\fR dependency to the service with the same name.
 Note that contents of files in the specified directory are not significant; expected
 usage is to have symbolic links to the associated service description files,
 but this is not required.
@@ -267,6 +267,12 @@ is not considered fatal.
 .sp
 The directory path, if not absolute, is relative to the directory containing the service
 description file.
+.TP
+\fBdepends\-ms.d\fR = \fIdirectory-path\fR
+As for \fBdepends-on.d\fR, but with dependency type \fBdepends\-ms\fR.
+.TP
+\fBwaits\-for.d\fR = \fIdirectory-path\fR
+As for \fBdepends-on.d\fR, but with dependency type \fBwaits\-for\fR.
 .TP
 \fBafter\fR = \fIservice-name\fR
 When starting this service, if the named service is also starting, wait for the named service

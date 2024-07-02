@@ -1300,6 +1300,14 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         string waitsford = read_setting_value(line_num, i, end);
         process_dep_dir(settings.depends, waitsford, dependency_type::WAITS_FOR);
     }
+    else if (setting == "depends-on.d") {
+        string depends_on_d = read_setting_value(line_num, i, end);
+        process_dep_dir(settings.depends, depends_on_d, dependency_type::REGULAR);
+    }
+    else if (setting == "depends-ms.d") {
+        string depends_ms_d = read_setting_value(line_num, i, end);
+        process_dep_dir(settings.depends, depends_ms_d, dependency_type::MILESTONE);
+    }
     else if (setting == "after") {
         string after_name = read_setting_value(line_num, i, end);
         settings.after_svcs.emplace_back(std::move(after_name));
