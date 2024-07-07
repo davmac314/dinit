@@ -533,9 +533,9 @@ class base_process_service : public service_record
         return pid;
     }
 
-    int get_exit_status() noexcept override
+    bp_sys::exit_status get_exit_status() noexcept override
     {
-        return exit_status.as_int();
+        return exit_status;
     }
 
     // Get reason for failure to exec process (if stop reason indicates exec failure)
