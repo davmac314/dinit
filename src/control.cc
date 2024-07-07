@@ -636,7 +636,7 @@ static void fill_status_buffer(char *buffer, service_record *service)
             memcpy(buffer + 6, &exec_err.st_errno, sizeof(int));
         }
         else {
-            int exit_status = service->get_exit_status();
+            int exit_status = service->get_exit_status().as_int();
             memcpy(buffer + 6, &exit_status, sizeof(exit_status));
         }
     }

@@ -734,9 +734,9 @@ class service_record
         return -1;
     }
 
-    virtual int get_exit_status()
+    virtual bp_sys::exit_status get_exit_status()
     {
-        return 0;
+        return bp_sys::exit_status{};
     }
 
     dep_list & get_dependencies()
