@@ -69,7 +69,7 @@ jobs:
     - name: Integration tests
       run: make check-igr DEBUG=1
     - name: Upload igr-tests output file(s) on failure
-      uses: actions/upload-artifact@v4.3.2
+      uses: actions/upload-artifact@v4.3.4
       if: failure()
       with:
           name: igr-tests_output
@@ -101,7 +101,7 @@ jobs:
     - name: Integration tests
       run: make check-igr DEBUG=1
     - name: Upload igr-tests output file(s) on failure
-      uses: actions/upload-artifact@v4.3.2
+      uses: actions/upload-artifact@v4.3.4
       if: failure()
       with:
           name: igr-tests_output
@@ -142,7 +142,7 @@ jobs:
           echo "$(tput bold) ----Integration tests---- :$(tput sgr0) make check-igr DEBUG=1"
           make check-igr DEBUG=1
     - name: Upload igr-tests output file(s) on failure
-      uses: actions/upload-artifact@v4.3.2
+      uses: actions/upload-artifact@v4.3.4
       if: failure()
       with:
           name: igr-tests_output
