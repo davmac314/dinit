@@ -118,7 +118,7 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
 
         if (sr->pid == -1) {
             // Somehow the process managed to complete before we even saw the exec() status.
-            sr->handle_exit_status(sr->exit_status);
+            sr->handle_exit_status();
         }
     }
 
@@ -235,7 +235,7 @@ dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t chil
         sr->waiting_stopstart_timer = false;
     }
 
-    sr->handle_exit_status(bp_sys::exit_status(status));
+    sr->handle_exit_status();
     return dasynq::rearm::NOOP;
 }
 
@@ -314,7 +314,7 @@ rearm log_output_watcher::fd_event(eventloop_t &eloop, int fd, int flags) noexce
     return rearm::REMOVED;
 }
 
-void process_service::handle_exit_status(bp_sys::exit_status exit_status) noexcept
+void process_service::handle_exit_status() noexcept
 {
     bool did_exit = exit_status.did_exit();
     bool was_signalled = exit_status.was_signalled();
@@ -416,7 +416,7 @@ void process_service::exec_failed(run_proc_err errcode) noexcept
     }
 }
 
-void bgproc_service::handle_exit_status(bp_sys::exit_status exit_status) noexcept
+void bgproc_service::handle_exit_status() noexcept
 {
     // For bgproc services, receiving exit status can mean one of two things:
     // 1. We were launching the process, and it finished (possibly after forking). If it did fork
@@ -589,7 +589,7 @@ void bgproc_service::exec_failed(run_proc_err errcode) noexcept
     }
 }
 
-void scripted_service::handle_exit_status(bp_sys::exit_status exit_status) noexcept
+void scripted_service::handle_exit_status() noexcept
 {
     bool did_exit = exit_status.did_exit();
     bool was_signalled = exit_status.was_signalled();
