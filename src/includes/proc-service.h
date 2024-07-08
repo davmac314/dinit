@@ -264,9 +264,8 @@ class base_process_service : public service_record
     // Called after forking (before executing remote process).
     virtual void after_fork(pid_t child_pid) noexcept { }
 
-    // Called when the process exits. The exit_status is the status value yielded by
-    // the "wait" system call.
-    virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept = 0;
+    // Called when the process exits. The exit_status variable must be set before calling.
+    virtual void handle_exit_status() noexcept = 0;
 
     void handle_unexpected_termination() noexcept;
 
@@ -553,7 +552,7 @@ class process_service : public base_process_service
     friend class base_process_service_test;
 
     protected:
-    virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept override;
+    virtual void handle_exit_status() noexcept override;
     virtual void exec_failed(run_proc_err errcode) noexcept override;
     virtual void exec_succeeded() noexcept override;
     virtual void bring_down() noexcept override;
@@ -732,7 +731,7 @@ class process_service : public base_process_service
 // Bgproc (self-"backgrounding", i.e. double-forking) process service
 class bgproc_service : public process_service
 {
-    virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept override;
+    virtual void handle_exit_status() noexcept override;
     virtual void exec_failed(run_proc_err errcode) noexcept override;
 
     enum class pid_result_t {
@@ -773,7 +772,7 @@ class bgproc_service : public process_service
 // Service which is started and stopped via separate commands
 class scripted_service : public base_process_service
 {
-    virtual void handle_exit_status(bp_sys::exit_status exit_status) noexcept override;
+    virtual void handle_exit_status() noexcept override;
     virtual void exec_succeeded() noexcept override;
     virtual void exec_failed(run_proc_err errcode) noexcept override;
     virtual void bring_down() noexcept override;
