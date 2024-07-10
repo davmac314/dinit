@@ -78,13 +78,13 @@ int main(int argc, char **argv)
         cout << "#define SUPPORT_CGROUPS " << vars["SUPPORT_CGROUPS"] << "\n";
     }
     if (vars.find("DEFAULT_AUTO_RESTART") != vars.end()) {
-	cout << "#define DEFAULT_AUTO_RESTART " << vars["DEFAULT_AUTO_RESTART"] << "\n";
+        cout << "#define DEFAULT_AUTO_RESTART " << vars["DEFAULT_AUTO_RESTART"] << "\n";
     }
     if (vars.find("DEFAULT_START_TIMEOUT") != vars.end()) {
-	cout << "#define DEFAULT_START_TIMEOUT " << vars["DEFAULT_START_TIMEOUT"] << "\n";
+        cout << "#define DEFAULT_START_TIMEOUT " << vars["DEFAULT_START_TIMEOUT"] << "\n";
     }
     if (vars.find("DEFAULT_STOP_TIMEOUT") != vars.end()) {
-    cout << "#define DEFAULT_STOP_TIMEOUT " << vars["DEFAULT_STOP_TIMEOUT"] << "\n";
+        cout << "#define DEFAULT_STOP_TIMEOUT " << vars["DEFAULT_STOP_TIMEOUT"] << "\n";
     }
 
     cout << "\n// Constants\n";
