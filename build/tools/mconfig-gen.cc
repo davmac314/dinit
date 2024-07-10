@@ -80,18 +80,26 @@ int main(int argc, char **argv)
     if (vars.find("DEFAULT_AUTO_RESTART") != vars.end()) {
         cout << "#define DEFAULT_AUTO_RESTART " << vars["DEFAULT_AUTO_RESTART"] << "\n";
     }
-    if (vars.find("DEFAULT_START_TIMEOUT") != vars.end()) {
-        cout << "#define DEFAULT_START_TIMEOUT " << vars["DEFAULT_START_TIMEOUT"] << "\n";
-    }
-    if (vars.find("DEFAULT_STOP_TIMEOUT") != vars.end()) {
-        cout << "#define DEFAULT_STOP_TIMEOUT " << vars["DEFAULT_STOP_TIMEOUT"] << "\n";
-    }
 
     cout << "\n// Constants\n";
     cout << "\nconstexpr static char DINIT_VERSION[] = " << stringify(vars["VERSION"]) << ";\n";
     cout << "constexpr static char SYSCONTROLSOCKET[] = " << stringify(vars["SYSCONTROLSOCKET"]) << ";\n";
     cout << "constexpr static char SBINDIR[] = " << stringify(vars["SBINDIR"]) << ";\n";
     cout << "constexpr static char SHUTDOWN_PREFIX[] = " << stringify(vars["SHUTDOWN_PREFIX"]) << ";\n";
+
+    if (vars.find("DEFAULT_START_TIMEOUT") != vars.end()) {
+        cout << "constexpr static unsigned DEFAULT_START_TIMEOUT = " << vars["DEFAULT_START_TIMEOUT"] << ";\n";
+    }
+    else {
+        cout << "constexpr static unsigned DEFAULT_START_TIMEOUT = 60;\n";
+    }
+
+    if (vars.find("DEFAULT_STOP_TIMEOUT") != vars.end()) {
+        cout << "constexpr static unsigned DEFAULT_STOP_TIMEOUT = " << vars["DEFAULT_STOP_TIMEOUT"] << ";\n";
+    }
+    else {
+        cout << "constexpr static unsigned DEFAULT_STOP_TIMEOUT = 10;\n";
+    }
 
     cout << "\n#endif // DINIT_MCONFIG_H\n";
     return 0;
