@@ -144,6 +144,8 @@ int main(int argc, char **argv)
         std::cout << " XXX";
     }
 
+    std::cout << std::endl;
+
     return failed == 0 ? 0 : 1;
 }
 
