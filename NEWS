@@ -47,9 +47,9 @@ Changes:
    can make it easier to debug boot issues.
  * The working directory for a service is now the directory containing the service description.
    This can simplify specifying configuration files/script locations etc. Implemented by
-   Daniel Kolesa.
+   q66.
  * The env-file (environment) path for a service is now relative to the service directory
-   containing the service description. Implemented by Daniel Kolesa.   
+   containing the service description. Implemented by q66.
  * Failure to open the env-file (environment) specified for a service is now treated as a hard
    error (and will prevent a service starting). Implemented by Mobin Aydinfar.
  
@@ -72,8 +72,8 @@ Fixes:
 == Version 0.17.0 (beta release #1)
 
 Thank you to several new sponsors, as well as existing sponsors, for supporting this release.
-Current sponsors include github users: brentfrow, brazeon, and q66 (Daniel Kolesa, author of
-Chimera Linux). Development of Dinit has also received financial support from Artix Linux.
+Current sponsors include github users: brentfrow, brazeon, and q66 (founder of Chimera Linux).
+Development of Dinit has also received financial support from Artix Linux.
 I am grateful for all the support, both financial and otherwise, that has been received.
 
 Special thanks to Mobin Aydinfar, who has taken on secondary maintainer duties in the lead-up to
@@ -114,7 +114,7 @@ New features:
    service to be loaded. This means that a service can be "before" another service even if the
    other service might not be installed, for example.
  * New "dinitctl" subcommands "is-started" and "is-failed", to test for specific service statuses
-   (intended to be useful in scripts, for example). Contributed by Daniel Kolesa.
+   (intended to be useful in scripts, for example). Contributed by q66.
  * The "dinitctl" utility now supports the "--use-passed-cfd" argument (as for shutdown).
  * A "configure" script to generate suitable build configuration is included. It is used by
    default when building on not-recognised systems. Contributed by Mobin Aydinfar.
@@ -126,11 +126,11 @@ Changes:
  * The permissions/ownership for logfiles has been reworked, see details in "New features" above.
  * Services which specify "run-as" to run as a different user now run with the supplementary
    groups of that user (this can be disabled at build time by setting USE_INITGROUPS=0).
-   Thanks to Daniel Kolesa.
+   Thanks to q66.
  * Environment variables from the service-specific environment ("env-file" setting) can now be
    substituted in many service settings. Variable expansion now supports a limited subset of shell
    expansions (such as "$(NAME:-word}" and "${NAME:+word}). Behaviour is not identical to shell;
-   see documentation. Implemented by Daniel Kolesa.
+   see documentation. Implemented by q66.
  * Environment variable expansion in service descriptions is no longer optional. The "sub-vars"
    load option no in a service description no longer has any effect, and "no-sub-vars" is no
    longer recognised at all.
@@ -159,9 +159,9 @@ Changes:
    certain syntactical errors.
  * Fix nonsensical (but harmless) error message when loading services (when the service
    description is found in a directory that is not the first directory searched)
-   (Daniel Kolesa).
+   (q66).
  * Fix issue with example rootfscheck.sh script (Mobin Aydinfar).
- * Minor build system improvements (Daniel Kolesa).
+ * Minor build system improvements (q66).
  * Minor documentation updates.
 
 == Version 0.16.0
@@ -183,7 +183,7 @@ Changes:
    Implemented by Mobin Aydinfar.
  * The dinit daemon itself supports S6-compatible readiness notification (for when run under
    another supervision system or controlling process). The "-r <fd>" command line argument
-   specifies the file descriptor to write the notification to. Contributed by Daniel Kolesa.
+   specifies the file descriptor to write the notification to. Contributed by q66.
  * Environment files (including per-service file as specified by env-file service setting):
    support for commands !clear, !unset and !import. These give more flexibility in how much of the
    original environment to expose to service processes. See the dinit(8) man page for more
@@ -262,7 +262,7 @@ Changes:
 NOTE: This release has some minor backwards-incompatible changes. Please read
 these notes carefully.
 
-This release includes changes contributed by Daniel Kolesa.
+This release includes changes contributed by q66.
 
 Changes:
  * A new dinitctl subcommand, "status", can be used to query extended status
