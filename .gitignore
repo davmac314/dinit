@@ -1,4 +1,5 @@
 .*
+!.mailmap
 *.o
 /src/**/*.d
 /src/dinit
