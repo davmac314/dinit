@@ -1445,7 +1445,7 @@ bool control_conn_t::data_ready() noexcept
     // complete packet?
     while (rbuf.get_length() >= chklen) {
         try {
-            if (!process_packet()) {
+            if (!process_packet() || bad_conn_close) {
                 return false;
             }
         }
