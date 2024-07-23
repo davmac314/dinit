@@ -134,12 +134,18 @@ class eventloop_t
 
     class bidi_fd_watcher
     {
+        int watch_flags = -1;
         int watched_fd = -1;
 
         public:
         void set_watches(eventloop_t &eloop, int newFlags) noexcept
         {
+            watch_flags = newFlags;
+        }
 
+        int get_watches(eventloop_t &eloop) noexcept
+        {
+            return watch_flags;
         }
 
         void add_watch(eventloop_t &eloop, int fd, int flags, int inprio = dasynq::DEFAULT_PRIORITY,
@@ -150,6 +156,7 @@ class eventloop_t
             }
             eloop.regd_bidi_watchers[fd] = this;
             watched_fd = fd;
+            watch_flags = flags;
         }
 
         int get_watched_fd() noexcept
