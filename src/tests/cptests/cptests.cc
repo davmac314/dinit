@@ -1109,6 +1109,31 @@ void cptest_closehandle()
     delete cc;
 }
 
+void cptest_invalid()
+{
+    service_set sset;
+    int fd = bp_sys::allocfd();
+    auto *cc = new control_conn_t(event_loop, &sset, fd);
+
+    // (char)-1 is here because it will not be a valid packet type
+    std::vector<char> cmd = { (char)-1 };
+    bp_sys::supply_read_data(fd, cmd);
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    std::vector<char> wdata;
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata.size() == 1);
+    assert(wdata[0] == (char)cp_rply::BADREQ);
+
+    // Make sure dinit will not read further commands
+    int current_watch = event_loop.regd_bidi_watchers[fd]->get_watches(event_loop);
+    assert(current_watch == dasynq::OUT_EVENTS);
+
+    delete cc;
+}
+
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
@@ -1136,5 +1161,6 @@ int main(int argc, char **argv)
     RUN_TEST(cptest_sendsignal, "         ");
     RUN_TEST(cptest_two_commands, "       ");
     RUN_TEST(cptest_closehandle, "        ");
+    RUN_TEST(cptest_invalid, "            ");
     return 0;
 }
