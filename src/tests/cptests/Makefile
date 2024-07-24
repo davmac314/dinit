@@ -14,13 +14,10 @@ build-tests: cptests
 run-tests: cptests
 	./cptests
 
-cptests: cptests.o $(parent_objs) $(parent_test_objs)
-	$(CXX) -o cptests cptests.o $(parent_test_objects) $(parent_objs) $(ALL_TEST_LDFLAGS)
+cptests: cptests.o $(parent_objs:%=../%) $(parent_test_objects)
+	$(CXX) -o cptests cptests.o $(parent_test_objects) $(parent_objs:%=../%) $(ALL_TEST_LDFLAGS)
 
 $(objects): %.o: %.cc
-	$(CXX) $(ALL_TEST_CXXFLAGS) -MMD -MP -I../test-includes -I../../../dasynq/include -I../../../build/includes -I../../includes -c $< -o $@
-
-$(parent_objs): %.o: ../../%.cc
 	$(CXX) $(ALL_TEST_CXXFLAGS) -MMD -MP -I../test-includes -I../../../dasynq/include -I../../../build/includes -I../../includes -c $< -o $@
 
 clean:
