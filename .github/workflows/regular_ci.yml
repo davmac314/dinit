@@ -82,13 +82,13 @@ jobs:
       fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
       matrix:
         include:
-          - arch: 'amd64'
+          - arch: 'aarch64'
 
     steps:
     - uses: actions/checkout@v4
     # on MacOS, g++ symlinked to clang++
     # We must verify that
-    - name: Verify g++ (it is g++ or clang++?)
+    - name: Verify g++ (is it g++ or clang++?)
       run: g++ --version
     - name: Print g++ architecture
       run: g++ -dumpmachine
