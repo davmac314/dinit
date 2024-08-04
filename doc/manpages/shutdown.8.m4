@@ -1,7 +1,7 @@
 changequote(`@@@',`$$$')dnl
 @@@.TH SHUTDOWN "8" "$$$MONTH YEAR@@@" "Dinit $$$VERSION@@@" "Dinit \- service management system"
 .SH NAME
-$$$SHUTDOWN_PREFIX@@@shutdown, $$$SHUTDOWN_PREFIX@@@halt, $$$SHUTDOWN_PREFIX@@@poweroff, $$$SHUTDOWN_PREFIX@@@reboot \- system shutdown 
+$$$SHUTDOWN_PREFIX@@@shutdown, $$$SHUTDOWN_PREFIX@@@halt, $$$SHUTDOWN_PREFIX@@@poweroff, $$$SHUTDOWN_PREFIX@@@reboot, $$$SHUTDOWN_PREFIX@@@soft-reboot \- system shutdown
 .\"
 .SH SYNOPSIS
 .\"
@@ -14,13 +14,15 @@ $$$SHUTDOWN_PREFIX@@@shutdown, $$$SHUTDOWN_PREFIX@@@halt, $$$SHUTDOWN_PREFIX@@@p
 \fB$$$SHUTDOWN_PREFIX@@@poweroff\fR [\fIoptions...\fR]
 .br
 \fB$$$SHUTDOWN_PREFIX@@@reboot\fR [\fIoptions...\fR]
+.br
+\fB$$$SHUTDOWN_PREFIX@@@soft-reboot\fR [\fIoptions...\fR]
 .\"
 .SH DESCRIPTION
 .\"
 This manual page is for the shutdown utility included with the \fBDinit\fR
 service manager package. See \fBdinit\fR(8).
 
-The $$$SHUTDOWN_PREFIX@@@shutdown, $$$SHUTDOWN_PREFIX@@@reboot, $$$SHUTDOWN_PREFIX@@@poweroff and $$$SHUTDOWN_PREFIX@@@halt
+The $$$SHUTDOWN_PREFIX@@@shutdown, $$$SHUTDOWN_PREFIX@@@reboot, $$$SHUTDOWN_PREFIX@@@soft-reboot, $$$SHUTDOWN_PREFIX@@@poweroff and $$$SHUTDOWN_PREFIX@@@halt
 commands can be used to instruct the service manager daemon to perform a service rollback and then to shutdown the system.
 They can also perform shutdown directly, without service rollback.
 
@@ -37,6 +39,11 @@ Display brief help text and then exit.
 \fB\-r\fP
 Request a shutdown followed by restart. This is the default if executed as
 \fB$$$SHUTDOWN_PREFIX@@@reboot\fR.
+.TP
+\fB\-s\fP
+Restart all user-space services without restarting kernel.
+The current boot-time options will be passed on to the restarted dinit and remain in effect.
+This is the default if executed as \fB$$$SHUTDOWN_PREFIX@@@soft-reboot\fR.
 .TP
 \fB\-h\fP
 Shutdown and then halt the system (without powering down).

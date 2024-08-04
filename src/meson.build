@@ -66,7 +66,7 @@ if build_shutdown.auto() and platform == 'linux' or build_shutdown.enabled()
         'shutdown.cc',
         kwargs: misc_args
     )
-    foreach exec: ['reboot', 'halt', 'poweroff']
+    foreach exec: ['reboot', 'soft-reboot', 'halt', 'poweroff']
         install_symlink(
             shutdown_prefix + exec,
             pointing_to: shutdown_prefix + 'shutdown',

@@ -8,7 +8,7 @@ option(
     'shutdown-prefix',
     type : 'string',
     value : '',
-    description : 'Name prefix for "shutdown", "halt" and "reboot" commands (if they are built).'
+    description : 'Name prefix for "shutdown", "halt", "soft-reboot" and "reboot" commands (if they are built).'
 )
 option(
     'dinit-control-socket-path',
@@ -89,5 +89,5 @@ option(
     'build-shutdown',
     type : 'feature',
     value : 'auto',
-    description : 'Building shutdown/reboot/halt or not.'
+    description : 'Building shutdown/reboot/soft-reboot/halt or not.'
 )

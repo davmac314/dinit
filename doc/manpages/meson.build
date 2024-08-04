@@ -41,7 +41,7 @@ if shutdown_built
         install: true,
         install_dir: join_paths(mandir, section)
     )
-    foreach shutdown_man: ['reboot.8', 'halt.8', 'poweroff.8']
+    foreach shutdown_man: ['reboot.8', 'soft-reboot.8', 'halt.8', 'poweroff.8']
         install_symlink(
             shutdown_prefix + shutdown_man,
             pointing_to: shutdown_prefix + 'shutdown.8',

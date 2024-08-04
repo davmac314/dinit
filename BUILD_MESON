@@ -53,7 +53,7 @@ This command configures a "build directory" in "builddir/". You can choose anoth
 desired, but don't use a directory that is part of the Dinit source tree such as build/ or src/.
 
 The "meson setup" command will prepare to build Dinit including the dinit daemon, dinitctl utility
-and the shutdown/reboot/halt utilities by default. Tests will not be built. If you wish to change
+and the shutdown/reboot/soft-reboot/halt utilities by default. Tests will not be built. If you wish to change
 the build options, see the next section. 
 
 Once "meson setup" has completed successfully, you can compile Dinit with:
