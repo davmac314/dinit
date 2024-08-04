@@ -15,6 +15,7 @@ ifeq ($(BUILD_SHUTDOWN),yes)
 	ln -sf "$(SHUTDOWN_PREFIX)shutdown.8" "$(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)halt.8"
 	ln -sf "$(SHUTDOWN_PREFIX)shutdown.8" "$(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)reboot.8"
 	ln -sf "$(SHUTDOWN_PREFIX)shutdown.8" "$(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)poweroff.8"
+	ln -sf "$(SHUTDOWN_PREFIX)shutdown.8" "$(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)soft-reboot.8"
 endif
 
 clean:

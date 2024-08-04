@@ -192,7 +192,9 @@ namespace {
 
     // These need to be at namespace scope to prevent causing stack allocations when using them:
     constexpr auto shutdown_exec = literal(SBINDIR) + "/" + SHUTDOWN_PREFIX + "shutdown";
+    constexpr auto dinit_exec = literal(SBINDIR) + "/" + "dinit";
     constexpr auto error_exec_sd = literal("Error executing ") + shutdown_exec + ": ";
+    constexpr auto error_exec_dinit = literal("Error executing ") + dinit_exec + ": ";
 }
 
 // Options handled in dinit_main
@@ -684,6 +686,9 @@ int dinit_main(int argc, char **argv)
         if (shutdown_type == shutdown_type_t::REBOOT) {
             log_msg_end(" Will reboot.");
         }
+        if (shutdown_type == shutdown_type_t::SOFTREBOOT) {
+            log_msg_end(" Will soft-reboot.");
+        }
         else if (shutdown_type == shutdown_type_t::HALT) {
             log_msg_end(" Will halt.");
         }
@@ -696,6 +701,17 @@ int dinit_main(int argc, char **argv)
     close_control_socket();
     
     if (am_system_mgr) {
+        if (shutdown_type == shutdown_type_t::SOFTREBOOT) {
+            sync(); // Sync to minimise data loss if user elects to power off / hard reset
+
+            execv(dinit_exec, argv);
+            log(loglevel_t::ERROR, error_exec_dinit, strerror(errno));
+
+            // reboot if soft-reboot fails or memory allocation failed
+            log(loglevel_t::ERROR, "Could not soft-reboot. Will attempt reboot.");
+            shutdown_type = shutdown_type_t::REBOOT;
+        }
+
         if (shutdown_type == shutdown_type_t::NONE) {
             // Services all stopped but there was no shutdown issued. Inform user, wait for ack, and
             // re-start boot sequence.

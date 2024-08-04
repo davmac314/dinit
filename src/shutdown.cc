@@ -279,6 +279,9 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "-p") == 0) {
                 shutdown_type = shutdown_type_t::POWEROFF;
             }
+            else if (strcmp(argv[i], "-s") == 0) {
+                shutdown_type = shutdown_type_t::SOFTREBOOT;
+            }
             else if (strcmp(argv[i], "--use-passed-cfd") == 0) {
                 use_passed_cfd = true;
             }
@@ -297,6 +300,7 @@ int main(int argc, char **argv)
         cout << execname << " :   shutdown the system\n"
                 "  --help           : show this help\n"
                 "  -r               : reboot\n"
+                "  -s               : soft-reboot (restart dinit with same boot-time arguments)\n"
                 "  -h               : halt system\n"
                 "  -p               : power down (default)\n"
                 "  --use-passed-cfd : use the socket file descriptor identified by the DINIT_CS_FD\n"

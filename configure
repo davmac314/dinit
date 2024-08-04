@@ -143,9 +143,9 @@ Installation directories:
 Optional options:
   --enable-strip                    Strip debug information in installation process [Enabled]
   --disable-strip                   Don't strip debug information in installation process
-  --shutdown-prefix=PREFIX          Name prefix for shutdown, poweroff, reboot, halt programs []
-  --enable-shutdown                 Build shutdown, poweroff, reboot, halt programs [Enabled only on Linux systems]
-  --disable-shutdown                Don't build shutdown, poweroff, reboot, halt programs
+  --shutdown-prefix=PREFIX          Name prefix for shutdown, poweroff, reboot, soft-reboot, halt programs []
+  --enable-shutdown                 Build shutdown, poweroff, reboot, soft-reboot, halt programs [Enabled only on Linux systems]
+  --disable-shutdown                Don't build shutdown, poweroff, reboot, soft-reboot, halt programs
   --enable-cgroups                  Enable Cgroups support [Enabled only on Linux based systems]
   --disable-cgroups                 Disable Cgroups support
   --enable-utmpx                    Enable manipulating the utmp/utmpx database via the related POSIX functions [guessed]

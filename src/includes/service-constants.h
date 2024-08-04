@@ -41,7 +41,8 @@ enum class shutdown_type_t {
     REMAIN,            // Continue running with no services
     HALT,              // Halt system without powering down
     POWEROFF,          // Power off system
-    REBOOT             // Reboot system
+    REBOOT,            // Reboot system
+    SOFTREBOOT         // Reboot dinit
 };
 
 /* Reasons for why service stopped */
