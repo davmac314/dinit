@@ -4,6 +4,9 @@ For version 1.0 (release requirements):
 * Documentation must be complete (mostly done; will need updates as other items are completed).
 * [DONE] dinitcheck should be able to resolve variable substitutions using variables from running dinit.
 
+* signal (SIGUSR1) to open control socket
+* dinitctl command to release console (useful for recover, single-user)
+
 
 For later (post 1.0):
 ---------------------

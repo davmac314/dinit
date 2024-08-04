@@ -486,9 +486,12 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         }
     }
 
+    file_input_stack input_stack;
+    input_stack.push(service_filename, std::move(service_file));
+
     try {
-        process_service_file(name, service_file,
-                [&](string &line, unsigned line_num, string &setting,
+        process_service_file(name, input_stack,
+                [&](string &line, file_pos_ref fpr, string &setting,
                         string_iterator &i, string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
@@ -511,11 +514,9 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 }
             };
 
-            process_service_line(settings, name, line, line_num, setting, i, end, load_service_n,
+            process_service_line(settings, name, line, fpr, setting, i, end, load_service_n,
                     process_dep_dir_n);
         });
-
-        service_file.close();
 
         auto report_err = [&](const char *msg){
             throw service_load_exc(name, msg);
@@ -971,7 +972,8 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
     {
         exception_cleanup();
         // don't use sys_err.what() since libstdc++ sometimes includes class names (basic_filebuf):
-        throw service_load_exc(name, sys_err.code().message());
+        std::string msg = input_stack.current_file_name() + ": " + sys_err.code().message();
+        throw service_load_exc(name, std::move(msg));
     }
     catch (std::length_error &len_err) {
         // This is pretty much only theoretically possible; we'd normally expect bad_alloc instead.

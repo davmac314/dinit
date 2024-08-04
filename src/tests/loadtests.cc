@@ -71,7 +71,11 @@ void test_env_subst2()
     std::list<std::pair<unsigned,unsigned>> offsets;
     std::string::iterator li = line.begin();
     std::string::iterator le = line.end();
-    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+
+    std::string file_name = "dummy";
+    file_pos_ref fpr { file_name, 1 };
+
+    dinit_load::read_setting_value(fpr, li, le, &offsets);
 
     dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
 
@@ -92,11 +96,14 @@ void test_env_subst3()
         return "";
     };
 
+    std::string file_name = "dummy";
+    file_pos_ref fpr { file_name, 1 };
+
     std::string line = "test $/EMPTY foo";
     std::list<std::pair<unsigned,unsigned>> offsets;
     std::string::iterator li = line.begin();
     std::string::iterator le = line.end();
-    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    dinit_load::read_setting_value(fpr, li, le, &offsets);
     dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
 
     auto check_arg = [&](unsigned idx, const char *val)
@@ -110,7 +117,7 @@ void test_env_subst3()
 
     line = "test $EMPTY foo";
     li = line.begin(); le = line.end(); offsets.clear();
-    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    dinit_load::read_setting_value(fpr, li, le, &offsets);
     dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
 
     assert(line == "test  foo");
@@ -120,7 +127,7 @@ void test_env_subst3()
     // adjacent collapsing
     line = "test $/EMPTY$/EMPTY$/EMPTY foo";
     li = line.begin(); le = line.end(); offsets.clear();
-    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    dinit_load::read_setting_value(fpr, li, le, &offsets);
     dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
 
     assert(line == "test  foo");
@@ -129,7 +136,7 @@ void test_env_subst3()
     // middle empty is non-collapsing:
     line = "test $/EMPTY$EMPTY$/EMPTY foo";
     li = line.begin(); le = line.end(); offsets.clear();
-    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    dinit_load::read_setting_value(fpr, li, le, &offsets);
     dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
 
     assert(line == "test  foo");
@@ -139,7 +146,7 @@ void test_env_subst3()
     // empty doesn't wordsplit:
     line = "test abc$/{EMPTY}def";
     li = line.begin(); le = line.end(); offsets.clear();
-    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    dinit_load::read_setting_value(fpr, li, le, &offsets);
     dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
 
     assert(line == "test abcdef");
@@ -148,7 +155,7 @@ void test_env_subst3()
     // whitespace does wordsplit:
     line = "test abc$/{WS}def";
     li = line.begin(); le = line.end(); offsets.clear();
-    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    dinit_load::read_setting_value(fpr, li, le, &offsets);
     dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
 
     assert(line == "test abc def");
@@ -158,7 +165,7 @@ void test_env_subst3()
     // internal words handled correctly:
     line = "test abc$/{PADDED}def";
     li = line.begin(); le = line.end(); offsets.clear();
-    dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    dinit_load::read_setting_value(fpr, li, le, &offsets);
     dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
 
     assert(line == "test abc p def");
@@ -211,9 +218,13 @@ void test_settings()
             "rlimit-core = 60:\n"
             "rlimit-data = -:-";
 
+    file_input_stack input_stack;
+    input_stack.add_source(ss.str(), "dummy");
+
     try {
-        process_service_file("test-service", ss,
-                [&](string &line, unsigned line_num, string &setting, string_iterator &i, string_iterator &end) -> void {
+        process_service_file("test-service", input_stack,
+                [&](string &line, file_pos_ref input_pos, string &setting, string_iterator &i,
+                        string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
                     dependency_type dep_type) -> void {
@@ -225,7 +236,8 @@ void test_settings()
             };
 
             try {
-                process_service_line(settings, "test-service", line, line_num, setting, i, end, load_service_n, process_dep_dir_n);
+                process_service_line(settings, "test-service", line, input_pos, setting, i, end,
+                        load_service_n, process_dep_dir_n);
             }
             catch (service_description_exc &exc) {
                 //report_service_description_exc(exc);
@@ -276,9 +288,12 @@ void test_path_env_subst()
             "command = /something/test\n"
             "logfile = /some/$username/dir\n";
 
+    file_input_stack input_stack;
+    input_stack.add_source(ss.str(), "dummy");
+
     try {
-        process_service_file("test-service", ss,
-                [&](string &line, unsigned line_num, string &setting, string_iterator &i, string_iterator &end) -> void {
+        process_service_file("test-service", input_stack,
+                [&](string &line, file_pos_ref input_pos, string &setting, string_iterator &i, string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
                     dependency_type dep_type) -> void {
@@ -290,7 +305,7 @@ void test_path_env_subst()
             };
 
             try {
-                process_service_line(settings, "test-service", line, line_num, setting, i, end, load_service_n, process_dep_dir_n);
+                process_service_line(settings, "test-service", line, input_pos, setting, i, end, load_service_n, process_dep_dir_n);
             }
             catch (service_description_exc &exc) {
                 //report_service_description_exc(exc);
@@ -347,8 +362,11 @@ void test_newline_err()
     {
         dinit_load::service_settings_wrapper<prelim_dep> settings;
 
-        process_service_file("test-service", ss,
-                [&](string &line, unsigned line_num, string &setting, string_iterator &i, string_iterator &end) -> void {
+        file_input_stack input_stack;
+        input_stack.add_source(ss.str(), "dummy");
+
+        process_service_file("test-service", input_stack,
+                [&](string &line, file_pos_ref input_pos, string &setting, string_iterator &i, string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
                     dependency_type dep_type) -> void {
@@ -359,7 +377,7 @@ void test_newline_err()
                 return dep_name;
             };
 
-            process_service_line(settings, "test-service", line, line_num, setting, i, end, load_service_n, process_dep_dir_n);
+            process_service_line(settings, "test-service", line, input_pos, setting, i, end, load_service_n, process_dep_dir_n);
         });
     };
 
@@ -373,7 +391,7 @@ void test_newline_err()
     }
     catch (service_description_exc &exc)
     {
-        if (exc.line_num == 4) ++errcount;
+        if (exc.input_pos.get_line_num() == 4) ++errcount;
     }
 
     try {
@@ -384,7 +402,7 @@ void test_newline_err()
     }
     catch (service_description_exc &exc)
     {
-        if (exc.line_num == 2) ++errcount;
+        if (exc.input_pos.get_line_num() == 2) ++errcount;
     }
 
     assert(errcount == 2);
@@ -392,11 +410,14 @@ void test_newline_err()
 
 void test_comments()
 {
+    std::string file_name = "dummy";
+    file_pos_ref input_pos { file_name, 1 };
+
     std::string line = "one two three # comment";
     std::list<std::pair<unsigned,unsigned>> offsets;
     std::string::iterator li = line.begin();
     std::string::iterator le = line.end();
-    std::string val = dinit_load::read_setting_value(1 /* line_num */, li, le, &offsets);
+    std::string val = dinit_load::read_setting_value(input_pos, li, le, &offsets);
 
     assert(val == "one two three");
     assert(offsets.size() == 3);

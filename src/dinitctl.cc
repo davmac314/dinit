@@ -18,14 +18,15 @@
 #include <pwd.h>
 
 #include "control-cmds.h"
-#include "service-constants.h"
+#include "control-datatypes.h"
 #include "cpbuffer.h"
 #include "dinit-client.h"
-#include "load-service.h"
 #include "dinit-util.h"
+#include "file-input-stack.h"
+#include "load-service.h"
 #include "options-processing.h"
+#include "service-constants.h"
 #include "mconfig.h"
-#include "control-datatypes.h"
 
 // dinitctl:  utility to control the Dinit daemon, including starting and stopping of services.
 
@@ -1768,11 +1769,14 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 
     string waits_for_d;
 
+    file_input_stack input_stack;
+    input_stack.push(service_file_path, std::move(service_file));
+
     try {
-        process_service_file(from, service_file, [&](string &line, unsigned line_num, string &setting,
+        process_service_file(from, input_stack, [&](string &line, file_pos_ref fpr, string &setting,
                 dinit_load::string_iterator i, dinit_load::string_iterator end) -> void {
             if (setting == "waits-for" || setting == "depends-on" || setting == "depends-ms") {
-                string dname = dinit_load::read_setting_value(line_num, i, end);
+                string dname = dinit_load::read_setting_value(fpr, i, end);
                 if (dname == to) {
                     // There is already a dependency
                     cerr << "dinitctl: there is a fixed dependency to service '" << to
@@ -1781,7 +1785,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
                 }
             }
             else if (setting == "waits-for.d") {
-                string dname = dinit_load::read_setting_value(line_num, i, end);
+                string dname = dinit_load::read_setting_value(fpr, i, end);
                 if (! waits_for_d.empty()) {
                     cerr << "dinitctl: service '" << from << "' has multiple waits-for.d directories "
                             << "specified in service description" << endl;

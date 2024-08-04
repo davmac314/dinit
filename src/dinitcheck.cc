@@ -518,17 +518,18 @@ int main(int argc, char **argv)
     return errors_found ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
-static void report_service_description_err(const std::string &service_name, unsigned line_num,
-        const std::string &what)
-{
-    std::cerr << "Service '" << service_name << "' (line " << line_num << "): " << what << "\n";
-    errors_found = true;
-}
-
 static void report_service_description_err(const std::string &service_name, const char *setting_name,
         const std::string &what)
 {
     std::cerr << "Service '" << service_name << "' setting '" << setting_name << "': " << what << "\n";
+    errors_found = true;
+}
+
+static void report_service_description_err(const std::string &service_name, file_pos &input_pos,
+        const std::string &what)
+{
+    std::cerr << "Service '" << service_name << "' (" << input_pos.get_file_name() << ":"
+            << input_pos.get_line_num() << "): " << what << "\n";
     errors_found = true;
 }
 
@@ -540,8 +541,8 @@ static void report_service_description_err(const std::string &service_name, cons
 
 static void report_service_description_exc(service_description_exc &exc)
 {
-    if (exc.line_num != (unsigned)-1) {
-        report_service_description_err(exc.service_name, exc.line_num, exc.exc_description);
+    if (exc.input_pos.get_line_num() != (unsigned)-1) {
+        report_service_description_err(exc.service_name, exc.input_pos, exc.exc_description);
     }
     else {
         report_service_description_err(exc.service_name, exc.setting_name, exc.exc_description);
@@ -652,9 +653,12 @@ service_record *load_service(service_set_t &services, const std::string &name,
     string line;
     service_file.exceptions(ios::badbit);
 
+    file_input_stack input_stack;
+    input_stack.push(std::move(service_filename), std::move(service_file));
+
     try {
-        process_service_file(name, service_file,
-                [&](string &line, unsigned line_num, string &setting,
+        process_service_file(name, input_stack,
+                [&](string &line, file_pos_ref input_pos, string &setting,
                         string_iterator &i, string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
@@ -667,7 +671,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
             };
 
             try {
-                process_service_line(settings, name.c_str(), line, line_num, setting, i, end,
+                process_service_line(settings, name.c_str(), line, input_pos, setting, i, end,
                         load_service_n, process_dep_dir_n);
             }
             catch (service_description_exc &exc) {

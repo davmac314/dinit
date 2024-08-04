@@ -1,7 +1,7 @@
 Checking service: boot...
-Service 'boot' (line 3): unterminated quoted string
-Service 'boot' (line 4): unknown setting: 'not-valid'.
-Service 'boot' (line 5): run-as: specified user id contains invalid numeric characters or is outside allowed range.
+Service 'boot' (sd/boot:3): unterminated quoted string
+Service 'boot' (sd/boot:4): unknown setting: 'not-valid'.
+Service 'boot' (sd/boot:5): run-as: specified user id contains invalid numeric characters or is outside allowed range.
 Service 'boot': 'command' setting not specified.
 Checking service: test1...
 Unable to load service 'test1': service description not found.
