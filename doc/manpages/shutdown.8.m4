@@ -15,14 +15,15 @@ $$$SHUTDOWN_PREFIX@@@shutdown, $$$SHUTDOWN_PREFIX@@@halt, $$$SHUTDOWN_PREFIX@@@p
 .br
 \fB$$$SHUTDOWN_PREFIX@@@reboot\fR [\fIoptions...\fR]
 .br
-\fB$$$SHUTDOWN_PREFIX@@@soft-reboot\fR [\fIoptions...\fR]
+\fB$$$SHUTDOWN_PREFIX@@@soft\-reboot\fR [\fIoptions...\fR]
 .\"
 .SH DESCRIPTION
 .\"
 This manual page is for the shutdown utility included with the \fBDinit\fR
 service manager package. See \fBdinit\fR(8).
 
-The $$$SHUTDOWN_PREFIX@@@shutdown, $$$SHUTDOWN_PREFIX@@@reboot, $$$SHUTDOWN_PREFIX@@@soft-reboot, $$$SHUTDOWN_PREFIX@@@poweroff and $$$SHUTDOWN_PREFIX@@@halt
+The \fB$$$SHUTDOWN_PREFIX@@@shutdown\fR, \fB$$$SHUTDOWN_PREFIX@@@reboot\fR,
+\fB$$$SHUTDOWN_PREFIX@@@soft-reboot\fR, \fB$$$SHUTDOWN_PREFIX@@@poweroff\fR and \fB$$$SHUTDOWN_PREFIX@@@halt\fR
 commands can be used to instruct the service manager daemon to perform a service rollback and then to shutdown the system.
 They can also perform shutdown directly, without service rollback.
 
@@ -41,16 +42,20 @@ Request a shutdown followed by restart. This is the default if executed as
 \fB$$$SHUTDOWN_PREFIX@@@reboot\fR.
 .TP
 \fB\-s\fP
-Restart all user-space services without restarting kernel.
-The current boot-time options will be passed on to the restarted dinit and remain in effect.
-This is the default if executed as \fB$$$SHUTDOWN_PREFIX@@@soft-reboot\fR.
+Restart the service manager and all user-space services without restarting the system.
+This is the default if executed as \fB$$$SHUTDOWN_PREFIX@@@soft\-reboot\fR.
+
+The current boot-time options will be passed on to the restarted dinit and remain in effect
+(note that system recovery options, for example, may re-initiate the recovery process).
+Services must be suitably configured in order for this option to be useful; using this
+option in environments where it is not specifically supported is not recommended.
 .TP
 \fB\-h\fP
 Shutdown and then halt the system (without powering down).
 .TP
 \fB\-p\fP
 Shutdown and then power down the system. This is the default unless executed
-as \fB$$$SHUTDOWN_PREFIX@@@reboot\fR.
+as \fB$$$SHUTDOWN_PREFIX@@@reboot\fR or \fB$$$SHUTDOWN_PREFIX@@@soft\-reboot\fR.
 .TP
 \fB\-\-use\-passed\-cfd\fR
 Instead of attempting to open a socket connection to the service daemon,
