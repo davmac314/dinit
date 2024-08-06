@@ -698,18 +698,20 @@ int dinit_main(int argc, char **argv)
     }
 
     flush_log();
+    bool need_log_flush = false;
     close_control_socket();
     
     if (am_system_mgr) {
         if (shutdown_type == shutdown_type_t::SOFTREBOOT) {
-            sync(); // Sync to minimise data loss if user elects to power off / hard reset
+            sync(); // Sync to minimise data loss in case soft-boot fails
 
             execv(dinit_exec, argv);
             log(loglevel_t::ERROR, error_exec_dinit, strerror(errno));
 
-            // reboot if soft-reboot fails or memory allocation failed
+            // if we get here, soft reboot failed; reboot normally
             log(loglevel_t::ERROR, "Could not soft-reboot. Will attempt reboot.");
             shutdown_type = shutdown_type_t::REBOOT;
+            need_log_flush = true;
         }
 
         if (shutdown_type == shutdown_type_t::NONE) {
@@ -730,11 +732,17 @@ int dinit_main(int argc, char **argv)
                 catch (...) {
                     // Couldn't start boot service, let's reboot the system
                     log(loglevel_t::ERROR, "Could not start 'boot' service. Will attempt reboot.");
+                    need_log_flush = true;
                     shutdown_type = shutdown_type_t::REBOOT;
                 }
             }
         }
         
+        if (need_log_flush) {
+            // In case of error since the log was previously flushed, flush again now
+            flush_log();
+        }
+
         const char * cmd_arg;
         if (shutdown_type == shutdown_type_t::HALT) {
             cmd_arg = "-h";
