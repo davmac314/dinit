@@ -75,7 +75,7 @@ jobs:
     - name: Integration tests
       run: meson test -v --suite=igr_tests -C dirbuild
     - name: Upload igr-tests output file(s) on failure
-      uses: actions/upload-artifact@v4.3.2
+      uses: actions/upload-artifact@v4.3.6
       if: failure()
       with:
           name: igr-tests_output
@@ -104,7 +104,7 @@ jobs:
     - name: Integration tests
       run: meson test -v --suite=igr_tests -C dirbuild
     - name: Upload igr-tests output file(s) on failure
-      uses: actions/upload-artifact@v4.3.2
+      uses: actions/upload-artifact@v4.3.6
       if: failure()
       with:
           name: igr-tests_output
@@ -144,7 +144,7 @@ jobs:
           echo "$(tput bold) ----Integration tests---- :$(tput sgr0) meson test -v --suite=igr_tests -C dirbuild"
           meson test -v --suite=igr_tests -C dirbuild
     - name: Upload igr-tests output file(s) on failure
-      uses: actions/upload-artifact@v4.3.2
+      uses: actions/upload-artifact@v4.3.6
       if: failure()
       with:
           name: igr-tests_output
