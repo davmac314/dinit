@@ -203,6 +203,9 @@ struct options {
     bool control_socket_path_set = false;
     bool env_file_set = false;
     bool log_specified = false;
+    
+    bool log_colorize = false;
+    
 
     bool process_sys_args = false;
 
@@ -225,6 +228,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
     bool &control_socket_path_set = opts.control_socket_path_set;
     bool &env_file_set = opts.env_file_set;
     bool &log_specified = opts.log_specified;
+    bool &log_colorize = opts.log_colorize;
     service_dir_opt &service_dir_opts = opts.service_dir_opts;
     list<const char *> &services_to_start = opts.services_to_start;
 
@@ -339,6 +343,9 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                 return 1;
             }
         }
+        else if (strcmp(argv[i], "--color") == 0) {
+            log_colorize = true;
+        }
         else if (strcmp(argv[i], "--quiet") == 0 || strcmp(argv[i], "-q") == 0) {
             console_service_status = false;
             log_level[DLOG_CONS] = loglevel_t::ZERO;
@@ -400,6 +407,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                     "                              cgroup base path (for resolving relative paths)\n"
                     #endif
                     " --log-file <file>, -l <file> log to the specified file\n"
+                    " --color                      colorize input\n"
                     " --quiet, -q                  disable output to standard output\n"
                     " <service-name>, --service <service-name>, -t <service-name>\n"
                     "                              start service with name <service-name>\n";

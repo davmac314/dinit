@@ -1,0 +1,199 @@
+Build started at 2024-05-25T16:24:32.680512
+Main binary: /usr/bin/python
+Build Options: 
+Python system: Linux
+The Meson build system
+Version: 1.4.0
+Source dir: /home/thenofis/soft/1/dinit
+Build dir: /home/thenofis/soft/1/dinit/build
+Build type: native build
+Running command: /usr/bin/grep '^VERSION=' build/version.conf
+--- stdout ---
+VERSION=0.18.1pre
+
+--- stderr ---
+
+
+Project name: dinit
+Project version: 0.18.1pre
+-----------
+Detecting compiler via: `c++ --version` -> 0
+stdout:
+c++ (GCC) 14.1.1 20240507
+Copyright (C) 2024 Free Software Foundation, Inc.
+Это свободно распространяемое программное обеспечение. Условия копирования
+приведены в исходных текстах.
+
+  Без гарантии каких-либо качеств, включая 
+коммерческую ценность и применимость для каких-либо целей.
+-----------
+Running command: c++ -E -dM -
+-----
+-----------
+Detecting linker via: `c++ -Wl,--version` -> 0
+stdout:
+GNU ld (GNU Binutils) 2.42.0
+Copyright (C) 2024 Free Software Foundation, Inc.
+Эта программа является свободным программным обеспечением. Вы можете распространять
+её на условиях GNU General Public License версии 3 или (по вашему выбору)
+более поздней версии.
+Эта программа не имеет абсолютно никаких не гарантий.
+-----------
+stderr:
+collect2 версия 14.1.1 20240507
+/usr/bin/ld -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccfTfgH2.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie /usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1 -L/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../.. --version -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../../lib/crtn.o
+-----------
+Sanity testing C++ compiler: c++
+Is cross compiler: False.
+Sanity check compiler command line: c++ sanitycheckcpp.cc -o sanitycheckcpp.exe -D_FILE_OFFSET_BITS=64
+Sanity check compile stdout:
+
+-----
+Sanity check compile stderr:
+
+-----
+Running test binary command:  /home/thenofis/soft/1/dinit/build/meson-private/sanitycheckcpp.exe
+C++ compiler for the host machine: c++ (gcc 14.1.1 "c++ (GCC) 14.1.1 20240507")
+C++ linker for the host machine: c++ ld.bfd 2.42.0
+-----------
+Detecting archiver via: `gcc-ar --version` -> 0
+stdout:
+GNU ar (GNU Binutils) 2.42.0
+Copyright (C) 2024 Free Software Foundation, Inc.
+Эта программа является открытым программным обеспечением; вы можете
+распространять её согласно условиям GNU General Public License версии 3 или
+(по вашему выбору) более новой версии.
+Эта программа не имеет абсолютно никаких гарантий.
+-----------
+-----------
+Detecting compiler via: `c++ --version` -> 0
+stdout:
+c++ (GCC) 14.1.1 20240507
+Copyright (C) 2024 Free Software Foundation, Inc.
+Это свободно распространяемое программное обеспечение. Условия копирования
+приведены в исходных текстах.
+
+  Без гарантии каких-либо качеств, включая 
+коммерческую ценность и применимость для каких-либо целей.
+-----------
+Running command: c++ -E -dM -
+-----
+-----------
+Detecting linker via: `c++ -Wl,--version` -> 0
+stdout:
+GNU ld (GNU Binutils) 2.42.0
+Copyright (C) 2024 Free Software Foundation, Inc.
+Эта программа является свободным программным обеспечением. Вы можете распространять
+её на условиях GNU General Public License версии 3 или (по вашему выбору)
+более поздней версии.
+Эта программа не имеет абсолютно никаких не гарантий.
+-----------
+stderr:
+collect2 версия 14.1.1 20240507
+/usr/bin/ld -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccncNCgl.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie /usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1 -L/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../.. --version -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../../lib/crtn.o
+-----------
+Sanity testing C++ compiler: c++
+Is cross compiler: False.
+Sanity check compiler command line: c++ sanitycheckcpp.cc -o sanitycheckcpp.exe -D_FILE_OFFSET_BITS=64
+Sanity check compile stdout:
+
+-----
+Sanity check compile stderr:
+
+-----
+Running test binary command:  /home/thenofis/soft/1/dinit/build/meson-private/sanitycheckcpp.exe
+C++ compiler for the build machine: c++ (gcc 14.1.1 "c++ (GCC) 14.1.1 20240507")
+C++ linker for the build machine: c++ ld.bfd 2.42.0
+-----------
+Detecting archiver via: `gcc-ar --version` -> 0
+stdout:
+GNU ar (GNU Binutils) 2.42.0
+Copyright (C) 2024 Free Software Foundation, Inc.
+Эта программа является открытым программным обеспечением; вы можете
+распространять её согласно условиям GNU General Public License версии 3 или
+(по вашему выбору) более новой версии.
+Эта программа не имеет абсолютно никаких гарантий.
+-----------
+Build machine cpu family: x86_64
+Build machine cpu: x86_64
+Host machine cpu family: x86_64
+Host machine cpu: x86_64
+Target machine cpu family: x86_64
+Target machine cpu: x86_64
+Running compile:
+Working directory:  /tmp/tmp_vw8x836
+Code:
+ int i = static_cast<int>(0);
+-----------
+Command line: `c++ /tmp/tmp_vw8x836/testfile.cpp -o /tmp/tmp_vw8x836/output.obj -D_FILE_OFFSET_BITS=64 -c -std=c++11` -> 0
+Compiler accepts -std=c++11: YES
+Running compile:
+Working directory:  /home/thenofis/soft/1/dinit/build/meson-private/tmp_u3dsgu_
+Code:
+ 
+        #include <utmpx.h>
+        int main(void) {
+            /* If it's not defined as a macro, try to use as a symbol */
+            #ifndef _PATH_UTMPX
+                _PATH_UTMPX;
+            #endif
+            return 0;
+        }
+-----------
+Command line: `c++ /home/thenofis/soft/1/dinit/build/meson-private/tmp_u3dsgu_/testfile.cpp -o /home/thenofis/soft/1/dinit/build/meson-private/tmp_u3dsgu_/output.obj -c -D_FILE_OFFSET_BITS=64 -O0 -fpermissive -std=c++11` -> 0
+Header "utmpx.h" has symbol "_PATH_UTMPX" : YES 
+Running compile:
+Working directory:  /home/thenofis/soft/1/dinit/build/meson-private/tmpoj9xhem7
+Code:
+ 
+        #include <utmpx.h>
+        int main(void) {
+            /* If it's not defined as a macro, try to use as a symbol */
+            #ifndef _PATH_WTMPX
+                _PATH_WTMPX;
+            #endif
+            return 0;
+        }
+-----------
+Command line: `c++ /home/thenofis/soft/1/dinit/build/meson-private/tmpoj9xhem7/testfile.cpp -o /home/thenofis/soft/1/dinit/build/meson-private/tmpoj9xhem7/output.obj -c -D_FILE_OFFSET_BITS=64 -O0 -fpermissive -std=c++11` -> 0
+Header "utmpx.h" has symbol "_PATH_WTMPX" : YES 
+Configuring mconfig.h using configuration
+Build targets in project: 11
+
+Found ninja-1.12.1 at /usr/bin/ninja
+Running compile:
+Working directory:  /home/thenofis/soft/1/dinit/build/meson-private/tmpxvv05qfn
+Code:
+ 
+-----------
+Command line: `c++ /home/thenofis/soft/1/dinit/build/meson-private/tmpxvv05qfn/testfile.cpp -o /home/thenofis/soft/1/dinit/build/meson-private/tmpxvv05qfn/output.obj -c -D_FILE_OFFSET_BITS=64 -O0 -fpermissive --print-search-dirs` -> 0
+stdout:
+install: /usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/
+programs: =/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/:/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/:/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../../x86_64-pc-linux-gnu/bin/x86_64-pc-linux-gnu/14.1.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../../x86_64-pc-linux-gnu/bin/
+libraries: =/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../../x86_64-pc-linux-gnu/lib/x86_64-pc-linux-gnu/14.1.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../../x86_64-pc-linux-gnu/lib/../lib/:/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../x86_64-pc-linux-gnu/14.1.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../../lib/:/lib/x86_64-pc-linux-gnu/14.1.1/:/lib/../lib/:/usr/lib/x86_64-pc-linux-gnu/14.1.1/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../../x86_64-pc-linux-gnu/lib/:/usr/lib/gcc/x86_64-pc-linux-gnu/14.1.1/../../../:/lib/:/usr/lib/
+-----------
+Failed to guess install tag for /usr/local/share/man/man5/dinit-service.5
+Failed to guess install tag for /usr/local/share/man/man8/dinit.8
+Failed to guess install tag for /usr/local/share/man/man8/dinitcheck.8
+Failed to guess install tag for /usr/local/share/man/man8/dinitctl.8
+Failed to guess install tag for /usr/local/share/man/man8/dinit-monitor.8
+Failed to guess install tag for /usr/local/share/man/man8/shutdown.8
+Failed to guess install tag for /sbin/reboot
+Failed to guess install tag for /sbin/halt
+Failed to guess install tag for /sbin/poweroff
+Failed to guess install tag for /usr/local/share/man/man8/reboot.8
+Failed to guess install tag for /usr/local/share/man/man8/halt.8
+Failed to guess install tag for /usr/local/share/man/man8/poweroff.8
+Failed to guess install tag for /usr/local/share/man/man5/dinit-service.5
+Failed to guess install tag for /usr/local/share/man/man8/dinit.8
+Failed to guess install tag for /usr/local/share/man/man8/dinitcheck.8
+Failed to guess install tag for /usr/local/share/man/man8/dinitctl.8
+Failed to guess install tag for /usr/local/share/man/man8/dinit-monitor.8
+Failed to guess install tag for /usr/local/share/man/man8/shutdown.8
+Failed to guess install tag for /sbin/reboot
+Failed to guess install tag for /sbin/halt
+Failed to guess install tag for /sbin/poweroff
+Failed to guess install tag for /usr/local/share/man/man8/reboot.8
+Failed to guess install tag for /usr/local/share/man/man8/halt.8
+Failed to guess install tag for /usr/local/share/man/man8/poweroff.8
+WARNING: Running the setup command as `meson [options]` instead of `meson setup [options]` is ambiguous and deprecated.
