@@ -760,27 +760,104 @@ static void print_termination_details(int exit_status)
     }
 }
 
+// Process a SERVICEEVENT packet if it is related to the specified service handle, and optionally
+// report the service status to the user (verbose == true). The caller must ensure that a complete
+// packet of type SERVICEEVENT is present in the buffer before calling.
+// The size of current SERVICEEVENT should be provided as pktlen.
+// Returns 0 if the service started (do_stop == false) or stopped (do_stop == true), 1 if
+// start/stop was cancelled or failed, -1 when the service event is not related to given service
+// handle.
+static int process_service_event(cpbuffer_t &rbuffer, unsigned pktlen, handle_t handle,
+        const std::string &service_name, bool do_stop, bool verbose)
+{
+    using std::cout;
+
+    // earlier versions do not include status info, the size in that case is
+    // base_pkt_size:
+    constexpr unsigned base_pkt_size = 2 + sizeof(handle_t) + 1;
+    if (pktlen < base_pkt_size) {
+        throw dinit_protocol_error();
+    }
+
+    service_event_t completion_event;
+    service_event_t cancelled_event;
+    if (do_stop) {
+        completion_event = service_event_t::STOPPED;
+        cancelled_event = service_event_t::STOPCANCELLED;
+    }
+    else {
+        completion_event = service_event_t::STARTED;
+        cancelled_event = service_event_t::STARTCANCELLED;
+    }
+
+    handle_t ev_handle;
+    rbuffer.extract((char *)&ev_handle, 2, sizeof(ev_handle));
+    service_event_t event = static_cast<service_event_t>(rbuffer[2 + sizeof(ev_handle)]);
+    if (ev_handle == handle) {
+        if (event == completion_event) {
+            if (verbose) {
+                cout << "Service '" << service_name << "' " << describe_state(do_stop)
+                        << ".\n";
+            }
+            rbuffer.consume(pktlen);
+            return 0;
+        }
+        else if (event == cancelled_event) {
+            if (verbose) {
+                cout << "Service '" << service_name << "' " << describe_verb(do_stop)
+                        << " cancelled.\n";
+            }
+            rbuffer.consume(pktlen);
+            return 1;
+        }
+        else if (!do_stop && event == service_event_t::FAILEDSTART) {
+            if (verbose) {
+                cout << "Service '" << service_name << "' failed to start.\n";
+                if (pktlen >= base_pkt_size + STATUS_BUFFER_SIZE) {
+                    stopped_reason_t stop_reason = static_cast<stopped_reason_t>(rbuffer[base_pkt_size + 3]);
+                    int exit_status;
+                    rbuffer.extract((char *)&exit_status, base_pkt_size + 6, sizeof(exit_status));
+
+                    switch (stop_reason) {
+                        case stopped_reason_t::DEPFAILED:
+                            cout << "Reason: a dependency of the service failed to start. "
+                                    "Check dinit log.\n";
+                            break;
+                        case stopped_reason_t::TIMEDOUT:
+                            cout << "Reason: start timed out.\n";
+                            break;
+                        case stopped_reason_t::EXECFAILED:
+                            cout << "Reason: execution of service process failed:\n";
+                            uint16_t launch_stage;
+                            rbuffer.extract((char *)&launch_stage, base_pkt_size + 4,
+                                            sizeof(uint16_t));
+                            cout << "        Stage: " << exec_stage_descriptions[launch_stage]
+                                << "\n";
+                            cout << "        Error: " << strerror(exit_status) << "\n";
+                            break;
+                        case stopped_reason_t::FAILED:
+                            cout << "Reason: service process terminated before ready: ";
+                            print_termination_details(exit_status);
+                            cout << "\n";
+                            break;
+                        default:
+                            cout << "Reason unknown/unrecognised. Check dinit log.\n";
+                    }
+                }
+            }
+            rbuffer.consume(pktlen);
+            return 1;
+        }
+    }
+    rbuffer.consume(pktlen);
+    return -1;
+}
+
 // Wait for a service to reached stopped (do_stop == true) or started (do_stop == false) state.
 // Returns 0 if the service started/stopped, 1 if start/stop was cancelled or failed.
 static int wait_service_state(int socknum, cpbuffer_t &rbuffer, handle_t handle,
         const std::string &service_name, bool do_stop, bool verbose)
 {
-    using std::cout;
-    using std::cerr;
-    using std::endl;
-
-    service_event_t completionEvent;
-    service_event_t cancelledEvent;
-
-    if (do_stop) {
-        completionEvent = service_event_t::STOPPED;
-        cancelledEvent = service_event_t::STOPCANCELLED;
-    }
-    else {
-        completionEvent = service_event_t::STARTED;
-        cancelledEvent = service_event_t::STARTCANCELLED;
-    }
-
     // Wait until service started:
     int r = rbuffer.fill_to(socknum, 2);
     while (r > 0) {
@@ -789,66 +866,15 @@ static int wait_service_state(int socknum, cpbuffer_t &rbuffer, handle_t handle,
             fill_buffer_to(rbuffer, socknum, pktlen);
 
             if (rbuffer[0] == (char)cp_info::SERVICEEVENT) {
-                // earlier versions do not include status info, the size in that case is base_pkt_size:
-                constexpr unsigned base_pkt_size = 2 + sizeof(handle_t) + 1;
-                if (pktlen < base_pkt_size) {
-                    throw dinit_protocol_error();
-                }
-                handle_t ev_handle;
-                rbuffer.extract((char *) &ev_handle, 2, sizeof(ev_handle));
-                service_event_t event = static_cast<service_event_t>(rbuffer[2 + sizeof(ev_handle)]);
-                if (ev_handle == handle) {
-                    if (event == completionEvent) {
-                        if (verbose) {
-                            cout << "Service '" << service_name << "' " << describe_state(do_stop) << ".\n";
-                        }
-                        return 0;
-                    }
-                    else if (event == cancelledEvent) {
-                        if (verbose) {
-                            cout << "Service '" << service_name << "' " << describe_verb(do_stop) << " cancelled.\n";
-                        }
-                        return 1;
-                    }
-                    else if (!do_stop && event == service_event_t::FAILEDSTART) {
-                        if (verbose) {
-                            cout << "Service '" << service_name << "' failed to start.\n";
-                            if (pktlen >= base_pkt_size + STATUS_BUFFER_SIZE) {
-                                stopped_reason_t stop_reason =
-                                        static_cast<stopped_reason_t>(rbuffer[base_pkt_size + 3]);
-                                int exit_status;
-                                rbuffer.extract((char *)&exit_status, base_pkt_size + 6, sizeof(exit_status));
-
-                                switch (stop_reason) {
-                                case stopped_reason_t::DEPFAILED:
-                                    cout << "Reason: a dependency of the service failed to start. Check dinit log.\n";
-                                    break;
-                                case stopped_reason_t::TIMEDOUT:
-                                    cout << "Reason: start timed out.\n";
-                                    break;
-                                case stopped_reason_t::EXECFAILED:
-                                    cout << "Reason: execution of service process failed:\n";
-                                    uint16_t launch_stage;
-                                    rbuffer.extract((char *)&launch_stage, base_pkt_size + 4, sizeof(uint16_t));
-                                    cout << "        Stage: " << exec_stage_descriptions[launch_stage] << "\n";
-                                    cout << "        Error: " << strerror(exit_status) << "\n";
-                                    break;
-                                case stopped_reason_t::FAILED:
-                                    cout << "Reason: service process terminated before ready: ";
-                                    print_termination_details(exit_status);
-                                    cout << "\n";
-                                    break;
-                                default:
-                                    cout << "Reason unknown/unrecognised. Check dinit log.\n";
-                                }
-                            }
-                        }
-                        return 1;
-                    }
+                int ret = process_service_event(rbuffer, pktlen, handle, service_name, do_stop, verbose);
+                if (ret >= 0) {
+                    return ret;
                 }
             }
+            else {
+                rbuffer.consume(pktlen);
+            }
 
-            rbuffer.consume(pktlen);
             r = rbuffer.fill_to(socknum, 2);
         }
         else {
@@ -1903,29 +1929,74 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
     }
 
     if (socknum >= 0) {
+        if (verbose) {
+            cout << "Service '" << to << "' has been " << (enable ? "enabled" : "disabled") << "." << endl;
+        }
+
         // Check status of the service now
         auto m = membuf()
                 .append((char)cp_cmd::SERVICESTATUS)
                 .append(to_handle);
         write_all_x(socknum, m);
 
-        wait_for_reply(rbuffer, socknum);
+        int statussize = 6 + std::max(sizeof(pid_t), sizeof(int));;
+
+        // For an enable, we want to wait until the service has started so we can report any
+        // failure. But, if the service is already started, we won't get any service events, so we
+        // have to request status via SERVICESTATUS to catch that case. However, we may get
+        // a service event before the reply to SERVICESTATUS and in that case should use it to
+        // report status.
+        if (enable) {
+            int r = rbuffer.fill_to(socknum, 2);
+            while (r > 0 && rbuffer[0] >= 100) {
+                unsigned pktlen = (unsigned char) rbuffer[1];
+                fill_buffer_to(rbuffer, socknum, pktlen);
+
+                if (rbuffer[0] == (char)cp_info::SERVICEEVENT) {
+                    int ret = process_service_event(rbuffer, pktlen, to_handle, to,
+                            false /* start */, verbose);
+                    if (ret >= 0) {
+                        // Consume the outstanding reply packet before returning.
+                        wait_for_reply(rbuffer, socknum);
+                        if (rbuffer[0] != (char)cp_rply::SERVICESTATUS) {
+                            cerr << "dinitctl: protocol error." << endl;
+                            return 1;
+                        }
+                        // +2 is 1 byte packet type, 1 byte reserved
+                        fill_buffer_to(rbuffer, socknum, statussize + 2);
+                        rbuffer.consume(statussize + 2);
+                        return ret;
+                    }
+                }
+                else {
+                    rbuffer.consume(pktlen);
+                }
+
+                r = rbuffer.fill_to(socknum, 2);
+            }
+            if (r == -1) {
+                throw cp_read_exception(errno);
+            }
+            if (r == 0) {
+                cerr << "dinitctl: protocol error." << endl;
+                return 1;
+            }
+        }
+        else {
+            wait_for_reply(rbuffer, socknum);
+        }
+
         if (rbuffer[0] != (char)cp_rply::SERVICESTATUS) {
             cerr << "dinitctl: protocol error." << endl;
             return 1;
         }
         rbuffer.consume(1);
 
-        int statussize = 6 + std::max(sizeof(pid_t), sizeof(int));;
         fill_buffer_to(rbuffer, socknum, statussize + 1 /* reserved */);
         rbuffer.consume(1);
         service_state_t current = static_cast<service_state_t>(rbuffer[0]);
         service_state_t target = static_cast<service_state_t>(rbuffer[1]);
         rbuffer.consume(statussize);
-
-        if (verbose) {
-            cout << "Service '" << to << "' has been " << (enable ? "enabled" : "disabled") << "." << endl;
-        }
 
         if (enable) {
             if (current != service_state_t::STARTED) {
