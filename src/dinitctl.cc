@@ -1769,6 +1769,8 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 
     string waits_for_d;
 
+    service_file.exceptions(ios::badbit);
+
     file_input_stack input_stack;
     input_stack.push(service_file_path, std::move(service_file));
 
@@ -1796,6 +1798,10 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
         });
     }
     catch (const service_op_cancel &cexc) {
+        return 1;
+    }
+    catch (std::system_error &err) {
+        cerr << "dinitctl: " << input_stack.current_file_name() << ": " << strerror(errno) << endl;
         return 1;
     }
 

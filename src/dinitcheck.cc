@@ -685,7 +685,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
     catch (std::system_error &sys_err)
     {
         report_error(sys_err, name);
-        throw service_load_exc(name, "error while reading service description.");
+        throw service_load_exc(name, input_stack.current_file_name() + ": error while reading service description");
     }
 
     auto report_err = [&](const char *msg) {
