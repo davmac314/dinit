@@ -859,25 +859,48 @@ void process_service_file(string name, file_input_stack &service_input, T proces
             if (*i == '#') continue; // comment without setting
 
             if (*i == '@') {
+                // meta command
+                ++i;
                 string meta_cmd = read_config_name(i, end);
-                if (meta_cmd == "include") {
+                bool is_include_opt = (meta_cmd == "include-opt");
+                if (is_include_opt || meta_cmd == "include") {
+                    // @include-opt or @include
+                    std::list<std::pair<unsigned,unsigned>> part_positions;
+                    file_pos_ref input_pos { service_input.current_file_name(), line_num };
+                    std::string include_name = read_setting_value(input_pos, i, end, &part_positions);
+                    if (part_positions.size() != 1) {
+                        throw service_description_exc(name, "'@" + meta_cmd + "' requires a single argument", input_pos);
+                    }
 
-                    read_setting_value(input_pos, i, end, part_positions);
-
+                    std::ifstream file(include_name);
+                    file.exceptions(std::ios::badbit);
+                    if (file) {
+                        service_input.push(include_name, std::move(file));
+                    }
+                    else {
+                        if (!is_include_opt || errno != ENOENT) {
+                            throw service_load_exc(name, include_name + ": cannot open: " + strerror(errno));
+                        }
+                    }
                 }
-            }
-            else {
-                string setting = read_config_name(i, end);
-                i = skipwsln(i, end, line_num);
-                if (setting.empty() || i == end || (*i != '=' && *i != ':')) {
-                    throw service_description_exc(name, "badly formed line.", service_input);
+                else {
+                    file_pos_ref input_pos { service_input.current_file_name(), line_num };
+                    throw service_description_exc(name, "bad meta command", input_pos);
                 }
 
-                i = skipwsln(++i, end, line_num);
-
-                file_pos_ref fpr { service_input.current_file_name(), line_num };
-                process_line_func(line, fpr, setting, i, end);
+                continue;
             }
+
+            string setting = read_config_name(i, end);
+            i = skipwsln(i, end, line_num);
+            if (setting.empty() || i == end || (*i != '=' && *i != ':')) {
+                throw service_description_exc(name, "badly formed line.", service_input);
+            }
+
+            i = skipwsln(++i, end, line_num);
+
+            file_pos_ref fpr { service_input.current_file_name(), line_num };
+            process_line_func(line, fpr, setting, i, end);
         }
     }
 }
