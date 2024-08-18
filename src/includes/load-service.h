@@ -385,13 +385,13 @@ inline string read_config_name(string_iterator & i, string_iterator end, bool en
 // Throws service_description_exc (with service name unset) on error.
 //
 // Params:
-//    line_num - the line number on which the setting appears (starts), used for error reporting
-//    i  -  reference to string iterator through the line
+//    input_pos - the file and line number on which the setting appears (starts), used for error reporting
+//    i  -  reference to string iterator through the line (updated to end of setting on return)
 //    end -   iterator at end of line (not including newline character if any)
-//    part_positions -  list of <int,int> to which the position of each setting value
+//    part_positions -  list of pair<unsigned,unsigned> to which the position of each setting value
 //                      part will be added as [start,end). May be null.
-inline string read_setting_value(file_pos_ref input_pos, string_iterator & i, string_iterator end,
-        std::list<std::pair<unsigned,unsigned>> * part_positions = nullptr)
+inline string read_setting_value(file_pos_ref input_pos, string_iterator &i, string_iterator end,
+        std::list<std::pair<unsigned,unsigned>> *part_positions = nullptr)
 {
     using std::locale;
     using std::isspace;
@@ -810,11 +810,13 @@ inline void parse_rlimit(const std::string &line, file_pos_ref input_pos,
 
 // Process an opened service file, line by line.
 //    name - the service name
-//    service_file - the service file input stream
-//    process_line_func - a function of the form:
-//             void(string &line, string &setting, string_iterator i, string_iterator end)
+//    service_input - the service file input stream (stack)
+//    process_line_func - a function to process settings, of the form:
+//             void(string &line, file_pos_ref position, string &setting, string_iterator i,
+//                     string_iterator end)
 //           Called with:
 //               line - the complete line (excluding newline character)
+//               position - the input position (file_pos_ref)
 //               setting - the setting name, from the beginning of the line
 //               i - iterator at the beginning of the setting value
 //               end - iterator marking the end of the line
@@ -855,16 +857,27 @@ void process_service_file(string name, file_input_stack &service_input, T proces
         i = skipwsln(i, end, line_num);
         if (i != end) {
             if (*i == '#') continue; // comment without setting
-            string setting = read_config_name(i, end);
-            i = skipwsln(i, end, line_num);
-            if (setting.empty() || i == end || (*i != '=' && *i != ':')) {
-                throw service_description_exc(name, "badly formed line.", service_input);
+
+            if (*i == '@') {
+                string meta_cmd = read_config_name(i, end);
+                if (meta_cmd == "include") {
+
+                    read_setting_value(input_pos, i, end, part_positions);
+
+                }
             }
+            else {
+                string setting = read_config_name(i, end);
+                i = skipwsln(i, end, line_num);
+                if (setting.empty() || i == end || (*i != '=' && *i != ':')) {
+                    throw service_description_exc(name, "badly formed line.", service_input);
+                }
 
-            i = skipwsln(++i, end, line_num);
+                i = skipwsln(++i, end, line_num);
 
-            file_pos_ref fpr { service_input.current_file_name(), line_num };
-            process_line_func(line, fpr, setting, i, end);
+                file_pos_ref fpr { service_input.current_file_name(), line_num };
+                process_line_func(line, fpr, setting, i, end);
+            }
         }
     }
 }
