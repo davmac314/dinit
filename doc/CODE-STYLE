@@ -39,6 +39,9 @@ code style.
 5. Exceptions - should be used sparingly. Much of the Dinit code is exception-free and this
    needs to be maintained. Functions that cannot throw or propagate exceptions should be marked
    as "noexcept".
+   
+   5.1 Avoid using exceptions for normal control flow. That is, exceptions should generally be
+       considered hard errors.
 
 6. Pointers and references - the rules are a bit loose here, but in general function parameters
    which may be modified by the callee should be passed via pointer, to act as a visual aid
@@ -46,3 +49,9 @@ code style.
 
 7. Balance maintainability (including readability) with efficiency. Existing code should serve
    as a guide.
+
+8. Comments for a class should precede the class (with no intervening blank lines). Similarly for
+   a function.
+   
+   8.1 Use "TODO" to indicate a desirable future improvement. This should be used minimally; in
+       general, it is better to do the thing than to comment that the thing should be done.
