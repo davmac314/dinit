@@ -153,7 +153,7 @@ int dinitctl_main(int argc, char **argv)
             }
             else if (strcmp(argv[i], "--socket-path") == 0 || strcmp(argv[i], "-p") == 0) {
                 ++i;
-                if (i == argc) {
+                if (i == argc || argv[i][0] == '\0') {
                     cerr << "dinitctl: --socket-path/-p should be followed by socket path" << std::endl;
                     return 1;
                 }
@@ -165,7 +165,7 @@ int dinitctl_main(int argc, char **argv)
             else if (strcmp(argv[i], "--from") == 0) {
                 if (command == ctl_cmd::ENABLE_SERVICE || command == ctl_cmd::DISABLE_SERVICE) {
                     ++i;
-                    if (i == argc) {
+                    if (i == argc || argv[i][0] == '\0') {
                         cerr << "dinitctl: --from should be followed by a service name" << std::endl;
                         return 1;
                     }
@@ -204,7 +204,7 @@ int dinitctl_main(int argc, char **argv)
                 }
             }
             else if (strcmp(argv[i], "--services-dir") == 0 || strcmp(argv[i], "-d") == 0) {
-                if (++i < argc) {
+                if (++i < argc && argv[i][0] != '\0') {
                     service_dir_opts.set_specified_service_dir(argv[i]);
                 }
                 else {
@@ -294,6 +294,10 @@ int dinitctl_main(int argc, char **argv)
         }
         else {
             // service name / other non-option
+            if (argv[i][0] == '\0') {
+                cerr << "dinitctl: Invalid empty argument\n";
+                return 1;
+            }
             if (command == ctl_cmd::ADD_DEPENDENCY || command == ctl_cmd::RM_DEPENDENCY) {
                 if (! dep_type_set) {
                     if (strcmp(argv[i], "need") == 0 || strcmp(argv[i], "regular") == 0) {
