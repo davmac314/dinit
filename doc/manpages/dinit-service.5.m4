@@ -701,7 +701,7 @@ a single environment variable cannot be used to add multiple arguments to a comm
 If a designated variable is not defined, it is replaced with an empty (zero-length) string, possibly producing a
 zero-length argument.
 To alter this behaviour use a slash after \fB$\fR, as in `\fB$/NAME\fR'; the expanded value will then
-be split into several arguments separate by whitespace or, if the value is empty or consists only
+be split into several arguments separated by whitespace or, if the value is empty or consists only
 of whitespace, will collapse (instead of producing an empty or whitespace argument).
 .P
 Variable substitution occurs when the service is loaded.
