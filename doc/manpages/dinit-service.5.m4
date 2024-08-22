@@ -25,6 +25,10 @@ All services have a \fItype\fR and a set of \fIdependencies\fR. These are discus
 in the following subsections. The type, dependencies, and other attributes are
 specified via property settings, the format of which are documented in the
 \fBSERVICE PROPERTIES\fR subsection, which also lists the available properties.
+.LP
+In addition to service properties, some meta-commands can be used within service
+description files.
+See the \fBMETA-COMMANDS\fR subsection for more information. 
 .\"
 .SS SERVICE TYPES
 .\"
@@ -94,7 +98,7 @@ not prevent the dependent from starting.
 If the dependency starts, stopping it will have no effect on the dependent.
 This type of relationship is specified using a \fBwaits-for\fR property.
 .LP
-See the SERVICE ACTIVATION MODEL section in \fBdinit\fR(8) for more details of how service
+See the \fBSERVICE ACTIVATION MODEL\fR section in \fBdinit\fR(8) for more details of how service
 dependencies affect starting and stopping of services.
 .\"
 .SS SERVICE PROPERTIES
@@ -721,6 +725,21 @@ used for substitution, if they have been changed in the meantime.
 Using environment variable values in service commands and parameters can be used as means to
 provide easily-adjustable service configuration, but is not ideal for this purpose and alternatives
 should be considered. 
+.\"
+.SS META-COMMANDS
+.\"
+A number of meta-commands can be used in service description files.
+A meta-command is indicated by an 'at' sign, \fB@\fR, at the beginning of the line (possibly preceded by whitespace).
+Arguments to a meta-command follow on the same line and are interpreted as for setting values.
+  
+The following commands are available:
+.TP
+\fB@include\fR \fIpath\fR
+Include the contents of another file, specified via its full path.
+If the specified file does not exist, an error is produced.
+.TP
+\fB@include\-opt\fR \fIpath\fR
+As for \fB@include\fR, but produces no error if the named file does not exist.
 .\"
 .SH EXAMPLES
 .LP
