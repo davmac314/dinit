@@ -89,7 +89,7 @@ jobs:
       fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
       matrix:
         include:
-          - arch: 'amd64'
+          - arch: 'aarch64'
 
     steps:
     - uses: actions/checkout@v4
