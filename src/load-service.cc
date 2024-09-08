@@ -491,7 +491,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
     try {
         process_service_file(name, input_stack,
-                [&](string &line, file_pos_ref fpr, string &setting,
+                [&](string &line, file_pos_ref fpr, string &setting, setting_op_t op,
                         string_iterator &i, string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
@@ -514,7 +514,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 }
             };
 
-            process_service_line(settings, name, line, fpr, setting, i, end, load_service_n,
+            process_service_line(settings, name, line, fpr, setting, op, i, end, load_service_n,
                     process_dep_dir_n);
         });
 

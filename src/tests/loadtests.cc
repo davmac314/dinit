@@ -223,7 +223,8 @@ void test_settings()
 
     try {
         process_service_file("test-service", input_stack,
-                [&](string &line, file_pos_ref input_pos, string &setting, string_iterator &i,
+                [&](string &line, file_pos_ref input_pos, string &setting,
+                        dinit_load::setting_op_t op, string_iterator &i,
                         string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
@@ -236,7 +237,7 @@ void test_settings()
             };
 
             try {
-                process_service_line(settings, "test-service", line, input_pos, setting, i, end,
+                process_service_line(settings, "test-service", line, input_pos, setting, op, i, end,
                         load_service_n, process_dep_dir_n);
             }
             catch (service_description_exc &exc) {
@@ -293,7 +294,8 @@ void test_path_env_subst()
 
     try {
         process_service_file("test-service", input_stack,
-                [&](string &line, file_pos_ref input_pos, string &setting, string_iterator &i, string_iterator &end) -> void {
+                [&](string &line, file_pos_ref input_pos, string &setting,
+                        dinit_load::setting_op_t op, string_iterator &i, string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
                     dependency_type dep_type) -> void {
@@ -305,7 +307,8 @@ void test_path_env_subst()
             };
 
             try {
-                process_service_line(settings, "test-service", line, input_pos, setting, i, end, load_service_n, process_dep_dir_n);
+                process_service_line(settings, "test-service", line, input_pos, setting, op, i,
+                        end, load_service_n, process_dep_dir_n);
             }
             catch (service_description_exc &exc) {
                 //report_service_description_exc(exc);
@@ -366,7 +369,8 @@ void test_newline_err()
         input_stack.add_source(ss.str(), "dummy");
 
         process_service_file("test-service", input_stack,
-                [&](string &line, file_pos_ref input_pos, string &setting, string_iterator &i, string_iterator &end) -> void {
+                [&](string &line, file_pos_ref input_pos, string &setting,
+                        dinit_load::setting_op_t op, string_iterator &i, string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
                     dependency_type dep_type) -> void {
@@ -377,7 +381,8 @@ void test_newline_err()
                 return dep_name;
             };
 
-            process_service_line(settings, "test-service", line, input_pos, setting, i, end, load_service_n, process_dep_dir_n);
+            process_service_line(settings, "test-service", line, input_pos, setting, op, i, end,
+                    load_service_n, process_dep_dir_n);
         });
     };
 

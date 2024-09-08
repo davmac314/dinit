@@ -1775,7 +1775,8 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
     input_stack.push(service_file_path, std::move(service_file));
 
     try {
-        process_service_file(from, input_stack, [&](string &line, file_pos_ref fpr, string &setting,
+        process_service_file(from, input_stack, [&](string &line, file_pos_ref fpr,
+                string &setting, dinit_load::setting_op_t op,
                 dinit_load::string_iterator i, dinit_load::string_iterator end) -> void {
             if (setting == "waits-for" || setting == "depends-on" || setting == "depends-ms") {
                 string dname = dinit_load::read_setting_value(fpr, i, end);

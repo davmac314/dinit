@@ -208,6 +208,38 @@ namespace dinit_load {
 using string = std::string;
 using string_iterator = std::string::iterator;
 
+// Operators in setting lines.
+enum class setting_op_t {
+    ASSIGN /* = */, COLON /* : */, PLUSASSIGN /* += */
+};
+
+// The setting ids
+enum class setting_id_t {
+    LAST = -1, // used to indicate end of settings
+    TYPE, COMMAND, WORKING_DIR, ENV_FILE, SOCKET_LISTEN, SOCKET_PERMISSIONS, SOCKET_UID,
+    SOCKET_GID, STOP_COMMAND, PID_FILE, DEPENDS_ON, DEPENDS_MS, WAITS_FOR, WAITS_FOR_D,
+    DEPENDS_ON_D, DEPENDS_MS_D, AFTER, BEFORE, LOGFILE, LOGFILE_PERMISSIONS, LOGFILE_UID,
+    LOGFILE_GID, LOG_TYPE, LOG_BUFFER_SIZE, CONSUMER_OF, RESTART, SMOOTH_RECOVERY, OPTIONS,
+    LOAD_OPTIONS, TERM_SIGNAL, TERMSIGNAL /* deprecated */, RESTART_LIMIT_INTERVAL, RESTART_DELAY,
+    RESTART_LIMIT_COUNT, STOP_TIMEOUT, START_TIMEOUT, RUN_AS, CHAIN_TO, READY_NOTIFICATION,
+    INITTAB_ID, INITTAB_LINE,
+    // Prefixed with SETTING_ to avoid name collision with system macros:
+    SETTING_RLIMIT_NOFILE, SETTING_RLIMIT_CORE, SETTING_RLIMIT_DATA, SETTING_RLIMIT_ADDRSPACE,
+    // Possibly unsupported depending on platform/build options:
+    RUN_IN_CGROUP
+};
+
+struct setting_details {
+    const char *setting_str; // (may be null for blank entry)
+    setting_id_t setting_id;
+    bool supp_colon : 1; // supports ':' assignment
+    bool supp_assign : 1; // supports '=' assignment
+    bool supp_plus_assign : 1; // supports '+=' assignment operator
+    // Note: if '=' not supported but ':' is, '=' maps to ':' for backwards compatibility
+};
+
+extern setting_details all_settings[];
+
 // skip whitespace and embedded comments.
 inline string_iterator skipcomment(string_iterator i, string_iterator end, unsigned & count) noexcept
 {
@@ -367,7 +399,7 @@ inline string read_config_name(string_iterator & i, string_iterator end, bool en
     return rval;
 }
 
-// Read a setting value.
+// Read a setting value, with an assignment or plus-assignment (append).
 //
 // In general a setting value is a single-line string. It may contain multiple parts
 // separated by white space (which is normally collapsed). A hash mark - # - denotes
@@ -384,13 +416,18 @@ inline string read_config_name(string_iterator & i, string_iterator end, bool en
 //
 // Throws service_description_exc (with service name unset) on error.
 //
-// Params:
-//    input_pos - the file and line number on which the setting appears (starts), used for error reporting
-//    i  -  reference to string iterator through the line (updated to end of setting on return)
-//    end -   iterator at end of line (not including newline character if any)
+// Parameters:
+//    setting_val - the (current) setting value, to be modified by the call
+//    operation   - the operation- assign or append
+//    input_pos   - the file and line number on which the setting appears (starts), used for error
+//                  reporting
+//    i           - reference to string iterator through the line (updated to end of setting on
+//                  return)
+//    end         - iterator at end of line (not including newline character if any)
 //    part_positions -  list of pair<unsigned,unsigned> to which the position of each setting value
-//                      part will be added as [start,end). May be null.
-inline string read_setting_value(file_pos_ref input_pos, string_iterator &i, string_iterator end,
+//                  part will be added as [start,end). May be null.
+inline void read_setting_value(std::string &setting_val, setting_op_t operation,
+        file_pos_ref input_pos, string_iterator &i, string_iterator end,
         std::list<std::pair<unsigned,unsigned>> *part_positions = nullptr)
 {
     using std::locale;
@@ -400,7 +437,21 @@ inline string read_setting_value(file_pos_ref input_pos, string_iterator &i, str
 
     i = skipwsln(i, end, line_num);
 
-    string rval;
+    if (operation == setting_op_t::PLUSASSIGN) {
+        // ensure whitespace at end of current
+        if (!setting_val.empty()) {
+            if (!isspace(setting_val.back(), locale::classic())) {
+                setting_val += ' ';
+            }
+        }
+    }
+    else {
+        setting_val.clear();
+        if (part_positions != nullptr) {
+            part_positions->clear();
+        }
+    }
+
     bool new_part = true;
     int part_start;
 
@@ -408,7 +459,7 @@ inline string read_setting_value(file_pos_ref input_pos, string_iterator &i, str
         char c = *i;
         if (c == '\"') {
             if (new_part) {
-                part_start = rval.length();
+                part_start = setting_val.length();
                 new_part = false;
             }
             // quoted string
@@ -421,14 +472,14 @@ inline string read_setting_value(file_pos_ref input_pos, string_iterator &i, str
                     ++i;
                     if (i != end) {
                         c = *i;
-                        rval += c;
+                        setting_val += c;
                     }
                     else {
                         throw service_description_exc(input_pos, "line end follows backslash escape character (`\\')");
                     }
                 }
                 else {
-                    rval += c;
+                    setting_val += c;
                 }
                 ++i;
             }
@@ -439,13 +490,13 @@ inline string read_setting_value(file_pos_ref input_pos, string_iterator &i, str
         }
         else if (c == '\\') {
             if (new_part) {
-                part_start = rval.length();
+                part_start = setting_val.length();
                 new_part = false;
             }
             // A backslash escapes the next character
             ++i;
             if (i != end) {
-                rval += *i;
+                setting_val += *i;
             }
             else {
                 throw service_description_exc(input_pos, "backslash escape (`\\') not followed by character");
@@ -453,12 +504,12 @@ inline string read_setting_value(file_pos_ref input_pos, string_iterator &i, str
         }
         else if (isspace(c, locale::classic())) {
             if (!new_part && part_positions != nullptr) {
-                part_positions->emplace_back(part_start, rval.length());
+                part_positions->emplace_back(part_start, setting_val.length());
                 new_part = true;
             }
             i = skipcomment(i, end, line_num);
             if (i == end) break;
-            rval += ' ';  // collapse ws to a single space
+            setting_val += ' ';  // collapse ws to a single space
             continue;
         }
         else if (c == '#') {
@@ -468,19 +519,39 @@ inline string read_setting_value(file_pos_ref input_pos, string_iterator &i, str
         }
         else {
             if (new_part) {
-                part_start = rval.length();
+                part_start = setting_val.length();
                 new_part = false;
             }
-            rval += c;
+            setting_val += c;
         }
         ++i;
     }
 
     // Got to end:
     if (!new_part && part_positions != nullptr) {
-        part_positions->emplace_back(part_start, rval.length());
+        part_positions->emplace_back(part_start, setting_val.length());
     }
+}
 
+// Read a setting value, with an assignment or plus-assignment (append).
+//
+// See read_setting_value(std::string &, ...)
+inline void read_setting_value(ha_string &setting_val, setting_op_t operation,
+        file_pos_ref input_pos, string_iterator &i, string_iterator end,
+        std::list<std::pair<unsigned,unsigned>> *part_positions = nullptr) {
+    std::string sval = std::string(setting_val.c_str(), setting_val.length());
+    read_setting_value(sval, operation, input_pos, i, end, part_positions);
+    setting_val = sval;
+}
+
+// Read a setting value.
+//
+// See read_setting_value(std::string &, ...)
+inline string read_setting_value(file_pos_ref input_pos, string_iterator &i, string_iterator end,
+        std::list<std::pair<unsigned,unsigned>> *part_positions = nullptr)
+{
+    string rval;
+    read_setting_value(rval, setting_op_t::ASSIGN, input_pos, i, end, part_positions);
     return rval;
 }
 
@@ -815,9 +886,10 @@ inline void parse_rlimit(const std::string &line, file_pos_ref input_pos,
 //             void(string &line, file_pos_ref position, string &setting, string_iterator i,
 //                     string_iterator end)
 //           Called with:
-//               line - the complete line (excluding newline character)
+//               line - the complete line, excluding newline character
 //               position - the input position (file_pos_ref)
 //               setting - the setting name, from the beginning of the line
+//               op - the operation (setting_op_t)
 //               i - iterator at the beginning of the setting value
 //               end - iterator marking the end of the line
 //
@@ -893,14 +965,41 @@ void process_service_file(string name, file_input_stack &service_input, T proces
 
             string setting = read_config_name(i, end);
             i = skipwsln(i, end, line_num);
-            if (setting.empty() || i == end || (*i != '=' && *i != ':')) {
+
+            setting_op_t setting_op;
+
+            bool bad_line = false;
+            if (setting.empty()) {
+                bad_line = true;
+            }
+            else if (*i == '=') {
+                setting_op = setting_op_t::ASSIGN;
+            }
+            else if (*i == ':') {
+                setting_op = setting_op_t::COLON;
+            }
+            else if (*i == '+') {
+                ++i;
+                if (i != end && *i == '=') {
+                    // "+=" is allowed
+                    setting_op = setting_op_t::PLUSASSIGN;
+                }
+                else {
+                    bad_line = true;
+                }
+            }
+            else {
+                bad_line = true;
+            }
+
+            if (bad_line) {
                 throw service_description_exc(name, "badly formed line.", service_input);
             }
 
             i = skipwsln(++i, end, line_num);
 
             file_pos_ref fpr { service_input.current_file_name(), line_num };
-            process_line_func(line, fpr, setting, i, end);
+            process_line_func(line, fpr, setting, setting_op, i, end);
         }
     }
 }
@@ -1330,19 +1429,21 @@ class service_settings_wrapper
 // type parameters:
 //     settings_wrapper : wrapper for service settings
 //     load_service_t   : type of load service function/lambda (see below)
-//     process_dep_dir_t : type of process_dep_dir funciton/lambda (see below)
+//     process_dep_dir_t : type of process_dep_dir function/lambda (see below)
 //
 // parameters:
 //     settings     : wrapper object for service settings
 //     name         : name of the service being processed
 //     line         : the current line of the service description file
+//     input_pos    : the current input position (for error reporting)
 //     setting      : the name of the setting (from the beginning of line)
+//     setting_op   : the operator specified after the setting name
 //     i            : iterator at beginning of setting value (including whitespace)
 //     end          : iterator at end of line
 //     load_service : function to load a service
 //                      arguments:  const char *service_name
-//                      return: a value that can be used (with a dependency type) to construct a dependency
-//                              in the 'depends' vector within the 'settings' object
+//                      return: a value that can be used (with a dependency type) to construct a
+//                              dependency in the 'depends' vector within the 'settings' object
 //     process_dep_dir : function to process a dependency directory
 //                      arguments: decltype(settings.depends) &dependencies
 //                                 const string &waitsford - directory as specified in parameter
@@ -1351,342 +1452,440 @@ class service_settings_wrapper
 template <typename settings_wrapper,
     typename load_service_t,
     typename process_dep_dir_t>
-void process_service_line(settings_wrapper &settings, const char *name, string &line, file_pos_ref input_pos,
-        string &setting, string::iterator &i, string::iterator &end, load_service_t load_service,
+void process_service_line(settings_wrapper &settings, const char *name, string &line,
+        file_pos_ref input_pos, string &setting, setting_op_t setting_op, string::iterator &i,
+        string::iterator &end, load_service_t load_service,
         process_dep_dir_t process_dep_dir)
 {
-    if (setting == "command") {
-        settings.command = read_setting_value(input_pos, i, end, &settings.command_offsets);
-    }
-    else if (setting == "working-dir") {
-        settings.working_dir = read_setting_value(input_pos, i, end, nullptr);
-    }
-    else if (setting == "env-file") {
-        settings.env_file = read_setting_value(input_pos, i, end, nullptr);
-    }
-    #if SUPPORT_CGROUPS
-    else if (setting == "run-in-cgroup") {
-        settings.run_in_cgroup = read_setting_value(input_pos, i, end, nullptr);
-    }
-    #endif
-    else if (setting == "socket-listen") {
-        settings.socket_path = read_setting_value(input_pos, i, end, nullptr);
-    }
-    else if (setting == "socket-permissions") {
-        string sock_perm_str = read_setting_value(input_pos, i, end, nullptr);
-        settings.socket_perms = parse_perms(input_pos, sock_perm_str, name, "socket-permissions");
-    }
-    else if (setting == "socket-uid") {
-        string sock_uid_s = read_setting_value(input_pos, i, end, nullptr);
-        settings.socket_uid = parse_uid_param(input_pos, sock_uid_s, name, "socket-uid", &settings.socket_uid_gid);
-    }
-    else if (setting == "socket-gid") {
-        string sock_gid_s = read_setting_value(input_pos, i, end, nullptr);
-        settings.socket_gid = parse_gid_param(input_pos, sock_gid_s, "socket-gid", name);
-    }
-    else if (setting == "stop-command") {
-        settings.stop_command = read_setting_value(input_pos, i, end, &settings.stop_command_offsets);
-    }
-    else if (setting == "pid-file") {
-        settings.pid_file = read_setting_value(input_pos, i, end);
-    }
-    else if (setting == "depends-on") {
-        string dependency_name = read_setting_value(input_pos, i, end);
-        settings.depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::REGULAR);
-    }
-    else if (setting == "depends-ms") {
-        string dependency_name = read_setting_value(input_pos, i, end);
-        settings.depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::MILESTONE);
-    }
-    else if (setting == "waits-for") {
-        string dependency_name = read_setting_value(input_pos, i, end);
-        settings.depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::WAITS_FOR);
-    }
-    else if (setting == "waits-for.d") {
-        string waitsford = read_setting_value(input_pos, i, end);
-        process_dep_dir(settings.depends, waitsford, dependency_type::WAITS_FOR);
-    }
-    else if (setting == "depends-on.d") {
-        string depends_on_d = read_setting_value(input_pos, i, end);
-        process_dep_dir(settings.depends, depends_on_d, dependency_type::REGULAR);
-    }
-    else if (setting == "depends-ms.d") {
-        string depends_ms_d = read_setting_value(input_pos, i, end);
-        process_dep_dir(settings.depends, depends_ms_d, dependency_type::MILESTONE);
-    }
-    else if (setting == "after") {
-        string after_name = read_setting_value(input_pos, i, end);
-        settings.after_svcs.emplace_back(std::move(after_name));
-    }
-    else if (setting == "before") {
-        string before_name = read_setting_value(input_pos, i, end);
-        settings.before_svcs.emplace_back(std::move(before_name));
-    }
-    else if (setting == "logfile") {
-        settings.logfile = read_setting_value(input_pos, i, end);
-        if (!settings.logfile.empty() && settings.log_type == log_type_id::NONE) {
-            settings.log_type = log_type_id::LOGFILE;
+    // find the setting:
+    setting_details *details = all_settings;
+    while (setting != details->setting_str) {
+        details++;
+        if (details->setting_id == setting_id_t::LAST) {
+            throw service_description_exc(name, "unknown setting: '" + setting + "'.", input_pos);
         }
     }
-    else if (setting == "logfile-permissions") {
-        string log_perm_str = read_setting_value(input_pos, i, end, nullptr);
-        settings.logfile_perms = parse_perms(input_pos, log_perm_str, name, "logfile-permissions");
+
+    if (setting_op == setting_op_t::PLUSASSIGN && !details->supp_plus_assign) {
+        throw service_description_exc(name, "cannot use '+=' with setting '" + setting + "'", input_pos);
     }
-    else if (setting == "logfile-uid") {
-        string log_uid_s = read_setting_value(input_pos, i, end, nullptr);
-        settings.logfile_uid = parse_uid_param(input_pos, log_uid_s, name, "logfile-uid", &settings.logfile_uid_gid);
-    }
-    else if (setting == "logfile-gid") {
-        string log_gid_s = read_setting_value(input_pos, i, end, nullptr);
-        settings.logfile_gid = parse_gid_param(input_pos, log_gid_s, name, "logfile-gid");
-    }
-    else if (setting == "log-type") {
-        string log_type_str = read_setting_value(input_pos, i, end);
-        if (log_type_str == "file") {
-            settings.log_type = log_type_id::LOGFILE;
+
+    switch (details->setting_id) {
+        case setting_id_t::COMMAND:
+            read_setting_value(settings.command, setting_op, input_pos, i, end, &settings.command_offsets);
+            break;
+        case setting_id_t::WORKING_DIR:
+            settings.working_dir = read_setting_value(input_pos, i, end, nullptr);
+            break;
+        case setting_id_t::ENV_FILE:
+            settings.env_file = read_setting_value(input_pos, i, end, nullptr);
+            break;
+        #if SUPPORT_CGROUPS
+        case setting_id_t::RUN_IN_CGROUP:
+            settings.run_in_cgroup = read_setting_value(input_pos, i, end, nullptr);
+            break;
+        #endif
+        case setting_id_t::SOCKET_LISTEN:
+            settings.socket_path = read_setting_value(input_pos, i, end, nullptr);
+            break;
+        case setting_id_t::SOCKET_PERMISSIONS:
+        {
+            string sock_perm_str = read_setting_value(input_pos, i, end, nullptr);
+            settings.socket_perms = parse_perms(input_pos, sock_perm_str, name, "socket-permissions");
+            break;
         }
-        else if (log_type_str == "buffer") {
-            settings.log_type = log_type_id::BUFFER;
+        case setting_id_t::SOCKET_UID:
+        {
+            string sock_uid_s = read_setting_value(input_pos, i, end, nullptr);
+            settings.socket_uid = parse_uid_param(input_pos, sock_uid_s, name, "socket-uid",
+                    &settings.socket_uid_gid);
+            break;
         }
-        else if (log_type_str == "none") {
-            settings.log_type = log_type_id::NONE;
+        case setting_id_t::SOCKET_GID:
+        {
+            string sock_gid_s = read_setting_value(input_pos, i, end, nullptr);
+            settings.socket_gid = parse_gid_param(input_pos, sock_gid_s, "socket-gid", name);
+            break;
         }
-        else if (log_type_str == "pipe") {
-            settings.log_type = log_type_id::PIPE;
+        case setting_id_t::STOP_COMMAND:
+            settings.stop_command = read_setting_value(input_pos, i, end, &settings.stop_command_offsets);
+            break;
+        case setting_id_t::PID_FILE:
+            settings.pid_file = read_setting_value(input_pos, i, end);
+            break;
+        case setting_id_t::DEPENDS_ON:
+        {
+            string dependency_name = read_setting_value(input_pos, i, end);
+            settings.depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::REGULAR);
+            break;
         }
-        else {
-            throw service_description_exc(name, "log type must be one of: \"file\", \"buffer\" or \"none\"",
-                    "log-type", input_pos);
+        case setting_id_t::DEPENDS_MS:
+        {
+            string dependency_name = read_setting_value(input_pos, i, end);
+            settings.depends.emplace_back(load_service(dependency_name.c_str()),
+                    dependency_type::MILESTONE);
+            break;
         }
-    }
-    else if (setting == "log-buffer-size") {
-        string log_buffer_size_str = read_setting_value(input_pos, i, end);
-        unsigned bufsize = (unsigned)parse_unum_param(input_pos, log_buffer_size_str, name,
-                std::numeric_limits<unsigned>::max() / 2);
-        settings.max_log_buffer_sz = bufsize;
-    }
-    else if (setting == "consumer-of") {
-        string consumed_svc_name = read_setting_value(input_pos, i, end);
-        if (consumed_svc_name == name) {
-            throw service_description_exc(name, "service cannot be its own consumer", "consumer-of",
-                    input_pos);
+        case setting_id_t::WAITS_FOR:
+        {
+            string dependency_name = read_setting_value(input_pos, i, end);
+            settings.depends.emplace_back(load_service(dependency_name.c_str()),
+                    dependency_type::WAITS_FOR);
+            break;
         }
-        settings.consumer_of_name = consumed_svc_name;
-    }
-    else if (setting == "restart") {
-        string restart = read_setting_value(input_pos, i, end);
-        if (restart == "yes" || restart == "true") {
-            settings.auto_restart = auto_restart_mode::ALWAYS;
+        case setting_id_t::WAITS_FOR_D:
+        {
+            string waitsford = read_setting_value(input_pos, i, end);
+            process_dep_dir(settings.depends, waitsford, dependency_type::WAITS_FOR);
+            break;
         }
-        else if (restart == "on-failure") {
-            settings.auto_restart = auto_restart_mode::ON_FAILURE;
+        case setting_id_t::DEPENDS_ON_D:
+        {
+            string depends_on_d = read_setting_value(input_pos, i, end);
+            process_dep_dir(settings.depends, depends_on_d, dependency_type::REGULAR);
+            break;
         }
-        else {
-            settings.auto_restart = auto_restart_mode::NEVER;
+        case setting_id_t::DEPENDS_MS_D:
+        {
+            string dependency_name = read_setting_value(input_pos, i, end);
+            settings.depends.emplace_back(load_service(dependency_name.c_str()),
+                    dependency_type::MILESTONE);
+            break;
         }
-    }
-    else if (setting == "smooth-recovery") {
-        string recovery = read_setting_value(input_pos, i, end);
-        settings.smooth_recovery = (recovery == "yes" || recovery == "true");
-    }
-    else if (setting == "type") {
-        string type_str = read_setting_value(input_pos, i, end);
-        if (type_str == "scripted") {
-            settings.service_type = service_type_t::SCRIPTED;
+        case setting_id_t::AFTER:
+        {
+            string after_name = read_setting_value(input_pos, i, end);
+            settings.after_svcs.emplace_back(std::move(after_name));
+            break;
         }
-        else if (type_str == "process") {
-            settings.service_type = service_type_t::PROCESS;
+        case setting_id_t::BEFORE:
+        {
+            string before_name = read_setting_value(input_pos, i, end);
+            settings.before_svcs.emplace_back(std::move(before_name));
+            break;
         }
-        else if (type_str == "bgprocess") {
-            settings.service_type = service_type_t::BGPROCESS;
-        }
-        else if (type_str == "internal") {
-            settings.service_type = service_type_t::INTERNAL;
-        }
-        else if (type_str == "triggered") {
-            settings.service_type = service_type_t::TRIGGERED;
-        }
-        else {
-            throw service_description_exc(name, "service type must be one of: \"scripted\","
-                " \"process\", \"bgprocess\", \"internal\" or \"triggered\"",
-                "type", input_pos);
-        }
-    }
-    else if (setting == "options") {
-        std::list<std::pair<unsigned,unsigned>> indices;
-        string onstart_cmds = read_setting_value(input_pos, i, end, &indices);
-        for (auto indexpair : indices) {
-            string option_txt = onstart_cmds.substr(indexpair.first,
-                    indexpair.second - indexpair.first);
-            if (option_txt == "starts-rwfs") {
-                settings.onstart_flags.rw_ready = true;
+        case setting_id_t::LOGFILE:
+        {
+            settings.logfile = read_setting_value(input_pos, i, end);
+            if (!settings.logfile.empty() && settings.log_type == log_type_id::NONE) {
+                settings.log_type = log_type_id::LOGFILE;
             }
-            else if (option_txt == "starts-log") {
-                settings.onstart_flags.log_ready = true;
+            break;
+        }
+        case setting_id_t::LOGFILE_PERMISSIONS:
+        {
+            string log_perm_str = read_setting_value(input_pos, i, end, nullptr);
+            settings.logfile_perms = parse_perms(input_pos, log_perm_str, name, "logfile-permissions");
+            break;
+        }
+        case setting_id_t::LOGFILE_UID:
+        {
+            string log_uid_s = read_setting_value(input_pos, i, end, nullptr);
+            settings.logfile_uid = parse_uid_param(input_pos, log_uid_s, name, "logfile-uid",
+                    &settings.logfile_uid_gid);
+            break;
+        }
+        case setting_id_t::LOGFILE_GID:
+        {
+            string log_gid_s = read_setting_value(input_pos, i, end, nullptr);
+            settings.logfile_gid = parse_gid_param(input_pos, log_gid_s, name, "logfile-gid");
+            break;
+        }
+        case setting_id_t::LOG_TYPE:
+        {
+            string log_type_str = read_setting_value(input_pos, i, end);
+            if (log_type_str == "file") {
+                settings.log_type = log_type_id::LOGFILE;
             }
-            else if (option_txt == "runs-on-console") {
-                settings.onstart_flags.runs_on_console = true;
-                // A service that runs on the console necessarily starts on console:
-                settings.onstart_flags.starts_on_console = true;
-                settings.onstart_flags.shares_console = false;
+            else if (log_type_str == "buffer") {
+                settings.log_type = log_type_id::BUFFER;
             }
-            else if (option_txt == "starts-on-console") {
-                settings.onstart_flags.starts_on_console = true;
-                settings.onstart_flags.shares_console = false;
+            else if (log_type_str == "none") {
+                settings.log_type = log_type_id::NONE;
             }
-            else if (option_txt == "shares-console") {
-                settings.onstart_flags.shares_console = true;
-                settings.onstart_flags.runs_on_console = false;
-                settings.onstart_flags.starts_on_console = false;
-            }
-            else if (option_txt == "unmask-intr") {
-                settings.onstart_flags.unmask_intr = true;
-            }
-            else if (option_txt == "pass-cs-fd") {
-                settings.onstart_flags.pass_cs_fd = true;
-            }
-            else if (option_txt == "start-interruptible") {
-                settings.onstart_flags.start_interruptible = true;
-            }
-            else if (option_txt == "skippable") {
-                settings.onstart_flags.skippable = true;
-            }
-            else if (option_txt == "signal-process-only") {
-                settings.onstart_flags.signal_process_only = true;
-            }
-            else if (option_txt == "always-chain") {
-                settings.onstart_flags.always_chain = true;
-            }
-            else if (option_txt == "kill-all-on-stop") {
-                settings.onstart_flags.kill_all_on_stop = true;
+            else if (log_type_str == "pipe") {
+                settings.log_type = log_type_id::PIPE;
             }
             else {
-                throw service_description_exc(name, "unknown option: " + option_txt,
-                        "options", input_pos);
+                throw service_description_exc(name, "log type must be one of: \"file\", \"buffer\" or \"none\"",
+                        "log-type", input_pos);
             }
+            break;
         }
-    }
-    else if (setting == "load-options") {
-        std::list<std::pair<unsigned,unsigned>> indices;
-        string load_opts = read_setting_value(input_pos, i, end, &indices);
-        for (auto indexpair : indices) {
-            string option_txt = load_opts.substr(indexpair.first,
-                    indexpair.second - indexpair.first);
-            if (option_txt == "export-passwd-vars") {
-                settings.export_passwd_vars = true;
+        case setting_id_t::LOG_BUFFER_SIZE:
+        {
+            string log_buffer_size_str = read_setting_value(input_pos, i, end);
+            unsigned bufsize = (unsigned)parse_unum_param(input_pos, log_buffer_size_str, name,
+                    std::numeric_limits<unsigned>::max() / 2);
+            settings.max_log_buffer_sz = bufsize;
+            break;
+        }
+        case setting_id_t::CONSUMER_OF:
+        {
+            string consumed_svc_name = read_setting_value(input_pos, i, end);
+            if (consumed_svc_name == name) {
+                throw service_description_exc(name, "service cannot be its own consumer", "consumer-of",
+                        input_pos);
             }
-            else if (option_txt == "export-service-name") {
-                settings.export_service_name = true;
+            settings.consumer_of_name = consumed_svc_name;
+            break;
+        }
+        case setting_id_t::RESTART:
+        {
+            string restart = read_setting_value(input_pos, i, end);
+            if (restart == "yes" || restart == "true") {
+                settings.auto_restart = auto_restart_mode::ALWAYS;
             }
-            else if (option_txt == "sub-vars") {
-                // noop: for backwards compatibility only
-                // we don't support no-sub-vars anymore, however
+            else if (restart == "on-failure") {
+                settings.auto_restart = auto_restart_mode::ON_FAILURE;
             }
             else {
-                throw service_description_exc(name, "unknown load option: " + option_txt,
-                        "load-options", input_pos);
+                settings.auto_restart = auto_restart_mode::NEVER;
             }
+            break;
         }
-    }
-    else if (setting == "term-signal" || setting == "termsignal") {
-        // Note: "termsignal" supported for legacy reasons.
-        string signame = read_setting_value(input_pos, i, end, nullptr);
-        int signo = signal_name_to_number(signame);
-        if (signo == -1) {
-            throw service_description_exc(name, "unknown/unsupported termination signal: "
-                    + signame, "term-signal", input_pos);
+        case setting_id_t::SMOOTH_RECOVERY:
+        {
+            string recovery = read_setting_value(input_pos, i, end);
+            settings.smooth_recovery = (recovery == "yes" || recovery == "true");
+            break;
         }
-        else {
-            settings.term_signal = signo;
+        case setting_id_t::TYPE:
+        {
+            string type_str = read_setting_value(input_pos, i, end);
+            if (type_str == "scripted") {
+                settings.service_type = service_type_t::SCRIPTED;
+            }
+            else if (type_str == "process") {
+                settings.service_type = service_type_t::PROCESS;
+            }
+            else if (type_str == "bgprocess") {
+                settings.service_type = service_type_t::BGPROCESS;
+            }
+            else if (type_str == "internal") {
+                settings.service_type = service_type_t::INTERNAL;
+            }
+            else if (type_str == "triggered") {
+                settings.service_type = service_type_t::TRIGGERED;
+            }
+            else {
+                throw service_description_exc(name, "service type must be one of: \"scripted\","
+                    " \"process\", \"bgprocess\", \"internal\" or \"triggered\"",
+                    "type", input_pos);
+            }
+            break;
         }
-    }
-    else if (setting == "restart-limit-interval") {
-        string interval_str = read_setting_value(input_pos, i, end, nullptr);
-        parse_timespec(input_pos, interval_str, name, "restart-limit-interval", settings.restart_interval);
-    }
-    else if (setting == "restart-delay") {
-        string rsdelay_str = read_setting_value(input_pos, i, end, nullptr);
-        parse_timespec(input_pos, rsdelay_str, name, "restart-delay", settings.restart_delay);
-    }
-    else if (setting == "restart-limit-count") {
-        string limit_str = read_setting_value(input_pos, i, end, nullptr);
-        settings.max_restarts = parse_unum_param(input_pos, limit_str, name, std::numeric_limits<int>::max());
-    }
-    else if (setting == "stop-timeout") {
-        string stoptimeout_str = read_setting_value(input_pos, i, end, nullptr);
-        parse_timespec(input_pos, stoptimeout_str, name, "stop-timeout", settings.stop_timeout);
-    }
-    else if (setting == "start-timeout") {
-        string starttimeout_str = read_setting_value(input_pos, i, end, nullptr);
-        parse_timespec(input_pos, starttimeout_str, name, "start-timeout", settings.start_timeout);
-    }
-    else if (setting == "run-as") {
-        string run_as_str = read_setting_value(input_pos, i, end, nullptr);
-        settings.run_as_uid = parse_uid_param(input_pos, run_as_str, name, "run-as", &settings.run_as_uid_gid);
-    }
-    else if (setting == "chain-to") {
-        settings.chain_to_name = read_setting_value(input_pos, i, end, nullptr);
-    }
-    else if (setting == "ready-notification") {
-        string notify_setting = read_setting_value(input_pos, i, end, nullptr);
-        if (starts_with(notify_setting, "pipefd:")) {
-            settings.readiness_fd = parse_unum_param(input_pos, notify_setting.substr(7 /* len 'pipefd:' */),
-                    name, std::numeric_limits<int>::max());
+        case setting_id_t::OPTIONS:
+        {
+            std::list<std::pair<unsigned,unsigned>> indices;
+            string onstart_cmds = read_setting_value(input_pos, i, end, &indices);
+            for (auto indexpair : indices) {
+                string option_txt = onstart_cmds.substr(indexpair.first,
+                        indexpair.second - indexpair.first);
+                if (option_txt == "starts-rwfs") {
+                    settings.onstart_flags.rw_ready = true;
+                }
+                else if (option_txt == "starts-log") {
+                    settings.onstart_flags.log_ready = true;
+                }
+                else if (option_txt == "runs-on-console") {
+                    settings.onstart_flags.runs_on_console = true;
+                    // A service that runs on the console necessarily starts on console:
+                    settings.onstart_flags.starts_on_console = true;
+                    settings.onstart_flags.shares_console = false;
+                }
+                else if (option_txt == "starts-on-console") {
+                    settings.onstart_flags.starts_on_console = true;
+                    settings.onstart_flags.shares_console = false;
+                }
+                else if (option_txt == "shares-console") {
+                    settings.onstart_flags.shares_console = true;
+                    settings.onstart_flags.runs_on_console = false;
+                    settings.onstart_flags.starts_on_console = false;
+                }
+                else if (option_txt == "unmask-intr") {
+                    settings.onstart_flags.unmask_intr = true;
+                }
+                else if (option_txt == "pass-cs-fd") {
+                    settings.onstart_flags.pass_cs_fd = true;
+                }
+                else if (option_txt == "start-interruptible") {
+                    settings.onstart_flags.start_interruptible = true;
+                }
+                else if (option_txt == "skippable") {
+                    settings.onstart_flags.skippable = true;
+                }
+                else if (option_txt == "signal-process-only") {
+                    settings.onstart_flags.signal_process_only = true;
+                }
+                else if (option_txt == "always-chain") {
+                    settings.onstart_flags.always_chain = true;
+                }
+                else if (option_txt == "kill-all-on-stop") {
+                    settings.onstart_flags.kill_all_on_stop = true;
+                }
+                else {
+                    throw service_description_exc(name, "unknown option: " + option_txt,
+                            "options", input_pos);
+                }
+            }
+            break;
         }
-        else if (starts_with(notify_setting, "pipevar:")) {
-            settings.readiness_var = notify_setting.substr(8 /* len 'pipevar:' */);
-            if (settings.readiness_var.empty()) {
-                throw service_description_exc(name, "invalid pipevar variable name",
+        case setting_id_t::LOAD_OPTIONS:
+        {
+            std::list<std::pair<unsigned,unsigned>> indices;
+            string load_opts = read_setting_value(input_pos, i, end, &indices);
+            for (auto indexpair : indices) {
+                string option_txt = load_opts.substr(indexpair.first,
+                        indexpair.second - indexpair.first);
+                if (option_txt == "export-passwd-vars") {
+                    settings.export_passwd_vars = true;
+                }
+                else if (option_txt == "export-service-name") {
+                    settings.export_service_name = true;
+                }
+                else if (option_txt == "sub-vars") {
+                    // noop: for backwards compatibility only
+                    // we don't support no-sub-vars anymore, however
+                }
+                else {
+                    throw service_description_exc(name, "unknown load option: " + option_txt,
+                            "load-options", input_pos);
+                }
+            }
+            break;
+        }
+        case setting_id_t::TERM_SIGNAL:
+        case setting_id_t::TERMSIGNAL:
+        {
+            // Note: "termsignal" supported for legacy reasons.
+            string signame = read_setting_value(input_pos, i, end, nullptr);
+            int signo = signal_name_to_number(signame);
+            if (signo == -1) {
+                throw service_description_exc(name, "unknown/unsupported termination signal: "
+                        + signame, details->setting_str, input_pos);
+            }
+            else {
+                settings.term_signal = signo;
+            }
+            break;
+        }
+        case setting_id_t::RESTART_LIMIT_INTERVAL:
+        {
+            string interval_str = read_setting_value(input_pos, i, end, nullptr);
+            parse_timespec(input_pos, interval_str, name, "restart-limit-interval", settings.restart_interval);
+            break;
+        }
+        case setting_id_t::RESTART_DELAY:
+        {
+            string rsdelay_str = read_setting_value(input_pos, i, end, nullptr);
+            parse_timespec(input_pos, rsdelay_str, name, "restart-delay", settings.restart_delay);
+            break;
+        }
+        case setting_id_t::RESTART_LIMIT_COUNT: {
+            string limit_str = read_setting_value(input_pos, i, end, nullptr);
+            settings.max_restarts = parse_unum_param(input_pos, limit_str, name, std::numeric_limits<int>::max());
+            break;
+        }
+        case setting_id_t::STOP_TIMEOUT:
+        {
+            string stoptimeout_str = read_setting_value(input_pos, i, end, nullptr);
+            parse_timespec(input_pos, stoptimeout_str, name, "stop-timeout", settings.stop_timeout);
+            break;
+        }
+        case setting_id_t::START_TIMEOUT:
+        {
+            string starttimeout_str = read_setting_value(input_pos, i, end, nullptr);
+            parse_timespec(input_pos, starttimeout_str, name, "start-timeout", settings.start_timeout);
+            break;
+        }
+        case setting_id_t::RUN_AS:
+        {
+            string run_as_str = read_setting_value(input_pos, i, end, nullptr);
+            settings.run_as_uid = parse_uid_param(input_pos, run_as_str, name, "run-as", &settings.run_as_uid_gid);
+            break;
+        }
+        case setting_id_t::CHAIN_TO:
+            settings.chain_to_name = read_setting_value(input_pos, i, end, nullptr);
+            break;
+        case setting_id_t::READY_NOTIFICATION:
+        {
+            string notify_setting = read_setting_value(input_pos, i, end, nullptr);
+            if (starts_with(notify_setting, "pipefd:")) {
+                settings.readiness_fd = parse_unum_param(input_pos, notify_setting.substr(7 /* len 'pipefd:' */),
+                        name, std::numeric_limits<int>::max());
+            }
+            else if (starts_with(notify_setting, "pipevar:")) {
+                settings.readiness_var = notify_setting.substr(8 /* len 'pipevar:' */);
+                if (settings.readiness_var.empty()) {
+                    throw service_description_exc(name, "invalid pipevar variable name",
+                            "ready-notification", input_pos);
+                }
+            }
+            else {
+                throw service_description_exc(name, "unrecognised setting: " + notify_setting,
                         "ready-notification", input_pos);
             }
+            break;
         }
-        else {
-            throw service_description_exc(name, "unrecognised setting: " + notify_setting,
-                    "ready-notification", input_pos);
+        case setting_id_t::INITTAB_ID:
+        {
+            string inittab_setting = read_setting_value(input_pos, i, end, nullptr);
+            #if USE_UTMPX
+                if (inittab_setting.length() > sizeof(settings.inittab_id)) {
+                    throw service_description_exc(name, "inittab-id setting is too long", input_pos);
+                }
+                strncpy(settings.inittab_id, inittab_setting.c_str(), sizeof(settings.inittab_id));
+            #endif
+            break;
         }
-    }
-    else if (setting == "inittab-id") {
-        string inittab_setting = read_setting_value(input_pos, i, end, nullptr);
-        #if USE_UTMPX
-        if (inittab_setting.length() > sizeof(settings.inittab_id)) {
-            throw service_description_exc(name, "inittab-id setting is too long", input_pos);
+        case setting_id_t::INITTAB_LINE:
+        {
+            string inittab_setting = read_setting_value(input_pos, i, end, nullptr);
+            #if USE_UTMPX
+                if (inittab_setting.length() > sizeof(settings.inittab_line)) {
+                    throw service_description_exc(name, "inittab-line setting is too long", input_pos);
+                }
+                strncpy(settings.inittab_line, inittab_setting.c_str(), sizeof(settings.inittab_line));
+            #endif
+            break;
         }
-        strncpy(settings.inittab_id, inittab_setting.c_str(), sizeof(settings.inittab_id));
-        #endif
-    }
-    else if (setting == "inittab-line") {
-        string inittab_setting = read_setting_value(input_pos, i, end, nullptr);
-        #if USE_UTMPX
-        if (inittab_setting.length() > sizeof(settings.inittab_line)) {
-            throw service_description_exc(name, "inittab-line setting is too long", input_pos);
+        case setting_id_t::SETTING_RLIMIT_NOFILE:
+        {
+            string nofile_setting = read_setting_value(input_pos, i, end, nullptr);
+            service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_NOFILE);
+            parse_rlimit(nofile_setting, input_pos, name, "rlimit-nofile", nofile_limits);
+            break;
         }
-        strncpy(settings.inittab_line, inittab_setting.c_str(), sizeof(settings.inittab_line));
-        #endif
-    }
-    else if (setting == "rlimit-nofile") {
-        string nofile_setting = read_setting_value(input_pos, i, end, nullptr);
-        service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_NOFILE);
-        parse_rlimit(nofile_setting, input_pos, name, "rlimit-nofile", nofile_limits);
-    }
-    else if (setting == "rlimit-core") {
-        string core_setting = read_setting_value(input_pos, i, end, nullptr);
-        service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_CORE);
-        parse_rlimit(core_setting, input_pos, name, "rlimit-core", nofile_limits);
-    }
-    else if (setting == "rlimit-data") {
-        string data_setting = read_setting_value(input_pos, i, end, nullptr);
-        service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_DATA);
-        parse_rlimit(data_setting, input_pos, name, "rlimit-data", nofile_limits);
-    }
-    else if (setting == "rlimit-addrspace") {
-        #if defined(RLIMIT_AS)
-            string addrspace_setting = read_setting_value(input_pos, i, end, nullptr);
-            service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_AS);
-            parse_rlimit(addrspace_setting, input_pos, name, "rlimit-addrspace", nofile_limits);
-        #endif
-    }
-    else {
-        throw service_description_exc(name, "unknown setting: '" + setting + "'.", input_pos);
+        case setting_id_t::SETTING_RLIMIT_CORE:
+        {
+            string core_setting = read_setting_value(input_pos, i, end, nullptr);
+            service_rlimits &core_limits = find_rlimits(settings.rlimits, RLIMIT_CORE);
+            parse_rlimit(core_setting, input_pos, name, "rlimit-core", core_limits);
+            break;
+        }
+        case setting_id_t::SETTING_RLIMIT_DATA:
+        {
+            string data_setting = read_setting_value(input_pos, i, end, nullptr);
+            service_rlimits &data_limits = find_rlimits(settings.rlimits, RLIMIT_DATA);
+            parse_rlimit(data_setting, input_pos, name, "rlimit-data", data_limits);
+            break;
+        }
+        case setting_id_t::SETTING_RLIMIT_ADDRSPACE:
+        {
+            #if defined(RLIMIT_AS)
+                string addrspace_setting = read_setting_value(input_pos, i, end, nullptr);
+                service_rlimits &as_limits = find_rlimits(settings.rlimits, RLIMIT_AS);
+                parse_rlimit(addrspace_setting, input_pos, name, "rlimit-addrspace", as_limits);
+            #endif
+            break;
+        }
+        case setting_id_t::LAST:
+#ifdef __GNUC__
+            __builtin_unreachable();
+#else
+            break;
+#endif
     }
 }
 

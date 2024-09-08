@@ -658,7 +658,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     try {
         process_service_file(name, input_stack,
-                [&](string &line, file_pos_ref input_pos, string &setting,
+                [&](string &line, file_pos_ref input_pos, string &setting, setting_op_t op,
                         string_iterator &i, string_iterator &end) -> void {
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
@@ -671,7 +671,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
             };
 
             try {
-                process_service_line(settings, name.c_str(), line, input_pos, setting, i, end,
+                process_service_line(settings, name.c_str(), line, input_pos, setting, op, i, end,
                         load_service_n, process_dep_dir_n);
             }
             catch (service_description_exc &exc) {
