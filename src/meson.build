@@ -18,7 +18,8 @@ dinit_source_files = [
     'dinit-log.cc',
     'run-child-proc.cc',
     'options-processing.cc',
-    'dinit-env.cc'
+    'dinit-env.cc',
+    'settings.cc'
 ]
 
 ## src/'s Defines
@@ -45,12 +46,14 @@ executable(
     'dinitctl',
     'dinitctl.cc',
     'options-processing.cc',
+    'settings.cc',
     kwargs: misc_args
 )
 executable(
     'dinitcheck',
     'dinitcheck.cc',
     'options-processing.cc',
+    'settings.cc',
     kwargs: misc_args
 )
 executable(

@@ -14,7 +14,8 @@ for_tests_dinit_sources = [
     '../load-service.cc',
     '../baseproc-service.cc',
     '../dinit-env.cc',
-    '../control.cc'
+    '../control.cc',
+    '../settings.cc'
 ]
 for_tests_general_sources = [
     'test-dinit.cc',
