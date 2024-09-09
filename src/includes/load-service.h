@@ -1,3 +1,6 @@
+#ifndef LOAD_SERVICE_H_INCLUDED
+#define LOAD_SERVICE_H_INCLUDED 1
+
 #include <iostream>
 #include <list>
 #include <limits>
@@ -438,11 +441,10 @@ inline void read_setting_value(std::string &setting_val, setting_op_t operation,
     i = skipwsln(i, end, line_num);
 
     if (operation == setting_op_t::PLUSASSIGN) {
-        // ensure whitespace at end of current
+        // Ensure whitespace at end of current value. This is really only for debugging niceness
+        // since the offsets (part_positions) are what really define the seperated components.
         if (!setting_val.empty()) {
-            if (!isspace(setting_val.back(), locale::classic())) {
-                setting_val += ' ';
-            }
+            setting_val += ' ';
         }
     }
     else {
@@ -1892,3 +1894,5 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
 } // namespace dinit_load
 
 using dinit_load::process_service_file;
+
+#endif /* LOAD_SERVICE_H_INCLUDED */
