@@ -7,7 +7,7 @@
 
 #include "service.h"
 #include "proc-service.h"
-//#include "load-service.h"
+#include "load-service.h"
 
 std::string test_service_dir;
 
@@ -438,6 +438,69 @@ void test_comments()
     assert(i->second == 13);
 }
 
+void test_plusassign()
+{
+    std::string file_name = "dummy";
+    file_pos_ref input_pos { file_name, 1 };
+
+    std::string setting_val;
+    std::list<std::pair<unsigned,unsigned>> part_positions;
+
+    std::string primary = "echo one";
+    std::string::iterator i = primary.begin();
+    std::string::iterator e = primary.end();
+
+    dinit_load::read_setting_value(setting_val, dinit_load::setting_op_t::ASSIGN, input_pos, i, e, &part_positions);
+
+    assert(setting_val == "echo one");
+    assert(part_positions.size() == 2);
+
+    std::string altered = "echo two";
+    i = altered.begin();
+    e = altered.end();
+
+    dinit_load::read_setting_value(setting_val, dinit_load::setting_op_t::ASSIGN, input_pos, i, e, &part_positions);
+
+    assert(setting_val == "echo two");
+    assert(part_positions.size() == 2);
+
+    std::string addendum = "three";
+    i = addendum.begin();
+    e = addendum.end();
+
+    dinit_load::read_setting_value(setting_val, dinit_load::setting_op_t::PLUSASSIGN, input_pos, i, e, &part_positions);
+
+    assert(setting_val == "echo two three");
+    assert(part_positions.size() == 3);
+    auto ppi = part_positions.begin();
+    ++ppi; ++ppi;
+    assert(ppi->first == 9);
+    assert(ppi->second == 14);
+
+    std::string s2 = "echo \"space \"";
+    i = s2.begin();
+    e = s2.end();
+
+    dinit_load::read_setting_value(setting_val, dinit_load::setting_op_t::ASSIGN, input_pos, i, e, &part_positions);
+
+    assert(setting_val == "echo space ");
+
+    i = addendum.begin();
+    e = addendum.end();
+
+    dinit_load::read_setting_value(setting_val, dinit_load::setting_op_t::PLUSASSIGN, input_pos, i, e, &part_positions);
+
+    assert(setting_val == "echo space  three");
+    assert(part_positions.size() == 3);
+    ppi = part_positions.begin();
+    ++ppi;
+    assert(ppi->first == 5);
+    assert(ppi->second == 11);
+    ++ppi;
+    assert(ppi->first == 12);
+    assert(ppi->second == 17);
+}
+
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
     name(); \
@@ -456,6 +519,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_newline, "              ");
     RUN_TEST(test_newline_err, "          ");
     RUN_TEST(test_comments, "             ");
+    RUN_TEST(test_plusassign, "           ");
     bp_sys::clearenv();
     return 0;
 }
