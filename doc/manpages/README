@@ -43,7 +43,9 @@ spaces.
              next line is used.
 .LP - begin a new normal paragraph
 .HP - begin a hanging paragraph (lines after the first are indented)
-.TP - begin an indented paragraph with unindented label (label is on the next line)
+.TP - begin an indented paragraph with unindented label (label is on the next line); .TQ can be used
+      immediately after the first label, in order to specify additional labels, each appearing on their
+      own line.
 .IP \(bu - indented paragraph with bullet point
 .RS - increase left margin by one level (and reset indentation). Should typically be used instead of ".in".
 .RE - decrease left margin by one level

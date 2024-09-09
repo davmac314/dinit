@@ -150,6 +150,8 @@ The following properties can be specified:
 Specifies the service type; see the \fBSERVICE TYPES\fR section.
 .TP
 \fBcommand\fR = \fIcommand-string\fR
+.TQ
+\fBcommand\fR += \fIcommand-string-addendum\fR
 Specifies the command, including command-line arguments, for starting the process.
 Applies only to \fBprocess\fR, \fBbgprocess\fR and \fBscripted\fR services.
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
@@ -157,6 +159,8 @@ The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 The `+=' operator can be used with this setting to append to a command set previously.
 .TP
 \fBstop\-command\fR = \fIcommand-string\fR
+.TQ
+\fBstop\-command\fR += \fIcommand-string-addendum\fR
 Specifies the command to stop the service (optional). Applicable to \fBprocess\fR, \fBbgprocess\fR and
 \fBscripted\fR services.  If specified for \fBprocess\fR or \fBbgprocess\fR services, the "stop
 command" will be executed in order to stop the service, instead of signalling the service process. 
