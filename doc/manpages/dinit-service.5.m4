@@ -107,9 +107,16 @@ This section described the various service properties that can be specified
 in a service description file. The properties specify the type of the service,
 dependencies of the service, and other service configuration.
 .LP
-Each line of the file can specify a single
-property value, expressed as `\fIproperty-name\fR = \fIvalue\fR'. Comments
-begin with a hash mark (#) and extend to the end of the line (they must be
+Each line of the file can specify a single property value, expressed as `\fIproperty-name\fR =
+\fIvalue\fR', or `\fIproperty-name\fR: \fIvalue\fR'.
+There is currently no functional difference between either form of assignment, but note that some
+settings will override any previous setting of the same property whereas some effectively add a
+new distinct property, and it is recommended to use `=' or `:' (respectively) to distinguish them. 
+
+A small selection of properties can have their value appended to, once set on a previous line,
+by specifying the property name again and using the `+=' operator in place of `=' (or `:').
+
+Comments begin with a hash mark (#) and extend to the end of the line (they must be
 separated from setting values by at least one whitespace character).
 Values are interpreted literally, except that:
 .\"
@@ -128,7 +135,8 @@ White space appearing inside quotes does not act as a delimiter for tokens.
 .IP \(bu
 A backslash (\\) can be used to escape the next character, causing it to
 lose any special meaning and become part of the property value (escaped newlines are an
-exception; they mark the end of a comment, and are treated as a unescaped space).
+exception\(em\&they mark the end of a comment, and otherwise are treated as an unescaped space, allowing
+a property value to extend to the next line).
 A double backslash (\\\\) is collapsed to a single backslash within the parameter value.
 White space preceded by a backslash will not separate tokens.
 .LP
@@ -145,12 +153,16 @@ Specifies the service type; see the \fBSERVICE TYPES\fR section.
 Specifies the command, including command-line arguments, for starting the process.
 Applies only to \fBprocess\fR, \fBbgprocess\fR and \fBscripted\fR services.
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
+
+The `+=' operator can be used with this setting to append to a command set previously.
 .TP
 \fBstop\-command\fR = \fIcommand-string\fR
 Specifies the command to stop the service (optional). Applicable to \fBprocess\fR, \fBbgprocess\fR and
 \fBscripted\fR services.  If specified for \fBprocess\fR or \fBbgprocess\fR services, the "stop
 command" will be executed in order to stop the service, instead of signalling the service process. 
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
+
+The `+=' operator can be used with this setting to append to a command set previously.
 .TP
 \fBworking\-dir\fR = \fIdirectory\fR
 Specifies the working directory for this service.
@@ -247,13 +259,13 @@ unprivileged processes.
 .sp
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
-\fBdepends\-on\fR = \fIservice-name\fR
+\fBdepends\-on\fR: \fIservice-name\fR
 This service depends on the named service.
 Starting this service will start the named service; the command to start this service will not be executed
 until the named service has started.
 If the named service stops then this service will also be stopped.
 .TP
-\fBdepends\-ms\fR = \fIservice-name\fR
+\fBdepends\-ms\fR: \fIservice-name\fR
 This service has a "milestone" dependency on the named service. Starting this
 service will start the named service; this service will not start until the
 named service has started, and will fail to start if the named service does
@@ -261,14 +273,14 @@ not start.
 Once the named (dependent) service reaches the started state, however, the
 dependency may stop without affecting the dependent service.
 .TP
-\fBwaits\-for\fR = \fIservice-name\fR
+\fBwaits\-for\fR: \fIservice-name\fR
 When this service is started, wait for the named service to finish starting
 (or to fail starting) before commencing the start procedure for this service.
 Starting this service will automatically start the named service.
 If the named service fails to start, this service will start as usual (subject to
 other dependencies being met).
 .TP
-\fBdepends\-on.d\fR = \fIdirectory-path\fR
+\fBdepends\-on.d\fR: \fIdirectory-path\fR
 For each file name in \fIdirectory-path\fR which does not begin with a dot,
 add a \fBdepends-on\fR dependency to the service with the same name.
 Note that contents of files in the specified directory are not significant; expected
@@ -280,13 +292,13 @@ is not considered fatal.
 The directory path, if not absolute, is relative to the directory containing the service
 description file.
 .TP
-\fBdepends\-ms.d\fR = \fIdirectory-path\fR
+\fBdepends\-ms.d\fR: \fIdirectory-path\fR
 As for \fBdepends-on.d\fR, but with dependency type \fBdepends\-ms\fR.
 .TP
-\fBwaits\-for.d\fR = \fIdirectory-path\fR
+\fBwaits\-for.d\fR: \fIdirectory-path\fR
 As for \fBdepends-on.d\fR, but with dependency type \fBwaits\-for\fR.
 .TP
-\fBafter\fR = \fIservice-name\fR
+\fBafter\fR: \fIservice-name\fR
 When starting this service, if the named service is also starting, wait for the named service
 to finish starting before bringing this service up. This is similar to a \fBwaits\-for\fR
 dependency except no dependency relationship is implied; if the named service is not starting,
@@ -294,7 +306,7 @@ starting this service will not cause it to start (nor wait for it in that case).
 It does not by itself cause the named service to be loaded (if loaded later, the "after"
 relationship will be enforced from that point).
 .TP
-\fBbefore\fR = \fIservice-name\fR
+\fBbefore\fR: \fIservice-name\fR
 When starting the named service, if this service is also starting, wait for this service
 to finish starting before bringing the named service up. This is largely equivalent to specifying
 an \fBafter\fR relationship to this service from the named service.
@@ -440,11 +452,10 @@ For example, this allows this service to act as a logging agent for another serv
 The named service must be a process-based service with \fBlog\-type\fR set to \fBpipe\fR.
 This setting is only valid for \fBprocess\fR and \fBbgprocess\fR services.
 .TP
-\fBoptions\fR = \fIoption\fR...
+\fBoptions\fR: \fIoption\fR...
 Specifies various options for this service. See the \fBOPTIONS\fR section.
-This directive can be specified multiple times to set additional options.
 .TP
-\fBload\-options\fR = \fIload_option\fR...
+\fBload\-options\fR: \fIload_option\fR...
 Specifies options for interpreting other settings when loading this service description.
 Currently there are two available options. One is \fBexport-passwd-vars\fR, which
 specifies that the environment variables `\fBUSER\fR', `\fBLOGNAME\fR' (same as
