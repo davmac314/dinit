@@ -21,12 +21,12 @@ $$$SHUTDOWN_PREFIX@@@shutdown, $$$SHUTDOWN_PREFIX@@@halt, $$$SHUTDOWN_PREFIX@@@p
 .\"
 This manual page is for the shutdown utility included with the \fBDinit\fR
 service manager package. See \fBdinit\fR(8).
-
+.LP
 The \fB$$$SHUTDOWN_PREFIX@@@shutdown\fR, \fB$$$SHUTDOWN_PREFIX@@@reboot\fR,
 \fB$$$SHUTDOWN_PREFIX@@@soft-reboot\fR, \fB$$$SHUTDOWN_PREFIX@@@poweroff\fR and \fB$$$SHUTDOWN_PREFIX@@@halt\fR
 commands can be used to instruct the service manager daemon to perform a service rollback and then to shutdown the system.
 They can also perform shutdown directly, without service rollback.
-
+.LP
 Note that for consistency with other packages "$$$SHUTDOWN_PREFIX@@@halt" and "$$$SHUTDOWN_PREFIX@@@poweroff" aliases
 are provided, however they have no special significance. The default action
 is to power down the system if called as either "$$$SHUTDOWN_PREFIX@@@shutdown", "$$$SHUTDOWN_PREFIX@@@halt", or
@@ -44,7 +44,7 @@ Request a shutdown followed by restart. This is the default if executed as
 \fB\-s\fP
 Restart the service manager and all user-space services without restarting the system.
 This is the default if executed as \fB$$$SHUTDOWN_PREFIX@@@soft\-reboot\fR.
-
+.IP
 The current boot-time options will be passed on to the restarted dinit and remain in effect
 (note that system recovery options, for example, may re-initiate the recovery process).
 Services must be suitably configured in order for this option to be useful; using this
@@ -68,7 +68,7 @@ environment variable.
 Shut down directly, instead of by issuing a command to the service manager.
 Use of this option should be avoided, but it may allow performing a clean shutdown in case
 the service manager has stopped responding.
-
+.IP
 The service manager may invoke \fB$$$SHUTDOWN_PREFIX@@@shutdown\fR with this option in order to perform
 system shutdown after it has rolled back services.
 .\"

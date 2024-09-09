@@ -198,31 +198,31 @@ Initially, only the \fBboot\fR service (or another service or services as specif
 will be explicitly activated.
 There are both "hard" dependencies between services, and (various types of) "soft" dependencies;
 see \fBdinit-service\fR(5) for details.
-
+.LP
 For a service to start, all its hard dependencies must first start successfully; if any of them fail,
 the dependent will not be started.
-
+.LP
 In the case of services which are associated with an external process, the process will not be started
 until all hard dependencies have already started; in the case of a service which fails to start due
 to a dependency failing, the service command will never be run.
-
+.LP
 If a process associated with a running service terminates, the service will stop automatically
 (this can be affected by service settings, and the service may also restart automatically).
 If the service will not be automatically restarted, any explicit activation will be removed.
 When stopping a service with an associated running process, the process will not be signalled for
 termination (or have its termination command executed) until all dependent services have been stopped.
-
+.LP
 If a service stops, and is a hard dependency of another service, the other service must also stop
 (and will be stopped automatically, though may restart automatically if configured to do so, which
 may in turn also cause the dependency to restart). 
-
+.LP
 Services can be explicitly activated using the \fBdinitctl\fR(8) subcommand, \fBstart\fR (activating
 a service will also cause it to start, if it is not already started).
 Explicit activation can be removed using the \fBrelease\fR subcommand (which will stop the service only if
 it is not also a dependency of another active service). Note that the \fBstop\fR subcommand also removes
 explicit activation, but can fail with no effect if the service will not be stopped (due to being a
 dependency of another active service).
-
+.LP
 If a running service is not explicitly activated and has no running dependents, it will be stopped.
 As a consequence, a service stopping may result in some or all of its dependencies also stopping.
 A general rule is that starting a service by explicitly activating it will also start any of its
@@ -262,18 +262,18 @@ waiting for it to terminate after stopping services (possibly by invoking \fBdin
 Dinit "logs" via two mechanisms simultaneously: the "console" (standard output, not necessarily associated
 with an actual console if \fBdinit\fR was started with output directed elsewhere) and the "main log facility"
 which is the syslog facility by default but which may be directed to a file.
-
+.LP
 Various options are available to control the types and "levels" of message that will be sent to each facility,
 and the destination of the main facility.
 The levels available (from low to high) are \fBdebug\fR, \fBnotice\fR, \fBwarn\fR, and \fBerror\fR.
 Selecting a particular log level for facility will cause the facility to receive messages of that level and higher.
 The special level \fBnone\fR inhibits a facility from receiving any messages.
-
+.LP
 Service status messages (service started or stopped) have a nominal level of \fBnotice\fR, except for failure
 which has a level of \fBerror\fR or \fBwarn\fR in case of transitive failure (due to a dependency).
 These messages are, by default, always issued to the console regardless of level, unless the \fB\-\-quiet\fR
 (\fB\-q\fR) option has been used.
-
+.LP
 To debug boot issues it may be useful to use \fB\-q\fR (which also sets the level to \fBnone\fR) and then
 also reset the level via the \fB\-\-console\-level\fR option to either \fBwarn\fR or \fBerror\fR.
 This will reduce noise in the output from successful service startup.

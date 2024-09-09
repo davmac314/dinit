@@ -260,7 +260,7 @@ exits, and will supervise the process with the discovered process ID.
 Dinit may also send signals to the process ID to stop the service; if \fBdinit\fR runs as a
 privileged user the path should have appropriate permissions to permit abuse by untrusted
 unprivileged processes.
-.sp
+.IP
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBdepends\-on\fR: \fIservice-name\fR
@@ -292,7 +292,7 @@ usage is to have symbolic links to the associated service description files,
 but this is not required.
 Failure to read the directory contents, or to find any of the services named within,
 is not considered fatal.
-.sp
+.IP
 The directory path, if not absolute, is relative to the directory containing the service
 description file.
 .TP
@@ -322,7 +322,7 @@ When this service terminates (i.e. starts successfully, and then stops of its
 own accord), the named service should be started.
 Note that the named service is not loaded until that time; naming an invalid service will
 not cause this service to fail to load.
-.sp
+.IP
 This can be used for a service that supplies an interactive "recovery mode"
 for another service; once the user exits the recovery shell, the primary
 service (as named via this setting) will then start.
@@ -330,7 +330,7 @@ It also supports multi-stage system startup where later service description file
 a separate filesystem that is mounted during the first stage; such service
 descriptions will not be found at initial start, and so cannot be started
 directly, but can be chained via this directive.
-.sp
+.IP
 The chain is not executed if the initial service was explicitly stopped,
 stopped due to a dependency stopping (for any reason), if it will restart
 (including due to a dependent restarting), or if its process terminates
@@ -345,7 +345,7 @@ This by itself does not give so called "socket activation", but does allow any
 process trying to connect to the specified socket to do so immediately after
 the service is started (even before the service process is properly prepared
 to accept connections).
-.sp
+.IP
 The path value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBsocket\-permissions\fR = \fIoctal-permissions-mask\fR
@@ -476,19 +476,19 @@ specified value, an entry will be created in the system "utmp" database which tr
 processes and logged-in users.
 Typically this database is used by the "who" command to list logged-in users.
 The entry will be cleared when the service terminates.
-.sp
+.IP
 The \fBinittab\-id\fR setting specifies the "inittab id" to be written in the entry for
 the process.
 The value is normally quite meaningless.
 However, it should be distinct (or unset) for separate processes.
 It is typically limited to a very short length.
-.sp
+.IP
 The "utmp" database is mostly a historical artifact.
 Access to it on some systems is prone to denial-of-service by unprivileged users.
 It is therefore recommended that this setting not be used.
 However, "who" and similar utilities may not work correctly without this setting
 (or \fBinittab\-line\fR) enabled appropriately.
-.sp
+.IP
 This setting has no effect if Dinit was not built with support for writing to the "utmp"
 database. It applies only to \fBprocess\fR services.
 .TP
@@ -497,7 +497,7 @@ This specifies the tty line that will be written to the "utmp" database when thi
 is started.
 Normally, for a terminal login service, it would match the terminal device name on which
 the login process runs, without the "/dev/" prefix.
-.sp
+.IP
 See the description of the \fBinittab\-id\fR setting for details.
 .TP
 \fBrlimit\-nofile\fR = \fIresource-limits\fR
@@ -529,13 +529,13 @@ relative to the cgroup in which \fBdinit\fR is running (as determined at startup
 by options).
 The latter can only be used if there is only a single cgroup hierarchy (either the cgroups v2
 hierarchy with no cgroups v1 hierarchies, or a single cgroups v1 hierarchy).
-.sp
+.IP
 Note that due to the "no internal processes" rule in cgroups v2, a relative path must typically
 begin with ".." if cgroups v2 are used.
-.sp
+.IP
 The named cgroup must already exist prior to the service starting; it will not be created by
 \fBdinit\fR.
-.sp
+.IP
 This setting is only available if \fBdinit\fR was built with cgroups support.
 .\"
 .SS OPTIONS
@@ -549,11 +549,11 @@ directed to the console (or precisely, to the device to which \fBdinit\fR's stan
 output stream is connected).
 A service running on the console prevents other services from running on the
 console (they will queue for the console).
-.sp
+.IP
 Proper operation of this option (and related options) assumes that \fBdinit\fR
 is itself attached correctly to the console device (or a terminal, in which case
 that terminal will be used as the "console").
-.sp
+.IP
 The \fIinterrupt\fR key (normally control-C) may be active for process / scripted
 services that run on the console, depending on terminal configuration and operating-system
 specifics.
@@ -564,7 +564,7 @@ Specifies that this service uses the console during service startup.
 This is identical to \fBruns\-on\-console\fR except that the console will be released
 (available for running other services) once the service has started.
 It is applicable only for \fBbgprocess\fR and \fBscripted\fR services.
-.sp
+.IP
 As for the \fBruns\-on\-console\fR option, the \fIinterrupt\fR key will be enabled
 while the service has the console.
 .TP
@@ -574,7 +574,7 @@ will be connected to the console), but that it should not exclusively hold the
 console. A service given access to the console in this way will not delay the startup of services
 which require exclusive access to the console (see \fBstarts\-on\-console\fR,
 \fBruns\-on\-console\fR) nor will it be itself delayed if such services are already running.
-.sp
+.IP
 This is mutually exclusive with both \fBstarts\-on\-console\fR and \fBruns\-on\-console\fR;
 setting this option unsets both those options, and setting either of those options unsets
 this option.
@@ -587,14 +587,14 @@ cause it to terminate.
 This option may therefore be used to allow a service to be terminated by the user via
 a keypress combination.
 In combination with \fBskippable\fR, it may allow service startup to be skipped.
-.sp
+.IP
 A service with this option will typically also have the \fBstart\-interruptible\fR option
 set.
-.sp
+.IP
 Note that whether an interrupt can be generated, and the key combination required to do so,
 depends on the operating system's handling of the console device and, if it is a terminal,
 how the terminal is configured; see \fBstty\fR(1).
-.sp
+.IP
 Note also that a process may choose to mask or unmask the interrupt signal of its own accord,
 once it has started.
 Shells, in particular, may unmask the signal; it might not be possible to reliably run a shell
@@ -620,7 +620,7 @@ Pass an open Dinit control socket to the process when launching it (the
 \fIDINIT_CS_FD\fR environment variable will be set to the file descriptor of
 the socket).
 This allows the service to issue commands to Dinit even if the regular control socket is not available yet.
-.sp
+.IP
 Using this option has security implications! The service which receives the
 control socket must close it before launching any untrusted processes.
 You should not use this option unless the service is designed to receive a Dinit
@@ -637,7 +637,7 @@ For scripted services, indicates that if the service startup process terminates
 via an interrupt signal (SIGINT), then the service should be considered started.
 Note that if the interrupt was issued by Dinit to cancel startup, the service
 will instead be considered stopped.
-.sp
+.IP
 This can be combined with options such as \fBstarts\-on\-console\fR to allow
 skipping certain non-essential services (such as filesystem checks) using the
 \fIinterrupt\fR key (typically control-C).
@@ -657,12 +657,12 @@ KILL signal to all other processes in the system, forcibly terminating them.
 This option is intended to allow system shutdown scripts to run without any possible
 interference from "leftover" or orphaned processes (for example, unmounting file systems usually
 requires that the file systems are no longer in use).
-.sp
+.IP
 This option must be used with care since the signal broadcast does not discriminate and
 potentially kills other services (or their shutdown scripts); a strict dependency ordering
 is suggested, i.e. every other service should either be a (possibly transitive) dependency or
 dependent of the service with this option set.
-.sp
+.IP
 This option can be used for scripted and internal services only.
 .\"
 .SS RESOURCE LIMITS
@@ -674,13 +674,13 @@ These settings place a limit on resource usage directly by the process.
 Note that resource limits are inherited by subprocesses, but that usage of a resource
 and subprocess are counted separately (in other words, a process can effectively bypass
 its resource limits by spawning a subprocess and allocating further resources within it).
-.sp
+.LP
 Resources have both a \fIhard\fR and \fIsoft\fR limit.
 The soft limit is the effective limit, but note that a process can raise its soft limit up
 to the hard limit for any given resource.
 Therefore the soft limit acts more as a sanity-check; a process can exceed the soft limit
 only by deliberately raising it first.
-.sp
+.LP
 Resource limits are specified in the following format:
 .sp
 .RS
@@ -700,7 +700,7 @@ In each case the value of the named environment variable will be substituted.
 The name must begin with a non-punctuation, non-space, non-digit character, and ends
 before the first control character, space, or punctuation character other than `\fB_\fR'.
 To avoid substitution, a single `\fB$\fR' can be escaped with a second, as in `\fB$$\fR'.
-.P
+.LP
 Variable substitution also supports a limited subset of shell syntax. You can use curly
 braces to enclose the variable, as in `\fB${NAME}\fR'.
 Limited parameter expansion is also supported, specifically the forms `\fB${NAME:\-word}\fR'
@@ -709,7 +709,7 @@ Limited parameter expansion is also supported, specifically the forms `\fB${NAME
 set and non\-empty), and `\fB${NAME+word}\fR' (substitute `\fBword\fR' if variable is set).
 Unlike in shell expansion, the substituted \fBword\fR does not itself undergo expansion and
 cannot contain closing brace characters or whitespace, even if quoted.
-.P
+.LP
 Note that by default, command-line variable substitution occurs after splitting the line into
 separate arguments and so
 a single environment variable cannot be used to add multiple arguments to a command line.
@@ -718,12 +718,12 @@ zero-length argument.
 To alter this behaviour use a slash after \fB$\fR, as in `\fB$/NAME\fR'; the expanded value will then
 be split into several arguments separated by whitespace or, if the value is empty or consists only
 of whitespace, will collapse (instead of producing an empty or whitespace argument).
-.P
+.LP
 Variable substitution occurs when the service is loaded.
 Therefore, it is typically not useful for dynamically changing service parameters (including
 command line) based on a variable that is inserted into \fBdinit\fR's environment once it is
 running (for example via \fBdinitctl setenv\fR). 
-.P
+.LP
 The effective environment for variable substitution in setting values matches the environment supplied to the process
 for a service when it is launched. The priority of environment variables, from highest to lowest, for both is:
 .IP \(bu
@@ -734,7 +734,7 @@ variables set by the \fBexport\-passwd\-vars\fR and \fBexport\-service\-name\fR 
 the process environment of \fBdinit\fR (which is established on launch by the process environment of the
 parent, amended by loading the environment file (if any) as specified in \fBdinit\fR(8), and further
 amended via \fBdinitctl setenv\fR commands or equivalent).
-.P
+.LP
 Note that since variable substitution is performed on service load, the values seen by a service process may differ from those
 used for substitution, if they have been changed in the meantime.
 Using environment variable values in service commands and parameters can be used as means to
@@ -746,7 +746,7 @@ should be considered.
 A number of meta-commands can be used in service description files.
 A meta-command is indicated by an 'at' sign, \fB@\fR, at the beginning of the line (possibly preceded by whitespace).
 Arguments to a meta-command follow on the same line and are interpreted as for setting values.
-  
+.LP  
 The following commands are available:
 .TP
 \fB@include\fR \fIpath\fR

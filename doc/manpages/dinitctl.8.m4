@@ -135,16 +135,16 @@ Do not wait for issued command to complete; exit immediately.
 .TP
 \fB\-\-pin\fR
 Pin the service in the requested state. The service will not leave the state until it is unpinned.
-.sp
+.IP
 A service that is pinned stopped cannot be marked active, that is, start commands issued to the
 service have no effect.
 Dependents (via hard dependency relationships) of the pinned service will be unable to start.
-.sp
+.IP
 A service that is pinned started cannot be stopped, however its explicit activation can be removed
 (eg via the \fBstop\fR or \fBrelease\fR commands).
 Once unpinned, a service which is not explicitly activated, and which has no active dependents,
 will automatically stop. If a pinned-started service fails to start, the pin is removed.
-.sp
+.IP
 Note that a pin takes effect while the service is starting/stopping, before it reaches the target
 state. Stopping or restarting a service that is pinned started and which is already starting or
 started is not possible.
@@ -238,7 +238,7 @@ This is intended as a convenience for making simple changes to a service, withou
 remove dependencies to and unload the service. However it is not completely equivalent to doing a
 proper unload/reload; some altered settings may not take effect until the service is restarted,
 and some cannot be changed at all while the service is running.
-.sp
+.IP
 In particular, the type of a running service cannot be changed; nor can the \fBinittab-id\fR, \fBinittab-line\fR,
 or \fBpid-file\fR settings, or the \fBruns-on-console\fR or \fBshares-console\fR flags.
 If any hard dependencies are added to a running service, the dependencies must already be started.
@@ -259,12 +259,12 @@ Before each service, one of the following state indicators is displayed:
 The '<<' and '>>' symbols represent a transition state (starting and stopping respectively); curly braces
 indicate the target state (left: started, right: stopped); square brackets are used if the service
 is marked active (target state will always be started if this is the case).
-.sp
+.IP
 An 's' in place of '+' means that the service startup was skipped (possible only if the service is
 configured as skippable).
 An 'X' in place of '-' means that the service failed to start, or that the
 service process unexpectedly terminated with an error status or signal while running.
-.sp
+.IP
 Additional information, if available, will be printed after the service name: whether the service owns,
 or is waiting to acquire, the console; the process ID; the exit status or signal that caused termination.
 .TP
@@ -278,8 +278,8 @@ The \fIdependency-type\fR must be one of \fBneed\fR, \fBmilestone\fR or \fBwaits
 Note that adding a \fBneed\fR dependency requires that the service states are consistent with the
 dependency (i.e. if the "from" service is started, the "to" service must also be started).
 Circular dependency chains may not be created.
-.sp
-(deprecated) The \fIdependency-type\fR \fBregular\fR is an old alias of \fBneed\fR.
+.IP
+The \fIdependency-type\fR \fBregular\fR is also supported, as a deprecated alias of \fBneed\fR.
 .TP
 \fBrm-dep\fR
 Remove a dependency between two services.
@@ -293,14 +293,14 @@ This is much like \fBadd-dep\fR but it also starts the dependency if the depende
 a symbolic link in the directory specified via the \fBwaits-for.d\fR directive in the service
 description (there must be only one such directive) so that the dependency will survive between
 sessions.
-.sp
+.IP
 If the \fB--from\fR option is not used to specify the dependent, the dependency is created from the
 \fBboot\fR service by default.
 .TP
 \fBdisable\fR
 Permanently disable a \fBwaits-for\fR dependency between two services.
 This is the complement of the \fBenable\fR command; see the description above for more information.
-.sp
+.IP
 Note that the \fBdisable\fR command affects only the dependency specified (or implied).
 It has no other effect, and a service that is "disabled" may still be started if it is a dependency of
 another started service.
