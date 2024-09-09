@@ -1510,7 +1510,8 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
             break;
         }
         case setting_id_t::STOP_COMMAND:
-            settings.stop_command = read_setting_value(input_pos, i, end, &settings.stop_command_offsets);
+            read_setting_value(settings.stop_command, setting_op, input_pos, i, end,
+                    &settings.stop_command_offsets);
             break;
         case setting_id_t::PID_FILE:
             settings.pid_file = read_setting_value(input_pos, i, end);

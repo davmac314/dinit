@@ -15,7 +15,7 @@ setting_details all_settings[] = {
         {"socket-permissions",      setting_id_t::SOCKET_PERMISSIONS,       false,  true,   false},
         {"socket-uid",              setting_id_t::SOCKET_UID,               false,  true,   false},
         {"socket-gid",              setting_id_t::SOCKET_GID,               false,  true,   false},
-        {"stop-command",            setting_id_t::STOP_COMMAND,             false,  true,   false}, // TODO +=?
+        {"stop-command",            setting_id_t::STOP_COMMAND,             false,  true,   true },
         {"pid-file",                setting_id_t::PID_FILE,                 false,  true,   false},
         {"depends-on",              setting_id_t::DEPENDS_ON,               true,   false,  false},
         {"depends-ms",              setting_id_t::DEPENDS_MS,               true,   false,  false},
