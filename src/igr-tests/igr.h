@@ -444,6 +444,8 @@ inline std::string read_file_contents(const std::string &filename)
         r = read(fd, buf, 1024);
     }
 
+    close(fd);
+
     if (r == -1) {
         throw std::system_error(errno, std::generic_category(), "read_file_contents: read");
     }
