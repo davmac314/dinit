@@ -137,6 +137,8 @@ public:
     ~pipe_consume_buffer()
     {
         deregister(event_loop);
+        close(fds[0]);
+        close(fds[1]);
     }
 
     int get_output_fd()
