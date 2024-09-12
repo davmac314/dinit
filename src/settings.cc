@@ -57,7 +57,7 @@ setting_details all_settings[] = {
         {"rlimit-data",             setting_id_t::SETTING_RLIMIT_DATA,      false,  true,   false},
         {"rlimit-addrspace",        setting_id_t::SETTING_RLIMIT_ADDRSPACE, false,  true,   false},
 
-#ifdef SUPPORT_CGROUPS
+#if SUPPORT_CGROUPS
         {"run-in-cgroup",           setting_id_t::RUN_IN_CGROUP,            false,  true,   false},
 #endif
 
