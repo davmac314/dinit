@@ -39,11 +39,11 @@ class igr_proc_watch : public event_loop_t::child_proc_watcher_impl<igr_proc_wat
 public:
     bool did_exit = true;
     pid_t child_pid = -1;
-    int status = 0;
+    proc_status_t exit_status;
 
-    dasynq::rearm status_change(event_loop_t &, pid_t child, int status_p)
+    dasynq::rearm status_change(event_loop_t &, pid_t child, proc_status_t status_p)
     {
-        status = status_p;
+        exit_status = status_p;
         did_exit = true;
         child_pid = -1;
         return dasynq::rearm::REMOVE;
@@ -229,7 +229,14 @@ public:
 
     int wait_for_term(dasynq::time_val timeout)
     {
-        if (pwatch.did_exit) return pwatch.status;
+        auto exit_status_to_int = [](event_loop_t::child_proc_watcher::proc_status_t status) {
+            if (status.did_exit()) {
+                return status.get_exit_status();
+            }
+            return -1;
+        };
+
+        if (pwatch.did_exit) return exit_status_to_int(pwatch.exit_status);
 
         simple_timer timer;
         timer.arm(timeout);
@@ -242,7 +249,7 @@ public:
             throw igr_failure_exc("timeout waiting for termination");
         }
 
-        return pwatch.status;
+        return exit_status_to_int(pwatch.exit_status);
     }
 
     std::string get_stdout()
@@ -492,14 +499,13 @@ inline void nanosleepx(decltype(std::declval<timespec>().tv_sec) seconds,
     }
 }
 
-// Run dinitcheck, return { stdout combined with stderr, exit code }
+// Run dinitcheck, return { stdout combined with stderr, exit code / -1 for signal termination }
 inline std::pair<std::string, int> run_dinitcheck(const char *wdir,
         std::vector<std::string> args = {})
 {
     dinitcheck_proc dc_proc;
     dc_proc.start(wdir, args);
     int exit_status = dc_proc.wait_for_term({1, 0}  /* max 1 second */);
-
     return { dc_proc.get_stdout(), exit_status };
 }
 

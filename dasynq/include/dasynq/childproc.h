@@ -9,7 +9,6 @@
 #include "btree_set.h"
 
 namespace dasynq {
-
 namespace dprivate {
 
 // Map of pid_t to void *, with possibility of reserving entries so that mappings can
@@ -85,9 +84,32 @@ inline void sigchld_handler(int signum)
     // hurt in any case).
 }
 
+class proc_status {
+    int wait_si_code; // CLD_EXITED or a signal-related status
+    int wait_si_status; // exit status as per exit(...), or signal number
+
+    public:
+    proc_status() noexcept : wait_si_code(0), wait_si_status(0) { }
+    proc_status(int wait_si_code, int wait_si_status) noexcept
+        : wait_si_code(wait_si_code), wait_si_status(wait_si_status) {}
+    proc_status(const proc_status &) noexcept = default;
+    proc_status &operator=(const proc_status &) noexcept = default;
+
+    bool did_exit() noexcept { return wait_si_code == CLD_EXITED; }
+    bool did_exit_clean() noexcept { return wait_si_status == 0; }
+    bool was_signalled() noexcept { return !did_exit(); }
+    int get_exit_status() noexcept { return wait_si_status; }
+    int get_signal() noexcept { return wait_si_status; }
+
+    int get_si_status() noexcept { return wait_si_status; }
+    int get_si_code() noexcept { return wait_si_code; }
+};
+
 } // namespace dprivate
 
-using pid_watch_handle_t = dprivate::pid_map::pid_handle_t;
+inline namespace v2 {
+
+using pid_watch_handle_t = dasynq::dprivate::pid_map::pid_handle_t;
 
 template <class Base> class child_proc_events : public Base
 {
@@ -98,10 +120,11 @@ template <class Base> class child_proc_events : public Base
     {
         public:
         constexpr static bool supports_childwatch_reservation = true;
+        using proc_status_t = dprivate::proc_status;
     };
 
     private:
-    dprivate::pid_map child_waiters;
+    dasynq::dprivate::pid_map child_waiters;
     reaper_mutex_t reaper_lock; // used to prevent reaping while trying to signal a process
     
     protected:
@@ -111,15 +134,21 @@ template <class Base> class child_proc_events : public Base
     bool receive_signal(T & loop_mech, sigdata_t &siginfo, void *userdata)
     {
         if (siginfo.get_signo() == SIGCHLD) {
-            int status;
-            pid_t child;
             reaper_lock.lock();
-            while ((child = waitpid(-1, &status, WNOHANG)) > 0) {
+
+            siginfo_t child_info;
+            child_info.si_pid = 0; // for portability inc. MacOS
+            while (waitid(P_ALL, 0 /* ignored */, &child_info, WNOHANG | WEXITED) == 0) {
+                pid_t child = child_info.si_pid;
+                if (child == 0) break;
                 auto ent = child_waiters.remove(child);
                 if (ent.first) {
-                    Base::receive_child_stat(child, status, ent.second);
+                    Base::receive_child_stat(child, { child_info.si_code, child_info.si_status },
+                            ent.second);
                 }
+                child_info.si_pid = 0;
             }
+
             reaper_lock.unlock();
             return false; // leave signal watch enabled
         }
@@ -198,17 +227,18 @@ template <class Base> class child_proc_events : public Base
         // On some systems a SIGCHLD handler must be established, or SIGCHLD will not be
         // generated:
         struct sigaction chld_action;
-        chld_action.sa_handler = dprivate::sigchld_handler;
+        chld_action.sa_handler = dasynq::dprivate::sigchld_handler;
         sigemptyset(&chld_action.sa_mask);
         chld_action.sa_flags = 0;
         sigaction(SIGCHLD, &chld_action, nullptr);
 
         // Specify a dummy user data value - sigchld_handler
-        loop_mech->add_signal_watch(SIGCHLD, (void *) dprivate::sigchld_handler);
+        loop_mech->add_signal_watch(SIGCHLD, (void *) dasynq::dprivate::sigchld_handler);
         Base::init(loop_mech);
     }
 };
 
+} // namespace v2
 } // namespace dasynq
 
 #endif /* DASYNQ_CHILDPROC_H_ */

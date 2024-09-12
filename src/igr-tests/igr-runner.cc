@@ -12,8 +12,6 @@
 #include "igr.h"
 #include "mconfig.h"
 
-extern char **environ;
-
 // Integration test suite runner.
 
 void basic_test();
@@ -348,7 +346,7 @@ void check_basic_test()
 
     auto check_result = run_dinitcheck("check-basic", {"-d", "sd"});
     igr_assert_eq(read_file_contents(igr_input_basedir + "/check-basic/expected.txt"), check_result.first);
-    igr_assert(WEXITSTATUS(check_result.second) == 1, "dinitcheck exit status == 1");
+    igr_assert(check_result.second == 1, "dinitcheck exit status == 1");
 }
 
 void check_cycle_test()
@@ -357,7 +355,7 @@ void check_cycle_test()
 
     auto check_result = run_dinitcheck("check-cycle", {"-d", "sd"});
     igr_assert_eq(read_file_contents(igr_input_basedir + "/check-cycle/expected.txt"), check_result.first);
-    igr_assert(WEXITSTATUS(check_result.second) == 1, "dinitcheck exit status == 1");
+    igr_assert(check_result.second == 1, "dinitcheck exit status == 1");
 }
 
 void check_cycle2_test()
@@ -366,7 +364,7 @@ void check_cycle2_test()
 
     auto check_result = run_dinitcheck("check-cycle2", {"-d", "sd"});
     igr_assert_eq(read_file_contents(igr_input_basedir + "/check-cycle2/expected.txt"), check_result.first);
-    igr_assert(WEXITSTATUS(check_result.second) == 1, "dinitcheck exit status == 1");
+    igr_assert(check_result.second == 1, "dinitcheck exit status == 1");
 }
 
 void check_lint_test()
@@ -375,7 +373,7 @@ void check_lint_test()
 
     auto check_result = run_dinitcheck("check-lint", {"-d", "sd"});
     igr_assert_eq(read_file_contents(igr_input_basedir + "/check-lint/expected.txt"), check_result.first);
-    igr_assert(WEXITSTATUS(check_result.second) == 1, "dinitcheck exit status == 1");
+    igr_assert(check_result.second == 1, "dinitcheck exit status == 1");
 }
 
 void reload1_test()
@@ -485,7 +483,7 @@ void reload2_test()
     // "dinitctl reload boot", should succeed
     dinitctl_p.start("reload2", {"-p", socket_path, "reload", "boot"});
     int dinitctl_result = dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
-    igr_assert(WEXITSTATUS(dinitctl_result) == 0, "\"dinitctl reload boot\" returned unexpected status");
+    igr_assert(dinitctl_result == 0, "\"dinitctl reload boot\" returned unexpected status");
     igr_assert_eq(read_file_contents(igr_input_basedir + "/reload2/output2.expected"),
             dinitctl_p.get_stdout());
     igr_assert_eq("", dinitctl_p.get_stderr());
@@ -493,7 +491,7 @@ void reload2_test()
     // "dinitctl start boot"
     dinitctl_p.start("reload2", {"-p", socket_path, "start", "boot"});
     dinitctl_result = dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
-    igr_assert(WEXITSTATUS(dinitctl_result) == 0, "\"dinitctl start boot\" returned unexpected status");
+    igr_assert(dinitctl_result == 0, "\"dinitctl start boot\" returned unexpected status");
 
     // "dinitctl list"
     dinitctl_p.start("reload2", {"-p", socket_path, "list"});
@@ -590,7 +588,7 @@ void var_subst_test()
     dinit_proc dinit_p;
     dinit_p.start("var-subst", {"-u", "-d", "sd", "-p", socket_path, "-q", "checkargs"}, false);
     int status = dinit_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(WIFEXITED(status) && WEXITSTATUS(status) == 0, "dinit did not exit cleanly");
+    igr_assert(status == 0, "dinit did not exit cleanly");
 
     igr_assert_eq("1:xxxvar one/yyy 2:vartwovarthree 3:varfour 4:\n",
             read_file_contents(setup.get_output_dir() + "/args-record"));
@@ -609,14 +607,14 @@ void svc_start_fail_test()
     dinitctl_p.start("svc-start-fail",{"-u", "-p", socket_path, "start", "bad-command"});
     int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
 
-    igr_assert(WIFEXITED(status) && WEXITSTATUS(status) == 1, "dinitctl did not return error code");
+    igr_assert(status == 1, "dinitctl did not return error code");
     igr_assert_eq(read_file_contents(igr_input_basedir + "/svc-start-fail/expected-1"),
             dinitctl_p.get_stdout());
 
     dinitctl_p.start("svc-start-fail",{"-u", "-p", socket_path, "start", "timeout-command"});
     status = dinitctl_p.wait_for_term({2, 0}); /* max 2 seconds */
 
-    igr_assert(WIFEXITED(status) && WEXITSTATUS(status) == 1, "dinitctl did not return error code");
+    igr_assert(status == 1, "dinitctl did not return error code");
     igr_assert_eq(read_file_contents(igr_input_basedir + "/svc-start-fail/expected-2"),
             dinitctl_p.get_stdout());
     igr_assert_eq("", dinitctl_p.get_stderr());
@@ -634,7 +632,7 @@ void dep_not_found_test()
     dinitctl_p.start("svc-start-fail", {"-u", "-p", socket_path, "start", "missing-dep-svc"});
     int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
 
-    igr_assert(WIFEXITED(status) && WEXITSTATUS(status) == 1, "dinitctl did not return error code");
+    igr_assert(status == 1, "dinitctl did not return error code");
     igr_assert_eq(read_file_contents(igr_input_basedir + "/dep-not-found/output.expected"),
             dinitctl_p.get_stderr());
     igr_assert_eq("", dinitctl_p.get_stdout());
@@ -661,7 +659,7 @@ void pseudo_cycle_test()
     dinit_proc dinit_p;
     dinit_p.start("pseudo-cycle", {"-u", "-d", "sd", "-p", socket_path, "-q"}, true);
     int status = dinit_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(WIFEXITED(status) && WEXITSTATUS(status) == 0, "dinit did not exit cleanly");
+    igr_assert(status == 0, "dinit did not exit cleanly");
 
     igr_assert_eq("ran\n", read_file_contents(output_file));
 }

@@ -143,8 +143,9 @@ void service_record::stopped() noexcept
         // - ... successfully (i.e. exit code 0)
         // - this service won't restart, and
         // - a shutdown isn't in progress
-        if ((onstart_flags.always_chain || (did_finish(stop_reason) && get_exit_status().as_int() == 0 &&
-                ! will_restart)) && ! start_on_completion.empty() && ! services->is_shutting_down()) {
+        if ((onstart_flags.always_chain || (did_finish(stop_reason)
+                && get_exit_status().did_exit_clean() && !will_restart))
+                && !start_on_completion.empty() && !services->is_shutting_down()) {
             try {
                 auto chain_to = services->load_service(start_on_completion.c_str());
                 chain_to->start();
@@ -660,9 +661,7 @@ void service_record::do_stop(bool with_restart) noexcept
         if (get_type() == service_type_t::PROCESS || get_type() == service_type_t::BGPROCESS) {
             auto exit_status = get_exit_status();
             if (exit_status.was_signalled()) {
-                if (exit_status.get_term_sig() != SIGHUP && exit_status.get_term_sig() != SIGINT &&
-                        exit_status.get_term_sig() != SIGUSR1 && exit_status.get_term_sig() != SIGUSR2 &&
-                        exit_status.get_term_sig() != SIGTERM) {
+                if (!value(exit_status.get_signal()).is_in(SIGHUP, SIGINT, SIGUSR1, SIGUSR2, SIGTERM)) {
                     do_auto_restart = true;
                 }
             }

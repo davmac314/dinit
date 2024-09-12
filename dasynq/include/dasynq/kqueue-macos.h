@@ -33,7 +33,11 @@
 
 namespace dasynq {
 
-template <class Base> class kqueue_loop;
+namespace dprivate {
+class proc_status; // forward declaration
+}
+
+inline namespace v2 {
 
 class macos_kqueue_traits : public signal_traits
 {
@@ -66,6 +70,8 @@ class macos_kqueue_traits : public signal_traits
         {
         }
     };
+
+    using proc_status_t = dprivate::proc_status;
 
     constexpr static bool has_bidi_fd_watch = false;
     constexpr static bool has_separate_rw_fd_watches = true;
@@ -411,6 +417,7 @@ template <class Base> class macos_kqueue_loop : public signal_events<Base, true>
     }
 };
 
+} // namespace v2
 } // namespace dasynq
 
 #endif /* DASYNQ_KQUEUE_MACOS_H_ */

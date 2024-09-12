@@ -23,6 +23,10 @@
 
 namespace dasynq {
 
+namespace dprivate {
+class proc_status; // forward declaration
+}
+
 template <class Base> class select_events;
 
 class select_traits : public signal_traits
@@ -55,6 +59,8 @@ class select_traits : public signal_traits
         }
     };
 
+    using proc_status_t = dprivate::proc_status;
+
     constexpr static bool has_bidi_fd_watch = false;
     constexpr static bool has_separate_rw_fd_watches = true;
     // requires interrupt after adding/enabling an fd:
@@ -67,7 +73,6 @@ template <class Base> class select_events : public signal_events<Base, true>
 {
     fd_set read_set;
     fd_set write_set;
-    //fd_set error_set;  // logical OR of both the above
     int max_fd = -1; // highest fd in any of the sets, -1 if not initialised
 
     // userdata pointers in read and write respectively, for each fd:
@@ -289,9 +294,9 @@ template <class Base> class select_events : public signal_events<Base, true>
         // Check whether any timers are pending, and what the next timeout is.
         this->process_monotonic_timers(do_wait, ts, wait_ts);
 
-        volatile fd_set read_set_c;
-        volatile fd_set write_set_c;
-        volatile fd_set err_set;
+        fd_set read_set_c;
+        fd_set write_set_c;
+        fd_set err_set; // "exceptional conditions" eg urgent data
 
         read_set_c = read_set;
         write_set_c = write_set;
@@ -309,11 +314,13 @@ template <class Base> class select_events : public signal_events<Base, true>
             do_wait = false;
         }
 
-        if (! do_wait) {
+        if (!do_wait) {
             ts.tv_sec = 0;
             ts.tv_usec = 0;
             wait_ts = &ts;
         }
+
+        std::atomic_signal_fence(std::memory_order::memory_order_release);
 
         this->sigmaskf(SIG_UNBLOCK, &active_sigmask, nullptr);
         int r = select(nfds, &read_set_c, &write_set_c, &err_set, wait_ts);

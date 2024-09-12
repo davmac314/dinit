@@ -17,6 +17,8 @@ namespace dasynq {
 // Timer implementation based on POSIX create_timer et al.
 // May require linking with -lrt
 
+// See itimer_events - this class works essentially works in the same way (but using posix timers).
+
 template <class Base, bool provide_mono_timer = true>
 class posix_timer_events : public timer_base<Base>
 {

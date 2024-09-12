@@ -172,9 +172,11 @@ class control_conn_t : private service_listener
 
     // List all loaded services and their state.
     bool list_services();
+    bool list_services5();
 
     // Query service status/
     bool process_service_status();
+    bool process_service_status5();
 
     // Add a dependency between two services.
     bool add_service_dep(bool do_start = false);

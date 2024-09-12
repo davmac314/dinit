@@ -8,10 +8,11 @@
 #include <sys/types.h>
 
 // Support for the standard POSIX signal mechanisms. This can be used by backends that don't
-// otherwise support receiving signals. It is not particularly nice (it involves using siglongjmp
-// out of a signal handler, which POSIX mildly frowns upon) but it's really the only viable way
-// to process signals together with file descriptor / other events and obtain the full siginfo_t
-// data passed to the signal handler.
+// otherwise support receiving signals (currently: select/pselect, and kqueue for MacOS (due
+// to a MacOS bug). It is not particularly nice (it involves using siglongjmp out of a signal
+// handler, which POSIX mildly frowns upon) but it's really the only viable way to process signals
+// together with file descriptor / other events and obtain the full siginfo_t data passed to the
+// signal handler.
 
 // Use:
 // - extend the signal_events class below

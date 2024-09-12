@@ -24,7 +24,7 @@ enum class cp_cmd : dinit_cptypes::cp_cmd_t {
 
     UNPINSERVICE = 7,
 
-    // List services:
+    // List services (deprecated):
     LISTSERVICES = 8,
 
     // Unload a service:
@@ -53,7 +53,7 @@ enum class cp_cmd : dinit_cptypes::cp_cmd_t {
     // Export a set of environment variables into activation environment:
     SETENV = 17,
 
-    // Query status of an individual service
+    // Query status of an individual service (deprecated)
     SERVICESTATUS = 18,
 
     // Set trigger value for triggered services
@@ -73,6 +73,12 @@ enum class cp_cmd : dinit_cptypes::cp_cmd_t {
 
     // Retrieve complete environment
     GETALLENV = 24,
+
+    // List services (protocol version 5+)
+    LISTSERVICES5 = 25,
+
+    // Query status of an individual service (5+)
+    SERVICESTATUS5 = 26,
 };
 
 // Replies:
@@ -155,6 +161,8 @@ enum class cp_rply : dinit_cptypes::cp_rply_t {
 enum class cp_info : dinit_cptypes::cp_info_t {
     // Service event occurred (4-byte service handle, 1 byte event code)
     SERVICEEVENT = 100,
+    // Service event for protocol version 5+ - 4 byte handle, 1 byte event code, proc_status_t status
+    SERVICEEVENT5 = 101,
 };
 
 #endif

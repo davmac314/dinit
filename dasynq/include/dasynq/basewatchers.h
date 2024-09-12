@@ -28,6 +28,8 @@ namespace dprivate {
     }
 } // namespace dprivate
 
+inline namespace v2 {
+
 // A template to generate suitable default loop traits for a given type of mutex:
 template <typename T_Mutex> class default_traits
 {
@@ -40,7 +42,7 @@ template <typename T_Mutex> class default_traits
     // (sigprocmask or pthread_sigmask):
     static void sigmaskf(int how, const sigset_t *set, sigset_t *oset)
     {
-        dprivate::sigmaskf<T_Mutex>(how, set, oset);
+        dasynq::dprivate::sigmaskf<T_Mutex>(how, set, oset);
     }
 };
 
@@ -248,6 +250,7 @@ namespace dprivate {
         unsigned write_removed : 1; // write watch removed?
     };
 
+    template <typename ChildData>
     class base_child_watcher : public base_watcher
     {
         template <typename, typename> friend class event_dispatch;
@@ -256,7 +259,7 @@ namespace dprivate {
         protected:
         pid_watch_handle_t watch_handle;
         pid_t watch_pid;
-        int child_status;
+        ChildData child_status;
 
         base_child_watcher() : base_watcher(watch_type_t::CHILD) { }
     };
@@ -280,6 +283,7 @@ namespace dprivate {
 
 } // namespace dprivate
 
+} // namespace v2
 } // namespace dasynq
 
 #endif /* DASYNQ_BASEWATCHERS_H_ */

@@ -58,6 +58,29 @@ class eventloop_t
     class child_proc_watcher
     {
         public:
+        class proc_status {
+            int wait_si_code; // CLD_EXITED or a signal-related status
+            int wait_si_status; // exit status as per exit(...), or signal number
+
+            public:
+            proc_status() noexcept {}
+            proc_status(int wait_si_code, int wait_si_status) noexcept
+                : wait_si_code(wait_si_code), wait_si_status(wait_si_status) {}
+            proc_status(const proc_status &) noexcept = default;
+            proc_status &operator=(const proc_status &) noexcept = default;
+
+            bool did_exit() noexcept { return wait_si_code == CLD_EXITED; }
+            bool did_exit_clean() noexcept { return wait_si_status == 0; }
+            bool was_signalled() noexcept { return !did_exit(); }
+            int get_exit_status() noexcept { return wait_si_status; }
+            int get_signal() noexcept { return wait_si_status; }
+
+            int get_si_code() noexcept { return wait_si_code; }
+            int get_si_status() noexcept { return wait_si_status; }
+        };
+
+        using proc_status_t = proc_status;
+
         pid_t fork(eventloop_t &loop, bool reserved_child_watcher, int priority = dasynq::DEFAULT_PRIORITY)
         {
             bp_sys::last_forked_pid++;

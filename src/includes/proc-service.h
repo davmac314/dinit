@@ -122,7 +122,7 @@ class service_child_watcher : public eventloop_t::child_proc_watcher_impl<servic
 {
     public:
     base_process_service *service;
-    dasynq::rearm status_change(eventloop_t &eloop, pid_t child, int status) noexcept;
+    dasynq::rearm status_change(eventloop_t &eloop, pid_t child, proc_status_t status) noexcept;
 
     service_child_watcher(base_process_service * sr) noexcept : service(sr) { }
 
@@ -135,7 +135,7 @@ class stop_child_watcher : public eventloop_t::child_proc_watcher_impl<stop_chil
 {
     public:
     process_service *service;
-    dasynq::rearm status_change(eventloop_t &eloop, pid_t child, int status) noexcept;
+    dasynq::rearm status_change(eventloop_t &eloop, pid_t child, proc_status_t status) noexcept;
 
     stop_child_watcher(process_service * sr) noexcept : service(sr) { }
 
@@ -222,7 +222,7 @@ class base_process_service : public service_record
     pid_t pid = -1;  // PID of the process. For a scripted service which is STARTING or STOPPING,
                      // this is PID of the service script; otherwise it is the PID of the process
                      // itself (process service).
-    bp_sys::exit_status exit_status; // Exit status, if the process has exited (pid == -1).
+    proc_status_t exit_status; // Exit status, if the process has exited (pid == -1).
     int socket_fd = -1;  // For socket-activation services, this is the file descriptor for the socket.
     int notification_fd = -1;  // If readiness notification is via fd
     int log_output_fd = -1; // If logging via buffer/pipe, write end of the pipe
@@ -532,7 +532,7 @@ class base_process_service : public service_record
         return pid;
     }
 
-    bp_sys::exit_status get_exit_status() noexcept override
+    proc_status_t get_exit_status() noexcept override
     {
         return exit_status;
     }
@@ -564,7 +564,7 @@ class process_service : public base_process_service
     bool stop_issued : 1;
 
     pid_t stop_pid = -1;
-    bp_sys::exit_status stop_status = {};
+    proc_status_t stop_status = {};
 
     ready_notify_watcher readiness_watcher;
     stop_child_watcher stop_watcher;
@@ -605,7 +605,7 @@ class process_service : public base_process_service
             }
             else if (stop_status.was_signalled()) {
                 log(loglevel_t::ERROR, "Service ", get_name(), " stop command terminated due to signal ",
-                        stop_status.get_term_sig());
+                        stop_status.get_signal());
             }
         }
 
@@ -743,7 +743,7 @@ class bgproc_service : public process_service
     string pid_file;
 
     // Read the pid-file contents
-    pid_result_t read_pid_file(bp_sys::exit_status *exit_status) noexcept;
+    pid_result_t read_pid_file(proc_status_t *exit_status) noexcept;
 
     public:
     bgproc_service(service_set *sset, const string &name, ha_string &&command,

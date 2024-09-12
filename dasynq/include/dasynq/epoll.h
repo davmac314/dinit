@@ -16,6 +16,11 @@
 #include <csignal>
 
 namespace dasynq {
+inline namespace v2 {
+
+namespace dprivate {
+class proc_status; // forward declaration
+}
 
 template <class Base> class epoll_loop;
 
@@ -59,7 +64,9 @@ class epoll_traits
         // uint16_t get_siaddr_lsb() { return info.ssi_addr_lsb; }
         
         void set_signo(int signo) { info.ssi_signo = signo; }
-    };    
+    };
+
+    using proc_status_t = dprivate::proc_status;
 
     class fd_r;
 
@@ -383,6 +390,7 @@ template <class Base> class epoll_loop : public Base
     }
 };
 
+} // namespace v2
 } // namespace dasynq
 
 #endif /* DASYNQ_EPOLL_H_ */

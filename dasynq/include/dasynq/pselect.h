@@ -13,6 +13,10 @@ template <class Base> class pselect_events : public signal_events<Base, false>
     //fd_set error_set;  // logical OR of both the above
     int max_fd = -1; // highest fd in any of the sets, -1 if not initialised
 
+    // A signal set used during polling (pull_events). We need to use a non-local variable for
+    // this to avoid theoretical issues with variable values after sigsetjmp(...).
+    sigset_t poll_sigmask;
+
     // userdata pointers in read and write respectively, for each fd:
     std::vector<void *> rd_udata;
     std::vector<void *> wr_udata;
@@ -231,9 +235,9 @@ template <class Base> class pselect_events : public signal_events<Base, false>
         // Check whether any timers are pending, and what the next timeout is.
         this->process_monotonic_timers(do_wait, ts, wait_ts);
 
-        volatile fd_set read_set_c;
-        volatile fd_set write_set_c;
-        volatile fd_set err_set;
+        fd_set read_set_c;
+        fd_set write_set_c;
+        fd_set err_set;
 
         read_set_c = read_set;
         write_set_c = write_set;
@@ -241,14 +245,15 @@ template <class Base> class pselect_events : public signal_events<Base, false>
 
         const sigset_t &active_sigmask = this->get_active_sigmask();
 
-        sigset_t sigmask;
-        this->sigmaskf(SIG_UNBLOCK, nullptr, &sigmask);
+        // We want "poll_sigmask" to have unmasked both the signals that were previously unmasked, and
+        // the signals that we need to see because they are being watched.
+        this->sigmaskf(SIG_UNBLOCK, nullptr, &poll_sigmask);
 
         // This is horrible, but hopefully will be optimised well. POSIX gives no way to combine signal
         // sets other than this.
         for (int i = 1; i < NSIG; i++) {
-            if (! sigismember(&active_sigmask, i)) {
-                sigdelset(&sigmask, i);
+            if (!sigismember(&active_sigmask, i)) {
+                sigdelset(&poll_sigmask, i);
             }
         }
         int nfds = max_fd + 1;
@@ -257,17 +262,19 @@ template <class Base> class pselect_events : public signal_events<Base, false>
         // using sigjmp/longjmp is ugly, but there is no other way. If a signal that we're watching is
         // received during polling, it will longjmp back to here:
         if (sigsetjmp(this->get_sigreceive_jmpbuf(), 1) != 0) {
-            this->process_signal(sigmask);
+            this->process_signal(poll_sigmask);
             do_wait = false;
         }
 
-        if (! do_wait) {
+        if (!do_wait) {
             ts.tv_sec = 0;
             ts.tv_nsec = 0;
             wait_ts = &ts;
         }
 
-        int r = pselect(nfds, &read_set_c, &write_set_c, &err_set, wait_ts, &sigmask);
+        std::atomic_signal_fence(std::memory_order::memory_order_release);
+
+        int r = pselect(nfds, &read_set_c, &write_set_c, &err_set, wait_ts, &poll_sigmask);
 
         if (r == -1 || r == 0) {
             // signal or no events
@@ -276,7 +283,7 @@ template <class Base> class pselect_events : public signal_events<Base, false>
                     // At least on Mac OS, pselect doesn't seem to give us a pending signal
                     // if we have a zero timeout. Force detection using sigmask:
                     sigset_t origmask;
-                    this->sigmaskf(SIG_SETMASK, &sigmask, &origmask);
+                    this->sigmaskf(SIG_SETMASK, &poll_sigmask, &origmask);
                     this->sigmaskf(SIG_SETMASK, &origmask, nullptr);
                 }
                 else {

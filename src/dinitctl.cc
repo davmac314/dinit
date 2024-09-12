@@ -36,8 +36,9 @@
 // common communication datatypes
 using namespace dinit_cptypes;
 
+// minimum and maximum protocol verions we can speak
 static constexpr uint16_t min_cp_version = 1;
-static constexpr uint16_t max_cp_version = 1;
+static constexpr uint16_t max_cp_version = 5;
 
 enum class ctl_cmd;
 
@@ -49,13 +50,14 @@ static int start_stop_service(int socknum, cpbuffer_t &, const char *service_nam
 static int unpin_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
 static int unload_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
 static int reload_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
-static int list_services(int socknum, cpbuffer_t &);
-static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_name, ctl_cmd command, bool verbose);
+static int list_services(int socknum, cpbuffer_t &, uint16_t proto_version);
+static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_name,
+        ctl_cmd command, uint16_t proto_version, bool verbose);
 static int shutdown_dinit(int soclknum, cpbuffer_t &, bool verbose);
 static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, const char *service_from,
         const char *service_to, dependency_type dep_type, bool verbose);
 static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_opt &service_dir_opts,
-        const char *from, const char *to, bool enable, bool verbose);
+        const char *from, const char *to, bool enable, bool verbose, uint16_t proto_version);
 static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names);
 static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool trigger_value);
 static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool do_clear);
@@ -511,7 +513,7 @@ int dinitctl_main(int argc, char **argv)
                 service_name = "boot";
             }
             return enable_disable_service(-1, rbuffer, service_dir_opts, service_name, to_service_name,
-                    command == ctl_cmd::ENABLE_SERVICE, verbose);
+                    command == ctl_cmd::ENABLE_SERVICE, verbose, 0);
         }
     }
 
@@ -564,11 +566,11 @@ int dinitctl_main(int argc, char **argv)
             return reload_service(socknum, rbuffer, service_name, verbose);
         }
         else if (command == ctl_cmd::LIST_SERVICES) {
-            return list_services(socknum, rbuffer);
+            return list_services(socknum, rbuffer, daemon_protocol_ver);
         }
         else if (command == ctl_cmd::SERVICE_STATUS || command == ctl_cmd::IS_STARTED
                 || command == ctl_cmd::IS_FAILED) {
-            return service_status(socknum, rbuffer, service_name, command, verbose);
+            return service_status(socknum, rbuffer, service_name, command, daemon_protocol_ver, verbose);
         }
         else if (command == ctl_cmd::SHUTDOWN) {
             return shutdown_dinit(socknum, rbuffer, verbose);
@@ -579,11 +581,15 @@ int dinitctl_main(int argc, char **argv)
         }
         else if (command == ctl_cmd::ENABLE_SERVICE || command == ctl_cmd::DISABLE_SERVICE) {
             // If only one service specified, assume that we enable for 'boot' service:
+            if (daemon_protocol_ver < 3) {
+                // We need QUERYSERVICEDSCDIR
+                throw cp_old_server_exception();
+            }
             if (service_name == nullptr) {
                 service_name = "boot";
             }
             return enable_disable_service(socknum, rbuffer, service_dir_opts, service_name, to_service_name,
-                    command == ctl_cmd::ENABLE_SERVICE, verbose);
+                    command == ctl_cmd::ENABLE_SERVICE, verbose, daemon_protocol_ver);
         }
         else if (command == ctl_cmd::SETENV) {
             return do_setenv(socknum, rbuffer, cmd_args);
@@ -664,6 +670,7 @@ int main(int argc, char **argv)
 
 // Size of service status info (in various packets)
 constexpr static unsigned STATUS_BUFFER_SIZE = 6 + ((sizeof(pid_t) > sizeof(int)) ? sizeof(pid_t) : sizeof(int));
+constexpr static unsigned STATUS_BUFFER5_SIZE = 6 + 2 * sizeof(int);
 
 static const char * describe_state(bool stopped)
 {
@@ -765,13 +772,31 @@ static void print_termination_details(int exit_status)
     }
 }
 
-// Process a SERVICEEVENT packet if it is related to the specified service handle, and optionally
-// report the service status to the user (verbose == true). The caller must ensure that a complete
-// packet of type SERVICEEVENT is present in the buffer before calling.
-// The size of current SERVICEEVENT should be provided as pktlen.
+static void print_termination_details(int exit_si_code, int exit_si_status)
+{
+    using namespace std;
+
+    if (exit_si_code == CLD_KILLED) {
+        cout << "signalled - signal ";
+        cout << exit_si_status;
+    }
+    else if (exit_si_code == CLD_EXITED) {
+        cout << "exited - status ";
+        cout << exit_si_status;
+    }
+    else {
+        cout << "unknown reason";
+    }
+}
+
+// Process a SERVICEEVENT[5] packet if it is related to the specified service handle, and
+// optionally report the service status to the user (verbose == true). The caller must ensure that
+// a complete packet of type SERVICEEVENT[5] is present in the buffer before calling. The size of
+// the packet should be provided as pktlen.
+//
 // Returns 0 if the service started (do_stop == false) or stopped (do_stop == true), 1 if
 // start/stop was cancelled or failed, -1 when the service event is not related to given service
-// handle.
+// handle or does not correspond to a start (or stop) or failure.
 static int process_service_event(cpbuffer_t &rbuffer, unsigned pktlen, handle_t handle,
         const std::string &service_name, bool do_stop, bool verbose)
 {
@@ -781,6 +806,11 @@ static int process_service_event(cpbuffer_t &rbuffer, unsigned pktlen, handle_t 
     // base_pkt_size:
     constexpr unsigned base_pkt_size = 2 + sizeof(handle_t) + 1;
     if (pktlen < base_pkt_size) {
+        throw dinit_protocol_error();
+    }
+
+    // version 5 packets include extended staus info:
+    if (rbuffer[0] == (char)cp_info::SERVICEEVENT5 && pktlen < (base_pkt_size + STATUS_BUFFER5_SIZE)) {
         throw dinit_protocol_error();
     }
 
@@ -821,7 +851,14 @@ static int process_service_event(cpbuffer_t &rbuffer, unsigned pktlen, handle_t 
                 if (pktlen >= base_pkt_size + STATUS_BUFFER_SIZE) {
                     stopped_reason_t stop_reason = static_cast<stopped_reason_t>(rbuffer[base_pkt_size + 3]);
                     int exit_status;
+                    int exit_si_code;
+                    int exit_si_status = 0;
                     rbuffer.extract((char *)&exit_status, base_pkt_size + 6, sizeof(exit_status));
+                    if (rbuffer[0] == (char)cp_info::SERVICEEVENT5) {
+                        exit_si_code = exit_status;
+                        rbuffer.extract((char *)&exit_si_code,
+                                base_pkt_size + 6 + sizeof(exit_si_code), sizeof(exit_si_status));
+                    }
 
                     switch (stop_reason) {
                         case stopped_reason_t::DEPFAILED:
@@ -836,13 +873,17 @@ static int process_service_event(cpbuffer_t &rbuffer, unsigned pktlen, handle_t 
                             uint16_t launch_stage;
                             rbuffer.extract((char *)&launch_stage, base_pkt_size + 4,
                                             sizeof(uint16_t));
-                            cout << "        Stage: " << exec_stage_descriptions[launch_stage]
-                                << "\n";
+                            cout << "        Stage: " << exec_stage_descriptions[launch_stage] << "\n";
                             cout << "        Error: " << strerror(exit_status) << "\n";
                             break;
                         case stopped_reason_t::FAILED:
                             cout << "Reason: service process terminated before ready: ";
-                            print_termination_details(exit_status);
+                            if (rbuffer[0] == (char)cp_info::SERVICEEVENT5) {
+                                print_termination_details(exit_si_code, exit_si_status);
+                            }
+                            else {
+                                print_termination_details(exit_status);
+                            }
                             cout << "\n";
                             break;
                         default:
@@ -1247,16 +1288,22 @@ static int reload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
     return 0;
 }
 
-static int list_services(int socknum, cpbuffer_t &rbuffer)
+static int list_services(int socknum, cpbuffer_t &rbuffer, uint16_t proto_version)
 {
     using namespace std;
     
     char cmdbuf[] = { (char)cp_cmd::LISTSERVICES };
+    if (proto_version >= 5) {
+        cmdbuf[0] = (char)cp_cmd::LISTSERVICES5;
+    }
     write_all_x(socknum, cmdbuf, 1);
+
+    unsigned status_buffer_size = proto_version < 5 ? STATUS_BUFFER_SIZE : STATUS_BUFFER5_SIZE;
 
     wait_for_reply(rbuffer, socknum);
     while (rbuffer[0] == (char)cp_rply::SVCINFO) {
-        int hdrsize = 8 + std::max(sizeof(int), sizeof(pid_t));
+        // Packet: SVCINFO (1), name length (1), status buffer (STATUS_BUFFER_SIZE), name (N)
+        int hdrsize = 2 + status_buffer_size;
         fill_buffer_to(rbuffer, socknum, hdrsize);
         unsigned name_len = (unsigned char)rbuffer[1];
         service_state_t current = static_cast<service_state_t>(rbuffer[2]);
@@ -1273,11 +1320,22 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
 
         pid_t service_pid;
         int exit_status;
+        int exit_si_code;
+        int exit_si_status;
         if (has_pid) {
+            // 8 = SVCINFO (1) + name length (1)
+            //                 + current state (1) + target state (1) + flags (1)
+            //                 + stop reason (1) + exec failure stage (2)
             rbuffer.extract((char *)&service_pid, 8, sizeof(service_pid));
         }
         else {
-            rbuffer.extract((char *)&exit_status, 8, sizeof(exit_status));
+            if (proto_version < 5) {
+                rbuffer.extract((char *)&exit_status, 8, sizeof(exit_status));
+            }
+            else {
+                rbuffer.extract((char *)&exit_si_code, 8, sizeof(exit_si_code));
+                rbuffer.extract((char *)&exit_si_status, 8 + sizeof(exit_si_code), sizeof(exit_si_status));
+            }
         }
 
         fill_buffer_to(rbuffer, socknum, name_len + hdrsize);
@@ -1317,11 +1375,18 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
         if (current == service_state_t::STOPPED) {
             bool did_fail = false;
             if (stop_reason == stopped_reason_t::TERMINATED) {
-                if (!WIFEXITED(exit_status) || WEXITSTATUS(exit_status) != 0) {
-                    did_fail = true;
+                if (proto_version < 5) {
+                    if (!WIFEXITED(exit_status) || WEXITSTATUS(exit_status) != 0) {
+                        did_fail = true;
+                    }
+                }
+                else {
+                    did_fail = (exit_si_code != CLD_EXITED) || (exit_si_status != 0);
                 }
             }
-            else did_fail = (stop_reason != stopped_reason_t::NORMAL);
+            else {
+                did_fail = (stop_reason != stopped_reason_t::NORMAL);
+            }
 
             cout << (did_fail ? 'X' : '-');
         }
@@ -1337,11 +1402,21 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
         }
         
         if (current == service_state_t::STOPPED && stop_reason == stopped_reason_t::TERMINATED) {
-            if (WIFEXITED(exit_status)) {
-                cout << " (exit status: " << WEXITSTATUS(exit_status) << ")";
+            if (proto_version < 5) {
+                if (WIFEXITED(exit_status)) {
+                    cout << " (exit status: " << WEXITSTATUS(exit_status) << ")";
+                }
+                else if (WIFSIGNALED(exit_status)) {
+                    cout << " (signal: " << WTERMSIG(exit_status) << ")";
+                }
             }
-            else if (WIFSIGNALED(exit_status)) {
-                cout << " (signal: " << WTERMSIG(exit_status) << ")";
+            else {
+                if (exit_si_code == CLD_EXITED) {
+                    cout << " (exit status: " << exit_si_status << ")";
+                }
+                else if (exit_si_code == CLD_KILLED) {
+                    cout << " (signal: " << exit_si_status << ")";
+                }
             }
         }
 
@@ -1366,7 +1441,8 @@ static int list_services(int socknum, cpbuffer_t &rbuffer)
     return 0;
 }
 
-static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_name, ctl_cmd command, bool verbose)
+static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_name,
+        ctl_cmd command, uint16_t proto_version, bool verbose)
 {
     using namespace std;
 
@@ -1393,8 +1469,11 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
 
     // Issue STATUS request
     {
+        char status_req_id = proto_version < 5 ? (char)cp_cmd::SERVICESTATUS : (char)cp_cmd::SERVICESTATUS5;
+        unsigned status_buf_size = proto_version < 5 ? STATUS_BUFFER_SIZE : STATUS_BUFFER5_SIZE;
+
         auto m = membuf()
-                .append((char)cp_cmd::SERVICESTATUS)
+                .append(status_req_id)
                 .append(handle);
         write_all_x(socknum, m);
 
@@ -1405,7 +1484,7 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
         }
         rbuffer.consume(1);
 
-        fill_buffer_to(rbuffer, socknum, STATUS_BUFFER_SIZE + 1 /* reserved */);
+        fill_buffer_to(rbuffer, socknum, status_buf_size + 1 /* reserved */);
         rbuffer.consume(1);
 
         service_state_t current = static_cast<service_state_t>(rbuffer[0]);
@@ -1422,11 +1501,21 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
 
         pid_t service_pid = -1;
         int exit_status = 0;
+        int exit_si_code = 0;
+        int exit_si_status = 0;
         if (has_pid) {
+            // 6 = current state (1) + target state (1) + flags (1)
+            //                       + stop reason (1) + exec failure stage (2)
             rbuffer.extract((char *)&service_pid, 6, sizeof(service_pid));
         }
         else {
-            rbuffer.extract((char *)&exit_status, 6, sizeof(exit_status));
+            if (proto_version < 5) {
+                rbuffer.extract((char *)&exit_status, 6, sizeof(exit_status));
+            }
+            else {
+                rbuffer.extract((char *)&exit_si_code, 6, sizeof(exit_si_code));
+                rbuffer.extract((char *)&exit_si_status, 6 + sizeof(int), sizeof(exit_si_status));
+            }
         }
 
         switch (command) {
@@ -1485,9 +1574,17 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
                 break;
             case stopped_reason_t::FAILED:
                 cout << " (failed to start";
-                if (exit_status != 0) {
-                    cout << "; ";
-                    print_termination_details(exit_status);
+                if (proto_version < 5) {
+                    if (exit_status != 0) {
+                        cout << "; ";
+                        print_termination_details(exit_status);
+                    }
+                }
+                else {
+                    if (exit_si_status != 0) {
+                        cout << "; ";
+                        print_termination_details(exit_si_code, exit_si_status);
+                    }
                 }
                 cout << ")";
                 break;
@@ -1500,9 +1597,17 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
                 break;
             case stopped_reason_t::TERMINATED:
                 cout << " (terminated";
-                if (exit_status != 0) {
-                    cout << "; ";
-                    print_termination_details(exit_status);
+                if (proto_version < 5) {
+                    if (exit_status != 0) {
+                        cout << "; ";
+                        print_termination_details(exit_status);
+                    }
+                }
+                else {
+                    if (exit_si_status != 0) {
+                        cout << "; ";
+                        print_termination_details(exit_si_code, exit_si_status);
+                    }
                 }
                 cout << ")";
                 break;
@@ -1530,10 +1635,19 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
             if (target == service_state_t::STARTED) {
                 cout << " (target state: STARTED)";
             }
-            if (exit_status != 0) {
-                cout << "(terminated ;";
-                print_termination_details(exit_status);
-                cout << ")";
+            if (proto_version < 5) {
+                if (exit_status != 0) {
+                    cout << "(terminated ;";
+                    print_termination_details(exit_status);
+                    cout << ")";
+                }
+            }
+            else {
+                if (exit_si_status != 0) {
+                    cout << "(terminated ;";
+                    print_termination_details(exit_si_code, exit_si_status);
+                    cout << ")";
+                }
             }
         }
         if (has_console) {
@@ -1728,7 +1842,7 @@ static void find_service_desc(const char *svc_name, const std::vector<std::strin
 class service_op_cancel { };
 
 static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_opt &service_dir_opts,
-        const char *from, const char *to, bool enable, bool verbose)
+        const char *from, const char *to, bool enable, bool verbose, uint16_t proto_version)
 {
     using namespace std;
 
@@ -1948,13 +2062,15 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
             cout << "Service '" << to << "' has been " << (enable ? "enabled" : "disabled") << "." << endl;
         }
 
+        char cmd_pkt = (char)(proto_version < 5 ? cp_cmd::SERVICESTATUS : cp_cmd::SERVICESTATUS5);
+
         // Check status of the service now
         auto m = membuf()
-                .append((char)cp_cmd::SERVICESTATUS)
+                .append(cmd_pkt)
                 .append(to_handle);
         write_all_x(socknum, m);
 
-        int statussize = 6 + std::max(sizeof(pid_t), sizeof(int));;
+        int statussize = proto_version < 5 ? STATUS_BUFFER_SIZE : STATUS_BUFFER5_SIZE;
 
         // For an enable, we want to wait until the service has started so we can report any
         // failure. But, if the service is already started, we won't get any service events, so we
@@ -1967,7 +2083,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
                 unsigned pktlen = (unsigned char) rbuffer[1];
                 fill_buffer_to(rbuffer, socknum, pktlen);
 
-                if (rbuffer[0] == (char)cp_info::SERVICEEVENT) {
+                if (value(rbuffer[0]).is_in((char)cp_info::SERVICEEVENT, (char)cp_info::SERVICEEVENT5)) {
                     int ret = process_service_event(rbuffer, pktlen, to_handle, to,
                             false /* start */, verbose);
                     if (ret >= 0) {

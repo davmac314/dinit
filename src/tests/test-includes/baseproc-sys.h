@@ -4,9 +4,13 @@
 #include <string>
 #include <vector>
 
+#include <cassert>
+#include <csignal>
+
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/uio.h>
+#include <sys/wait.h>
 
 // Mock system functions for testing.
 
@@ -127,10 +131,12 @@ class exit_status
     }
 };
 
-inline pid_t waitpid(pid_t p, exit_status *statusp, int flags)
+inline int waitid(idtype_t idtype, id_t id, siginfo_t *info_p, int options)
 {
-    // throw std::string("not implemented");
-    return 0; // TODO complete mock
+    assert(idtype == P_PID);
+    assert((options & WNOHANG) != 0);
+    // TODO complete mock
+    return 0; // return success with no pid, i.e. process hasn't terminated
 }
 
 ssize_t read(int fd, void *buf, size_t count);

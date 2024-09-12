@@ -467,6 +467,8 @@ class service_record
 
     public:
 
+    using proc_status_t = eventloop_t::child_proc_watcher::proc_status_t;
+
     class loading_tag_cls { };
     static const loading_tag_cls LOADING_TAG;
 
@@ -735,9 +737,10 @@ class service_record
         return -1;
     }
 
-    virtual bp_sys::exit_status get_exit_status()
+    virtual proc_status_t get_exit_status()
     {
-        return {};
+        return {0, 0}; // TODO avoid use of undocumented constructor
+        // (Dasynq default constructor should initialise!)
     }
 
     dep_list & get_dependencies()

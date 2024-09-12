@@ -42,7 +42,8 @@ class subproc_buffer;
 void do_system_shutdown(shutdown_type_t shutdown_type);
 static void unmount_disks(loop_t &loop, subproc_buffer &sub_buf);
 static void swap_off(loop_t &loop, subproc_buffer &sub_buf);
-static int run_process(const char * prog_args[], loop_t &loop, subproc_buffer &sub_buf);
+static loop_t::child_proc_watcher::proc_status_t run_process(const char * prog_args[],
+        loop_t &loop, subproc_buffer &sub_buf);
 
 constexpr static int subproc_bufsize = 4096;
 
@@ -465,8 +466,8 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
             sub_buf.append("Executing shutdown hook...\n");
             const char *prog_args[] = { hook_paths[i], nullptr };
             try {
-                int r = run_process(prog_args, loop, sub_buf);
-                if (r == 0) {
+                auto r = run_process(prog_args, loop, sub_buf);
+                if (r.did_exit() && r.get_exit_status() == 0) {
                     do_unmount_ourself = false;
                 }
             }
@@ -549,15 +550,16 @@ class subproc_out_watch : public loop_t::fd_watcher_impl<subproc_out_watch>
 
 // Run process, put its output through the subprocess buffer
 //   may throw: std::system_error, std::bad_alloc
-static int run_process(const char * prog_args[], loop_t &loop, subproc_buffer &sub_buf)
+static loop_t::child_proc_watcher::proc_status_t run_process(const char * prog_args[],
+        loop_t &loop, subproc_buffer &sub_buf)
 {
     class sp_watcher_t : public loop_t::child_proc_watcher_impl<sp_watcher_t>
     {
         public:
         bool terminated = false;
-        int exit_status;
+        proc_status_t exit_status;
 
-        rearm status_change(loop_t &, pid_t child, int status)
+        rearm status_change(loop_t &, pid_t child, proc_status_t status)
         {
             terminated = true;
             exit_status = status;

@@ -209,12 +209,13 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
     return rearm::REARM;
 }
 
-dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t child, int status) noexcept
+dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t child,
+        service_child_watcher::proc_status_t status) noexcept
 {
     base_process_service *sr = service;
 
     sr->pid = -1;
-    sr->exit_status = bp_sys::exit_status(status);
+    sr->exit_status = status;
 
     // Ok, for a process service, any process death which we didn't rig ourselves is a bit... unexpected.
     // Probably, the child died because we asked it to (sr->service_state == STOPPING). But even if we
@@ -239,12 +240,13 @@ dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t chil
     return dasynq::rearm::NOOP;
 }
 
-dasynq::rearm stop_child_watcher::status_change(eventloop_t &loop, pid_t child, int status) noexcept
+dasynq::rearm stop_child_watcher::status_change(eventloop_t &loop, pid_t child,
+        stop_child_watcher::proc_status_t status) noexcept
 {
     process_service *sr = service;
 
     sr->stop_pid = -1;
-    sr->stop_status = bp_sys::exit_status(status);
+    sr->stop_status = status;
     stop_watch(loop);
 
     if (sr->waiting_for_execstat) {
@@ -333,7 +335,7 @@ void process_service::handle_exit_status() noexcept
         }
         else if (was_signalled) {
             log(loglevel_t::ERROR, "Service ", get_name(), " terminated due to signal ",
-                    exit_status.get_term_sig());
+                    exit_status.get_signal());
         }
     }
 
@@ -437,7 +439,7 @@ void bgproc_service::handle_exit_status() noexcept
         }
         else if (was_signalled) {
             log(loglevel_t::ERROR, "Service ", get_name(), " terminated due to signal ",
-                    exit_status.get_term_sig());
+                    exit_status.get_signal());
         }
     }
 
@@ -618,7 +620,7 @@ void scripted_service::handle_exit_status() noexcept
             else {
                 if (was_signalled) {
                     log(loglevel_t::NOTICE, "Service ", get_name(), " start cancelled from signal ",
-                            exit_status.get_term_sig());
+                            exit_status.get_signal());
                 }
                 // If the start script completed successfully, or was interrupted via our signal,
                 // we want to run the stop script to clean up:
@@ -638,7 +640,7 @@ void scripted_service::handle_exit_status() noexcept
             }
             else if (was_signalled) {
                 log(loglevel_t::WARN, "Service ", get_name(), " stop command terminated due to signal ",
-                        exit_status.get_term_sig());
+                        exit_status.get_signal());
             }
             // Even if the stop script failed, assume that service is now stopped, so that any dependencies
             // can be stopped. There's not really any other useful course of action here.
@@ -650,7 +652,7 @@ void scripted_service::handle_exit_status() noexcept
         if (exit_status.did_exit_clean()) {
             started();
         }
-        else if (was_signalled && exit_status.get_term_sig() == SIGINT && onstart_flags.skippable) {
+        else if (was_signalled && exit_status.get_signal() == SIGINT && onstart_flags.skippable) {
             // A skippable service can be skipped by interrupting (eg by ^C if the service
             // starts on the console).
             start_skipped = true;
@@ -664,7 +666,7 @@ void scripted_service::handle_exit_status() noexcept
             }
             else if (was_signalled) {
                 log(loglevel_t::ERROR, "Service ", get_name(), " command terminated due to signal ",
-                        exit_status.get_term_sig());
+                        exit_status.get_signal());
             }
             stop_reason = stopped_reason_t::FAILED;
             failed_to_start();
@@ -696,7 +698,7 @@ template <typename T> typename std::make_unsigned<T>::type make_unsigned_val(T v
 }
 
 bgproc_service::pid_result_t
-bgproc_service::read_pid_file(bp_sys::exit_status *exit_status) noexcept
+bgproc_service::read_pid_file(proc_status_t *exit_status) noexcept
 {
     const char *pid_file_c = pid_file.c_str();
     int fd = bp_sys::open(pid_file_c, O_CLOEXEC);
@@ -729,25 +731,28 @@ bgproc_service::read_pid_file(bp_sys::exit_status *exit_status) noexcept
     }
 
     if (valid_pid) {
-        pid_t wait_r = waitpid(pid, exit_status, WNOHANG);
-        if (wait_r == -1 && errno == ECHILD) {
+        siginfo_t child_info;
+        child_info.si_pid = 0; // for portability
+        int waitid_r = bp_sys::waitid(P_PID, pid, &child_info, WNOHANG | WEXITED);
+        if (waitid_r == -1 && errno == ECHILD) {
             // We can't track this child - check process exists:
             if (bp_sys::kill(pid, 0) == 0 || errno != ESRCH) {
                 tracking_child = false;
                 return pid_result_t::OK;
             }
-            else {
-                log(loglevel_t::ERROR, get_name(), ": pid read from pidfile (", pid, ") is not valid");
-                pid = -1;
-                return pid_result_t::FAILED;
-            }
-        }
-        else if (wait_r == pid) {
+
+            log(loglevel_t::ERROR, get_name(), ": pid read from pidfile (", pid, ") is not valid");
             pid = -1;
-            return pid_result_t::TERMINATED;
+            return pid_result_t::FAILED;
         }
-        else if (wait_r == 0) {
-            // We can track the child
+        else if (waitid_r == 0) {
+            if (child_info.si_pid != 0) {
+                pid = -1;
+                *exit_status = proc_status_t(child_info.si_code, child_info.si_status);
+                return pid_result_t::TERMINATED;
+            }
+
+            // Child hasn't terminated, but we can track it (no error)
             child_listener.add_reserved(event_loop, pid, dasynq::DEFAULT_PRIORITY - 10);
             tracking_child = true;
             reserved_child_watch = true;

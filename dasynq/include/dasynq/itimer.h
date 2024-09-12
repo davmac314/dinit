@@ -18,6 +18,9 @@ namespace dasynq {
 // run a timer against. However, if the system has both clocks, we still maintain two separate queues.
 // If provide_mono_timer is false we actually provide no system timer and rely on the event mechanism
 // which extends this class to measure time and run timeouts (via process_monotonic_timers functions).
+// In this case, if a monotonic timer is set with a timeout which precedes the previously outstanding
+// next timeout, an interrupt is issued (interrupt_wait()) to interrupt any current polling and allow
+// the mechanism to resume polling with an adjusted timeout.
 
 template <class Base, bool provide_mono_timer = true>
 class itimer_events : public timer_base<Base>

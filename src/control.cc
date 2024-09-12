@@ -16,7 +16,9 @@
 // 1 - dinit 0.16 and prior
 // 2 - dinit 0.17 (adds SETTRIGGER, CATLOG, SIGNAL)
 // 3 - dinit 0.17.1 (adds QUERYSERVICEDSCDIR)
-// 4 - (unreleased) (adds CLOSEHANDLE, GETALLENV)
+// 4 - dinit 0.18.0 (adds CLOSEHANDLE, GETALLENV)
+// 5 - (unreleased) (process status now represented as ([int]si_code + [int]si_status) rather than
+//                   a single integer)
 
 // common communication datatypes
 using namespace dinit_cptypes;
@@ -99,8 +101,14 @@ bool control_conn_t::process_packet()
     if (pktType == cp_cmd::LISTSERVICES) {
         return list_services();
     }
+    if (pktType == cp_cmd::LISTSERVICES5) {
+        return list_services5();
+    }
     if (pktType == cp_cmd::SERVICESTATUS) {
         return process_service_status();
+    }
+    if (pktType == cp_cmd::SERVICESTATUS5) {
+        return process_service_status5();
     }
     if (pktType == cp_cmd::ADD_DEP) {
         return add_service_dep();
@@ -636,8 +644,58 @@ static void fill_status_buffer(char *buffer, service_record *service)
             memcpy(buffer + 6, &exec_err.st_errno, sizeof(int));
         }
         else {
-            int exit_status = service->get_exit_status().as_int();
+            auto exit_status_ps = service->get_exit_status();
+            // There is no portable way to derive the correct exit status value corresponding
+            // to any condition except for a clean exit (0) which is the most important anyway.
+            // We'll use -1 for any other status although this may not be valid.
+            int exit_status = exit_status_ps.did_exit_clean() ? 0 : -1;
             memcpy(buffer + 6, &exit_status, sizeof(exit_status));
+        }
+    }
+}
+
+constexpr static unsigned STATUS_BUFFER5_SIZE = 6 + 2 * sizeof(int);
+
+static void fill_status_buffer5(char *buffer, service_record *service)
+{
+    buffer[0] = static_cast<char>(service->get_state());
+    buffer[1] = static_cast<char>(service->get_target_state());
+
+    pid_t proc_pid = service->get_pid();
+
+    char b0 = service->is_waiting_for_console() ? 1 : 0;
+    b0 |= service->has_console() ? 2 : 0;
+    b0 |= service->was_start_skipped() ? 4 : 0;
+    b0 |= service->is_marked_active() ? 8 : 0;
+    b0 |= (proc_pid != -1) ? 16 : 0;
+    buffer[2] = b0;
+    buffer[3] = static_cast<char>(service->get_stop_reason());
+
+    buffer[4] = 0; // (if exec failed, these are replaced with stage)
+    buffer[5] = 0;
+
+    if (proc_pid != -1) {
+        memcpy(buffer + 6, &proc_pid, sizeof(proc_pid));
+        unsigned remains = STATUS_BUFFER5_SIZE - (6 + sizeof(proc_pid));
+        memset(buffer + 6 + sizeof(proc_pid), 0, remains);
+    }
+    else {
+        // These values only make sense in STOPPING/STOPPED, but we'll fill them in regardless:
+        if (buffer[3] == (char)stopped_reason_t::EXECFAILED) {
+            base_process_service *bsp = (base_process_service *)service;
+            run_proc_err exec_err = bsp->get_exec_err_info();
+            uint16_t stage = (uint16_t)exec_err.stage;
+            memcpy(buffer + 4, &stage, 2);
+            memcpy(buffer + 6, &exec_err.st_errno, sizeof(int));
+            unsigned remains = STATUS_BUFFER5_SIZE - (6 + sizeof(int));
+            memset(buffer + 6 + sizeof(proc_pid), 0, remains);
+        }
+        else {
+            auto exit_status = service->get_exit_status();
+            int xs_si_code = exit_status.get_si_code();
+            int xs_si_status = exit_status.get_si_status();
+            memcpy(buffer + 6, &xs_si_code, sizeof(xs_si_code));
+            memcpy(buffer + 6 + sizeof(xs_si_code), &xs_si_status, sizeof(xs_si_status));
         }
     }
 }
@@ -672,7 +730,48 @@ bool control_conn_t::list_services()
         }
         
         char ack_buf[] = { (char) cp_rply::LISTDONE };
-        if (! queue_packet(ack_buf, 1)) return false;
+        if (!queue_packet(ack_buf, 1)) return false;
+
+        return true;
+    }
+    catch (std::bad_alloc &exc)
+    {
+        do_oom_close();
+        return true;
+    }
+}
+
+bool control_conn_t::list_services5()
+{
+    rbuf.consume(1); // clear request packet
+    chklen = 0;
+
+    try {
+        auto slist = services->list_services();
+        for (auto sptr : slist) {
+            if (sptr->get_type() == service_type_t::PLACEHOLDER) continue;
+
+            std::vector<char> pkt_buf;
+            int hdrsize = 2 + STATUS_BUFFER5_SIZE;
+
+            const std::string &name = sptr->get_name();
+            int nameLen = std::min((size_t)256, name.length());
+            pkt_buf.resize(hdrsize + nameLen);
+
+            pkt_buf[0] = (char)cp_rply::SVCINFO;
+            pkt_buf[1] = nameLen;
+
+            fill_status_buffer(&pkt_buf[2], sptr);
+
+            for (int i = 0; i < nameLen; i++) {
+                pkt_buf[hdrsize+i] = name[i];
+            }
+
+            if (!queue_packet(std::move(pkt_buf))) return false;
+        }
+
+        char ack_buf[] = { (char) cp_rply::LISTDONE };
+        if (!queue_packet(ack_buf, 1)) return false;
         
         return true;
     }
@@ -708,6 +807,38 @@ bool control_conn_t::process_service_status()
     // STATUS_BUFFER_SIZE bytes status
 
     std::vector<char> pkt_buf(2 + STATUS_BUFFER_SIZE);
+    pkt_buf[0] = (char)cp_rply::SERVICESTATUS;
+    pkt_buf[1] = 0;
+    fill_status_buffer(pkt_buf.data() + 2, service);
+
+    return queue_packet(std::move(pkt_buf));
+}
+
+bool control_conn_t::process_service_status5()
+{
+    constexpr int pkt_size = 1 + sizeof(handle_t);
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    handle_t handle;
+    rbuf.extract(&handle, 1, sizeof(handle));
+    rbuf.consume(pkt_size);
+    chklen = 0;
+
+    service_record *service = find_service_for_key(handle);
+    if (service == nullptr || service->get_name().length() > std::numeric_limits<uint16_t>::max()) {
+        char nak_rep[] = { (char)cp_rply::NAK };
+        return queue_packet(nak_rep, 1);
+    }
+
+    // Reply:
+    // 1 byte packet type = cp_rply::SERVICESTATUS
+    // 1 byte reserved ( = 0)
+    // STATUS_BUFFER5_SIZE bytes status
+
+    std::vector<char> pkt_buf(2 + STATUS_BUFFER5_SIZE);
     pkt_buf[0] = (char)cp_rply::SERVICESTATUS;
     pkt_buf[1] = 0;
     fill_status_buffer(pkt_buf.data() + 2, service);
@@ -1313,6 +1444,22 @@ void control_conn_t::service_event(service_record *service, service_event_t even
             pkt.resize(pktsize);
             fill_status_buffer(pkt.data() + 3 + sizeof(key), service);
             queue_packet(std::move(pkt));
+
+            // packet type (byte) + packet length (byte) + event type (byte) + key + status buffer
+            pkt.clear();
+            constexpr int pktsize5 = 3 + sizeof(key) + STATUS_BUFFER5_SIZE;
+            pkt.reserve(pktsize5);
+            pkt.push_back((char)cp_info::SERVICEEVENT5);
+            pkt.push_back(pktsize5);
+            p = (char *)&key;
+            for (unsigned j = 0; j < sizeof(key); j++) {
+                pkt.push_back(*p++);
+            }
+            pkt.push_back(static_cast<char>(event));
+            pkt.resize(pktsize5);
+            fill_status_buffer5(pkt.data() + 3 + sizeof(key), service);
+            queue_packet(std::move(pkt));
+
             ++i;
         }
     }
