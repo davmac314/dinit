@@ -229,7 +229,9 @@ enum class setting_id_t {
     // Prefixed with SETTING_ to avoid name collision with system macros:
     SETTING_RLIMIT_NOFILE, SETTING_RLIMIT_CORE, SETTING_RLIMIT_DATA, SETTING_RLIMIT_ADDRSPACE,
     // Possibly unsupported depending on platform/build options:
+#if SUPPORT_CGROUPS
     RUN_IN_CGROUP
+#endif
 };
 
 struct setting_details {
