@@ -718,18 +718,14 @@ bgproc_service::read_pid_file(bp_sys::exit_status *exit_status) noexcept
     pidbuf[r] = 0; // store nul terminator
 
     bool valid_pid = false;
-    try {
-        unsigned long long v = std::strtoull(pidbuf, nullptr, 0);
+    errno = 0;
+    char *eptr;
+    unsigned long long v = std::strtoull(pidbuf, &eptr, 0);
+    if (errno == 0 && eptr != pidbuf) {
         if (v <= make_unsigned_val(std::numeric_limits<pid_t>::max())) {
             pid = (pid_t) v;
             valid_pid = true;
         }
-    }
-    catch (std::out_of_range &exc) {
-        // Too large?
-    }
-    catch (std::invalid_argument &exc) {
-        // Ok, so it doesn't look like a number: proceed...
     }
 
     if (valid_pid) {
