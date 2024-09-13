@@ -185,7 +185,7 @@ Build variables:
   LDFLAGS_BASE                  Link flags to use in addition to any link-time optimisation
                                 (LTO)-related options. Set this to control link options without
                                 disabling LTO. Ignored if LDFLAGS is set.
-  TEST_LDFLAGS                  Links flags when building test executables.
+  TEST_LDFLAGS                  Link flags when building test executables.
   TEST_LDFLAGS_EXTRA            Additional link flags when building test executables.
   TEST_LDFLAGS_BASE             Link flags to use when building test executables, in addition to
                                 LTO-releated options.
