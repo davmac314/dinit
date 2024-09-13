@@ -208,7 +208,7 @@ int dinitctl_main(int argc, char **argv)
                     service_dir_opts.set_specified_service_dir(argv[i]);
                 }
                 else {
-                    cerr << "dinitcheck: '--services-dir' (-d) requires an argument" << endl;
+                    cerr << "dinitctl: '--services-dir' (-d) requires an argument" << endl;
                     return 1;
                 }
             }
