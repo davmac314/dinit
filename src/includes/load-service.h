@@ -1644,15 +1644,28 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
             else if (restart == "on-failure") {
                 settings.auto_restart = auto_restart_mode::ON_FAILURE;
             }
-            else {
+            else if (restart == "no" || restart == "false") {
                 settings.auto_restart = auto_restart_mode::NEVER;
+            }
+            else {
+                throw service_description_exc(name, "restart must be one of: \"yes\", \"true\","
+                        " \"no\", \"false\" or \"on-failure\"", "restart", input_pos);
             }
             break;
         }
         case setting_id_t::SMOOTH_RECOVERY:
         {
             string recovery = read_setting_value(input_pos, i, end);
-            settings.smooth_recovery = (recovery == "yes" || recovery == "true");
+            if (recovery == "yes" || recovery == "true") {
+                settings.smooth_recovery = true;
+            }
+            else if (recovery == "no" || recovery == "false") {
+                settings.smooth_recovery = false;
+            }
+            else {
+                throw service_description_exc(name, "smooth-recovery must be one of: \"yes\","
+                        " \"true\", \"no\" or \"false\"", "smooth-recovery", input_pos);
+            }
             break;
         }
         case setting_id_t::TYPE:
