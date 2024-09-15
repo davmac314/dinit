@@ -28,4 +28,4 @@ Dinit with hardening CI_task:
   Build_script: gmake
   Print dinit executive file architecture_script: file ./src/dinit
   Unit tests_script: gmake check
-  Integration tests_script: gmake check-igr DEBUG=1
+  Integration tests_script: gmake check-igr
