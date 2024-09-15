@@ -40,7 +40,8 @@ jobs:
 
   Debian-bookworm_build:
 
-    if: ${{ github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'meson') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
+        contains(github.event.pull_request.labels.*.name, 'meson') }}
     runs-on: ubuntu-latest
     container:
       image: debian:bookworm
@@ -83,7 +84,8 @@ jobs:
 
   MacOS-latest_build:
 
-    if: ${{ github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'meson') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
+        contains(github.event.pull_request.labels.*.name, 'meson') }}
     runs-on: macos-latest
     strategy:
       fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
@@ -112,7 +114,8 @@ jobs:
 
   Alpine-latest_build:
 
-    if: ${{ github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'meson') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
+        contains(github.event.pull_request.labels.*.name, 'meson') }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
