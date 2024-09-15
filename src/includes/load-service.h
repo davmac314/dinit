@@ -1612,8 +1612,8 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
                 settings.log_type = log_type_id::PIPE;
             }
             else {
-                throw service_description_exc(name, "log type must be one of: \"file\", \"buffer\" or \"none\"",
-                        "log-type", input_pos);
+                throw service_description_exc(name, "log type must be one of: \"file\", \"buffer\", \"pipe\","
+                        " or \"none\"", "log-type", input_pos);
             }
             break;
         }
