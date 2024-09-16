@@ -117,35 +117,28 @@ jobs:
     if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
         contains(github.event.pull_request.labels.*.name, 'meson') }}
     runs-on: ubuntu-latest
+    container:
+      image: alpine:latest
     strategy:
       fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
       matrix:
         include:
-          - arch: 'armv6'
-          - arch: 'armv7'
-          - arch: 'aarch64'
+          - arch: 'amd64'
 
     steps:
     - uses: actions/checkout@v4
-    - uses: uraimo/run-on-arch-action@v2.7.2
-      name: Getting depends & setup & build & unit & integration tests
-      with:
-        arch: ${{ matrix.arch }}
-        distro: alpine_latest
-        run: |
-          apk add ncurses
-          echo "$(tput bold) !---- ${{ matrix.arch }} BUILD ----!$(tput sgr0)"
-          echo "$(tput bold) ----Getting depends---- :$(tput sgr0) apk update && apk add meson g++ m4"
-          apk update
-          apk add meson g++ m4
-          echo "$(tput bold) ----Setup---- :$(tput sgr0) meson setup -Dunit-tests=true -Digr-tests=true dirbuild"
-          meson setup -Dunit-tests=true -Digr-tests=true dirbuild
-          echo "$(tput bold) ----Build---- :$(tput sgr0) meson compile -C dirbuild"
-          meson compile -C dirbuild
-          echo "$(tput bold) ----Unit tests---- :$(tput sgr0) meson test -v --suite=unit_tests -C dirbuild"
-          meson test -v --suite=unit_tests -C dirbuild
-          echo "$(tput bold) ----Integration tests---- :$(tput sgr0) meson test -v --suite=igr_tests -C dirbuild"
-          meson test -v --suite=igr_tests -C dirbuild
+    - name: Getting depends
+      run: |
+        apk update
+        apk add meson g++ m4
+    - name: Setup
+      run: meson setup -Dunit-tests=true -Digr-tests=true dirbuild
+    - name: Build
+      run: meson compile -C dirbuild
+    - name: Unit tests
+      run: meson test -v --suite=unit_tests -C dirbuild
+    - name: Integration tests
+      run: meson test -v --suite=igr_tests -C dirbuild
     - name: Upload igr-tests output file(s) on failure
       uses: actions/upload-artifact@v4.3.2
       if: failure()
