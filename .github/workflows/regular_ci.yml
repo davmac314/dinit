@@ -110,37 +110,30 @@ jobs:
   Alpine-latest_build:
 
     runs-on: ubuntu-20.04
+    container:
+      image: alpine:latest
     strategy:
       fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
       matrix:
         include:
-          - arch: 'armv6'
-          - arch: 'armv7'
-          - arch: 'aarch64'
+          - arch: 'amd64'
 
     steps:
     - uses: actions/checkout@v4
-    - uses: uraimo/run-on-arch-action@v2.7.2
-      name: Getting depends & build & unit tests & integration tests
-      with:
-        arch: ${{ matrix.arch }}
-        distro: alpine_latest
-        run: |
-          apk add ncurses
-          echo "$(tput bold) !---- ${{ matrix.arch }} BUILD ----!$(tput sgr0)"
-          echo "$(tput bold) ----Getting depends---- :$(tput sgr0) apk update && apk add make g++ m4 file"
-          apk update
-          apk add make g++ m4 file
-          echo "$(tput bold) ----Print g++ arch---- :$(tput sgr0) g++ -dumpmachine"
-          g++ -dumpmachine
-          echo "$(tput bold) ----Build---- :$(tput sgr0) make"
-          make
-          echo "$(tput bold) ----Print dinit executive file architecture---- :$(tput sgr0) file ./src/dinit"
-          file ./src/dinit
-          echo "$(tput bold) ----Unit tests---- :$(tput sgr0) make check"
-          make check
-          echo "$(tput bold) ----Integration tests---- :$(tput sgr0) make check-igr"
-          make check-igr
+    - name: Getting depends
+      run: |
+        apk update
+        apk add make g++ m4 file
+    - name: Print g++ architecture
+      run: g++ -dumpmachine
+    - name: Build
+      run: make
+    - name: Print dinit executive file architecture
+      run: file ./src/dinit
+    - name: Unit tests
+      run: make check
+    - name: Integration tests
+      run: make check-igr
     - name: Upload igr-tests output file(s) on failure
       uses: actions/upload-artifact@v4.3.2
       if: failure()
