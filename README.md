@@ -162,10 +162,10 @@ parameter settings. Some examples of the available parameters are:
     restart = (boolean)
     logfile = ...
     pid-file = ...
-    options = ...
-    depends-on = (service name)
-    depends-ms = (service name)
-    waits-for = (service name)
+    options: ...
+    depends-on: (service name)
+    depends-ms: (service name)
+    waits-for: (service name)
     
 Typically, a service which runs as a process will use the `command` setting, and include a
 `waits-for` dependency on a number of other services (to ensure that the system is ready

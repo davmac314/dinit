@@ -772,7 +772,7 @@ command = /usr/bin/mysqld --user=mysql
 logfile = /var/log/mysqld.log
 smooth-recovery = true
 restart = false
-depends-on = rcboot # Basic system services must be ready
+depends-on: rcboot # Basic system services must be ready
 .ft
 .gcolor
 .RE
@@ -794,10 +794,10 @@ using control-C, in which case the check is skipped but dependent services conti
 type = scripted
 command = /etc/dinit.d/scripts/rootfscheck.sh
 restart = false
-options = starts-on-console pass-cs-fd
-options = start-interruptible skippable
-depends-on = early-filesystems  # /proc and /dev
-depends-on = device-node-daemon
+options: starts-on-console pass-cs-fd
+options: start-interruptible skippable
+depends-on: early-filesystems  # /proc and /dev
+depends-on: device-node-daemon
 .ft
 .gcolor
 .fi
