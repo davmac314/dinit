@@ -30,7 +30,7 @@ using string = std::string;
 using string_iterator = std::string::iterator;
 
 static constexpr uint16_t min_cp_version = 1;
-static constexpr uint16_t max_cp_version = 1;
+static constexpr uint16_t max_cp_version = 5;
 
 static void report_service_description_err(const std::string &service_name, const std::string &what);
 

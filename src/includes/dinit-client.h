@@ -242,7 +242,8 @@ template <typename Buf> inline void write_all_x(int fd, const Buf &b)
 //   minversion - minimum protocol version that client can speak
 //   version - maximum protocol version that client can speak
 //   rbuffer, fd -  communication buffer and socket
-// returns: the actual protocol version
+// returns: the actual protocol version (this may exceed the version specified in 'version',
+//          if the daemon is backwards-compatible with that version).
 // throws an exception on protocol mismatch or error.
 inline uint16_t check_protocol_version(int minversion, int version, cpbuffer_t &rbuffer, int fd)
 {

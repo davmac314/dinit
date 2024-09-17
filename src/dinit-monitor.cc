@@ -22,7 +22,7 @@
 using namespace dinit_cptypes;
 
 static constexpr uint16_t min_cp_version = 1;
-static constexpr uint16_t max_cp_version = 1;
+static constexpr uint16_t max_cp_version = 5;
 
 struct stringview {
     const char *str;
