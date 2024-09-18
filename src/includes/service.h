@@ -742,29 +742,43 @@ class service_record
         return {};
     }
 
-    dep_list & get_dependencies()
+    dep_list &get_dependencies()
     {
         return depends_on;
     }
 
-    dpt_list & get_dependents()
+    dpt_list &get_dependents()
     {
         return dependents;
     }
 
     // Add a dependency. Caller must ensure that the services are in an appropriate state and that
     // a circular dependency chain is not created. Propagation queues should be processed after
-    // calling this (if dependency may be required to start). May throw std::bad_alloc.
-    service_dep & add_dep(service_record *to, dependency_type dep_type)
+    // calling this (if dependency may be required to start).
+    // Parameters:
+    //   to - target of dependency to be added
+    //   dep_type - the type of the dependency
+    // Returns:
+    //   A reference to the dependency just added
+    // Throws:
+    //   std::bad_alloc.
+    service_dep &add_dep(service_record *to, dependency_type dep_type)
     {
         return add_dep(to, dep_type, depends_on.end());
     }
 
     // Add a dependency. Caller must ensure that the services are in an appropriate state and that
     // a circular dependency chain is not created. Propagation queues should be processed after
-    // calling this (if dependency may be required to start). May throw std::bad_alloc.
+    // calling this (if dependency may be required to start).
+    // Parameters:
+    //   to - target of dependency to be added
+    //   dep_type - the type of the dependency
     //   i - where to insert the dependency (in dependencies list)
-    service_dep & add_dep(service_record *to, dependency_type dep_type, dep_list::iterator i)
+    // Returns:
+    //   A reference to the dependency just added
+    // Throws:
+    //   std::bad_alloc
+    service_dep &add_dep(service_record *to, dependency_type dep_type, dep_list::iterator i)
     {
         auto pre_i = depends_on.emplace(i, this, to, dep_type);
         try {
@@ -790,8 +804,10 @@ class service_record
         return *pre_i;
     }
 
-    // Remove a dependency, of the given type, to the given service. Returns true if the specified
-    // dependency was found (and removed). Propagation queues should be processed after calling.
+    // Remove a dependency, of the given type, to the given service. Propagation queues should be
+    // processed after calling.
+    // Returns:
+    //   true if the specified dependency was found (and removed).
     bool rm_dep(service_record *to, dependency_type dep_type) noexcept
     {
         for (auto i = depends_on.begin(); i != depends_on.end(); ++i) {
