@@ -14,7 +14,7 @@ code style.
 
    If curly braces are omitted (for a control statement) then the entire statement should be a
    single line. Otherwise the braces are mandatory.
-   
+
        class a
        {
            void foo()
@@ -22,14 +22,20 @@ code style.
                if (true) {
                    // ok - braces used
                }
-               
+
                if (true) foo(); // ok - same line
            }
-       }   
+       }
+
+   2.1. Else - "else" follows the closing brace of the associated "if". Rules for braces are the
+        same as for "if".
+
+   2.2. Omit "else" if the body of the associated "if" does not fall through (i.e. if it always
+        either returns or throws an exception).
 
 3. Indentation - is 4 spaces per level. Never tabs. Indentation level increases after an opening
    curly brace, though for long namespace declarations this is optional.
-   
+
 4. Blank lines - should be used between method and class definitions, and can be used in code
    to break it into sections with different concerns. A double blank line should never appear
    inside a function, and generally not inside a class, but may be used to indicate a significant
@@ -39,7 +45,7 @@ code style.
 5. Exceptions - should be used sparingly. Much of the Dinit code is exception-free and this
    needs to be maintained. Functions that cannot throw or propagate exceptions should be marked
    as "noexcept".
-   
+
    5.1 Avoid using exceptions for normal control flow. That is, exceptions should generally be
        considered hard errors.
 
@@ -51,7 +57,29 @@ code style.
    as a guide.
 
 8. Comments for a class should precede the class (with no intervening blank lines). Similarly for
-   a function.
-   
-   8.1 Use "TODO" to indicate a desirable future improvement. This should be used minimally; in
-       general, it is better to do the thing than to comment that the thing should be done.
+   a function. Member functions should be commented at the declaration (i.e. in the header file
+   rather than the source file).
+
+   8.1. Use "TODO" to indicate a desirable future improvement. This should be used minimally; in
+        general, it is better to do the thing than to comment that the thing should be done.
+
+   8.2. Use complete sentences/paragraphs and avoid uncommon abbreviations. Do not drop articles
+        ("the", "a", "an").
+
+   8.3 Comment structure for functions: short description, parameters, return value, and any
+       exceptions that may be thrown (with reason the exception may be thrown, if it is not
+       implicit in the type). Any longer/detailed notes can follow after the above.
+       
+       Example:
+       
+       // Add a dependency. Caller must ensure that the services are in an appropriate state and
+       // that a circular dependency chain is not created. Propagation queues should be processed
+       // after calling this (if dependency may be required to start).
+       // Parameters:
+       //   to - target of dependency to be added
+       //   dep_type - the type of the dependency
+       //   i - where to insert the dependency (in dependencies list)
+       // Returns:
+       //   A reference to the dependency just added
+       // Throws:
+       //   std::bad_alloc
