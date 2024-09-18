@@ -12,14 +12,6 @@
 // Server-side control protocol implementation. This implements the functionality that allows
 // clients (such as dinitctl) to query service state and issue commands to control services.
 
-// Control protocol versions:
-// 1 - dinit 0.16 and prior
-// 2 - dinit 0.17 (adds SETTRIGGER, CATLOG, SIGNAL)
-// 3 - dinit 0.17.1 (adds QUERYSERVICEDSCDIR)
-// 4 - dinit 0.18.0 (adds CLOSEHANDLE, GETALLENV)
-// 5 - (unreleased) (process status now represented as ([int]si_code + [int]si_status) rather than
-//                   a single integer; SERVICEEVENT5 sent alongside SERVICEEVENT)
-
 // common communication datatypes
 using namespace dinit_cptypes;
 
