@@ -739,8 +739,7 @@ class service_record
 
     virtual proc_status_t get_exit_status()
     {
-        return {0, 0}; // TODO avoid use of undocumented constructor
-        // (Dasynq default constructor should initialise!)
+        return {};
     }
 
     dep_list & get_dependencies()
