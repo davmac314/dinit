@@ -37,103 +37,90 @@ bool control_conn_t::process_packet()
     // returns false it has either deleted the connection or marked it for deletion; we
     // shouldn't touch instance members after that point.
 
-    cp_cmd pktType = (cp_cmd)rbuf[0];
-    if (pktType == cp_cmd::QUERYVERSION) {
-        // Responds with:
-        // cp_rply::CPVERSION, (2 byte) minimum compatible version, (2 byte) actual version
-        char replyBuf[] = { (char)cp_rply::CPVERSION, 0, 0, 0, 0 };
-        memcpy(replyBuf + 1, &min_compat_version, 2);
-        memcpy(replyBuf + 3, &cp_version, 2);
-        if (!queue_packet(replyBuf, sizeof(replyBuf))) return false;
-        rbuf.consume(1);
-        return true;
-    }
-    if (pktType == cp_cmd::FINDSERVICE || pktType == cp_cmd::LOADSERVICE) {
-        return process_find_load(pktType);
-    }
-    if (pktType == cp_cmd::CLOSEHANDLE) {
-        return process_close_handle();
-    }
-    if (pktType == cp_cmd::STARTSERVICE || pktType == cp_cmd::STOPSERVICE
-            || pktType == cp_cmd::WAKESERVICE || pktType == cp_cmd::RELEASESERVICE) {
-        return process_start_stop(pktType);
-    }
-    if (pktType == cp_cmd::UNPINSERVICE) {
-        return process_unpin_service();
-    }
-    if (pktType == cp_cmd::UNLOADSERVICE) {
-        return process_unload_service();
-    }
-    if (pktType == cp_cmd::RELOADSERVICE) {
-        return process_reload_service();
-    }
-    if (pktType == cp_cmd::SHUTDOWN) {
-        // Shutdown/reboot
-        if (rbuf.get_length() < 2) {
-            chklen = 2;
+    cp_cmd pkt_type = (cp_cmd)rbuf[0];
+
+    switch (pkt_type) {
+        case cp_cmd::QUERYVERSION:
+        {
+            // Responds with:
+            // cp_rply::CPVERSION, (2 byte) minimum compatible version, (2 byte) actual version
+            char replyBuf[] = { (char)cp_rply::CPVERSION, 0, 0, 0, 0 };
+            memcpy(replyBuf + 1, &min_compat_version, 2);
+            memcpy(replyBuf + 3, &cp_version, 2);
+            if (!queue_packet(replyBuf, sizeof(replyBuf))) return false;
+            rbuf.consume(1);
             return true;
         }
-        
-        if (contains({shutdown_type_t::REMAIN, shutdown_type_t::HALT,
-                shutdown_type_t::POWEROFF, shutdown_type_t::REBOOT, shutdown_type_t::SOFTREBOOT}, rbuf[1])) {
-            auto sd_type = static_cast<shutdown_type_t>(rbuf[1]);
+        case cp_cmd::FINDSERVICE:
+        case cp_cmd::LOADSERVICE:
+            return process_find_load(pkt_type);
+        case cp_cmd::CLOSEHANDLE:
+            return process_close_handle();
+        case cp_cmd::STARTSERVICE:
+        case cp_cmd::STOPSERVICE:
+        case cp_cmd::WAKESERVICE:
+        case cp_cmd::RELEASESERVICE:
+            return process_start_stop(pkt_type);
+        case cp_cmd::UNPINSERVICE:
+            return process_unpin_service();
+        case cp_cmd::UNLOADSERVICE:
+            return process_unload_service();
+        case cp_cmd::RELOADSERVICE:
+            return process_reload_service();
+        case cp_cmd::SHUTDOWN:
+            // Shutdown/reboot
+            if (rbuf.get_length() < 2) {
+                chklen = 2;
+                return true;
+            }
 
-            services->stop_all_services(sd_type);
-            char ackBuf[] = { (char)cp_rply::ACK };
-            if (! queue_packet(ackBuf, 1)) return false;
+            if (contains({shutdown_type_t::REMAIN, shutdown_type_t::HALT,
+                    shutdown_type_t::POWEROFF, shutdown_type_t::REBOOT, shutdown_type_t::SOFTREBOOT}, rbuf[1])) {
+                auto sd_type = static_cast<shutdown_type_t>(rbuf[1]);
 
-            // Clear the packet from the buffer
-            rbuf.consume(2);
-            chklen = 0;
-            return true;
-        }
+                services->stop_all_services(sd_type);
+                char ackBuf[] = { (char)cp_rply::ACK };
+                if (! queue_packet(ackBuf, 1)) return false;
 
-        // (otherwise fall through to below).
-    }
-    if (pktType == cp_cmd::LISTSERVICES) {
-        return list_services();
-    }
-    if (pktType == cp_cmd::LISTSERVICES5) {
-        return list_services5();
-    }
-    if (pktType == cp_cmd::SERVICESTATUS) {
-        return process_service_status();
-    }
-    if (pktType == cp_cmd::SERVICESTATUS5) {
-        return process_service_status5();
-    }
-    if (pktType == cp_cmd::ADD_DEP) {
-        return add_service_dep();
-    }
-    if (pktType == cp_cmd::REM_DEP) {
-        return rm_service_dep();
-    }
-    if (pktType == cp_cmd::QUERY_LOAD_MECH) {
-        return query_load_mech();
-    }
-    if (pktType == cp_cmd::ENABLESERVICE) {
-        return add_service_dep(true);
-    }
-    if (pktType == cp_cmd::QUERYSERVICENAME) {
-        return process_query_name();
-    }
-    if (pktType == cp_cmd::SETENV) {
-        return process_setenv();
-    }
-    if (pktType == cp_cmd::GETALLENV) {
-        return process_getallenv();
-    }
-    if (pktType == cp_cmd::SETTRIGGER) {
-        return process_set_trigger();
-    }
-    if (pktType == cp_cmd::CATLOG) {
-        return process_catlog();
-    }
-    if (pktType == cp_cmd::SIGNAL) {
-        return process_signal();
-    }
-    if (pktType == cp_cmd::QUERYSERVICEDSCDIR) {
-        return process_query_dsc_dir();
+                // Clear the packet from the buffer
+                rbuf.consume(2);
+                chklen = 0;
+                return true;
+            }
+
+            break;
+        case cp_cmd::LISTSERVICES:
+            return list_services();
+        case cp_cmd::LISTSERVICES5:
+            return list_services5();
+        case cp_cmd::SERVICESTATUS:
+            return process_service_status();
+        case cp_cmd::SERVICESTATUS5:
+            return process_service_status5();
+        case cp_cmd::ADD_DEP:
+            return add_service_dep();
+        case cp_cmd::REM_DEP:
+            return rm_service_dep();
+        case cp_cmd::QUERY_LOAD_MECH:
+            return query_load_mech();
+        case cp_cmd::ENABLESERVICE:
+            return add_service_dep(true);
+        case cp_cmd::QUERYSERVICENAME:
+            return process_query_name();
+        case cp_cmd::SETENV:
+            return process_setenv();
+        case cp_cmd::GETALLENV:
+            return process_getallenv();
+        case cp_cmd::SETTRIGGER:
+            return process_set_trigger();
+        case cp_cmd::CATLOG:
+            return process_catlog();
+        case cp_cmd::SIGNAL:
+            return process_signal();
+        case cp_cmd::QUERYSERVICEDSCDIR:
+            return process_query_dsc_dir();
+        default:
+            break;
     }
 
     // Unrecognized: give error response
