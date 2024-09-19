@@ -413,6 +413,59 @@ void test_newline_err()
     assert(errcount == 2);
 }
 
+void test_newline2()
+{
+    using string = std::string;
+    using string_iterator = std::string::iterator;
+
+    using prelim_dep = test_prelim_dep;
+
+    dinit_load::service_settings_wrapper<prelim_dep> settings;
+
+    std::stringstream ss;
+
+    ss << "type = process\n"
+            "command = /something/test\\\\\n"  // even number of backslashes
+            "stop-command = /something/stop\\\\\\\n"  // odd number (3) backslashes
+            " next line\n";
+
+    file_input_stack input_stack;
+    input_stack.add_source(ss.str(), "dummy");
+
+    try {
+        process_service_file("test-service", input_stack,
+                [&](string &line, file_pos_ref input_pos, string &setting,
+                        dinit_load::setting_op_t op, string_iterator &i,
+                        string_iterator &end) -> void {
+
+            auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
+                    dependency_type dep_type) -> void {
+                //process_dep_dir(name.c_str(), service_filename, deplist, waitsford, dep_type);
+            };
+
+            auto load_service_n = [&](const string &dep_name) -> const string & {
+                return dep_name;
+            };
+
+            try {
+                process_service_line(settings, "test-service", line, input_pos, setting, op, i, end,
+                        load_service_n, process_dep_dir_n);
+            }
+            catch (service_description_exc &exc) {
+                //report_service_description_exc(exc);
+            }
+        });
+    }
+    catch (std::system_error &sys_err)
+    {
+        //report_error(sys_err, name);
+        throw service_description_exc("", "error while reading service description.", "unknown");
+    }
+
+    assert(settings.command == "/something/test\\");
+    assert(settings.stop_command == "/something/stop\\ next line");
+}
+
 void test_comments()
 {
     std::string file_name = "dummy";
@@ -518,6 +571,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_path_env_subst, "       ");
     RUN_TEST(test_newline, "              ");
     RUN_TEST(test_newline_err, "          ");
+    RUN_TEST(test_newline2, "             ");
     RUN_TEST(test_comments, "             ");
     RUN_TEST(test_plusassign, "           ");
     bp_sys::clearenv();

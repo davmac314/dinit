@@ -112,10 +112,10 @@ Each line of the file can specify a single property value, expressed as `\fIprop
 There is currently no functional difference between either form of assignment, but note that some
 settings will override any previous setting of the same property whereas some effectively add a
 new distinct property, and it is recommended to use `=' or `:' (respectively) to distinguish them. 
-
+.LP
 A small selection of properties can have their value appended to, once set on a previous line,
 by specifying the property name again and using the `+=' operator in place of `=' (or `:').
-
+.LP
 Comments begin with a hash mark (#) and extend to the end of the line (they must be
 separated from setting values by at least one whitespace character).
 Values are interpreted literally, except that:
@@ -133,12 +133,13 @@ characters (such as "#") inside the quotes.
 The quote characters are not considered part of the property value.
 White space appearing inside quotes does not act as a delimiter for tokens.
 .IP \(bu
-A backslash (\\) can be used to escape the next character, causing it to
-lose any special meaning and become part of the property value (escaped newlines are an
-exception\(em\&they mark the end of a comment, and otherwise are treated as an unescaped space, allowing
-a property value to extend to the next line).
+A backslash (\\) can be used (even inside double quotes) to escape the next character, causing it
+to lose any special meaning and become part of the property value (escaped newlines are an
+exception\(em\&they mark the end of a comment, and otherwise are treated as an unescaped space,
+allowing a property value to extend to the next line; in this case, the following line must begin
+with leading whitespace).
 A double backslash (\\\\) is collapsed to a single backslash within the parameter value.
-White space preceded by a backslash will not separate tokens.
+White space preceded by a backslash can be used to include whitespace within a token.
 .LP
 Setting a property generally overrides any previous setting (from prior lines).
 However some properties are set additively; these include dependency relationships and \fBoptions\fR
@@ -155,7 +156,7 @@ Specifies the service type; see the \fBSERVICE TYPES\fR section.
 Specifies the command, including command-line arguments, for starting the process.
 Applies only to \fBprocess\fR, \fBbgprocess\fR and \fBscripted\fR services.
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
-
+.IP
 The `+=' operator can be used with this setting to append to a command set previously.
 .TP
 \fBstop\-command\fR = \fIcommand-string\fR
@@ -165,7 +166,7 @@ Specifies the command to stop the service (optional). Applicable to \fBprocess\f
 \fBscripted\fR services.  If specified for \fBprocess\fR or \fBbgprocess\fR services, the "stop
 command" will be executed in order to stop the service, instead of signalling the service process. 
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
-
+.IP
 The `+=' operator can be used with this setting to append to a command set previously.
 .TP
 \fBworking\-dir\fR = \fIdirectory\fR

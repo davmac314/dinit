@@ -473,14 +473,8 @@ inline void read_setting_value(std::string &setting_val, setting_op_t operation,
                 if (c == '\"') break;
                 else if (c == '\\') {
                     // A backslash escapes the following character.
-                    ++i;
-                    if (i != end) {
-                        c = *i;
-                        setting_val += c;
-                    }
-                    else {
-                        throw service_description_exc(input_pos, "line end follows backslash escape character (`\\')");
-                    }
+                    c = *(++i);
+                    setting_val += c;
                 }
                 else {
                     setting_val += c;
@@ -498,13 +492,7 @@ inline void read_setting_value(std::string &setting_val, setting_op_t operation,
                 new_part = false;
             }
             // A backslash escapes the next character
-            ++i;
-            if (i != end) {
-                setting_val += *i;
-            }
-            else {
-                throw service_description_exc(input_pos, "backslash escape (`\\') not followed by character");
-            }
+            setting_val += *(++i);
         }
         else if (isspace(c, locale::classic())) {
             if (!new_part && part_positions != nullptr) {
@@ -909,20 +897,36 @@ void process_service_file(string name, file_input_stack &service_input, T proces
 
         if (line.empty()) continue;
         while (line.back() == '\\') {
+            // Check for double-backslash, i.e. backslash escaped with backslash. We actually need
+            // to check for any even number.
+            bool is_odd_number = true;
+            auto r = std::next(line.rbegin());
+            auto re = line.rend();
+            while (r != re) {
+                if (*r != '\\') break;
+                is_odd_number = !is_odd_number;
+                ++r;
+            }
+
+            if (!is_odd_number) break;
+
             string nextline;
             string::iterator j;
             string::iterator endnext;
 
             line.back() = '\n';
             if (!service_input.getline_same_file(nextline)) {
-                throw service_description_exc(service_input, "end-of-file follows backslash escape character (`\\')");
+                throw service_description_exc(service_input,
+                        "end-of-file follows backslash escape character (`\\')");
             }
 
             j = nextline.begin();
             endnext = nextline.end();
             j = skipws(j, endnext);
             if (j == nextline.begin()) {
-                throw service_description_exc(service_input, "new line following backslash (`\\') does not begin with whitespace character");
+                throw service_description_exc(service_input,
+                        "line following line-continuation backslash (`\\') "
+                        "does not begin with whitespace character");
             }
             line.append(nextline);
         }

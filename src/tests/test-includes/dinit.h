@@ -63,7 +63,7 @@ class eventloop_t
             int wait_si_status; // exit status as per exit(...), or signal number
 
             public:
-            proc_status() noexcept {}
+            proc_status() noexcept : wait_si_code(0), wait_si_status(0) {}
             proc_status(int wait_si_code, int wait_si_status) noexcept
                 : wait_si_code(wait_si_code), wait_si_status(wait_si_status) {}
             proc_status(const proc_status &) noexcept = default;
