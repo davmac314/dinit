@@ -44,7 +44,7 @@ Code contributions
 ------------------
 
 In general, code contributions:
- - should follow existing style and conventions (also: read  and follow CODE-STYLE)
+ - should follow existing style and conventions (also: read and follow CODE-STYLE)
  - should be appropriately* commented in accordance with existing style
  - should keep the design considerations in mind (read the DESIGN document)
  - should be accompanied by appropriate documentation additions/updates
