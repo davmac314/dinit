@@ -124,8 +124,10 @@ a feel for what using Dinit is like. For a complete reference, see the _man_ pag
 A "service" is nominally a persistent process or system state. The two main
 types of service are a _process_ service (represented by a an actual process)
 and a _scripted_ service (which is started and stopped by running a process -
-often a shell script - to completion). There are also _bgprocess_ services
-and _internal_ services. See the [dinit-service(5)](https://davmac.org/projects/dinit/man-pages-html/dinit-service.5.html)
+often a shell script - to completion). There are also _bgprocess_ services (for processes which
+put themselves "in the background" by forking), _internal_ services (useful for grouping other
+processes or acting as checkpoints), and _triggered_ services (which require an external event
+or trigger to start). See the [dinit-service(5)](https://davmac.org/projects/dinit/man-pages-html/dinit-service.5.html)
 manual page for details.
 
 Many programs that you might want to run under Dinit's supervision can run
@@ -155,7 +157,7 @@ the [doc/linux/services](doc/linux/services) directory).
 A service description file has a textual format and consists of a number of
 parameter settings. Some examples of the available parameters are:
 
-    type = process | bgprocess | scripted | internal
+    type = process | bgprocess | scripted | internal | triggered
     command = ...
     stop-command = ...
     run-as = (user-id)
@@ -173,8 +175,8 @@ for general operation). For example, a service description for `sshd` might look
 
     type = process
     command = /usr/sbin/sshd -D
-    waits-for = syslogd
-    depends-on = loginready
+    waits-for: syslogd
+    depends-on: loginready
 
 In this example, `syslogd` and `loginready` are also services (which must have their own service
 descriptions).

@@ -32,13 +32,13 @@ Create (using your preferred text editor) a file called `boot` (under the
 directory we just made) and put as its contents:
 ```
 type = internal
-waits-for.d = boot.d
+waits-for.d: boot.d
 ```
 
 The first line (`type = internal`) tells dinit that this is not a service which
 will run any external process directly.
 
-The second line (`waits-for.d = boot.d`) specifies a directory which will be
+The second line (`waits-for.d: boot.d`) specifies a directory which will be
 used to keep track of which services should be started when dinit starts (or
 more specifically, which services should be started before the `boot` service).
 Here we've made it a `boot.d` sub-directory under our main `dinit.d` directory,
