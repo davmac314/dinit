@@ -1,6 +1,59 @@
-== Version ???
+== Version 0.19.0 (beta release #4)
 
-* TBA
+This is a fourth beta release, with bugfixes and some significant feature additions compared to
+the previous release. In particular, the new features focus on the ability for user customisation
+of distribution-provided services.
+
+In the absence of major bugs, the next release is expected to be 1.0.
+
+Thanks to current sponsors: Paweł Zmarzły (pzmarzly), Wesley Moore (wezm), M. Herdiansyah (konimex), q66, saolof
+
+New features:
+ * A logo for Dinit was contributed by Yakui420.
+ * Service descriptions can now include other files, via the meta-commands "@include" and
+   "@include-opt" (useful for user customisation of services).
+ * Some settings, including "command" and "stop-command", may now be appended to (useful
+   for user customisation of services).
+ * Added ability to restart process-based services only "on-failure" (Mobin Aydinfar).
+ * Service settings may span multiple lines, by "escaping" the line ending with a backslash
+   (Carlos Eduardo). 
+ * Default system-wide locations are used for user services, in addition to the user-specific
+   directory: /etc/dinit.d/user, /usr/local/lib/dinit.d/user, and /usr/lib/dinit.d/user
+   (realroot2185). 
+ * "dinitctl add-dep" now takes "need" as a dependency type in place of "regular". The latter is
+   still supported as an alias, for the time being (Locria Cyber).
+ * New "depends-on.d" and "depends-ms.d" service settings, as per "waits-for.d" but for other
+   dependency types.
+ * New "soft-reboot" utility to force restarting system services without full reboot (Yukari
+   Chiba). Note that this requires appropriately configured services. It is most likely to be
+   useful in containers.
+
+Changes:   
+ * For service restart via "dinitctl restart", display both "stopped" and "started" status
+   instead of only "started".
+ * For some service settings, where the current setting is not actually overwritten by
+   "re-assigning" the setting, the documentation now suggests using ":" to separate the setting
+   name and value (rather than "="). This has long been supported, but was not documented
+   previously.
+
+Fixes: 
+ * shutdown utility correctly changes behaviour according to name (reboot, etc) when built with a
+   name prefix (Mobin Aydinfar).
+ * fixes to control connection processing on error conditions (Mobin Aydinfar).
+ * fixed rare dinitctl hang after enabling a service (Mobin Aydinfar).
+ * fixed bug detecting invalid process id from pid file for "bgprocess" services.
+ * full ("int"-sized) exit status of processes now reported, on operating systems that support
+   this (including FreeBSD, and excluding Linux).
+
+Build fixes:
+ * Improvements to configure script, fixing some failure cases (Mobin Aydinfar).
+ * Fixes to meson build: build "poweroff" binary, install "poweroff", "reboot" and "halt" as
+   symbolic links as per Makefile build (M. Herdiansyah, aka konimex).
+ * Fixed FreeBSD makefile-based build.
+ 
+Various other changes:
+ * Reworked integration tests, CI improvements (Mobin Aydinfar), documentation improvements,
+   FreeBSD integration (see contrib/) (Locria Cyber).
 
 == Version 0.18.0 (beta release #3)
 
