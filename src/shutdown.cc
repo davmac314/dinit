@@ -33,6 +33,7 @@ static constexpr uint16_t min_cp_version = 1;
 static constexpr uint16_t max_cp_version = 1;
 
 static constexpr auto reboot_execname = cts::literal(SHUTDOWN_PREFIX) + cts::literal("reboot");
+static constexpr auto soft_reboot_execname = cts::literal(SHUTDOWN_PREFIX) + cts::literal("soft-reboot");
 
 using loop_t = dasynq::event_loop_n;
 using rearm = dasynq::rearm;
@@ -260,6 +261,9 @@ int main(int argc, char **argv)
     if (strcmp(execname, reboot_execname) == 0) {
         shutdown_type = shutdown_type_t::REBOOT;
     }
+    else if (strcmp(execname, soft_reboot_execname) == 0) {
+        shutdown_type = shutdown_type_t::SOFTREBOOT;
+    }
         
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -390,7 +394,7 @@ int main(int argc, char **argv)
         cerr << "shutdown: control socket write error: " << std::strerror(e.errcode) << endl;
         return 1;
     }
-    
+
     while (true) {
         pause();
     }
