@@ -41,12 +41,10 @@ See \fBSERVICE DESCRIPTION FILES\fR for details of the service description forma
 \fB\-d\fR \fIdir\fP, \fB\-\-services\-dir\fR \fIdir\fP
 Specifies \fIdir\fP as the directory containing service definition files.
 This can be specified multiple times for multiple service directories.
-The default directories are not searched for services when this option is provided.
-.sp
-If not specified, the default for the user instance is \fI$XDG_CONFIG_HOME/dinit.d\fR, 
-\fI$HOME/.config/dinit.d\fR, \fI/etc/dinit.d/user\fR, \fI/usr/lib/dinit.d/user\fR and
-\fI/usr/local/lib/dinit.d/user\fR or, for the system instance, each of \fI/etc/dinit.d\fR, \fI/run/dinit.d/\fR,
-\fI/usr/local/lib/dinit.d\fR, and \fI/lib/dinit.d\fR (searched in that order).
+.IP
+The default service directories are listed in the \fBFILES\fR section.
+Note that the default directories will not be searched when the \fB\-d\fR/\fB\-\-services\-dir\fR
+option is specified.
 .TP
 \fB\-e\fR \fIfile\fP, \fB\-\-env\-file\fR \fIfile\fP
 Read initial environment from \fIfile\fP.
@@ -324,7 +322,7 @@ value set previously as well as the effect of previous \fB!unset\fR and \fB!clea
 \fI/etc/dinit.d\fR, \fI/run/dinit.d\fR, \fI/usr/local/lib/dinit.d\fR, \fI/lib/dinit.d\fR
 Default locations for service description files. The directories are searched in the order listed.
 .TP
-\fI$XDG_CONFIG_HOME/dinit.d\fR, \fI$HOME/.config/dinit.d\fR
+\fI$XDG_CONFIG_HOME/dinit.d\fR, \fI$HOME/.config/dinit.d\fR, \fI/etc/dinit.d/user\fR, \fI/usr/lib/dinit.d/user\fR, \fI/usr/local/lib/dinit.d/user\fR
 Default location for service description files for user instances. The directories are searched in the order listed.
 .\"
 .SH SIGNALS
