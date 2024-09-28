@@ -765,7 +765,11 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     auto check_command = [&](const char *setting_name, const char *command) {
         struct stat command_stat;
-        if (fstatat(dirfd, command, &command_stat, 0) == -1) {
+        if (command[0] != '/') {
+            report_service_description_err(name,
+                    std::string("executable '") + command + "' is not an absolute path");
+        }
+        else if (fstatat(dirfd, command, &command_stat, 0) == -1) {
             report_service_description_err(name,
                     std::string("could not stat ") + setting_name + " executable '" + command
                     + "': " + strerror(errno));
