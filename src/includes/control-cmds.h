@@ -163,6 +163,10 @@ enum class cp_rply : dinit_cptypes::cp_rply_t {
 
     // Retrieve complete environment
     ALLENV = 78,
+
+    // "Pre-acknowledgement". Issued before main reply after restart command
+    // (to avoid race condition for client tracking service status)
+    PREACK = 79,
 };
 
 // Information (out-of-band):

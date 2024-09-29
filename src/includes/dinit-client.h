@@ -67,6 +67,24 @@ public:
     }
 };
 
+// Observed service states (started/stopped).
+struct observed_states_t
+{
+    bool started = false;
+    bool stopped = false;
+    bool failed_start = false;
+
+    // In case of failed start:
+    stopped_reason_t stop_reason = stopped_reason_t::NORMAL;
+    int exit_status = 0;
+    int exit_si_code = 0;
+    int exit_si_status = 0;
+};
+
+// Size of service status info (in various packets)
+constexpr static unsigned STATUS_BUFFER_SIZE = 6 + ((sizeof(pid_t) > sizeof(int)) ? sizeof(pid_t) : sizeof(int));
+constexpr static unsigned STATUS_BUFFER5_SIZE = 6 + 2 * sizeof(int);
+
 // static_membuf: a buffer of a fixed size (N) with one additional value (of type T). Don't use this
 // directly, construct via membuf.
 template <int N> class static_membuf
@@ -186,6 +204,74 @@ inline void wait_for_reply(cpbuffer_t &rbuffer, int fd)
 
         rbuffer.consume(1);  // Consume one byte so we'll read one byte of the next packet
         fill_buffer_to(rbuffer, fd, pktlen);
+        rbuffer.consume(pktlen - 1);
+    }
+}
+
+inline void wait_for_reply(cpbuffer_t &rbuffer, int fd, dinit_cptypes::handle_t handle, observed_states_t *seen_states)
+{
+    fill_buffer_to(rbuffer, fd, 1);
+
+    while (rbuffer[0] >= 100) {
+        // Information packet; discard.
+        cp_info pkt_type = (cp_info) rbuffer[0];
+        fill_buffer_to(rbuffer, fd, 2);
+        unsigned pktlen = (unsigned char) rbuffer[1];
+
+        rbuffer.consume(1);  // Consume one byte so we'll read one byte of the next packet
+        fill_buffer_to(rbuffer, fd, pktlen);
+
+        if (value(pkt_type).is_in(cp_info::SERVICEEVENT, cp_info::SERVICEEVENT5)
+                && seen_states != nullptr) {
+
+            // earlier versions do not include status info, the size in that case is
+            // base_pkt_size:
+            constexpr unsigned base_pkt_size = 2 + sizeof(dinit_cptypes::handle_t) + 1;
+
+            if (pktlen < base_pkt_size) {
+                throw dinit_protocol_error();
+            }
+
+            // Extract handle, check for match
+            dinit_cptypes::handle_t ev_handle;
+            rbuffer.extract((char *)&ev_handle, 1, sizeof(ev_handle));
+            service_event_t event = static_cast<service_event_t>(rbuffer[1 + sizeof(ev_handle)]);
+
+            if (ev_handle == handle) {
+                if (event == service_event_t::STOPPED) {
+                    seen_states->stopped = true;
+                }
+                if (event == service_event_t::STARTED) {
+                    seen_states->started = true;
+                }
+                if (event == service_event_t::FAILEDSTART) {
+                    stopped_reason_t stop_reason =
+                            static_cast<stopped_reason_t>(rbuffer[base_pkt_size + 2]);
+
+                    seen_states->failed_start = true;
+                    seen_states->stop_reason = stop_reason;
+
+                    int exit_status;
+                    int exit_si_code;
+                    int exit_si_status;
+                    rbuffer.extract((char *)&exit_status, base_pkt_size + 5, sizeof(exit_status));
+                    if (pkt_type == cp_info::SERVICEEVENT5) {
+                        if (pktlen < base_pkt_size + STATUS_BUFFER5_SIZE) {
+                            throw dinit_protocol_error();
+                        }
+                        exit_si_code = exit_status;
+                        rbuffer.extract((char *)&exit_si_status,
+                                base_pkt_size + 5 + sizeof(exit_si_code), sizeof(exit_si_status));
+
+                        seen_states->exit_si_code = exit_si_code;
+                        seen_states->exit_si_status = exit_si_status;
+                    }
+
+                    seen_states->exit_status = exit_status;
+                }
+            }
+        }
+
         rbuffer.consume(pktlen - 1);
     }
 }

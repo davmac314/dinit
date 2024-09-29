@@ -668,10 +668,6 @@ int main(int argc, char **argv)
     return 1;
 }
 
-// Size of service status info (in various packets)
-constexpr static unsigned STATUS_BUFFER_SIZE = 6 + ((sizeof(pid_t) > sizeof(int)) ? sizeof(pid_t) : sizeof(int));
-constexpr static unsigned STATUS_BUFFER5_SIZE = 6 + 2 * sizeof(int);
-
 static const char * describe_state(bool stopped)
 {
     return stopped ? "stopped" : "started";
@@ -789,6 +785,40 @@ static void print_termination_details(int exit_si_code, int exit_si_status)
     }
 }
 
+// Print reason for start failure.
+static void print_failure_details(stopped_reason_t stop_reason, uint16_t launch_stage,
+        int exit_status, int exit_si_code, int exit_si_status)
+{
+    using namespace std;
+
+    switch (stop_reason) {
+        case stopped_reason_t::DEPFAILED:
+            cout << "Reason: a dependency of the service failed to start. "
+                    "Check dinit log.\n";
+            break;
+        case stopped_reason_t::TIMEDOUT:
+            cout << "Reason: start timed out.\n";
+            break;
+        case stopped_reason_t::EXECFAILED:
+            cout << "Reason: execution of service process failed:\n";
+            cout << "        Stage: " << exec_stage_descriptions[launch_stage] << "\n";
+            cout << "        Error: " << strerror(exit_status) << "\n";
+            break;
+        case stopped_reason_t::FAILED:
+            cout << "Reason: service process terminated before ready: ";
+            if (exit_si_code != 0 || exit_si_status != 0) {
+                print_termination_details(exit_si_code, exit_si_status);
+            }
+            else {
+                print_termination_details(exit_status);
+            }
+            cout << "\n";
+            break;
+        default:
+            cout << "Reason unknown/unrecognised. Check dinit log.\n";
+    }
+}
+
 // Process a SERVICEEVENT[5] packet if it is related to the specified service handle, and
 // optionally report the service status to the user (verbose == true). The caller must ensure that
 // a complete packet of type SERVICEEVENT[5] is present in the buffer before calling. The size of
@@ -849,46 +879,25 @@ static int process_service_event(cpbuffer_t &rbuffer, unsigned pktlen, handle_t 
             if (verbose) {
                 cout << "Service '" << service_name << "' failed to start.\n";
                 if (pktlen >= base_pkt_size + STATUS_BUFFER_SIZE) {
+                    uint16_t launch_stage;
+                    rbuffer.extract((char *)&launch_stage, base_pkt_size + 4,
+                                    sizeof(uint16_t));
+
                     stopped_reason_t stop_reason = static_cast<stopped_reason_t>(rbuffer[base_pkt_size + 3]);
                     int exit_status;
                     int exit_si_code;
-                    int exit_si_status = 0;
+                    int exit_si_status;
                     rbuffer.extract((char *)&exit_status, base_pkt_size + 6, sizeof(exit_status));
                     if (rbuffer[0] == (char)cp_info::SERVICEEVENT5) {
+                        if (pktlen < base_pkt_size + STATUS_BUFFER5_SIZE) {
+                            throw dinit_protocol_error();
+                        }
                         exit_si_code = exit_status;
-                        rbuffer.extract((char *)&exit_si_code,
+                        rbuffer.extract((char *)&exit_si_status,
                                 base_pkt_size + 6 + sizeof(exit_si_code), sizeof(exit_si_status));
                     }
 
-                    switch (stop_reason) {
-                        case stopped_reason_t::DEPFAILED:
-                            cout << "Reason: a dependency of the service failed to start. "
-                                    "Check dinit log.\n";
-                            break;
-                        case stopped_reason_t::TIMEDOUT:
-                            cout << "Reason: start timed out.\n";
-                            break;
-                        case stopped_reason_t::EXECFAILED:
-                            cout << "Reason: execution of service process failed:\n";
-                            uint16_t launch_stage;
-                            rbuffer.extract((char *)&launch_stage, base_pkt_size + 4,
-                                            sizeof(uint16_t));
-                            cout << "        Stage: " << exec_stage_descriptions[launch_stage] << "\n";
-                            cout << "        Error: " << strerror(exit_status) << "\n";
-                            break;
-                        case stopped_reason_t::FAILED:
-                            cout << "Reason: service process terminated before ready: ";
-                            if (rbuffer[0] == (char)cp_info::SERVICEEVENT5) {
-                                print_termination_details(exit_si_code, exit_si_status);
-                            }
-                            else {
-                                print_termination_details(exit_status);
-                            }
-                            cout << "\n";
-                            break;
-                        default:
-                            cout << "Reason unknown/unrecognised. Check dinit log.\n";
-                    }
+                    print_failure_details(stop_reason, launch_stage, exit_status, exit_si_code, exit_si_status);
                 }
             }
             rbuffer.consume(pktlen);
@@ -981,6 +990,8 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             pcommand = cp_cmd::STOPSERVICE;
     }
 
+    observed_states_t seen_states;
+
     // Need to issue command (eg STOPSERVICE/STARTSERVICE)
     // We'll do this regardless of the current service state / target state, since issuing
     // start/stop also sets or clears the "explicitly started" flag on the service.
@@ -990,7 +1001,7 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
     {
         char flags = (do_pin ? 1 : 0) | ((pcommand == cp_cmd::STOPSERVICE && !do_force) ? 2 : 0);
         if (command == ctl_cmd::RESTART_SERVICE) {
-            flags |= 4;
+            flags |= (4 | 128); // restart, pre-ack
         }
 
         auto m = membuf()
@@ -999,14 +1010,33 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
                 .append(handle);
         write_all_x(socknum, m);
 
-        wait_for_reply(rbuffer, socknum);
+        wait_for_reply(rbuffer, socknum, handle, &seen_states);
         cp_rply reply_pkt_h = (cp_rply)rbuffer[0];
         rbuffer.consume(1); // consume header
+
+        if (reply_pkt_h == cp_rply::PREACK) {
+            // We should consider state changes seen only after the PREACK (i.e. between the
+            // PREACK and the main reply):
+            seen_states.started = false;
+            seen_states.stopped = false;
+            seen_states.failed_start = false;
+
+            // PREACK will be followed by a 2nd reply, get that now:
+            wait_for_reply(rbuffer, socknum, handle, &seen_states);
+            reply_pkt_h = (cp_rply)rbuffer[0];
+            rbuffer.consume(1);
+        }
+
         if (reply_pkt_h == cp_rply::ALREADYSS) {
             bool already = (state == wanted_state);
             if (verbose) {
-                cout << "Service " << (already ? "(already) " : "")
-                        << describe_state(do_stop) << "." << endl;
+                if (command == ctl_cmd::RESTART_SERVICE) {
+                    cout << "Service restarted.\n";
+                }
+                else {
+                    cout << "Service " << (already ? "(already) " : "")
+                            << describe_state(do_stop) << ".\n";
+                }
             }
             return 0; // success!
         }
@@ -1063,13 +1093,13 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             cerr << "dinitctl: cannot start/restart/wake service, shutdown is in progress.\n";
             return 1;
         }
-        if (reply_pkt_h != cp_rply::ACK && reply_pkt_h != cp_rply::ALREADYSS) {
+        if (reply_pkt_h != cp_rply::ACK) {
             cerr << "dinitctl: protocol error." << endl;
             return 1;
         }
     }
 
-    if (! wait_for_service) {
+    if (!wait_for_service) {
         if (verbose) {
             cout << "Issued " << describe_verb(do_stop) << " command successfully for service '"
                     <<  service_name <<  "'." << endl;
@@ -1079,11 +1109,28 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
 
     if (command == ctl_cmd::RESTART_SERVICE) {
         // for restart we want to display both "stopped" and "started" statuses
-        if (wait_service_state(socknum, rbuffer, handle, service_name, true, verbose) != 0) {
+        if (seen_states.stopped) {
+            if (verbose) {
+                cout << "Service '" << service_name << "' stopped.\n";
+            }
+        }
+        else if (wait_service_state(socknum, rbuffer, handle, service_name, true, verbose) != 0) {
             return EXIT_FAILURE;
         }
     }
 
+    if (seen_states.started) {
+        if (verbose) {
+            cout << "Service '" << service_name << "' started.\n";
+        }
+    }
+    else if (seen_states.failed_start) {
+        if (verbose) {
+            cout << "Service '" << service_name << "' failed to start.\n";
+            print_failure_details(seen_states.stop_reason, 0 /* not applicable */,
+                    seen_states.exit_status, seen_states.exit_si_code, seen_states.exit_si_status);
+        }
+    }
     return wait_service_state(socknum, rbuffer, handle, service_name, do_stop, verbose);
 }
 

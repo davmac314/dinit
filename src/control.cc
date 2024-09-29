@@ -306,7 +306,12 @@ bool control_conn_t::process_start_stop(cp_cmd pktType)
     }
     
     // 1 byte: packet type
-    // 1 byte: flags eg. pin in requested state (0 = no pin, 1 = pin)
+    // 1 byte: flags
+    //    bit 0: 0 = no pin, 1 = pin
+    //    bit 1: 0 = force stop, 1 = not forced ("gentle")
+    //    bit 2: 0 = don't restart, 1 = restart after stopping
+    //      --- (reserved)
+    //    bit 7: 0 = no pre-ack, 1 = issue pre-ack
     // 4 bytes: service handle
     
     bool do_pin = ((rbuf[1] & 1) == 1);
@@ -322,7 +327,16 @@ bool control_conn_t::process_start_stop(cp_cmd pktType)
         return true;
     }
     else {
-        char ack_buf[1] = { (char)cp_rply::ACK };
+        char ack_buf[1] = { (char)cp_rply::PREACK };
+        if (rbuf[1] & 128) {
+            // Issue PREACK before doing anything that might change service state (and cause a
+            // service event info packet to be issued as a result). This allows the client to
+            // determine whether the info packets were queued before or after the command was
+            // processed.
+            if (!queue_packet(ack_buf, 1)) return false;
+        }
+
+        ack_buf[0] = (char)cp_rply::ACK;
         
         switch (pktType) {
         case cp_cmd::STARTSERVICE:
@@ -383,7 +397,7 @@ bool control_conn_t::process_start_stop(cp_cmd pktType)
                 wanted_state = service_state_t::STOPPED;
             }
             services->process_queues();
-            if (service->get_state() == wanted_state && !do_restart) ack_buf[0] = (char)cp_rply::ALREADYSS;
+            if (service->get_state() == wanted_state) ack_buf[0] = (char)cp_rply::ALREADYSS;
             break;
         }
         case cp_cmd::WAKESERVICE:
@@ -432,7 +446,7 @@ bool control_conn_t::process_start_stop(cp_cmd pktType)
             return false;
         }
         
-        if (! queue_packet(ack_buf, 1)) return false;
+        if (!queue_packet(ack_buf, 1)) return false;
     }
     
     clear_out:
