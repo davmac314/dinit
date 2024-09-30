@@ -310,6 +310,8 @@ void force_stop_test()
 
 void restart_test()
 {
+    // Restart both a process service and an internal service.
+
     igr_test_setup setup("restart");
     std::string output_file = setup.prep_output_file("basic-ran");
     std::string socket_path = setup.prep_socket_path();
@@ -338,6 +340,11 @@ void restart_test()
     nanosleepx(0, 1000000000u / 10u);
 
     igr_assert_eq("ran\n", read_file_contents(output_file));
+
+    // "dinitctl restart internal"
+    dinitctl_p.start("restart", {"-p", socket_path, "restart", "internal"});
+    dinitctl_p.wait_for_term({1, 0}  /* max 1 second */);
+    igr_assert_eq("Service restarted.\n", dinitctl_p.get_stdout());
 }
 
 void check_basic_test()
