@@ -12,14 +12,22 @@ Dinit service description files
 .SH DESCRIPTION
 .\"
 The service description files for \fBDinit\fR each describe a service. The name
-of the file corresponds to the name of the service it describes. 
+of the file corresponds to the name of the service it describes, minus its argument.
 .LP
 Service description files specify the various attributes of a service. A
-service description file is named after the service it represents, and is
-a plain-text file with simple key-value format.
+service description file is named after the service it represents (without
+its argument), and is a plain-text file with simple key-value format.
 The description files are located in a service description directory;
 See \fBdinit\fR(8) for more details of the default service description directories,
 and how and when service descriptions are loaded.
+.LP
+The full name of the service includes its argument, such as \fIservice@argument\fR.
+The argument is optional, so you can also invoke just \fIservice\fR.
+Each instance of a service, i.e. with different arguments, is separate, including loading.
+This means every time you invoke the service with a different argument, it is loaded
+separately.
+Empty argument is not the same as missing argument, as this affects variable
+substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .LP
 All services have a \fItype\fR and a set of \fIdependencies\fR. These are discussed
 in the following subsections. The type, dependencies, and other attributes are
@@ -269,6 +277,8 @@ This service depends on the named service.
 Starting this service will start the named service; the command to start this service will not be executed
 until the named service has started.
 If the named service stops then this service will also be stopped.
+The \fIservice-name\fR is subject to minimal variable substitution
+(see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBdepends\-ms\fR: \fIservice-name\fR
 This service has a "milestone" dependency on the named service. Starting this
@@ -277,6 +287,7 @@ named service has started, and will fail to start if the named service does
 not start.
 Once the named (dependent) service reaches the started state, however, the
 dependency may stop without affecting the dependent service.
+The name is likewise subject to minimal variable substitution.
 .TP
 \fBwaits\-for\fR: \fIservice-name\fR
 When this service is started, wait for the named service to finish starting
@@ -284,6 +295,7 @@ When this service is started, wait for the named service to finish starting
 Starting this service will automatically start the named service.
 If the named service fails to start, this service will start as usual (subject to
 other dependencies being met).
+The name is likewise subject to minimal variable substitution.
 .TP
 \fBdepends\-on.d\fR: \fIdirectory-path\fR
 For each file name in \fIdirectory-path\fR which does not begin with a dot,
@@ -296,6 +308,7 @@ is not considered fatal.
 .IP
 The directory path, if not absolute, is relative to the directory containing the service
 description file.
+No variable substitution is done for path dependencies.
 .TP
 \fBdepends\-ms.d\fR: \fIdirectory-path\fR
 As for \fBdepends-on.d\fR, but with dependency type \fBdepends\-ms\fR.
@@ -311,12 +324,16 @@ starting this service will not cause it to start (nor wait for it in that case).
 It does not by itself cause the named service to be loaded (if loaded later, the "after"
 relationship will be enforced from that point).
 .TP
+The name is subject to minimal variable substitution.
+.TP
 \fBbefore\fR: \fIservice-name\fR
 When starting the named service, if this service is also starting, wait for this service
 to finish starting before bringing the named service up. This is largely equivalent to specifying
 an \fBafter\fR relationship to this service from the named service.
 However, it does not by itself cause the named service to be loaded (if loaded later, the "before"
 relationship will be enforced from that point).
+.TP
+The name is subject to minimal variable substitution.
 .TP
 \fBchain\-to\fR = \fIservice-name\fR
 When this service terminates (i.e. starts successfully, and then stops of its
@@ -338,6 +355,8 @@ stopped due to a dependency stopping (for any reason), if it will restart
 abnormally or with an exit status indicating an error.
 However, if the \fBalways-chain\fR option is set the chain is started regardless of the
 reason and the status of this service termination.
+.IP
+The name is subject to minimal variable substitution.
 .TP
 \fBsocket\-listen\fR = \fIsocket-path\fR
 Pre-open a socket for the service and pass it to the service using the
@@ -711,6 +730,11 @@ set and non\-empty), and `\fB${NAME+word}\fR' (substitute `\fBword\fR' if variab
 Unlike in shell expansion, the substituted \fBword\fR does not itself undergo expansion and
 cannot contain closing brace characters or whitespace, even if quoted.
 .LP
+To substitute the service argument, the `\fB$1\fR' syntax may be used.
+The complete syntax of the substitution is supported here.
+Services without an argument are treated as if the variable was unset, which
+affects some of the curly brace syntax variants.
+.LP
 Note that by default, command-line variable substitution occurs after splitting the line into
 separate arguments and so
 a single environment variable cannot be used to add multiple arguments to a command line.
@@ -741,6 +765,12 @@ used for substitution, if they have been changed in the meantime.
 Using environment variable values in service commands and parameters can be used as means to
 provide easily-adjustable service configuration, but is not ideal for this purpose and alternatives
 should be considered. 
+.LP
+In dependency fields, including \fIbefore\fR and similar, minimal version of variable
+substitution may happen.
+Only the service argument may be substituted, as the actual environment is not available
+at this point.
+The full syntax is still supported.
 .\"
 .SS META-COMMANDS
 .\"

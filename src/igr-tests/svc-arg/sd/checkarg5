@@ -1,0 +1,2 @@
+type = scripted
+command = ../checkarg.sh $1

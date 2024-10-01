@@ -31,11 +31,11 @@ using string_iterator = std::string::iterator;
 // throws:  std::bad_alloc, std::length_error, service_description_exc
 static void do_env_subst(const char *setting_name, ha_string &line,
         std::list<std::pair<unsigned,unsigned>> &offsets,
-        environment::env_map const &envmap)
+        environment::env_map const &envmap, const char *arg)
 {
     using namespace dinit_load;
     std::string line_s = std::string(line.c_str(), line.length());
-    value_var_subst(setting_name, line_s, offsets, resolve_env_var, envmap);
+    value_var_subst(setting_name, line_s, offsets, resolve_env_var, &envmap, arg);
     line = line_s;
 }
 
@@ -311,7 +311,7 @@ static bool check_settings_for_reload(service_record *service,
     return create_new_record;
 }
 
-service_record * dirload_service_set::load_reload_service(const char *name, service_record *reload_svc,
+service_record * dirload_service_set::load_reload_service(const char *fullname, service_record *reload_svc,
         const service_record *avoid_circular)
 {
     // Load a new service, or reload an already-loaded service.
@@ -366,9 +366,16 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
     using namespace dinit_load;
 
+    const auto *argp = strchr(fullname, '@');
+    if (!argp) argp = fullname + strlen(fullname);
+
+    auto name = string(fullname, argp);
+
+    auto *argval = *argp ? argp + 1 : nullptr;
+
     if (reload_svc == nullptr) {
         // First try and find an existing record...
-        service_record *existing = find_service(string(name), true);
+        service_record *existing = find_service(string(fullname), true);
         if (existing != nullptr) {
             if (existing == avoid_circular || existing->check_is_loading()) {
                 throw service_cyclic_dependency(name);
@@ -412,7 +419,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
     if (!service_file) {
         if (fail_load_errno == 0) {
-            throw service_not_found(string(name));
+            throw service_not_found(name);
         }
         else {
             throw service_load_error(name, std::move(fail_load_path), fail_load_errno);
@@ -476,7 +483,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         // Add a placeholder record now to prevent infinite recursion in case of cyclic dependency.
         // We replace this with the real service later (or remove it if we find a configuration error).
         try {
-            dummy = new service_record(this, string(name), service_record::LOADING_TAG);
+            dummy = new service_record(this, string(fullname), service_record::LOADING_TAG);
             add_service(dummy);
         }
         catch (...) {
@@ -496,7 +503,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
             auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
                     dependency_type dep_type) -> void {
-                process_dep_dir(*this, name, service_filename, deplist, waitsford, dep_type, reload_svc);
+                process_dep_dir(*this, name.c_str(), service_filename, deplist, waitsford, dep_type, reload_svc);
             };
 
             auto load_service_n = [&](const string &dep_name) -> service_record * {
@@ -514,8 +521,8 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                 }
             };
 
-            process_service_line(settings, name, line, fpr, setting, op, i, end, load_service_n,
-                    process_dep_dir_n);
+            process_service_line(settings, name.c_str(), argval, line, fpr, setting,
+                    op, i, end, load_service_n, process_dep_dir_n);
         });
 
         auto report_err = [&](const char *msg){
@@ -558,7 +565,7 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
 
         srv_envmap = srv_env.build(main_env);
 
-        settings.finalise<true>(report_err, srv_envmap);
+        settings.finalise<true>(report_err, srv_envmap, argval);
         auto service_type = settings.service_type;
 
         if (reload_svc != nullptr) {
@@ -702,15 +709,15 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
         }
 
         if (service_type == service_type_t::PROCESS) {
-            do_env_subst("command", settings.command, settings.command_offsets, srv_envmap);
-            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap);
+            do_env_subst("command", settings.command, settings.command_offsets, srv_envmap, argval);
+            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap, argval);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             process_service *rvalps;
             if (create_new_record) {
                 if (reload_svc != nullptr) {
                     check_cycle(settings.depends, reload_svc);
                 }
-                rvalps = new process_service(this, string(name), std::move(settings.command),
+                rvalps = new process_service(this, string(fullname), std::move(settings.command),
                         settings.command_offsets, settings.depends);
                 settings.depends.clear();
             }
@@ -745,15 +752,15 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             #endif
         }
         else if (service_type == service_type_t::BGPROCESS) {
-            do_env_subst("command", settings.command, settings.command_offsets, srv_envmap);
-            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap);
+            do_env_subst("command", settings.command, settings.command_offsets, srv_envmap, argval);
+            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap, argval);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             bgproc_service *rvalps;
             if (create_new_record) {
                 if (reload_svc != nullptr) {
                     check_cycle(settings.depends, reload_svc);
                 }
-                rvalps = new bgproc_service(this, string(name), std::move(settings.command),
+                rvalps = new bgproc_service(this, string(fullname), std::move(settings.command),
                         settings.command_offsets, settings.depends);
                 settings.depends.clear();
             }
@@ -784,15 +791,15 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
             settings.onstart_flags.runs_on_console = false;
         }
         else if (service_type == service_type_t::SCRIPTED) {
-            do_env_subst("command", settings.command, settings.command_offsets, srv_envmap);
-            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap);
+            do_env_subst("command", settings.command, settings.command_offsets, srv_envmap, argval);
+            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap, argval);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             scripted_service *rvalps;
             if (create_new_record) {
                 if (reload_svc != nullptr) {
                     check_cycle(settings.depends, reload_svc);
                 }
-                rvalps = new scripted_service(this, string(name), std::move(settings.command),
+                rvalps = new scripted_service(this, string(fullname), std::move(settings.command),
                         settings.command_offsets, settings.depends);
                 settings.depends.clear();
             }
@@ -824,11 +831,11 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
                     check_cycle(settings.depends, reload_svc);
                 }
                 if (service_type == service_type_t::INTERNAL) {
-                    rval = new service_record(this, string(name), service_type, settings.depends);
+                    rval = new service_record(this, string(fullname), service_type, settings.depends);
                 }
                 else {
                     /* TRIGGERED */
-                    rval = new triggered_service(this, string(name), service_type, settings.depends);
+                    rval = new triggered_service(this, string(fullname), service_type, settings.depends);
                 }
                 settings.depends.clear();
             }

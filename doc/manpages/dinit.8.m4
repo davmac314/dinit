@@ -119,7 +119,7 @@ Specifies the name of a service that should be started (along with its
 dependencies).
 If none are specified, defaults to \fIboot\fR (which requires that a suitable service description
 for the \fIboot\fR service exists). Multiple services can be specified in which case they will each
-be started.
+be started. An argument to the service may be included here.
 .sp
 \fBNote:\fR on Linux, if \fBdinit\fR is running as PID 1 and with UID 0, it may ignore "naked"
 service names (without preceding \fB\-\-service\fR/\fB\-t\fR) provided on the command line.

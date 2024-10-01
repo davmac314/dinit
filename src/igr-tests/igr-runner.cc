@@ -40,6 +40,7 @@ void catlog_test();
 void offline_enable_test();
 void xdg_config_test();
 void cycles_test();
+void svc_arg_test();
 
 int main(int argc, char **argv)
 {
@@ -55,7 +56,8 @@ int main(int argc, char **argv)
             { "pseudo-cycle", pseudo_cycle_test }, { "before-after", before_after_test},
             { "before-after2", before_after2_test }, { "log-via-pipe", log_via_pipe_test },
             { "catlog", catlog_test }, { "offline-enable", offline_enable_test },
-            { "xdg-config", xdg_config_test }, { "cycles", cycles_test } };
+            { "xdg-config", xdg_config_test }, { "cycles", cycles_test },
+            { "svc-arg", svc_arg_test } };
     constexpr int num_tests = sizeof(tests) / sizeof(tests[0]);
 
     dinit_bindir = "../..";
@@ -973,4 +975,24 @@ void cycles_test()
 
     igr_assert_eq(read_file_contents(igr_input_basedir + "/cycles/expected-after_self"),
             dinitctl_p.get_stderr());
+}
+
+void svc_arg_test()
+{
+    igr_test_setup setup("svc-arg");
+    std::string output_file = setup.prep_output_file("svc-arg-record");
+    std::string socket_path = setup.prep_socket_path();
+
+    igr_env_var_setup env_output("OUTPUT", output_file.c_str());
+
+    dinit_proc dinit_p;
+    dinit_p.start("svc-arg", {"-u", "-d", "sd", "-p", socket_path, "-q", "checkarg@foo"});
+    dinit_p.wait_for_term({1,0} /* max 1 second */);
+
+    check_file_contents(output_file, std::string() +
+            "test-$1\n" +
+            "test-hello\n" +
+            "hello\n" +
+            "foo\n" +
+            "foo\n");
 }
