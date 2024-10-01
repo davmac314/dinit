@@ -550,6 +550,7 @@ void bgproc_service::handle_exit_status() noexcept
         // We won't log a non-zero exit status or termination due to signal here -
         // we assume that the process died because we signalled it.
         if (stop_pid == -1 && !waiting_for_execstat) {
+            stop_issued = false;
             stopped();
         }
     }
