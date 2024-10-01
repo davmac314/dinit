@@ -737,6 +737,7 @@ bgproc_service::read_pid_file(proc_status_t *exit_status) noexcept
         if (waitid_r == -1 && errno == ECHILD) {
             // We can't track this child - check process exists:
             if (bp_sys::kill(pid, 0) == 0 || errno != ESRCH) {
+                log(loglevel_t::WARN, get_name(), ": unable to supervise process with pid ", pid);
                 tracking_child = false;
                 return pid_result_t::OK;
             }
