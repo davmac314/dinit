@@ -373,7 +373,7 @@ inline int signal_name_to_number(const std::string &signame) noexcept
 //
 // If env is set, dashes/dots are not allowed within names. They are not typically allowed by shells
 // and they interfere with substitution patterns.
-inline string read_config_name(string_iterator & i, string_iterator end, bool env = false) noexcept
+inline string read_config_name(string_iterator & i, string_iterator end, bool env = false, bool *num = nullptr) noexcept
 {
     using std::locale;
     using std::ctype;
@@ -387,6 +387,18 @@ inline string read_config_name(string_iterator & i, string_iterator end, bool en
     const ctype<char> & facet = use_facet<ctype<char>>(locale::classic());
 
     string rval;
+
+    // For environment lookups, integers are valid names (particularly for argument)
+    if (env && facet.is(ctype<char>::digit, *i)) {
+        while (facet.is(ctype<char>::digit, *i)) {
+            rval += *i;
+            ++i;
+        }
+        if (num) {
+            *num = true;
+        }
+        return rval;
+    }
 
     // Don't allow empty name, numeric digit, or dash/dot at start of setting name
     if (i == end || (*i == '-' || *i == '.' || facet.is(ctype<char>::digit, *i))) {
@@ -1031,7 +1043,7 @@ inline const char *resolve_env_var(const string &name, const environment::env_ma
 template <typename T>
 static void value_var_subst(const char *setting_name, std::string &line,
         std::list<std::pair<unsigned,unsigned>> &offsets, T &var_resolve,
-        environment::env_map const &envmap)
+        environment::env_map const *envmap, const char *argval)
 {
     auto dindx = line.find('$');
     if (dindx == string::npos) {
@@ -1074,10 +1086,16 @@ static void value_var_subst(const char *setting_name, std::string &line,
                 bool brace = line[spos] == '{';
                 if (brace) ++spos;
                 auto j = std::next(line.begin(), spos);
+                // may be a service argument
+                bool is_arg = false;
                 // read environment variable name
-                string name = read_config_name(j, token_end, true);
+                string name = read_config_name(j, token_end, true, &is_arg);
                 if (name.empty()) {
                     throw service_description_exc(setting_name, "invalid/missing variable name after '$'");
+                }
+                else if (is_arg && (name != "1" || !argval)) {
+                    // only one arg is supported and it must be present
+                    throw service_description_exc(setting_name, "missing value in argument substitution");
                 }
                 char altmode = '\0';
                 bool colon = false;
@@ -1106,7 +1124,7 @@ static void value_var_subst(const char *setting_name, std::string &line,
                 }
                 size_t line_len_before = r_line.size();
                 string_view resolved_vw;
-                auto *resolved = var_resolve(name, envmap);
+                auto *resolved = is_arg ? argval : (envmap ? var_resolve(name, *envmap) : nullptr);
                 if (resolved) {
                     resolved_vw = resolved;
                 }
@@ -1215,6 +1233,18 @@ static void value_var_subst(const char *setting_name, std::string &line,
     line = std::move(r_line);
 }
 
+// Reads a dependency name while performing minimal argument expansion in it.
+inline string read_dependency_value(const char *setting_name, file_pos_ref input_pos, string_iterator &i,
+        string_iterator end, std::list<std::pair<unsigned,unsigned>> &offsets, const char *argval)
+{
+    string rval;
+    read_setting_value(rval, setting_op_t::ASSIGN, input_pos, i, end, nullptr);
+    offsets.clear();
+    offsets.emplace_back(0, rval.size());
+    value_var_subst(setting_name, rval, offsets, resolve_env_var, nullptr, argval);
+    return rval;
+}
+
 // A wrapper type for service parameters. It is parameterised by dependency type.
 template <class dep_type>
 class service_settings_wrapper
@@ -1239,6 +1269,7 @@ class service_settings_wrapper
     list<dep_type> depends;
     list<std::string> before_svcs;
     list<std::string> after_svcs;
+    list<pair<unsigned,unsigned>> str_offsets; // stores offsets for any substutions where we don't care about them
     log_type_id log_type = log_type_id::NONE;
     string logfile;
     int logfile_perms = 0600;
@@ -1300,7 +1331,7 @@ class service_settings_wrapper
     //     var_subst - functor to resolve environment variable values
     template <bool propagate_sde = false, typename T, typename U = decltype(dummy_lint), typename V = decltype(resolve_env_var),
             bool do_report_lint = !std::is_same<U, decltype(dummy_lint)>::value>
-    void finalise(T &report_error, environment::env_map const &envmap, U &report_lint = dummy_lint, V &var_subst = resolve_env_var)
+    void finalise(T &report_error, environment::env_map const &envmap, const char *argval, U &report_lint = dummy_lint, V &var_subst = resolve_env_var)
     {
         if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS
                 || service_type == service_type_t::SCRIPTED) {
@@ -1377,14 +1408,11 @@ class service_settings_wrapper
 
         // Resolve paths via variable substitution
         {
-            std::list<std::pair<unsigned, unsigned>> offsets;
-            /* reserve item */
-            offsets.emplace_back(0, 0);
             auto do_resolve = [&](const char *setting_name, string &setting_value) {
                 try {
-                    offsets.front().first = 0;
-                    offsets.front().second = setting_value.size();
-                    value_var_subst(setting_name, setting_value, offsets, var_subst, envmap);
+                    str_offsets.clear();
+                    str_offsets.emplace_back(0, setting_value.size());
+                    value_var_subst(setting_name, setting_value, str_offsets, var_subst, &envmap, argval);
                 }
                 catch (service_description_exc &exc) {
                     if (propagate_sde) throw;
@@ -1460,7 +1488,7 @@ class service_settings_wrapper
 template <typename settings_wrapper,
     typename load_service_t,
     typename process_dep_dir_t>
-void process_service_line(settings_wrapper &settings, const char *name, string &line,
+void process_service_line(settings_wrapper &settings, const char *name, const char *arg, string &line,
         file_pos_ref input_pos, string &setting, setting_op_t setting_op, string::iterator &i,
         string::iterator &end, load_service_t load_service,
         process_dep_dir_t process_dep_dir)
@@ -1524,20 +1552,24 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
             break;
         case setting_id_t::DEPENDS_ON:
         {
-            string dependency_name = read_setting_value(input_pos, i, end);
-            settings.depends.emplace_back(load_service(dependency_name.c_str()), dependency_type::REGULAR);
+            string dependency_name = read_dependency_value(setting.c_str(), input_pos,
+                    i, end, settings.str_offsets, arg);
+            settings.depends.emplace_back(load_service(dependency_name.c_str()),
+                    dependency_type::REGULAR);
             break;
         }
         case setting_id_t::DEPENDS_MS:
         {
-            string dependency_name = read_setting_value(input_pos, i, end);
+            string dependency_name = read_dependency_value(setting.c_str(), input_pos,
+                    i, end, settings.str_offsets, arg);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::MILESTONE);
             break;
         }
         case setting_id_t::WAITS_FOR:
         {
-            string dependency_name = read_setting_value(input_pos, i, end);
+            string dependency_name = read_dependency_value(setting.c_str(), input_pos,
+                    i, end, settings.str_offsets, arg);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::WAITS_FOR);
             break;
@@ -1562,13 +1594,15 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         }
         case setting_id_t::AFTER:
         {
-            string after_name = read_setting_value(input_pos, i, end);
+            string after_name = read_dependency_value(setting.c_str(), input_pos,
+                    i, end, settings.str_offsets, arg);
             settings.after_svcs.emplace_back(std::move(after_name));
             break;
         }
         case setting_id_t::BEFORE:
         {
-            string before_name = read_setting_value(input_pos, i, end);
+            string before_name = read_dependency_value(setting.c_str(), input_pos,
+                    i, end, settings.str_offsets, arg);
             settings.before_svcs.emplace_back(std::move(before_name));
             break;
         }
