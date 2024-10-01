@@ -889,9 +889,6 @@ static int process_service_event(cpbuffer_t &rbuffer, unsigned pktlen, handle_t 
                     int exit_si_status = 0;
                     rbuffer.extract((char *)&exit_status, base_pkt_size + 6, sizeof(exit_status));
                     if (rbuffer[0] == (char)cp_info::SERVICEEVENT5) {
-                        if (pktlen < base_pkt_size + STATUS_BUFFER5_SIZE) {
-                            throw dinit_protocol_error();
-                        }
                         exit_si_code = exit_status;
                         rbuffer.extract((char *)&exit_si_status,
                                 base_pkt_size + 6 + sizeof(exit_si_code), sizeof(exit_si_status));
