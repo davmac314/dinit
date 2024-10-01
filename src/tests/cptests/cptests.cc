@@ -363,24 +363,25 @@ void cptest_startstop()
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1 + 7 + STATUS_BUFFER_SIZE /* ACK reply + info packet */
             + 7 + STATUS_BUFFER5_SIZE /* + v5 info packet */);
-    assert(wdata[0] == (char)cp_info::SERVICEEVENT);
 
-    // First info packet (original protocol):
-    // packetsize, key (handle), event
-    assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
+    // First info packet (v5 protocol):
+    assert(wdata[0] == (char)cp_info::SERVICEEVENT5);
     handle_t ip_h;
-    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
+    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h),
+            reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h);
     assert(wdata[6] == static_cast<int>(service_event_t::STARTED));
 
-    // 2nd info packet (v5 protocol):
-    unsigned idx = 7 + STATUS_BUFFER_SIZE;
-    assert(wdata[idx] == (char)cp_info::SERVICEEVENT5);
-    std::copy(wdata.data() + idx + 2, wdata.data() + idx + 2 + sizeof(ip_h),
-            reinterpret_cast<char *>(&ip_h));
+    // 2nd info packet (original protocol):
+    unsigned idx = 7 + STATUS_BUFFER5_SIZE;
+    assert(wdata[idx] == (char)cp_info::SERVICEEVENT);
+    // packetsize, key (handle), event
+    assert(wdata[idx + 1] == 7 + STATUS_BUFFER_SIZE);
+    std::copy(wdata.data() + idx + 2, wdata.data() + idx + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h);
     assert(wdata[idx + 6] == static_cast<int>(service_event_t::STARTED));
 
+    // Reply packet:
     constexpr unsigned reply_start = 7 + STATUS_BUFFER_SIZE + 7 + STATUS_BUFFER5_SIZE;
     // we get ALREADYSS since it started immediately:
     assert(wdata[reply_start] == (char)cp_rply::ALREADYSS);
@@ -397,21 +398,21 @@ void cptest_startstop()
     bp_sys::extract_written_data(fd, wdata);
     assert(wdata.size() == 1 + 7 + STATUS_BUFFER_SIZE + 7 + STATUS_BUFFER5_SIZE);
 
+    // v5 status packet:
+    assert(wdata[0] == (char)cp_info::SERVICEEVENT5);
+    // packet size, handle, event
+    assert(wdata[1] == 7 + STATUS_BUFFER5_SIZE);
+    std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
+    assert(ip_h == h);
+    assert(wdata[idx + 6] == static_cast<int>(service_event_t::STOPPED));
+
     // Original status packet:
-    assert(wdata[0] == (char)cp_info::SERVICEEVENT);
-    // packetsize, key (handle), event
-    assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
+    idx = 7 + STATUS_BUFFER5_SIZE;
+    assert(wdata[idx] == (char)cp_info::SERVICEEVENT);
+    assert(wdata[idx + 1] == 7 + STATUS_BUFFER_SIZE);
     std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h);
     assert(wdata[6] == static_cast<int>(service_event_t::STOPPED));
-
-    // v5 status packet:
-    idx = 7 + STATUS_BUFFER_SIZE;
-    assert(wdata[idx] == (char)cp_info::SERVICEEVENT5);
-    std::copy(wdata.data() + idx + 2, wdata.data() + idx + 2 + sizeof(ip_h),
-            reinterpret_cast<char *>(&ip_h));
-    assert(ip_h == h);
-    assert(wdata[idx + 6] == static_cast<int>(service_event_t::STOPPED));
 
     // we get ALREADYSS since it stopped immediately:
     assert(wdata[reply_start] == (char)cp_rply::ALREADYSS);
@@ -745,18 +746,20 @@ void cptest_enableservice()
 
     assert(wdata.size() == 1 + 7 + STATUS_BUFFER_SIZE + 7 + STATUS_BUFFER5_SIZE /* ACK reply + 2x info packet */);
 
-    // Original service event:
-    assert(wdata[0] == (char)cp_info::SERVICEEVENT);
-    // packetsize, key (handle), event
-    assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
+    // v5 service event:
+    assert(wdata[0] == (char)cp_info::SERVICEEVENT5);
+    // size, handle, event
+    assert(wdata[1] == 7 + STATUS_BUFFER5_SIZE);
     handle_t ip_h;
     std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h2);
     assert(wdata[6] == static_cast<int>(service_event_t::STARTED));
 
-    // v5 service event:
-    unsigned idx = 7 + STATUS_BUFFER_SIZE;
-    assert(wdata[idx] == (char)cp_info::SERVICEEVENT5);
+    // Original service event:
+    unsigned idx = 7 + STATUS_BUFFER5_SIZE;
+    assert(wdata[idx] == (char)cp_info::SERVICEEVENT);
+    // packetsize, key (handle), event
+    assert(wdata[idx + 1] == 7 + STATUS_BUFFER_SIZE);
     std::copy(wdata.data() + idx + 2, wdata.data() + idx + 2 + sizeof(ip_h),
             reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h2);
@@ -830,23 +833,25 @@ void cptest_restart()
     // info packet (service stopped) x 2 + ACK:
     assert(wdata.size() == 7 + STATUS_BUFFER_SIZE + 7 + STATUS_BUFFER5_SIZE + 1);
 
-    // Original info packet:
-    assert(wdata[0] == (char)cp_info::SERVICEEVENT);
-    assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
+    // v5 info packet:
+    assert(wdata[0] == (char)cp_info::SERVICEEVENT5);
+    assert(wdata[1] == 7 + STATUS_BUFFER5_SIZE);
     handle_t ip_h;
     std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h);
     assert(wdata[6] == static_cast<int>(service_event_t::STOPPED));
 
-    // v5 info packet:
-    unsigned idx = 7 + STATUS_BUFFER_SIZE;
-    assert(wdata[idx] == (char)cp_info::SERVICEEVENT5);
-    std::copy(wdata.data() + idx + 2, wdata.data() + idx + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
+    // Original info packet:
+    unsigned idx = 7 + STATUS_BUFFER5_SIZE;
+    assert(wdata[idx] == (char)cp_info::SERVICEEVENT);
+    assert(wdata[idx + 1] == 7 + STATUS_BUFFER_SIZE);
+    std::copy(wdata.data() + idx + 2, wdata.data() + idx + 2 + sizeof(ip_h),
+            reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h);
     assert(wdata[idx + 6] == static_cast<int>(service_event_t::STOPPED));
 
     // ACK:
-    idx += 7 + STATUS_BUFFER5_SIZE;
+    idx += 7 + STATUS_BUFFER_SIZE;
     assert(wdata[idx] == (char)cp_rply::ACK);
 
     sset.process_queues();
@@ -859,15 +864,16 @@ void cptest_restart()
     bp_sys::extract_written_data(fd, wdata);
 
     assert(wdata.size() == 7 + STATUS_BUFFER_SIZE + 7 + STATUS_BUFFER5_SIZE);  /* info packets */
-    assert(wdata[0] == (char)cp_info::SERVICEEVENT);
-    assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
+
+    assert(wdata[0] == (char)cp_info::SERVICEEVENT5);
+    assert(wdata[1] == 7 + STATUS_BUFFER5_SIZE);
     std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h);
     assert(wdata[6] == static_cast<int>(service_event_t::STARTED));
 
-    idx = 7 + STATUS_BUFFER_SIZE;
-    assert(wdata[idx] == (char)cp_info::SERVICEEVENT5);
-    assert(wdata[idx + 1] == 7 + STATUS_BUFFER5_SIZE);
+    idx = 7 + STATUS_BUFFER5_SIZE;
+    assert(wdata[idx] == (char)cp_info::SERVICEEVENT);
+    assert(wdata[idx + 1] == 7 + STATUS_BUFFER_SIZE);
     std::copy(wdata.data() + idx + 2, wdata.data() + idx + 2 + sizeof(ip_h),
             reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h);
@@ -917,24 +923,25 @@ void cptest_wake()
     // ACK + 2 x info packet
     assert(wdata.size() == 1 + 7 + STATUS_BUFFER_SIZE + 7 + STATUS_BUFFER5_SIZE);
 
-    // Original info packet:
-    assert(wdata[0] == (char)cp_info::SERVICEEVENT);
-    assert(wdata[1] == 7 + STATUS_BUFFER_SIZE);
+    // v5 info packet:
+    assert(wdata[0] == (char)cp_info::SERVICEEVENT5);
+    assert(wdata[1] == 7 + STATUS_BUFFER5_SIZE);
     handle_t ip_h;
     std::copy(wdata.data() + 2, wdata.data() + 2 + sizeof(ip_h), reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h1);
     assert(wdata[6] == static_cast<int>(service_event_t::STARTED));
 
-    // v5 info packet:
-    unsigned idx = 7 + STATUS_BUFFER_SIZE;
-    assert(wdata[idx] == (char)cp_info::SERVICEEVENT5);
+    // Original info packet:
+    unsigned idx = 7 + STATUS_BUFFER5_SIZE;
+    assert(wdata[idx] == (char)cp_info::SERVICEEVENT);
+    assert(wdata[idx + 1] == 7 + STATUS_BUFFER_SIZE);
     std::copy(wdata.data() + idx + 2, wdata.data() + idx + 2 + sizeof(ip_h),
             reinterpret_cast<char *>(&ip_h));
     assert(ip_h == h1);
     assert(wdata[idx + 6] == static_cast<int>(service_event_t::STARTED));
 
     // and then the ack (already started):
-    idx += 7 + STATUS_BUFFER5_SIZE;
+    idx += 7 + STATUS_BUFFER_SIZE;
     assert(wdata[idx] == (char)cp_rply::ALREADYSS);
 
     // now stop s2 (and therefore s1):
