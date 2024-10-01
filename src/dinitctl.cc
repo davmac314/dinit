@@ -917,7 +917,7 @@ static int wait_service_state(int socknum, cpbuffer_t &rbuffer, handle_t handle,
             unsigned pktlen = (unsigned char) rbuffer[1];
             fill_buffer_to(rbuffer, socknum, pktlen);
 
-            if (rbuffer[0] == (char)cp_info::SERVICEEVENT) {
+            if (value((cp_info)rbuffer[0]).is_in(cp_info::SERVICEEVENT, cp_info::SERVICEEVENT5)) {
                 int ret = process_service_event(rbuffer, pktlen, handle, service_name, do_stop, verbose);
                 if (ret >= 0) {
                     return ret;
