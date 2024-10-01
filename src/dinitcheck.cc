@@ -672,7 +672,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
             };
 
             try {
-                process_service_line(settings, name.c_str(), line, input_pos, setting, op, i, end,
+                process_service_line(settings, name.c_str(), nullptr, line, input_pos, setting, op, i, end,
                         load_service_n, process_dep_dir_n);
             }
             catch (service_description_exc &exc) {
@@ -746,7 +746,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
         return resolve_env_var(name, envmap);
     };
 
-    settings.finalise(report_err, renvmap, report_err, resolve_var);
+    settings.finalise(report_err, renvmap, nullptr, report_err, resolve_var);
 
     if (!settings.working_dir.empty()) {
         service_wdir = settings.working_dir;

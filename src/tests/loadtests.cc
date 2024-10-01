@@ -77,7 +77,7 @@ void test_env_subst2()
 
     dinit_load::read_setting_value(fpr, li, le, &offsets);
 
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
 
     assert(line == "test xa-a~ y${TWOVAR}hellohello$ONE_VAR");
 
@@ -104,7 +104,7 @@ void test_env_subst3()
     std::string::iterator li = line.begin();
     std::string::iterator le = line.end();
     dinit_load::read_setting_value(fpr, li, le, &offsets);
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
 
     auto check_arg = [&](unsigned idx, const char *val)
     {
@@ -118,7 +118,7 @@ void test_env_subst3()
     line = "test $EMPTY foo";
     li = line.begin(); le = line.end(); offsets.clear();
     dinit_load::read_setting_value(fpr, li, le, &offsets);
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
 
     assert(line == "test  foo");
     check_arg(1, "");
@@ -128,7 +128,7 @@ void test_env_subst3()
     line = "test $/EMPTY$/EMPTY$/EMPTY foo";
     li = line.begin(); le = line.end(); offsets.clear();
     dinit_load::read_setting_value(fpr, li, le, &offsets);
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
 
     assert(line == "test  foo");
     check_arg(1, "foo");
@@ -137,7 +137,7 @@ void test_env_subst3()
     line = "test $/EMPTY$EMPTY$/EMPTY foo";
     li = line.begin(); le = line.end(); offsets.clear();
     dinit_load::read_setting_value(fpr, li, le, &offsets);
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
 
     assert(line == "test  foo");
     check_arg(1, "");
@@ -147,7 +147,7 @@ void test_env_subst3()
     line = "test abc$/{EMPTY}def";
     li = line.begin(); le = line.end(); offsets.clear();
     dinit_load::read_setting_value(fpr, li, le, &offsets);
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
 
     assert(line == "test abcdef");
     check_arg(1, "abcdef");
@@ -156,7 +156,7 @@ void test_env_subst3()
     line = "test abc$/{WS}def";
     li = line.begin(); le = line.end(); offsets.clear();
     dinit_load::read_setting_value(fpr, li, le, &offsets);
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
 
     assert(line == "test abc def");
     check_arg(1, "abc");
@@ -166,7 +166,7 @@ void test_env_subst3()
     line = "test abc$/{PADDED}def";
     li = line.begin(); le = line.end(); offsets.clear();
     dinit_load::read_setting_value(fpr, li, le, &offsets);
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, tenvmap);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
 
     assert(line == "test abc p def");
     check_arg(1, "abc");
@@ -237,8 +237,8 @@ void test_settings()
             };
 
             try {
-                process_service_line(settings, "test-service", line, input_pos, setting, op, i, end,
-                        load_service_n, process_dep_dir_n);
+                process_service_line(settings, "test-service", nullptr, line, input_pos, setting,
+                        op, i, end, load_service_n, process_dep_dir_n);
             }
             catch (service_description_exc &exc) {
                 //report_service_description_exc(exc);
@@ -287,7 +287,7 @@ void test_path_env_subst()
 
     ss << "type = process\n"
             "command = /something/test\n"
-            "logfile = /some/$username/dir\n";
+            "logfile = /some/$1/$username/${1}/dir\n";
 
     file_input_stack input_stack;
     input_stack.add_source(ss.str(), "dummy");
@@ -307,8 +307,8 @@ void test_path_env_subst()
             };
 
             try {
-                process_service_line(settings, "test-service", line, input_pos, setting, op, i,
-                        end, load_service_n, process_dep_dir_n);
+                process_service_line(settings, "test-service", nullptr, line, input_pos, setting,
+                        op, i, end, load_service_n, process_dep_dir_n);
             }
             catch (service_description_exc &exc) {
                 //report_service_description_exc(exc);
@@ -327,11 +327,11 @@ void test_path_env_subst()
         return nullptr;
     };
 
-    settings.finalise(report_error, tenvmap, report_error /* lint */, resolve_var);
+    settings.finalise(report_error, tenvmap, "foo", report_error /* lint */, resolve_var);
 
     assert(settings.service_type == service_type_t::PROCESS);
     assert(settings.command == "/something/test");
-    assert(settings.logfile == "/some/testsuccess/dir");
+    assert(settings.logfile == "/some/foo/testsuccess/foo/dir");
 }
 
 void test_newline()
@@ -381,8 +381,8 @@ void test_newline_err()
                 return dep_name;
             };
 
-            process_service_line(settings, "test-service", line, input_pos, setting, op, i, end,
-                    load_service_n, process_dep_dir_n);
+            process_service_line(settings, "test-service", nullptr, line, input_pos, setting,
+                    op, i, end, load_service_n, process_dep_dir_n);
         });
     };
 
@@ -448,8 +448,8 @@ void test_newline2()
             };
 
             try {
-                process_service_line(settings, "test-service", line, input_pos, setting, op, i, end,
-                        load_service_n, process_dep_dir_n);
+                process_service_line(settings, "test-service", nullptr, line, input_pos,
+                        setting, op, i, end, load_service_n, process_dep_dir_n);
             }
             catch (service_description_exc &exc) {
                 //report_service_description_exc(exc);

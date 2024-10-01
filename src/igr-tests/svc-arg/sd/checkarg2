@@ -1,0 +1,3 @@
+type = scripted
+waits-for = checkarg3@hello
+command = ../checkarg.sh $1

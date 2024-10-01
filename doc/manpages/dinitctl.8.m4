@@ -163,6 +163,7 @@ Clear the log buffer for the service after displaying it.
 .TP
 \fIservice-name\fR
 Specifies the name of the service to which the command applies.
+It may have an argument that is passed to the service.
 .\"
 .SH COMMAND DESCRIPTIONS
 .\"
