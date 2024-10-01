@@ -1520,6 +1520,73 @@ void test_bgproc_start_fail_pid()
     sset.remove_service(&p);
 }
 
+void test_bgproc_restart_x2()
+{
+    using namespace std;
+
+    service_set sset;
+
+    ha_string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    bgproc_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_pid_file("/run/daemon.pid");
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    supply_pid_contents("/run/daemon.pid");
+
+    base_process_service_test::handle_exit(&p, 0);
+
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(event_loop.active_timers.size() == 0);
+
+    bp_sys::last_sig_sent = 0;
+
+    p.stop();
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(bp_sys::last_sig_sent == SIGTERM);
+
+    base_process_service_test::handle_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STOPPED);
+
+    // Start again:
+    p.start();
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTING);
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTING);
+    supply_pid_contents("/run/daemon.pid");
+    base_process_service_test::handle_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STARTED);
+
+    // Stop again:
+    bp_sys::last_sig_sent = 0;
+    p.stop();
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(bp_sys::last_sig_sent == SIGTERM);
+    base_process_service_test::handle_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STOPPED);
+
+    sset.remove_service(&p);
+}
+
 void test_bgproc_unexpected_term()
 {
     using namespace std;
@@ -2616,6 +2683,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_bgproc_start, "          ");
     RUN_TEST(test_bgproc_start_fail, "     ");
     RUN_TEST(test_bgproc_start_fail_pid, " ");
+    RUN_TEST(test_bgproc_restart_x2, "     ");
     RUN_TEST(test_bgproc_unexpected_term, "");
     RUN_TEST(test_bgproc_smooth_recover, " ");
     RUN_TEST(test_bgproc_smooth_recove2, " ");
