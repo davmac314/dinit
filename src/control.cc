@@ -1425,32 +1425,39 @@ void control_conn_t::service_event(service_record *service, service_event_t even
         while (i != end) {
             uint32_t key = i->second;
             std::vector<char> pkt;
-            constexpr int pktsize = 3 + sizeof(key) + STATUS_BUFFER_SIZE;
-            pkt.reserve(pktsize);
-            pkt.push_back((char)cp_info::SERVICEEVENT);
-            pkt.push_back(pktsize);
-            char *p = (char *)&key;
-            for (unsigned j = 0; j < sizeof(key); j++) {
-                pkt.push_back(*p++);
-            }
-            pkt.push_back(static_cast<char>(event));
-            pkt.resize(pktsize);
-            fill_status_buffer(pkt.data() + 3 + sizeof(key), service);
-            queue_packet(std::move(pkt));
+
+            // There are two types of service event packet: v5+, and the original. For backwards
+            // compatibility, we send both. The new packet is sent first since this simplifies
+            // things for the client (eg if waiting for an event, the client will receive the
+            // packet with the most information first).
 
             // packet type (byte) + packet length (byte) + event type (byte) + key + status buffer
-            pkt.clear();
             constexpr int pktsize5 = 3 + sizeof(key) + STATUS_BUFFER5_SIZE;
             pkt.reserve(pktsize5);
             pkt.push_back((char)cp_info::SERVICEEVENT5);
             pkt.push_back(pktsize5);
-            p = (char *)&key;
+            char *p = (char *)&key;
             for (unsigned j = 0; j < sizeof(key); j++) {
                 pkt.push_back(*p++);
             }
             pkt.push_back(static_cast<char>(event));
             pkt.resize(pktsize5);
             fill_status_buffer5(pkt.data() + 3 + sizeof(key), service);
+            queue_packet(std::move(pkt));
+
+            pkt.clear();
+
+            constexpr int pktsize = 3 + sizeof(key) + STATUS_BUFFER_SIZE;
+            pkt.reserve(pktsize);
+            pkt.push_back((char)cp_info::SERVICEEVENT);
+            pkt.push_back(pktsize);
+            p = (char *)&key;
+            for (unsigned j = 0; j < sizeof(key); j++) {
+                pkt.push_back(*p++);
+            }
+            pkt.push_back(static_cast<char>(event));
+            pkt.resize(pktsize);
+            fill_status_buffer(pkt.data() + 3 + sizeof(key), service);
             queue_packet(std::move(pkt));
 
             ++i;
