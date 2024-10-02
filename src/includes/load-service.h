@@ -1556,9 +1556,8 @@ void process_service_line(settings_wrapper &settings, const char *name, string &
         }
         case setting_id_t::DEPENDS_MS_D:
         {
-            string dependency_name = read_setting_value(input_pos, i, end);
-            settings.depends.emplace_back(load_service(dependency_name.c_str()),
-                    dependency_type::MILESTONE);
+            string depends_ms_d = read_setting_value(input_pos, i, end);
+            process_dep_dir(settings.depends, depends_ms_d, dependency_type::MILESTONE);
             break;
         }
         case setting_id_t::AFTER:
