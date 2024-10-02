@@ -568,7 +568,8 @@ Specifies that this service uses the console; its input and output should be
 directed to the console (or precisely, to the device to which \fBdinit\fR's standard
 output stream is connected).
 A service running on the console prevents other services from running on the
-console (they will queue for the console).
+console (they will queue for access to the console), and inhibits \fBdinit\fR's own output to it
+(some output will be buffered and displayed later, but some may be dropped completely).
 .IP
 Proper operation of this option (and related options) assumes that \fBdinit\fR
 is itself attached correctly to the console device (or a terminal, in which case
