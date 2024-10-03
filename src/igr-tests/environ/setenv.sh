@@ -9,7 +9,7 @@ case "$1" in
         fi
         ;;
     setenv2)
-        if [ "$FOO" = "foo" ]; then
+        if [ "$FOO" = "foo" -a -z "$BAR" ]; then
             echo 2 >> "$OUTPUT"
             export BAR=bar
             "$DINITCTL" -p "$SOCKET" setenv BAR BAZ=baz
@@ -17,6 +17,7 @@ case "$1" in
         ;;
     setenv3)
         "$DINITCTL" -p "$SOCKET" setenv FOO=foo
+        "$DINITCTL" -p "$SOCKET" unsetenv BAR
         echo 3 >> "$OUTPUT"
         ;;
     *) ;;

@@ -175,6 +175,7 @@ void environ_test()
     igr_env_var_setup env_output("OUTPUT", output_file.c_str());
     igr_env_var_setup env_socket("SOCKET", socket_path.c_str());
     igr_env_var_setup env_dinitctl("DINITCTL", (dinit_bindir + "/dinitctl").c_str());
+    igr_env_var_setup env_bar("BAR", "to_be_unset");
 
     dinit_proc dinit_p;
     dinit_p.start("environ", {"-u", "-d", "sd", "-p", socket_path, "-q", "-e", "environment1", "checkenv"});

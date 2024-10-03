@@ -11,7 +11,7 @@
 // 3 - dinit 0.17.1 (adds QUERYSERVICEDSCDIR)
 // 4 - dinit 0.18.0 (adds CLOSEHANDLE, GETALLENV)
 // 5 - (unreleased) (process status now represented as ([int]si_code + [int]si_status) rather than
-//                   a single integer; SERVICEEVENT5 sent alongside SERVICEEVENT)
+//                   a single integer; SERVICEEVENT5 sent alongside SERVICEEVENT; adds LISTENENV, ENVEVENT)
 
 // Requests:
 enum class cp_cmd : dinit_cptypes::cp_cmd_t {
@@ -87,6 +87,9 @@ enum class cp_cmd : dinit_cptypes::cp_cmd_t {
 
     // Query status of an individual service (5+)
     SERVICESTATUS5 = 26,
+
+    // Start listening to environment events
+    LISTENENV = 27,
 };
 
 // Replies:
@@ -175,6 +178,8 @@ enum class cp_info : dinit_cptypes::cp_info_t {
     SERVICEEVENT = 100,
     // Service event for protocol version 5+ - 4 byte handle, 1 byte event code, proc_status_t status
     SERVICEEVENT5 = 101,
+    // Environment event; 2 bytes length + env string
+    ENVEVENT = 102,
 };
 
 #endif
