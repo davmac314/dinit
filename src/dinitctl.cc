@@ -58,7 +58,7 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, con
         const char *service_to, dependency_type dep_type, bool verbose);
 static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_opt &service_dir_opts,
         const char *from, const char *to, bool enable, bool verbose, uint16_t proto_version);
-static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names);
+static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names, bool unset);
 static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool trigger_value);
 static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool do_clear);
 static int signal_send(int socknum, cpbuffer_t &rbuffer, const char *service_name, sig_num_t sig_num);
@@ -82,6 +82,7 @@ enum class ctl_cmd {
     ENABLE_SERVICE,
     DISABLE_SERVICE,
     SETENV,
+    UNSETENV,
     SET_TRIGGER,
     UNSET_TRIGGER,
     CAT_LOG,
@@ -277,6 +278,9 @@ int dinitctl_main(int argc, char **argv)
             else if (strcmp(argv[i], "setenv") == 0) {
                 command = ctl_cmd::SETENV;
             }
+            else if (strcmp(argv[i], "unsetenv") == 0) {
+                command = ctl_cmd::UNSETENV;
+            }
             else if (strcmp(argv[i], "trigger") == 0) {
                 command = ctl_cmd::SET_TRIGGER;
             }
@@ -365,8 +369,8 @@ int dinitctl_main(int argc, char **argv)
     else if (command == ctl_cmd::ENABLE_SERVICE || command == ctl_cmd::DISABLE_SERVICE) {
         cmdline_error |= (to_service_name == nullptr);
     }
-    else if (command == ctl_cmd::SETENV) {
-        // Handle SETENV specially, since it needs arguments but they are not service names
+    else if (command == ctl_cmd::SETENV || command == ctl_cmd::UNSETENV) {
+        // Handle (UN)SETENV specially, since it needs arguments but they are not service names
         if (cmd_args.empty()) {
             cmdline_error = true;
         }
@@ -460,6 +464,7 @@ int dinitctl_main(int argc, char **argv)
           "    dinitctl [options] trigger <service-name>\n"
           "    dinitctl [options] untrigger <service-name>\n"
           "    dinitctl [options] setenv [name[=value] ...]\n"
+          "    dinitctl [options] unsetenv [name ...]\n"
           "    dinitctl [options] catlog <service-name>\n"
           "    dinitctl [options] signal <signal> <service-name>\n"
           "\n"
@@ -591,8 +596,8 @@ int dinitctl_main(int argc, char **argv)
             return enable_disable_service(socknum, rbuffer, service_dir_opts, service_name, to_service_name,
                     command == ctl_cmd::ENABLE_SERVICE, verbose, daemon_protocol_ver);
         }
-        else if (command == ctl_cmd::SETENV) {
-            return do_setenv(socknum, rbuffer, cmd_args);
+        else if (command == ctl_cmd::SETENV || command == ctl_cmd::UNSETENV) {
+            return do_setenv(socknum, rbuffer, cmd_args, command == ctl_cmd::UNSETENV);
         }
         else if (command == ctl_cmd::SET_TRIGGER || command == ctl_cmd::UNSET_TRIGGER) {
             if (daemon_protocol_ver < 2) {
@@ -2193,7 +2198,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
     return 0;
 }
 
-static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names)
+static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names, bool unset)
 {
     using namespace std;
 
@@ -2210,13 +2215,18 @@ static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *>
         // either full var or name
         auto elen = strlen(envp);
         buf.append(envp, elen);
-        // if '=' not found, get value from environment
-        if (!memchr(envp, '=', elen)) {
+        // if '=' not found, get value from environment, except for unset
+        auto eq = memchr(envp, '=', elen);
+        if (!eq && !unset) {
             buf.push_back('=');
             auto *envv = getenv(envp);
             if (envv) {
                 buf.append(envv);
             }
+        }
+        else if (eq && unset) {
+            cerr << "dinitctl: environment variable '" << envp << "' must not contain the '=' sign." << endl;
+            return 1;
         }
         envvar_len = buf.size() - hdr_len;
         // sanitize length early on

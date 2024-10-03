@@ -69,6 +69,9 @@ dinitctl \- control services supervised by Dinit
 [\fIoptions\fR] \fBsetenv\fR [\fIname\fR[=\fIvalue\fR] \fI...\fR]
 .HP
 .B dinitctl
+[\fIoptions\fR] \fBunsetenv\fR [\fIname\fR \fI...\fR]
+.HP
+.B dinitctl
 [\fIoptions\fR] \fBcatlog\fR [\fB--clear\fR] \fIservice-name\fR
 .HP
 .B dinitctl
@@ -321,6 +324,10 @@ The value can be provided on the command line or retrieved from the environment 
 called in.
 Any subsequently started or restarted service will have these environment variables available.
 This is particularly useful for user services that need access to session information.
+.TP
+\fBunsetenv\fR
+Unset one or more variables in the activation environment.
+Any subsequently started or restarted service will have these environment variables unset.
 .TP
 \fBcatlog\fR
 Show the contents of the log buffer for the named service.

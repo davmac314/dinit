@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <cstring>
 #include <csignal>
@@ -32,10 +33,13 @@ struct stringview {
 static std::vector<stringview> split_command(const char *cmd);
 static bool load_service(int socknum, cpbuffer_t &rbuffer, const char *name, handle_t *handle,
         service_state_t *state);
+static void request_environ(int socknum, cpbuffer_t &rbuffer, uint16_t proto_version);
+static size_t get_allenv(int socknum, cpbuffer_t &rbuffer);
 
 // dummy handler, so we can wait for children
 static void sigchld_handler(int) { }
-void issue_command(const char* service_name, const char* event_str,std::vector<stringview> &command_parts);
+static void issue_command(const char* name, const char* value, const char* event, std::vector<stringview> &command_parts, bool is_env = false);
+static size_t read_var_and_issue(int socknum, cpbuffer_t &rbuffer, size_t dsz, const std::unordered_set<std::string> &varset, std::string &enval, std::vector<stringview> &command_parts, bool &issued, const char* str_set, const char* str_unset);
 
 int dinit_monitor_main(int argc, char **argv)
 {
@@ -44,9 +48,13 @@ int dinit_monitor_main(int argc, char **argv)
     const char *control_socket_path = nullptr;
     bool user_dinit = (getuid() != 0);  // communicate with user daemon
     bool issue_init = false;  // request initial service state
+    bool use_environ = false;  // listening on activation environment changes
+    bool exit_after = false;  // exit after first issued command
     const char *str_started = "started";
     const char *str_stopped = "stopped";
     const char *str_failed = "failed";
+    const char *str_set = "set";
+    const char *str_unset = "unset";
 
     const char *command_str = nullptr;
     std::vector<const char *> services;
@@ -60,6 +68,12 @@ int dinit_monitor_main(int argc, char **argv)
             else if (strcmp(argv[i], "--version") == 0) {
                 std::cout << "Dinit version " << DINIT_VERSION << ".\n";
                 return 0;
+            }
+            else if (strcmp(argv[i], "--exit") == 0 || strcmp(argv[i], "-e") == 0) {
+                exit_after = true;
+            }
+            else if (strcmp(argv[i], "--env") == 0 || strcmp(argv[i], "-E") == 0) {
+                use_environ = true;
             }
             else if (strcmp(argv[i], "--system") == 0 || strcmp(argv[i], "-s") == 0) {
                 user_dinit = false;
@@ -102,7 +116,23 @@ int dinit_monitor_main(int argc, char **argv)
                 }
                 str_failed = argv[i];
             }
-            else if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--command")) {
+            else if (strcmp(argv[i], "--str-set") == 0) {
+                ++i;
+                if (i == argc) {
+                    std::cerr << "dinit-monitor: --str-set should be followed by an argument\n";
+                    return 1;
+                }
+                str_set = argv[i];
+            }
+            else if (strcmp(argv[i], "--str-unset") == 0) {
+                ++i;
+                if (i == argc) {
+                    std::cerr << "dinit-monitor: --str-unset should be followed by an argument\n";
+                    return 1;
+                }
+                str_unset = argv[i];
+            }
+            else if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--command") == 0) {
                 ++i;
                 if (i == argc) {
                     std::cerr << "dinit-monitor: --command/-c should be followed by command\n";
@@ -120,10 +150,12 @@ int dinit_monitor_main(int argc, char **argv)
         std::cout << "dinit-monitor:   monitor Dinit services\n"
                 "\n"
                 "Usage:\n"
-                "    dinit-monitor [options] <service-names...>\n"
+                "    dinit-monitor [options] <service-names|environ-names...>\n"
                 "\n"
                 "Options:\n"
                 "  --help           : show this help\n"
+                "  -e, --exit       : exit after the first issued command\n"
+                "  -E, --env        : monitor activation environment changes\n"
                 "  -s, --system     : monitor system daemon (default if run as root)\n"
                 "  -u, --user       : monitor user daemon\n"
                 "  -i, --initial    : also execute command for initial service state\n"
@@ -140,7 +172,7 @@ int dinit_monitor_main(int argc, char **argv)
         return 1;
     }
 
-    if (services.empty()) {
+    if (services.empty() && !use_environ) {
         std::cerr << "dinit-monitor: specify at least one service name\n";
         return 1;
     }
@@ -182,16 +214,24 @@ int dinit_monitor_main(int argc, char **argv)
 
         // Start by querying protocol version:
         cpbuffer_t rbuffer;
-        check_protocol_version(min_cp_version, max_cp_version, rbuffer, socknum);
+        uint16_t protocol_ver = check_protocol_version(min_cp_version, max_cp_version, rbuffer, socknum);
 
         // Load all services
         std::unordered_map<handle_t, const char *> service_map;
+        std::unordered_set<std::string> environ_set;
         std::vector<std::pair<const char *, service_state_t>> service_init_state;
+        std::string env_value;
 
         for (const char *service_name : services) {
 
             handle_t hndl;
             service_state_t state;
+
+            if (use_environ) {
+                environ_set.emplace(service_name);
+                continue;
+            }
+
             if (!load_service(socknum, rbuffer, service_name, &hndl, &state)) {
                 std::cerr << "dinit-monitor: cannot load service: " << service_name << "\n";
                 return 1;
@@ -201,14 +241,35 @@ int dinit_monitor_main(int argc, char **argv)
             service_init_state.push_back(std::make_pair(service_name, state));
         }
 
-        // Issue initial status commands if requested
-        if (issue_init) {
+        if (use_environ) {
+            // Request listening on environ events
+            request_environ(socknum, rbuffer, protocol_ver);
+            if (issue_init) {
+                // Get the whole block and see if it's already set
+                auto envsz = get_allenv(socknum, rbuffer);
+                while (envsz > 0) {
+                    bool issued;
+                    envsz = read_var_and_issue(socknum, rbuffer, envsz, environ_set, env_value, command_parts, issued, str_set, str_unset);
+                    if (issued && exit_after) {
+                        return 0;
+                    }
+                }
+            }
+        }
+        else if (issue_init) {
+            // Issue initial status commands if requested
             for (auto state : service_init_state ) {
                 if (state.second == service_state_t::STARTED) {
-                    issue_command(state.first, str_started, command_parts);
+                    issue_command(state.first, nullptr, str_started, command_parts);
+                    if (exit_after) {
+                        return 0;
+                    }
                 }
                 else if (state.second == service_state_t::STOPPED) {
-                    issue_command(state.first, str_stopped, command_parts);
+                    issue_command(state.first, nullptr, str_stopped, command_parts);
+                    if (exit_after) {
+                        return 0;
+                    }
                 }
             }
         }
@@ -221,7 +282,18 @@ int dinit_monitor_main(int argc, char **argv)
                 int pktlen = (unsigned char) rbuffer[1];
                 fill_buffer_to(rbuffer, socknum, pktlen);
 
-                if (rbuffer[0] == (char)cp_info::SERVICEEVENT) {
+                if (use_environ && rbuffer[0] == (char)cp_info::ENVEVENT) {
+                    envvar_len_t envln;
+                    rbuffer.extract((char *) &envln, 3, sizeof(envln));
+                    rbuffer.consume(pktlen);
+                    // this will return 0, we don't want to consume after this
+                    bool issued;
+                    pktlen = read_var_and_issue(socknum, rbuffer, envln, environ_set, env_value, command_parts, issued, str_set, str_unset);
+                    if (issued && exit_after) {
+                        return 0;
+                    }
+                }
+                else if (!use_environ && rbuffer[0] == (char)cp_info::SERVICEEVENT) {
                     handle_t ev_handle;
                     rbuffer.extract((char *) &ev_handle, 2, sizeof(ev_handle));
                     service_event_t event = static_cast<service_event_t>(rbuffer[2 + sizeof(ev_handle)]);
@@ -241,7 +313,10 @@ int dinit_monitor_main(int argc, char **argv)
                     else {
                         goto consume_packet;
                     }
-                    issue_command(service_name, event_str, command_parts);
+                    issue_command(service_name, nullptr, event_str, command_parts);
+                    if (exit_after) {
+                        return 0;
+                    }
                 }
 
                 consume_packet:
@@ -298,7 +373,7 @@ int dinit_monitor_main(int argc, char **argv)
 }
 
 
-void issue_command(const char* service_name, const char* event_str, std::vector<stringview> &command_parts) {
+static void issue_command(const char* name, const char* value, const char* event, std::vector<stringview> &command_parts, bool is_env) {
     std::vector<std::string> final_cmd_parts;
     std::vector<const char *> final_cmd_parts_cstr;
 
@@ -314,10 +389,13 @@ void issue_command(const char* service_name, const char* event_str, std::vector<
                     break;
                 }
                 if (cmd_part.str[i] == 'n') {
-                    cmd_part_str.append(service_name);
+                    cmd_part_str.append(name);
+                }
+                else if (cmd_part.str[i] == 'v') {
+                    if (value) cmd_part_str.append(value);
                 }
                 else if (cmd_part.str[i] == 's') {
-                    cmd_part_str.append(event_str);
+                    cmd_part_str.append(event);
                 }
                 else {
                     // invalid specifier, just output as is
@@ -479,4 +557,104 @@ static bool load_service(int socknum, cpbuffer_t &rbuffer, const char *name, han
     }
 
     return true;
+}
+
+static void request_environ(int socknum, cpbuffer_t &rbuffer, uint16_t proto_version)
+{
+    char c = (char)cp_cmd::LISTENENV;
+
+    if (proto_version < 5) {
+        throw cp_old_server_exception();
+    }
+
+    write_all_x(socknum, &c, 1);
+
+    wait_for_reply(rbuffer, socknum);
+
+    cp_rply reply_pkt_h = (cp_rply)rbuffer[0];
+    if (reply_pkt_h != cp_rply::ACK) {
+        throw dinit_protocol_error();
+    }
+    rbuffer.consume(1);
+}
+
+// get the whole environment block of the dinit instance in a way
+// that leaves individual variables available for read, without
+// the packet header; that allows read_var_and_issue to be used
+static size_t get_allenv(int socknum, cpbuffer_t &rbuffer)
+{
+    char buf[2] = { (char)cp_cmd::GETALLENV, 0 };
+    write_all_x(socknum, buf, 2);
+
+    wait_for_reply(rbuffer, socknum);
+
+    cp_rply reply_pkt_h = (cp_rply)rbuffer[0];
+    if (reply_pkt_h != cp_rply::ALLENV) {
+        throw dinit_protocol_error();
+    }
+
+    // 1-byte packet header, then size_t
+    constexpr size_t allenv_hdr_size = 1 + sizeof(size_t);
+    rbuffer.fill_to(socknum, allenv_hdr_size);
+
+    size_t dsize;
+    rbuffer.extract(&dsize, 1, sizeof(dsize));
+    rbuffer.consume(allenv_hdr_size);
+
+    return dsize;
+}
+
+static bool issue_var(std::string &envar, const std::unordered_set<std::string> &varset, std::vector<stringview> &command_parts,
+        const char* str_set, const char* str_unset)
+{
+    auto eq = envar.find('=');
+    if (eq == envar.npos) {
+        /* unset */
+        eq = envar.size();
+    }
+    auto *sp = &envar[0];
+    sp[eq] = '\0';
+    if (varset.empty() || varset.find(sp) != varset.end()) {
+        if (eq == envar.size()) {
+            issue_command(sp, nullptr, str_unset, command_parts, true);
+        }
+        else {
+            issue_command(sp, &sp[eq + 1], str_set, command_parts, true);
+        }
+        return true;
+    }
+    return false;
+}
+
+static size_t read_var_and_issue(int socknum, cpbuffer_t &rbuffer, size_t dsz, const std::unordered_set<std::string> &varset,
+        std::string &enval, std::vector<stringview> &command_parts, bool &issued, const char* str_set, const char *str_unset)
+{
+    enval.clear();
+    issued = false;
+    while (dsz > 0) {
+        auto colen = rbuffer.get_contiguous_length(rbuffer.get_ptr(0));
+        auto chlen = std::min((size_t)colen, dsz);
+        for (unsigned i = 0; i < chlen; ++i) {
+            if (rbuffer[i] != '\0') {
+                continue;
+            }
+            enval.append(rbuffer.get_ptr(0), rbuffer.get_ptr(0) + i);
+            rbuffer.consume(i + 1);
+            issued = issue_var(enval, varset, command_parts, str_set, str_unset);
+            return dsz - i - 1;
+        }
+        // copy what we have so far and fill some more
+        enval.append(rbuffer.get_ptr(0), rbuffer.get_ptr(0) + chlen);
+        rbuffer.consume(chlen);
+        dsz -= chlen;
+        if (dsz == 0) {
+            // didn't find null terminator, malformed
+            throw dinit_protocol_error();
+        }
+        if (rbuffer.get_length() == 0) {
+            fill_some(rbuffer, socknum);
+        }
+    }
+    // unreachable
+    throw dinit_protocol_error();
 }
