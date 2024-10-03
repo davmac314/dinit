@@ -1206,6 +1206,114 @@ void cptest_invalid()
     delete cc;
 }
 
+void cptest_envevent()
+{
+    service_set sset;
+    int fd = bp_sys::allocfd();
+    auto *cc = new control_conn_t(event_loop, &sset, fd);
+
+    // Listen on environment:
+    std::vector<char> cmd = { (char)cp_cmd::LISTENENV };
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    std::vector<char> wdata;
+    bp_sys::extract_written_data(fd, wdata);
+    assert(wdata.size() == 1 /* ACK reply */);
+
+    // Issue a setenv:
+    cmd = { (char)cp_cmd::SETENV };
+
+    const char *envn = "FOO=bar";
+    envvar_len_t envl = strlen(envn);
+    cmd.insert(cmd.end(), (char *)&envl, ((char *)&envl) + sizeof(envl));
+    cmd.insert(cmd.end(), envn, envn + envl);
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    bp_sys::extract_written_data(fd, wdata);
+
+    // Environment event
+    // packet type (1), packet length (1), flags (1), data (envl + 1)
+    assert(wdata[0] == (char)cp_info::ENVEVENT);
+    assert(wdata[1] == 3 + sizeof(envl));
+    assert(wdata[2] == 0);
+    envl += 1; // null terminator
+    assert(memcmp(&envl, &wdata[3], sizeof(envl)) == 0);
+    assert(strcmp(&wdata[3 + sizeof(envl)], envn) == 0);
+
+    // Override setenv
+    cmd = { (char)cp_cmd::SETENV };
+
+    envn = "FOO=baz";
+    envl = strlen(envn);
+    cmd.insert(cmd.end(), (char *)&envl, ((char *)&envl) + sizeof(envl));
+    cmd.insert(cmd.end(), envn, envn + envl);
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    bp_sys::extract_written_data(fd, wdata);
+
+    // Environment event
+    assert(wdata[0] == (char)cp_info::ENVEVENT);
+    assert(wdata[1] == 3 + sizeof(envl));
+    assert(wdata[2] != 0);
+    envl += 1; // null terminator
+    assert(memcmp(&envl, &wdata[3], sizeof(envl)) == 0);
+    assert(strcmp(&wdata[3 + sizeof(envl)], envn) == 0);
+
+    // Unset setenv
+    cmd = { (char)cp_cmd::SETENV };
+
+    envn = "FOO";
+    envl = strlen(envn);
+    cmd.insert(cmd.end(), (char *)&envl, ((char *)&envl) + sizeof(envl));
+    cmd.insert(cmd.end(), envn, envn + envl);
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata[0] == (char)cp_info::ENVEVENT);
+    assert(wdata[1] == 3 + sizeof(envl));
+    assert(wdata[2] != 0);
+    envl += 1; // null terminator
+    assert(memcmp(&envl, &wdata[3], sizeof(envl)) == 0);
+    assert(strcmp(&wdata[3 + sizeof(envl)], envn) == 0);
+
+    // Unset setenv again to check override flag
+    cmd = { (char)cp_cmd::SETENV };
+
+    envn = "FOO";
+    envl = strlen(envn);
+    cmd.insert(cmd.end(), (char *)&envl, ((char *)&envl) + sizeof(envl));
+    cmd.insert(cmd.end(), envn, envn + envl);
+
+    bp_sys::supply_read_data(fd, std::move(cmd));
+
+    event_loop.regd_bidi_watchers[fd]->read_ready(event_loop, fd);
+
+    bp_sys::extract_written_data(fd, wdata);
+
+    assert(wdata[0] == (char)cp_info::ENVEVENT);
+    assert(wdata[1] == 3 + sizeof(envl));
+    assert(wdata[2] == 0);
+    envl += 1; // null terminator
+    assert(memcmp(&envl, &wdata[3], sizeof(envl)) == 0);
+    assert(strcmp(&wdata[3 + sizeof(envl)], envn) == 0);
+
+    delete cc;
+}
+
+
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
@@ -1234,5 +1342,6 @@ int main(int argc, char **argv)
     RUN_TEST(cptest_two_commands, "       ");
     RUN_TEST(cptest_closehandle, "        ");
     RUN_TEST(cptest_invalid, "            ");
+    RUN_TEST(cptest_envevent, "           ");
     return 0;
 }

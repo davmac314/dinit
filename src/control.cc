@@ -111,6 +111,8 @@ bool control_conn_t::process_packet()
             return process_setenv();
         case cp_cmd::GETALLENV:
             return process_getallenv();
+        case cp_cmd::LISTENENV:
+            return process_listenenv();
         case cp_cmd::SETTRIGGER:
             return process_set_trigger();
         case cp_cmd::CATLOG:
@@ -1076,12 +1078,18 @@ bool control_conn_t::process_setenv()
     envVar = rbuf.extract_string(3, envvar_len);
 
     eq = envVar.find('=');
-    if (!eq || eq == envVar.npos) {
-        // Not found or at the beginning of the string
+    if (eq == envVar.npos) {
+        // Unset the env var
+        main_env.undefine_var(std::move(envVar), true);
+    }
+    else if (eq) {
+        // Regular set
+        main_env.set_var(std::move(envVar), true);
+    }
+    else {
+        // At the beginning of the string
         goto badreq;
     }
-
-    main_env.set_var(std::move(envVar));
 
     // Success response
     if (!queue_packet(okRep, 1)) return false;
@@ -1139,6 +1147,17 @@ bool control_conn_t::process_getallenv()
     memcpy(env_block.data() + 1, &block_size, sizeof(block_size));
     if (!queue_packet(std::move(env_block))) return false;
     return true;
+}
+
+bool control_conn_t::process_listenenv()
+{
+    // 1 byte packet type, nothing else
+    rbuf.consume(1);
+
+    main_env.add_listener(this);
+
+    char ack_rep[] = { (char)cp_rply::ACK };
+    return queue_packet(ack_rep, 1);
 }
 
 bool control_conn_t::process_set_trigger()
@@ -1468,6 +1487,28 @@ void control_conn_t::service_event(service_record *service, service_event_t even
     }
 }
 
+void control_conn_t::environ_event(environment *env, std::string const &var_and_val, bool overridden) noexcept
+{
+    // packet type (byte) + packet length (byte) + flags byte + data size + data
+    // flags byte can be 1 or 0 for now, 1 if the var was overridden and 0 if fresh
+    constexpr int pktsize = 3 + sizeof(envvar_len_t);
+    envvar_len_t ln = var_and_val.size() + 1;
+    auto *ptr = var_and_val.data();
+
+    try {
+        std::vector<char> pkt;
+        pkt.reserve(pktsize + ln);
+        pkt.push_back((char)cp_info::ENVEVENT);
+        pkt.push_back(pktsize);
+        pkt.push_back(overridden ? 1 : 0);
+        pkt.insert(pkt.end(), (char *)&ln, ((char *)&ln) + sizeof(envvar_len_t));
+        pkt.insert(pkt.end(), ptr, ptr + ln);
+        queue_packet(std::move(pkt));
+    } catch (std::bad_alloc &exc) {
+        do_oom_close();
+    }
+}
+
 bool control_conn_t::queue_packet(const char *pkt, unsigned size) noexcept
 {
     bool was_empty = outbuf.empty();
@@ -1671,6 +1712,7 @@ control_conn_t::~control_conn_t() noexcept
     for (auto p : service_key_map) {
         p.first->remove_listener(this);
     }
+    main_env.remove_listener(this);
     
     active_control_conns--;
 }

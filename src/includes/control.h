@@ -12,6 +12,7 @@
 
 #include <dinit.h>
 #include <dinit-log.h>
+#include <dinit-env.h>
 #include <control-cmds.h>
 #include <service-listener.h>
 #include <cpbuffer.h>
@@ -81,7 +82,7 @@ class control_conn_watcher : public eventloop_t::bidi_fd_watcher_impl<control_co
     }
 };
 
-class control_conn_t : private service_listener
+class control_conn_t : private service_listener, private env_listener
 {
     friend rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents);
     friend class control_conn_t_test;
@@ -190,6 +191,9 @@ class control_conn_t : private service_listener
     // Get the complete environment
     bool process_getallenv();
 
+    // Listen to environment events
+    bool process_listenenv();
+
     // Notify that data is ready to be read from the socket. Returns true if the connection should
     // be closed.
     bool data_ready() noexcept;
@@ -226,6 +230,9 @@ class control_conn_t : private service_listener
     // Note that this can potentially be called during packet processing (upon issuing
     // service start/stop orders etc).
     void service_event(service_record *service, service_event_t event) noexcept final override;
+
+    // Process environment event broadcast.
+    void environ_event(environment *env, std::string const &var_and_val, bool overridden) noexcept final override;
     
     public:
     control_conn_t(eventloop_t &loop, service_set * services_p, int fd)

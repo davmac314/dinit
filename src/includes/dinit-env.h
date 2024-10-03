@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <string>
 
 #include <dinit-util.h>
@@ -62,6 +63,14 @@ struct env_equal_name
     }
 };
 
+// Interface for listening to environment
+class env_listener
+{
+    public:
+
+    virtual void environ_event(environment *env, std::string const &name_and_val, bool overridden) noexcept = 0;
+};
+
 class environment
 {
     // Whether to keep the parent environment, as a whole. Individual variables can still be
@@ -81,6 +90,8 @@ class environment
     // set of variables modified or set:
     env_set set_vars;
 
+    std::unordered_set<env_listener *> listeners;
+
     string_view find_var_name(string_view var)
     {
         const char *var_ch;
@@ -88,6 +99,13 @@ class environment
             if (*var_ch == '\0') break;
         }
         return {var.data(), (size_t)(var_ch - var.data())};
+    }
+
+    void notify_listeners(std::string const &var_and_val, bool overridden)
+    {
+        for (auto l : listeners) {
+            l->environ_event(this, var_and_val, overridden);
+        }
     }
 
 public:
@@ -253,16 +271,36 @@ public:
         return build(env_names());
     }
 
-    void set_var(std::string &&var_and_val)
+    void set_var(std::string &&var_and_val, bool notify = false)
     {
         string_view var_name = find_var_name(var_and_val);
 
         import_from_parent.erase(var_name);
-        undefine.erase(var_name);
+        auto n_removed = undefine.erase(var_name);
+
+        bool in_sysenv = false;
+        if (notify && n_removed == 0) {
+            // workaround to avoid an allocation; when notify is true,
+            // we know for sure that the value is sanitized from before
+            //
+            // we don't check this when the variable was in undefine,
+            // as that means we were undefining it explicitly
+            auto name_size = var_name.size();
+            var_and_val[name_size] = '\0';
+            in_sysenv = !!bp_sys::getenv(var_and_val.c_str());
+            var_and_val[name_size] = '=';
+        }
 
         auto insert_result = set_vars.insert(std::move(var_and_val));
+        // if the variable was in sys environment, it is always overridden
+        bool overridden = in_sysenv;
         if (!insert_result.second) {
             *insert_result.first = var_and_val;
+            overridden = true;
+        }
+
+        if (notify) {
+            notify_listeners(*insert_result.first, overridden);
         }
     }
 
@@ -275,12 +313,24 @@ public:
         }
     }
 
-    void undefine_var(std::string &&var_name)
+    void undefine_var(std::string &&var_name, bool notify = false)
     {
         import_from_parent.erase(var_name);
-        set_vars.erase(string_view(var_name));
+
+        auto n_removed = set_vars.erase(string_view(var_name));
+        bool was_set = n_removed > 0;
+        if (notify && !was_set) {
+            // also track if we're undefining it from system environment
+            was_set = !!bp_sys::getenv(var_name.c_str());
+        }
         if (keep_parent_env) {
-            undefine.insert(std::move(var_name));
+            auto insert_result = undefine.insert(std::move(var_name));
+            if (notify) {
+                notify_listeners(*insert_result.first, was_set);
+            }
+        }
+        else if (notify) {
+            notify_listeners(var_name, was_set);
         }
     }
 
@@ -290,6 +340,16 @@ public:
         import_from_parent.clear();
         undefine.clear();
         set_vars.clear();
+    }
+
+    void add_listener(env_listener * listener)
+    {
+        listeners.insert(listener);
+    }
+
+    void remove_listener(env_listener * listener) noexcept
+    {
+        listeners.erase(listener);
     }
 };
 
