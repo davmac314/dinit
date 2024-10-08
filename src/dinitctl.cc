@@ -2378,7 +2378,7 @@ static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service
         cout << flush;
 
         bool trailing_nl = false;
-        char output_buf[rbuffer.get_size()];
+        char output_buf[cpbuffer_t::get_size()];
         while (bufsize > 0) {
             unsigned l = rbuffer.get_length();
             if (l == 0) {
