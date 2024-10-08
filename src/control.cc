@@ -754,7 +754,7 @@ bool control_conn_t::list_services5()
             pkt_buf[0] = (char)cp_rply::SVCINFO;
             pkt_buf[1] = nameLen;
 
-            fill_status_buffer(&pkt_buf[2], sptr);
+            fill_status_buffer5(&pkt_buf[2], sptr);
 
             for (int i = 0; i < nameLen; i++) {
                 pkt_buf[hdrsize+i] = name[i];
@@ -834,7 +834,7 @@ bool control_conn_t::process_service_status5()
     std::vector<char> pkt_buf(2 + STATUS_BUFFER5_SIZE);
     pkt_buf[0] = (char)cp_rply::SERVICESTATUS;
     pkt_buf[1] = 0;
-    fill_status_buffer(pkt_buf.data() + 2, service);
+    fill_status_buffer5(pkt_buf.data() + 2, service);
 
     return queue_packet(std::move(pkt_buf));
 }
