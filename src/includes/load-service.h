@@ -1238,8 +1238,8 @@ static void value_var_subst(const char *setting_name, std::string &line,
     line = std::move(r_line);
 }
 
-// Reads a dependency name while performing minimal argument expansion in it.
-inline string read_dependency_value(const char *setting_name, file_pos_ref input_pos, string_iterator &i,
+// Reads a value while performing minimal argument expansion in it.
+inline string read_value_with_arg(const char *setting_name, file_pos_ref input_pos, string_iterator &i,
         string_iterator end, const char *argval)
 {
     string rval;
@@ -1537,7 +1537,7 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
             settings.working_dir = read_setting_value(input_pos, i, end, nullptr);
             break;
         case setting_id_t::ENV_FILE:
-            settings.env_file = read_setting_value(input_pos, i, end, nullptr);
+            settings.env_file = read_value_with_arg(setting.c_str(), input_pos, i, end, arg);
             break;
         #if SUPPORT_CGROUPS
         case setting_id_t::RUN_IN_CGROUP:
@@ -1575,21 +1575,21 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
             break;
         case setting_id_t::DEPENDS_ON:
         {
-            string dependency_name = read_dependency_value(setting.c_str(), input_pos, i, end, arg);
+            string dependency_name = read_value_with_arg(setting.c_str(), input_pos, i, end, arg);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::REGULAR);
             break;
         }
         case setting_id_t::DEPENDS_MS:
         {
-            string dependency_name = read_dependency_value(setting.c_str(), input_pos, i, end, arg);
+            string dependency_name = read_value_with_arg(setting.c_str(), input_pos, i, end, arg);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::MILESTONE);
             break;
         }
         case setting_id_t::WAITS_FOR:
         {
-            string dependency_name = read_dependency_value(setting.c_str(), input_pos, i, end, arg);
+            string dependency_name = read_value_with_arg(setting.c_str(), input_pos, i, end, arg);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::WAITS_FOR);
             break;
@@ -1614,13 +1614,13 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
         }
         case setting_id_t::AFTER:
         {
-            string after_name = read_dependency_value(setting.c_str(), input_pos, i, end, arg);
+            string after_name = read_value_with_arg(setting.c_str(), input_pos, i, end, arg);
             settings.after_svcs.emplace_back(std::move(after_name));
             break;
         }
         case setting_id_t::BEFORE:
         {
-            string before_name = read_dependency_value(setting.c_str(), input_pos, i, end, arg);
+            string before_name = read_value_with_arg(setting.c_str(), input_pos, i, end, arg);
             settings.before_svcs.emplace_back(std::move(before_name));
             break;
         }
