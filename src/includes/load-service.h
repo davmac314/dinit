@@ -1092,9 +1092,9 @@ static void value_var_subst(const char *setting_name, std::string &line,
                 if (name.empty()) {
                     throw service_description_exc(setting_name, "invalid/missing variable name after '$'");
                 }
-                else if (is_arg && (name != "1" || !argval)) {
-                    // only one arg is supported and it must be present
-                    throw service_description_exc(setting_name, "missing value in argument substitution");
+                else if (is_arg && name != "1") {
+                    // only one arg is supported
+                    throw service_description_exc(setting_name, "only one service argument may be present");
                 }
                 char altmode = '\0';
                 bool colon = false;
@@ -1132,10 +1132,16 @@ static void value_var_subst(const char *setting_name, std::string &line,
                     if (!resolved || (colon && !*resolved)) {
                         resolved_vw = {line.c_str() + (altbeg - line.begin()), (size_t)(altend - altbeg)};
                     }
-                } else if (altmode == '+') {
+                }
+                else if (altmode == '+') {
                     if (resolved && (!colon || *resolved)) {
                         resolved_vw = {line.c_str() + (altbeg - line.begin()), (size_t)(altend - altbeg)};
                     }
+                }
+                else if (is_arg && !argval) {
+                    // $1 and ${1} is special in that it must be set or it is an error
+                    // however, we want the more complex syntaxes for conditional substitution
+                    throw service_description_exc(setting_name, "missing value in argument substitution");
                 }
 
                 xpos = j - line.begin();
