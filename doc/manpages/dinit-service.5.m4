@@ -784,6 +784,8 @@ The following commands are available:
 \fB@include\fR \fIpath\fR
 Include the contents of another file, specified via its full path.
 If the specified file does not exist, an error is produced.
+The \fIpath\fR is subject to minimal variable substitution
+(see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fB@include\-opt\fR \fIpath\fR
 As for \fB@include\fR, but produces no error if the named file does not exist.

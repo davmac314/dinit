@@ -523,7 +523,7 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
 
             process_service_line(settings, name.c_str(), argval, line, fpr, setting,
                     op, i, end, load_service_n, process_dep_dir_n);
-        });
+        }, argval);
 
         auto report_err = [&](const char *msg){
             throw service_load_exc(name, msg);

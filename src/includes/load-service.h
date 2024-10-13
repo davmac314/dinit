@@ -883,6 +883,9 @@ inline void parse_rlimit(const std::string &line, file_pos_ref input_pos,
     }
 }
 
+inline string read_include_path(string const &svcname, string const &meta_cmd, file_pos_ref input_pos,
+        string_iterator &i, string_iterator end, const char *argval);
+
 // Process an opened service file, line by line.
 //    name - the service name
 //    service_input - the service file input stream (stack)
@@ -899,7 +902,7 @@ inline void parse_rlimit(const std::string &line, file_pos_ref input_pos,
 //
 // May throw service load exceptions or I/O exceptions if enabled on stream.
 template <typename T>
-void process_service_file(string name, file_input_stack &service_input, T process_line_func)
+void process_service_file(string name, file_input_stack &service_input, T process_line_func, const char *argval = nullptr)
 {
     string line;
 
@@ -957,12 +960,8 @@ void process_service_file(string name, file_input_stack &service_input, T proces
                 bool is_include_opt = (meta_cmd == "include-opt");
                 if (is_include_opt || meta_cmd == "include") {
                     // @include-opt or @include
-                    std::list<std::pair<unsigned,unsigned>> part_positions;
                     file_pos_ref input_pos { service_input.current_file_name(), line_num };
-                    std::string include_name = read_setting_value(input_pos, i, end, &part_positions);
-                    if (part_positions.size() != 1) {
-                        throw service_description_exc(name, "'@" + meta_cmd + "' requires a single argument", input_pos);
-                    }
+                    std::string include_name = read_include_path(name, meta_cmd, input_pos, i, end, argval);
 
                     std::ifstream file(include_name);
                     file.exceptions(std::ios::badbit);
@@ -1243,6 +1242,24 @@ inline string read_dependency_value(const char *setting_name, file_pos_ref input
     std::list<std::pair<unsigned,unsigned>> offsets;
     offsets.emplace_back(0, rval.size());
     value_var_subst(setting_name, rval, offsets, resolve_env_var, nullptr, argval);
+    return rval;
+}
+
+// Reads an include path while performing minimal argument expansion in it.
+inline string read_include_path(string const &svcname, string const &meta_cmd, file_pos_ref input_pos,
+        string_iterator &i, string_iterator end, const char *argval)
+{
+    string rval;
+    std::list<std::pair<unsigned,unsigned>> parts;
+
+    read_setting_value(rval, setting_op_t::ASSIGN, input_pos, i, end, &parts);
+    if (parts.size() != 1) {
+        throw service_description_exc(svcname, "'@" + meta_cmd + "' requires a single argument", input_pos);
+    }
+
+    std::list<std::pair<unsigned,unsigned>> offsets;
+    offsets.emplace_back(0, rval.size());
+    value_var_subst(meta_cmd.c_str(), rval, offsets, resolve_env_var, nullptr, argval);
     return rval;
 }
 
