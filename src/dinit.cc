@@ -79,6 +79,7 @@ static dirload_service_set *services;
 
 static bool am_system_mgr = false;     // true if we are PID 1
 static bool am_system_init = false; // true if we are the system init process
+static bool auto_recovery = false;  // automatically run recovery service on boot failure
 
 static bool did_log_boot = false;
 static bool control_socket_open = false;
@@ -292,6 +293,9 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             am_system_mgr = false;
             opts.process_sys_args = false;
         }
+        else if (strcmp(argv[i], "--auto-recovery") == 0 || strcmp(argv[i], "-r") == 0) {
+            auto_recovery = true;
+        }
         else if (strcmp(argv[i], "--socket-path") == 0 || strcmp(argv[i], "-p") == 0) {
             if (++i < argc && argv[i][0] != '\0') {
                 control_socket_path = argv[i];
@@ -391,6 +395,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                     " --system-mgr, -m             run as system manager (perform shutdown etc)\n"
                     " --user, -u                   run as a user service manager\n"
                     " --container, -o              run in container mode (do not manage system)\n"
+                    " --auto-recovery, -r          auto-run recovery service on system manager boot failure\n"
                     " --socket-path <path>, -p <path>\n"
                     "                              path to control socket\n"
                     " --ready-fd <fd>, -F <fd>\n"
@@ -695,6 +700,9 @@ int dinit_main(int argc, char **argv)
         else if (shutdown_type == shutdown_type_t::POWEROFF) {
             log_msg_end(" Will power down.");
         }
+        else if (shutdown_type == shutdown_type_t::NONE) {
+            log_msg_end(" Will handle boot failure.");
+        }
     }
 
     flush_log();
@@ -718,6 +726,16 @@ int dinit_main(int argc, char **argv)
             // Services all stopped but there was no shutdown issued. Inform user, wait for ack, and
             // re-start boot sequence.
             sync(); // Sync to minimise data loss if user elects to power off / hard reset
+            if (auto_recovery) {
+                try {
+                    services->start_service("recovery");
+                }
+                catch (std::exception &exc) {
+                    log(loglevel_t::ERROR, "Unable to start recovery service: ", exc.what());
+                    // As the following prompt UI could be inaccessible flush the log again already
+                    flush_log();
+                }
+            }
             confirm_restart_boot();
             if (services->count_active_services() != 0) {
                 // Recovery service started
