@@ -30,7 +30,7 @@
 // This utility communicates with the dinit daemon via a unix socket (specified in SYSCONTROLSOCKET).
 
 static constexpr uint16_t min_cp_version = 1;
-static constexpr uint16_t max_cp_version = 1;
+static constexpr uint16_t max_cp_version = 5;
 
 static constexpr auto reboot_execname = cts::literal(SHUTDOWN_PREFIX) + cts::literal("reboot");
 static constexpr auto soft_reboot_execname = cts::literal(SHUTDOWN_PREFIX) + cts::literal("soft-reboot");
