@@ -37,6 +37,12 @@
 
 #include "mconfig.h"
 
+#if SUPPORT_SELINUX
+#include <selinux/avc.h>
+#include <selinux/label.h>
+#include <selinux/selinux.h>
+#endif
+
 /*
  * When running as the system init process, Dinit processes the following signals:
  *
@@ -453,6 +459,70 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
     return 0;
 }
 
+bool selinux_transition(const char *exe) {
+#if SUPPORT_SELINUX
+    using std::cerr;
+    using std::endl;
+
+    char *current_context = nullptr;
+    char *file_context = nullptr;
+    security_class_t security_class;
+    char *new_context = nullptr;
+
+    if (is_selinux_enabled() == 1) {
+        return true;
+    }
+
+    int enforce = 0;
+    if (selinux_init_load_policy(&enforce) != 0) {
+        if (enforce > 0) {
+            cerr << "Failed to load SELinux policy." << endl;
+            return false;
+        }
+    }
+
+    bool ret = true;
+    if (getcon_raw(&current_context) < 0) {
+        ret = false;
+        cerr << "Failed to get current context: " << strerror(errno) << endl;
+        goto cleanup;
+    }
+
+    if (getfilecon_raw(exe, &file_context) < 0) {
+        ret = false;
+        cerr << "Failed to get file context for " << exe << ": " << strerror(errno) << endl;
+        goto cleanup;
+    }
+
+    security_class = string_to_security_class("process");
+    if (security_class == 0) {
+        ret = false;
+        cerr << "Failed to get security class for process" << endl;
+        goto cleanup;
+    }
+
+    if (security_compute_create_raw(current_context, file_context, security_class, &new_context) < 0) {
+        ret = false;
+        cerr << "Failed to compute create context: " << strerror(errno) << endl;
+        goto cleanup;
+    }
+
+    if (setcon_raw(new_context) < 0) {
+        ret = false;
+        cerr << "Failed to set transition context to " << new_context << ": " << strerror(errno) << endl;
+        goto cleanup;
+    }
+
+cleanup:
+    if (current_context) freecon(current_context);
+    if (file_context) freecon(file_context);
+    if (new_context) freecon(new_context);
+    return ret;
+#else
+    return true;
+#endif
+}
+
 // Main entry point
 int dinit_main(int argc, char **argv)
 {
@@ -461,6 +531,8 @@ int dinit_main(int argc, char **argv)
     am_system_mgr = (getpid() == 1);
     am_system_init = (getuid() == 0);
     
+    if (am_system_mgr && am_system_init && !selinux_transition(argv[0])) return 1;
+
     struct options opts;
 
     // if we are PID 1 and user id 0, we are *most probably* the system init. (Or on linux at least, we
