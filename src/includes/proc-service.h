@@ -228,6 +228,13 @@ class base_process_service : public service_record
     int log_output_fd = -1; // If logging via buffer/pipe, write end of the pipe
     int log_input_fd = -1; // If logging via buffer/pipe, read end of the pipe
 
+    string ready_socket_path; // path to the socket for ready-notification
+    int ready_socket_perms = 0; // socket permissions ("mode")
+    uid_t ready_socket_uid = -1; // socket user id or -1
+    gid_t ready_socket_gid = -1; // socket group id or -1
+    int ready_socket_fd = -1; // For socket ready notification, this is the file descriptor for the socket.
+    struct sockaddr_un *ready_socket_name = nullptr; // Since ready socket is UDP, we need this for recvfrom().
+
     // Only one of waiting_restart_timer and waiting_stopstart_timer should be set at any time.
     // They indicate that the process timer is armed (and why).
     bool waiting_restart_timer : 1;
@@ -297,6 +304,9 @@ class base_process_service : public service_record
 
     // Open the activation socket, return false on failure
     bool open_socket() noexcept;
+
+    // Open the readiness socket, return false on failure
+    bool open_ready_socket() noexcept;
 
     // Get the readiness notification watcher for this service, if it has one; may return nullptr.
     virtual ready_notify_watcher *get_ready_watcher() noexcept
@@ -516,6 +526,20 @@ class base_process_service : public service_record
     void set_notification_var(string &&varname)
     {
         notification_var = std::move(varname);
+    }
+
+    void set_ready_socket_details(string &&socket_path, int socket_perms, uid_t socket_uid, uid_t socket_gid)
+            noexcept
+    {
+        ready_socket_path = std::move(socket_path);
+        ready_socket_perms = socket_perms;
+        ready_socket_uid = socket_uid;
+        ready_socket_gid = socket_gid;
+        if (ready_socket_path.length() > 0) {
+            // we want to expose this in the environment
+            // and this also simplifies the logic elsewhere
+            set_notification_var("NOTIFY_SOCKET=" + ready_socket_path);
+        }
     }
 
     // The restart/stop timer expired.

@@ -742,6 +742,8 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             rvalps->set_run_as_uid_gid(settings.run_as_uid, settings.run_as_gid);
             rvalps->set_notification_fd(settings.readiness_fd);
             rvalps->set_notification_var(std::move(settings.readiness_var));
+            rvalps->set_ready_socket_details(std::move(settings.ready_socket_path),
+                    settings.ready_socket_perms, settings.ready_socket_uid, settings.ready_socket_gid);
             rvalps->set_logfile_details(std::move(settings.logfile), settings.logfile_perms,
                     settings.logfile_uid, settings.logfile_gid);
             rvalps->set_log_buf_max(settings.max_log_buffer_sz);

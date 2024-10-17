@@ -225,7 +225,7 @@ enum class setting_id_t {
     LOGFILE_GID, LOG_TYPE, LOG_BUFFER_SIZE, CONSUMER_OF, RESTART, SMOOTH_RECOVERY, OPTIONS,
     LOAD_OPTIONS, TERM_SIGNAL, TERMSIGNAL /* deprecated */, RESTART_LIMIT_INTERVAL, RESTART_DELAY,
     RESTART_LIMIT_COUNT, STOP_TIMEOUT, START_TIMEOUT, RUN_AS, CHAIN_TO, READY_NOTIFICATION,
-    INITTAB_ID, INITTAB_LINE,
+    READY_SOCKET_PERMISSIONS, READY_SOCKET_UID, READY_SOCKET_GID, INITTAB_ID, INITTAB_LINE,
     // Prefixed with SETTING_ to avoid name collision with system macros:
     SETTING_RLIMIT_NOFILE, SETTING_RLIMIT_CORE, SETTING_RLIMIT_DATA, SETTING_RLIMIT_ADDRSPACE,
     // Possibly unsupported depending on platform/build options:
@@ -1282,12 +1282,17 @@ class service_settings_wrapper
     auto_restart_mode auto_restart = auto_restart_mode::DEFAULT_AUTO_RESTART;
     bool smooth_recovery = false;
     string socket_path;
+    string ready_socket_path;
     int socket_perms = 0666;
     // Note: Posix allows that uid_t and gid_t may be unsigned types, but eg chown uses -1 as an
     // invalid value, so it's safe to assume that we can do the same:
     uid_t socket_uid = -1;
     gid_t socket_uid_gid = -1;  // primary group of socket user if known
     gid_t socket_gid = -1;
+    int ready_socket_perms = 0600;
+    uid_t ready_socket_uid = -1;
+    gid_t ready_socket_uid_gid = -1;
+    gid_t ready_socket_gid = -1;
     // Restart limit interval / count; default is 10 seconds, 3 restarts:
     timespec restart_interval = { .tv_sec = 10, .tv_nsec = 0 };
     int max_restarts = 3;
@@ -1362,6 +1367,9 @@ class service_settings_wrapper
             if (!socket_path.empty()) {
                 report_lint("'socket-listen' specified, but ignored for the specified (or default) service type'.");
             }
+            if (!ready_socket_path.empty()) {
+                report_lint("'ready-notification' specified, but ignored for the specified (or default) service type'.");
+            }
             #if USE_UTMPX
             if (inittab_id[0] != 0 || inittab_line[0] != 0) {
                 report_lint("'inittab_line' or 'inittab_id' specified, but ignored for the specified (or default) service type.");
@@ -1395,7 +1403,7 @@ class service_settings_wrapper
                 report_error("process ID file ('pid-file') not specified for bgprocess service.");
             }
 
-            if (readiness_fd != -1 || !readiness_var.empty()) {
+            if (readiness_fd != -1 || !ready_socket_path.empty() || !readiness_var.empty()) {
                 report_error("readiness notification ('ready-notification') is not supported "
                         "for bgprocess services.");
             }
@@ -1421,6 +1429,7 @@ class service_settings_wrapper
             };
 
             do_resolve("socket-listen", socket_path);
+            do_resolve("ready-notification", ready_socket_path);
             do_resolve("logfile", logfile);
             do_resolve("working-dir", working_dir);
             do_resolve("pid-file", pid_file);
@@ -1429,6 +1438,7 @@ class service_settings_wrapper
         // If socket_gid hasn't been explicitly set, but the socket_uid was specified as a name (and
         // we therefore recovered the primary group), use the primary group of the specified user.
         if (socket_gid == (gid_t)-1) socket_gid = socket_uid_gid;
+        if (ready_socket_gid == (gid_t)-1) ready_socket_gid = ready_socket_uid_gid;
         // Also for logfile_uid/gid, we reset logfile ownership to dinit process uid/gid if uid/gid
         // wasn't specified by service
         if (logfile_uid == (uid_t) -1) logfile_uid = getuid();
@@ -1872,10 +1882,36 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
                             "ready-notification", input_pos);
                 }
             }
+            else if (starts_with(notify_setting, "socket:")) {
+                settings.ready_socket_path = notify_setting.substr(7 /* len 'socket:' */);
+                if (settings.ready_socket_path.empty()) {
+                    throw service_description_exc(name, "invalid readiness socket path",
+                            "ready-notification", input_pos);
+                }
+            }
             else {
                 throw service_description_exc(name, "unrecognised setting: " + notify_setting,
                         "ready-notification", input_pos);
             }
+            break;
+        }
+        case setting_id_t::READY_SOCKET_PERMISSIONS:
+        {
+            string sock_perm_str = read_setting_value(input_pos, i, end, nullptr);
+            settings.ready_socket_perms = parse_perms(input_pos, sock_perm_str, name, "ready-socket-permissions");
+            break;
+        }
+        case setting_id_t::READY_SOCKET_UID:
+        {
+            string sock_uid_s = read_setting_value(input_pos, i, end, nullptr);
+            settings.ready_socket_uid = parse_uid_param(input_pos, sock_uid_s, name, "ready-socket-uid",
+                    &settings.ready_socket_uid_gid);
+            break;
+        }
+        case setting_id_t::READY_SOCKET_GID:
+        {
+            string sock_gid_s = read_setting_value(input_pos, i, end, nullptr);
+            settings.ready_socket_gid = parse_gid_param(input_pos, sock_gid_s, "ready-socket-gid", name);
             break;
         }
         case setting_id_t::INITTAB_ID:
