@@ -216,6 +216,10 @@ struct options {
 
     // list of services to start
     std::list<const char *> services_to_start;
+
+#ifdef SUPPORT_SELINUX
+    bool load_selinux_policy = true;
+#endif
 };
 
 // Process a command line argument (and possibly its follow-up value)
@@ -371,6 +375,11 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             }
         }
         #endif
+        #ifdef SUPPORT_CGROUPS
+        else if (strcmp(argv[i], "--disable-selinux") == 0) {
+            opts.load_selinux_policy = false;
+        }
+        #endif
         else if (strcmp(argv[i], "--service") == 0 || strcmp(argv[i], "-t") == 0) {
             if (++i < argc && argv[i][0] != '\0') {
                 services_to_start.push_back(argv[i]);
@@ -404,6 +413,9 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                     #ifdef SUPPORT_CGROUPS
                     " --cgroup-path <path>, -b <path>\n"
                     "                              cgroup base path (for resolving relative paths)\n"
+                    #endif
+                    #ifdef SUPPORT_SELINUX
+                    " --disable-selinux            don't load the system SELinux policy\n"
                     #endif
                     " --log-file <file>, -l <file> log to the specified file\n"
                     " --quiet, -q                  disable output to standard output\n"
@@ -531,8 +543,6 @@ int dinit_main(int argc, char **argv)
     am_system_mgr = (getpid() == 1);
     am_system_init = (getuid() == 0);
     
-    if (am_system_mgr && am_system_init && !selinux_transition(argv[0])) return 1;
-
     struct options opts;
 
     // if we are PID 1 and user id 0, we are *most probably* the system init. (Or on linux at least, we
@@ -557,6 +567,9 @@ int dinit_main(int argc, char **argv)
             return 1;
         }
     }
+
+    if (am_system_mgr && am_system_init && opts.load_selinux_policy && !selinux_transition(argv[0])) return 1;
+
 
     if (am_system_mgr) {
         // setup STDIN, STDOUT, STDERR so that we can use them
