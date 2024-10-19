@@ -17,7 +17,7 @@ includes/mconfig.h: ../mconfig tools/mconfig-gen.cc version.conf
 		$(if $(SUPPORT_CGROUPS),SUPPORT_CGROUPS=$(SUPPORT_CGROUPS),) \
 		$(if $(USE_UTMPX),USE_UTMPX=$(USE_UTMPX),) \
 		$(if $(USE_INITGROUPS),USE_INITGROUPS=$(USE_INITGROUPS),) \
-                $(if $(SUPPORT_SELINUX),SUPPORT_SELINUX=$(SUPPORT_SELINUX),) > includes/mconfig.h
+		$(if $(SUPPORT_SELINUX),SUPPORT_SELINUX=$(SUPPORT_SELINUX),) > includes/mconfig.h
 
 clean:
 	rm -f includes/mconfig.h

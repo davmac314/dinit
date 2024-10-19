@@ -375,7 +375,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             }
         }
         #endif
-        #ifdef SUPPORT_CGROUPS
+        #ifdef SUPPORT_SELINUX
         else if (strcmp(argv[i], "--disable-selinux") == 0) {
             opts.load_selinux_policy = false;
         }
@@ -471,8 +471,8 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
     return 0;
 }
 
-static bool selinux_transition(const char *exe) {
 #if SUPPORT_SELINUX
+static bool selinux_transition(const char *exe) {
     using std::cerr;
     using std::endl;
 
@@ -530,10 +530,8 @@ cleanup:
     if (file_context) freecon(file_context);
     if (new_context) freecon(new_context);
     return ret;
-#else
-    return true;
-#endif
 }
+#endif
 
 // Main entry point
 int dinit_main(int argc, char **argv)
@@ -568,8 +566,9 @@ int dinit_main(int argc, char **argv)
         }
     }
 
+#if SUPPORT_SELINUX
     if (am_system_mgr && am_system_init && opts.load_selinux_policy && !selinux_transition(argv[0])) return 1;
-
+#endif
 
     if (am_system_mgr) {
         // setup STDIN, STDOUT, STDERR so that we can use them
