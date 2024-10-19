@@ -459,7 +459,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
     return 0;
 }
 
-bool selinux_transition(const char *exe) {
+static bool selinux_transition(const char *exe) {
 #if SUPPORT_SELINUX
     using std::cerr;
     using std::endl;
