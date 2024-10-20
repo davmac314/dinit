@@ -33,7 +33,8 @@ if unit_tests
         'cptests',
         'cptests.cc',
         sources,
-        include_directories: incdir
+        include_directories: incdir,
+        dependencies: [libcap_dep]
     )
     test('cptests', cptests_exec, suite: 'unit_tests')
 endif

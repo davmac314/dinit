@@ -52,12 +52,12 @@ jobs:
       if: ${{ matrix.arch == 'amd64' }}
       run: |
         apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install g++ make m4 file -y
+        DEBIAN_FRONTEND=noninteractive apt-get install g++ make m4 libcap-dev file -y
     - name: Getting depends (i386)
       if: ${{ matrix.arch == 'i386' }}
       run: |
         apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install gcc:i386 make:i386 m4:i386 g++:i386 file -y
+        DEBIAN_FRONTEND=noninteractive apt-get install gcc:i386 make:i386 m4:i386 g++:i386 libcap-dev:i386 file -y
     - name: Print g++ architecture
       run: g++ -dumpmachine
     - name: Build
@@ -123,7 +123,7 @@ jobs:
     - name: Getting depends
       run: |
         apk update
-        apk add make g++ m4 file
+        apk add make g++ m4 file libcap-dev
     - name: Print g++ architecture
       run: g++ -dumpmachine
     - name: Build

@@ -77,6 +77,9 @@ int main(int argc, char **argv)
     if (vars.find("SUPPORT_CGROUPS") != vars.end()) {
         cout << "#define SUPPORT_CGROUPS " << vars["SUPPORT_CGROUPS"] << "\n";
     }
+    if (vars.find("SUPPORT_CAPABILITIES") != vars.end()) {
+        cout << "#define SUPPORT_CAPABILITIES " << vars["SUPPORT_CAPABILITIES"] << "\n";
+    }
     if (vars.find("DEFAULT_AUTO_RESTART") != vars.end()) {
         cout << "#define DEFAULT_AUTO_RESTART " << vars["DEFAULT_AUTO_RESTART"] << "\n";
     }

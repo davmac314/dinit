@@ -557,6 +557,29 @@ The named cgroup must already exist prior to the service starting; it will not b
 \fBdinit\fR.
 .IP
 This setting is only available if \fBdinit\fR was built with cgroups support.
+.TP
+\fBcapabilities\fR = \fIiab\fR
+.TQ
+\fBcapabilities\fR += \fIiab-addendum\fR
+Run the service process(es) with capabilities specified by \fIiab\fR (see \fBcapabilities\fR(7)).
+The syntax follows the regular capabilities IAB format, with comma-separated capabilities.
+The append form of this setting will add to the previous IAB string, automatically adding
+a comma to the previous string, so you do not need to add it manually.
+.IP
+This setting is only available if \fBdinit\fR was built with capabilities support.
+.TP
+\fBsecure\-bits\fR = \fIsecbits\fR
+.TQ
+\fBsecure\-bits\fR += \fIsecbits-addendum\fR
+This is a companion option to \fBcapabilities\fR, specifying the secure bits for the
+process.
+Here, it is a space-separated list of keywords. The allowed keywords are \fIkeep-caps\fR,
+\fIno-setuid-fixup\fR, \fInoroot\fR, and variants of the three with the \fI-locked\fR
+suffix.
+The append form can be used to add more secure bits, with everything being ORed together
+at the end and used as an integer.
+.IP
+This setting is only available if \fBdinit\fR was built with capabilities support.
 .\"
 .SS OPTIONS
 .\"
@@ -685,6 +708,13 @@ is suggested, i.e. every other service should either be a (possibly transitive) 
 dependent of the service with this option set.
 .IP
 This option can be used for scripted and internal services only.
+.TP
+\fBno\-new\-privs\fR
+Normally, child processes can gain privileges that their parent did not have, such
+as setuid or setgid and file capabilities. This option can be specified to prevent
+the service from gaining such privileges.
+.IP
+This setting is only available if \fBdinit\fR was built with capabilities support.
 .\"
 .SS RESOURCE LIMITS
 .\"
