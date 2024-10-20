@@ -260,6 +260,11 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
             #if SUPPORT_CGROUPS
             run_params.run_in_cgroup = run_in_cgroup.c_str();
             #endif
+            #if SUPPORT_CAPABILITIES
+            run_params.cap_iab = cap_iab.get();
+            run_params.secbits = secbits;
+            run_params.no_new_privs = onstart_flags.no_new_privs;
+            #endif
             run_child_proc(run_params);
         }
         else {

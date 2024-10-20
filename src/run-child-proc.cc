@@ -11,6 +11,11 @@
 #include <unistd.h>
 #include <termios.h>
 
+#if SUPPORT_CAPABILITIES
+#include <sys/capability.h>
+#include <sys/prctl.h>
+#endif
+
 #include "service.h"
 #include "proc-service.h"
 #include "mconfig.h"
@@ -69,6 +74,11 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     gid_t gid = params.gid;
     const std::vector<service_rlimits> &rlimits = params.rlimits;
     int output_fd = params.output_fd;
+    #if SUPPORT_CAPABILITIES
+    cap_iab_t cap_iab = params.cap_iab;
+    unsigned int secbits = params.secbits;
+    bool no_new_privs = params.no_new_privs;
+    #endif
 
     // If the console already has a session leader, presumably it is us. On the other hand
     // if it has no session leader, and we don't create one, then control inputs such as
@@ -377,8 +387,29 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             if (setregid(gid, gid) != 0) goto failure_out;
         }
 #endif
+#if SUPPORT_CAPABILITIES
+        if (cap_setuid(uid) != 0) goto failure_out;
+#else
         if (setreuid(uid, uid) != 0) goto failure_out;
+#endif
     }
+
+#if SUPPORT_CAPABILITIES
+    if (cap_iab) {
+        err.stage = exec_stage::SET_CAPS;
+        if (cap_iab_set_proc(cap_iab) != 0) goto failure_out;
+    }
+    if (secbits) {
+        err.stage = exec_stage::SET_CAPS;
+        if (cap_set_secbits(secbits) < 0) goto failure_out;
+    }
+    if (no_new_privs) {
+        err.stage = exec_stage::SET_CAPS;
+#ifdef PR_SET_NO_NEW_PRIVS
+        if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) goto failure_out;
+#endif
+    }
+#endif
 
     // Restore signal mask. If running on the console, we'll keep various control signals that can
     // be invoked from the terminal masked, with the exception of SIGHUP and possibly SIGINT.

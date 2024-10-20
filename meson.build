@@ -31,6 +31,7 @@ igr_tests = get_option('igr-tests')
 fuzzer = get_option('fuzzer')
 man_pages = get_option('man-pages')
 support_cgroups = get_option('support-cgroups')
+support_capabilities = get_option('support-capabilities')
 use_utmpx = get_option('use-utmpx')
 use_initgroups = get_option('use-initgroups')
 default_auto_restart = get_option('default-auto-restart')
@@ -56,6 +57,8 @@ if platform == 'freebsd' and compiler.has_link_argument('-lrt')
     add_project_link_arguments('-lrt', language : 'cpp')
 endif
 
+libcap_dep = dependency('libcap', required: support_capabilities)
+
 ## Prepare mconfig.h
 mconfig_data.set_quoted('DINIT_VERSION', version)
 mconfig_data.set_quoted('SYSCONTROLSOCKET', dinit_control_socket_path)
@@ -67,6 +70,9 @@ mconfig_data.set('DEFAULT_STOP_TIMEOUT', default_stop_timeout)
 mconfig_data.set10('USE_INITGROUPS', use_initgroups)
 if support_cgroups.auto() and platform == 'linux' or support_cgroups.enabled()
     mconfig_data.set('SUPPORT_CGROUPS', '1') 
+endif
+if libcap_dep.found()
+    mconfig_data.set('SUPPORT_CAPABILITIES', '1')
 endif
 if use_utmpx.enabled() or (use_utmpx.auto() and compiler.has_header_symbol('utmpx.h', '_PATH_UTMPX') and
         compiler.has_header_symbol('utmpx.h', '_PATH_WTMPX'))

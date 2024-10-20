@@ -111,6 +111,7 @@ FEATURE_SETTINGS=$(
   echo "# Feature settings"
   echo ""
   echo "SUPPORT_CGROUPS=1"
+  echo "SUPPORT_CAPABILITIES=1"
 )
 
 SERVICE_DEFAULTS=$(
