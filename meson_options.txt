@@ -92,6 +92,18 @@ option(
     description : 'Enable capabilities support.'
 )
 option(
+    'support-ioprio',
+    type : 'feature',
+    value : 'auto',
+    description : 'Enable ioprio support.'
+)
+option(
+    'support-oom-adj',
+    type : 'feature',
+    value : 'auto',
+    description : 'Enable OOM score adjustment support.'
+)
+option(
     'build-shutdown',
     type : 'feature',
     value : 'auto',

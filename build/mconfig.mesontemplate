@@ -9,6 +9,8 @@
 #mesondefine USE_INITGROUPS
 #mesondefine SUPPORT_CGROUPS
 #mesondefine SUPPORT_CAPABILITIES
+#mesondefine SUPPORT_IOPRIO
+#mesondefine SUPPORT_OOM_ADJ
 #mesondefine DEFAULT_AUTO_RESTART
 #mesondefine DEFAULT_START_TIMEOUT
 #mesondefine DEFAULT_STOP_TIMEOUT

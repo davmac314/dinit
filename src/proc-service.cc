@@ -932,6 +932,7 @@ bool process_service::start_stop_process(const std::vector<const char *> &cmd) n
         run_params.force_notify_fd = -1;
         run_params.notify_var = nullptr;
         run_params.env_file = env_file.c_str();
+        run_params.nice = nice;
         #if SUPPORT_CGROUPS
         run_params.run_in_cgroup = run_in_cgroup.c_str();
         #endif
@@ -939,6 +940,12 @@ bool process_service::start_stop_process(const std::vector<const char *> &cmd) n
         run_params.cap_iab = cap_iab.get();
         run_params.secbits = secbits;
         run_params.no_new_privs = onstart_flags.no_new_privs;
+        #endif
+        #if SUPPORT_IOPRIO
+        run_params.ioprio = ioprio;
+        #endif
+        #if SUPPORT_OOM_ADJ
+        run_params.oom_adj = oom_adj;
         #endif
         run_child_proc(run_params);
     }

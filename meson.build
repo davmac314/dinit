@@ -32,6 +32,8 @@ fuzzer = get_option('fuzzer')
 man_pages = get_option('man-pages')
 support_cgroups = get_option('support-cgroups')
 support_capabilities = get_option('support-capabilities')
+support_ioprio = get_option('support-ioprio')
+support_oom_adj = get_option('support-oom-adj')
 use_utmpx = get_option('use-utmpx')
 use_initgroups = get_option('use-initgroups')
 default_auto_restart = get_option('default-auto-restart')
@@ -73,6 +75,12 @@ if support_cgroups.auto() and platform == 'linux' or support_cgroups.enabled()
 endif
 if libcap_dep.found()
     mconfig_data.set('SUPPORT_CAPABILITIES', '1')
+endif
+if support_ioprio.auto() and platform == 'linux' or support_ioprio.enabled()
+    mconfig_data.set('SUPPORT_IOPRIO', '1')
+endif
+if support_oom_adj.auto() and platform == 'linux' or support_oom_adj.enabled()
+    mconfig_data.set('SUPPORT_OOM_ADJ', '1')
 endif
 if use_utmpx.enabled() or (use_utmpx.auto() and compiler.has_header_symbol('utmpx.h', '_PATH_UTMPX') and
         compiler.has_header_symbol('utmpx.h', '_PATH_WTMPX'))
