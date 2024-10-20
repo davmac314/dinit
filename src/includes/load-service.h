@@ -266,7 +266,7 @@ enum class setting_id_t {
     LOGFILE_GID, LOG_TYPE, LOG_BUFFER_SIZE, CONSUMER_OF, RESTART, SMOOTH_RECOVERY, OPTIONS,
     LOAD_OPTIONS, TERM_SIGNAL, TERMSIGNAL /* deprecated */, RESTART_LIMIT_INTERVAL, RESTART_DELAY,
     RESTART_LIMIT_COUNT, STOP_TIMEOUT, START_TIMEOUT, RUN_AS, CHAIN_TO, READY_NOTIFICATION,
-    INITTAB_ID, INITTAB_LINE,
+    INITTAB_ID, INITTAB_LINE, NICE,
     // Prefixed with SETTING_ to avoid name collision with system macros:
     SETTING_RLIMIT_NOFILE, SETTING_RLIMIT_CORE, SETTING_RLIMIT_DATA, SETTING_RLIMIT_ADDRSPACE,
     // Possibly unsupported depending on platform/build options:
@@ -276,6 +276,12 @@ enum class setting_id_t {
 #if SUPPORT_CAPABILITIES
     CAPABILITIES,
     SECURE_BITS,
+#endif
+#if SUPPORT_IOPRIO
+    IOPRIO,
+#endif
+#if SUPPORT_OOM_ADJ
+    OOM_SCORE_ADJ,
 #endif
 };
 
@@ -840,6 +846,30 @@ inline unsigned long long parse_unum_param(file_pos_ref input_pos, const std::st
     }
 }
 
+// Parse a signed numeric parameter value
+inline long long parse_snum_param(file_pos_ref input_pos, const std::string &param,
+        const std::string &service_name, long long min = std::numeric_limits<long long>::min(),
+        long long max = std::numeric_limits<long long>::max())
+{
+    const char * num_err_msg = "specified value contains invalid numeric characters or is outside "
+            "allowed range.";
+
+    std::size_t ind = 0;
+    try {
+        long long v = std::stoll(param, &ind, 0);
+        if (v < min || v > max || ind != param.length()) {
+            throw service_description_exc(service_name, num_err_msg, input_pos);
+        }
+        return v;
+    }
+    catch (std::out_of_range &exc) {
+        throw service_description_exc(service_name, num_err_msg, input_pos);
+    }
+    catch (std::invalid_argument &exc) {
+        throw service_description_exc(service_name, num_err_msg, input_pos);
+    }
+}
+
 // In a vector, find or create rlimits for a particular resource type.
 inline service_rlimits &find_rlimits(std::vector<service_rlimits> &all_rlimits, int resource_id)
 {
@@ -1373,6 +1403,9 @@ class service_settings_wrapper
     gid_t run_as_uid_gid = -1; // primary group of "run as" uid if known
     gid_t run_as_gid = -1;
 
+    bool nice_is_set = false;
+    int nice;
+
     string chain_to_name;
     string consumer_of_name;
 
@@ -1383,6 +1416,15 @@ class service_settings_wrapper
     #if SUPPORT_CAPABILITIES
     string capabilities;
     secure_bits_t secbits;
+    #endif
+
+    #if SUPPORT_IOPRIO
+    int ioprio = -1;
+    #endif
+
+    #if SUPPORT_OOM_ADJ
+    bool oom_adj_is_set = false;
+    short oom_adj = 0;
     #endif
 
     #if USE_UTMPX
@@ -1467,6 +1509,19 @@ class service_settings_wrapper
             if (log_type != log_type_id::NONE) {
                 report_lint("option 'log_type' was specified, but ignored for the specified (or default) service type.");
             }
+            if (nice_is_set) {
+                report_lint("option 'nice' was specified, but ignored for the specified (or default) service type.");
+            }
+            #if SUPPORT_IOPRIO
+            if (ioprio >= 0) {
+                report_lint("option 'ioprio' was specified, but ignored for the specified (or default) service type.");
+            }
+            #endif
+            #if SUPPORT_OOM_ADJ
+            if (oom_adj_is_set) {
+                report_lint("option 'oom-score-adj' was specified, but ignored for the specified (or default) service type.");
+            }
+            #endif
         }
 
         if (do_report_lint) {
@@ -1647,6 +1702,48 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
                             "secure-bits", input_pos);
                 }
             }
+            break;
+        }
+        #endif
+        case setting_id_t::NICE:
+        {
+            string nice_str = read_setting_value(input_pos, i, end);
+            settings.nice_is_set = true;
+            settings.nice = (int)parse_snum_param(input_pos, nice_str, name,
+                    std::numeric_limits<int>::min() / 2, std::numeric_limits<int>::max() / 2);
+            break;
+        }
+        #if SUPPORT_IOPRIO
+        case setting_id_t::IOPRIO:
+        {
+            string ioprio_str = read_setting_value(input_pos, i, end);
+            if (ioprio_str == "none") {
+                settings.ioprio = 0;
+            }
+            else if (starts_with(ioprio_str, "realtime:")) {
+                auto nval = parse_unum_param(input_pos, ioprio_str.substr(9 /* len 'realtime:' */), name, 7);
+                settings.ioprio = (1 << 13) | nval;
+            }
+            else if (starts_with(ioprio_str, "best-effort:")) {
+                auto nval = parse_unum_param(input_pos, ioprio_str.substr(12 /* len 'best-effort:' */), name, 7);
+                settings.ioprio = (2 << 13) | nval;
+            }
+            else if (ioprio_str == "idle") {
+                settings.ioprio = 3 << 13;
+            }
+            else {
+                    throw service_description_exc(name, "invalid value for ioprio: " + ioprio_str,
+                            name, input_pos);
+            }
+            break;
+        }
+        #endif
+        #if SUPPORT_OOM_ADJ
+        case setting_id_t::OOM_SCORE_ADJ:
+        {
+            string oom_adj_str = read_setting_value(input_pos, i, end);
+            settings.oom_adj_is_set = true;
+            settings.oom_adj = (int)parse_snum_param(input_pos, oom_adj_str, name, -1000, 1000);
             break;
         }
         #endif

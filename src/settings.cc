@@ -57,6 +57,8 @@ setting_details all_settings[] = {
         {"rlimit-data",             setting_id_t::SETTING_RLIMIT_DATA,      false,  true,   false},
         {"rlimit-addrspace",        setting_id_t::SETTING_RLIMIT_ADDRSPACE, false,  true,   false},
 
+        {"nice",                    setting_id_t::NICE,                     false,  true,   false},
+
 #if SUPPORT_CGROUPS
         {"run-in-cgroup",           setting_id_t::RUN_IN_CGROUP,            false,  true,   false},
 #endif
@@ -64,6 +66,14 @@ setting_details all_settings[] = {
 #if SUPPORT_CAPABILTIIES
         {"capabilities",            setting_id_t::CAPABILITIES,             false,  true,    true},
         {"secure-bits",             setting_id_t::SECURE_BITS,              false,  true,    true},
+#endif
+
+#if SUPPORT_IOPRIO
+        {"ioprio",                  setting_id_t::IOPRIO,                   false,  true,   false},
+#endif
+
+#if SUPPORT_OOM_ADJ
+        {"oom-score-adj",           setting_id_t::OOM_SCORE_ADJ,            false,  true,   false},
 #endif
 
         {nullptr,                   setting_id_t::LAST,                     false,  false,  false}
