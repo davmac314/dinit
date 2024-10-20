@@ -80,6 +80,15 @@ struct run_proc_params
     bool on_console;          // whether to run on console
     bool in_foreground;       // if on console: whether to run in foreground
     bool unmask_sigint = false; // if in foreground: whether to unmask SIGINT
+    bool nice_is_set = false;
+    int nice = 0;             // the process nice value
+    #if SUPPORT_IOPRIO
+    int ioprio = -1;          // scheduling class and priority for the process
+    #endif
+    #if SUPPORT_OOM_ADJ
+    bool oom_adj_is_set = false;
+    short oom_adj = 0;        // oom score adjustment value
+    #endif
     int wpipefd;              // pipe to which error status will be sent (if error occurs)
     int csfd;                 // control socket fd (or -1); may be moved
     int socket_fd;            // pre-opened socket fd (or -1); may be moved
@@ -231,6 +240,18 @@ class base_process_service : public service_record
     unsigned log_buf_max = 0; // log buffer maximum size
     unsigned log_buf_size = 0; // log buffer current size
     std::vector<char, default_init_allocator<char>> log_buffer;
+
+    bool nice_is_set = false;
+    int nice;
+
+#if SUPPORT_IOPRIO
+    int ioprio = -1;
+#endif
+
+#if SUPPORT_OOM_ADJ
+    bool oom_adj_is_set = false;
+    short oom_adj = 0;
+#endif
 
     std::vector<service_rlimits> rlimits; // resource limits
 
@@ -516,6 +537,27 @@ class base_process_service : public service_record
     {
         cap_iab = std::move(iab);
         secbits = sbits;
+    }
+    #endif
+
+    void set_nice(int nice_v, bool is_set) noexcept
+    {
+        nice_is_set = is_set;
+        nice = nice_v;
+    }
+
+    #if SUPPORT_IOPRIO
+    void set_ioprio(int ioprio_v) noexcept
+    {
+        ioprio = ioprio_v;
+    }
+    #endif
+
+    #if SUPPORT_OOM_ADJ
+    void set_oom_adj(short oom_adj_v, bool is_set) noexcept
+    {
+        oom_adj_is_set = is_set;
+        oom_adj = oom_adj_v;
     }
     #endif
 

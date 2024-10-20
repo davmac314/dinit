@@ -209,6 +209,8 @@ for var in PREFIX \
            BUILD_SHUTDOWN \
            SUPPORT_CGROUPS \
            SUPPORT_CAPABILITIES \
+           SUPPORT_IOPRIO \
+           SUPPORT_OOM_ADJ \
            USE_UTMPX \
            USE_INITGROUPS \
            SYSCONTROLSOCKET \
@@ -242,6 +244,10 @@ for arg in "$@"; do
         --disable-cgroups|--enable-cgroups=no) SUPPORT_CGROUPS=0 ;;
         --enable-capabilities|--enable-capabilities=yes) SUPPORT_CAPABILITIES=1 ;;
         --disable-capabilities|--enable-capabilities=no) SUPPORT_CAPABILITIES=0 ;;
+        --enable-ioprio|--enable-ioprio=yes) SUPPORT_IOPRIO=1 ;;
+        --disable-ioprio|--enable-ioprio=no) SUPPORT_IOPRIO=0 ;;
+        --enable-oom-adj|--enable-oom-adj=yes) SUPPORT_OOM_ADJ=1 ;;
+        --disable-oom-adj|--enable-oom-adj=no) SUPPORT_OOM_ADJ=0 ;;
         --enable-utmpx|--enable-utmpx=yes) USE_UTMPX=1 ;;
         --disable-utmpx|--enable-utmpx=no) USE_UTMPX=0 ;;
         --enable-initgroups|--enable-initgroups=yes) USE_INITGROUPS=1 ;;
@@ -282,11 +288,15 @@ if [ "$PLATFORM" = "Linux" ]; then
     : "${BUILD_SHUTDOWN:="yes"}"
     : "${SUPPORT_CGROUPS:="1"}"
     : "${SUPPORT_CAPABILITIES:="1"}"
+    : "${SUPPORT_IOPRIO:="1"}"
+    : "${SUPPORT_OOM_ADJ:="1"}"
     : "${SYSCONTROLSOCKET:="/run/dinitctl"}"
 else
     : "${BUILD_SHUTDOWN:="no"}"
     : "${SUPPORT_CGROUPS:="0"}"
     : "${SUPPORT_CAPABILITIES:="0"}"
+    : "${SUPPORT_IOPRIO:="0"}"
+    : "${SUPPORT_OOM_ADJ:="0"}"
     : "${SYSCONTROLSOCKET:="/var/run/dinitctl"}"
 fi
 
@@ -476,6 +486,8 @@ STRIPOPTS=$STRIPOPTS
 SUPPORT_CGROUPS=$SUPPORT_CGROUPS
 USE_INITGROUPS=$USE_INITGROUPS
 SUPPORT_CAPABILITIES=$SUPPORT_CAPABILITIES
+SUPPORT_IOPRIO=$SUPPORT_IOPRIO
+SUPPORT_OOM_ADJ=$SUPPORT_OOM_ADJ
 
 # Optional settings
 SHUTDOWN_PREFIX=${SHUTDOWN_PREFIX:-}

@@ -80,6 +80,12 @@ int main(int argc, char **argv)
     if (vars.find("SUPPORT_CAPABILITIES") != vars.end()) {
         cout << "#define SUPPORT_CAPABILITIES " << vars["SUPPORT_CAPABILITIES"] << "\n";
     }
+    if (vars.find("SUPPORT_IOPRIO") != vars.end()) {
+        cout << "#define SUPPORT_IOPRIO " << vars["SUPPORT_IOPRIO"] << "\n";
+    }
+    if (vars.find("SUPPORT_OOM_ADJ") != vars.end()) {
+        cout << "#define SUPPORT_OOM_ADJ " << vars["SUPPORT_OOM_ADJ"] << "\n";
+    }
     if (vars.find("DEFAULT_AUTO_RESTART") != vars.end()) {
         cout << "#define DEFAULT_AUTO_RESTART " << vars["DEFAULT_AUTO_RESTART"] << "\n";
     }

@@ -541,6 +541,12 @@ See the \fBRESOURCE LIMITS\fR section.
 Note that some operating systems (notably, OpenBSD) do not support this limit; the
 setting will be ignored on such systems.
 .TP
+\fBnice\fR = \fInice-value\fR
+Specifies the CPU priority of the process.
+When the given value is out of range for the operating system, it will be clamped to
+supported range, but no error will be issued.
+On Linux, this also sets the autogroup priority, assuming procfs is mounted.
+.TP
 \fBrun\-in\-cgroup\fR = \fIcgroup-path\fR
 Run the service process(es) in the specified cgroup (see \fBcgroups\fR(7)).
 The cgroup is specified as a path; if it has a leading slash, the remainder of the path is
@@ -580,6 +586,23 @@ The append form can be used to add more secure bits, with everything being ORed 
 at the end and used as an integer.
 .IP
 This setting is only available if \fBdinit\fR was built with capabilities support.
+.TP
+\fBioprio\fR = \fIioprio-value\fR
+Specifies the I/O priority class and value for the process.
+The permitted values are \fInone\fR, \fIidle\fR, \fIrealtime:PRIO\fR, and
+\fIbest-effort:PRIO\fR, where \fIPRIO\fR is an integer value no less than 0
+and no more than 7.
+.IP
+This setting is only available if \fBdinit\fR was built with ioprio support.
+.TP
+\fBoom-score-adj\fR = \fIadj-value\fR
+Specifies the OOM killer score adjustment for the service.
+The value is an integer no less than -1000 and no more than 1000.
+.IP
+This setting is only available if \fBdinit\fR was built with OOM score adjustment support.
+.IP
+This setting requires the proc filesystem to be mounted, and will result in a
+service startup failure if that is not the case.
 .\"
 .SS OPTIONS
 .\"
