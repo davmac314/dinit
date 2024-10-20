@@ -8,6 +8,7 @@
 #mesondefine USE_UTMPX
 #mesondefine USE_INITGROUPS
 #mesondefine SUPPORT_CGROUPS
+#mesondefine SUPPORT_CAPABILITIES
 #mesondefine DEFAULT_AUTO_RESTART
 #mesondefine DEFAULT_START_TIMEOUT
 #mesondefine DEFAULT_STOP_TIMEOUT

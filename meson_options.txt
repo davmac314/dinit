@@ -83,7 +83,13 @@ option(
     'support-cgroups',
     type : 'feature',
     value : 'auto',
-    description : 'Enable Cgroups supprot.'
+    description : 'Enable Cgroups support.'
+)
+option(
+    'support-capabilities',
+    type : 'feature',
+    value : 'auto',
+    description : 'Enable capabilities support.'
 )
 option(
     'build-shutdown',

@@ -27,7 +27,8 @@ shutdown_built = false
 misc_args = {
     'include_directories': default_incdir,
     'install': true,
-    'install_dir': sbindir
+    'install_dir': sbindir,
+    'dependencies': [libcap_dep]
 }
 
 ## src/'s defines for igr-tests/

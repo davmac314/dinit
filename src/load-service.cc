@@ -708,6 +708,14 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             // - this will be done later)
         }
 
+        // We may have capabilities, process them now
+        #if SUPPORT_CAPABILITIES
+        cap_iab_wrapper cap_iab(settings.capabilities);
+        if (!settings.capabilities.empty() && !cap_iab.get()) {
+            throw service_load_exc(name, "the 'capabilities' string has an invalid format");
+        }
+        #endif
+
         if (service_type == service_type_t::PROCESS) {
             do_env_subst("command", settings.command, settings.command_offsets, srv_envmap, argval);
             do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap, argval);
@@ -732,6 +740,9 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             rvalps->set_env_file(std::move(settings.env_file));
             #if SUPPORT_CGROUPS
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
+            #endif
+            #if SUPPORT_CAPABILITIES
+            rvalps->set_cap(std::move(cap_iab), settings.secbits.get());
             #endif
             rvalps->set_rlimits(std::move(settings.rlimits));
             rvalps->set_restart_interval(settings.restart_interval, settings.max_restarts);
@@ -776,6 +787,9 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             #if SUPPORT_CGROUPS
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
             #endif
+            #if SUPPORT_CAPABILITIES
+            rvalps->set_cap(std::move(cap_iab), settings.secbits.get());
+            #endif
             rvalps->set_rlimits(std::move(settings.rlimits));
             rvalps->set_pid_file(std::move(settings.pid_file));
             rvalps->set_restart_interval(settings.restart_interval, settings.max_restarts);
@@ -814,6 +828,9 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             rvalps->set_env_file(std::move(settings.env_file));
             #if SUPPORT_CGROUPS
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
+            #endif
+            #if SUPPORT_CAPABILITIES
+            rvalps->set_cap(std::move(cap_iab), settings.secbits.get());
             #endif
             rvalps->set_rlimits(std::move(settings.rlimits));
             rvalps->set_stop_timeout(settings.stop_timeout);
