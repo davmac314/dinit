@@ -135,7 +135,7 @@ static constexpr flushbuf flush;
 
 // Specialise system_error & runtime_error for more meaningful exceptions on state bits/vars:
 
-// on eofbit
+// on eofbit.
 class iostream_eof : public std::runtime_error
 {
     public:
@@ -144,7 +144,7 @@ class iostream_eof : public std::runtime_error
     }
 };
 
-// on buffer_failbit, string_failbit
+// on buffer_failbit, string_failbit.
 class iostream_internal_err : public std::runtime_error
 {
     public:
@@ -153,7 +153,7 @@ class iostream_internal_err : public std::runtime_error
     }
 };
 
-// on io_failbit
+// on io_failbit.
 class iostream_system_err : public std::system_error
 {
     public:
@@ -171,20 +171,20 @@ class io_base
     std::unique_ptr<streambuf> buf;
 
     public:
-    // Get raw pointer of current buffer
-    // Note: The buffer may be null if allocation failed (buffer_failbit will be set in this case)
+    // Get raw pointer of current buffer.
+    // Note: The buffer may be null if allocation failed (buffer_failbit will be set in this case).
     streambuf *get_buf() noexcept;
 
     // Is current stream's file descriptor open?
     bool is_open() noexcept;
 
-    // Set file descriptor
-    // Note: Setting a new fd will replace the current fd in the stream and the buffer must be flushed
-    // first before replacing it. Also The previous file descriptor remains open and may need to be closed
+    // Set file descriptor.
+    // Note: Setting a new fd will replace the current fd in the stream and the buffer must be flushed.
+    // first before replacing it. Also The previous file descriptor remains open and may need to be closed.
     // by other means to avoid a file descriptor leak.
     void set_fd(const int newfd) noexcept;
 
-    // Get current file descriptor
+    // Get current file descriptor.
     int get_fd() noexcept;
 };
 
@@ -273,7 +273,7 @@ class ostream : public io_base
     // Internal function to appending into the buffer.
     ssize_t put(const char *msg, size_t count) noexcept;
 
-    // Throw exception based on current state from io_states
+    // Throw exception based on current state from io_states.
     // states parameter is for throwing appropriate exceptions (Not throwing unrelated exceptions).
     void throw_exception_on(const int states);
 
@@ -318,7 +318,7 @@ class ostream : public io_base
     // Returns: true on success, false on failure.
     //
     // Non _nx variant may throw:
-    // dio::iostream_system_err on POSIX open(2) failure
+    // dio::iostream_system_err on POSIX open(2) failure.
     bool open_nx(const char *path) noexcept;
     bool open(const char *path);
 
@@ -333,8 +333,8 @@ class ostream : public io_base
     // Returns: true on success, false on failure cases.
     //
     // Non _nx variant may throw:
-    // dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time)
-    // dio::iostream_system_err on system I/O failure
+    // dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time).
+    // dio::iostream_system_err on system I/O failure.
     bool close_nx() noexcept;
     bool close();
 
@@ -359,8 +359,8 @@ class ostream : public io_base
     // Returns: true on full-flushed buffer, false on failure or not full-flushed buffer.
     //
     // Non _nx variant may throw:
-    // dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time)
-    // dio::iostream_system_err on system I/O failure
+    // dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time).
+    // dio::iostream_system_err on system I/O failure.
     bool flush_nx() noexcept;
     bool flush();
 
@@ -387,8 +387,8 @@ class ostream : public io_base
     // want to handle partial write gracefully.
     //
     // Non _nx variants may throw:
-    // dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time)
-    // dio::iostream_system_err on system I/O failure
+    // dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time).
+    // dio::iostream_system_err on system I/O failure.
     bool write_nx(const char *msg) noexcept;
     bool write(const char *msg);
 
@@ -443,8 +443,8 @@ class ostream : public io_base
     // Returns: number of written-or-buffered characters.
     //
     // Non _nx variants may throw:
-    // dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time)
-    // dio::iostream_system_err on system I/O failure
+    // dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time).
+    // dio::iostream_system_err on system I/O failure.
     ssize_t write_buf_nx(const char *msg) noexcept;
     ssize_t write_buf(const char *msg);
 
@@ -463,9 +463,9 @@ class ostream : public io_base
     ~ostream() noexcept;
 };
 
-// Standard output "cout" on STDOUT_FILENO file descriptor
+// Standard output "cout" on STDOUT_FILENO file descriptor.
 extern ostream cout;
-// Standard error output "cerr" on STDERR_FILENO file desclogriptor
+// Standard error output "cerr" on STDERR_FILENO file descriptor.
 extern ostream cerr;
 
 template <typename... arguments> ssize_t print(const arguments & ...args) noexcept
@@ -562,10 +562,10 @@ class istream : public io_base
     // functions (such as read()).
     int io_error = 0;
 
-    // Internal function to load from file descriptor (a wrapper for buf->fill())
+    // Internal function to load from file descriptor (a wrapper for buf->fill()).
     int load_into_buf(unsigned len) noexcept;
 
-    // Throw exception based on current state from io_states
+    // Throw exception based on current state from io_states.
     // states parameter is for throwing appropriate exceptions (Not throwing unrelated exceptions).
     void throw_exception_on(const int states);
 
@@ -610,7 +610,7 @@ class istream : public io_base
     // Returns: true on success, false on failure.
     //
     // Non _nx variant may throw:
-    // dio::iostream_system_err on POSIX open(2) failure
+    // dio::iostream_system_err on POSIX open(2) failure.
     bool open_nx(const char *path) noexcept;
     bool open(const char *path);
 
@@ -625,7 +625,7 @@ class istream : public io_base
     // Returns: true on success, false on failure cases.
     //
     // Non _nx variant may throw:
-    // dio::iostream_system_err on system I/O failure
+    // dio::iostream_system_err on system I/O failure.
     bool close_nx() noexcept;
     bool close();
 
@@ -656,9 +656,9 @@ class istream : public io_base
     // Returns: character as an integer or -1 on eofbit, buffer_failure, and io_failure.
     //
     // Non _nx variant may throw:
-    // dio::iostream_eof on EOF
-    // dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time)
-    // dio::iostream_system_err on system I/O failure
+    // dio::iostream_eof on EOF.
+    // dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time).
+    // dio::iostream_system_err on system I/O failure.
     int getc_nx() noexcept;
     int getc();
 
@@ -671,10 +671,10 @@ class istream : public io_base
     // Returns: the amount of characters in the string or 0 on EOF or -1 on failure cases.
     //
     // Non _nx variant may throw:
-    // dio::iostream_eof on EOF
-    // dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time)
-    // dio::iostream_internal_err on putting into given std::string failure
-    // dio::iostream_system_err on system I/O failure
+    // dio::iostream_eof on EOF.
+    // dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time).
+    // dio::iostream_internal_err on putting into given std::string failure.
+    // dio::iostream_system_err on system I/O failure.
     ssize_t get_line_nx(std::string &dest, char delim = '\n') noexcept;
     ssize_t get_line(std::string &dest, char delim = '\n');
 
@@ -683,9 +683,9 @@ class istream : public io_base
     // Returns: Same as get_line().
     //
     // May throw:
-    // dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time)
-    // dio::iostream_internal_err on putting into given std::string failure
-    // dio::iostream_system_err on system I/O failure
+    // dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time).
+    // dio::iostream_internal_err on putting into given std::string failure.
+    // dio::iostream_system_err on system I/O failure.
     ssize_t get_line_until_eof(std::string &dest, char delim = '\n');
 
     // This is an alias for good() function and could be used like this:
@@ -700,21 +700,21 @@ class istream : public io_base
     ~istream() noexcept;
 };
 
-// Standard input "cin" on STDIN_FILENO file descriptor
+// Standard input "cin" on STDIN_FILENO file descriptor.
 extern istream cin;
 
-// Reads and returns one character from file descriptor 1 (stdin)
+// Reads and returns one character from file descriptor 1 (stdin).
 inline int get_char() noexcept
 {
     return cin.getc_nx();
 }
 
-// Reads and stores one line from given istream into given std::string
+// Reads and stores one line from given istream into given std::string.
 // Non _nx variants May throw:
-// dio::iostream_eof on EOF
-// dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time)
-// dio::iostream_internal_err on pushing into given std::string failure
-// dio::iostream_system_err on system I/O failure
+// dio::iostream_eof on EOF.
+// dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time).
+// dio::iostream_internal_err on pushing into given std::string failure.
+// dio::iostream_system_err on system I/O failure.
 inline ssize_t get_line_nx(istream &stream, std::string &dest, char delim = '\n') noexcept
 {
     return stream.get_line_nx(dest, delim);
@@ -725,11 +725,11 @@ inline ssize_t get_line(istream &stream, std::string &dest, char delim = '\n')
     return stream.get_line(dest, delim);
 }
 
-// Same as get_line() but doesn't throw exception on EOF
+// Same as get_line() but doesn't throw exception on EOF.
 // May throw:
-// dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time)
-// dio::iostream_internal_err on putting into given std::string failure
-// dio::iostream_system_err on system I/O failure
+// dio::iostream_internal_err on Buffer failure (buffer did not allocated at construction time).
+// dio::iostream_internal_err on putting into given std::string failure.
+// dio::iostream_system_err on system I/O failure.
 inline ssize_t get_line_until_eof(istream &stream, std::string &dest, char delim = '\n')
 {
     return stream.get_line_until_eof(dest, delim);
