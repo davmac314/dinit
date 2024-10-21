@@ -138,7 +138,7 @@ int open(const char *pathname, int flags)
     return nfd;
 }
 
-// ToDo: Check for mode instead of partial impl
+// TODO: Check for mode instead of partial implementation
 int open(const char *pathname, int flags, mode_t mode)
 {
     return open(pathname, flags);
