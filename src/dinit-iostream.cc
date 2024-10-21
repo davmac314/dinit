@@ -68,27 +68,36 @@ ssize_t ostream::put(const char *msg, size_t count) noexcept
         return 0; // Null/Empty message
     }
     if (count > buf->get_size()) {
+        int prev_freespace = buf->get_free();
+        buf->append(msg, buf->get_free());
+        msg += prev_freespace;
+        output_count += prev_freespace;
+        count -= prev_freespace;
         bool r = flush_nx();
         if (!r) {
             // io_error was set by flush_nx() call
-            return -1;
+            return (output_count > 0) ? output_count : -1;
         }
-        while (count > static_cast<size_t>(buf->get_free())) {
-            int prev_freespace = buf->get_free();
-            buf->append(msg, prev_freespace);
-            msg += prev_freespace;
-            output_count += prev_freespace;
-            count -= prev_freespace;
-            bool r = flush_nx();
-            if (!r) {
-                // io_error was set by flush_nx() call
-                return (output_count > 0) ? output_count : -1;
-            }
+        if (count < buf->get_size()) {
+            buf->append(msg, count);
+            return output_count + count;
         }
-        buf->append(msg, count);
-        return output_count + count;
+        // If the remaining portion of message cannot fit in buffer, write the remaining portion
+        // directly.
+        ssize_t res = bp_sys::write(get_fd(), msg, count);
+        if (res < 0) {
+            io_error = errno;
+            return (output_count > 0) ? output_count : -1;
+        }
+        if (static_cast<size_t>(res) == count) {
+            return output_count + count;
+        }
+
+        // Note: Also set io_error on partial write.
+        io_error = errno;
+        return output_count + res;
     }
-    while (count > static_cast<size_t>(buf->get_free())) {
+    if (count > static_cast<size_t>(buf->get_free())) {
         // If we haven't enough storage for caputring the message Firstly we try to fill buffer as
         // much as possible and then write the buffer.
         int prev_freespace = buf->get_free();
