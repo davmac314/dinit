@@ -67,13 +67,13 @@ ssize_t ostream::put(const char *msg, size_t count) noexcept
     if (count == 0) {
         return 0; // Null/Empty message
     }
-    else if (count > buf->get_size()) {
+    if (count > buf->get_size()) {
         bool r = flush_nx();
         if (!r) {
             // io_error was set by flush_nx() call
             return -1;
         }
-        else while (count > static_cast<size_t>(buf->get_free())) {
+        while (count > static_cast<size_t>(buf->get_free())) {
             int prev_freespace = buf->get_free();
             buf->append(msg, prev_freespace);
             msg += prev_freespace;
@@ -88,7 +88,7 @@ ssize_t ostream::put(const char *msg, size_t count) noexcept
         buf->append(msg, count);
         return output_count + count;
     }
-    else while (count > static_cast<size_t>(buf->get_free())) {
+    while (count > static_cast<size_t>(buf->get_free())) {
         // If we haven't enough storage for caputring the message Firstly we try to fill buffer as
         // much as possible and then write the buffer.
         int prev_freespace = buf->get_free();
@@ -104,7 +104,6 @@ ssize_t ostream::put(const char *msg, size_t count) noexcept
     }
 
     buf->append(msg, count);
-
     return output_count + count;
 }
 
@@ -236,7 +235,8 @@ bool ostream::flush_nx() noexcept
     if (!good()) {
         return -1;
     }
-    else while (buf->get_length() > 0) {
+
+    while (buf->get_length() > 0) {
         char *ptr = buf->get_ptr(0);
         unsigned len = buf->get_contiguous_length(ptr);
         ssize_t r = bp_sys::write(fd, ptr, len);
@@ -613,7 +613,7 @@ int istream::getc_nx() noexcept
             eof_state = true;
             return -1;
         }
-        else if (r < 0) {
+        if (r < 0) {
             io_error = errno;
             return -1;
         }
