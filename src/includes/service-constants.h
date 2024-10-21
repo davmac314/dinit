@@ -71,9 +71,10 @@ enum class exec_stage {
     ARRANGE_FDS, READ_ENV_FILE, SET_NOTIFYFD_VAR, SETUP_ACTIVATION_SOCKET, SETUP_CONTROL_SOCKET,
     CHDIR, SETUP_STDINOUTERR, ENTER_CGROUP, SET_RLIMITS, SET_UIDGID,
     OPEN_LOGFILE, // this is used instead of SETUP_STDINOUTERR if output is to logfile
+    SET_CAPS,
 
     /* values for future expansion: */
-    SPARE2, SPARE3, SPARE4, SPARE5, SPARE6, SPARE7, SPARE8,
+    SPARE3, SPARE4, SPARE5, SPARE6, SPARE7, SPARE8,
     /* must be last: */ DO_EXEC
 };
 

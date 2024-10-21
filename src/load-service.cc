@@ -708,6 +708,17 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             // - this will be done later)
         }
 
+        // We may have capabilities, process them now
+        #if SUPPORT_CAPABILITIES
+        cap_iab_t cap_iab = nullptr;
+        if (!settings.capabilities.empty()) {
+            cap_iab = cap_iab_from_text(settings.capabilities.c_str());
+            if (!cap_iab) {
+                    throw service_load_exc(name, "the 'capabilities' string has an invalid format");
+            }
+        }
+        #endif
+
         if (service_type == service_type_t::PROCESS) {
             do_env_subst("command", settings.command, settings.command_offsets, srv_envmap, argval);
             do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap, argval);
@@ -732,6 +743,14 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             rvalps->set_env_file(std::move(settings.env_file));
             #if SUPPORT_CGROUPS
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
+            #endif
+            #if SUPPORT_CAPABILITIES
+            rvalps->set_cap(cap_iab, settings.secbits.get());
+            #endif
+            #ifdef __linux__
+            rvalps->set_nice(settings.nice);
+            rvalps->set_ionice(settings.ionice);
+            rvalps->set_oom_adj(settings.oom_adj);
             #endif
             rvalps->set_rlimits(std::move(settings.rlimits));
             rvalps->set_restart_interval(settings.restart_interval, settings.max_restarts);
@@ -776,6 +795,14 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             #if SUPPORT_CGROUPS
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
             #endif
+            #if SUPPORT_CAPABILITIES
+            rvalps->set_cap(cap_iab, settings.secbits.get());
+            #endif
+            #ifdef __linux__
+            rvalps->set_nice(settings.nice);
+            rvalps->set_ionice(settings.ionice);
+            rvalps->set_oom_adj(settings.oom_adj);
+            #endif
             rvalps->set_rlimits(std::move(settings.rlimits));
             rvalps->set_pid_file(std::move(settings.pid_file));
             rvalps->set_restart_interval(settings.restart_interval, settings.max_restarts);
@@ -815,6 +842,14 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             #if SUPPORT_CGROUPS
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
             #endif
+            #if SUPPORT_CAPABILITIES
+            rvalps->set_cap(cap_iab, settings.secbits.get());
+            #endif
+            #ifdef __linux__
+            rvalps->set_nice(settings.nice);
+            rvalps->set_ionice(settings.ionice);
+            rvalps->set_oom_adj(settings.oom_adj);
+            #endif
             rvalps->set_rlimits(std::move(settings.rlimits));
             rvalps->set_stop_timeout(settings.stop_timeout);
             rvalps->set_start_timeout(settings.start_timeout);
@@ -853,6 +888,11 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
                 settings.socket_uid, settings.socket_gid);
         rval->set_chain_to(std::move(settings.chain_to_name));
         rval->set_environment(std::move(srv_env));
+
+        #if SUPPORT_CAPABILITIES
+        // in case it was not taken by a service (internal etc.)
+        cap_free(cap_iab);
+        #endif
 
         if (create_new_record) {
             // switch dependencies on old record so that they refer to the new record

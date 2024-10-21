@@ -11,6 +11,7 @@
 #include <csignal>
 #include <cstring>
 #include <cstdlib>
+#include <climits>
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -24,6 +25,10 @@
 #include <file-input-stack.h>
 #include <service-constants.h>
 #include <mconfig.h>
+
+#if SUPPORT_CAPABILITIES
+#include <sys/capability.h>
+#endif
 
 struct service_flags_t
 {
@@ -42,14 +47,45 @@ struct service_flags_t
     bool signal_process_only : 1;  // signal the session process, not the whole group
     bool always_chain : 1;      // always start chain-to service on exit
     bool kill_all_on_stop : 1;  // kill all other processes before stopping this service
+    bool no_new_privs : 1;      // set PR_SET_NO_NEW_PRIVS
 
     service_flags_t() noexcept : rw_ready(false), log_ready(false),
             runs_on_console(false), starts_on_console(false), shares_console(false), unmask_intr(false),
             pass_cs_fd(false), start_interruptible(false), skippable(false), signal_process_only(false),
-            always_chain(false), kill_all_on_stop(false)
+            always_chain(false), kill_all_on_stop(false), no_new_privs(false)
     {
     }
 };
+
+#if SUPPORT_CAPABILITIES
+struct secure_bits_t
+{
+    bool keep_caps : 1;
+    bool keep_caps_locked : 1;
+    bool no_setuid_fixup : 1;
+    bool no_setuid_fixup_locked : 1;
+    bool noroot : 1;
+    bool noroot_locked : 1;
+
+    secure_bits_t() noexcept : keep_caps(false), keep_caps_locked(false),
+            no_setuid_fixup(false), no_setuid_fixup_locked(false),
+            noroot(false), noroot_locked(false)
+    {
+    }
+
+    unsigned int get() const noexcept {
+        unsigned int r = 0;
+        // as referenced in uapi
+        if (noroot) r |= 1 << 0;
+        if (noroot_locked) r |= 1 << 1;
+        if (no_setuid_fixup) r |= 1 << 2;
+        if (no_setuid_fixup_locked) r |= 1 << 3;
+        if (keep_caps) r |= 1 << 4;
+        if (keep_caps_locked) r |= 1 << 5;
+        return r;
+    }
+};
+#endif
 
 // Resource limits for a particular service & particular resource
 struct service_rlimits
@@ -230,7 +266,16 @@ enum class setting_id_t {
     SETTING_RLIMIT_NOFILE, SETTING_RLIMIT_CORE, SETTING_RLIMIT_DATA, SETTING_RLIMIT_ADDRSPACE,
     // Possibly unsupported depending on platform/build options:
 #if SUPPORT_CGROUPS
-    RUN_IN_CGROUP
+    RUN_IN_CGROUP,
+#endif
+#if SUPPORT_CAPABILITIES
+    CAPABILITIES,
+    SECURE_BITS,
+#endif
+#ifdef __linux__
+    NICE,
+    IONICE,
+    OOM_SCORE_ADJ,
 #endif
 };
 
@@ -445,7 +490,8 @@ inline string read_config_name(string_iterator & i, string_iterator end, bool en
 //                  part will be added as [start,end). May be null.
 inline void read_setting_value(std::string &setting_val, setting_op_t operation,
         file_pos_ref input_pos, string_iterator &i, string_iterator end,
-        std::list<std::pair<unsigned,unsigned>> *part_positions = nullptr)
+        std::list<std::pair<unsigned,unsigned>> *part_positions = nullptr,
+        char delimiter = ' ')
 {
     using std::locale;
     using std::isspace;
@@ -455,10 +501,11 @@ inline void read_setting_value(std::string &setting_val, setting_op_t operation,
     i = skipwsln(i, end, line_num);
 
     if (operation == setting_op_t::PLUSASSIGN) {
-        // Ensure whitespace at end of current value. This is really only for debugging niceness
-        // since the offsets (part_positions) are what really define the seperated components.
+        // Ensure that values are correctly delimited. This is usually only for debugging
+        // niceness as for commands where this is mostly used the offsets actually delimit
+        // the components, but e.g. for capabilities (comma-separated) it matters more.
         if (!setting_val.empty()) {
-            setting_val += ' ';
+            setting_val += delimiter;
         }
     }
     else {
@@ -542,9 +589,9 @@ inline void read_setting_value(std::string &setting_val, setting_op_t operation,
 // See read_setting_value(std::string &, ...)
 inline void read_setting_value(ha_string &setting_val, setting_op_t operation,
         file_pos_ref input_pos, string_iterator &i, string_iterator end,
-        std::list<std::pair<unsigned,unsigned>> *part_positions = nullptr) {
+        std::list<std::pair<unsigned,unsigned>> *part_positions = nullptr, char delimiter = ' ') {
     std::string sval = std::string(setting_val.c_str(), setting_val.length());
-    read_setting_value(sval, operation, input_pos, i, end, part_positions);
+    read_setting_value(sval, operation, input_pos, i, end, part_positions, delimiter);
     setting_val = sval;
 }
 
@@ -781,6 +828,30 @@ inline unsigned long long parse_unum_param(file_pos_ref input_pos, const std::st
     try {
         unsigned long long v = std::stoull(param, &ind, 0);
         if (v > max || ind != param.length()) {
+            throw service_description_exc(service_name, num_err_msg, input_pos);
+        }
+        return v;
+    }
+    catch (std::out_of_range &exc) {
+        throw service_description_exc(service_name, num_err_msg, input_pos);
+    }
+    catch (std::invalid_argument &exc) {
+        throw service_description_exc(service_name, num_err_msg, input_pos);
+    }
+}
+
+// Parse a signed numeric parameter value
+inline long long parse_snum_param(file_pos_ref input_pos, const std::string &param,
+        const std::string &service_name, long long min = std::numeric_limits<long long>::min(),
+        long long max = std::numeric_limits<long long>::max())
+{
+    const char * num_err_msg = "specified value contains invalid numeric characters or is outside "
+            "allowed range.";
+
+    std::size_t ind = 0;
+    try {
+        long long v = std::stoll(param, &ind, 0);
+        if (v < min || v > max || ind != (param.length() - (v < 0))) {
             throw service_description_exc(service_name, num_err_msg, input_pos);
         }
         return v;
@@ -1333,6 +1404,17 @@ class service_settings_wrapper
     string run_in_cgroup;
     #endif
 
+    #if SUPPORT_CAPABILITIES
+    string capabilities;
+    secure_bits_t secbits;
+    #endif
+
+    #ifdef __linux__
+    int nice = INT_MIN;
+    int ionice = INT_MIN;
+    int oom_adj = INT_MIN;
+    #endif
+
     #if USE_UTMPX
     char inittab_id[sizeof(utmpx().ut_id)] = {0};
     char inittab_line[sizeof(utmpx().ut_line)] = {0};
@@ -1379,6 +1461,14 @@ class service_settings_wrapper
                 report_lint("'run-in-cgroup' specified, but ignored for the specified (or default) service type.");
             }
             #endif
+            #if SUPPORT_CAPABILITIES
+            if (!capabilities.empty()) {
+                report_lint("'capabilities' specified, but ignored for the specified (or default) service type.");
+            }
+            if (secbits.get()) {
+                report_lint("'secure-bits' specified, but ignored for the specified (or default) service type.");
+            }
+            #endif
             if (run_as_uid != (uid_t)-1) {
                 report_lint("'run-as' specified, but ignored for the specified (or default) service type.");
             }
@@ -1399,6 +1489,11 @@ class service_settings_wrapper
             if (onstart_flags.skippable) {
                 report_lint("option 'skippable' was specified, but ignored for the specified (or default) service type.");
             }
+            #if SUPPORT_CAPABILITIES
+            if (onstart_flags.no_new_privs) {
+                report_lint("option 'no_new_privs' was specified, but ignored for the specified (or default) service type.");
+            }
+            #endif
             if (log_type != log_type_id::NONE) {
                 report_lint("option 'log_type' was specified, but ignored for the specified (or default) service type.");
             }
@@ -1543,6 +1638,80 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
         case setting_id_t::RUN_IN_CGROUP:
             settings.run_in_cgroup = read_setting_value(input_pos, i, end, nullptr);
             break;
+        #endif
+        #if SUPPORT_CAPABILITIES
+        case setting_id_t::CAPABILITIES:
+            read_setting_value(settings.capabilities, setting_op, input_pos, i, end, nullptr, ',');
+            break;
+        case setting_id_t::SECURE_BITS:
+        {
+            std::list<std::pair<unsigned,unsigned>> indices;
+            string onstart_cmds = read_setting_value(input_pos, i, end, &indices);
+            for (auto indexpair : indices) {
+                string secbit_txt = onstart_cmds.substr(indexpair.first,
+                        indexpair.second - indexpair.first);
+                if (secbit_txt == "keep-caps") {
+                    settings.secbits.keep_caps = true;
+                }
+                else if (secbit_txt == "keep-caps-locked") {
+                    settings.secbits.keep_caps_locked = true;
+                }
+                else if (secbit_txt == "no-setuid-fixup") {
+                    settings.secbits.no_setuid_fixup = true;
+                }
+                else if (secbit_txt == "no-setuid-fixup-locked") {
+                    settings.secbits.no_setuid_fixup_locked = true;
+                }
+                else if (secbit_txt == "noroot") {
+                    settings.secbits.noroot = true;
+                }
+                else if (secbit_txt == "noroot-locked") {
+                    settings.secbits.noroot_locked = true;
+                }
+                else {
+                    throw service_description_exc(name, "unknown secure bit: " + secbit_txt,
+                            "secure-bits", input_pos);
+                }
+            }
+            break;
+        }
+        #endif
+        #ifdef __linux__
+        case setting_id_t::NICE:
+        {
+            string nice_str = read_setting_value(input_pos, i, end);
+            settings.nice = (int)parse_snum_param(input_pos, nice_str, name, -20, 19);
+            break;
+        }
+        case setting_id_t::IONICE:
+        {
+            string ionice_str = read_setting_value(input_pos, i, end);
+            if (ionice_str == "none") {
+                settings.ionice = 0;
+            }
+            else if (starts_with(ionice_str, "rt:")) {
+                auto nval = parse_unum_param(input_pos, ionice_str.substr(3 /* len 'rt:' */), name, 7);
+                settings.ionice = (1 << 13) | nval;
+            }
+            else if (starts_with(ionice_str, "be:")) {
+                auto nval = parse_unum_param(input_pos, ionice_str.substr(3 /* len 'be:' */), name, 7);
+                settings.ionice = (2 << 13) | nval;
+            }
+            else if (ionice_str == "idle") {
+                settings.ionice = 3 << 13;
+            }
+            else {
+                    throw service_description_exc(name, "invalid value for ionice: " + ionice_str,
+                            name, input_pos);
+            }
+            break;
+        }
+        case setting_id_t::OOM_SCORE_ADJ:
+        {
+            string oom_adj_str = read_setting_value(input_pos, i, end);
+            settings.oom_adj = (int)parse_snum_param(input_pos, oom_adj_str, name, -1000, 1000);
+            break;
+        }
         #endif
         case setting_id_t::SOCKET_LISTEN:
             settings.socket_path = read_setting_value(input_pos, i, end, nullptr);
@@ -1797,6 +1966,11 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
                 else if (option_txt == "kill-all-on-stop") {
                     settings.onstart_flags.kill_all_on_stop = true;
                 }
+#if SUPPORT_CAPABILITIES
+                else if (option_txt == "no-new-privs") {
+                    settings.onstart_flags.no_new_privs = true;
+                }
+#endif
                 else {
                     throw service_description_exc(name, "unknown option: " + option_txt,
                             "options", input_pos);

@@ -208,6 +208,7 @@ for var in PREFIX \
            SHUTDOWN_PREFIX \
            BUILD_SHUTDOWN \
            SUPPORT_CGROUPS \
+           SUPPORT_CAPABILITIES \
            USE_UTMPX \
            USE_INITGROUPS \
            SYSCONTROLSOCKET \
@@ -239,6 +240,8 @@ for arg in "$@"; do
         --disable-shutdown|--enable-shutdown=no) BUILD_SHUTDOWN=no ;;
         --enable-cgroups|--enable-cgroups=yes) SUPPORT_CGROUPS=1 ;;
         --disable-cgroups|--enable-cgroups=no) SUPPORT_CGROUPS=0 ;;
+        --enable-capabilities|--enable-capabilities=yes) SUPPORT_CAPABILITIES=1 ;;
+        --disable-capabilities|--enable-capabilities=no) SUPPORT_CAPABILITIES=0 ;;
         --enable-utmpx|--enable-utmpx=yes) USE_UTMPX=1 ;;
         --disable-utmpx|--enable-utmpx=no) USE_UTMPX=0 ;;
         --enable-initgroups|--enable-initgroups=yes) USE_INITGROUPS=1 ;;
@@ -278,10 +281,12 @@ done
 if [ "$PLATFORM" = "Linux" ]; then
     : "${BUILD_SHUTDOWN:="yes"}"
     : "${SUPPORT_CGROUPS:="1"}"
+    : "${SUPPORT_CAPABILITIES:="1"}"
     : "${SYSCONTROLSOCKET:="/run/dinitctl"}"
 else
     : "${BUILD_SHUTDOWN:="no"}"
     : "${SUPPORT_CGROUPS:="0"}"
+    : "${SUPPORT_CAPABILITIES:="0"}"
     : "${SYSCONTROLSOCKET:="/var/run/dinitctl"}"
 fi
 
@@ -467,6 +472,7 @@ STRIPOPTS=$STRIPOPTS
 # Feature settings
 SUPPORT_CGROUPS=$SUPPORT_CGROUPS
 USE_INITGROUPS=$USE_INITGROUPS
+SUPPORT_CAPABILITIES=$SUPPORT_CAPABILITIES
 
 # Optional settings
 SHUTDOWN_PREFIX=${SHUTDOWN_PREFIX:-}

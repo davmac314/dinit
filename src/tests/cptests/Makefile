@@ -3,6 +3,10 @@
 ALL_TEST_CXXFLAGS=$(CPPFLAGS) $(TEST_CXXFLAGS) $(TEST_CXXFLAGS_EXTRA)
 ALL_TEST_LDFLAGS=$(TEST_LDFLAGS) $(TEST_LDFLAGS_EXTRA)
 
+ifeq ($(SUPPORT_CAPABILITIES),1)
+  ALL_TEST_LDFLAGS+=-lcap
+endif
+
 objects = cptests.o
 parent_test_objects = ../test-bpsys.o ../test-dinit.o ../test-run-child-proc.o
 parent_objs = control.o dinit-log.o service.o load-service.o proc-service.o baseproc-service.o dinit-env.o settings.o
