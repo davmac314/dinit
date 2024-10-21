@@ -62,7 +62,7 @@ ssize_t ostream::put(const char *msg, size_t count) noexcept
     }
 
     // count of message bytes that have been buffered or written out
-    size_t cur_msg_in_buf_count = 0;
+    size_t output_count = 0;
 
     if (count == 0) {
         return 0; // Null/Empty message
@@ -77,16 +77,16 @@ ssize_t ostream::put(const char *msg, size_t count) noexcept
             int prev_freespace = buf->get_free();
             buf->append(msg, prev_freespace);
             msg += prev_freespace;
-            cur_msg_in_buf_count += prev_freespace;
+            output_count += prev_freespace;
             count -= prev_freespace;
             bool r = flush_nx();
             if (!r) {
                 // io_error was set by flush_nx() call
-                return (cur_msg_in_buf_count > 0) ? cur_msg_in_buf_count : -1;
+                return (output_count > 0) ? output_count : -1;
             }
         }
         buf->append(msg, count);
-        return cur_msg_in_buf_count + count;
+        return output_count + count;
     }
     else while (count > static_cast<size_t>(buf->get_free())) {
         // If we haven't enough storage for caputring the message Firstly we try to fill buffer as
@@ -94,18 +94,18 @@ ssize_t ostream::put(const char *msg, size_t count) noexcept
         int prev_freespace = buf->get_free();
         buf->append(msg, buf->get_free());
         msg += prev_freespace;
-        cur_msg_in_buf_count += prev_freespace;
+        output_count += prev_freespace;
         count -= prev_freespace;
         bool r = flush_nx();
         if (!r) {
             // io_error was set by flush_nx()
-            return (cur_msg_in_buf_count > 0) ? cur_msg_in_buf_count : -1;
+            return (output_count > 0) ? output_count : -1;
         }
     }
 
     buf->append(msg, count);
 
-    return cur_msg_in_buf_count + count;
+    return output_count + count;
 }
 
 void ostream::throw_exception_on(const int states)
