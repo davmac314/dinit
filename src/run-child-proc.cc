@@ -156,12 +156,16 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             err.stage = exec_stage::SET_NOTIFYFD_VAR;
             // We need to do an allocation: the variable name length, '=', and space for the value,
             // and nul terminator:
-            int notify_var_len = strlen(notify_var);
-            int req_sz = notify_var_len + ((CHAR_BIT * sizeof(int) - 1 + 2) / 3) + 1;
-            char * var_str = (char *) malloc(req_sz);
-            if (var_str == nullptr) goto failure_out;
-            snprintf(var_str, req_sz, "%s=%d", notify_var, notify_fd);
-            service_env.set_var(var_str);
+            if (!strchr(notify_var, '=')) {
+                int notify_var_len = strlen(notify_var);
+                int req_sz = notify_var_len + ((CHAR_BIT * sizeof(int) - 1 + 2) / 3) + 1;
+                char * var_str = (char *) malloc(req_sz);
+                if (var_str == nullptr) goto failure_out;
+                snprintf(var_str, req_sz, "%s=%d", notify_var, notify_fd);
+                service_env.set_var(var_str);
+            } else {
+                service_env.set_var(notify_var);
+            }
         }
 
         // Set up Systemd-style socket activation:

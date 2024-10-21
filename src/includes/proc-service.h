@@ -4,6 +4,7 @@
 
 #include <sys/types.h>
 #include <sys/resource.h>
+#include <sys/un.h>
 
 #include <baseproc-sys.h>
 #include <service.h>
@@ -110,6 +111,7 @@ class ready_notify_watcher : public eventloop_t::fd_watcher_impl<ready_notify_wa
     public:
     base_process_service *service;
     dasynq::rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
+    sockaddr_un sun;
 
     ready_notify_watcher(base_process_service * sr) noexcept : service(sr) { }
 
@@ -217,6 +219,7 @@ class base_process_service : public service_record
     uid_t run_as_uid = -1;
     gid_t run_as_gid = -1;
     int force_notification_fd = -1;  // if set, notification fd for service process is set to this fd
+    bool notification_sock = false; // if set, socket will be used for notification
     string notification_var; // if set, name of an environment variable for notification fd
 
     pid_t pid = -1;  // PID of the process. For a scripted service which is STARTING or STOPPING,
@@ -516,6 +519,11 @@ class base_process_service : public service_record
     void set_notification_var(string &&varname)
     {
         notification_var = std::move(varname);
+    }
+
+    void set_notification_sock(bool v)
+    {
+        notification_sock = v;
     }
 
     // The restart/stop timer expired.

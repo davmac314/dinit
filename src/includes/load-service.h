@@ -1320,6 +1320,7 @@ class service_settings_wrapper
     std::vector<service_rlimits> rlimits;
 
     int readiness_fd = -1;      // readiness fd in service process
+    bool readiness_sock = false; // using a socket for readiness
     string readiness_var;  // environment var to hold readiness fd
 
     uid_t run_as_uid = -1;
@@ -1418,7 +1419,7 @@ class service_settings_wrapper
                 report_error("process ID file ('pid-file') not specified for bgprocess service.");
             }
 
-            if (readiness_fd != -1 || !readiness_var.empty()) {
+            if (readiness_fd != -1 || readiness_sock || !readiness_var.empty()) {
                 report_error("readiness notification ('ready-notification') is not supported "
                         "for bgprocess services.");
             }
@@ -1894,6 +1895,9 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
                     throw service_description_exc(name, "invalid pipevar variable name",
                             "ready-notification", input_pos);
                 }
+            }
+            else if (notify_setting == "socket") {
+                settings.readiness_sock = true;
             }
             else {
                 throw service_description_exc(name, "unrecognised setting: " + notify_setting,

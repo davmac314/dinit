@@ -152,7 +152,8 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
 
         int control_socket[2] = {-1, -1};
         int notify_pipe[2] = {-1, -1};
-        bool have_notify = !notification_var.empty() || force_notification_fd != -1;
+        int notify_fd = -1;
+        bool have_notify = !notification_var.empty() || notification_sock || force_notification_fd != -1;
         ready_notify_watcher * rwatcher = have_notify ? get_ready_watcher() : nullptr;
         bool ready_watcher_registered = false;
 
@@ -175,7 +176,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
             }
         }
 
-        if (have_notify) {
+        if (have_notify && !notification_sock) {
             // Create a notification pipe:
             if (bp_sys::pipe2(notify_pipe, 0) != 0) {
                 log(loglevel_t::ERROR, get_name(), ": can't create notification pipe: ", strerror(errno));
@@ -185,10 +186,28 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
             // Set the read side as close-on-exec:
             int fdflags = bp_sys::fcntl(notify_pipe[0], F_GETFD);
             bp_sys::fcntl(notify_pipe[0], F_SETFD, fdflags | FD_CLOEXEC);
+            notify_fd = notify_pipe[1];
+            rwatcher->sun.sun_family = AF_UNSPEC;
+        } else if (have_notify) {
+            notify_fd = socket(AF_UNIX, SOCK_DGRAM|SOCK_CLOEXEC, 0);
+            if (notify_fd < 0) {
+                log(loglevel_t::ERROR, get_name(), ": can't create notification socket: ", strerror(errno));
+                goto out_cs_h;
+            }
+            memset(&rwatcher->sun, 0, sizeof(rwatcher->sun));
+            rwatcher->sun.sun_family = AF_UNIX;
+            snprintf(&rwatcher->sun.sun_path[1], sizeof(rwatcher->sun.sun_path) - 1, "/tmp/dinit-ready-notify");
+            if (bind(notify_fd, reinterpret_cast<sockaddr *>(&rwatcher->sun), sizeof("/tmp/dinit-ready-notify") + sizeof(sa_family_t)) < 0) {
+                log(loglevel_t::ERROR, get_name(), ": can't bind to notification socket: ", strerror(errno));
+                goto out_cs_h;
+            }
+            notification_var = "NOTIFY_SOCKET=@/tmp/dinit-ready-notify";
+        }
 
+        if (have_notify) {
             // add, but don't yet enable, readiness watcher:
             try {
-                rwatcher->add_watch(event_loop, notify_pipe[0], dasynq::IN_EVENTS, false);
+                rwatcher->add_watch(event_loop, notification_sock ? notify_fd : notify_pipe[0], dasynq::IN_EVENTS, false);
                 ready_watcher_registered = true;
             }
             catch (std::exception &exc) {
@@ -251,7 +270,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
             run_params.unmask_sigint = onstart_flags.unmask_intr;
             run_params.csfd = control_socket[1];
             run_params.socket_fd = socket_fd;
-            run_params.notify_fd = notify_pipe[1];
+            run_params.notify_fd = notify_fd;
             run_params.force_notify_fd = force_notification_fd;
             run_params.notify_var = notification_var.c_str();
             run_params.env_file = env_file.c_str();
