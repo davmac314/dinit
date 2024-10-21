@@ -61,8 +61,7 @@ ssize_t ostream::put(const char *msg, size_t count) noexcept
         return -1;
     }
 
-    // When we need to write some part of msg, we capture written chars in this var.
-    // That means the actual size of msg will be "cur_msg_in_buf_count + count".
+    // count of message bytes that have been buffered or written out
     size_t cur_msg_in_buf_count = 0;
 
     if (count == 0) {
