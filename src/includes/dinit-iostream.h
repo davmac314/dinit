@@ -274,6 +274,7 @@ class ostream : public io_base
     ssize_t put(const char *msg, size_t count) noexcept;
 
     // Throw exception based on current state from io_states
+    // states parameter is for throwing appropriate exceptions (Not throwing unrelated exceptions).
     void throw_exception_on(const int states);
 
     public:
@@ -565,6 +566,7 @@ class istream : public io_base
     int load_into_buf(unsigned len) noexcept;
 
     // Throw exception based on current state from io_states
+    // states parameter is for throwing appropriate exceptions (Not throwing unrelated exceptions).
     void throw_exception_on(const int states);
 
     public:
