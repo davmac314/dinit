@@ -30,28 +30,32 @@ tests_exec = executable(
     'tests.cc',
     for_tests_general_sources,
     for_tests_dinit_sources,
-    include_directories: for_tests_incdir
+    include_directories: for_tests_incdir,
+    dependencies: [libcap_dep]
 )
 proctests_exec = executable(
     'proctests',
     'proctests.cc',
     for_tests_general_sources,
     for_tests_dinit_sources,
-    include_directories: for_tests_incdir
+    include_directories: for_tests_incdir,
+    dependencies: [libcap_dep]
 )
 loadtests_exec = executable(
     'loadtests',
     'loadtests.cc',
     for_tests_general_sources,
     for_tests_dinit_sources,
-    include_directories: for_tests_incdir
+    include_directories: for_tests_incdir,
+    dependencies: [libcap_dep]
 )
 envtests_exec = executable(
     'envtests',
     'envtests.cc',
     for_tests_general_sources,
     for_tests_dinit_sources, 
-    include_directories: for_tests_incdir
+    include_directories: for_tests_incdir,
+    dependencies: [libcap_dep]
 )
 test('tests', tests_exec, suite: 'unit_tests')
 test('proctests', proctests_exec, suite: 'unit_tests')

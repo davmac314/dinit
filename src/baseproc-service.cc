@@ -257,8 +257,20 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
             run_params.env_file = env_file.c_str();
             run_params.output_fd = log_output_fd;
             run_params.input_fd = input_fd;
+            run_params.nice = nice;
             #if SUPPORT_CGROUPS
             run_params.run_in_cgroup = run_in_cgroup.c_str();
+            #endif
+            #if SUPPORT_CAPABILITIES
+            run_params.cap_iab = cap_iab.get();
+            run_params.secbits = secbits;
+            run_params.no_new_privs = onstart_flags.no_new_privs;
+            #endif
+            #if SUPPORT_IOPRIO
+            run_params.ioprio = ioprio;
+            #endif
+            #if SUPPORT_OOM_ADJ
+            run_params.oom_adj = oom_adj;
             #endif
             run_child_proc(run_params);
         }

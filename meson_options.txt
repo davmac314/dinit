@@ -83,7 +83,25 @@ option(
     'support-cgroups',
     type : 'feature',
     value : 'auto',
-    description : 'Enable Cgroups supprot.'
+    description : 'Enable Cgroups support.'
+)
+option(
+    'support-capabilities',
+    type : 'feature',
+    value : 'auto',
+    description : 'Enable capabilities support.'
+)
+option(
+    'support-ioprio',
+    type : 'feature',
+    value : 'auto',
+    description : 'Enable ioprio support.'
+)
+option(
+    'support-oom-adj',
+    type : 'feature',
+    value : 'auto',
+    description : 'Enable OOM score adjustment support.'
 )
 option(
     'build-shutdown',

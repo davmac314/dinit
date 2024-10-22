@@ -9,6 +9,10 @@ ifeq ($(BUILD_SHUTDOWN),yes)
   SHUTDOWN=$(SHUTDOWN_PREFIX)shutdown
 endif
 
+ifeq ($(SUPPORT_CAPABILITIES),1)
+  ALL_LDFLAGS+=-lcap
+endif
+
 dinit_objects = dinit.o load-service.o service.o proc-service.o baseproc-service.o control.o dinit-log.o \
 		dinit-main.o run-child-proc.o options-processing.o dinit-env.o settings.o
 
