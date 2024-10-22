@@ -175,8 +175,20 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
 {
     char buf[128];
     if (service->get_state() == service_state_t::STARTING) {
-        // can we actually read anything from the notification pipe?
-        int r = bp_sys::read(fd, buf, sizeof(buf));
+        // can we actually read anything from the notification pipe/socket?
+        ssize_t r;
+        if (fd != service->ready_socket_fd) {
+            r = bp_sys::read(fd, buf, sizeof(buf));
+        }
+        else {
+            socklen_t alen = service->ready_socket_path.length() + sizeof(sa_family_t);
+            r = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *)service->ready_socket_name, &alen);
+            if (r > 0 && (r != strlen("READY=1") || memcmp(buf, "READY=1", strlen("READY=1")))) {
+                /* ignore datagram */
+                errno = EAGAIN;
+                r = -1;
+            }
+        }
         if (r > 0) {
             if (service->waiting_stopstart_timer) {
                 service->process_timer.stop_timer(event_loop);
@@ -195,7 +207,7 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
         }
         service->services->process_queues();
     }
-    else {
+    else if (fd != service->ready_socket_fd) {
         // Just keep consuming data from the pipe:
         int r = bp_sys::read(fd, buf, sizeof(buf));
         if (r == 0) {
@@ -204,6 +216,10 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
             service->notification_fd = -1;
             return rearm::DISARM;
         }
+    } else {
+        // Just consume the datagram
+        socklen_t alen = service->ready_socket_path.length() + sizeof(sa_family_t);
+        recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *)service->ready_socket_name, &alen);
     }
 
     return rearm::REARM;

@@ -30,7 +30,8 @@ void base_process_service::do_smooth_recovery() noexcept
 
 bool base_process_service::bring_up() noexcept
 {
-    if (!open_socket()) {
+    if (!open_socket() || !open_ready_socket()) {
+        becoming_inactive();
         return false;
     }
 
@@ -175,7 +176,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
             }
         }
 
-        if (have_notify) {
+        if (have_notify && ready_socket_fd < 0) {
             // Create a notification pipe:
             if (bp_sys::pipe2(notify_pipe, 0) != 0) {
                 log(loglevel_t::ERROR, get_name(), ": can't create notification pipe: ", strerror(errno));
@@ -185,10 +186,12 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
             // Set the read side as close-on-exec:
             int fdflags = bp_sys::fcntl(notify_pipe[0], F_GETFD);
             bp_sys::fcntl(notify_pipe[0], F_SETFD, fdflags | FD_CLOEXEC);
+        }
 
+        if (have_notify) {
             // add, but don't yet enable, readiness watcher:
             try {
-                rwatcher->add_watch(event_loop, notify_pipe[0], dasynq::IN_EVENTS, false);
+                rwatcher->add_watch(event_loop, ready_socket_fd >= 0 ? ready_socket_fd : notify_pipe[0], dasynq::IN_EVENTS, false);
                 ready_watcher_registered = true;
             }
             catch (std::exception &exc) {
@@ -251,7 +254,7 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
             run_params.unmask_sigint = onstart_flags.unmask_intr;
             run_params.csfd = control_socket[1];
             run_params.socket_fd = socket_fd;
-            run_params.notify_fd = notify_pipe[1];
+            run_params.notify_fd = ready_socket_fd >= 0 ? ready_socket_fd : notify_pipe[1];
             run_params.force_notify_fd = force_notification_fd;
             run_params.notify_var = notification_var.c_str();
             run_params.env_file = env_file.c_str();
@@ -469,6 +472,83 @@ void base_process_service::becoming_inactive() noexcept
         close(socket_fd);
         socket_fd = -1;
     }
+    if (ready_socket_fd != -1) {
+        close(ready_socket_fd);
+        ready_socket_fd = -1;
+    }
+    free(ready_socket_name);
+    ready_socket_name = nullptr;
+}
+
+static int open_sock(const char *path, const std::string &svcname, int type,
+        uid_t uid, gid_t gid, int perms, struct sockaddr_un *&name) noexcept {
+    // Check the specified socket path
+    struct stat stat_buf;
+    if (stat(path, &stat_buf) == 0) {
+        if ((stat_buf.st_mode & S_IFSOCK) == 0) {
+            // Not a socket
+            log(loglevel_t::ERROR, svcname, ": socket file exists (and is not a socket)");
+            return -1;
+        }
+    }
+    else if (errno != ENOENT) {
+        // Other error
+        log(loglevel_t::ERROR, svcname, ": error checking socket: ", strerror(errno));
+        return -1;
+    }
+
+    // Remove stale socket file (if it exists).
+    // We won't test the return from unlink - if it fails other than due to ENOENT, we should get an
+    // error when we try to create the socket anyway.
+    unlink(path);
+
+    uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + strlen(path) + 1;
+    name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
+    if (name == nullptr) {
+        log(loglevel_t::ERROR, svcname, ": opening socket: out of memory");
+        return -1;
+    }
+
+    name->sun_family = AF_UNIX;
+    strcpy(name->sun_path, path);
+
+    int sockfd = dinit_socket(AF_UNIX, type, 0, SOCK_NONBLOCK | SOCK_CLOEXEC);
+    if (sockfd == -1) {
+        log(loglevel_t::ERROR, svcname, ": error creating socket: ", strerror(errno));
+        free(name);
+        return -1;
+    }
+
+    if (bind(sockfd, (struct sockaddr *) name, sockaddr_size) == -1) {
+        log(loglevel_t::ERROR, svcname, ": error binding socket: ", strerror(errno));
+        close(sockfd);
+        free(name);
+        return -1;
+    }
+
+    // POSIX (1003.1, 2013) says that fchown and fchmod don't necessarily work on sockets. We have to
+    // use chown and chmod instead.
+    if (chown(path, uid, gid)) {
+        log(loglevel_t::ERROR, svcname, ": error setting socket owner/group: ",
+                strerror(errno));
+        close(sockfd);
+        return -1;
+    }
+
+    if (chmod(path, perms) == -1) {
+        log(loglevel_t::ERROR, svcname, ": Error setting socket permissions: ",
+                strerror(errno));
+        close(sockfd);
+        return -1;
+    }
+
+    if (type != SOCK_DGRAM && listen(sockfd, 128) == -1) { // 128 "seems reasonable".
+        log(loglevel_t::ERROR, ": error listening on socket: ", strerror(errno));
+        close(sockfd);
+        return -1;
+    }
+
+    return sockfd;
 }
 
 bool base_process_service::open_socket() noexcept
@@ -478,77 +558,30 @@ bool base_process_service::open_socket() noexcept
         return true;
     }
 
-    const char * saddrname = socket_path.c_str();
-
-    // Check the specified socket path
-    struct stat stat_buf;
-    if (stat(saddrname, &stat_buf) == 0) {
-        if ((stat_buf.st_mode & S_IFSOCK) == 0) {
-            // Not a socket
-            log(loglevel_t::ERROR, get_name(), ": activation socket file exists (and is not a socket)");
-            return false;
-        }
-    }
-    else if (errno != ENOENT) {
-        // Other error
-        log(loglevel_t::ERROR, get_name(), ": error checking activation socket: ", strerror(errno));
-        return false;
-    }
-
-    // Remove stale socket file (if it exists).
-    // We won't test the return from unlink - if it fails other than due to ENOENT, we should get an
-    // error when we try to create the socket anyway.
-    unlink(saddrname);
-
-    uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + socket_path.length() + 1;
-    struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
-    if (name == nullptr) {
-        log(loglevel_t::ERROR, get_name(), ": opening activation socket: out of memory");
-        return false;
-    }
-
-    name->sun_family = AF_UNIX;
-    strcpy(name->sun_path, saddrname);
-
-    int sockfd = dinit_socket(AF_UNIX, SOCK_STREAM, 0, SOCK_NONBLOCK | SOCK_CLOEXEC);
-    if (sockfd == -1) {
-        log(loglevel_t::ERROR, get_name(), ": error creating activation socket: ", strerror(errno));
-        free(name);
-        return false;
-    }
-
-    if (bind(sockfd, (struct sockaddr *) name, sockaddr_size) == -1) {
-        log(loglevel_t::ERROR, get_name(), ": error binding activation socket: ", strerror(errno));
-        close(sockfd);
-        free(name);
-        return false;
-    }
-
+    struct sockaddr_un *name = nullptr;
+    socket_fd = open_sock(socket_path.c_str(), get_name(), SOCK_STREAM, socket_uid,
+            socket_gid, socket_perms, name);
     free(name);
 
-    // POSIX (1003.1, 2013) says that fchown and fchmod don't necessarily work on sockets. We have to
-    // use chown and chmod instead.
-    if (chown(saddrname, socket_uid, socket_gid)) {
-        log(loglevel_t::ERROR, get_name(), ": error setting activation socket owner/group: ",
-                strerror(errno));
-        close(sockfd);
+    return socket_fd >= 0;
+}
+
+bool base_process_service::open_ready_socket() noexcept
+{
+    if (ready_socket_path.empty() || ready_socket_fd != -1) {
+        // No socket, or already open
+        return true;
+    }
+
+    ready_socket_fd = open_sock(ready_socket_path.c_str(), get_name(), SOCK_DGRAM,
+            ready_socket_uid, ready_socket_gid, ready_socket_perms, ready_socket_name);
+
+    if (ready_socket_fd < 0) {
+        free(ready_socket_name);
+        ready_socket_name = nullptr;
         return false;
     }
 
-    if (chmod(saddrname, socket_perms) == -1) {
-        log(loglevel_t::ERROR, get_name(), ": Error setting activation socket permissions: ",
-                strerror(errno));
-        close(sockfd);
-        return false;
-    }
-
-    if (listen(sockfd, 128) == -1) { // 128 "seems reasonable".
-        log(loglevel_t::ERROR, ": error listening on activation socket: ", strerror(errno));
-        close(sockfd);
-        return false;
-    }
-
-    socket_fd = sockfd;
     return true;
 }
 

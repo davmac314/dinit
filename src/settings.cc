@@ -47,6 +47,9 @@ setting_details all_settings[] = {
         {"run-as",                  setting_id_t::RUN_AS,                   false,  true,   false},
         {"chain-to",                setting_id_t::CHAIN_TO,                 false,  true,   false},
         {"ready-notification",      setting_id_t::READY_NOTIFICATION,       false,  true,   false},
+        {"ready-socket-permissions", setting_id_t::READY_SOCKET_PERMISSIONS, false, true,   false},
+        {"ready-socket-uid",        setting_id_t::READY_SOCKET_UID,         false,  true,   false},
+        {"ready-socket-gid",        setting_id_t::READY_SOCKET_GID,         false,  true,   false},
 
         // Note: inittab-_ settings are supported even if functionality is not built in
         {"inittab-id",              setting_id_t::INITTAB_ID,               false,  true,   false},
