@@ -292,9 +292,11 @@ end, we have:
 There are two additional services, which are not depended on by any other service, and so do
 not normally start at all:
 
-- `recovery` - this service is started by Dinit if boot fails (and if the user when prompted
+- `recovery` - this service is started by Dinit if boot fails (and if the user, when prompted,
   then chooses the recovery option). It prompts for the root password and then provides a
-  shell.
+  shell. It has `restart = false` because once the administrator has finished repairing the system
+  configuration, they will exit the recovery shell, and at that point they should be offered the
+  various boot failure options (reboot etc) again.
 - `single` - this is a "single user mode" startup service which simply runs a shell. An
   unprivileged user cannot normally start this; doing so requires putting "single" on the
   kernel command line. When the shell exits, the `chain-to` setting will cause normal
