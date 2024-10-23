@@ -37,6 +37,12 @@
 
 #include "mconfig.h"
 
+#if SUPPORT_SELINUX
+#include <selinux/avc.h>
+#include <selinux/label.h>
+#include <selinux/selinux.h>
+#endif
+
 /*
  * When running as the system init process, Dinit processes the following signals:
  *
@@ -211,6 +217,10 @@ struct options {
 
     // list of services to start
     std::list<const char *> services_to_start;
+
+#ifdef SUPPORT_SELINUX
+    bool load_selinux_policy = true;
+#endif
 };
 
 // Process a command line argument (and possibly its follow-up value)
@@ -369,6 +379,11 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             }
         }
         #endif
+        #ifdef SUPPORT_SELINUX
+        else if (strcmp(argv[i], "--disable-selinux-policy") == 0) {
+            opts.load_selinux_policy = false;
+        }
+        #endif
         else if (strcmp(argv[i], "--service") == 0 || strcmp(argv[i], "-t") == 0) {
             if (++i < argc && argv[i][0] != '\0') {
                 services_to_start.push_back(argv[i]);
@@ -403,6 +418,9 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                     #ifdef SUPPORT_CGROUPS
                     " --cgroup-path <path>, -b <path>\n"
                     "                              cgroup base path (for resolving relative paths)\n"
+                    #endif
+                    #ifdef SUPPORT_SELINUX
+                    " --disable-selinux-policy     don't load the system SELinux policy\n"
                     #endif
                     " --log-file <file>, -l <file> log to the specified file\n"
                     " --quiet, -q                  disable output to standard output\n"
@@ -458,6 +476,68 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
     return 0;
 }
 
+#if SUPPORT_SELINUX
+static bool selinux_transition(const char *exe) {
+    using std::cerr;
+    using std::endl;
+
+    char *current_context = nullptr;
+    char *file_context = nullptr;
+    security_class_t security_class;
+    char *new_context = nullptr;
+
+    if (is_selinux_enabled() == 1) {
+        return true;
+    }
+
+    int enforce = 0;
+    if (selinux_init_load_policy(&enforce) != 0) {
+        if (enforce > 0) {
+            cerr << "Failed to load SELinux policy." << endl;
+            return false;
+        }
+    }
+
+    bool ret = true;
+    if (getcon_raw(&current_context) < 0) {
+        ret = false;
+        cerr << "Failed to get current context: " << strerror(errno) << endl;
+        goto cleanup;
+    }
+
+    if (getfilecon_raw(exe, &file_context) < 0) {
+        ret = false;
+        cerr << "Failed to get file context for " << exe << ": " << strerror(errno) << endl;
+        goto cleanup;
+    }
+
+    security_class = string_to_security_class("process");
+    if (security_class == 0) {
+        ret = false;
+        cerr << "Failed to get security class for process" << endl;
+        goto cleanup;
+    }
+
+    if (security_compute_create_raw(current_context, file_context, security_class, &new_context) < 0) {
+        ret = false;
+        cerr << "Failed to compute create context: " << strerror(errno) << endl;
+        goto cleanup;
+    }
+
+    if (setcon_raw(new_context) < 0) {
+        ret = false;
+        cerr << "Failed to set transition context to " << new_context << ": " << strerror(errno) << endl;
+        goto cleanup;
+    }
+
+cleanup:
+    if (current_context) freecon(current_context);
+    if (file_context) freecon(file_context);
+    if (new_context) freecon(new_context);
+    return ret;
+}
+#endif
+
 // Main entry point
 int dinit_main(int argc, char **argv)
 {
@@ -490,6 +570,10 @@ int dinit_main(int argc, char **argv)
             return 1;
         }
     }
+
+#if SUPPORT_SELINUX
+    if (am_system_mgr && am_system_init && opts.load_selinux_policy && !selinux_transition(argv[0])) return 1;
+#endif
 
     if (am_system_mgr) {
         // setup STDIN, STDOUT, STDERR so that we can use them
