@@ -376,7 +376,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
         }
         #endif
         #ifdef SUPPORT_SELINUX
-        else if (strcmp(argv[i], "--disable-selinux") == 0) {
+        else if (strcmp(argv[i], "--disable-selinux-policy") == 0) {
             opts.load_selinux_policy = false;
         }
         #endif
@@ -415,7 +415,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                     "                              cgroup base path (for resolving relative paths)\n"
                     #endif
                     #ifdef SUPPORT_SELINUX
-                    " --disable-selinux            don't load the system SELinux policy\n"
+                    " --disable-selinux-policy     don't load the system SELinux policy\n"
                     #endif
                     " --log-file <file>, -l <file> log to the specified file\n"
                     " --quiet, -q                  disable output to standard output\n"
