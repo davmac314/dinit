@@ -472,7 +472,28 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 }
 
 #if SUPPORT_SELINUX
+// Load the system SELinux policy and transition ourselves to it.
+// First, load the policy with selinux_init_load_policy(3). We don't
+// need to worry about the enforcing=0 kernel cmdline option or parsing
+// /etc/selinux/config, selinux_init_load_policy(3) will handle all cases
+// for us.
+//
+// This should be done as early as possible. We want to transition the init
+// system to the domain specified by the policy as early as possible for security
+// reasons. On top of this, we need to ensure we don't have open fd's lying about
+// before we transition, as they'll get stuck effectively having the old context
+// dinit initally started with before loading the policy.
+//
+// We take a parameter, const char *exe, which is argv[0], i.e. the path that
+// we are invoked with, to calculate our new security context to tranition
+// into.
+//
+// If we fail to load the system SELinux policy, return false, otherwise,
+// return true.
 static bool selinux_transition(const char *exe) {
+    // Let's use std::cerr instead of the log for logging messages here.
+    // If we output anything, we return failure, which indicates dinit should
+    // terminate before the log is initalised and flushed.
     using std::cerr;
     using std::endl;
 
@@ -567,6 +588,7 @@ int dinit_main(int argc, char **argv)
     }
 
 #if SUPPORT_SELINUX
+    // error exit if we are PID 1 and fail to load the selinux policy and transition
     if (am_system_mgr && am_system_init && opts.load_selinux_policy && !selinux_transition(argv[0])) return 1;
 #endif
 
