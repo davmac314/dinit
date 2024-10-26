@@ -1314,6 +1314,9 @@ static void printVersion()
 #if USE_INITGROUPS
                 " supplemental-groups"
 #endif
+#if SUPPORT_SELINUX
+                " selinux"
+#endif
                 "\n";
     }
 }
