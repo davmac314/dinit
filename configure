@@ -152,7 +152,8 @@ Optional options:
   --disable-utmpx                   Disable manipulating the utmp/utmpx database via the related POSIX functions
   --enable-initgroups               Enable initialization of supplementary groups for run-as [Enabled]
   --disable-initgroups              Disable initialization of supplementary groups for run-as
-  --enable-selinux                  Enable SELinux support [Enabled only on Linux based systems]
+  --enable-selinux                  Enable SELinux support [Only avilable on Linux based systems with SELinux support]
+  --disable-selinux                 Disable SELinux support
   --enable-auto-restart             Enable auto-restart for services by default [Deprecated]
   --disable-auto-restart            Disable auto-restart for services by default [Deprecated]
   --default-start-timeout=sec       Default start-timeout for services [60]
