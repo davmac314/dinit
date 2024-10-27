@@ -21,12 +21,6 @@ dinit_source_files = [
     'dinit-env.cc',
     'settings.cc'
 ]
-dinit_dependencies = []
-
-if libselinux.found()
-    dinit_dependencies += libselinux
-endif
-
 
 ## src/'s Defines
 shutdown_built = false
@@ -47,7 +41,7 @@ executable(
     'dinit',
     dinit_source_files,
     kwargs: misc_args,
-    dependencies: dinit_dependencies
+    dependencies: [libselinux],
 )
 executable(
     'dinitctl',

@@ -33,7 +33,7 @@ man_pages = get_option('man-pages')
 support_cgroups = get_option('support-cgroups')
 use_utmpx = get_option('use-utmpx')
 use_initgroups = get_option('use-initgroups')
-libselinux = dependency('libselinux', version : '>= 2.1.9', required : get_option('selinux'))
+support_selinux = get_option('support-selinux')
 default_auto_restart = get_option('default-auto-restart')
 default_start_timeout = get_option('default-start-timeout').to_string()
 default_stop_timeout = get_option('default-stop-timeout').to_string()
@@ -57,6 +57,9 @@ if platform == 'freebsd' and compiler.has_link_argument('-lrt')
     add_project_link_arguments('-lrt', language : 'cpp')
 endif
 
+## Dependencies
+libselinux = dependency('libselinux', version : '>= 2.1.9', required : support_selinux)
+
 ## Prepare mconfig.h
 mconfig_data.set_quoted('DINIT_VERSION', version)
 mconfig_data.set_quoted('SYSCONTROLSOCKET', dinit_control_socket_path)
@@ -66,7 +69,6 @@ mconfig_data.set('DEFAULT_AUTO_RESTART', default_auto_restart)
 mconfig_data.set('DEFAULT_START_TIMEOUT', default_start_timeout)
 mconfig_data.set('DEFAULT_STOP_TIMEOUT', default_stop_timeout)
 mconfig_data.set10('USE_INITGROUPS', use_initgroups)
-mconfig_data.set10('SUPPORT_SELINUX', libselinux.found())
 if support_cgroups.auto() and platform == 'linux' or support_cgroups.enabled()
     mconfig_data.set('SUPPORT_CGROUPS', '1') 
 endif
@@ -75,6 +77,9 @@ if use_utmpx.enabled() or (use_utmpx.auto() and compiler.has_header_symbol('utmp
     mconfig_data.set('USE_UTMPX', '1')
 else
     mconfig_data.set('USE_UTMPX', '0')
+endif
+if support_selinux.auto() and libselinux.found() and platform == 'linux' or support_selinux.enabled()
+    mconfig_data.set('SUPPORT_SELINUX', '1')
 endif
 configure_file(
     input : 'build/mconfig.mesontemplate',

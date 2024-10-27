@@ -92,7 +92,7 @@ option(
     description : 'Building shutdown/reboot/soft-reboot/halt or not.'
 )
 option(
-    'selinux',
+    'support-selinux',
     type : 'feature',
     value : 'auto',
     description : 'SELinux support'
