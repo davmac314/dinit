@@ -33,7 +33,7 @@ void service_dir_opt::build_paths(bool am_system_init)
         /* service directory name */
         if (!am_system_init) {
             const char * xdg_config_home = getenv("XDG_CONFIG_HOME");
-            size_t xdg_config_home_len;
+            size_t xdg_config_home_len = 0;
             if (xdg_config_home != nullptr && *xdg_config_home != '\0') {
                 xdg_config_home_len = strlen(xdg_config_home);
                 if (xdg_config_home[xdg_config_home_len - 1] == '/') {
