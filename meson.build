@@ -69,6 +69,7 @@ mconfig_data.set('DEFAULT_AUTO_RESTART', default_auto_restart)
 mconfig_data.set('DEFAULT_START_TIMEOUT', default_start_timeout)
 mconfig_data.set('DEFAULT_STOP_TIMEOUT', default_stop_timeout)
 mconfig_data.set10('USE_INITGROUPS', use_initgroups)
+mconfig_data.set10('SUPPORT_SELINUX', libselinux_dep.found())
 if support_cgroups.auto() and platform == 'linux' or support_cgroups.enabled()
     mconfig_data.set('SUPPORT_CGROUPS', '1') 
 endif
@@ -77,9 +78,6 @@ if use_utmpx.enabled() or (use_utmpx.auto() and compiler.has_header_symbol('utmp
     mconfig_data.set('USE_UTMPX', '1')
 else
     mconfig_data.set('USE_UTMPX', '0')
-endif
-if support_selinux.auto() and libselinux_dep.found() and platform == 'linux' or support_selinux.enabled()
-    mconfig_data.set('SUPPORT_SELINUX', '1')
 endif
 configure_file(
     input : 'build/mconfig.mesontemplate',
