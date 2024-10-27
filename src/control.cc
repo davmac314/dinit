@@ -1660,7 +1660,7 @@ bool control_conn_t::send_data() noexcept
         if (oom_close) {
             // Send oom response
             char oomBuf[] = { (char)cp_rply::OOM };
-            bp_sys::write(iob.get_watched_fd(), oomBuf, 1);
+            (void)bp_sys::write(iob.get_watched_fd(), oomBuf, 1);
         }
         return true;
     }
