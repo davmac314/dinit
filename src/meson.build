@@ -41,7 +41,7 @@ executable(
     'dinit',
     dinit_source_files,
     kwargs: misc_args,
-    dependencies: [libselinux],
+    dependencies: [libselinux_dep],
 )
 executable(
     'dinitctl',

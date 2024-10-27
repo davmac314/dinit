@@ -58,7 +58,7 @@ if platform == 'freebsd' and compiler.has_link_argument('-lrt')
 endif
 
 ## Dependencies
-libselinux = dependency('libselinux', version : '>= 2.1.9', required : support_selinux)
+libselinux_dep = dependency('libselinux', version : '>= 2.1.9', required : support_selinux)
 
 ## Prepare mconfig.h
 mconfig_data.set_quoted('DINIT_VERSION', version)
@@ -78,7 +78,7 @@ if use_utmpx.enabled() or (use_utmpx.auto() and compiler.has_header_symbol('utmp
 else
     mconfig_data.set('USE_UTMPX', '0')
 endif
-if support_selinux.auto() and libselinux.found() and platform == 'linux' or support_selinux.enabled()
+if support_selinux.auto() and libselinux_dep.found() and platform == 'linux' or support_selinux.enabled()
     mconfig_data.set('SUPPORT_SELINUX', '1')
 endif
 configure_file(
