@@ -179,8 +179,7 @@ DEFAULT_STOP_TIMEOUT=XXX
     The default if unspecified is 10 seconds. (The value can be overridden for individual services
     via the service description).
 SUPPORT_SELINUX=1|0
-    Whether to build support for SELinux awareness in dinit, such as loading the system SELinux policy
-    at boot.
+    Whether to build support for loading the system SELinux policy at boot.
 
 
 Running the test suite
