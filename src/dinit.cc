@@ -489,7 +489,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 static bool selinux_transition(const char *exe) {
     // Let's use std::cerr instead of the log for logging messages here.
     // If we output anything, we return failure, which indicates dinit should
-    // terminate before the log is initalised and flushed.
+    // terminate, which may happen before the log is initalised and flushed.
     using std::cerr;
     using std::endl;
 
