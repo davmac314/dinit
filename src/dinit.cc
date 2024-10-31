@@ -472,22 +472,20 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 }
 
 #if SUPPORT_SELINUX
-// Load the system SELinux policy and transition ourselves to it. When successful,
-// this will cause SELinux labels as per the policy to be attached to processes (and
-// file descriptors owned by those processes). The SELinux framework will begin to
-// enforce restrictions on access based on these labels and the loaded policy.
+// Load the system SELinux policy and transition ourselves to it. When successful, this will cause
+// SELinux labels as per the policy to be attached to processes (and file descriptors owned by
+// those processes). The SELinux framework will begin to enforce restrictions on access based on
+// these labels and the loaded policy.
 //
-// We might lose access to any file descriptors we have open when this is called (since
-// they will still be labelled with the kernel context), so it is best done early (i.e.
-// before we start opening file descriptors).
+// We might lose access to any file descriptors we have open when this is called (since they will
+// still be labelled with the kernel context), so it is best done early (i.e. before we start
+// opening file descriptors).
 //
 // Parameters:
-//   exe - the path that we are invoked with (to calculate our new security
-//         context to tranition into.)
+//   exe - the path that we are invoked with (to calculate our new security context to transition into.)
 //
 // Returns:
-//   If we fail to load the system SELinux policy, return false, otherwise,
-//   return true.
+//   If we fail to load the system SELinux policy, return false, otherwise, return true.
 static bool selinux_transition(const char *exe) {
     // Let's use std::cerr instead of the log for logging messages here.
     // If we output anything, we return failure, which indicates dinit should
@@ -505,9 +503,8 @@ static bool selinux_transition(const char *exe) {
     }
 
     int enforce = 0;
-    // We don't need to worry about the enforcing=0 kernel cmdline option or
-    // parsing /etc/selinux/config, selinux_init_load_policy(3) will handle
-    // all cases for us.
+    // We don't need to worry about the enforcing=0 kernel cmdline option or parsing
+    // /etc/selinux/config, selinux_init_load_policy(3) will handle all cases for us.
     if (selinux_init_load_policy(&enforce) != 0) {
         if (enforce > 0) {
             cerr << "Failed to load SELinux policy." << endl;
@@ -591,12 +588,12 @@ int dinit_main(int argc, char **argv)
 #if SUPPORT_SELINUX
     // Error exit if we are PID 1 and fail to load the selinux policy and transition.
     //
-    // This should be done directly after argument parsing, it's best to do this as early as possible to get
-    // init in the domain specified in the policy, and hence confine it, quickly.
+    // This should be done directly after argument parsing, it's best to do this as early as
+    // possible to get init in the domain specified in the policy, and hence confine it, quickly.
     //
-    // If selinux_transition fails, the system is not in the state requested by the user, and there is nothing
-    // we can do about it. Instead of continuing to boot the rest of the system without loading the user's policy,
-    // let's bail now to avoid an insecure and untrusted state.
+    // If selinux_transition fails, the system is not in the state requested by the user, and there
+    // is nothing we can do about it. Instead of continuing to boot the rest of the system without
+    // loading the user's policy, let's bail now to avoid an insecure and untrusted state.
     if (am_system_mgr && am_system_init && opts.load_selinux_policy && !selinux_transition(argv[0])) return 1;
 #endif
 
