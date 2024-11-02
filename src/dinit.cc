@@ -472,20 +472,18 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 }
 
 #if SUPPORT_SELINUX
-// Load the system SELinux policy and transition ourselves to it. When successful, this will cause
-// SELinux labels as per the policy to be attached to processes (and file descriptors owned by
-// those processes). The SELinux framework will begin to enforce restrictions on access based on
-// these labels and the loaded policy.
-//
+// Load the system SELinux policy and transition ourselves to it.
+// Parameters:
+//   exe - the path that we are invoked with (to calculate our new security context to transition
+//   into.)
+// Returns:
+//   If we fail to load the system SELinux policy, return false, otherwise, return true.
+// When successful, this will cause SELinux labels as per the policy to be attached to processes
+// (and file descriptors owned by those processes). The SELinux framework will begin to enforce
+// restrictions on access based on these labels and the loaded policy.
 // We might lose access to any file descriptors we have open when this is called (since they will
 // still be labelled with the kernel context), so it is best done early (i.e. before we start
 // opening file descriptors).
-//
-// Parameters:
-//   exe - the path that we are invoked with (to calculate our new security context to transition into.)
-//
-// Returns:
-//   If we fail to load the system SELinux policy, return false, otherwise, return true.
 static bool selinux_transition(const char *exe) {
     // Let's use std::cerr instead of the log for logging messages here.
     // If we output anything, we return failure, which indicates dinit should
