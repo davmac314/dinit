@@ -485,9 +485,9 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 // still be labelled with the current policy's representation of the kernel placeholder context),
 // so it is best done early (i.e. before we start opening file descriptors).
 static bool selinux_transition(const char *exe) {
-    // Let's use std::cerr instead of the log for logging messages here.
-    // If we output anything, we return failure, which indicates dinit should
-    // terminate, which may happen before the log is initalised and flushed.
+    // Let's use std::cerr instead of the log for logging messages here. If we output anything, we
+    // return failure, which indicates dinit should terminate, which may happen before the log is
+    // initalised and flushed.
     using std::cerr;
     using std::endl;
 
