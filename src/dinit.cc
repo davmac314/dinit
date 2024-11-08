@@ -513,7 +513,10 @@ static bool selinux_transition(const char *exe) {
     }
 
     bool ret = true;
-    if (getcon_raw(&current_context) < 0) {
+    // getcon_raw(3) can return 0, and still give us a NULL pointer if /proc/self/attr/current is
+    // empty. While SELinux guarentees this won't happen, as other LSMs may edit or control that
+    // file, it's best to check that we don't get a NULL pointer back.
+    if (getcon_raw(&current_context) < 0 && current_context == nullptr) {
         ret = false;
         cerr << "Failed to get current context: " << strerror(errno) << endl;
         goto cleanup;
