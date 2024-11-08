@@ -482,8 +482,8 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 // (and file descriptors owned by those processes). The SELinux framework will begin to enforce
 // restrictions on access based on these labels and the loaded policy.
 // We might lose access to any file descriptors we have open when this is called (since they will
-// still be labelled with the kernel context), so it is best done early (i.e. before we start
-// opening file descriptors).
+// still be labelled with the current policy's representation of the kernel context), so it is best
+// done early (i.e. before we start opening file descriptors).
 static bool selinux_transition(const char *exe) {
     // Let's use std::cerr instead of the log for logging messages here.
     // If we output anything, we return failure, which indicates dinit should
