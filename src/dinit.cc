@@ -501,9 +501,7 @@ static bool selinux_transition(const char *exe) {
     security_class_t security_class;
     char *new_context = nullptr;
 
-    if (is_selinux_enabled() == 1) {
-        return true;
-    }
+    if (is_selinux_enabled() == 1) return true;
 
     int enforce = 0;
     // We don't need to worry about the enforcing=0 kernel cmdline option or parsing
