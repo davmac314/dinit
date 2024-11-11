@@ -484,6 +484,10 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 // We might lose access to any file descriptors we have open when this is called (since they will
 // still be labelled with the current policy's representation of the kernel placeholder context),
 // so it is best done early (i.e. before we start opening file descriptors).
+// Despite returning true being a guarantee that the system SELinux policy has successfully been
+// loaded, it does not guarantee that we have transitioned ourselves to the context specified for
+// us by the system policy. The return value is only an indication of whether or not dinit should
+// bail.
 static bool selinux_transition(const char *exe) {
     // Let's use std::cerr instead of the log for logging messages here. If we output anything, we
     // return failure, which indicates dinit should terminate, which may happen before the log is
@@ -588,7 +592,7 @@ int dinit_main(int argc, char **argv)
     }
 
 #if SUPPORT_SELINUX
-    // Error exit if we are PID 1 and fail to load the selinux policy and transition.
+    // Error exit if we are PID 1 and fail to load the selinux policy.
     //
     // This should be done directly after argument parsing, it's best to do this as early as
     // possible to get init in the domain specified in the policy, and hence confine it, quickly.
