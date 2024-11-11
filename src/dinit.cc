@@ -512,37 +512,40 @@ static bool selinux_transition(const char *exe) {
         return true;
     }
 
-    bool ret = true;
+    // The newly loaded SELinux policy may stop us from calculating our new label, by preventing us
+    // (in our current domain, the inital SID's representation in the loaded policy) from accessing
+    // certain resources that are needed to calculate our label, for example, but not limited, the
+    // xattrs for `exe`. This is a policy misconfiguration, and not a dinit issue. Let's continue
+    // the boot process regardless, but still log an error where applicable.
+
     // getcon_raw(3) can return 0, and still give us a NULL pointer if /proc/self/attr/current is
     // empty. While SELinux guarentees this won't happen, as other LSMs may edit or control that
     // file, it's best to check that we don't get a NULL pointer back.
     if (getcon_raw(&current_context) < 0 || current_context == nullptr) {
-        ret = false;
         cerr << "Failed to get current context: " << strerror(errno) << endl;
         goto cleanup;
     }
 
     if (getfilecon_raw(exe, &file_context) < 0) {
-        ret = false;
         cerr << "Failed to get file context for " << exe << ": " << strerror(errno) << endl;
         goto cleanup;
     }
 
     security_class = string_to_security_class("process");
     if (security_class == 0) {
-        ret = false;
         cerr << "Failed to get security class for process" << endl;
         goto cleanup;
     }
 
     if (security_compute_create_raw(current_context, file_context, security_class, &new_context) < 0) {
-        ret = false;
         cerr << "Failed to compute create context: " << strerror(errno) << endl;
         goto cleanup;
     }
 
+    // The loaded SELinux policy may prevent the domain transition from our current domain to the
+    // domain specified for us in the policy. This is a policy misconfiguration, and not a dinit
+    // issue. Let's continue the boot process regardless, but still log an error.
     if (setcon_raw(new_context) < 0) {
-        ret = false;
         cerr << "Failed to set transition context to " << new_context << ": " << strerror(errno) << endl;
         goto cleanup;
     }
@@ -551,7 +554,7 @@ cleanup:
     if (current_context) freecon(current_context);
     if (file_context) freecon(file_context);
     if (new_context) freecon(new_context);
-    return ret;
+    return true;
 }
 #endif
 
