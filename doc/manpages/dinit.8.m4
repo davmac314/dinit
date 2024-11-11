@@ -113,6 +113,10 @@ If service description settings contain relative cgroup paths, they will be reso
 this path.
 This option is only available if \fBdinit\fR is built with cgroups support.
 .TP
+\fB\-\-disable\-selinux\-policy\fR
+Disable loading of the system SELinux policy.
+This option is only available if \fBdinit\fR is built with SELinux support.
+.TP
 \fB\-\-help\fR
 Display brief help text and then exit.
 .TP

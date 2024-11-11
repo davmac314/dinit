@@ -167,6 +167,10 @@ Custom options:
  build-shutdown            : Whether to build the shutdown/reboot/halt utilities.
                              Available values : enabled, disabled, auto
                              Default value : auto
+ 
+ support-selinux           : Enable SELinux support.
+                             Available values : enabled, disabled, auto
+                             Default value : auto
 
 
 Running the test suite

@@ -40,7 +40,8 @@ endif
 executable(
     'dinit',
     dinit_source_files,
-    kwargs: misc_args
+    kwargs: misc_args,
+    dependencies: [libselinux_dep],
 )
 executable(
     'dinitctl',
