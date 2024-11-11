@@ -514,9 +514,9 @@ static bool selinux_transition(const char *exe) {
 
     // The newly loaded SELinux policy may stop us from calculating our new label, by preventing us
     // (in our current domain, the inital SID's representation in the loaded policy) from accessing
-    // certain resources that are needed to calculate our label, for example, but not limited, the
-    // xattrs for `exe`. This is a policy misconfiguration, and not a dinit issue. Let's continue
-    // the boot process regardless, but still log an error where applicable.
+    // certain resources that are needed to calculate our label, for example, but not limited to,
+    // the xattrs for `exe`. This is a policy misconfiguration, and not a dinit issue. Let's
+    // continue the boot process regardless, but still log an error where applicable.
 
     // getcon_raw(3) can return 0, and still give us a NULL pointer if /proc/self/attr/current is
     // empty. While SELinux guarentees this won't happen, as other LSMs may edit or control that
