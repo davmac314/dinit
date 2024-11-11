@@ -504,12 +504,8 @@ static bool selinux_transition(const char *exe) {
     // We don't need to worry about the enforcing=0 kernel cmdline option or parsing
     // /etc/selinux/config, selinux_init_load_policy(3) will handle all cases for us.
     if (selinux_init_load_policy(&enforce) != 0) {
-        if (enforce > 0) {
-            cerr << "Failed to load SELinux policy while set to enforcing." << endl;
-            return false;
-        }
-        cerr << "Failed to load SELinux policy while set to permissive, ignoring." << endl;
-        return true;
+        cerr << "Failed to load SELinux policy." << endl;
+        return false;
     }
 
     // The newly loaded SELinux policy may stop us from calculating our new label, by preventing us
