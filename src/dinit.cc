@@ -514,8 +514,8 @@ static bool selinux_transition(const char *exe) {
     // The newly loaded SELinux policy may stop us from calculating our new label, by preventing us
     // (in our current domain, the inital SID's representation in the loaded policy) from accessing
     // certain resources that are needed to calculate our label, for example, but not limited to,
-    // the xattrs for `exe`. This is a policy misconfiguration, and not a dinit issue. Let's
-    // continue the boot process regardless, but still log an error where applicable.
+    // the xattrs for `exe`. This is a policy choice, and not a dinit runtime issue. Let's continue
+    // the boot process regardless, but still log a warning where applicable.
 
     // getcon_raw(3) can return 0, and still give us a NULL pointer if /proc/self/attr/current is
     // empty. SELinux guarentees this won't happen, but other LSMs may edit or control that file.
@@ -542,8 +542,8 @@ static bool selinux_transition(const char *exe) {
     }
 
     // The loaded SELinux policy may prevent the domain transition from our current domain to the
-    // domain specified for us in the policy. This is a policy misconfiguration, and not a dinit
-    // issue. Let's continue the boot process regardless, but still log an error.
+    // domain specified for us in the policy. This is a policy choice, and not a dinit runtime
+    // issue. Let's continue the boot process regardless, but still log a warning.
     if (setcon_raw(new_context) < 0) {
         cerr << "Failed to set transition context to " << new_context << ": " << strerror(errno) << endl;
         goto cleanup;
