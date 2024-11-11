@@ -478,6 +478,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 //   into.)
 // Returns:
 //   If we fail to load the system SELinux policy, return false, otherwise, return true.
+// This function will mount /sys if it isn't already mounted.
 // When successful, this will cause SELinux labels as per the policy to be attached to processes
 // (and file descriptors owned by those processes). The SELinux framework will begin to enforce
 // restrictions on access based on these labels and the loaded policy.
