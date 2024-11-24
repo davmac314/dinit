@@ -61,12 +61,12 @@ jobs:
       if: ${{ matrix.arch == 'amd64' }}
       run: |
         apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install g++ meson m4 libcap-dev -y
+        DEBIAN_FRONTEND=noninteractive apt-get install g++ meson m4 pkg-config libcap-dev -y
     - name: Getting depends (i386)
       if: ${{ matrix.arch == 'i386' }}
       run: |
         apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install meson m4:i386 g++:i386 libcap-dev:i386 -y
+        DEBIAN_FRONTEND=noninteractive apt-get install meson m4:i386 g++:i386 pkg-config:i386 libcap-dev:i386 -y
     - name: Setup
       run: meson setup -Dunit-tests=true -Digr-tests=true dirbuild
     - name: Build
