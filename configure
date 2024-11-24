@@ -162,8 +162,9 @@ Optional options:
 
 Build variables:
   Note: build variables can be passed in the environment, or as $0 argument (as "var=VALUE").
+  Note: values for some options will be determined automatically, if not specified.
   Note: CXXFLAGS, TEST_CXXFLAGS, LDFLAGS and TEST_LDFLAGS by default will be set to options considered suitable
-  for the platform, filtered to remove any options not supported by the  compiler/linker. To disable this,
+  for the platform, filtered to remove any options not supported by the compiler/linker. To disable this,
   specify the values explicitly (an empty string is accepted). To add options without removing the defaults,
   set the variable with _EXTRA appended to the name (eg CXXFLAGS_EXTRA).
 
@@ -189,6 +190,8 @@ Build variables:
   TEST_LDFLAGS_EXTRA            Additional link flags when building test executables.
   TEST_LDFLAGS_BASE             Link flags to use when building test executables, in addition to
                                 LTO-releated options.
+  
+  LDFLAGS_LIBCAP                Additional Link flags to link capabilities support (libcap).
 
 Note: paths specified via --prefix/--exec-prefix/--sbindir/--mandir, and build variable values, must be
 escaped for use in a makefile and in shell commands. If there are spaces in paths it is recommended to
@@ -262,7 +265,8 @@ for arg in "$@"; do
         CXX=*|CXX_FOR_BUILD=*|CXXFLAGS_FOR_BUILD=*|CPPFLAGS_FOR_BUILD=*\
         |LDFLAGS_FOR_BUILD=*|CXXFLAGS=*|CXXFLAGS_EXTRA=*|TEST_CXXFLAGS=*\
         |TEST_CXXFLAGS_EXTRA=*|LDFLAGS=*|LDFLAGS_EXTRA=*|TEST_LDFLAGS=*\
-        |TEST_LDFLAGS_EXTRA=*|CPPFLAGS=*|LDFLAGS_BASE=*|TEST_LDFLAGS_BASE=*) eval "${arg%%=*}=\${arg#*=}" ;;
+        |TEST_LDFLAGS_EXTRA=*|CPPFLAGS=*|LDFLAGS_BASE=*|TEST_LDFLAGS_BASE=*\
+        |LDFLAGS_LIBCAP) eval "${arg%%=*}=\${arg#*=}" ;;
         *=*) warning "Unknown variable: ${arg%%=*}" ;;
         *) warning "Unknown argument: $arg" ;;
     esac
@@ -339,6 +343,12 @@ if [ -z "${TEST_LDFLAGS_BASE+IS_SET}" ]; then
 else
     AUTO_TEST_LDFLAGS=BASE="false"
 fi
+if [ -z "${LDFLAGS_LIBCAP+IS_SET}" ]; then
+    LDFLAGS_LIBCAP=""
+    AUTO_LDFLAGS_LIBCAP="true"
+else
+    AUTO_LDFLAGS_LIBCAP="false"
+fi
 
 [ -z "${STRIPOPTS+IS_SET}" ] && STRIPOPTS="-s"
 
@@ -395,9 +405,14 @@ fi
 if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$PLATFORM" = FreeBSD ]; then
     try_ld_argument LDFLAGS_BASE -lrt
 fi
-if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$SUPPORT_CAPABILITIES" = 1 ]; then
-    try_ld_argument LDFLAGS_BASE -lcap
+if [ "$SUPPORT_CAPABILITIES" = 1 ]; then
+    if [ "$AUTO_LDFLAGS_LIBCAP" = true ]; then
+        try_ld_argument LDFLAGS_LIBCAP -lcap
+    fi
+else
+    LDFLAGS_LIBCAP=""
 fi
+
 if [ "$AUTO_TEST_LDFLAGS_BASE" = true ]; then
     TEST_LDFLAGS_BASE="\$(LDFLAGS_BASE)"
     established_TEST_LDFLAGS="$LDFLAGS_BASE"
@@ -481,6 +496,9 @@ TEST_LDFLAGS=$TEST_LDFLAGS
 TEST_LDFLAGS_EXTRA=$TEST_LDFLAGS_EXTRA
 BUILD_SHUTDOWN=$BUILD_SHUTDOWN
 STRIPOPTS=$STRIPOPTS
+
+# Dependencies
+LDFLAGS_LIBCAP=$LDFLAGS_LIBCAP
 
 # Feature settings
 SUPPORT_CGROUPS=$SUPPORT_CGROUPS
