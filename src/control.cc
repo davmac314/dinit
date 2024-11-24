@@ -1296,7 +1296,7 @@ bool control_conn_t::process_query_dsc_dir()
     // 4 bytes (uint32_t) = directory length (no nul terminator)
     // N bytes            = directory (no nul)
     std::vector<char> reppkt;
-    size_t sdir_len = strlen(service->get_service_dsc_dir());
+    auto sdir_len = static_cast<uint32_t>(strlen(service->get_service_dsc_dir()));
     reppkt.resize(1 + sizeof(uint32_t) + sdir_len);  // packet type, dir length, dir
     reppkt[0] = (char)cp_rply::SVCDSCDIR;
     std::memcpy(&reppkt[1], &sdir_len, sizeof(sdir_len));
