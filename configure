@@ -7,40 +7,42 @@ set -eu
 cd "$(dirname "$0")"
 
 ## Helper functions
-# POSIX "echo" behaviour is unspecified behavior in some cases, for example
-# when the first argument is "-n" or backslash ("\").
-# So, replace the shell built-in echo with a printf based function.
-# For more info see http://www.etalabs.net/sh_tricks.html
+# POSIX "echo" behaviour has unspecified behavior in some cases, for example when the first
+# argument is "-n" or backslash ("\"). So, replace the shell built-in echo with a printf-based
+# function. For more information see: http://www.etalabs.net/sh_tricks.html
 echo()
 {
     IFS=" " printf %s\\n "$*"
 }
 
+# Output a line of information, may be followed by call to sub_info to provide additional information
 info()
 {
     echo "$*"
 }
 
+# Output additional information (intended to follow call to info)
 sub_info()
 {
     echo "  ... $*"
 }
 
+# Output an error message, may be followed by a call to sub_error to provide additional information
 error()
 {
     >&2 echo "Error: $*"
     exit 1
 }
 
+# Output additional error information (intended to follow call to error)
 sub_error()
 {
     >&2 echo "  ... Error: $*"
     exit 1
 }
 
-# warning() have a built-in extra information feild which is optional
-# $1: Info, $2: Extra info (Optional)
-# NOTE: Always quote your warning() messages
+# Output a warning, with an optional "extra information" field
+# $1: Info, $2: Extra info (optional)
 warning()
 {
     >&2 echo
@@ -49,6 +51,7 @@ warning()
     >&2 echo
 }
 
+# Produce (as output) a random number from 0-65535
 randomnumber()
 {
     awk 'BEGIN {
@@ -57,6 +60,7 @@ randomnumber()
     }'
 }
 
+# Create a temporary directory and output its full path
 mktmpdir()
 {
     rn1=`randomnumber`
@@ -66,6 +70,7 @@ mktmpdir()
     echo "$dirname"    
 }
 
+# Check whether the compiler ($CXX) seems to work
 cxx_works()
 {
     info Checking whether \""$1"\" is a working C++ compiler...
@@ -79,15 +84,15 @@ cxx_works()
 }
 
 # Test if the compiler accepts an argument (for compilation only); if so add it to named variable.
-# NOTE: This function will return 1 on unsupported flag, use try_optional_cxx_argument() when
-# flag is not required or check its return.
-# $1 - the name of the variable to potentially add the argument to
-# $2 - the argument to add
-# CXX - the name of the compiler
-# CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
+# Note: this function will return failure if the flag is unsupported (use try_optional_cxx_argument
+# instead, to avoid errorring out).
+#   $1 - the name of the variable to potentially add the argument to
+#   $2 - the argument to test/add
+#   CXX - the name of the compiler
+#   CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
 try_cxx_argument()
 {
-    info Checking whether the compiler accepts "$2"...
+    info Checking whether "$2" is accepted for compilation...
     if $CXX $CXXFLAGS $2 $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA "$configtmpdir"/testfile.cc \
             -c -o "$configtmpdir"/testfile.o > /dev/null 2>&1; then
         rm "$configtmpdir"/testfile.o
@@ -101,12 +106,22 @@ try_cxx_argument()
     fi
 }
 
-# Same as try_cxx_argument but doesn't return 1 on unsupported flag
+# Test if the compiler accepts an argument; same as try_cxx_argument, but doesn't return failure
+# if the flag is unsupported.
+#   $1 - the name of the variable to potentially add the argument to
+#   $2 - the argument to test/add
+#   CXX - the name of the compiler
+#   CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
 try_optional_cxx_argument()
 {
     try_cxx_argument "$1" "$2" || :
 }
 
+# Test if an argument is supported during linking.
+#   $1 - the name of the variable to potentially add the argument to
+#   $2 - the argument to test/add
+#   CXX - the name of the compiler
+#   CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
 try_ld_argument()
 {
     info Checking whether "$2" is accepted as a link-time option...
@@ -121,9 +136,15 @@ try_ld_argument()
     fi
 }
 
+# Test if an argument is supported during both compiling and linking.
+#   $1 - the name of the compiler-flags variable to potentially add the argument to
+#   $2 - the name of the link-flags variable to potentially add the argument to
+#   $3 - the argument to test/add
+#   CXX - the name of the compiler
+#   CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
 try_both_argument()
 {
-    info Checking whether the compiler/linker accepts "$3"...
+    info Checking whether "$3" is accepted for compiling and linking...
     if $CXX $CXXFLAGS $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA $3 "$configtmpdir"/testfile.cc \
             -o "$configtmpdir"/testfile > /dev/null 2>&1; then
         sub_info Yes.
@@ -491,6 +512,7 @@ if [ "$AUTO_TEST_LDFLAGS" = "true" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
     CXXFLAGS="$established_TEST_CXXFLAGS" CXXFLAGS_EXTRA="$TEST_CXXFLAGS_EXTRA" \
             LDFLAGS="$established_TEST_LDFLAGS" LDFLAGS_EXTRA="$TEST_LDFLAGS_EXTRA" \
             try_both_argument TEST_CXXFLAGS $LDFLAGS_VAR -fsanitize=address,undefined
+    unset DUMMY_LDFLAGS
 fi
 
 ## Create mconfig
