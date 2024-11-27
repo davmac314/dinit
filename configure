@@ -125,7 +125,15 @@ try_optional_cxx_argument()
 try_ld_argument()
 {
     info Checking whether "$2" is accepted as a link-time option...
-    if $CXX $CXXFLAGS $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA $2 "$configtmpdir"/testfile.cc \
+    if [ ! -e "$configtmpdir"/testfile.o ]; then
+        # If the object file doesn't exist yet, need to compile
+        if ! $CXX $CXXFLAGS $CXXFLAGS_EXTRA "$configtmpdir"/testfile.cc \
+                -c -o "$configtmpdir"/testfile.o > /dev/null 2>&1; then
+            sub_info "No (compilation failed)."
+            return
+        fi
+    fi
+    if $CXX $LDFLAGS $LDFLAGS_EXTRA $2 "$configtmpdir"/testfile.o \
             -o "$configtmpdir"/testfile > /dev/null 2>&1; then
         sub_info Yes.
         rm "$configtmpdir"/testfile
