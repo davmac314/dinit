@@ -78,7 +78,7 @@ cxx_works()
     fi
 }
 
-# Test if the compiler accepts an argument (for compilation and link); if so add it to named variable.
+# Test if the compiler accepts an argument (for compilation only); if so add it to named variable.
 # NOTE: This function will return 1 on unsupported flag, use try_optional_cxx_argument() when
 # flag is not required or check its return.
 # $1 - the name of the variable to potentially add the argument to
@@ -89,8 +89,8 @@ try_cxx_argument()
 {
     info Checking whether the compiler accepts "$2"...
     if $CXX $CXXFLAGS $2 $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA "$configtmpdir"/testfile.cc \
-            -o "$configtmpdir"/testfile > /dev/null 2>&1; then
-        rm "$configtmpdir"/testfile
+            -c -o "$configtmpdir"/testfile.o > /dev/null 2>&1; then
+        rm "$configtmpdir"/testfile.o
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
         eval "$1=\${$1# }"
@@ -418,12 +418,16 @@ if [ "$AUTO_CXXFLAGS" = "true" ]; then
         try_optional_cxx_argument CXXFLAGS -fno-rtti
     fi
 fi
-if [ "$AUTO_LDFLAGS" = "true" ] && [ "$AUTO_CXXFLAGS" = "true" ]; then
-    if try_cxx_argument CXXFLAGS -flto; then
+if [ "$AUTO_LDFLAGS" = true ] && [ "$AUTO_CXXFLAGS" = true ]; then
+    DUMMY_LDFLAGS=""
+    # -flto must work for both compiling and linking, but we don't want to add it to LDFLAGS as,
+    # if LTO is used, CXXFLAGS will always be used alongside LDFLAGS.
+    if try_both_argument CXXFLAGS DUMMY_LDFLAGS -flto; then
         HAS_LTO="true"
     else
         HAS_LTO="false"
     fi
+    unset DUMMY_LDFLAGS
 fi
 if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$PLATFORM" = FreeBSD ]; then
     try_ld_argument LDFLAGS_BASE -lrt
@@ -477,15 +481,16 @@ fi
 
 # Check whether sanitizers can be used for tests
 if [ "$AUTO_TEST_LDFLAGS" = "true" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
+    DUMMY_LDFLAGS=""
     if [ "$HAS_LTO" = true ]; then
-        CXXFLAGS="$established_TEST_CXXFLAGS" CXXFLAGS_EXTRA="$TEST_CXXFLAGS_EXTRA" \
-                LDFLAGS="$established_TEST_LDFLAGS" LDFLAGS_EXTRA="$TEST_LDFLAGS_EXTRA" \
-                try_optional_cxx_argument TEST_CXXFLAGS -fsanitize=address,undefined
+        # Avoid doubling-up sanitizer options
+        LDFLAGS_VAR=DUMMY_LDFLAGS
     else
-        CXXFLAGS="$established_TEST_CXXFLAGS" CXXFLAGS_EXTRA="$TEST_CXXFLAGS_EXTRA" \
-                LDFLAGS="$established_TEST_LDFLAGS" LDFLAGS_EXTRA="$TEST_LDFLAGS_EXTRA" \
-                try_both_argument TEST_CXXFLAGS TEST_LDFLAGS -fsanitize=address,undefined
+        LDFLAGS_VAR=TEST_LDFLAGS
     fi
+    CXXFLAGS="$established_TEST_CXXFLAGS" CXXFLAGS_EXTRA="$TEST_CXXFLAGS_EXTRA" \
+            LDFLAGS="$established_TEST_LDFLAGS" LDFLAGS_EXTRA="$TEST_LDFLAGS_EXTRA" \
+            try_both_argument TEST_CXXFLAGS $LDFLAGS_VAR -fsanitize=address,undefined
 fi
 
 ## Create mconfig
