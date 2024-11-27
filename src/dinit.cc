@@ -1214,6 +1214,15 @@ static void printVersion()
 #if USE_INITGROUPS
             +1
 #endif
+#if SUPPORT_CAPABILITIES
+            +1
+#endif
+#if SUPPORT_IOPRIO
+            +1
+#endif
+#if SUPPORT_OOM_ADJ
+            +1
+#endif
             ;
     if (feature_count != 0) {
         std::cout << "Supported features:"
@@ -1225,6 +1234,15 @@ static void printVersion()
 #endif
 #if USE_INITGROUPS
                 " supplemental-groups"
+#endif
+#if SUPPORT_CAPABILITIES
+                " capabilities"
+#endif
+#if SUPPORT_IOPRIO
+                " io-priority"
+#endif
+#if SUPPORT_OOM_ADJ
+                " oom-score-adjust"
 #endif
                 "\n";
     }
