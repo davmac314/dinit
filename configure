@@ -342,7 +342,7 @@ done
 if [ "$PLATFORM" = "Linux" ]; then
     : "${BUILD_SHUTDOWN:="yes"}"
     : "${SUPPORT_CGROUPS:="1"}"
-    : "${SUPPORT_CAPABILITIES:="1"}"
+    : "${SUPPORT_CAPABILITIES:="AUTO"}"
     : "${SUPPORT_IOPRIO:="1"}"
     : "${SUPPORT_OOM_ADJ:="1"}"
     : "${SYSCONTROLSOCKET:="/run/dinitctl"}"
@@ -461,9 +461,19 @@ fi
 if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$PLATFORM" = FreeBSD ]; then
     try_ld_argument LDFLAGS_BASE -lrt
 fi
-if [ "$SUPPORT_CAPABILITIES" = 1 ]; then
+if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
     if [ "$AUTO_LDFLAGS_LIBCAP" = true ]; then
         try_ld_argument LDFLAGS_LIBCAP -lcap
+        if [ "$SUPPORT_CAPABILITIES" = AUTO ]; then
+            if [ -z "$LDFLAGS_LIBCAP" ]; then
+                SUPPORT_CAPABILITIES=0
+            else
+                SUPPORT_CAPABILITIES=1
+            fi
+        fi
+    else
+        # SUPPORT_CAPABILITIES may be set to AUTO, fix that:
+        SUPPORT_CAPABILITES=1
     fi
 else
     LDFLAGS_LIBCAP=""
