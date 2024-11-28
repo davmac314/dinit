@@ -195,18 +195,18 @@ Optional options:
   --enable-strip                    Strip debug information in installation process [Enabled]
   --disable-strip                   Don't strip debug information in installation process
   --shutdown-prefix=PREFIX          Name prefix for shutdown, poweroff, reboot, soft-reboot, halt programs []
-  --enable-shutdown                 Build shutdown, poweroff, reboot, soft-reboot, halt programs [Enabled only on Linux systems]
+  --enable-shutdown                 Build shutdown, poweroff, reboot, soft-reboot, halt programs [Enabled only on Linux]
   --disable-shutdown                Don't build shutdown, poweroff, reboot, soft-reboot, halt programs
-  --enable-cgroups                  Enable Cgroups support [Enabled only on Linux systems]
+  --enable-cgroups                  Enable Cgroups support [Enabled only on Linux]
   --disable-cgroups                 Disable Cgroups support
   --enable-capabilities             Enable capabilities support [Enabled on Linux if libcap available]
   --disable-capabilities            Disable capabilities support
-  --enable-utmpx                    Enable manipulating the utmp/utmpx database via the related POSIX functions [guessed]
+  --enable-utmpx                    Enable manipulating the utmp/utmpx database via the related POSIX functions [Depends on system]
   --disable-utmpx                   Disable manipulating the utmp/utmpx database via the related POSIX functions
   --enable-initgroups               Enable initialization of supplementary groups for run-as [Enabled]
   --disable-initgroups              Disable initialization of supplementary groups for run-as
-  --enable-auto-restart             Enable auto-restart for services by default [Deprecated]
-  --disable-auto-restart            Disable auto-restart for services by default [Deprecated]
+  --enable-auto-restart             Enable auto-restart for services by default (Deprecated; use --default-auto-restart=...)
+  --disable-auto-restart            Disable auto-restart for services by default (Deprecated; use --default-auto-restart=...)
   --default-start-timeout=sec       Default start-timeout for services [60]
   --default-stop-timeout=sec        Default stop-timeout for services [10]
   --default-auto-restart=(never|on-failure|always)
