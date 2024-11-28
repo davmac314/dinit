@@ -180,8 +180,9 @@ Defaults for the options are specified in brackets.
   -c, --clear                   Clear mconfig and configure's temporary files.
 
 Target options:
-  --platform=PLATFORM           Set the platform manually (Just for cross-platform cross-compile!) [autodetected]
-                                  Note: for all cross-compiles please specify correct CXX and CXX_FOR_BUILD!
+  --platform=PLATFORM           Set the platform manually (for cross compilation)
+                                Note: for all cross-compiles please specify correct CXX and
+                                CXX_FOR_BUILD!
 
 Installation directories:
   --prefix=PREFIX               Main installation prefix [/usr]
@@ -194,38 +195,51 @@ Installation directories:
 Optional options:
   --enable-strip                    Strip debug information in installation process [Enabled]
   --disable-strip                   Don't strip debug information in installation process
-  --shutdown-prefix=PREFIX          Name prefix for shutdown, poweroff, reboot, soft-reboot, halt programs []
-  --enable-shutdown                 Build shutdown, poweroff, reboot, soft-reboot, halt programs [Enabled only on Linux]
-  --disable-shutdown                Don't build shutdown, poweroff, reboot, soft-reboot, halt programs
+  --shutdown-prefix=PREFIX          Name prefix for shutdown, poweroff, reboot, soft-reboot, halt
+                                    programs []
+  --enable-shutdown                 Build shutdown, poweroff, reboot, soft-reboot, halt programs
+                                    [Enabled only on Linux]
+  --disable-shutdown                Don't build shutdown, poweroff, reboot, soft-reboot, halt
+                                    programs
   --enable-cgroups                  Enable Cgroups support [Enabled only on Linux]
   --disable-cgroups                 Disable Cgroups support
-  --enable-capabilities             Enable capabilities support [Enabled on Linux if libcap available]
+  --enable-capabilities             Enable capabilities support
+                                    [Enabled on Linux if libcap available]
   --disable-capabilities            Disable capabilities support
-  --enable-utmpx                    Enable manipulating the utmp/utmpx database via the related POSIX functions [Depends on system]
-  --disable-utmpx                   Disable manipulating the utmp/utmpx database via the related POSIX functions
-  --enable-initgroups               Enable initialization of supplementary groups for run-as [Enabled]
+  --enable-utmpx                    Enable manipulating the utmp/utmpx database via the related
+                                    POSIX functions [Depends on system]
+  --disable-utmpx                   Disable manipulating the utmp/utmpx database via the related
+                                    POSIX functions
+  --enable-initgroups               Enable initialization of supplementary groups for run-as
+                                    [Enabled]
   --disable-initgroups              Disable initialization of supplementary groups for run-as
-  --enable-auto-restart             Enable auto-restart for services by default (Deprecated; use --default-auto-restart=...)
-  --disable-auto-restart            Disable auto-restart for services by default (Deprecated; use --default-auto-restart=...)
+  --enable-auto-restart             Enable auto-restart for services by default (Deprecated;
+                                    use --default-auto-restart=...)
+  --disable-auto-restart            Disable auto-restart for services by default (Deprecated;
+                                    use --default-auto-restart=...)
   --default-start-timeout=sec       Default start-timeout for services [60]
   --default-stop-timeout=sec        Default stop-timeout for services [10]
   --default-auto-restart=(never|on-failure|always)
-                                    When to automatically restart services. This controls the default value for the
-                                    "restart" service setting; see the dinit-service(5) man page for details. [always]
+                                    When to automatically restart services. This controls the
+                                    default value for the "restart" service setting; see the
+                                    dinit-service(5) man page for details. [always]
 
 Build variables:
   Note: build variables can be passed in the environment, or as $0 argument (as "var=VALUE").
   Note: values for some options will be determined automatically, if not specified.
-  Note: CXXFLAGS, TEST_CXXFLAGS, LDFLAGS and TEST_LDFLAGS by default will be set to options considered suitable
-  for the platform, filtered to remove any options not supported by the compiler/linker. To disable this,
-  specify the values explicitly (an empty string is accepted). To add options without removing the defaults,
-  set the variable with _EXTRA appended to the name (eg CXXFLAGS_EXTRA).
+  Note: CXXFLAGS, TEST_CXXFLAGS, LDFLAGS and TEST_LDFLAGS by default will be set to options
+    considered suitable for the platform, filtered to remove any options not supported by the
+    compiler/linker. To disable this, specify the values explicitly (an empty string is accepted).
+    To add options without removing the defaults, set the variable with _EXTRA appended to the
+    name (eg CXXFLAGS_EXTRA).
 
   CXX                           C++ compiler
-  CXX_FOR_BUILD                 C++ compiler generating code for the build system (for cross-compiles).
+  CXX_FOR_BUILD                 C++ compiler generating code for the build system (for
+                                cross-compiles).
   CXXFLAGS_FOR_BUILD            Flags to use when generating code for the build system.
                                   Defaults to the value of CXXFLAGS.
-  CPPFLAGS_FOR_BUILD            Preprocessor flags to use when generating code for the build system.
+  CPPFLAGS_FOR_BUILD            Preprocessor flags to use when generating code for the build
+                                system.
                                   Defaults to the value of CPPFLAGS.
   LDFLAGS_FOR_BUILD             Link flags to use when generating code for the build system.
                                   Defaults to the value of LDFLAGS.
@@ -246,9 +260,9 @@ Build variables:
   
   LDFLAGS_LIBCAP                Additional Link flags to link capabilities support (libcap).
 
-Note: paths specified via --prefix/--exec-prefix/--sbindir/--mandir, and build variable values, must be
-escaped for use in a makefile and in shell commands. If there are spaces in paths it is recommended to
-prepend a backslash (\) to them.
+Note: paths specified via --prefix/--exec-prefix/--sbindir/--mandir, and build variable values,
+must be escaped for use in a makefile and in shell commands. If there are spaces in paths it is
+recommended to prepend a backslash (\) to them.
 For example: ./configure --prefix="/home/my\ home"
 
 See BUILD file for more information.
