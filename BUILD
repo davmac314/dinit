@@ -81,6 +81,8 @@ The following variables affect compilation and link options:
              (FreeBSD requires -lrt; link time optimisation requires -flto and other flags).
   TEST_CXXFLAGS : are options passed to the compiler when compiling code for tests
   TEST_LDFLAGS  : are options to be used when linking test code
+  LDFLAGS_LIBCAP : addition link options required to link with "libcap" (needed if capabilities
+                   support is enabled).
 
 For convenience, generated configuration also allows setting the following:
 
@@ -178,6 +180,14 @@ DEFAULT_STOP_TIMEOUT=XXX
     this, its process group is sent a SIGKILL signal which should cause it to terminate immediately.
     The default if unspecified is 10 seconds. (The value can be overridden for individual services
     via the service description).
+SUPPORT_CGROUPS=1|0
+    Whether to include support for cgroups (Linux only).
+SUPPORT_CAPABILITIES=1|0
+    Whether to include support for capabilities (Linux only; requires libcap).
+SUPPORT_IOPRIO=1|0
+    Whether to include support for adjusting IO priority (Linux only).
+SUPPORT_OOMADJ=1|0
+    Whether to include support for adusting OOM-killer score adjustment (Linux only).
 
 
 Running the test suite
