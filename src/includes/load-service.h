@@ -1104,9 +1104,15 @@ void process_service_file(string name, file_input_stack &service_input, T proces
 inline void dummy_lint(const char *) {}
 
 // Resolve variables from an environment
-inline const char *resolve_env_var(const string &name, const environment::env_map &envmap){
+inline const char *resolve_env_var(const string &name, const environment::env_map &envmap)
+{
     return envmap.lookup(name);
 };
+
+inline const char *null_resolve_env_var(const string &name)
+{
+    return nullptr;
+}
 
 // Substitute variable references in a value with their values. Specified offsets must give
 // the location of separate arguments after word splitting and are adjusted appropriately.
@@ -1118,8 +1124,7 @@ inline const char *resolve_env_var(const string &name, const environment::env_ma
 //         std::bad_alloc on allocation failure
 template <typename T>
 static void value_var_subst(const char *setting_name, std::string &line,
-        std::list<std::pair<unsigned,unsigned>> &offsets, T &var_resolve,
-        environment::env_map const *envmap, const char *argval)
+        std::list<std::pair<unsigned,unsigned>> &offsets, const T &var_resolve, const char *argval)
 {
     auto dindx = line.find('$');
     if (dindx == string::npos) {
@@ -1200,7 +1205,7 @@ static void value_var_subst(const char *setting_name, std::string &line,
                 }
                 size_t line_len_before = r_line.size();
                 string_view resolved_vw;
-                auto *resolved = is_arg ? argval : (envmap ? var_resolve(name, *envmap) : nullptr);
+                auto *resolved = is_arg ? argval : var_resolve(name);
                 if (resolved) {
                     resolved_vw = resolved;
                 }
@@ -1324,7 +1329,7 @@ inline string read_value_with_arg(const char *setting_name, file_pos_ref input_p
 
     std::list<std::pair<unsigned,unsigned>> offsets;
     offsets.emplace_back(0, rval.size());
-    value_var_subst(setting_name, rval, offsets, resolve_env_var, nullptr, argval);
+    value_var_subst(setting_name, rval, offsets, null_resolve_env_var, argval);
     return rval;
 }
 
@@ -1342,7 +1347,7 @@ inline string read_include_path(string const &svcname, string const &meta_cmd, f
 
     std::list<std::pair<unsigned,unsigned>> offsets;
     offsets.emplace_back(0, rval.size());
-    value_var_subst(meta_cmd.c_str(), rval, offsets, resolve_env_var, nullptr, argval);
+    value_var_subst(meta_cmd.c_str(), rval, offsets, null_resolve_env_var, argval);
     return rval;
 }
 
@@ -1432,23 +1437,30 @@ class service_settings_wrapper
     char inittab_line[sizeof(utmpx().ut_line)] = {0};
     #endif
 
-    // Finalise settings (after processing all setting lines), perform some basic sanity checks and
-    // optionally some additional lint checks. May throw service_description_exc
-    //
-    // Note: we have the do_report_lint parameter to prevent code (and strings) being emitted for lint
-    // checks even when the dummy_lint function is used. (Ideally the compiler would optimise them away).
+    // Finalise settings (after processing all setting lines), perform some basic sanity checks
+    // and optionally some additional lint checks.
     //
     // Template parameters:
-    //     propagate_sde - whether to propagate service description errors (if false they are reported via report_err)
-    //     (remaining template parameters should be inferred)
+    //   propagate_sde - whether to propagate service description errors (if false, they are
+    //                   reported via report_err)
+    //   (remaining template parameters should be inferred)
     // Parameters:
-    //     report_error - functor to report any errors
-    //     envmap - environment variables
-    //     report_line - functor to report lint (default: don't report)
-    //     var_subst - functor to resolve environment variable values
-    template <bool propagate_sde = false, typename T, typename U = decltype(dummy_lint), typename V = decltype(resolve_env_var),
+    //   report_error - functor to report any errors
+    //   service_arg - service argument, if any (may be null)
+    //   envmap - environment variables
+    //   report_line - functor to report lint (default: don't report)
+    //   var_subst - functor to resolve environment variable values
+    // Throws:
+    //   service_description_exc, bad_alloc
+    //
+    // Note: we have the do_report_lint parameter to prevent code (and strings) being emitted for
+    // lint checks even when the dummy_lint function is used. (Ideally the compiler would optimise
+    // them away).
+    //
+    template <bool propagate_sde = false, typename T, typename U, typename V,
             bool do_report_lint = !std::is_same<U, decltype(dummy_lint)>::value>
-    void finalise(T &report_error, environment::env_map const &envmap, const char *argval, U &report_lint = dummy_lint, V &var_subst = resolve_env_var)
+    void finalise(T &report_error, const char *service_arg, const U &report_lint,
+            const V &var_subst)
     {
         if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS
                 || service_type == service_type_t::SCRIPTED) {
@@ -1555,7 +1567,7 @@ class service_settings_wrapper
                 try {
                     list<pair<unsigned,unsigned>> str_offsets;
                     str_offsets.emplace_back(0, setting_value.size());
-                    value_var_subst(setting_name, setting_value, str_offsets, var_subst, &envmap, argval);
+                    value_var_subst(setting_name, setting_value, str_offsets, var_subst, service_arg);
                 }
                 catch (service_description_exc &exc) {
                     if (propagate_sde) throw;
@@ -1600,40 +1612,63 @@ class service_settings_wrapper
             }
         }
     }
+
+    // Finalise settings (after processing all setting lines), perform some basic sanity checks
+    // and optionally some additional lint checks. Resolve variables from provided env_map.
+    // See finalise() above.
+    //
+    // Throws:
+    //    service_description_exc
+    //
+    template <bool propagate_sde = false, typename T, typename U = decltype(dummy_lint),
+            typename V = decltype(resolve_env_var),
+            bool do_report_lint = !std::is_same<U, decltype(dummy_lint)>::value>
+    void finalise(T &report_error, environment::env_map const &envmap, const char *argval,
+            U &report_lint = dummy_lint, V &var_subst = resolve_env_var)
+    {
+        auto do_var_subst = [&](const std::string &name) {
+            return var_subst(name, envmap);
+        };
+        finalise<propagate_sde, T, U, decltype(do_var_subst), do_report_lint>(report_error,
+                argval, report_lint, do_var_subst);
+    }
 };
 
-// Process a service description line. In general, parse the setting value and record the parsed value
-// in a service settings wrapper object. Errors will be reported via service_description_exc exception.
+// Process a service description line. In general, parse the setting value and record the parsed
+// value in a service settings wrapper object. Errors will be reported via service_description_exc
+// exception.
 //
-// type parameters:
-//     settings_wrapper : wrapper for service settings
-//     load_service_t   : type of load service function/lambda (see below)
-//     process_dep_dir_t : type of process_dep_dir function/lambda (see below)
+// Type parameters:
+//   settings_wrapper : wrapper for service settings
+//   load_service_t   : type of load service function/lambda (see below)
+//   process_dep_dir_t : type of process_dep_dir function/lambda (see below)
 //
-// parameters:
-//     settings     : wrapper object for service settings
-//     name         : name of the service being processed
-//     line         : the current line of the service description file
-//     input_pos    : the current input position (for error reporting)
-//     setting      : the name of the setting (from the beginning of line)
-//     setting_op   : the operator specified after the setting name
-//     i            : iterator at beginning of setting value (including whitespace)
-//     end          : iterator at end of line
-//     load_service : function to load a service
-//                      arguments:  const char *service_name
-//                      return: a value that can be used (with a dependency type) to construct a
-//                              dependency in the 'depends' vector within the 'settings' object
-//     process_dep_dir : function to process a dependency directory
-//                      arguments: decltype(settings.depends) &dependencies
-//                                 const string &waitsford - directory as specified in parameter
-//                                 dependency_type dep_type - type of dependency to add
-// throws: service_description_exc, std::bad_alloc, std::length_error (string too long; unlikely)
+// Parameters:
+//   settings     : wrapper object for service settings
+//   name         : name of the service being processed
+//   service_arg  : service argument, if any (may be null)
+//   line         : the current line of the service description file
+//   input_pos    : the current input position (for error reporting)
+//   setting      : the name of the setting (from the beginning of line)
+//   setting_op   : the operator specified after the setting name
+//   i            : iterator at beginning of setting value (including whitespace)
+//   end          : iterator at end of line
+//   load_service : function to load a service
+//                    arguments:  const char *service_name
+//                    return: a value that can be used (with a dependency type) to construct a
+//                            dependency in the 'depends' vector within the 'settings' object
+//   process_dep_dir : function to process a dependency directory
+//                    arguments: decltype(settings.depends) &dependencies
+//                               const string &waitsford - directory as specified in parameter
+//                               dependency_type dep_type - type of dependency to add
+// Throws:
+//  service_description_exc, std::bad_alloc, std::length_error (string too long; unlikely)
 template <typename settings_wrapper,
     typename load_service_t,
     typename process_dep_dir_t>
-void process_service_line(settings_wrapper &settings, const char *name, const char *arg, string &line,
-        file_pos_ref input_pos, string &setting, setting_op_t setting_op, string::iterator &i,
-        string::iterator &end, load_service_t load_service,
+void process_service_line(settings_wrapper &settings, const char *name, const char *service_arg,
+        string &line, file_pos_ref input_pos, string &setting, setting_op_t setting_op,
+        string::iterator &i, string::iterator &end, load_service_t load_service,
         process_dep_dir_t process_dep_dir)
 {
     // find the setting:
@@ -1657,7 +1692,7 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
             settings.working_dir = read_setting_value(input_pos, i, end, nullptr);
             break;
         case setting_id_t::ENV_FILE:
-            settings.env_file = read_value_with_arg(setting.c_str(), input_pos, i, end, arg);
+            settings.env_file = read_value_with_arg(setting.c_str(), input_pos, i, end, service_arg);
             break;
         #if SUPPORT_CGROUPS
         case setting_id_t::RUN_IN_CGROUP:
@@ -1778,21 +1813,21 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
             break;
         case setting_id_t::DEPENDS_ON:
         {
-            string dependency_name = read_value_with_arg(setting.c_str(), input_pos, i, end, arg);
+            string dependency_name = read_value_with_arg(setting.c_str(), input_pos, i, end, service_arg);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::REGULAR);
             break;
         }
         case setting_id_t::DEPENDS_MS:
         {
-            string dependency_name = read_value_with_arg(setting.c_str(), input_pos, i, end, arg);
+            string dependency_name = read_value_with_arg(setting.c_str(), input_pos, i, end, service_arg);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::MILESTONE);
             break;
         }
         case setting_id_t::WAITS_FOR:
         {
-            string dependency_name = read_value_with_arg(setting.c_str(), input_pos, i, end, arg);
+            string dependency_name = read_value_with_arg(setting.c_str(), input_pos, i, end, service_arg);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::WAITS_FOR);
             break;
@@ -1817,13 +1852,13 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
         }
         case setting_id_t::AFTER:
         {
-            string after_name = read_value_with_arg(setting.c_str(), input_pos, i, end, arg);
+            string after_name = read_value_with_arg(setting.c_str(), input_pos, i, end, service_arg);
             settings.after_svcs.emplace_back(std::move(after_name));
             break;
         }
         case setting_id_t::BEFORE:
         {
-            string before_name = read_value_with_arg(setting.c_str(), input_pos, i, end, arg);
+            string before_name = read_value_with_arg(setting.c_str(), input_pos, i, end, service_arg);
             settings.before_svcs.emplace_back(std::move(before_name));
             break;
         }

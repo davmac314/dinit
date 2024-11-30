@@ -35,7 +35,9 @@ static void do_env_subst(const char *setting_name, ha_string &line,
 {
     using namespace dinit_load;
     std::string line_s = std::string(line.c_str(), line.length());
-    value_var_subst(setting_name, line_s, offsets, resolve_env_var, &envmap, arg);
+    value_var_subst(setting_name, line_s, offsets, [&](const std::string &name) {
+        return resolve_env_var(name, envmap);
+    }, arg);
     line = line_s;
 }
 

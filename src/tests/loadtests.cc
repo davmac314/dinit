@@ -61,7 +61,7 @@ void test_env_subst()
 
 void test_env_subst2()
 {
-    auto resolve_env_var = [](const std::string &name, environment::env_map const &) {
+    auto resolve_env_var = [](const std::string &name) {
         if (name == "ONE_VAR") return "a";
         if (name == "TWOVAR") return "hellohello";
         return "";
@@ -77,7 +77,7 @@ void test_env_subst2()
 
     dinit_load::read_setting_value(fpr, li, le, &offsets);
 
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, nullptr);
 
     assert(line == "test xa-a~ y${TWOVAR}hellohello$ONE_VAR");
 
@@ -89,7 +89,7 @@ void test_env_subst2()
 
 void test_env_subst3()
 {
-    auto resolve_env_var = [](const std::string &name, environment::env_map const &) {
+    auto resolve_env_var = [](const std::string &name) {
         if (name == "EMPTY") return "";
         if (name == "WS") return "    ";
         if (name == "PADDED") return " p ";
@@ -104,7 +104,7 @@ void test_env_subst3()
     std::string::iterator li = line.begin();
     std::string::iterator le = line.end();
     dinit_load::read_setting_value(fpr, li, le, &offsets);
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, nullptr);
 
     auto check_arg = [&](unsigned idx, const char *val)
     {
@@ -118,7 +118,7 @@ void test_env_subst3()
     line = "test $EMPTY foo";
     li = line.begin(); le = line.end(); offsets.clear();
     dinit_load::read_setting_value(fpr, li, le, &offsets);
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, nullptr);
 
     assert(line == "test  foo");
     check_arg(1, "");
@@ -128,7 +128,7 @@ void test_env_subst3()
     line = "test $/EMPTY$/EMPTY$/EMPTY foo";
     li = line.begin(); le = line.end(); offsets.clear();
     dinit_load::read_setting_value(fpr, li, le, &offsets);
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, nullptr);
 
     assert(line == "test  foo");
     check_arg(1, "foo");
@@ -137,7 +137,7 @@ void test_env_subst3()
     line = "test $/EMPTY$EMPTY$/EMPTY foo";
     li = line.begin(); le = line.end(); offsets.clear();
     dinit_load::read_setting_value(fpr, li, le, &offsets);
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, nullptr);
 
     assert(line == "test  foo");
     check_arg(1, "");
@@ -147,7 +147,7 @@ void test_env_subst3()
     line = "test abc$/{EMPTY}def";
     li = line.begin(); le = line.end(); offsets.clear();
     dinit_load::read_setting_value(fpr, li, le, &offsets);
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, nullptr);
 
     assert(line == "test abcdef");
     check_arg(1, "abcdef");
@@ -156,7 +156,7 @@ void test_env_subst3()
     line = "test abc$/{WS}def";
     li = line.begin(); le = line.end(); offsets.clear();
     dinit_load::read_setting_value(fpr, li, le, &offsets);
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, nullptr);
 
     assert(line == "test abc def");
     check_arg(1, "abc");
@@ -166,7 +166,7 @@ void test_env_subst3()
     line = "test abc$/{PADDED}def";
     li = line.begin(); le = line.end(); offsets.clear();
     dinit_load::read_setting_value(fpr, li, le, &offsets);
-    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, &tenvmap, nullptr);
+    dinit_load::value_var_subst("command", line, offsets, resolve_env_var, nullptr);
 
     assert(line == "test abc p def");
     check_arg(1, "abc");
