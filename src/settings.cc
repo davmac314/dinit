@@ -63,7 +63,7 @@ setting_details all_settings[] = {
         {"run-in-cgroup",           setting_id_t::RUN_IN_CGROUP,            false,  true,   false},
 #endif
 
-#if SUPPORT_CAPABILTIIES
+#if SUPPORT_CAPABILITIES
         {"capabilities",            setting_id_t::CAPABILITIES,             false,  true,    true},
         {"secure-bits",             setting_id_t::SECURE_BITS,              false,  true,    true},
 #endif
