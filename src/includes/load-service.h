@@ -960,8 +960,10 @@ inline void parse_rlimit(const std::string &line, file_pos_ref input_pos,
     }
 }
 
+// forward declaration:
+template <typename resolve_var_t>
 inline string read_include_path(string const &svcname, string const &meta_cmd, file_pos_ref input_pos,
-        string_iterator &i, string_iterator end, const char *argval);
+        string_iterator &i, string_iterator end, const char *argval, const resolve_var_t &resolve_var);
 
 // Process an opened service file, line by line.
 //    name - the service name
@@ -978,8 +980,9 @@ inline string read_include_path(string const &svcname, string const &meta_cmd, f
 //               end - iterator marking the end of the line
 //
 // May throw service load exceptions or I/O exceptions if enabled on stream.
-template <typename T>
-void process_service_file(string name, file_input_stack &service_input, T process_line_func, const char *argval = nullptr)
+template <typename T, typename resolve_var_t>
+void process_service_file(string name, file_input_stack &service_input, T process_line_func,
+        const char *argval, const resolve_var_t &resolve_var)
 {
     string line;
 
@@ -1038,7 +1041,7 @@ void process_service_file(string name, file_input_stack &service_input, T proces
                 if (is_include_opt || meta_cmd == "include") {
                     // @include-opt or @include
                     file_pos_ref input_pos { service_input.current_file_name(), line_num };
-                    std::string include_name = read_include_path(name, meta_cmd, input_pos, i, end, argval);
+                    std::string include_name = read_include_path(name, meta_cmd, input_pos, i, end, argval, resolve_var);
 
                     std::ifstream file(include_name);
                     file.exceptions(std::ios::badbit);
@@ -1320,22 +1323,38 @@ static void value_var_subst(const char *setting_name, std::string &line,
     line = std::move(r_line);
 }
 
+// Substitute variable references in a value with their values. See value_var_subst above. This
+// variant supports lookup of variable values via an environment::env_map instance.
+template <typename T>
+static void value_var_subst(const char *setting_name, std::string &line,
+        std::list<std::pair<unsigned,unsigned>> &offsets, const environment::env_map &envmap,
+        const char *argval)
+{
+    auto var_lookup = [&](const std::string &name) {
+        return envmap.lookup(name);
+    };
+
+    value_var_subst(setting_name, line, offsets, var_lookup, argval);
+}
+
 // Reads a value while performing minimal argument expansion in it.
-inline string read_value_with_arg(const char *setting_name, file_pos_ref input_pos, string_iterator &i,
-        string_iterator end, const char *argval)
+template <typename resolve_var_t>
+inline string read_value_resolved(const char *setting_name, file_pos_ref input_pos, string_iterator &i,
+        string_iterator end, const char *argval, const resolve_var_t &resolve_var)
 {
     string rval;
     read_setting_value(rval, setting_op_t::ASSIGN, input_pos, i, end, nullptr);
 
     std::list<std::pair<unsigned,unsigned>> offsets;
     offsets.emplace_back(0, rval.size());
-    value_var_subst(setting_name, rval, offsets, null_resolve_env_var, argval);
+    value_var_subst(setting_name, rval, offsets, resolve_var, argval);
     return rval;
 }
 
 // Reads an include path while performing minimal argument expansion in it.
+template <typename resolve_var_t>
 inline string read_include_path(string const &svcname, string const &meta_cmd, file_pos_ref input_pos,
-        string_iterator &i, string_iterator end, const char *argval)
+        string_iterator &i, string_iterator end, const char *argval,  const resolve_var_t &resolve_var)
 {
     string rval;
     std::list<std::pair<unsigned,unsigned>> parts;
@@ -1347,7 +1366,7 @@ inline string read_include_path(string const &svcname, string const &meta_cmd, f
 
     std::list<std::pair<unsigned,unsigned>> offsets;
     offsets.emplace_back(0, rval.size());
-    value_var_subst(meta_cmd.c_str(), rval, offsets, null_resolve_env_var, argval);
+    value_var_subst(meta_cmd.c_str(), rval, offsets, resolve_var, argval);
     return rval;
 }
 
@@ -1665,11 +1684,12 @@ class service_settings_wrapper
 //  service_description_exc, std::bad_alloc, std::length_error (string too long; unlikely)
 template <typename settings_wrapper,
     typename load_service_t,
-    typename process_dep_dir_t>
+    typename process_dep_dir_t,
+    typename lookup_var_t = decltype(null_resolve_env_var)>
 void process_service_line(settings_wrapper &settings, const char *name, const char *service_arg,
         string &line, file_pos_ref input_pos, string &setting, setting_op_t setting_op,
         string::iterator &i, string::iterator &end, load_service_t load_service,
-        process_dep_dir_t process_dep_dir)
+        process_dep_dir_t process_dep_dir, const lookup_var_t &lookup_var = null_resolve_env_var)
 {
     // find the setting:
     setting_details *details = all_settings;
@@ -1692,7 +1712,8 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
             settings.working_dir = read_setting_value(input_pos, i, end, nullptr);
             break;
         case setting_id_t::ENV_FILE:
-            settings.env_file = read_value_with_arg(setting.c_str(), input_pos, i, end, service_arg);
+            settings.env_file = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             break;
         #if SUPPORT_CGROUPS
         case setting_id_t::RUN_IN_CGROUP:
@@ -1813,21 +1834,24 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
             break;
         case setting_id_t::DEPENDS_ON:
         {
-            string dependency_name = read_value_with_arg(setting.c_str(), input_pos, i, end, service_arg);
+            string dependency_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::REGULAR);
             break;
         }
         case setting_id_t::DEPENDS_MS:
         {
-            string dependency_name = read_value_with_arg(setting.c_str(), input_pos, i, end, service_arg);
+            string dependency_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::MILESTONE);
             break;
         }
         case setting_id_t::WAITS_FOR:
         {
-            string dependency_name = read_value_with_arg(setting.c_str(), input_pos, i, end, service_arg);
+            string dependency_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::WAITS_FOR);
             break;
@@ -1852,13 +1876,15 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
         }
         case setting_id_t::AFTER:
         {
-            string after_name = read_value_with_arg(setting.c_str(), input_pos, i, end, service_arg);
+            string after_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             settings.after_svcs.emplace_back(std::move(after_name));
             break;
         }
         case setting_id_t::BEFORE:
         {
-            string before_name = read_value_with_arg(setting.c_str(), input_pos, i, end, service_arg);
+            string before_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             settings.before_svcs.emplace_back(std::move(before_name));
             break;
         }

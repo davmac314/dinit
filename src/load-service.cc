@@ -499,39 +499,50 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
     input_stack.push(service_filename, std::move(service_file));
 
     try {
+        environment srv_env;
+
+        // Build an environment mapping which for now just contains variables from the main
+        // environment (including that inherited by the process). This will be used for pre-load
+        // substitution (eg inside @include paths, in dependency names).
+        environment::env_map srv_envmap = main_env.build();
+
+        auto resolve_var = [&](const std::string &name) {
+            return srv_envmap.lookup(name);
+        };
+
         process_service_file(name, input_stack,
                 [&](string &line, file_pos_ref fpr, string &setting, setting_op_t op,
                         string_iterator &i, string_iterator &end) -> void {
 
-            auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
-                    dependency_type dep_type) -> void {
-                process_dep_dir(*this, name.c_str(), service_filename, deplist, waitsford, dep_type, reload_svc);
-            };
+                    auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist,
+                            const std::string &waitsford, dependency_type dep_type) -> void {
+                        process_dep_dir(*this, name.c_str(), service_filename, deplist, waitsford,
+                                dep_type, reload_svc);
+                    };
 
-            auto load_service_n = [&](const string &dep_name) -> service_record * {
-                try {
-                    return load_service(dep_name.c_str(), reload_svc);
-                }
-                catch (service_description_exc &sle) {
-                    log_service_load_failure(sle);
-                    throw service_load_exc(name, "could not load dependency.");
-                }
-                catch (service_load_exc &sle) {
-                    log(loglevel_t::ERROR, "Could not load service ", sle.service_name, ": ",
-                            sle.exc_description);
-                    throw service_load_exc(name, "could not load dependency.");
-                }
-            };
+                    auto load_service_n = [&](const string &dep_name) -> service_record * {
+                        try {
+                            return load_service(dep_name.c_str(), reload_svc);
+                        }
+                        catch (service_description_exc &sle) {
+                            log_service_load_failure(sle);
+                            throw service_load_exc(name, "could not load dependency.");
+                        }
+                        catch (service_load_exc &sle) {
+                            log(loglevel_t::ERROR, "Could not load service ", sle.service_name,
+                                    ": ", sle.exc_description);
+                            throw service_load_exc(name, "could not load dependency.");
+                        }
+                    };
 
-            process_service_line(settings, name.c_str(), argval, line, fpr, setting,
-                    op, i, end, load_service_n, process_dep_dir_n);
-        }, argval);
+                    process_service_line(settings, name.c_str(), argval, line, fpr, setting,
+                            op, i, end, load_service_n, process_dep_dir_n, resolve_var);
+                },
+                argval, resolve_var);
 
         auto report_err = [&](const char *msg){
             throw service_load_exc(name, msg);
         };
-
-        environment srv_env;
 
         // Fill user vars before reading env file
         if (settings.export_passwd_vars) {
@@ -544,11 +555,6 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             envname += name;
             srv_env.set_var(std::move(envname));
         }
-
-        // This mapping is temporary, for load substitutions. (The environment actually *may* change
-        // after load, e.g. through dinitctl setenv, either from the outside or from within services,
-        // and so we need to calculate a fresh mapping on each process invocation).
-        environment::env_map srv_envmap;
 
         if (!settings.env_file.empty()) {
             try {
@@ -565,6 +571,9 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             }
         }
 
+        // This mapping is temporary, for load substitutions. (The environment actually *may* change
+        // after load, e.g. through dinitctl setenv, either from the outside or from within services,
+        // and so we need to calculate a fresh mapping on each process invocation).
         srv_envmap = srv_env.build(main_env);
 
         settings.finalise<true>(report_err, srv_envmap, argval);

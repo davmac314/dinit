@@ -1968,28 +1968,33 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
     input_stack.push(service_file_path, std::move(service_file));
 
     try {
+        auto resolve_var = [](const std::string &name) {
+            return (char *)nullptr; // FIXME
+        };
+
         process_service_file(from, input_stack, [&](string &line, file_pos_ref fpr,
                 string &setting, dinit_load::setting_op_t op,
                 dinit_load::string_iterator i, dinit_load::string_iterator end) -> void {
-            if (setting == "waits-for" || setting == "depends-on" || setting == "depends-ms") {
-                string dname = dinit_load::read_setting_value(fpr, i, end);
-                if (dname == to) {
-                    // There is already a dependency
-                    cerr << "dinitctl: there is a fixed dependency to service '" << to
-                            << "' in the service description of '" << from << "'." << endl;
-                    throw service_op_cancel();
-                }
-            }
-            else if (setting == "waits-for.d") {
-                string dname = dinit_load::read_setting_value(fpr, i, end);
-                if (! waits_for_d.empty()) {
-                    cerr << "dinitctl: service '" << from << "' has multiple waits-for.d directories "
-                            << "specified in service description" << endl;
-                    throw service_op_cancel();
-                }
-                waits_for_d = std::move(dname);
-            }
-        });
+                    if (setting == "waits-for" || setting == "depends-on" || setting == "depends-ms") {
+                        string dname = dinit_load::read_setting_value(fpr, i, end);
+                        if (dname == to) {
+                            // There is already a dependency
+                            cerr << "dinitctl: there is a fixed dependency to service '" << to
+                                    << "' in the service description of '" << from << "'." << endl;
+                            throw service_op_cancel();
+                        }
+                    }
+                    else if (setting == "waits-for.d") {
+                        string dname = dinit_load::read_setting_value(fpr, i, end);
+                        if (! waits_for_d.empty()) {
+                            cerr << "dinitctl: service '" << from << "' has multiple waits-for.d directories "
+                                    << "specified in service description" << endl;
+                            throw service_op_cancel();
+                        }
+                        waits_for_d = std::move(dname);
+                    }
+                },
+                nullptr /* service arg */, resolve_var);
     }
     catch (const service_op_cancel &cexc) {
         return 1;

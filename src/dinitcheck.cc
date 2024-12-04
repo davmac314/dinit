@@ -648,6 +648,20 @@ service_record *load_service(service_set_t &services, const std::string &name,
         }
     }
 
+    bool issued_var_subst_warning = false;
+
+    environment::env_map renvmap = menv.build();
+
+    auto resolve_var = [&](const string &name) {
+        if (offline_operation && !issued_var_subst_warning) {
+            report_general_warning("Variable substitution performed by dinitcheck "
+                    "for file paths may not match dinit daemon (environment may differ); "
+                    "use --online to avoid this warning");
+            issued_var_subst_warning = true;
+        }
+        return resolve_env_var(name, renvmap);
+    };
+
     service_settings_wrapper<prelim_dep> settings;
 
     string line;
@@ -661,26 +675,27 @@ service_record *load_service(service_set_t &services, const std::string &name,
                 [&](string &line, file_pos_ref input_pos, string &setting, setting_op_t op,
                         string_iterator &i, string_iterator &end) -> void {
 
-            auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
-                    dependency_type dep_type) -> void {
-                process_dep_dir(name.c_str(), service_filename, deplist, waitsford, dep_type);
-            };
+                    auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
+                            dependency_type dep_type) -> void {
+                        process_dep_dir(name.c_str(), service_filename, deplist, waitsford, dep_type);
+                    };
 
-            auto load_service_n = [&](const string &dep_name) -> const string & {
-                return dep_name;
-            };
+                    auto load_service_n = [&](const string &dep_name) -> const string & {
+                        return dep_name;
+                    };
 
-            try {
-                process_service_line(settings, name.c_str(), nullptr, line, input_pos, setting, op, i, end,
-                        load_service_n, process_dep_dir_n);
-            }
-            catch (service_description_exc &exc) {
-                if (exc.service_name.empty()) {
-                    exc.service_name = name;
-                }
-                report_service_description_exc(exc);
-            }
-        });
+                    try {
+                        process_service_line(settings, name.c_str(), nullptr, line, input_pos,
+                                setting, op, i, end, load_service_n, process_dep_dir_n, resolve_var);
+                    }
+                    catch (service_description_exc &exc) {
+                        if (exc.service_name.empty()) {
+                            exc.service_name = name;
+                        }
+                        report_service_description_exc(exc);
+                    }
+                },
+                nullptr /* service arg FIXME */, resolve_var);
     }
     catch (std::system_error &sys_err)
     {
@@ -691,8 +706,6 @@ service_record *load_service(service_set_t &services, const std::string &name,
     auto report_err = [&](const char *msg) {
         report_service_description_err(name, msg);
     };
-
-    bool issued_var_subst_warning = false;
 
     environment srv_env{};
 
@@ -733,19 +746,9 @@ service_record *load_service(service_set_t &services, const std::string &name,
         }
     }
 
-    environment::env_map renvmap = srv_env.build(menv);
+    renvmap = srv_env.build(menv);
 
-    auto resolve_var = [&](const string &name, environment::env_map const &envmap) {
-        if (offline_operation && !issued_var_subst_warning) {
-            report_general_warning("Variable substitution performed by dinitcheck "
-                    "for file paths may not match dinit daemon (environment may differ); "
-                    "use --online to avoid this warning");
-            issued_var_subst_warning = true;
-        }
-        return resolve_env_var(name, envmap);
-    };
-
-    settings.finalise(report_err, renvmap, nullptr, report_err, resolve_var);
+    settings.finalise(report_err, nullptr, report_err, resolve_var);
 
     if (!settings.working_dir.empty()) {
         service_wdir = settings.working_dir;
