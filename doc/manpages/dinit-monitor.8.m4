@@ -31,9 +31,11 @@ Display version and then exit.
 .TP
 \fB\-e\fR, \fB\-\-exit\fR
 Exit after the first command is executed, instead of waiting for more events.
+.TP
 \fB\-E\fR, \fB\-\-env\fR
 Instead of monitoring the services, monitor changes in the global environment.
 If no environment variables are passed, all environment is monitored.
+.TP
 \fB\-s\fR, \fB\-\-system\fR
 Control the system init process (this is the default when run as root).
 This option determines the default path to the control socket used to communicate with the \fBdinit\fR daemon
