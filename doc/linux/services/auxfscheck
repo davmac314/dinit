@@ -3,9 +3,9 @@
 type = scripted
 command = /sbin/fsck -A -R -C -a
 restart = false
-options = starts-on-console
+options: starts-on-console
 
-depends-on = early-filesystems
-depends-on = udevd
-depends-on = rootrw
-waits-for = udev-settle
+depends-on: early-filesystems
+depends-on: udevd
+depends-on: rootrw
+waits-for: udev-settle

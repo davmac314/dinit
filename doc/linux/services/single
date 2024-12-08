@@ -4,5 +4,7 @@
 type = process
 command = /bin/sh
 restart = false
-options = shares-console
+
 chain-to = boot
+
+options: shares-console

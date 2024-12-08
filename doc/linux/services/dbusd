@@ -5,17 +5,17 @@
 # can use the --print-address option for an effective readiness notification.
 
 # For non-socket-activated:
-#type = process
-#command = /usr/bin/dbus-daemon --system --nofork --nopidfile --print-address=4
-#depends-on = rcboot
-#logfile = /var/log/dbus-daemon.log
-#ready-notification = pipefd:4
-#smooth-recovery = yes
+type = process
+command = /usr/bin/dbus-daemon --system --nofork --nopidfile --print-address=4
+logfile = /var/log/dbus-daemon.log
+ready-notification = pipefd:4
+smooth-recovery = yes
+depends-on: rcboot
 
 # For socket-activation:
-type = process
-command = /usr/bin/dbus-daemon --system --nofork --nopidfile
-depends-on = rcboot
-logfile = /var/log/dbus-daemon.log
-smooth-recovery = yes
-socket-listen = /var/run/dbus/system_bus_socket
+#type = process
+#command = /usr/bin/dbus-daemon --system --nofork --nopidfile
+#socket-listen = /var/run/dbus/system_bus_socket
+#logfile = /var/log/dbus-daemon.log
+#smooth-recovery = yes
+#depends-on: rcboot

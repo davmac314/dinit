@@ -5,4 +5,5 @@ command = /etc/dinit.d/rcboot.sh start
 stop-command = /etc/dinit.d/rcboot.sh stop
 logfile = /var/log/rcboot.log
 restart = false
-depends-on = filesystems
+
+depends-on: filesystems

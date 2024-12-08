@@ -4,7 +4,7 @@ type = internal
 restart = false
 options = runs-on-console
 
-depends-on = rcboot
-waits-for = dbusd
-waits-for = udevd
-waits-for = syslogd
+depends-on: rcboot
+waits-for: dbusd
+waits-for: udevd
+waits-for: syslogd
