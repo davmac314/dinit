@@ -1,7 +1,7 @@
 type = scripted
 command = /bin/udevadm settle
 restart = false
-logfile = /run/udev-settle.log
+log-type = buffer
 
 depends-on: udevd
 depends-on: udev-trigger

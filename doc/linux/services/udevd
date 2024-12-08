@@ -6,7 +6,7 @@
 type = scripted
 command = /sbin/udevd --daemon
 stop-command = /bin/udevadm control -e
-logfile = /run/udevd.log
+log-type = buffer
 restart = false
 
 depends-on: early-filesystems

@@ -3,7 +3,7 @@
 type = scripted
 command = /sbin/fsck -A -R -C -a
 restart = false
-options: starts-on-console
+options: starts-on-console start-interruptible skippable unmask-intr
 
 depends-on: early-filesystems
 depends-on: udevd

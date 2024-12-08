@@ -22,13 +22,33 @@ system; at present there are no automated conversion tools for converting
 service descriptions or startup scripts from other systems.
 
 This guide is focused mainly on building a new system "from scratch" rather
-than for converting an existing system to use Dinit. With care and preparation
-it may, however, still be possible to convert a system based on a distribution
-to use Dinit. The steps required to accomplish this will depend on the
-specific details of how the system boots and what services it runs; this is
-largely beyond the scope of this guide. Note that altering a system in this
-way is likely to cause changes in system behaviour, potentially causing
-breakages, and should not be attempted for any critical systems.
+than for converting an existing system to use Dinit.
+
+**Do not attempt to convert an existing system to use Dinit, if you are not
+fully aware of what is necessary, how to debug boot issues, and how to roll
+back any changes.** 
+
+To proceed with minimal risk, it is recommended that you do not replace the
+`/sbin/init` executable and instead use the `init=/sbin/dinit` kernel
+command-line option when booting in order to test that services are set up
+correctly. If your system boots using an initial RAM-based filesystem or RAM
+disk - which is likely - then support for the `init=...` option is dependent
+on the setup of that initial filesystem.
+
+
+## Required steps
+
+To get a system up and running, the following are generally necessary:
+
+1. Set up a boot loader - outside the scope of this document.
+2. Set up initial RAM-based disk/filesystem (initramfs, initrd). In general
+   this will invoke a small custom init (not dinit) which does basic system
+   preparation such as loading modules, mounting some essential pseudo
+   filesystems (such as /proc, /dev, /sys and /run), finding and mounting the
+   root filesystem, switching to the new root and executing /sbin/init (i.e.
+   dinit). Further details are outside the scope of this document.
+3. Init services - these are run by Dinit and are responsible for the ongoing
+   system startup.
 
 The example services (see link below) are mostly designed for a system built
 "from scratch" rather than based on an existing distribution, and should be
@@ -56,19 +76,20 @@ for details (which are beyond the scope of this guide).
 For example service description files, please check the [services](services)
 subdirectory (and see descriptions of all of them below).
 
-It is common to use "devtmpfs" on /dev, and the kernel can actually mount it
-there before it even starts the init process, which can be quite handy; for
-one thing it means that a range of device nodes will be available by default
-(including /dev/console, which dinit may need to display any output, as well
-as the block device used for the root mount, which must be available in
-order to perform the initial fsck). You must configure your kernel
-appropriately for this to happen.
+It is recommended to use an initial RAM filesystem which mounts the following
+systems before mounting the root filesystem (read-only) and passing control to
+dinit:
 
-(actually, it seems that Dinit manages output without /dev/console; probably
-the kernel is giving it appropriate stdin/out/err file descriptors. I'm not
-sure if this was the case for older kernels).
+- `/proc`
+- `/sys`
+- `/dev` (with a `devtmpfs` or `tmpfs` instance, appropriately populated)
+- `/run` (with a `tmpfs` instance)
 
-The /dev filesystem on linux after boot is usually managed by a "device node
+In particular having a writable `/run` allows the dinit control socket to be
+created immediately as dinit starts, which is useful especially for boot
+recovery in case the system becomes otherwise unbootable. 
+
+The `/dev` filesystem on linux after boot is usually managed by a "device node
 manager", such as Udev (which is now distributed only with Systemd) or
 Eudev. Even this is technically optional - you can still populate your root
 filesystem with device nodes directly - but I highly recommend using an
@@ -77,19 +98,16 @@ automated system.
 Various other virtual filesystems are mounted as standard on Linux these
 days. They include:
 
-- /sys - sysfs - representation of devices, buses, drivers etc; used by udev etc.
-- /sys/fs/cgroup - cgroupfs - control groups
-- /proc - procfs - information about running processes, and various kernel
-  interfaces
-- /dev/shm - tmpfs - used for shared memory
-- /dev/pts - devpts - pseudoterminal devices
-- /run - tmpfs - storage for program state (replacement for /var/run); used by
-  udev and some other programs
-
-These filesystems (particularly /sys, /proc and /run) need to be mounted
-quite early as they will be used by early-boot processes. It is typical for
-some or all of them to be mounted by an initramfs/initrd-based initial
-boot, in which case it may not be necessary to mount them via Dinit services.
+- `/sys` - `sysfs` - representation of devices, buses, drivers etc; used by
+  udev etc.
+- `/sys/fs/cgroup` - `cgroupfs` - control groups.
+- `/proc` - `procfs` - information about running processes, and various kernel
+  interfaces.
+- `/dev/shm` - `tmpfs` - used for shared memory
+- `/dev/pts` - `devpts` - pseudoterminal devices (used by terminal emulators
+  and for remote logins).
+- `/run` - `tmpfs` - storage for program state, and often used as the location
+  for control sockets (including for dinit).
 
 Many Linux distributions are now built around Systemd. Much of what Systemd
 manages was previously managed by other utilities/daemons (syslogd, inetd,
@@ -97,31 +115,21 @@ cron, cgmanager, etc) and these can still be used to provide their original
 functionality, although at the cost of the losing automated integration.
 
 Some packages may rely on the "logind" functionality of Systemd for
-session/seat management. This same functionality is also provided by
-Elogind and ConsoleKit2, though I'm not sure to what degree nor level of
-compatibility.
-
-In general I've found it quite possible to run a desktop system with Dinit
-in place of SystemD, but my needs are minimal. If you're running a
-full-fledged desktop environment like Gnome or KDE you may experience
-problems (which, I believe, should not be intractable, but which may require
-implementation/shims of Systemd APIs in some cases).
+session/seat management. This same functionality is also provided by the
+Elogind and ConsoleKit2 packages.
 
 The basic procedure for boot (to be implemented by services) is as follows:
 
-- mount early virtual filesystems
-- start device node manager
-- trigger device node manager (udevadm trigger --action=add) to add
-  boot-time device nodes (or run additional actions for nodes already created
-  if using kernel-mounted devtmpfs)
-- set the system time from the hardware realtime clock
-- run root filesystem check
-- remount root filesystem read-write
-- start syslog deamon
-- various miscellaneous tasks: seed the random number generator, configure the
+- Mount early virtual filesystems (if not done by initramfs).
+- Start device node manager.
+- Set the system time from the hardware realtime clock, if available.
+- Run root filesystem check.
+- Remount the root filesystem read-write.
+- Various miscellaneous tasks: seed the random number generator, configure the
   loopback interface, cleanup files in /tmp, /var/run and /var/lock
-- start other daemons as appropriate (dhcpcd, any networking daemons)
-- start getty instances on virtual terminals
+- Start syslog deamon.
+- Start other daemons as appropriate (dhcpcd, any networking daemons).
+- Start getty instances on virtual terminals (allows user login).
 
 The service description files and scripts in the `services` subdirectory
 provide a template for accomplishing the above, but may need some adjustment
@@ -158,7 +166,7 @@ version of sysklogd. The syslog daemon from GNU Inetutils is another option.
 You will need a shell script interpreter / command line, for which you have
 a range of options. A common choice is GNU Bash, but many distributions are
 using Dash as the /bin/sh shell because it is significantly faster (affecting
-boot time) although it is basically unusable as an interactive shell.
+boot time) although it is less usable as an interactive shell.
 
 - Bash: https://www.gnu.org/software/bash
 - Dash: http://gondor.apana.org.au/~herbert/dash
@@ -183,7 +191,7 @@ kernels will render it obsolete).
 The above use **D-Bus**:
 https://dbus.freedesktop.org/
 
-Another implementation of D-Bus is dbus-broker:
+Another implementation of D-Bus is **dbus-broker**:
 https://github.com/bus1/dbus-broker
 
 
@@ -201,18 +209,25 @@ package dependencies are in place. Here are explanations for each package:
   particular services.
   
 Having covered `boot`, we'll go through the other services in roughly the order in
-which they are expected to start:
-  
+which they are expected to start. In general, note that services at this point cannot specify a
+`logfile = ...` setting that resides in a normal location (such as `/var/log/...`) since the
+root filesystem is not yet read-write; they can log to a file under `/run`, or they can
+use `log-type = buffered` to log to an in-memory buffer. 
+
 - `early-filesystems` - this service has no dependencies and so is one of the earliest
   to start. It mounts virtual filesystems including _sysfs_, _devtmpfs_ (on `/dev`)
   and _proc_, via the `early-filesystems.sh` shell script. Note that if startup is via
-  an initial ram disk (initrd, initramfs) as is now common, these early filesystems are
+  an initial ram disk (initrd/initramfs) as is now common, these early filesystems are
   most likely already mounted by that, so this service may not be needed or could be
   edited to remove initrd-mounted filesystems. 
-- `udevd` - this services starts the device node manager, udevd (from the eudev package).
-  This daemon receives notification of hotplug events from the kernel, and creates
-  device nodes (in `/dev`) according to its configuration. Note that "hotplug" events
-  includes initialisation of devices even when they are not "hot-pluggable".
+- `udevd` - this services starts the device node manager, udevd (from the eudev package). This
+  daemon receives notification of hotplug events from the kernel, and creates device nodes (in
+  `/dev`) according to its configuration. Note that "hotplug" events includes initialisation of
+  devices even when they are not "hot-pluggable" as such. It is a `type = scripted` service
+  because udevd does not support readiness notification; by allowing it to fork, dinit can
+  effectively observe when the daemon has initialised. However, it cannot monitor the process. A
+  patch to add readiness notification to udev has been submitted
+  (https://github.com/eudev-project/eudev/pull/290). 
 - `udev-trigger` - this is a scripted service which triggers device add actions
   for all currently present devices. This is required for `udevd` to process devices
   which already existed when it started.
@@ -240,7 +255,8 @@ which they are expected to start:
   The system is also rebooted if the filesystem check makes automatic changes that require
   it.
 - `rootrw` - once the root filesystem has been checked, it can be mounted read-write (the
-  kernel normally mounts root as read-only).
+  kernel normally mounts root as read-only). This service has the `starts-rwfs` option set, to
+  prompt dinit to create its control socket (if not already done).
 - `auxfscheck` - runs fsck for the auxillary filesystems (apart from the root filesystem)
   which are needed for general system operation. Any filesystems listed in `/etc/fstab`
   will be checked, depending on how they are configured.
@@ -258,7 +274,7 @@ which they are expected to start:
   On shutdown, it saves entropy from `/dev/urandom` so that it can be restored next boot.
   
 By the time `rcboot` has started, the system is quite functional. The following additional
-services can then start:
+services can then start (this ordering is enforced by a dependency on `rcboot`):
 
 - `syslogd` - the logging daemon. This service has the `starts-log` option set, so that
   Dinit will commence logging (from its buffer) once the service starts. The example service
@@ -334,5 +350,5 @@ depend on the service that makes the root filesystem writable. For services that
 before the root filesystem becomes writable, it may be possible to log in `/run` or another
 directory that is mounted with a RAM-based filesystem; alternatively, the `shares-console`
 option can be used for these services so that their output is visible at startup. There is also
-the possibility of using the "log-type = buffer" setting to keep output buffered in memory
+the possibility of using the `log-type = buffer` setting to keep output buffered in memory
 instead.

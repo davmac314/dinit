@@ -2,7 +2,7 @@
 
 type = scripted
 command = /bin/udevadm trigger --action=add
-logfile = /run/udev-trigger.log
+log-type = buffer
 restart = false
 
 depends-on: udevd
