@@ -9,5 +9,6 @@ command = /sbin/hwclock --hctosys
 
 restart = false
 
-depends-on = udevd
-depends-on = early-filesystems
+depends-on: udevd
+waits-for: udev-settle
+depends-on: early-filesystems

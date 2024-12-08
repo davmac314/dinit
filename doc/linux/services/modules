@@ -3,4 +3,5 @@
 type = scripted
 command = /etc/dinit.d/modules.sh start
 restart = false
-depends-on = early-filesystems
+
+depends-on: early-filesystems

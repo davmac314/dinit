@@ -4,7 +4,8 @@ type = scripted
 command = /etc/dinit.d/late-filesystems.sh start
 restart = false
 logfile = /var/log/late-filesystems.log
-options = start-interruptible
 start-timeout = 0   # unlimited 
 
-depends-on = rcboot
+options: start-interruptible
+
+depends-on: rcboot
