@@ -487,16 +487,18 @@ service_record * dirload_service_set::load_reload_service(const char *name, serv
     }
 
     file_input_stack input_stack;
-    input_stack.push(service_filename, std::move(service_file));
+    input_stack.push(std::move(service_filename), std::move(service_file));
 
     try {
         process_service_file(name, input_stack,
                 [&](string &line, file_pos_ref fpr, string &setting, setting_op_t op,
                         string_iterator &i, string_iterator &end) -> void {
 
-            auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
-                    dependency_type dep_type) -> void {
-                process_dep_dir(*this, name, service_filename, deplist, waitsford, dep_type, reload_svc);
+            auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist,
+                    const std::string &waitsford, dependency_type dep_type) -> void {
+                const string &service_filename = input_stack.current_file_name();
+                process_dep_dir(*this, name, service_filename, deplist, waitsford,
+                        dep_type, reload_svc);
             };
 
             auto load_service_n = [&](const string &dep_name) -> service_record * {
