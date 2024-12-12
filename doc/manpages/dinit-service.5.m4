@@ -277,7 +277,7 @@ This service depends on the named service.
 Starting this service will start the named service; the command to start this service will not be executed
 until the named service has started.
 If the named service stops then this service will also be stopped.
-The \fIservice-name\fR is subject to minimal variable substitution
+The \fIservice-name\fR is subject to pre-load variable substitution
 (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBdepends\-ms\fR: \fIservice-name\fR
@@ -287,7 +287,7 @@ named service has started, and will fail to start if the named service does
 not start.
 Once the named (dependent) service reaches the started state, however, the
 dependency may stop without affecting the dependent service.
-The name is likewise subject to minimal variable substitution.
+The name is likewise subject to pre-load variable substitution.
 .TP
 \fBwaits\-for\fR: \fIservice-name\fR
 When this service is started, wait for the named service to finish starting
@@ -295,7 +295,7 @@ When this service is started, wait for the named service to finish starting
 Starting this service will automatically start the named service.
 If the named service fails to start, this service will start as usual (subject to
 other dependencies being met).
-The name is likewise subject to minimal variable substitution.
+The name is likewise subject to pre-load variable substitution.
 .TP
 \fBdepends\-on.d\fR: \fIdirectory-path\fR
 For each file name in \fIdirectory-path\fR which does not begin with a dot,
@@ -324,7 +324,7 @@ starting this service will not cause it to start (nor wait for it in that case).
 It does not by itself cause the named service to be loaded (if loaded later, the "after"
 relationship will be enforced from that point).
 .TP
-The name is subject to minimal variable substitution.
+The name is subject to pre-load variable substitution.
 .TP
 \fBbefore\fR: \fIservice-name\fR
 When starting the named service, if this service is also starting, wait for this service
@@ -333,7 +333,7 @@ an \fBafter\fR relationship to this service from the named service.
 However, it does not by itself cause the named service to be loaded (if loaded later, the "before"
 relationship will be enforced from that point).
 .TP
-The name is subject to minimal variable substitution.
+The name is subject to pre-load variable substitution.
 .TP
 \fBchain\-to\fR = \fIservice-name\fR
 When this service terminates (i.e. starts successfully, and then stops of its
@@ -356,7 +356,7 @@ abnormally or with an exit status indicating an error.
 However, if the \fBalways-chain\fR option is set the chain is started regardless of the
 reason and the status of this service termination.
 .IP
-The name is subject to minimal variable substitution.
+The name is subject to pre-load variable substitution.
 .TP
 \fBsocket\-listen\fR = \fIsocket-path\fR
 Pre-open a socket for the service and pass it to the service using the
@@ -820,11 +820,11 @@ Using environment variable values in service commands and parameters can be used
 provide easily-adjustable service configuration, but is not ideal for this purpose and alternatives
 should be considered. 
 .LP
-In dependency fields, including \fIbefore\fR and similar, minimal version of variable
-substitution may happen.
-Only the service argument may be substituted, as the actual environment is not available
-at this point.
-The full syntax is still supported.
+In dependency fields, including \fIdepends\-on\fR as well as \fIbefore\fR/\fIafter\fR and similar,
+variable substitution may happen before the service environment is loaded.
+This "pre-load" expansion can substitute service arguments and environment variables set within
+dinit only; any service-specific variables that will be loaded from file (as specified using \fBenv\-file\fR)
+are not available. 
 .\"
 .SS META-COMMANDS
 .\"
@@ -837,7 +837,7 @@ The following commands are available:
 \fB@include\fR \fIpath\fR
 Include the contents of another file, specified via its full path.
 If the specified file does not exist, an error is produced.
-The \fIpath\fR is subject to minimal variable substitution
+The \fIpath\fR is subject to pre-load variable substitution
 (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fB@include\-opt\fR \fIpath\fR
