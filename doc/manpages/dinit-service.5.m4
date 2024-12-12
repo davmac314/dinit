@@ -12,31 +12,34 @@ Dinit service description files
 .SH DESCRIPTION
 .\"
 The service description files for \fBDinit\fR each describe a service. The name
-of the file corresponds to the name of the service it describes, minus its argument.
+of the file corresponds to the name of the service it describes (minus its argument;
+see \fBSERVICE ARGUMENTS\fR). 
 .LP
-Service description files specify the various attributes of a service. A
-service description file is named after the service it represents (without
-its argument), and is a plain-text file with simple key-value format.
+Service description files specify the various attributes of a service.
+A service description file is a plain-text file with simple key-value format.
 The description files are located in a service description directory;
 See \fBdinit\fR(8) for more details of the default service description directories,
 and how and when service descriptions are loaded.
 .LP
-The full name of the service includes its argument, such as \fIservice@argument\fR.
-The argument is optional, so you can also invoke just \fIservice\fR.
-Each instance of a service, i.e. with different arguments, is separate, including loading.
-This means every time you invoke the service with a different argument, it is loaded
-separately.
-Empty argument is not the same as missing argument, as this affects variable
-substitution (see \fBVARIABLE SUBSTITUTION\fR).
-.LP
-All services have a \fItype\fR and a set of \fIdependencies\fR. These are discussed
-in the following subsections. The type, dependencies, and other attributes are
-specified via property settings, the format of which are documented in the
-\fBSERVICE PROPERTIES\fR subsection, which also lists the available properties.
+All services have a \fItype\fR and a set of \fIdependencies\fR.
+These are discussed in the following subsections.
+The type, dependencies, and other attributes are specified via property settings, the format of
+which are documented in the \fBSERVICE PROPERTIES\fR subsection, which also lists the available
+properties.
 .LP
 In addition to service properties, some meta-commands can be used within service
 description files.
 See the \fBMETA-COMMANDS\fR subsection for more information. 
+.\"
+.SS SERVICE ARGUMENTS
+.\"
+A service description may act as a template for multiple related services.
+The full name of a service can include an argument, following the base name of the service
+suffixed by an 'at' symbol (\fB@\fR), in the form \fIbase-name@argument\fR.
+The argument value may be substituted into various service setting values by using
+a '\fB$1\fR' marker in the value specified in the service description (see \fBVARIABLE SUBSTITUTION\fR).
+The full name (base name together with argument) uniquely identifies a service instance, and each
+instance is loaded separately, remaining independent of other instances.
 .\"
 .SS SERVICE TYPES
 .\"
@@ -820,7 +823,7 @@ Using environment variable values in service commands and parameters can be used
 provide easily-adjustable service configuration, but is not ideal for this purpose and alternatives
 should be considered. 
 .LP
-In dependency fields, including \fIdepends\-on\fR as well as \fIbefore\fR/\fIafter\fR and similar,
+In dependency fields, including \fBdepends\-on\fR as well as \fBbefore\fR/\fBafter\fR and similar,
 variable substitution may happen before the service environment is loaded.
 This "pre-load" expansion can substitute service arguments and environment variables set within
 dinit only; any service-specific variables that will be loaded from file (as specified using \fBenv\-file\fR)
