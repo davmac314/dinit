@@ -496,7 +496,7 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
     }
 
     file_input_stack input_stack;
-    input_stack.push(service_filename, std::move(service_file));
+    input_stack.push(std::move(service_filename), std::move(service_file));
 
     try {
         environment srv_env;
@@ -516,6 +516,7 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
 
                     auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist,
                             const std::string &waitsford, dependency_type dep_type) -> void {
+                        const string &service_filename = input_stack.current_file_name();
                         process_dep_dir(*this, name.c_str(), service_filename, deplist, waitsford,
                                 dep_type, reload_svc);
                     };

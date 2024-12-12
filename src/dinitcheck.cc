@@ -677,6 +677,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
                     auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
                             dependency_type dep_type) -> void {
+                        const string &service_filename = input_stack.current_file_name();
                         process_dep_dir(name.c_str(), service_filename, deplist, waitsford, dep_type);
                     };
 
