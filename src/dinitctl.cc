@@ -1972,10 +1972,18 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
             return (char *)nullptr; // FIXME
         };
 
+        auto is_setting = [](const std::string &setting, dinit_load::setting_id_t setting_id) {
+            return (setting == dinit_load::all_settings[(size_t)setting_id].setting_str);
+        };
+
         process_service_file(from, input_stack, [&](string &line, file_pos_ref fpr,
                 string &setting, dinit_load::setting_op_t op,
                 dinit_load::string_iterator i, dinit_load::string_iterator end) -> void {
-                    if (setting == "waits-for" || setting == "depends-on" || setting == "depends-ms") {
+                    using namespace dinit_load;
+
+                    if (is_setting(setting, setting_id_t::WAITS_FOR)
+                            || is_setting(setting, setting_id_t::DEPENDS_ON)
+                            || is_setting(setting, setting_id_t::DEPENDS_MS)) {
                         string dname = dinit_load::read_setting_value(fpr, i, end);
                         if (dname == to) {
                             // There is already a dependency
@@ -1984,7 +1992,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
                             throw service_op_cancel();
                         }
                     }
-                    else if (setting == "waits-for.d") {
+                    else if (is_setting(setting, setting_id_t::WAITS_FOR_D)) {
                         string dname = dinit_load::read_setting_value(fpr, i, end);
                         if (! waits_for_d.empty()) {
                             cerr << "dinitctl: service '" << from << "' has multiple waits-for.d directories "
