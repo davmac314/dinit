@@ -412,7 +412,7 @@ using the contents of the specified environment variable, which will be set by \
 execution to a file descriptor (chosen arbitrarily) attached to the write end of a pipe.
 .RE
 .TP
-\fBlog\-type\fR = {file | buffer | pipe | none}
+\fBlog\-type\fR = {\fBfile\fR | \fBbuffer\fR | \fBpipe\fR | \fBnone\fR}
 Specifies how the output of this service is logged.
 This setting is valid only for process-based services (including \fBscripted\fR services).
 .RS
@@ -430,8 +430,8 @@ may become full which may cause the service process to stall.
 \fBnone\fR: output is discarded.
 .RE
 .IP
-The default log type is \fBnone\fR, unless the \fBlogfile\fR setting is specified in which case
-the default log type is \fBfile\fR. For \fBpipe\fR (and \fBbuffer\fR, which uses a pipe internally)
+The default log type is \fBnone\fR, but note that specifying a \fBlogfile\fR setting can change the
+log type to \fBfile\fR. For \fBpipe\fR (and \fBbuffer\fR, which uses a pipe internally),
 note that the pipe created may outlive the service process and be re-used if the service is stopped
 and restarted.
 .\"
@@ -443,9 +443,12 @@ which will be created if it does not already exist. The file ownership and permi
 according to the \fBlogfile\-uid\fR, \fBlogfile\-gid\fR and \fBlogfile\-permissions\fR settings.
 This setting has no effect if the service is set to run on the console (via the \fBruns\-on\-console\fR,
 \fBstarts\-on\-console\fR, or \fBshares\-console\fR options).
-The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
+.IP
+The log file path is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
+.IP
 Note that if the directory in which the logfile resides does not exist (or is not otherwise accessible to
 \fBdinit\fR) when the service is started, the service will not start successfully.
+.IP
 If this settings is specified and \fBlog\-type\fR is not specified or is currently \fBnone\fR, then
 the log type will be changed to \fBfile\fR.
 .TP
