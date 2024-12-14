@@ -145,6 +145,14 @@ Setting a property generally overrides any previous setting (from prior lines).
 However some properties are set additively; these include dependency relationships and \fBoptions\fR
 properties.
 .LP
+Some properties that specify file paths are currently resolved (if the specified path is relative)
+starting from the directory containing the top-level service description file, whereas others are
+resolved from the directory containing the service description fragment in which the setting value
+is defined (a "fragment" may be the service description file itself, or it may be a file included
+via \fB@include\fR or similar; see \fBMETA-COMMANDS\fR). In particular, the `\-\-\-.d' settings
+(such as \fBwaits-for.d\fR) are resolved from the containing fragment. For all other settings, it
+is recommended to provide absolute paths to be robust against future changes in Dinit.
+.LP
 The following properties can be specified:
 .TP
 \fBtype\fR = {process | bgprocess | scripted | internal | triggered}

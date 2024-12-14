@@ -15,13 +15,16 @@ Inline formatting ("escapes"):
 \fR - set regular (i.e. unset bold & italic)
 
 
-Special characters:
+Special characters (see groff_char(7)):
 '\ ' - (backslash followed by space) - non-breaking space
 \& - zero-width space
 \- - literal hyphen (also suppresses line breaking through dash)
 \(em - em-dash (GNU groff accepts "\[em]" as well but it may not be portable)
 \(en - en-dash
 \(bu - bullet point
+
+` and ' (backtick / apostrophe) - use for opening/closing single quotes
+
 
 Line commands ("requests"):
 
@@ -60,7 +63,7 @@ This should be followed by a NAME section:
 
 Gotchas:
 
-* Sentences should always end at the end of a line (this affects spacing in output).
+* Sentences should always end (with a period) at the end of a line (this affects spacing in output).
 * hyphens which are actually part of a word (part of a setting name for example) should be
   preceded by a backslash ("\-") which will prevent the literal from being split over multiple lines.
 * Blank lines should be avoided. Use .LP/.HP/.TP/.IP for example to start a paragraph. Use .IP for
