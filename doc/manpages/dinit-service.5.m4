@@ -326,7 +326,7 @@ dependency except no dependency relationship is implied; if the named service is
 starting this service will not cause it to start (nor wait for it in that case).
 It does not by itself cause the named service to be loaded (if loaded later, the "after"
 relationship will be enforced from that point).
-.TP
+.IP
 The name is subject to pre-load variable substitution.
 .TP
 \fBbefore\fR: \fIservice-name\fR
@@ -335,7 +335,7 @@ to finish starting before bringing the named service up. This is largely equival
 an \fBafter\fR relationship to this service from the named service.
 However, it does not by itself cause the named service to be loaded (if loaded later, the "before"
 relationship will be enforced from that point).
-.TP
+.IP
 The name is subject to pre-load variable substitution.
 .TP
 \fBchain\-to\fR = \fIservice-name\fR
