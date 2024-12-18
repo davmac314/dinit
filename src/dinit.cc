@@ -489,7 +489,8 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 // loaded, it does not guarantee that we have transitioned ourselves to the context specified for
 // us by the system policy. The return value is only an indication of whether or not dinit should
 // bail.
-static bool selinux_transition(const char *exe) {
+static bool selinux_transition(const char *exe)
+{
     // Let's use std::cerr instead of the log for logging messages here. If we output anything, we
     // return failure, which indicates dinit should terminate, which may happen before the log is
     // initalised and flushed.
