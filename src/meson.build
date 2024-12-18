@@ -28,7 +28,7 @@ misc_args = {
     'include_directories': default_incdir,
     'install': true,
     'install_dir': sbindir,
-    'dependencies': [libcap_dep]
+    'dependencies': [libcap_dep, libselinux_dep]
 }
 
 ## src/'s defines for igr-tests/
@@ -41,8 +41,7 @@ endif
 executable(
     'dinit',
     dinit_source_files,
-    kwargs: misc_args,
-    dependencies: [libselinux_dep],
+    kwargs: misc_args
 )
 executable(
     'dinitctl',
