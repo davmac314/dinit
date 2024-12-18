@@ -68,6 +68,27 @@ ssize_t ostream::put(const char *msg, size_t count) noexcept
         return 0; // Null/Empty message
     }
     if (count > buf->get_size()) {
+        if (count > 2 * buf->get_size() - buf->get_length() || buf->get_length() == 0) {
+            char *ptr = buf->get_ptr(0);
+            struct iovec iov[2];
+            iov[0].iov_base = ptr;
+            iov[0].iov_len = (buf->get_length() == 0) ? 0 : buf->get_contiguous_length(ptr);
+
+            iov[1].iov_base = const_cast<char *>(msg);
+            iov[1].iov_len = count;
+
+            ssize_t res = bp_sys::writev(fd, iov, 2);
+            if (res < 0) {
+                io_error = errno;
+                return -1;
+            }
+            if (static_cast<size_t>(res) - iov[0].iov_len != count) {
+                io_error = errno;
+            }
+
+            buf->consume(iov[0].iov_len);
+            return (res - iov[0].iov_len < 0) ? -1 : res - iov[0].iov_len;
+        }
         int prev_freespace = buf->get_free();
         buf->append(msg, buf->get_free());
         msg += prev_freespace;
@@ -78,24 +99,8 @@ ssize_t ostream::put(const char *msg, size_t count) noexcept
             // io_error was set by flush_nx() call
             return (output_count > 0) ? output_count : -1;
         }
-        if (count < buf->get_size()) {
-            buf->append(msg, count);
-            return output_count + count;
-        }
-        // If the remaining portion of message cannot fit in buffer, write the remaining portion
-        // directly.
-        ssize_t res = bp_sys::write(get_fd(), msg, count);
-        if (res < 0) {
-            io_error = errno;
-            return (output_count > 0) ? output_count : -1;
-        }
-        if (static_cast<size_t>(res) == count) {
-            return output_count + count;
-        }
-
-        // Note: Also set io_error on partial write.
-        io_error = errno;
-        return output_count + res;
+        buf->append(msg, count);
+        return output_count + count;
     }
     if (count > static_cast<size_t>(buf->get_free())) {
         // If we haven't enough storage for caputring the message Firstly we try to fill buffer as

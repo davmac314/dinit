@@ -106,8 +106,7 @@ void ostream_large_msg_test()
     msg[IOSTREAM_BUFSIZE + 1] = '\0';
 
     assert(stream.write(msg));
-    assert(buf->get_length() == 1);
-    assert(stream.flush());
+    assert(buf->get_length() == 0);
 
     std::vector<char> wdata;
     bp_sys::extract_written_data(fd, wdata);
