@@ -26,7 +26,7 @@ flowchart TD
     G -->|Yes| H[Attempt to calculate our new context and transition]
     G -->|No| I[Error exit early]
     H --> J{Did we successfully transition?}
-    J -->|Yes| K
+    J -->|Yes| D
     J -->|No| L[Log an error to stderr]
     L --> D
 ```
