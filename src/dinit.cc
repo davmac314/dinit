@@ -517,7 +517,7 @@ static bool selinux_transition(const char *exe) {
     // the xattrs for `exe`. This is a policy choice, and not a dinit runtime issue. Let's continue
     // the boot process regardless, but still log a warning where applicable.
 
-    // getcon_raw(3) may return 0 indicating success and set *context to NULL if SELinux is
+    // getcon_raw(3) may return 0 indicating success and set current_context to NULL if SELinux is
     // disabled, or other LSMs are at play. It's best to check the pointer we get back in addition
     // to the return value.
     if (getcon_raw(&current_context) < 0 || current_context == nullptr) {
