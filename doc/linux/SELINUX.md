@@ -14,6 +14,9 @@ if not already done so in earlier boot (e.g. by an initramfs). This behaviour ma
 disabled by passing dinit the `--disable-selinux-policy` flag. As dinit will always
 be PID1 in this senario, this can be done by appending the flag to the kernel cmdline.
 
+If not already mounted in earlier boot (e.g. by an initramfs), dinit will mount `/sys`,
+and selinuxfs (typically `/sys/fs/selinux`) during the call to `selinux_init_load_policy(3)`.
+
 The following flowchart provides an overview of the process of loading the policy:
 ```mermaid
 flowchart TD
