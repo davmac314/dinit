@@ -995,5 +995,6 @@ void svc_arg_test()
             "test-hello\n" +
             "hello\n" +
             "foo\n" +
-            "foo\n");
+            "foo\n" +
+            "bar\n");
 }

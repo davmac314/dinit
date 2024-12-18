@@ -21,7 +21,7 @@ all: dinit dinitctl dinitcheck dinit-monitor $(SHUTDOWN)
 	@false
 
 dinit: $(dinit_objects)
-	$(CXX) -o dinit $(dinit_objects) $(ALL_LDFLAGS)
+	$(CXX) -o dinit $(dinit_objects) $(ALL_LDFLAGS) $(LDFLAGS_LIBCAP)
 
 dinitctl: dinitctl.o options-processing.o settings.o
 	$(CXX) -o dinitctl dinitctl.o options-processing.o settings.o $(ALL_LDFLAGS)

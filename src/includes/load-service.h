@@ -25,6 +25,10 @@
 #include <service-constants.h>
 #include <mconfig.h>
 
+#if SUPPORT_CAPABILITIES
+#include <sys/capability.h>
+#endif
+
 struct service_flags_t
 {
     // on-start flags:
@@ -42,14 +46,51 @@ struct service_flags_t
     bool signal_process_only : 1;  // signal the session process, not the whole group
     bool always_chain : 1;      // always start chain-to service on exit
     bool kill_all_on_stop : 1;  // kill all other processes before stopping this service
+    bool no_new_privs : 1;      // set PR_SET_NO_NEW_PRIVS
 
     service_flags_t() noexcept : rw_ready(false), log_ready(false),
             runs_on_console(false), starts_on_console(false), shares_console(false), unmask_intr(false),
             pass_cs_fd(false), start_interruptible(false), skippable(false), signal_process_only(false),
-            always_chain(false), kill_all_on_stop(false)
+            always_chain(false), kill_all_on_stop(false), no_new_privs(false)
     {
     }
 };
+
+#if SUPPORT_CAPABILITIES
+struct secure_bits_t
+{
+    bool keep_caps : 1;
+    bool keep_caps_locked : 1;
+    bool no_setuid_fixup : 1;
+    bool no_setuid_fixup_locked : 1;
+    bool noroot : 1;
+    bool noroot_locked : 1;
+
+    secure_bits_t() noexcept : keep_caps(false), keep_caps_locked(false),
+            no_setuid_fixup(false), no_setuid_fixup_locked(false),
+            noroot(false), noroot_locked(false)
+    {
+    }
+
+    void clear() noexcept {
+        keep_caps = keep_caps_locked = false;
+        no_setuid_fixup = no_setuid_fixup_locked = false;
+        noroot = noroot_locked = false;
+    }
+
+    unsigned int get() const noexcept {
+        unsigned int r = 0;
+        // as referenced in uapi
+        if (noroot) r |= 1 << 0;
+        if (noroot_locked) r |= 1 << 1;
+        if (no_setuid_fixup) r |= 1 << 2;
+        if (no_setuid_fixup_locked) r |= 1 << 3;
+        if (keep_caps) r |= 1 << 4;
+        if (keep_caps_locked) r |= 1 << 5;
+        return r;
+    }
+};
+#endif
 
 // Resource limits for a particular service & particular resource
 struct service_rlimits
@@ -225,12 +266,22 @@ enum class setting_id_t {
     LOGFILE_GID, LOG_TYPE, LOG_BUFFER_SIZE, CONSUMER_OF, RESTART, SMOOTH_RECOVERY, OPTIONS,
     LOAD_OPTIONS, TERM_SIGNAL, TERMSIGNAL /* deprecated */, RESTART_LIMIT_INTERVAL, RESTART_DELAY,
     RESTART_LIMIT_COUNT, STOP_TIMEOUT, START_TIMEOUT, RUN_AS, CHAIN_TO, READY_NOTIFICATION,
-    INITTAB_ID, INITTAB_LINE,
+    INITTAB_ID, INITTAB_LINE, NICE,
     // Prefixed with SETTING_ to avoid name collision with system macros:
     SETTING_RLIMIT_NOFILE, SETTING_RLIMIT_CORE, SETTING_RLIMIT_DATA, SETTING_RLIMIT_ADDRSPACE,
     // Possibly unsupported depending on platform/build options:
 #if SUPPORT_CGROUPS
-    RUN_IN_CGROUP
+    RUN_IN_CGROUP,
+#endif
+#if SUPPORT_CAPABILITIES
+    CAPABILITIES,
+    SECURE_BITS,
+#endif
+#if SUPPORT_IOPRIO
+    IOPRIO,
+#endif
+#if SUPPORT_OOM_ADJ
+    OOM_SCORE_ADJ,
 #endif
 };
 
@@ -445,7 +496,8 @@ inline string read_config_name(string_iterator & i, string_iterator end, bool en
 //                  part will be added as [start,end). May be null.
 inline void read_setting_value(std::string &setting_val, setting_op_t operation,
         file_pos_ref input_pos, string_iterator &i, string_iterator end,
-        std::list<std::pair<unsigned,unsigned>> *part_positions = nullptr)
+        std::list<std::pair<unsigned,unsigned>> *part_positions = nullptr,
+        char delimiter = ' ')
 {
     using std::locale;
     using std::isspace;
@@ -455,10 +507,11 @@ inline void read_setting_value(std::string &setting_val, setting_op_t operation,
     i = skipwsln(i, end, line_num);
 
     if (operation == setting_op_t::PLUSASSIGN) {
-        // Ensure whitespace at end of current value. This is really only for debugging niceness
-        // since the offsets (part_positions) are what really define the seperated components.
+        // Ensure that values are correctly delimited. This is usually only for debugging
+        // niceness as for commands where this is mostly used the offsets actually delimit
+        // the components, but e.g. for capabilities (comma-separated) it matters more.
         if (!setting_val.empty()) {
-            setting_val += ' ';
+            setting_val += delimiter;
         }
     }
     else {
@@ -542,9 +595,9 @@ inline void read_setting_value(std::string &setting_val, setting_op_t operation,
 // See read_setting_value(std::string &, ...)
 inline void read_setting_value(ha_string &setting_val, setting_op_t operation,
         file_pos_ref input_pos, string_iterator &i, string_iterator end,
-        std::list<std::pair<unsigned,unsigned>> *part_positions = nullptr) {
+        std::list<std::pair<unsigned,unsigned>> *part_positions = nullptr, char delimiter = ' ') {
     std::string sval = std::string(setting_val.c_str(), setting_val.length());
-    read_setting_value(sval, operation, input_pos, i, end, part_positions);
+    read_setting_value(sval, operation, input_pos, i, end, part_positions, delimiter);
     setting_val = sval;
 }
 
@@ -793,6 +846,30 @@ inline unsigned long long parse_unum_param(file_pos_ref input_pos, const std::st
     }
 }
 
+// Parse a signed numeric parameter value
+inline long long parse_snum_param(file_pos_ref input_pos, const std::string &param,
+        const std::string &service_name, long long min = std::numeric_limits<long long>::min(),
+        long long max = std::numeric_limits<long long>::max())
+{
+    const char * num_err_msg = "specified value contains invalid numeric characters or is outside "
+            "allowed range.";
+
+    std::size_t ind = 0;
+    try {
+        long long v = std::stoll(param, &ind, 0);
+        if (v < min || v > max || ind != param.length()) {
+            throw service_description_exc(service_name, num_err_msg, input_pos);
+        }
+        return v;
+    }
+    catch (std::out_of_range &exc) {
+        throw service_description_exc(service_name, num_err_msg, input_pos);
+    }
+    catch (std::invalid_argument &exc) {
+        throw service_description_exc(service_name, num_err_msg, input_pos);
+    }
+}
+
 // In a vector, find or create rlimits for a particular resource type.
 inline service_rlimits &find_rlimits(std::vector<service_rlimits> &all_rlimits, int resource_id)
 {
@@ -883,6 +960,11 @@ inline void parse_rlimit(const std::string &line, file_pos_ref input_pos,
     }
 }
 
+// forward declaration:
+template <typename resolve_var_t>
+inline string read_include_path(string const &svcname, string const &meta_cmd, file_pos_ref input_pos,
+        string_iterator &i, string_iterator end, const char *argval, const resolve_var_t &resolve_var);
+
 // Process an opened service file, line by line.
 //    name - the service name
 //    service_input - the service file input stream (stack)
@@ -898,8 +980,9 @@ inline void parse_rlimit(const std::string &line, file_pos_ref input_pos,
 //               end - iterator marking the end of the line
 //
 // May throw service load exceptions or I/O exceptions if enabled on stream.
-template <typename T>
-void process_service_file(string name, file_input_stack &service_input, T process_line_func)
+template <typename T, typename resolve_var_t>
+void process_service_file(string name, file_input_stack &service_input, T process_line_func,
+        const char *argval, const resolve_var_t &resolve_var)
 {
     string line;
 
@@ -957,12 +1040,8 @@ void process_service_file(string name, file_input_stack &service_input, T proces
                 bool is_include_opt = (meta_cmd == "include-opt");
                 if (is_include_opt || meta_cmd == "include") {
                     // @include-opt or @include
-                    std::list<std::pair<unsigned,unsigned>> part_positions;
                     file_pos_ref input_pos { service_input.current_file_name(), line_num };
-                    std::string include_name = read_setting_value(input_pos, i, end, &part_positions);
-                    if (part_positions.size() != 1) {
-                        throw service_description_exc(name, "'@" + meta_cmd + "' requires a single argument", input_pos);
-                    }
+                    std::string include_name = read_include_path(name, meta_cmd, input_pos, i, end, argval, resolve_var);
 
                     std::ifstream file(include_name);
                     file.exceptions(std::ios::badbit);
@@ -1028,9 +1107,15 @@ void process_service_file(string name, file_input_stack &service_input, T proces
 inline void dummy_lint(const char *) {}
 
 // Resolve variables from an environment
-inline const char *resolve_env_var(const string &name, const environment::env_map &envmap){
+inline const char *resolve_env_var(const string &name, const environment::env_map &envmap)
+{
     return envmap.lookup(name);
 };
+
+inline const char *null_resolve_env_var(const string &name)
+{
+    return nullptr;
+}
 
 // Substitute variable references in a value with their values. Specified offsets must give
 // the location of separate arguments after word splitting and are adjusted appropriately.
@@ -1042,8 +1127,7 @@ inline const char *resolve_env_var(const string &name, const environment::env_ma
 //         std::bad_alloc on allocation failure
 template <typename T>
 static void value_var_subst(const char *setting_name, std::string &line,
-        std::list<std::pair<unsigned,unsigned>> &offsets, T &var_resolve,
-        environment::env_map const *envmap, const char *argval)
+        std::list<std::pair<unsigned,unsigned>> &offsets, const T &var_resolve, const char *argval)
 {
     auto dindx = line.find('$');
     if (dindx == string::npos) {
@@ -1093,9 +1177,9 @@ static void value_var_subst(const char *setting_name, std::string &line,
                 if (name.empty()) {
                     throw service_description_exc(setting_name, "invalid/missing variable name after '$'");
                 }
-                else if (is_arg && (name != "1" || !argval)) {
-                    // only one arg is supported and it must be present
-                    throw service_description_exc(setting_name, "missing value in argument substitution");
+                else if (is_arg && name != "1") {
+                    // only one arg is supported
+                    throw service_description_exc(setting_name, "only one service argument may be present");
                 }
                 char altmode = '\0';
                 bool colon = false;
@@ -1124,7 +1208,7 @@ static void value_var_subst(const char *setting_name, std::string &line,
                 }
                 size_t line_len_before = r_line.size();
                 string_view resolved_vw;
-                auto *resolved = is_arg ? argval : (envmap ? var_resolve(name, *envmap) : nullptr);
+                auto *resolved = is_arg ? argval : var_resolve(name);
                 if (resolved) {
                     resolved_vw = resolved;
                 }
@@ -1133,10 +1217,16 @@ static void value_var_subst(const char *setting_name, std::string &line,
                     if (!resolved || (colon && !*resolved)) {
                         resolved_vw = {line.c_str() + (altbeg - line.begin()), (size_t)(altend - altbeg)};
                     }
-                } else if (altmode == '+') {
+                }
+                else if (altmode == '+') {
                     if (resolved && (!colon || *resolved)) {
                         resolved_vw = {line.c_str() + (altbeg - line.begin()), (size_t)(altend - altbeg)};
                     }
+                }
+                else if (is_arg && !argval) {
+                    // $1 and ${1} is special in that it must be set or it is an error
+                    // however, we want the more complex syntaxes for conditional substitution
+                    throw service_description_exc(setting_name, "missing value in argument substitution");
                 }
 
                 xpos = j - line.begin();
@@ -1233,16 +1323,50 @@ static void value_var_subst(const char *setting_name, std::string &line,
     line = std::move(r_line);
 }
 
-// Reads a dependency name while performing minimal argument expansion in it.
-inline string read_dependency_value(const char *setting_name, file_pos_ref input_pos, string_iterator &i,
-        string_iterator end, const char *argval)
+// Substitute variable references in a value with their values. See value_var_subst above. This
+// variant supports lookup of variable values via an environment::env_map instance.
+template <typename T>
+static void value_var_subst(const char *setting_name, std::string &line,
+        std::list<std::pair<unsigned,unsigned>> &offsets, const environment::env_map &envmap,
+        const char *argval)
+{
+    auto var_lookup = [&](const std::string &name) {
+        return envmap.lookup(name);
+    };
+
+    value_var_subst(setting_name, line, offsets, var_lookup, argval);
+}
+
+// Reads a value while performing minimal argument expansion in it.
+template <typename resolve_var_t>
+inline string read_value_resolved(const char *setting_name, file_pos_ref input_pos, string_iterator &i,
+        string_iterator end, const char *argval, const resolve_var_t &resolve_var)
 {
     string rval;
     read_setting_value(rval, setting_op_t::ASSIGN, input_pos, i, end, nullptr);
 
     std::list<std::pair<unsigned,unsigned>> offsets;
     offsets.emplace_back(0, rval.size());
-    value_var_subst(setting_name, rval, offsets, resolve_env_var, nullptr, argval);
+    value_var_subst(setting_name, rval, offsets, resolve_var, argval);
+    return rval;
+}
+
+// Reads an include path while performing minimal argument expansion in it.
+template <typename resolve_var_t>
+inline string read_include_path(string const &svcname, string const &meta_cmd, file_pos_ref input_pos,
+        string_iterator &i, string_iterator end, const char *argval,  const resolve_var_t &resolve_var)
+{
+    string rval;
+    std::list<std::pair<unsigned,unsigned>> parts;
+
+    read_setting_value(rval, setting_op_t::ASSIGN, input_pos, i, end, &parts);
+    if (parts.size() != 1) {
+        throw service_description_exc(svcname, "'@" + meta_cmd + "' requires a single argument", input_pos);
+    }
+
+    std::list<std::pair<unsigned,unsigned>> offsets;
+    offsets.emplace_back(0, rval.size());
+    value_var_subst(meta_cmd.c_str(), rval, offsets, resolve_var, argval);
     return rval;
 }
 
@@ -1303,6 +1427,9 @@ class service_settings_wrapper
     gid_t run_as_uid_gid = -1; // primary group of "run as" uid if known
     gid_t run_as_gid = -1;
 
+    bool nice_is_set = false;
+    int nice;
+
     string chain_to_name;
     string consumer_of_name;
 
@@ -1310,28 +1437,49 @@ class service_settings_wrapper
     string run_in_cgroup;
     #endif
 
+    #if SUPPORT_CAPABILITIES
+    string capabilities;
+    secure_bits_t secbits;
+    #endif
+
+    #if SUPPORT_IOPRIO
+    int ioprio = -1;
+    #endif
+
+    #if SUPPORT_OOM_ADJ
+    bool oom_adj_is_set = false;
+    short oom_adj = 0;
+    #endif
+
     #if USE_UTMPX
     char inittab_id[sizeof(utmpx().ut_id)] = {0};
     char inittab_line[sizeof(utmpx().ut_line)] = {0};
     #endif
 
-    // Finalise settings (after processing all setting lines), perform some basic sanity checks and
-    // optionally some additional lint checks. May throw service_description_exc
-    //
-    // Note: we have the do_report_lint parameter to prevent code (and strings) being emitted for lint
-    // checks even when the dummy_lint function is used. (Ideally the compiler would optimise them away).
+    // Finalise settings (after processing all setting lines), perform some basic sanity checks
+    // and optionally some additional lint checks.
     //
     // Template parameters:
-    //     propagate_sde - whether to propagate service description errors (if false they are reported via report_err)
-    //     (remaining template parameters should be inferred)
+    //   propagate_sde - whether to propagate service description errors (if false, they are
+    //                   reported via report_err)
+    //   (remaining template parameters should be inferred)
     // Parameters:
-    //     report_error - functor to report any errors
-    //     envmap - environment variables
-    //     report_line - functor to report lint (default: don't report)
-    //     var_subst - functor to resolve environment variable values
-    template <bool propagate_sde = false, typename T, typename U = decltype(dummy_lint), typename V = decltype(resolve_env_var),
+    //   report_error - functor to report any errors
+    //   service_arg - service argument, if any (may be null)
+    //   envmap - environment variables
+    //   report_line - functor to report lint (default: don't report)
+    //   var_subst - functor to resolve environment variable values
+    // Throws:
+    //   service_description_exc, bad_alloc
+    //
+    // Note: we have the do_report_lint parameter to prevent code (and strings) being emitted for
+    // lint checks even when the dummy_lint function is used. (Ideally the compiler would optimise
+    // them away).
+    //
+    template <bool propagate_sde = false, typename T, typename U, typename V,
             bool do_report_lint = !std::is_same<U, decltype(dummy_lint)>::value>
-    void finalise(T &report_error, environment::env_map const &envmap, const char *argval, U &report_lint = dummy_lint, V &var_subst = resolve_env_var)
+    void finalise(T &report_error, const char *service_arg, const U &report_lint,
+            const V &var_subst)
     {
         if (service_type == service_type_t::PROCESS || service_type == service_type_t::BGPROCESS
                 || service_type == service_type_t::SCRIPTED) {
@@ -1356,6 +1504,14 @@ class service_settings_wrapper
                 report_lint("'run-in-cgroup' specified, but ignored for the specified (or default) service type.");
             }
             #endif
+            #if SUPPORT_CAPABILITIES
+            if (!capabilities.empty()) {
+                report_lint("'capabilities' specified, but ignored for the specified (or default) service type.");
+            }
+            if (secbits.get()) {
+                report_lint("'secure-bits' specified, but ignored for the specified (or default) service type.");
+            }
+            #endif
             if (run_as_uid != (uid_t)-1) {
                 report_lint("'run-as' specified, but ignored for the specified (or default) service type.");
             }
@@ -1376,9 +1532,27 @@ class service_settings_wrapper
             if (onstart_flags.skippable) {
                 report_lint("option 'skippable' was specified, but ignored for the specified (or default) service type.");
             }
+            #if SUPPORT_CAPABILITIES
+            if (onstart_flags.no_new_privs) {
+                report_lint("option 'no_new_privs' was specified, but ignored for the specified (or default) service type.");
+            }
+            #endif
             if (log_type != log_type_id::NONE) {
                 report_lint("option 'log_type' was specified, but ignored for the specified (or default) service type.");
             }
+            if (nice_is_set) {
+                report_lint("option 'nice' was specified, but ignored for the specified (or default) service type.");
+            }
+            #if SUPPORT_IOPRIO
+            if (ioprio >= 0) {
+                report_lint("option 'ioprio' was specified, but ignored for the specified (or default) service type.");
+            }
+            #endif
+            #if SUPPORT_OOM_ADJ
+            if (oom_adj_is_set) {
+                report_lint("option 'oom-score-adj' was specified, but ignored for the specified (or default) service type.");
+            }
+            #endif
         }
 
         if (do_report_lint) {
@@ -1412,7 +1586,7 @@ class service_settings_wrapper
                 try {
                     list<pair<unsigned,unsigned>> str_offsets;
                     str_offsets.emplace_back(0, setting_value.size());
-                    value_var_subst(setting_name, setting_value, str_offsets, var_subst, &envmap, argval);
+                    value_var_subst(setting_name, setting_value, str_offsets, var_subst, service_arg);
                 }
                 catch (service_description_exc &exc) {
                     if (propagate_sde) throw;
@@ -1457,41 +1631,65 @@ class service_settings_wrapper
             }
         }
     }
+
+    // Finalise settings (after processing all setting lines), perform some basic sanity checks
+    // and optionally some additional lint checks. Resolve variables from provided env_map.
+    // See finalise() above.
+    //
+    // Throws:
+    //    service_description_exc
+    //
+    template <bool propagate_sde = false, typename T, typename U = decltype(dummy_lint),
+            typename V = decltype(resolve_env_var),
+            bool do_report_lint = !std::is_same<U, decltype(dummy_lint)>::value>
+    void finalise(T &report_error, environment::env_map const &envmap, const char *argval,
+            U &report_lint = dummy_lint, V &var_subst = resolve_env_var)
+    {
+        auto do_var_subst = [&](const std::string &name) {
+            return var_subst(name, envmap);
+        };
+        finalise<propagate_sde, T, U, decltype(do_var_subst), do_report_lint>(report_error,
+                argval, report_lint, do_var_subst);
+    }
 };
 
-// Process a service description line. In general, parse the setting value and record the parsed value
-// in a service settings wrapper object. Errors will be reported via service_description_exc exception.
+// Process a service description line. In general, parse the setting value and record the parsed
+// value in a service settings wrapper object. Errors will be reported via service_description_exc
+// exception.
 //
-// type parameters:
-//     settings_wrapper : wrapper for service settings
-//     load_service_t   : type of load service function/lambda (see below)
-//     process_dep_dir_t : type of process_dep_dir function/lambda (see below)
+// Type parameters:
+//   settings_wrapper : wrapper for service settings
+//   load_service_t   : type of load service function/lambda (see below)
+//   process_dep_dir_t : type of process_dep_dir function/lambda (see below)
 //
-// parameters:
-//     settings     : wrapper object for service settings
-//     name         : name of the service being processed
-//     line         : the current line of the service description file
-//     input_pos    : the current input position (for error reporting)
-//     setting      : the name of the setting (from the beginning of line)
-//     setting_op   : the operator specified after the setting name
-//     i            : iterator at beginning of setting value (including whitespace)
-//     end          : iterator at end of line
-//     load_service : function to load a service
-//                      arguments:  const char *service_name
-//                      return: a value that can be used (with a dependency type) to construct a
-//                              dependency in the 'depends' vector within the 'settings' object
-//     process_dep_dir : function to process a dependency directory
-//                      arguments: decltype(settings.depends) &dependencies
-//                                 const string &waitsford - directory as specified in parameter
-//                                 dependency_type dep_type - type of dependency to add
-// throws: service_description_exc, std::bad_alloc, std::length_error (string too long; unlikely)
+// Parameters:
+//   settings     : wrapper object for service settings
+//   name         : name of the service being processed
+//   service_arg  : service argument, if any (may be null)
+//   line         : the current line of the service description file
+//   input_pos    : the current input position (for error reporting)
+//   setting      : the name of the setting (from the beginning of line)
+//   setting_op   : the operator specified after the setting name
+//   i            : iterator at beginning of setting value (including whitespace)
+//   end          : iterator at end of line
+//   load_service : function to load a service
+//                    arguments:  const char *service_name
+//                    return: a value that can be used (with a dependency type) to construct a
+//                            dependency in the 'depends' vector within the 'settings' object
+//   process_dep_dir : function to process a dependency directory
+//                    arguments: decltype(settings.depends) &dependencies
+//                               const string &waitsford - directory as specified in parameter
+//                               dependency_type dep_type - type of dependency to add
+// Throws:
+//  service_description_exc, std::bad_alloc, std::length_error (string too long; unlikely)
 template <typename settings_wrapper,
     typename load_service_t,
-    typename process_dep_dir_t>
-void process_service_line(settings_wrapper &settings, const char *name, const char *arg, string &line,
-        file_pos_ref input_pos, string &setting, setting_op_t setting_op, string::iterator &i,
-        string::iterator &end, load_service_t load_service,
-        process_dep_dir_t process_dep_dir)
+    typename process_dep_dir_t,
+    typename lookup_var_t = decltype(null_resolve_env_var)>
+void process_service_line(settings_wrapper &settings, const char *name, const char *service_arg,
+        string &line, file_pos_ref input_pos, string &setting, setting_op_t setting_op,
+        string::iterator &i, string::iterator &end, load_service_t load_service,
+        process_dep_dir_t process_dep_dir, const lookup_var_t &lookup_var = null_resolve_env_var)
 {
     // find the setting:
     setting_details *details = all_settings;
@@ -1514,12 +1712,96 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
             settings.working_dir = read_setting_value(input_pos, i, end, nullptr);
             break;
         case setting_id_t::ENV_FILE:
-            settings.env_file = read_setting_value(input_pos, i, end, nullptr);
+            settings.env_file = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             break;
         #if SUPPORT_CGROUPS
         case setting_id_t::RUN_IN_CGROUP:
             settings.run_in_cgroup = read_setting_value(input_pos, i, end, nullptr);
             break;
+        #endif
+        #if SUPPORT_CAPABILITIES
+        case setting_id_t::CAPABILITIES:
+            read_setting_value(settings.capabilities, setting_op, input_pos, i, end, nullptr, ',');
+            break;
+        case setting_id_t::SECURE_BITS:
+        {
+            std::list<std::pair<unsigned,unsigned>> indices;
+            string onstart_cmds = read_setting_value(input_pos, i, end, &indices);
+            // plain assignment will clear, while append will add more
+            if (setting_op != setting_op_t::PLUSASSIGN) {
+                settings.secbits.clear();
+            }
+            for (auto indexpair : indices) {
+                string secbit_txt = onstart_cmds.substr(indexpair.first,
+                        indexpair.second - indexpair.first);
+                if (secbit_txt == "keep-caps") {
+                    settings.secbits.keep_caps = true;
+                }
+                else if (secbit_txt == "keep-caps-locked") {
+                    settings.secbits.keep_caps_locked = true;
+                }
+                else if (secbit_txt == "no-setuid-fixup") {
+                    settings.secbits.no_setuid_fixup = true;
+                }
+                else if (secbit_txt == "no-setuid-fixup-locked") {
+                    settings.secbits.no_setuid_fixup_locked = true;
+                }
+                else if (secbit_txt == "noroot") {
+                    settings.secbits.noroot = true;
+                }
+                else if (secbit_txt == "noroot-locked") {
+                    settings.secbits.noroot_locked = true;
+                }
+                else {
+                    throw service_description_exc(name, "unknown secure bit: " + secbit_txt,
+                            "secure-bits", input_pos);
+                }
+            }
+            break;
+        }
+        #endif
+        case setting_id_t::NICE:
+        {
+            string nice_str = read_setting_value(input_pos, i, end);
+            settings.nice_is_set = true;
+            settings.nice = (int)parse_snum_param(input_pos, nice_str, name,
+                    std::numeric_limits<int>::min() / 2, std::numeric_limits<int>::max() / 2);
+            break;
+        }
+        #if SUPPORT_IOPRIO
+        case setting_id_t::IOPRIO:
+        {
+            string ioprio_str = read_setting_value(input_pos, i, end);
+            if (ioprio_str == "none") {
+                settings.ioprio = 0;
+            }
+            else if (starts_with(ioprio_str, "realtime:")) {
+                auto nval = parse_unum_param(input_pos, ioprio_str.substr(9 /* len 'realtime:' */), name, 7);
+                settings.ioprio = (1 << 13) | nval;
+            }
+            else if (starts_with(ioprio_str, "best-effort:")) {
+                auto nval = parse_unum_param(input_pos, ioprio_str.substr(12 /* len 'best-effort:' */), name, 7);
+                settings.ioprio = (2 << 13) | nval;
+            }
+            else if (ioprio_str == "idle") {
+                settings.ioprio = 3 << 13;
+            }
+            else {
+                    throw service_description_exc(name, "invalid value for ioprio: " + ioprio_str,
+                            name, input_pos);
+            }
+            break;
+        }
+        #endif
+        #if SUPPORT_OOM_ADJ
+        case setting_id_t::OOM_SCORE_ADJ:
+        {
+            string oom_adj_str = read_setting_value(input_pos, i, end);
+            settings.oom_adj_is_set = true;
+            settings.oom_adj = (int)parse_snum_param(input_pos, oom_adj_str, name, -1000, 1000);
+            break;
+        }
         #endif
         case setting_id_t::SOCKET_LISTEN:
             settings.socket_path = read_setting_value(input_pos, i, end, nullptr);
@@ -1552,21 +1834,24 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
             break;
         case setting_id_t::DEPENDS_ON:
         {
-            string dependency_name = read_dependency_value(setting.c_str(), input_pos, i, end, arg);
+            string dependency_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::REGULAR);
             break;
         }
         case setting_id_t::DEPENDS_MS:
         {
-            string dependency_name = read_dependency_value(setting.c_str(), input_pos, i, end, arg);
+            string dependency_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::MILESTONE);
             break;
         }
         case setting_id_t::WAITS_FOR:
         {
-            string dependency_name = read_dependency_value(setting.c_str(), input_pos, i, end, arg);
+            string dependency_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::WAITS_FOR);
             break;
@@ -1591,13 +1876,15 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
         }
         case setting_id_t::AFTER:
         {
-            string after_name = read_dependency_value(setting.c_str(), input_pos, i, end, arg);
+            string after_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             settings.after_svcs.emplace_back(std::move(after_name));
             break;
         }
         case setting_id_t::BEFORE:
         {
-            string before_name = read_dependency_value(setting.c_str(), input_pos, i, end, arg);
+            string before_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             settings.before_svcs.emplace_back(std::move(before_name));
             break;
         }
@@ -1774,6 +2061,11 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
                 else if (option_txt == "kill-all-on-stop") {
                     settings.onstart_flags.kill_all_on_stop = true;
                 }
+#if SUPPORT_CAPABILITIES
+                else if (option_txt == "no-new-privs") {
+                    settings.onstart_flags.no_new_privs = true;
+                }
+#endif
                 else {
                     throw service_description_exc(name, "unknown option: " + option_txt,
                             "options", input_pos);

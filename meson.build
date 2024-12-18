@@ -31,6 +31,9 @@ igr_tests = get_option('igr-tests')
 fuzzer = get_option('fuzzer')
 man_pages = get_option('man-pages')
 support_cgroups = get_option('support-cgroups')
+support_capabilities = get_option('support-capabilities')
+support_ioprio = get_option('support-ioprio')
+support_oom_adj = get_option('support-oom-adj')
 use_utmpx = get_option('use-utmpx')
 use_initgroups = get_option('use-initgroups')
 support_selinux = get_option('support-selinux')
@@ -58,6 +61,7 @@ if platform == 'freebsd' and compiler.has_link_argument('-lrt')
 endif
 
 ## Dependencies
+libcap_dep = dependency('libcap', required: support_capabilities)
 libselinux_dep = dependency('libselinux', version : '>= 2.1.9', required : support_selinux)
 
 ## Prepare mconfig.h
@@ -73,6 +77,10 @@ mconfig_data.set10('SUPPORT_SELINUX', libselinux_dep.found())
 if support_cgroups.auto() and platform == 'linux' or support_cgroups.enabled()
     mconfig_data.set('SUPPORT_CGROUPS', '1') 
 endif
+mconfig_data.set10('SUPPORT_CGROUPS', support_cgroups.auto() and platform == 'linux' or support_cgroups.enabled())
+mconfig_data.set10('SUPPORT_CAPABILITIES', libcap_dep.found() and not support_capabilities.disabled())
+mconfig_data.set10('SUPPORT_IOPRIO', support_ioprio.auto() and platform == 'linux' or support_ioprio.enabled())
+mconfig_data.set10('SUPPORT_OOM_ADJ', support_oom_adj.auto() and platform == 'linux' or support_oom_adj.enabled())
 if use_utmpx.enabled() or (use_utmpx.auto() and compiler.has_header_symbol('utmpx.h', '_PATH_UTMPX') and
         compiler.has_header_symbol('utmpx.h', '_PATH_WTMPX'))
     mconfig_data.set('USE_UTMPX', '1')

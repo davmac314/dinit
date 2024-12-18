@@ -6,6 +6,7 @@ type = bgprocess
 smooth-recovery = true
 command = /usr/sbin/syslogd
 pid-file = /var/run/syslogd.pid
-options = starts-log
 
-depends-on = rcboot
+options: starts-log
+
+depends-on: rcboot

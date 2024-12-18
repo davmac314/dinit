@@ -12,31 +12,34 @@ Dinit service description files
 .SH DESCRIPTION
 .\"
 The service description files for \fBDinit\fR each describe a service. The name
-of the file corresponds to the name of the service it describes, minus its argument.
+of the file corresponds to the name of the service it describes (minus its argument;
+see \fBSERVICE ARGUMENTS\fR). 
 .LP
-Service description files specify the various attributes of a service. A
-service description file is named after the service it represents (without
-its argument), and is a plain-text file with simple key-value format.
+Service description files specify the various attributes of a service.
+A service description file is a plain-text file with simple key-value format.
 The description files are located in a service description directory;
 See \fBdinit\fR(8) for more details of the default service description directories,
 and how and when service descriptions are loaded.
 .LP
-The full name of the service includes its argument, such as \fIservice@argument\fR.
-The argument is optional, so you can also invoke just \fIservice\fR.
-Each instance of a service, i.e. with different arguments, is separate, including loading.
-This means every time you invoke the service with a different argument, it is loaded
-separately.
-Empty argument is not the same as missing argument, as this affects variable
-substitution (see \fBVARIABLE SUBSTITUTION\fR).
-.LP
-All services have a \fItype\fR and a set of \fIdependencies\fR. These are discussed
-in the following subsections. The type, dependencies, and other attributes are
-specified via property settings, the format of which are documented in the
-\fBSERVICE PROPERTIES\fR subsection, which also lists the available properties.
+All services have a \fItype\fR and a set of \fIdependencies\fR.
+These are discussed in the following subsections.
+The type, dependencies, and other attributes are specified via property settings, the format of
+which are documented in the \fBSERVICE PROPERTIES\fR subsection, which also lists the available
+properties.
 .LP
 In addition to service properties, some meta-commands can be used within service
 description files.
 See the \fBMETA-COMMANDS\fR subsection for more information. 
+.\"
+.SS SERVICE ARGUMENTS
+.\"
+A service description may act as a template for multiple related services.
+The full name of a service can include an argument, following the base name of the service
+suffixed by an 'at' symbol (\fB@\fR), in the form \fIbase-name@argument\fR.
+The argument value may be substituted into various service setting values by using
+a '\fB$1\fR' marker in the value specified in the service description (see \fBVARIABLE SUBSTITUTION\fR).
+The full name (base name together with argument) uniquely identifies a service instance, and each
+instance is loaded separately, remaining independent of other instances.
 .\"
 .SS SERVICE TYPES
 .\"
@@ -153,6 +156,14 @@ Setting a property generally overrides any previous setting (from prior lines).
 However some properties are set additively; these include dependency relationships and \fBoptions\fR
 properties.
 .LP
+Some properties that specify file paths are currently resolved (if the specified path is relative)
+starting from the directory containing the top-level service description file, whereas others are
+resolved from the directory containing the service description fragment in which the setting value
+is defined (a "fragment" may be the service description file itself, or it may be a file included
+via \fB@include\fR or similar; see \fBMETA-COMMANDS\fR). In particular, the `\-\-\-.d' settings
+(such as \fBwaits-for.d\fR) are resolved from the containing fragment. For all other settings, it
+is recommended to provide absolute paths to be robust against future changes in Dinit.
+.LP
 The following properties can be specified:
 .TP
 \fBtype\fR = {process | bgprocess | scripted | internal | triggered}
@@ -198,7 +209,7 @@ Specifies a file containing value assignments for environment variables, in the 
 format recognised by the \fBdinit\fR command's \fB\-\-env\-file\fR option (see \fBdinit\fR(8)).
 The file is read when the service is loaded, therefore values from it can be used in variable
 substitutions (see \fBVARIABLE SUBSTITUTION\fR).
-Variable substitution is not performed on the \fBenv\-file\fR property value itself.
+Minimal variable substitution is performed on the \fBenv\-file\fR property value itself.
 If the path is not absolute, it is resolved relative to the directory containing the service
 description.
 .TP
@@ -277,7 +288,7 @@ This service depends on the named service.
 Starting this service will start the named service; the command to start this service will not be executed
 until the named service has started.
 If the named service stops then this service will also be stopped.
-The \fIservice-name\fR is subject to minimal variable substitution
+The \fIservice-name\fR is subject to pre-load variable substitution
 (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBdepends\-ms\fR: \fIservice-name\fR
@@ -287,7 +298,7 @@ named service has started, and will fail to start if the named service does
 not start.
 Once the named (dependent) service reaches the started state, however, the
 dependency may stop without affecting the dependent service.
-The name is likewise subject to minimal variable substitution.
+The name is likewise subject to pre-load variable substitution.
 .TP
 \fBwaits\-for\fR: \fIservice-name\fR
 When this service is started, wait for the named service to finish starting
@@ -295,7 +306,7 @@ When this service is started, wait for the named service to finish starting
 Starting this service will automatically start the named service.
 If the named service fails to start, this service will start as usual (subject to
 other dependencies being met).
-The name is likewise subject to minimal variable substitution.
+The name is likewise subject to pre-load variable substitution.
 .TP
 \fBdepends\-on.d\fR: \fIdirectory-path\fR
 For each file name in \fIdirectory-path\fR which does not begin with a dot,
@@ -323,8 +334,8 @@ dependency except no dependency relationship is implied; if the named service is
 starting this service will not cause it to start (nor wait for it in that case).
 It does not by itself cause the named service to be loaded (if loaded later, the "after"
 relationship will be enforced from that point).
-.TP
-The name is subject to minimal variable substitution.
+.IP
+The name is subject to pre-load variable substitution.
 .TP
 \fBbefore\fR: \fIservice-name\fR
 When starting the named service, if this service is also starting, wait for this service
@@ -332,8 +343,8 @@ to finish starting before bringing the named service up. This is largely equival
 an \fBafter\fR relationship to this service from the named service.
 However, it does not by itself cause the named service to be loaded (if loaded later, the "before"
 relationship will be enforced from that point).
-.TP
-The name is subject to minimal variable substitution.
+.IP
+The name is subject to pre-load variable substitution.
 .TP
 \fBchain\-to\fR = \fIservice-name\fR
 When this service terminates (i.e. starts successfully, and then stops of its
@@ -356,7 +367,7 @@ abnormally or with an exit status indicating an error.
 However, if the \fBalways-chain\fR option is set the chain is started regardless of the
 reason and the status of this service termination.
 .IP
-The name is subject to minimal variable substitution.
+The name is subject to pre-load variable substitution.
 .TP
 \fBsocket\-listen\fR = \fIsocket-path\fR
 Pre-open a socket for the service and pass it to the service using the
@@ -409,7 +420,7 @@ using the contents of the specified environment variable, which will be set by \
 execution to a file descriptor (chosen arbitrarily) attached to the write end of a pipe.
 .RE
 .TP
-\fBlog\-type\fR = {file | buffer | pipe | none}
+\fBlog\-type\fR = {\fBfile\fR | \fBbuffer\fR | \fBpipe\fR | \fBnone\fR}
 Specifies how the output of this service is logged.
 This setting is valid only for process-based services (including \fBscripted\fR services).
 .RS
@@ -427,8 +438,8 @@ may become full which may cause the service process to stall.
 \fBnone\fR: output is discarded.
 .RE
 .IP
-The default log type is \fBnone\fR, unless the \fBlogfile\fR setting is specified in which case
-the default log type is \fBfile\fR. For \fBpipe\fR (and \fBbuffer\fR, which uses a pipe internally)
+The default log type is \fBnone\fR, but note that specifying a \fBlogfile\fR setting can change the
+log type to \fBfile\fR. For \fBpipe\fR (and \fBbuffer\fR, which uses a pipe internally),
 note that the pipe created may outlive the service process and be re-used if the service is stopped
 and restarted.
 .\"
@@ -440,9 +451,12 @@ which will be created if it does not already exist. The file ownership and permi
 according to the \fBlogfile\-uid\fR, \fBlogfile\-gid\fR and \fBlogfile\-permissions\fR settings.
 This setting has no effect if the service is set to run on the console (via the \fBruns\-on\-console\fR,
 \fBstarts\-on\-console\fR, or \fBshares\-console\fR options).
-The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
+.IP
+The log file path is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
+.IP
 Note that if the directory in which the logfile resides does not exist (or is not otherwise accessible to
 \fBdinit\fR) when the service is started, the service will not start successfully.
+.IP
 If this settings is specified and \fBlog\-type\fR is not specified or is currently \fBnone\fR, then
 the log type will be changed to \fBfile\fR.
 .TP
@@ -541,6 +555,12 @@ See the \fBRESOURCE LIMITS\fR section.
 Note that some operating systems (notably, OpenBSD) do not support this limit; the
 setting will be ignored on such systems.
 .TP
+\fBnice\fR = \fInice-value\fR
+Specifies the CPU priority of the process.
+When the given value is out of range for the operating system, it will be clamped to
+supported range, but no error will be issued.
+On Linux, this also sets the autogroup priority, assuming procfs is mounted.
+.TP
 \fBrun\-in\-cgroup\fR = \fIcgroup-path\fR
 Run the service process(es) in the specified cgroup (see \fBcgroups\fR(7)).
 The cgroup is specified as a path; if it has a leading slash, the remainder of the path is
@@ -557,6 +577,46 @@ The named cgroup must already exist prior to the service starting; it will not b
 \fBdinit\fR.
 .IP
 This setting is only available if \fBdinit\fR was built with cgroups support.
+.TP
+\fBcapabilities\fR = \fIiab\fR
+.TQ
+\fBcapabilities\fR += \fIiab-addendum\fR
+Run the service process(es) with capabilities specified by \fIiab\fR (see \fBcapabilities\fR(7)).
+The syntax follows the regular capabilities IAB format, with comma-separated capabilities.
+The append form of this setting will add to the previous IAB string, automatically adding
+a comma to the previous string, so you do not need to add it manually.
+.IP
+This setting is only available if \fBdinit\fR was built with capabilities support.
+.TP
+\fBsecure\-bits\fR = \fIsecbits\fR
+.TQ
+\fBsecure\-bits\fR += \fIsecbits-addendum\fR
+This is a companion option to \fBcapabilities\fR, specifying the secure bits for the
+process.
+Here, it is a space-separated list of keywords. The allowed keywords are \fIkeep-caps\fR,
+\fIno-setuid-fixup\fR, \fInoroot\fR, and variants of the three with the \fI-locked\fR
+suffix.
+The append form can be used to add more secure bits, with everything being ORed together
+at the end and used as an integer.
+.IP
+This setting is only available if \fBdinit\fR was built with capabilities support.
+.TP
+\fBioprio\fR = \fIioprio-value\fR
+Specifies the I/O priority class and value for the process.
+The permitted values are \fInone\fR, \fIidle\fR, \fIrealtime:PRIO\fR, and
+\fIbest-effort:PRIO\fR, where \fIPRIO\fR is an integer value no less than 0
+and no more than 7.
+.IP
+This setting is only available if \fBdinit\fR was built with ioprio support.
+.TP
+\fBoom-score-adj\fR = \fIadj-value\fR
+Specifies the OOM killer score adjustment for the service.
+The value is an integer no less than -1000 and no more than 1000.
+.IP
+This setting is only available if \fBdinit\fR was built with OOM score adjustment support.
+.IP
+This setting requires the proc filesystem to be mounted, and will result in a
+service startup failure if that is not the case.
 .\"
 .SS OPTIONS
 .\"
@@ -685,6 +745,13 @@ is suggested, i.e. every other service should either be a (possibly transitive) 
 dependent of the service with this option set.
 .IP
 This option can be used for scripted and internal services only.
+.TP
+\fBno\-new\-privs\fR
+Normally, child processes can gain privileges that their parent did not have, such
+as setuid or setgid and file capabilities. This option can be specified to prevent
+the service from gaining such privileges.
+.IP
+This setting is only available if \fBdinit\fR was built with capabilities support.
 .\"
 .SS RESOURCE LIMITS
 .\"
@@ -767,11 +834,11 @@ Using environment variable values in service commands and parameters can be used
 provide easily-adjustable service configuration, but is not ideal for this purpose and alternatives
 should be considered. 
 .LP
-In dependency fields, including \fIbefore\fR and similar, minimal version of variable
-substitution may happen.
-Only the service argument may be substituted, as the actual environment is not available
-at this point.
-The full syntax is still supported.
+In dependency fields, including \fBdepends\-on\fR as well as \fBbefore\fR/\fBafter\fR and similar,
+variable substitution may happen before the service environment is loaded.
+This "pre-load" expansion can substitute service arguments and environment variables set within
+dinit only; any service-specific variables that will be loaded from file (as specified using \fBenv\-file\fR)
+are not available. 
 .\"
 .SS META-COMMANDS
 .\"
@@ -784,6 +851,8 @@ The following commands are available:
 \fB@include\fR \fIpath\fR
 Include the contents of another file, specified via its full path.
 If the specified file does not exist, an error is produced.
+The \fIpath\fR is subject to pre-load variable substitution
+(see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fB@include\-opt\fR \fIpath\fR
 As for \fB@include\fR, but produces no error if the named file does not exist.

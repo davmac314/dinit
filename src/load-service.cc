@@ -35,7 +35,9 @@ static void do_env_subst(const char *setting_name, ha_string &line,
 {
     using namespace dinit_load;
     std::string line_s = std::string(line.c_str(), line.length());
-    value_var_subst(setting_name, line_s, offsets, resolve_env_var, &envmap, arg);
+    value_var_subst(setting_name, line_s, offsets, [&](const std::string &name) {
+        return resolve_env_var(name, envmap);
+    }, arg);
     line = line_s;
 }
 
@@ -494,42 +496,54 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
     }
 
     file_input_stack input_stack;
-    input_stack.push(service_filename, std::move(service_file));
+    input_stack.push(std::move(service_filename), std::move(service_file));
 
     try {
+        environment srv_env;
+
+        // Build an environment mapping which for now just contains variables from the main
+        // environment (including that inherited by the process). This will be used for pre-load
+        // substitution (eg inside @include paths, in dependency names).
+        environment::env_map srv_envmap = main_env.build();
+
+        auto resolve_var = [&](const std::string &name) {
+            return srv_envmap.lookup(name);
+        };
+
         process_service_file(name, input_stack,
                 [&](string &line, file_pos_ref fpr, string &setting, setting_op_t op,
                         string_iterator &i, string_iterator &end) -> void {
 
-            auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
-                    dependency_type dep_type) -> void {
-                process_dep_dir(*this, name.c_str(), service_filename, deplist, waitsford, dep_type, reload_svc);
-            };
+                    auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist,
+                            const std::string &waitsford, dependency_type dep_type) -> void {
+                        const string &service_filename = input_stack.current_file_name();
+                        process_dep_dir(*this, name.c_str(), service_filename, deplist, waitsford,
+                                dep_type, reload_svc);
+                    };
 
-            auto load_service_n = [&](const string &dep_name) -> service_record * {
-                try {
-                    return load_service(dep_name.c_str(), reload_svc);
-                }
-                catch (service_description_exc &sle) {
-                    log_service_load_failure(sle);
-                    throw service_load_exc(name, "could not load dependency.");
-                }
-                catch (service_load_exc &sle) {
-                    log(loglevel_t::ERROR, "Could not load service ", sle.service_name, ": ",
-                            sle.exc_description);
-                    throw service_load_exc(name, "could not load dependency.");
-                }
-            };
+                    auto load_service_n = [&](const string &dep_name) -> service_record * {
+                        try {
+                            return load_service(dep_name.c_str(), reload_svc);
+                        }
+                        catch (service_description_exc &sle) {
+                            log_service_load_failure(sle);
+                            throw service_load_exc(name, "could not load dependency.");
+                        }
+                        catch (service_load_exc &sle) {
+                            log(loglevel_t::ERROR, "Could not load service ", sle.service_name,
+                                    ": ", sle.exc_description);
+                            throw service_load_exc(name, "could not load dependency.");
+                        }
+                    };
 
-            process_service_line(settings, name.c_str(), argval, line, fpr, setting,
-                    op, i, end, load_service_n, process_dep_dir_n);
-        });
+                    process_service_line(settings, name.c_str(), argval, line, fpr, setting,
+                            op, i, end, load_service_n, process_dep_dir_n, resolve_var);
+                },
+                argval, resolve_var);
 
         auto report_err = [&](const char *msg){
             throw service_load_exc(name, msg);
         };
-
-        environment srv_env;
 
         // Fill user vars before reading env file
         if (settings.export_passwd_vars) {
@@ -542,11 +556,6 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             envname += name;
             srv_env.set_var(std::move(envname));
         }
-
-        // This mapping is temporary, for load substitutions. (The environment actually *may* change
-        // after load, e.g. through dinitctl setenv, either from the outside or from within services,
-        // and so we need to calculate a fresh mapping on each process invocation).
-        environment::env_map srv_envmap;
 
         if (!settings.env_file.empty()) {
             try {
@@ -563,6 +572,9 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             }
         }
 
+        // This mapping is temporary, for load substitutions. (The environment actually *may* change
+        // after load, e.g. through dinitctl setenv, either from the outside or from within services,
+        // and so we need to calculate a fresh mapping on each process invocation).
         srv_envmap = srv_env.build(main_env);
 
         settings.finalise<true>(report_err, srv_envmap, argval);
@@ -708,6 +720,14 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             // - this will be done later)
         }
 
+        // We may have capabilities, process them now
+        #if SUPPORT_CAPABILITIES
+        cap_iab_wrapper cap_iab(settings.capabilities);
+        if (!settings.capabilities.empty() && !cap_iab.get()) {
+            throw service_load_exc(name, "the 'capabilities' string has an invalid format");
+        }
+        #endif
+
         if (service_type == service_type_t::PROCESS) {
             do_env_subst("command", settings.command, settings.command_offsets, srv_envmap, argval);
             do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap, argval);
@@ -732,6 +752,16 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             rvalps->set_env_file(std::move(settings.env_file));
             #if SUPPORT_CGROUPS
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
+            #endif
+            #if SUPPORT_CAPABILITIES
+            rvalps->set_cap(std::move(cap_iab), settings.secbits.get());
+            #endif
+            rvalps->set_nice(settings.nice, settings.nice_is_set);
+            #if SUPPORT_IOPRIO
+            rvalps->set_ioprio(settings.ioprio);
+            #endif
+            #if SUPPORT_OOM_ADJ
+            rvalps->set_oom_adj(settings.oom_adj, settings.oom_adj_is_set);
             #endif
             rvalps->set_rlimits(std::move(settings.rlimits));
             rvalps->set_restart_interval(settings.restart_interval, settings.max_restarts);
@@ -776,6 +806,16 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             #if SUPPORT_CGROUPS
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
             #endif
+            #if SUPPORT_CAPABILITIES
+            rvalps->set_cap(std::move(cap_iab), settings.secbits.get());
+            #endif
+            rvalps->set_nice(settings.nice, settings.nice_is_set);
+            #if SUPPORT_IOPRIO
+            rvalps->set_ioprio(settings.ioprio);
+            #endif
+            #if SUPPORT_OOM_ADJ
+            rvalps->set_oom_adj(settings.oom_adj, settings.oom_adj_is_set);
+            #endif
             rvalps->set_rlimits(std::move(settings.rlimits));
             rvalps->set_pid_file(std::move(settings.pid_file));
             rvalps->set_restart_interval(settings.restart_interval, settings.max_restarts);
@@ -814,6 +854,16 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             rvalps->set_env_file(std::move(settings.env_file));
             #if SUPPORT_CGROUPS
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
+            #endif
+            #if SUPPORT_CAPABILITIES
+            rvalps->set_cap(std::move(cap_iab), settings.secbits.get());
+            #endif
+            rvalps->set_nice(settings.nice, settings.nice_is_set);
+            #if SUPPORT_IOPRIO
+            rvalps->set_ioprio(settings.ioprio);
+            #endif
+            #if SUPPORT_OOM_ADJ
+            rvalps->set_oom_adj(settings.oom_adj, settings.oom_adj_is_set);
             #endif
             rvalps->set_rlimits(std::move(settings.rlimits));
             rvalps->set_stop_timeout(settings.stop_timeout);

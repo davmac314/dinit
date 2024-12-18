@@ -97,6 +97,11 @@ Run in "container mode", i.e. do not perform system management functions (such
 as shutdown/reboot).
 The \fBdinit\fR daemon will simply exit rather than executing the \fB$$$SHUTDOWN_PREFIX@@@shutdown\fR program.
 .TP
+\fB\-r\fR, \fB\-\-auto\-recovery\fR
+Automatically run the \fIrecovery\fR service on apparent boot failures (if all
+services stop without a shutdown command having been issued) without prompting
+the user when Dinit is running as system manager.
+.TP
 \fB\-q\fR, \fB\-\-quiet\fR
 Run with no output to the terminal/console.
 This disables service status messages and sets the log level for the console log to \fBnone\fR.

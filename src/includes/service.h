@@ -223,12 +223,12 @@ inline void log_service_load_failure(service_description_exc &exc)
     if (exc.input_pos.get_line_num() != (unsigned)-1) {
         if (exc.setting_name == nullptr) {
             log(loglevel_t::ERROR, "Error in service description for '", exc.service_name,
-                    "' (file ", exc.input_pos.get_file_name(), "line ", exc.input_pos.get_line_num(), "): ",
+                    "' (file ", exc.input_pos.get_file_name(), ", line ", exc.input_pos.get_line_num(), "): ",
                     exc.exc_description);
         }
         else {
             log(loglevel_t::ERROR, "Error in service description for '", exc.service_name, "': setting '", exc.setting_name, "' "
-                    "(file ", exc.input_pos.get_file_name(), "line ", exc.input_pos.get_line_num(), "): ",
+                    "(file ", exc.input_pos.get_file_name(), ", line ", exc.input_pos.get_line_num(), "): ",
                     exc.exc_description);
         }
     }

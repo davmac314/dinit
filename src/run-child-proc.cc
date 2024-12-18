@@ -7,6 +7,7 @@
 #include <sys/ioctl.h>
 #include <sys/un.h>
 #include <sys/socket.h>
+#include <sys/syscall.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
@@ -14,6 +15,11 @@
 #include "service.h"
 #include "proc-service.h"
 #include "mconfig.h"
+
+#if SUPPORT_CAPABILITIES
+#include <sys/capability.h>
+#include <sys/prctl.h>
+#endif
 
 #ifdef SUPPORT_CGROUPS
 extern std::string cgroups_path;
@@ -60,6 +66,8 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     const char *working_dir = params.working_dir;
     const char *logfile = params.logfile;
     bool on_console = params.on_console;
+    bool nice_is_set = params.nice_is_set;
+    int nice = params.nice;
     int wpipefd = params.wpipefd;
     int csfd = params.csfd;
     int notify_fd = params.notify_fd;
@@ -69,6 +77,18 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     gid_t gid = params.gid;
     const std::vector<service_rlimits> &rlimits = params.rlimits;
     int output_fd = params.output_fd;
+    #if SUPPORT_CAPABILITIES
+    cap_iab_t cap_iab = params.cap_iab;
+    unsigned int secbits = params.secbits;
+    bool no_new_privs = params.no_new_privs;
+    #endif
+    #if SUPPORT_IOPRIO
+    int ioprio = params.ioprio;
+    #endif
+    #if SUPPORT_OOM_ADJ
+    bool oom_adj_is_set = params.oom_adj_is_set;
+    short oom_adj = params.oom_adj;
+    #endif
 
     // If the console already has a session leader, presumably it is us. On the other hand
     // if it has no session leader, and we don't create one, then control inputs such as
@@ -291,6 +311,56 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         if (setrlimit(limit.resource_id, &setlimits) != 0) goto failure_out;
     }
 
+    // nice
+    if (nice_is_set) {
+        err.stage = exec_stage::SET_PRIO;
+        #ifdef __linux__
+        // clamp the values to known range so the autogroup hack below works
+        if (nice > 19) nice = 19;
+        if (nice < -20) nice = -20;
+        #endif
+        if (setpriority(PRIO_PROCESS, getpid(), nice) != 0) goto failure_out;
+        #ifdef __linux__
+        // we usually create a new session leader; that makes nice not very
+        // useful as the Linux kernel will autogroup processes by session id
+        // except when disabled - so also work around this where enabled
+        // the r+ is used in order to avoid creating it where already disabled
+        errno = 0;
+        FILE *ag = std::fopen("/proc/self/autogroup", "r+");
+        if (ag) {
+            std::fprintf(ag, "%d\n", nice);
+            std::fclose(ag);
+        }
+        else if (errno != ENOENT) goto failure_out;
+        #endif
+    }
+
+    #if SUPPORT_IOPRIO
+    // ioprio
+    if (ioprio >= 0) {
+        err.stage = exec_stage::SET_PRIO;
+        if (syscall(__NR_ioprio_set, 1, (int)getpid(), ioprio) != 0) goto failure_out;
+    }
+    #endif
+
+    #if SUPPORT_OOM_ADJ
+    // oom score adjustment
+    if (oom_adj_is_set) {
+        err.stage = exec_stage::SET_PRIO;
+        errno = 0;
+        int fd = open("/proc/self/oom_score_adj", O_WRONLY);
+        if (fd < 0) goto failure_out;
+        // +4: round up, minus sign, newline, nul terminator
+        char val_str[std::numeric_limits<short>::digits10 + 4];
+        int num_chars = snprintf(val_str, sizeof(val_str), "%hd\n", oom_adj);
+        if (write(fd, val_str, num_chars) < 0) {
+            close(fd);
+            goto failure_out;
+        }
+        close(fd);
+    }
+    #endif
+
     #if SUPPORT_CGROUPS
     if (params.run_in_cgroup != nullptr && *params.run_in_cgroup != 0) {
         err.stage = exec_stage::ENTER_CGROUP;
@@ -377,8 +447,27 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             if (setregid(gid, gid) != 0) goto failure_out;
         }
 #endif
+#if SUPPORT_CAPABILITIES
+        if (cap_setuid(uid) != 0) goto failure_out;
+#else
         if (setreuid(uid, uid) != 0) goto failure_out;
+#endif
     }
+
+#if SUPPORT_CAPABILITIES
+    if (cap_iab) {
+        err.stage = exec_stage::SET_CAPS;
+        if (cap_iab_set_proc(cap_iab) != 0) goto failure_out;
+    }
+    if (secbits) {
+        err.stage = exec_stage::SET_CAPS;
+        if (cap_set_secbits(secbits) < 0) goto failure_out;
+    }
+    if (no_new_privs) {
+        err.stage = exec_stage::SET_CAPS;
+        if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) goto failure_out;
+    }
+#endif
 
     // Restore signal mask. If running on the console, we'll keep various control signals that can
     // be invoked from the terminal masked, with the exception of SIGHUP and possibly SIGINT.

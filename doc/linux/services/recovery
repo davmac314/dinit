@@ -5,3 +5,4 @@
 type = process
 command = /sbin/sulogin
 options = runs-on-console
+restart = false

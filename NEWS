@@ -1,3 +1,42 @@
+== Version 0.19.3(?)
+
+TBA
+
+== Version 0.19.2
+
+This beta release contains minor bugfixes compared to the prior release. It does not contain
+various feature changes that be released in version 0.20.0 in due course.
+
+Thanks to current sponsors: Paweł Zmarzły (pzmarzly), Wesley Moore (wezm),
+M. Herdiansyah (konimex), Coleman McFarland (dontlaugh), q66, saolof, and private sponsors. 
+
+Fixes:
+ * Fix bad formatting of line number in error message when a service fails to load (Jami Kettunen).
+ * Fix endianness issue leading to errors from dinitctl for some commands on big-endian systems
+   (q66).
+ * Fix dinitcheck not being able to find dependency directories ("waits-for.d" etc) if specified
+   via relative path.
+ * Dependency directories (as specified by "waits-for.d" and similar) are, if relative, now
+   resolved against the file containing the setting, rather than the base service description
+   file. It is recommended to use absolute paths for all other applicable settings.
+
+== Version 0.19.1 (beta release #5)
+
+This is a fifth beta release, containing important bugfixes compared to the prior release.
+
+Thanks again to current sponsors: Paweł Zmarzły (pzmarzly), Wesley Moore (wezm),
+M. Herdiansyah (konimex), q66, saolof, and private sponsors.
+
+With an influx of new features being contributed, a follow-up release is planned. Dinit 0.19.0 was
+not the final beta after all, and neither will be 0.19.1.
+
+Fixes:
+ * Resolve issue causing service restarts to hang (affected bgprocess and internal services).
+ * Fix handling of "depends-ms.d" service setting (q66).
+ * Bump protocol version reported by dinit so that full exit status of processes is actually
+   reported (on OSes that support it) (q66).
+ * dinitcheck warns about non-absolute executable paths in service descriptions (Yao Zi).
+
 == Version 0.19.0 (beta release #4)
 
 This is a fourth beta release, with bugfixes and some significant feature additions compared to

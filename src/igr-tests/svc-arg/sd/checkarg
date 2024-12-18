@@ -2,3 +2,6 @@ type = process
 waits-for = checkarg2@$1
 command = ../checkarg.sh $1
 restart = false
+# this normally only supports absolute paths,
+# but here we control it so just for the test...
+@include-opt sd/inc-$1

@@ -5,6 +5,10 @@
 #include <sys/types.h>
 #include <sys/resource.h>
 
+#if SUPPORT_CAPABILITIES
+#include <sys/capability.h>
+#endif
+
 #include <baseproc-sys.h>
 #include <service.h>
 #include <dinit-utmp.h>
@@ -13,6 +17,43 @@
 // utility functions and classes. See service.h for full details of services.
 
 class process_service;
+
+#if SUPPORT_CAPABILITIES
+// A thin wrapper around the structure to avoid having to worry about freeing
+// it in various places (move semantics and destructor will take care of it)
+struct cap_iab_wrapper {
+    cap_iab_wrapper() {}
+    cap_iab_wrapper(std::string const &str) noexcept {
+        if (str.empty()) return;
+        // this may end up being nullptr
+        // throwing from constructors is bad, so always check .get() afterwards
+        iab = cap_iab_from_text(str.c_str());
+    }
+
+    cap_iab_wrapper(cap_iab_wrapper const &) = delete;
+    cap_iab_wrapper(cap_iab_wrapper &&v) noexcept: iab(v.iab) {
+        v.iab = nullptr;
+    }
+
+    cap_iab_wrapper &operator=(cap_iab_wrapper const &) = delete;
+    cap_iab_wrapper &operator=(cap_iab_wrapper &&v) noexcept {
+        iab = v.iab;
+        v.iab = nullptr;
+        return *this;
+    }
+
+    ~cap_iab_wrapper() noexcept {
+        if (iab) cap_free(iab);
+    }
+
+    cap_iab_t get() const noexcept {
+        return iab;
+    }
+
+private:
+    cap_iab_t iab = nullptr;
+};
+#endif
 
 // Given a string and a list of pairs of (start,end) indices for each argument in that string,
 // store a null terminator for the argument. Return a `char *` vector containing the beginning
@@ -31,9 +72,23 @@ struct run_proc_params
     #if SUPPORT_CGROUPS
     const char *run_in_cgroup = nullptr; //  cgroup path
     #endif
+    #if SUPPORT_CAPABILITIES
+    cap_iab_t cap_iab;
+    unsigned int secbits = 0;
+    bool no_new_privs = false;
+    #endif
     bool on_console;          // whether to run on console
     bool in_foreground;       // if on console: whether to run in foreground
     bool unmask_sigint = false; // if in foreground: whether to unmask SIGINT
+    bool nice_is_set = false;
+    int nice = 0;             // the process nice value
+    #if SUPPORT_IOPRIO
+    int ioprio = -1;          // scheduling class and priority for the process
+    #endif
+    #if SUPPORT_OOM_ADJ
+    bool oom_adj_is_set = false;
+    short oom_adj = 0;        // oom score adjustment value
+    #endif
     int wpipefd;              // pipe to which error status will be sent (if error occurs)
     int csfd;                 // control socket fd (or -1); may be moved
     int socket_fd;            // pre-opened socket fd (or -1); may be moved
@@ -186,7 +241,25 @@ class base_process_service : public service_record
     unsigned log_buf_size = 0; // log buffer current size
     std::vector<char, default_init_allocator<char>> log_buffer;
 
+    bool nice_is_set = false;
+    int nice;
+
+#if SUPPORT_IOPRIO
+    int ioprio = -1;
+#endif
+
+#if SUPPORT_OOM_ADJ
+    bool oom_adj_is_set = false;
+    short oom_adj = 0;
+#endif
+
     std::vector<service_rlimits> rlimits; // resource limits
+
+#if SUPPORT_CAPABILITIES
+    cap_iab_wrapper cap_iab;
+    unsigned int secbits = 0;
+    bool no_new_privs = false;
+#endif
 
 #if SUPPORT_CGROUPS
     string run_in_cgroup;
@@ -456,6 +529,35 @@ class base_process_service : public service_record
     void set_cgroup(std::string &&run_in_cgroup_p) noexcept
     {
         run_in_cgroup = std::move(run_in_cgroup_p);
+    }
+    #endif
+
+    #if SUPPORT_CAPABILITIES
+    void set_cap(cap_iab_wrapper &&iab, unsigned int sbits) noexcept
+    {
+        cap_iab = std::move(iab);
+        secbits = sbits;
+    }
+    #endif
+
+    void set_nice(int nice_v, bool is_set) noexcept
+    {
+        nice_is_set = is_set;
+        nice = nice_v;
+    }
+
+    #if SUPPORT_IOPRIO
+    void set_ioprio(int ioprio_v) noexcept
+    {
+        ioprio = ioprio_v;
+    }
+    #endif
+
+    #if SUPPORT_OOM_ADJ
+    void set_oom_adj(short oom_adj_v, bool is_set) noexcept
+    {
+        oom_adj_is_set = is_set;
+        oom_adj = oom_adj_v;
     }
     #endif
 
