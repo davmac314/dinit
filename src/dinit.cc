@@ -509,7 +509,7 @@ static bool selinux_transition(const char *exe)
         bool bail = true;
         // If stat(2) fails below, errno will be overwritten. The information contained in errno
         // from the failed mkdir(2) is likely to be more useful, so let's display that instead.
-        auto *errno_str = strerror(errno);
+        char *errno_str = strerror(errno);
         struct stat proc_stat;
         // /proc already exists and is a directory
         if (stat("/proc", &proc_stat) == 0 && S_ISDIR(proc_stat.st_mode)) bail = false;
