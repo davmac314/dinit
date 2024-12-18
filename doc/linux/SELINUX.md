@@ -10,7 +10,9 @@ are mentioned in this document.
 ## Loading the system SELinux policy
 When booted as the system init system, dinit by default will attempt to load the
 system's SELinux policy and transition itself to a context specified by that policy
-if not already done so in earlier boot (e.g. by an initramfs).
+if not already done so in earlier boot (e.g. by an initramfs). This behaviour may be
+disabled by passing dinit the `--disable-selinux-policy` flag. As dinit will always
+be PID1 in this senario, this can be done by appending the flag to the kernel cmdline.
 
 The following flowchart provides an overview of the process of loading the policy:
 ```mermaid
