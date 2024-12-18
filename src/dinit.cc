@@ -1355,6 +1355,7 @@ static void printVersion()
 #endif
 #if SUPPORT_SELINUX
                 " selinux"
+#endif
 #if SUPPORT_CAPABILITIES
                 " capabilities"
 #endif
