@@ -1332,6 +1332,9 @@ static void printVersion()
 #if USE_INITGROUPS
             +1
 #endif
+#if SUPPORT_SELINUX
+            +1
+#endif
 #if SUPPORT_CAPABILITIES
             +1
 #endif
