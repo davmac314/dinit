@@ -427,10 +427,12 @@ class ostream : public io_base
 
     template <typename A, typename B, typename ...C> inline bool write(const A &a, const B &b, const C & ...c)
     {
-        if (!good()) return false;
-        if (!write(a)) return false;
-        if (!write(b, c...)) return false;
-        return true;
+            bool r = write_nx(a, b, c...);
+            if (!r) {
+                // This will definitely throw an exception
+                throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
+            }
+            return r;
     }
 
     // write_buf() functions, Used to write char* or std::string.
