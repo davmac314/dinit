@@ -1,3 +1,7 @@
+== Version ???
+
+TBA
+
 == Version 0.19.3 (beta release #7)
 
 Release 0.19.1 mistakenly included in-development features (mainly, service arguments) that were
@@ -8,7 +12,7 @@ small number of documentation fixes and improvements also.
 Thanks to current sponsors: Paweł Zmarzły (pzmarzly), Wesley Moore (wezm),
 M. Herdiansyah (konimex), Coleman McFarland (dontlaugh), q66, saolof, and private sponsors. 
 
-== Version 0.19.2 (beta release #6)
+== Version 0.19.2
 
 This beta release contains minor bugfixes compared to the prior release. It does not contain
 various feature changes that be released in version 0.20.0 in due course.
