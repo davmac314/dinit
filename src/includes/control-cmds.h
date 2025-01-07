@@ -12,6 +12,7 @@
 // 4 - dinit 0.18.0 (adds CLOSEHANDLE, GETALLENV)
 // 5 - dinit 0.19.1 (process status now represented as ([int]si_code + [int]si_status) rather than
 //                   a single integer; SERVICEEVENT5 sent alongside SERVICEEVENT; adds LISTENENV, ENVEVENT)
+//    (dinit 0.19.2 removed support for LISTENENV/ENVEVENT, they were added again in 0.19.3)
 
 // Requests:
 enum class cp_cmd : dinit_cptypes::cp_cmd_t {
