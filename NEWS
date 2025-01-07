@@ -1,3 +1,13 @@
+== Version 0.19.3 (beta release #7)
+
+Release 0.19.1 mistakenly included in-development features (mainly, service arguments) that were
+not intended to be included in a bug-fix release. Release 0.19.2 did not include those features.
+Since distributions may be relying on the features, this release adds them back. There are a
+small number of documentation fixes and improvements also.
+
+Thanks to current sponsors: Paweł Zmarzły (pzmarzly), Wesley Moore (wezm),
+M. Herdiansyah (konimex), Coleman McFarland (dontlaugh), q66, saolof, and private sponsors. 
+
 == Version 0.19.2 (beta release #6)
 
 This beta release contains minor bugfixes compared to the prior release. It does not contain
