@@ -26,12 +26,21 @@ flowchart TD
     C -->|Yes| D
     C -->|No| E[Is the SELinux policy already loaded?]
     E -->|Yes| D
-    E -->|No| F[Attempt to load the SELinux policy]
-    F --> G{Did the SELinux policy load succeed?}
-    G -->|Yes| H[Attempt to calculate our new context and transition]
-    G -->|No| I[Error exit early]
-    H --> J{Did we successfully transition?}
-    J -->|Yes| D
-    J -->|No| L[Log an error to stderr]
-    L --> D
+    E --> |No| F{Is /proc mounted?}
+    F --> |Yes| J
+    F --> |No| G[Attempt to mount /proc]
+    G --> H{Could we successfully mount /proc?}
+    H --> |Yes| J
+    H -->|No| I[Error exit early]
+    J[Attempt to load the SELinux policy]
+    J --> K{Did the SELinux policy load succeed?}
+    K -->|Yes| L[Attempt to calculate our new context and transition]
+    K -->|No| I
+    L --> M{Did we successfully transition?}
+    M -->|Yes| O{Did we mount /proc?}
+    M -->|No| N[Log an error to stderr]
+    N --> O
+    O -->|Yes| P[Unmount /proc]
+    O -->|No| D
+    P --> D
 ```
