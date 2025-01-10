@@ -325,6 +325,8 @@ for arg in "$@"; do
         --disable-utmpx|--enable-utmpx=no) USE_UTMPX=0 ;;
         --enable-initgroups|--enable-initgroups=yes) USE_INITGROUPS=1 ;;
         --disable-initgroups|--enable-initgroups=no) USE_INITGROUPS=0 ;;
+        --enable-auto-restart|--enable-auto-restart=yes) DEFAULT_AUTO_RESTART=ALWAYS ;; # Deprecated
+        --disable-auto-restart|--enable-auto-restart=no) DEFAULT_AUTO_RESTART=NEVER ;; # Deprecated
         --enable-selinux|--enable-selinux=yes) SUPPORT_SELINUX=1 ;;
         --disable-selinux|--enable-selinux=no) SUPPORT_SELINUX=0 ;;
         --enable-strip|--enable-strip=yes) STRIPOPTS="-s" ;;
