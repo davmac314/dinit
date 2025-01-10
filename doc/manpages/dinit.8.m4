@@ -302,6 +302,15 @@ There are several ways to work around this.
 Service names following the \fB\-\-container\fR (\fB\-o\fR) or \fB\-\-system\-mgr\fR (\fB\-m\fR) options are not ignored.
 Also, the \fB\-\-service\fR (\fB\-t\fR) option can be used to force a service name to be recognised regardless of operating mode.
 .\"
+.SH SELINUX SUPPORT
+.LP
+When running as PID 1 on a SELinux enabled machine, \fBdinit\fR will by default load the system's SELinux policy.  This behaviour
+can be disabled by passing \fB\-\-disable\-selinux\-policy\fR to dinit through the kernel cmdline.
+.LP
+When loading the SELinux policy, dinit will automatically mount a few special filesystems needed to successfully load the policy.
+\fBsysfs\fR will be mounted at \fB/sys\fR, and \fBselinuxfs\fR will be mounted at \fB/sys/fs/selinux\fR.  \fBdinit\fR will not unmount either.
+\fBprocfs\fR will also be mounted at \fB/proc\fR, but \fB/dinit\fR will unmount it when done with it.
+.\"
 .SH FILES
 .\"
 .TP
