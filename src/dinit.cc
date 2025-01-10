@@ -539,11 +539,6 @@ static bool selinux_transition(const char *exe)
         return false;
     }
 
-    // At this point, the SELinux policy may have a defined spec for /proc. Let's relabel /proc now
-    // to ensure that possible denials of access to /proc for us are intentional. This doesn't
-    // matter in the longterm however as we umount /proc when we are done with it.
-    // TODO: Relabel logic
-
     // The newly loaded SELinux policy may stop us from calculating our new label, by preventing us
     // (in our current domain, the inital SID's representation in the loaded policy) from accessing
     // certain resources that are needed to calculate our label, for example, but not limited to,
