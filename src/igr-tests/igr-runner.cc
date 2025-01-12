@@ -41,6 +41,7 @@ void offline_enable_test();
 void xdg_config_test();
 void cycles_test();
 void svc_arg_test();
+void svc_arg_consumer_test();
 
 int main(int argc, char **argv)
 {
@@ -57,7 +58,7 @@ int main(int argc, char **argv)
             { "before-after2", before_after2_test }, { "log-via-pipe", log_via_pipe_test },
             { "catlog", catlog_test }, { "offline-enable", offline_enable_test },
             { "xdg-config", xdg_config_test }, { "cycles", cycles_test },
-            { "svc-arg", svc_arg_test } };
+            { "svc-arg", svc_arg_test }, { "svc-arg-consumer", svc_arg_consumer_test } };
     constexpr int num_tests = sizeof(tests) / sizeof(tests[0]);
 
     dinit_bindir = "../..";
@@ -997,4 +998,48 @@ void svc_arg_test()
             "foo\n" +
             "foo\n" +
             "bar\n");
+}
+
+void svc_arg_consumer_test()
+{
+    // Test for using minimal variable substitution in consumer services
+    igr_test_setup setup("svc-arg-consumer");
+
+    std::string logged_output_file = setup.prep_output_file("logged-output");
+    std::string socket_path = setup.prep_socket_path();
+
+    // "boot" service brings up "consumer" service and consumer writes its $1 value
+    dinit_proc dinit_p;
+    dinit_p.start("svc-arg-consumer", {"-u", "-d", "sd", "-p", socket_path, "-q"}, true);
+
+    nanosleepx(0, 1000000000u / 10u);
+
+    igr_assert_eq(read_file_contents(logged_output_file), "producer\n");
+
+    // Start and stop the producer for printing output to consumer
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("svc-arg-consumer", {"-u", "-p", socket_path, "start", "producer"});
+    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("svc-arg-consumer", {"-u", "-p", socket_path, "stop", "producer"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    nanosleepx(0, (1000000000u / 10u) * 2u);
+
+    igr_assert_eq(read_file_contents(logged_output_file), "producer\n" "Producing output...\n");
+
+    // Another start and stop to make sure that producer is linked to consumer properly
+    dinitctl_p.start("svc-arg-consumer", {"-u", "-p", socket_path, "start", "producer"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("svc-arg-consumer", {"-u", "-p", socket_path, "stop", "producer"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    nanosleepx(0, (1000000000u / 10u) * 2u);
+
+    igr_assert_eq(read_file_contents(logged_output_file), "producer\n" "Producing output...\n" "Producing output...\n");
 }
