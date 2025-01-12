@@ -489,6 +489,8 @@ Specifies that this service consumes (as its standard input) the output of anoth
 For example, this allows this service to act as a logging agent for another service.
 The named service must be a process-based service with \fBlog\-type\fR set to \fBpipe\fR.
 This setting is only valid for \fBprocess\fR and \fBbgprocess\fR services.
+The \fIservice-name\fR is subject to pre-load variable substitution
+(see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBoptions\fR: \fIoption\fR...
 Specifies various options for this service. See the \fBOPTIONS\fR section.
