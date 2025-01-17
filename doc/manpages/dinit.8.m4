@@ -310,7 +310,7 @@ This behaviour can be disabled by passing \fB\-\-disable\-selinux\-policy\fR to 
 When loading the SELinux policy, dinit will automatically mount a few special filesystems needed to successfully load the policy.
 \fBsysfs\fR will be mounted at \fB/sys\fR, and \fBselinuxfs\fR will be mounted at \fB/sys/fs/selinux\fR.
 \fBdinit\fR will not unmount either.
-\fBprocfs\fR will also be mounted at \fB/proc\fR, but \fB/dinit\fR will unmount it when done with it.
+\fBprocfs\fR will also be mounted at \fB/proc\fR, but \fBdinit\fR will unmount it when done with it.
 .\"
 .SH FILES
 .\"
