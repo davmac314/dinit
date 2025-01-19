@@ -1946,7 +1946,8 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
         }
         case setting_id_t::CONSUMER_OF:
         {
-            string consumed_svc_name = read_setting_value(input_pos, i, end);
+            string consumed_svc_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             if (consumed_svc_name == name) {
                 throw service_description_exc(name, "service cannot be its own consumer", "consumer-of",
                         input_pos);
