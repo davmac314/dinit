@@ -420,10 +420,12 @@ fi
 [ -z "${STRIPOPTS+IS_SET}" ] && STRIPOPTS="-s"
 
 ## Verify PLATFORM value
-if [ "$PLATFORM" != "Linux" ] && [ "$PLATFORM" != "FreeBSD" ] && \
-[ "$PLATFORM" != "OpenBSD" ] && [ "$PLATFORM" != "Darwin" ]; then
-    warning "$PLATFORM platform is unknown!" "Known Platforms are: Linux, FreeBSD, OpenBSD, Darwin"
-fi
+case "$PLATFORM" in
+    Linux|FreeBSD|NetBSD|OpenBSD|Darwin) ;;
+    *) warning "$PLATFORM platform is unknown!" \
+        "Known Platforms are: Linux, FreeBSD, NetBSD, OpenBSD, Darwin"
+    ;;
+esac
 
 ## Create testfile.cc to test c++ compiler
 configtmpdir=`mktmpdir`
