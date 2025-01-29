@@ -421,7 +421,7 @@ fi
 
 ## Verify PLATFORM value
 case "$PLATFORM" in
-Linux|FreeBSD|NetBSD|OpenBSD|Darwin)
+    Linux|FreeBSD|NetBSD|OpenBSD|Darwin)
     ;;
 *) warning "$PLATFORM platform is unknown!" \
     "Known Platforms are: Linux, FreeBSD, NetBSD, OpenBSD, Darwin"
