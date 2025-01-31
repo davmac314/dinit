@@ -483,7 +483,8 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 //   exe - the path that we are invoked with (to calculate our new security context to transition
 //   into.)
 // Returns:
-//   If we fail to load the system SELinux policy, return false, otherwise, return true.
+//   If we fail to load the system SELinux policy when requested to load in enforcing mode, return
+//   false, otherwise, return true.
 // This function will mount /sys if it isn't already mounted.
 // When successful, this will cause SELinux labels as per the policy to be attached to processes
 // (and file descriptors owned by those processes). The SELinux framework will begin to enforce
@@ -491,10 +492,8 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 // We might lose access to any file descriptors we have open when this is called (since they will
 // still be labelled with the current policy's representation of the kernel placeholder context),
 // so it is best done early (i.e. before we start opening file descriptors).
-// Despite returning true being a guarantee that the system SELinux policy has successfully been
-// loaded, it does not guarantee that we have transitioned ourselves to the context specified for
-// us by the system policy. The return value is only an indication of whether or not dinit should
-// bail.
+// Returning true does not guarantee that the system SELinux policy has successfully been loaded.
+// The return value is only an indication of whether or not dinit should bail.
 static bool selinux_transition(const char *exe)
 {
     // Let's use std::cerr instead of the log for logging messages here. If we output anything, we
@@ -535,8 +534,13 @@ static bool selinux_transition(const char *exe)
     // We don't need to worry about the enforcing=0 kernel cmdline option or parsing
     // /etc/selinux/config, selinux_init_load_policy(3) will handle all cases for us.
     if (selinux_init_load_policy(&enforce) != 0) {
-        cerr << "Failed to load SELinux policy." << endl;
-        return false;
+        if (enforce > 0) {
+            cerr << "Failed to load SELinux policy when requested to load in enforcing mode." << endl;
+            return false;
+        }
+        cerr << "Failed to load SELinux policy while set to permissive, ignoring." << endl;
+        // We can't transition ourselves if we failed to load the policy, so return early.
+        return true;
     }
 
     // The newly loaded SELinux policy may stop us from calculating our new label, by preventing us
