@@ -1,8 +1,8 @@
 # Dinit SELinux Awareness
 
 Dinit has support for basic SELinux awareness. This document is intended to
-outline the extent and inner workings of dinit's SELinux awareness. The reader
-is assumed to be knowledgeable about the basics of SELinux and dinit.
+outline the extent and inner workings of Dinit's SELinux awareness. The reader
+is assumed to be knowledgeable about the basics of SELinux and Dinit.
 
 Dinit needs to be built with SELinux support to enable any of the features that
 are mentioned in this document.
