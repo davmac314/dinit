@@ -4,8 +4,8 @@ Dinit has support for basic SELinux awareness. This document is intended to
 outline the extent and inner workings of Dinit's SELinux awareness. The reader
 is assumed to be knowledgeable about the basics of [SELinux](https://github.com/SELinuxProject/selinux-notebook) and Dinit.
 
-Dinit needs to be built with SELinux support to enable any of the features that
-are mentioned in this document.
+Dinit needs to be built with SELinux support (see [BUILD](/BUILD)) to enable the features that are
+mentioned in this document.
 
 ## Loading the system SELinux policy
 When booted as the system init system, dinit by default will attempt to load the
