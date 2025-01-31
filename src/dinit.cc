@@ -549,23 +549,23 @@ static bool selinux_transition(const char *exe)
     // current_context to NULL if SELinux is disabled, or other LSMs are at play. It's best to
     // check the pointer we get back in addition to the return value.
     if (getcon_raw(&current_context) < 0 || current_context == nullptr) {
-        cerr << "Failed to get current context: " << strerror(errno) << endl;
+        cerr << "Failed to get current SELinux context: " << strerror(errno) << endl;
         goto cleanup;
     }
 
     if (getfilecon_raw(exe, &file_context) < 0) {
-        cerr << "Failed to get file context for " << exe << ": " << strerror(errno) << endl;
+        cerr << "Failed to get SELinux file context for " << exe << ": " << strerror(errno) << endl;
         goto cleanup;
     }
 
     security_class = string_to_security_class("process");
     if (security_class == 0) {
-        cerr << "Failed to get security class for process" << endl;
+        cerr << "Failed to get SELinux security class for process" << endl;
         goto cleanup;
     }
 
     if (security_compute_create_raw(current_context, file_context, security_class, &new_context) < 0) {
-        cerr << "Failed to compute create context: " << strerror(errno) << endl;
+        cerr << "Failed to compute SELinux create context: " << strerror(errno) << endl;
         goto cleanup;
     }
 
@@ -573,7 +573,7 @@ static bool selinux_transition(const char *exe)
     // domain specified for us in the policy. This is a policy choice, and not a dinit runtime
     // issue. Let's continue the boot process regardless, but still log a warning.
     if (setcon_raw(new_context) < 0) {
-        cerr << "Failed to set transition context to " << new_context << ": " << strerror(errno) << endl;
+        cerr << "Failed to set SELinux transition context to " << new_context << ": " << strerror(errno) << endl;
         goto cleanup;
     }
 
