@@ -573,7 +573,8 @@ static bool selinux_transition(const char *exe)
     // domain specified for us in the policy. This is a policy choice, and not a dinit runtime
     // issue. Let's continue the boot process regardless, but still log a warning.
     if (setcon_raw(new_context) < 0) {
-        cerr << "Failed to set SELinux transition context to " << new_context << ": " << strerror(errno) << endl;
+        cerr << "Failed to set SELinux transition context to " << new_context << ": "
+	     << strerror(errno) << endl;
         goto cleanup;
     }
 
