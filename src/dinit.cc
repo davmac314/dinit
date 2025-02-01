@@ -485,7 +485,11 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 // Returns:
 //   If we fail to load the system SELinux policy when requested to load in enforcing mode, return
 //   false, otherwise, return true.
-// This function will mount /sys if it isn't already mounted.
+// This function will attempt to mount /sys and /proc if they aren't already mounted. /sys will
+// remain mounted after returning, and it is possible for /sys to still remain mounted despite
+// returning false. This function will attempt to unmount /proc if it was responsible for mounting
+// it, but lazily unmounts it using MNT_DETACH so while /proc will be unavailable for new accesses,
+// it is not guarenteed to be unmounted.
 // When successful, this will cause SELinux labels as per the policy to be attached to processes
 // (and file descriptors owned by those processes). The SELinux framework will begin to enforce
 // restrictions on access based on these labels and the loaded policy.
