@@ -75,7 +75,8 @@ bool control_conn_t::process_packet()
             }
 
             if (contains({shutdown_type_t::REMAIN, shutdown_type_t::HALT,
-                    shutdown_type_t::POWEROFF, shutdown_type_t::REBOOT, shutdown_type_t::SOFTREBOOT}, rbuf[1])) {
+                    shutdown_type_t::POWEROFF, shutdown_type_t::REBOOT,
+                    shutdown_type_t::SOFTREBOOT, shutdown_type_t::KEXEC}, rbuf[1])) {
                 auto sd_type = static_cast<shutdown_type_t>(rbuf[1]);
 
                 services->stop_all_services(sd_type);
