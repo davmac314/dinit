@@ -504,20 +504,6 @@ static bool selinux_transition(const char *exe)
 
     if (is_selinux_enabled() == 1) return true;
 
-    if (mkdir("/proc", 0755) < 0) {
-        bool bail = true;
-        // If stat(2) fails below, errno will be overwritten. The information contained in errno
-        // from the failed mkdir(2) is likely to be more useful, so let's display that instead.
-        char *errno_str = strerror(errno);
-        struct stat proc_stat;
-        // /proc already exists and is a directory
-        if (stat("/proc", &proc_stat) == 0 && S_ISDIR(proc_stat.st_mode)) bail = false;
-        if (bail) {
-            cerr << "Failed to create /proc: " << errno_str << endl;
-            return false;
-        }
-    }
-
     // If we fail to mount /proc, getcon_raw(3), getfilecon_raw(3), and setcon_raw(3) can be
     // expected to fail later on. However, the burden of checking is not on us; those functions
     // may also fail due to our own inability to access /proc later on due to e.g. security policy.
