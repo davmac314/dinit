@@ -500,12 +500,6 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 // The return value is only an indication of whether or not dinit should bail.
 static bool selinux_transition(const char *exe)
 {
-    // Let's use std::cerr instead of the log for logging messages here. If we output anything, we
-    // return failure, which indicates dinit should terminate, which may happen before the log is
-    // initalised and flushed.
-    using std::cerr;
-    using std::endl;
-
     if (is_selinux_enabled() == 1) return true;
 
     // If we fail to mount /proc, getcon_raw(3), getfilecon_raw(3), and setcon_raw(3) can be
@@ -525,10 +519,12 @@ static bool selinux_transition(const char *exe)
     // /etc/selinux/config, selinux_init_load_policy(3) will handle all cases for us.
     if (selinux_init_load_policy(&enforce) != 0) {
         if (enforce > 0) {
-            cerr << "Failed to load SELinux policy when requested to load in enforcing mode." << endl;
+            // As we bail here, we can't use the log, so use cerr instead.
+            std::cerr << "Failed to load SELinux policy when requested to load in enforcing mode."
+                      << std::endl;
             return false;
         }
-        cerr << "Failed to load SELinux policy while set to permissive, ignoring." << endl;
+        log(loglevel_t::ERROR, "Failed to load SELinux policy while set to permissive, ignoring.");
         // We can't transition ourselves if we failed to load the policy, so return early.
         return true;
     }
@@ -543,23 +539,23 @@ static bool selinux_transition(const char *exe)
     // current_context to NULL if SELinux is disabled, or other LSMs are at play. It's best to
     // check the pointer we get back in addition to the return value.
     if (getcon_raw(&current_context) < 0 || current_context == nullptr) {
-        cerr << "Failed to get current SELinux context: " << strerror(errno) << endl;
+        log(loglevel_t::ERROR, "Failed to get current SELinux context: ", strerror(errno));
         goto cleanup;
     }
 
     if (getfilecon_raw(exe, &file_context) < 0) {
-        cerr << "Failed to get SELinux file context for " << exe << ": " << strerror(errno) << endl;
+        log(loglevel_t::ERROR, "Failed to get SELinux file context for ", exe, ": ", strerror(errno));
         goto cleanup;
     }
 
     security_class = string_to_security_class("process");
     if (security_class == 0) {
-        cerr << "Failed to get SELinux security class for process" << endl;
+        log(loglevel_t::ERROR, "Failed to get SELinux security class for process");
         goto cleanup;
     }
 
     if (security_compute_create_raw(current_context, file_context, security_class, &new_context) < 0) {
-        cerr << "Failed to compute SELinux create context: " << strerror(errno) << endl;
+        log(loglevel_t::ERROR, "Failed to compute SELinux create context: ", strerror(errno));
         goto cleanup;
     }
 
@@ -567,8 +563,8 @@ static bool selinux_transition(const char *exe)
     // domain specified for us in the policy. This is a policy choice, and not a dinit runtime
     // issue. Let's continue the boot process regardless, but still log a warning.
     if (setcon_raw(new_context) < 0) {
-        cerr << "Failed to set SELinux transition context to " << new_context << ": "
-	     << strerror(errno) << endl;
+        log(loglevel_t::ERROR, "Failed to set SELinux transition context to ",
+                new_context, ": ", strerror(errno));
         goto cleanup;
     }
 
