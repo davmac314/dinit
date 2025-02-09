@@ -1640,6 +1640,10 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
             case stopped_reason_t::EXECFAILED:
                 uint16_t launch_stage;
                 rbuffer.extract((char *)&launch_stage, 4, 2);
+                if (exit_status == 0) {
+                    // (Protocol version 5+)
+                    exit_status = exit_si_code;
+                }
                 cout << " (could not be launched)\n";
                 cout << "        Stage: " << exec_stage_descriptions[launch_stage] << "\n";
                 cout << "        Error: " << strerror(exit_status);
