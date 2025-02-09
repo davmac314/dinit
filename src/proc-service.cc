@@ -44,10 +44,6 @@ std::vector<const char *> separate_args(ha_string &s,
 
 void process_service::exec_succeeded() noexcept
 {
-    if (get_type() != service_type_t::PROCESS) {
-        return;
-    }
-
     tracking_child = true;
 
     // This could be a smooth recovery (state already STARTED). No need to do anything here in
@@ -81,6 +77,12 @@ void process_service::exec_succeeded() noexcept
             bring_down();
         }
     }
+}
+
+void bgproc_service::exec_succeeded() noexcept
+{
+    // For bgproc service, unlike regular process service, successful execution doesn't mean much;
+    // the process has to terminate (after forking) before we consider it started.
 }
 
 void scripted_service::exec_succeeded() noexcept

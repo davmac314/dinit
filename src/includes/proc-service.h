@@ -834,6 +834,7 @@ class process_service : public base_process_service
 class bgproc_service : public process_service
 {
     virtual void handle_exit_status() noexcept override;
+    virtual void exec_succeeded() noexcept override;
     virtual void exec_failed(run_proc_err errcode) noexcept override;
 
     enum class pid_result_t {
