@@ -41,6 +41,12 @@ Display brief help text and then exit.
 Request a shutdown followed by restart. This is the default if executed as
 \fB$$$SHUTDOWN_PREFIX@@@reboot\fR.
 .TP
+\fB\-k\fP
+Shutdown the system and boot directly into a new kernel loaded via \fBkexec\fR(8),
+without firmware reinitialisation. This only works on Linux 2.6.13 or later with
+\fBCONFIG_KEXEC=y\fR; if you're unsure, most distribution kernels qualify. Don't
+forget to load a kernel image with \fBkexec\fR(8) first!
+.TP
 \fB\-s\fP
 Restart the service manager and all user-space services without restarting the system.
 This is the default if executed as \fB$$$SHUTDOWN_PREFIX@@@soft\-reboot\fR.
