@@ -246,6 +246,24 @@ class subproc_buffer : private cpbuffer<subproc_bufsize>
     }
 };
 
+static bool
+reboot_cmd_unsupported(const shutdown_type_t type)
+{
+    // weed out unsupported values
+    switch (type) {
+#if !defined(RB_HALT_SYSTEM) && !defined(RB_HALT)
+    case shutdown_type_t::HALT: return true;
+#endif
+#ifndef RB_POWER_OFF
+    case shutdown_type_t::POWEROFF: return true;
+#endif
+#ifndef RB_KEXEC
+    case shutdown_type_t::KEXEC: return true;
+#endif
+    default: return false;
+    }
+}
+
 
 int main(int argc, char **argv)
 {
@@ -287,6 +305,9 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i], "-s") == 0) {
                 shutdown_type = shutdown_type_t::SOFTREBOOT;
             }
+            else if (strcmp(argv[i], "-k") == 0) {
+                shutdown_type = shutdown_type_t::KEXEC;
+            }
             else if (strcmp(argv[i], "--use-passed-cfd") == 0) {
                 use_passed_cfd = true;
             }
@@ -301,13 +322,25 @@ int main(int argc, char **argv)
         }
     }
 
+    if (reboot_cmd_unsupported(shutdown_type)) {
+        cerr << "Unsupported shutdown type\n";
+        return 1;
+    }
+
     if (show_help) {
         cout << execname << " :   shutdown the system\n"
                 "  --help           : show this help\n"
                 "  -r               : reboot\n"
                 "  -s               : soft-reboot (restart dinit with same boot-time arguments)\n"
+#if defined(RB_HALT_SYSTEM) || defined(RB_HALT)
                 "  -h               : halt system\n"
+#endif
+#ifdef RB_POWER_OFF
                 "  -p               : power down (default)\n"
+#endif
+#ifdef RB_KEXEC
+                "  -k               : stop dinit and reboot directly into kernel loaded with kexec\n"
+#endif
                 "  --use-passed-cfd : use the socket file descriptor identified by the DINIT_CS_FD\n"
                 "                     environment variable to communicate with the init daemon.\n"
                 "  --system         : perform shutdown immediately, instead of issuing shutdown\n"
@@ -318,7 +351,7 @@ int main(int argc, char **argv)
     
     if (sys_shutdown) {
         do_system_shutdown(shutdown_type);
-        return 0;
+        return 1; // likely to cause panic; the above shouldn't return
     }
 
     signal(SIGPIPE, SIG_IGN);
@@ -421,6 +454,9 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
 #elif defined(RB_HALT)
     if (shutdown_type == shutdown_type_t::HALT) reboot_type = RB_HALT;
 #endif
+#if defined(RB_KEXEC)
+    if (shutdown_type == shutdown_type_t::KEXEC) reboot_type = RB_KEXEC;
+#endif
     
     // Write to console rather than any terminal, since we lose the terminal it seems:
     int consfd = open("/dev/console", O_WRONLY);
@@ -499,7 +535,16 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
 #ifdef __NetBSD__
     reboot(reboot_type, NULL);
 #else
-    reboot(reboot_type);
+    if (reboot(reboot_type)) {
+        // we're in trouble now
+        sub_buf.append("reboot(2): ");
+        sub_buf.append(strerror(errno));
+        sub_buf.append(
+                "\nThis may happen if you try to kexec without loading an image first, or if\n"
+                "\nsomehow a reboot type unsupported by the kernel is attempted\n"
+        );
+        loop.poll();
+    }
 #endif
 }
 
