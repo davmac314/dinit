@@ -58,7 +58,11 @@ extern loglevel_t log_level[2];
 extern bool console_service_status;  // show service status messages to console?
 
 void enable_console_log(bool do_enable) noexcept;
-void init_log(bool syslog_format);
+// Set the syslog format to buffer messages in the correct format.
+void init_log(bool syslog_format) noexcept;
+// Finish initialising the logging subsystem.
+// Potentially throws std::bad_alloc or std::system_error.
+void init_console_log();
 void setup_log_console_handoff(service_set *sset);
 void close_log();
 void setup_main_log(int fd);
