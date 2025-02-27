@@ -19,7 +19,8 @@ includes/mconfig.h: ../mconfig tools/mconfig-gen.cc version.conf
 		$(if $(SUPPORT_IOPRIO),SUPPORT_IOPRIO=$(SUPPORT_IOPRIO),) \
 		$(if $(SUPPORT_OOM_ADJ),SUPPORT_OOM_ADJ=$(SUPPORT_OOM_ADJ),) \
 		$(if $(USE_UTMPX),USE_UTMPX=$(USE_UTMPX),) \
-		$(if $(USE_INITGROUPS),USE_INITGROUPS=$(USE_INITGROUPS),) > includes/mconfig.h
+		$(if $(USE_INITGROUPS),USE_INITGROUPS=$(USE_INITGROUPS),) \
+		$(if $(SUPPORT_SELINUX),SUPPORT_SELINUX=$(SUPPORT_SELINUX),) > includes/mconfig.h
 
 clean:
 	rm -f includes/mconfig.h

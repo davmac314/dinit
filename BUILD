@@ -180,6 +180,9 @@ DEFAULT_STOP_TIMEOUT=XXX
     this, its process group is sent a SIGKILL signal which should cause it to terminate immediately.
     The default if unspecified is 10 seconds. (The value can be overridden for individual services
     via the service description).
+SUPPORT_SELINUX=1|0
+    Whether to build support for loading the system SELinux policy at boot (Linux only).
+    See doc/linux/SELINUX.md for more information.
 SUPPORT_CGROUPS=1|0
     Whether to include support for cgroups (Linux only).
 SUPPORT_CAPABILITIES=1|0

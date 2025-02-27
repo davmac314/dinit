@@ -113,6 +113,10 @@ If service description settings contain relative cgroup paths, they will be reso
 this path.
 This option is only available if \fBdinit\fR is built with cgroups support.
 .TP
+\fB\-\-disable\-selinux\-policy\fR
+Disable loading of the system SELinux policy.
+This option is only available if \fBdinit\fR is built with SELinux support.
+.TP
 \fB\-\-help\fR
 Display brief help text and then exit.
 .TP
@@ -297,6 +301,21 @@ kernel (or some that are, due to bugs) are passed to init via the environment ra
 There are several ways to work around this.
 Service names following the \fB\-\-container\fR (\fB\-o\fR) or \fB\-\-system\-mgr\fR (\fB\-m\fR) options are not ignored.
 Also, the \fB\-\-service\fR (\fB\-t\fR) option can be used to force a service name to be recognised regardless of operating mode.
+.\"
+.SH SELINUX SUPPORT
+.LP
+When running as the system init or manager on a SELinux enabled machine, \fBdinit\fR will by default load the system's SELinux policy.
+If \fBdinit\fR fails to load the SELinux policy when requested to do so in enforcing mode, it will log to stderr and error-exit early.
+If however permissive mode was requested, \fBdinit\fR will log a warning and proceed.
+This feature requires \fBdinit\fR to have been built with SELinux support.
+.LP
+When loading the SELinux policy, a few special filesystems may be mounted.
+The SELinux library will mount \fBsysfs\fR at \fB/sys\fR, and \fBselinuxfs\fR at \fB/sys/fs/selinux\fR if they are not already mounted.
+Unless the SELinux policy load type has been set to \fBDisabled\fR, \fB/sys/fs/selinux\fR will not be unmounted by the SELinux library.
+\fBsysfs\fR is never unmounted.
+Dinit itself will temporarily mount \fBprocfs\fR at \fB/proc\fR in order to transition itself to the context it should be started in
+per the newly loaded SELinux policy. The \fB/proc\fR directory must exist on the filesystem for this to succeed. During the period which
+Dinit has temporarily mounted \fB/proc\fR, any previously-mounted \fB/proc\fR will be mounted over.
 .\"
 .SH FILES
 .\"

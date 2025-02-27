@@ -282,16 +282,17 @@ void buffered_log_stream::watch_removed() noexcept
 
 } // end namespace
 
-// Initialise the logging subsystem
-// Potentially throws std::bad_alloc or std::system_error
-void init_log(bool syslog_format)
+void init_log(bool syslog_format) noexcept
 {
-    log_stream[DLOG_CONS].add_watch(event_loop, STDOUT_FILENO, dasynq::OUT_EVENTS, false);
-    enable_console_log(true);
-
     // The main (non-console) log won't be active yet, but we set the format here so that we
     // buffer messages in the correct format:
     log_format_syslog[DLOG_MAIN] = syslog_format;
+}
+
+void init_console_log()
+{
+    log_stream[DLOG_CONS].add_watch(event_loop, STDOUT_FILENO, dasynq::OUT_EVENTS, false);
+    enable_console_log(true);
 }
 
 void setup_log_console_handoff(service_set *sset)

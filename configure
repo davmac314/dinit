@@ -213,6 +213,8 @@ Optional options:
   --enable-initgroups               Enable initialization of supplementary groups for run-as
                                     [Enabled]
   --disable-initgroups              Disable initialization of supplementary groups for run-as
+  --enable-selinux                  Enable SELinux support [Disabled]
+  --disable-selinux                 Disable SELinux support
   --enable-auto-restart             Enable auto-restart for services by default (Deprecated;
                                     use --default-auto-restart=...)
   --disable-auto-restart            Disable auto-restart for services by default (Deprecated;
@@ -283,6 +285,7 @@ for var in PREFIX \
            SUPPORT_OOM_ADJ \
            USE_UTMPX \
            USE_INITGROUPS \
+           SUPPORT_SELINUX \
            SYSCONTROLSOCKET \
            STRIPOPTS
 do
@@ -324,6 +327,8 @@ for arg in "$@"; do
         --disable-initgroups|--enable-initgroups=no) USE_INITGROUPS=0 ;;
         --enable-auto-restart|--enable-auto-restart=yes) DEFAULT_AUTO_RESTART=ALWAYS ;; # Deprecated
         --disable-auto-restart|--enable-auto-restart=no) DEFAULT_AUTO_RESTART=NEVER ;; # Deprecated
+        --enable-selinux|--enable-selinux=yes) SUPPORT_SELINUX=1 ;;
+        --disable-selinux|--enable-selinux=no) SUPPORT_SELINUX=0 ;;
         --enable-strip|--enable-strip=yes) STRIPOPTS="-s" ;;
         --disable-strip|--enable-strip=no) STRIPOPTS="" ;;
         --default-auto-restart=never) DEFAULT_AUTO_RESTART=NEVER ;;
@@ -355,6 +360,7 @@ done
 : "${DEFAULT_START_TIMEOUT:="60"}"
 : "${DEFAULT_STOP_TIMEOUT:="10"}"
 : "${USE_INITGROUPS:="1"}"
+: "${SUPPORT_SELINUX:="0"}"
 if [ "$PLATFORM" = "Linux" ]; then
     : "${BUILD_SHUTDOWN:="yes"}"
     : "${SUPPORT_CGROUPS:="1"}"
@@ -479,6 +485,9 @@ fi
 if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$PLATFORM" = FreeBSD ]; then
     try_ld_argument LDFLAGS_BASE -lrt
 fi
+if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$SUPPORT_SELINUX" = "1" ]; then
+    try_ld_argument LDFLAGS_BASE -lselinux
+fi
 if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
     if [ "$AUTO_LDFLAGS_LIBCAP" = true ]; then
         try_ld_argument LDFLAGS_LIBCAP -lcap
@@ -589,6 +598,7 @@ LDFLAGS_LIBCAP=$LDFLAGS_LIBCAP
 # Feature settings
 SUPPORT_CGROUPS=$SUPPORT_CGROUPS
 USE_INITGROUPS=$USE_INITGROUPS
+SUPPORT_SELINUX=$SUPPORT_SELINUX
 SUPPORT_CAPABILITIES=$SUPPORT_CAPABILITIES
 SUPPORT_IOPRIO=$SUPPORT_IOPRIO
 SUPPORT_OOM_ADJ=$SUPPORT_OOM_ADJ

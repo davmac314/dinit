@@ -37,6 +37,13 @@
 
 #include "mconfig.h"
 
+#if SUPPORT_SELINUX
+#include <selinux/avc.h>
+#include <selinux/label.h>
+#include <selinux/selinux.h>
+#include <sys/mount.h>
+#endif
+
 /*
  * When running as the system init process, Dinit processes the following signals:
  *
@@ -211,6 +218,10 @@ struct options {
 
     // list of services to start
     std::list<const char *> services_to_start;
+
+#ifdef SUPPORT_SELINUX
+    bool load_selinux_policy = true;
+#endif
 };
 
 // Process a command line argument (and possibly its follow-up value)
@@ -369,6 +380,11 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             }
         }
         #endif
+        #ifdef SUPPORT_SELINUX
+        else if (strcmp(argv[i], "--disable-selinux-policy") == 0) {
+            opts.load_selinux_policy = false;
+        }
+        #endif
         else if (strcmp(argv[i], "--service") == 0 || strcmp(argv[i], "-t") == 0) {
             if (++i < argc && argv[i][0] != '\0') {
                 services_to_start.push_back(argv[i]);
@@ -403,6 +419,9 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                     #ifdef SUPPORT_CGROUPS
                     " --cgroup-path <path>, -b <path>\n"
                     "                              cgroup base path (for resolving relative paths)\n"
+                    #endif
+                    #ifdef SUPPORT_SELINUX
+                    " --disable-selinux-policy     don't load the system SELinux policy\n"
                     #endif
                     " --log-file <file>, -l <file> log to the specified file\n"
                     " --quiet, -q                  disable output to standard output\n"
@@ -458,6 +477,103 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
     return 0;
 }
 
+#if SUPPORT_SELINUX
+// Load the system SELinux policy and transition ourselves to it.
+// Parameters:
+//   exe - the path that we are invoked with (to calculate our new security context to transition
+//   into).
+// Returns:
+//   If we fail to load the system SELinux policy when requested to load in enforcing mode, return
+//   false, otherwise, return true.
+// This function will attempt to mount /sys and /sys/fs/selinux, done when calling the libselinux
+// function selinux_init_load_policy(3). It will also attempt to mount /proc, and will mount over
+// existing mounts on /proc. It will not bail if any of the attempted mounts fail, given that they
+// may already be mounted. However, all of those locations must be mounted, by dinit or otherwise,
+// in order for this function to succeed. /sys will remain mounted after returning, and it is
+// possible for /sys to still remain mounted despite returning false. This function will attempt to
+// unmount /proc if it was responsible for mounting it, but lazily unmounts it using MNT_DETACH so
+// while /proc will be unavailable for new accesses, it is not guarenteed to be unmounted.
+// When successful, this will cause SELinux labels as per the policy to be attached to processes
+// (and file descriptors owned by those processes). The SELinux framework will begin to enforce
+// restrictions on access based on these labels and the loaded policy.
+// We might lose access to any file descriptors we have open when this is called (since they will
+// still be labelled with the current policy's representation of the kernel placeholder context),
+// so it is best done early (i.e. before we start opening file descriptors).
+// Returning true does not guarantee that the system SELinux policy has successfully been loaded.
+// The return value is only an indication of whether or not dinit should bail.
+static bool selinux_transition(const char *exe)
+{
+    if (is_selinux_enabled() == 1) return true;
+
+    // If we fail to mount /proc, getcon_raw(3), getfilecon_raw(3), and setcon_raw(3) can be
+    // expected to fail later on. However, the burden of checking is not on us; those functions
+    // may also fail due to our own inability to access /proc later on due to e.g. security policy.
+    // Let's just store the return code so we can umount later when we're done with /proc if
+    // succesful.
+    int proc_mount_rc = mount("proc", "/proc", "proc", 0, 0);
+
+    char *current_context = nullptr;
+    char *file_context = nullptr;
+    security_class_t security_class;
+    char *new_context = nullptr;
+
+    int enforce = 0;
+    if (selinux_init_load_policy(&enforce) != 0) {
+        if (enforce > 0) {
+            // We have been requested to load the policy in enforcing mode, but we failed to do so,
+            // bail now. As we bail here, we can't use the log, so use cerr instead.
+            std::cerr << "SELinux: Failed to load policy when requested to load in enforcing mode."
+                      << std::endl;
+            return false;
+        }
+        log(loglevel_t::ERROR, "SELinux: Failed to load policy while set to permissive, ignoring.");
+        // We can't transition ourselves if we failed to load the policy, so return early.
+        return true;
+    }
+
+    // SELinux is now loaded. From this point on, no assumptions can be made about what resources
+    // we can access. We may be prevented from being able to calculate our own context; this is a
+    // policy choice, and hence not a condition for us to bail on. If transitioning fails, continue
+    // the boot process regardless, but still log a warning where applicable.
+
+    // As indicated by the getcon(3) manpage, getcon_raw(3) may return 0 indicating success and set
+    // current_context to NULL if SELinux is disabled, or other LSMs are at play. It's best to
+    // check the pointer we get back in addition to the return value.
+    if (getcon_raw(&current_context) < 0 || current_context == nullptr) {
+        log(loglevel_t::ERROR, "SELinux: Failed to get current SELinux context: ", strerror(errno));
+        goto cleanup;
+    }
+
+    if (getfilecon_raw(exe, &file_context) < 0) {
+        log(loglevel_t::ERROR, "SELinux: Failed to get file context for ", exe, ": ", strerror(errno));
+        goto cleanup;
+    }
+
+    security_class = string_to_security_class("process");
+    if (security_class == 0) {
+        log(loglevel_t::ERROR, "SELinux: Failed to get security class for process");
+        goto cleanup;
+    }
+
+    if (security_compute_create_raw(current_context, file_context, security_class, &new_context) < 0) {
+        log(loglevel_t::ERROR, "SELinux: Failed to compute create context: ", strerror(errno));
+        goto cleanup;
+    }
+
+    if (setcon_raw(new_context) < 0) {
+        log(loglevel_t::ERROR, "SELinux: Failed to transition context to ",
+                new_context, ": ", strerror(errno));
+    }
+
+cleanup:
+    if (current_context) freecon(current_context);
+    if (file_context) freecon(file_context);
+    if (new_context) freecon(new_context);
+    if (proc_mount_rc == 0) umount("/proc");
+    return true;
+}
+#endif
+
 // Main entry point
 int dinit_main(int argc, char **argv)
 {
@@ -490,6 +606,21 @@ int dinit_main(int argc, char **argv)
             return 1;
         }
     }
+
+    // Set the log format correctly to buffer any log messages
+    init_log(log_is_syslog);
+
+#if SUPPORT_SELINUX
+    // Error exit if we are the system manager and fail to load the selinux policy.
+    //
+    // This should be done directly after argument parsing. It's best to do this as early as
+    // possible to get init in the context specified in the policy, and hence confine it, quickly.
+    //
+    // If selinux_transition fails, the system is not in the state requested by the user, and there
+    // is nothing we can do about it. Instead of continuing to boot the rest of the system without
+    // loading the user's policy, let's bail now to avoid an insecure and untrusted state.
+    if (am_system_mgr && am_system_init && opts.load_selinux_policy && !selinux_transition(argv[0])) return 1;
+#endif
 
     if (am_system_mgr) {
         // setup STDIN, STDOUT, STDERR so that we can use them
@@ -584,7 +715,7 @@ int dinit_main(int argc, char **argv)
         // (If not PID 1, we instead just let SIGQUIT perform the default action.)
     }
 
-    init_log(log_is_syslog);
+    init_console_log();
     log_flush_timer.add_timer(event_loop, dasynq::clock_type::MONOTONIC);
 
     #if SUPPORT_CGROUPS
@@ -1214,6 +1345,9 @@ static void printVersion()
 #if USE_INITGROUPS
             +1
 #endif
+#if SUPPORT_SELINUX
+            +1
+#endif
 #if SUPPORT_CAPABILITIES
             +1
 #endif
@@ -1234,6 +1368,9 @@ static void printVersion()
 #endif
 #if USE_INITGROUPS
                 " supplemental-groups"
+#endif
+#if SUPPORT_SELINUX
+                " selinux"
 #endif
 #if SUPPORT_CAPABILITIES
                 " capabilities"
