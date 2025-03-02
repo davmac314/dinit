@@ -573,11 +573,11 @@ static bool selinux_transition(const char *exe)
     if (selinux_init_load_policy(&enforce) != 0) {
         if (enforce > 0) {
             // As we bail here, we can't use the log, so use cerr instead.
-            std::cerr << "Failed to load SELinux policy when requested to load in enforcing mode."
+            std::cerr << "SELinux: Failed to load policy when requested to load in enforcing mode."
                       << std::endl;
             return false;
         }
-        log(loglevel_t::ERROR, "Failed to load SELinux policy while set to permissive, ignoring.");
+        log(loglevel_t::ERROR, "SELinux: Failed to load policy while set to permissive, ignoring.");
         // We can't transition ourselves if we failed to load the policy, so return early.
         return true;
     }
@@ -592,23 +592,23 @@ static bool selinux_transition(const char *exe)
     // current_context to NULL if SELinux is disabled, or other LSMs are at play. It's best to
     // check the pointer we get back in addition to the return value.
     if (getcon_raw(&current_context) < 0 || current_context == nullptr) {
-        log(loglevel_t::ERROR, "Failed to get current SELinux context: ", strerror(errno));
+        log(loglevel_t::ERROR, "SELinux: Failed to get current SELinux context: ", strerror(errno));
         goto cleanup;
     }
 
     if (getfilecon_raw(exe, &file_context) < 0) {
-        log(loglevel_t::ERROR, "Failed to get SELinux file context for ", exe, ": ", strerror(errno));
+        log(loglevel_t::ERROR, "SELinux: Failed to get file context for ", exe, ": ", strerror(errno));
         goto cleanup;
     }
 
     security_class = string_to_security_class("process");
     if (security_class == 0) {
-        log(loglevel_t::ERROR, "Failed to get SELinux security class for process");
+        log(loglevel_t::ERROR, "SELinux: Failed to get security class for process");
         goto cleanup;
     }
 
     if (security_compute_create_raw(current_context, file_context, security_class, &new_context) < 0) {
-        log(loglevel_t::ERROR, "Failed to compute SELinux create context: ", strerror(errno));
+        log(loglevel_t::ERROR, "SELinux: Failed to compute create context: ", strerror(errno));
         goto cleanup;
     }
 
@@ -616,7 +616,7 @@ static bool selinux_transition(const char *exe)
     // domain specified for us in the policy. This is a policy choice, and not a dinit runtime
     // issue. Let's continue the boot process regardless, but still log a warning.
     if (setcon_raw(new_context) < 0) {
-        log(loglevel_t::ERROR, "Failed to set SELinux transition context to ",
+        log(loglevel_t::ERROR, "SELinux: Failed to transition context to ",
                 new_context, ": ", strerror(errno));
         goto cleanup;
     }
