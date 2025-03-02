@@ -558,7 +558,7 @@ static bool selinux_transition(const char *exe)
     // may also fail due to our own inability to access /proc later on due to e.g. security policy.
     // Let's just store the return code so we can umount later when we're done with /proc if
     // succesful.
-    auto proc_mount_rc = mount("proc", "/proc", "proc", 0, 0);
+    int proc_mount_rc = mount("proc", "/proc", "proc", 0, 0);
 
     char *current_context = nullptr;
     char *file_context = nullptr;
