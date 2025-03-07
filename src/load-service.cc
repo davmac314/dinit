@@ -720,14 +720,6 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             // - this will be done later)
         }
 
-        // We may have capabilities, process them now
-        #if SUPPORT_CAPABILITIES
-        cap_iab_wrapper cap_iab(settings.capabilities);
-        if (!settings.capabilities.empty() && !cap_iab.get()) {
-            throw service_load_exc(name, "the 'capabilities' string has an invalid format");
-        }
-        #endif
-
         if (service_type == service_type_t::PROCESS) {
             do_env_subst("command", settings.command, settings.command_offsets, srv_envmap, argval);
             do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap, argval);
@@ -754,7 +746,7 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
             #endif
             #if SUPPORT_CAPABILITIES
-            rvalps->set_cap(std::move(cap_iab), settings.secbits.get());
+            rvalps->set_cap(std::move(settings.capabilities), settings.secbits.get());
             #endif
             rvalps->set_nice(settings.nice, settings.nice_is_set);
             #if SUPPORT_IOPRIO
@@ -807,7 +799,7 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
             #endif
             #if SUPPORT_CAPABILITIES
-            rvalps->set_cap(std::move(cap_iab), settings.secbits.get());
+            rvalps->set_cap(std::move(settings.capabilities), settings.secbits.get());
             #endif
             rvalps->set_nice(settings.nice, settings.nice_is_set);
             #if SUPPORT_IOPRIO
@@ -856,7 +848,7 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             rvalps->set_cgroup(std::move(settings.run_in_cgroup));
             #endif
             #if SUPPORT_CAPABILITIES
-            rvalps->set_cap(std::move(cap_iab), settings.secbits.get());
+            rvalps->set_cap(std::move(settings.capabilities), settings.secbits.get());
             #endif
             rvalps->set_nice(settings.nice, settings.nice_is_set);
             #if SUPPORT_IOPRIO

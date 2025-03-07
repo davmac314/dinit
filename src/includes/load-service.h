@@ -1438,7 +1438,7 @@ class service_settings_wrapper
     #endif
 
     #if SUPPORT_CAPABILITIES
-    string capabilities;
+    cap_iab_wrapper capabilities;
     secure_bits_t secbits;
     #endif
 
@@ -1505,7 +1505,7 @@ class service_settings_wrapper
             }
             #endif
             #if SUPPORT_CAPABILITIES
-            if (!capabilities.empty()) {
+            if (capabilities.get()) {
                 report_lint("'capabilities' specified, but ignored for the specified (or default) service type.");
             }
             if (secbits.get()) {
@@ -1722,8 +1722,18 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
         #endif
         #if SUPPORT_CAPABILITIES
         case setting_id_t::CAPABILITIES:
-            read_setting_value(settings.capabilities, setting_op, input_pos, i, end, nullptr, ',');
+        {
+            std::string capabilities_str;
+            read_setting_value(capabilities_str, setting_op, input_pos, i, end, nullptr, ',');
+
+            cap_iab_wrapper cap_iab(capabilities_str);
+            if (!cap_iab.get()) {
+                throw service_description_exc(name, "invalid capabilities: " + capabilities_str,
+                        "capabilities", input_pos);
+            }
+            settings.capabilities = std::move(cap_iab);
             break;
+        }
         case setting_id_t::SECURE_BITS:
         {
             std::list<std::pair<unsigned,unsigned>> indices;
