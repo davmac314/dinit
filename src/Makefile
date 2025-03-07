@@ -27,7 +27,7 @@ dinitctl: dinitctl.o options-processing.o settings.o
 	$(CXX) -o dinitctl dinitctl.o options-processing.o settings.o $(ALL_LDFLAGS)
 
 dinitcheck: dinitcheck.o options-processing.o settings.o
-	$(CXX) -o dinitcheck dinitcheck.o options-processing.o settings.o $(ALL_LDFLAGS)
+	$(CXX) -o dinitcheck dinitcheck.o options-processing.o settings.o $(ALL_LDFLAGS) $(LDFLAGS_LIBCAP)
 
 dinit-monitor: dinit-monitor.o
 	$(CXX) -o dinit-monitor dinit-monitor.o $(ALL_LDFLAGS)
