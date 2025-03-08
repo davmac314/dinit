@@ -96,8 +96,18 @@ const char * const exec_stage_descriptions[/* static_cast<int>(exec_stage::DO_EX
         "setting user/group ID",        // SET_UIDGID
         "opening log file",             // OPEN_LOGFILE
         // SPARE1 used
-        nullptr,                        // SPARE2
-        nullptr,                        // SPARE3
+        #if SUPPORT_CAPABILITIES
+        "setting capabilities",         // SET_CAPS
+        #else
+        "",                             // SET_CAPS (placeholder)
+        #endif
+        // SPARE2 used
+        #if SUPPORT_IOPRIO
+        "setting I/O priority",         // SET_PRIO
+        #else
+        "",                             // SET_PRIO (placeholder)
+        #endif
+        // SPARE3 used
         nullptr,                        // SPARE4
         nullptr,                        // SPARE5
         nullptr,                        // SPARE6
