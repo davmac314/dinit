@@ -560,7 +560,6 @@ static bool selinux_transition(const char *exe)
     if (setcon_raw(new_context) < 0) {
         log(loglevel_t::ERROR, "SELinux: Failed to transition context to ",
                 new_context, ": ", strerror(errno));
-        goto cleanup;
     }
 
 cleanup:
