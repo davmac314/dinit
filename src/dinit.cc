@@ -478,57 +478,6 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 }
 
 #if SUPPORT_SELINUX
-// Callback function to forward libselinux's log messages to the dinit log.
-static int log_callback_selinux(int type, const char *fmt, ...) noexcept
-{
-    loglevel_t loglevel;
-    switch (type) {
-    case SELINUX_ERROR:
-        loglevel = loglevel_t::ERROR;
-        break;
-    case SELINUX_INFO:
-        loglevel = loglevel_t::NOTICE;
-        break;
-    case SELINUX_WARNING:
-    case SELINUX_AVC:
-    default:
-        loglevel = loglevel_t::WARN;
-        break;
-    }
-
-    static const char PREFIX[] = "SELinux: ";
-
-    va_list args;
-    va_start(args, fmt);
-
-    int fmtd_suffix_size = vsnprintf(nullptr, 0, fmt, args);
-
-    va_end(args);
-
-    if (fmtd_suffix_size < 0) {
-        return -1;
-    }
-
-    char *logmsg = nullptr;
-
-    logmsg = new(std::nothrow) char[sizeof(PREFIX) + fmtd_suffix_size]();
-    if (logmsg == nullptr) {
-        // The log buffer may still have space to log an OOM error
-        log(loglevel_t::ERROR, "Out of memory when trying to log SELinux message");
-        return -1;
-    }
-
-    va_start(args, fmt);
-    // We already calculated the size above, so this is safe
-    vsprintf(stpcpy(logmsg, PREFIX), fmt, args);
-    va_end(args);
-
-    log(loglevel, static_cast<const char *>(logmsg));
-
-    delete[] logmsg;
-    return 0;
-}
-
 // Load the system SELinux policy and transition ourselves to it.
 // Parameters:
 //   exe - the path that we are invoked with (to calculate our new security context to transition
@@ -667,11 +616,6 @@ int dinit_main(int argc, char **argv)
     init_log(log_is_syslog);
 
 #if SUPPORT_SELINUX
-    // libselinux may log messages of its own, forward those to the dinit log.
-    union selinux_callback cb;
-    cb.func_log = log_callback_selinux;
-    selinux_set_callback(SELINUX_CB_LOG, cb);
-
     // Error exit if we are the system manager and fail to load the selinux policy.
     //
     // This should be done directly after argument parsing. It's best to do this as early as
