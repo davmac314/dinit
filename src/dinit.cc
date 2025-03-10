@@ -515,13 +515,10 @@ static bool selinux_transition(const char *exe)
     char *new_context = nullptr;
 
     int enforce = 0;
-    // We don't need to worry about the enforcing=0 kernel cmdline option or parsing
-    // /etc/selinux/config, selinux_init_load_policy(3) will handle all cases for us
-    // by parsing the relevant options and loading the policy in the appropriate mode
-    // specified by the user. More information can be found in selinux(8).
     if (selinux_init_load_policy(&enforce) != 0) {
         if (enforce > 0) {
-            // As we bail here, we can't use the log, so use cerr instead.
+            // We have been requested to load the policy in enforcing mode, but we failed to do so,
+            // bail now. As we bail here, we can't use the log, so use cerr instead.
             std::cerr << "SELinux: Failed to load policy when requested to load in enforcing mode."
                       << std::endl;
             return false;
@@ -531,10 +528,9 @@ static bool selinux_transition(const char *exe)
         return true;
     }
 
-    // The newly loaded SELinux policy may stop us from calculating our new label, by preventing us
-    // (in our current domain, the inital SID's representation in the loaded policy) from accessing
-    // certain resources that are needed to calculate our label, for example, but not limited to,
-    // the xattrs for exe. This is a policy choice, and not a dinit runtime issue. Let's continue
+    // SELinux is now loaded. From this point on, no assumptions can be made about what resources
+    // we can access. We may be prevented from being able to calculate our own context; this is a
+    // policy choice, and hence not a condition for us to bail on. If transitioning fails, continue
     // the boot process regardless, but still log a warning where applicable.
 
     // As indicated by the getcon(3) manpage, getcon_raw(3) may return 0 indicating success and set
@@ -561,9 +557,6 @@ static bool selinux_transition(const char *exe)
         goto cleanup;
     }
 
-    // The loaded SELinux policy may prevent the domain transition from our current domain to the
-    // domain specified for us in the policy. This is a policy choice, and not a dinit runtime
-    // issue. Let's continue the boot process regardless, but still log a warning.
     if (setcon_raw(new_context) < 0) {
         log(loglevel_t::ERROR, "SELinux: Failed to transition context to ",
                 new_context, ": ", strerror(errno));
