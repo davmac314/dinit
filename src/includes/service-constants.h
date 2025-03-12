@@ -36,13 +36,14 @@ enum class service_event_t {
 };
 
 /* Shutdown types */
-enum class shutdown_type_t {
+enum class shutdown_type_t: char {
     NONE,              // No explicit shutdown
     REMAIN,            // Continue running with no services
     HALT,              // Halt system without powering down
     POWEROFF,          // Power off system
     REBOOT,            // Reboot system
-    SOFTREBOOT         // Reboot dinit
+    SOFTREBOOT,        // Reboot dinit
+    KEXEC              // Reboot with kexec (without firmware reinitialisation)
 };
 
 /* Reasons for why service stopped */
