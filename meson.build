@@ -36,6 +36,7 @@ support_ioprio = get_option('support-ioprio')
 support_oom_adj = get_option('support-oom-adj')
 use_utmpx = get_option('use-utmpx')
 use_initgroups = get_option('use-initgroups')
+support_selinux = get_option('support-selinux')
 default_auto_restart = get_option('default-auto-restart')
 default_start_timeout = get_option('default-start-timeout').to_string()
 default_stop_timeout = get_option('default-stop-timeout').to_string()
@@ -61,6 +62,7 @@ endif
 
 ## Dependencies
 libcap_dep = dependency('libcap', required: support_capabilities)
+libselinux_dep = dependency('libselinux', version : '>= 2.1.9', required : support_selinux)
 
 ## Prepare mconfig.h
 mconfig_data.set_quoted('DINIT_VERSION', version)
@@ -71,6 +73,7 @@ mconfig_data.set('DEFAULT_AUTO_RESTART', default_auto_restart)
 mconfig_data.set('DEFAULT_START_TIMEOUT', default_start_timeout)
 mconfig_data.set('DEFAULT_STOP_TIMEOUT', default_stop_timeout)
 mconfig_data.set10('USE_INITGROUPS', use_initgroups)
+mconfig_data.set10('SUPPORT_SELINUX', libselinux_dep.found() or support_selinux.enabled())
 mconfig_data.set10('SUPPORT_CGROUPS', support_cgroups.auto() and platform == 'linux' or support_cgroups.enabled())
 mconfig_data.set10('SUPPORT_CAPABILITIES', libcap_dep.found() and not support_capabilities.disabled())
 mconfig_data.set10('SUPPORT_IOPRIO', support_ioprio.auto() and platform == 'linux' or support_ioprio.enabled())
