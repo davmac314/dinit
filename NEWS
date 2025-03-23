@@ -2,6 +2,44 @@
 
 TBA
 
+New features:
+ * Added explicit support for NetBSD as a platform at build time, and support shutdown on NetBSD
+   (Emile 'iMil' Heitor). (Note that shutdown is still not built by default except on Linux).
+ * Add support for service arguments, allowing any number of services to be created from a single
+   "template" service description file (initial functionality implemented by q66). 
+ * A new "pre-load" variable expansion is used for certain service settings. This takes place
+   before the service-specific environment (if any) has been loaded, but allows substituting
+   global environment variable values and service arguments.
+ * Support for specifying the "nice" level of service processes. This affects scheduling priority.
+   Implemented by q66.
+ * Support for setting the ioprio (I/O priority) value on Linux (q66).
+ * Support for setting the oom-score-adj (OOM killer "score") value on Linux (q66).
+ * Support for Linux capabilities (with a build-time option). This allows services to be granted
+   extra capabilities compared to unprivileged processes, even when they do not run as root.
+   Implemented by q66.
+ * Support for non-interactive recovery, which after a boot failure runs the recovery service
+   without any interactive prompt ("--auto-recovery") (Jami Kettunen).
+ * The shutdown type (halt, reboot etc) is now passed as an argument to the shutdown hook script
+   (Mara). 
+ * Support for reboot via kexec on Linux (executing a new kernel without going through firmware
+   initialisation) (el-remph).
+
+Changes:
+ * Pre-load variable expansion is performed on service description file include paths, service
+   dependency settings ('depends-on' etc), the 'env-file' setting path, and various other
+   settings.
+
+Fixes:
+ * fix for a glitch where dinitctl status would incorrectly show "no error" as the reason for
+   service start failure.
+ * fix for a control protocol error on big-endian architectures (q66).
+ * fix formatting errors in the dinit-monitor man page (Erica Z).
+ * fix bad formatting of some error messages on service load failure (Jami Kettunen).
+ * fix building Cgroups support even when SUPPORT_CGROUPS is set to 0 (MahnoKropotkinvich).
+
+As usual, a number of minor fixes and improvements (in addition to those already mentioned) were
+contributed by Mobin Aydinfar.
+
 == Version 0.19.3 (beta release #7)
 
 Release 0.19.1 mistakenly included in-development features (mainly, service arguments) that were

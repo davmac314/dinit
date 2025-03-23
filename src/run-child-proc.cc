@@ -417,7 +417,9 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     if (uid != uid_t(-1)) {
         err.stage = exec_stage::SET_UIDGID;
         // We must set group first (i.e. before we drop privileges)
-#if USE_INITGROUPS
+
+        #if USE_INITGROUPS
+
         // Initialize supplementary groups unless disabled; non-POSIX API
         if (gid != gid_t(-1)) {
             // Specific group; use that, with no supplementary groups.
@@ -441,20 +443,28 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
                 goto failure_out;
             }
         }
-#else
+
+        #else /* ! USE_INITGROUPS */
+
         // No support for supplementary groups; just set the specified group.
         if (gid != gid_t(-1)) {
             if (setregid(gid, gid) != 0) goto failure_out;
         }
-#endif
-#if SUPPORT_CAPABILITIES
-        if (cap_setuid(uid) != 0) goto failure_out;
-#else
-        if (setreuid(uid, uid) != 0) goto failure_out;
-#endif
+
+        #endif /* USE_INITGROUPS */
+
+        #if SUPPORT_CAPABILITIES
+        {
+            if (cap_setuid(uid) != 0) goto failure_out;
+        }
+        #else
+        {
+            if (setreuid(uid, uid) != 0) goto failure_out;
+        }
+        #endif
     }
 
-#if SUPPORT_CAPABILITIES
+    #if SUPPORT_CAPABILITIES
     if (cap_iab) {
         err.stage = exec_stage::SET_CAPS;
         if (cap_iab_set_proc(cap_iab) != 0) goto failure_out;
@@ -467,7 +477,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         err.stage = exec_stage::SET_CAPS;
         if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) goto failure_out;
     }
-#endif
+    #endif
 
     // Restore signal mask. If running on the console, we'll keep various control signals that can
     // be invoked from the terminal masked, with the exception of SIGHUP and possibly SIGINT.

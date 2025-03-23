@@ -38,6 +38,7 @@ spaces.
 .TH <title> <section> [<up to three extras>] - title macro. See "structure" notes below.
 .SH <name> - section heading for <name> (name usually capitalised). If name is omitted the
              next line is used.
+.SS <name> - heading for a subsection (similar to .SH, for one level down in the document structure).
 .LP - begin a new normal paragraph
 .HP - begin a hanging paragraph (lines after the first are indented)
 .TP - begin an indented paragraph with unindented label (label is on the next line); .TQ can be used

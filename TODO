@@ -1,3 +1,9 @@
+- Check that paths are always resolved against the service description file (/fragment)
+- And document that.
+- Actually need to realpath the service file to find its containing directory and resolve
+  against that.
+- Need to release Dasynq and incorporate new version
+
 For version 1.0 (release requirements):
 ---------------------------------------
 * Be able to boot and shutdown Linux and FreeBSD (or OpenBSD).
