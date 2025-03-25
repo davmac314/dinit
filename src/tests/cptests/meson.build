@@ -47,6 +47,7 @@ if fuzzer
         include_directories: incdir,
         install: false,
         cpp_args: '-fsanitize=address,undefined,fuzzer-no-link,leak',
-        link_args: '-fsanitize=fuzzer,address,undefined,leak'
+        link_args: '-fsanitize=fuzzer,address,undefined,leak',
+        dependencies: [libcap_dep]
     )
 endif
