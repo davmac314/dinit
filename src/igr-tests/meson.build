@@ -1,8 +1,8 @@
 # Included from top-level meson.build
 
 igr_tests_env += [
-    'IGR_OUTPUT_BASE=@0@'.format(meson.current_build_dir()),
-    'IGR_INPUT_BASE=@0@'.format(meson.current_source_dir())
+    'IGR_OUTPUT_BASE=@0@/'.format(meson.current_build_dir()),
+    'IGR_INPUT_BASE=@0@/'.format(meson.current_source_dir())
 ]
 
 runner = executable(
