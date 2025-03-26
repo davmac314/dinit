@@ -72,7 +72,7 @@ int main(int argc, char **argv)
         igr_output_basedir = env_igr_output_base;
     }
 
-    igr_input_basedir = get_full_cwd() + "/";
+    igr_input_basedir = get_full_cwd();
     char *env_igr_input_basedir = getenv("IGR_INPUT_BASE");
     if (env_igr_input_basedir != nullptr) {
         igr_input_basedir = env_igr_input_basedir;
