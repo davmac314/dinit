@@ -297,7 +297,7 @@ public:
             args.insert(args.begin(), "--ready-fd");
         }
 
-        igr_proc::start((igr_input_basedir + wdir).c_str(), (dinit_bindir + "/dinit").c_str(), args);
+        igr_proc::start((igr_input_basedir + "/" + wdir).c_str(), (dinit_bindir + "/dinit").c_str(), args);
 
         if (with_ready_wait) {
             while (ready_pipe_ptr->get_output().empty()) {
@@ -316,7 +316,7 @@ public:
 
     void start(const char *wdir, std::vector<std::string> args = {})
     {
-        igr_proc::start((igr_input_basedir + wdir).c_str(), (dinit_bindir + "/dinitctl").c_str(), args);
+        igr_proc::start((igr_input_basedir + "/" + wdir).c_str(), (dinit_bindir + "/dinitctl").c_str(), args);
     }
 };
 
@@ -329,7 +329,7 @@ public:
 
     void start(const char *wdir, std::vector<std::string> args = {})
     {
-        igr_proc::start((igr_input_basedir + wdir).c_str(), (dinit_bindir + "/dinitcheck").c_str(), args,
+        igr_proc::start((igr_input_basedir + "/" + wdir).c_str(), (dinit_bindir + "/dinitcheck").c_str(), args,
                 true /* combine stdout/err */);
     }
 };
