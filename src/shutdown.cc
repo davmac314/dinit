@@ -413,13 +413,23 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
     sigprocmask(SIG_SETMASK, &allsigs, nullptr);
     
     int reboot_type = RB_AUTOBOOT; // reboot
+    const char *shutdown_type_arg = "reboot";
 #if defined(RB_POWER_OFF)
-    if (shutdown_type == shutdown_type_t::POWEROFF) reboot_type = RB_POWER_OFF;
+    if (shutdown_type == shutdown_type_t::POWEROFF) {
+        reboot_type = RB_POWER_OFF;
+        shutdown_type_arg = "poweroff";
+    }
 #endif
 #if defined(RB_HALT_SYSTEM)
-    if (shutdown_type == shutdown_type_t::HALT) reboot_type = RB_HALT_SYSTEM;
+    if (shutdown_type == shutdown_type_t::HALT) {
+        reboot_type = RB_HALT_SYSTEM;
+        shutdown_type_arg = "halt";
+    }
 #elif defined(RB_HALT)
-    if (shutdown_type == shutdown_type_t::HALT) reboot_type = RB_HALT;
+    if (shutdown_type == shutdown_type_t::HALT) {
+        reboot_type = RB_HALT;
+        shutdown_type_arg = "halt";
+    }
 #endif
     
     // Write to console rather than any terminal, since we lose the terminal it seems:
@@ -468,7 +478,7 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
         int stat_r = lstat(hook_paths[i], &statbuf);
         if (stat_r == 0 && (statbuf.st_mode & execmask) != 0) {
             sub_buf.append("Executing shutdown hook...\n");
-            const char *prog_args[] = { hook_paths[i], nullptr };
+            const char *prog_args[] = { hook_paths[i], shutdown_type_arg, nullptr };
             try {
                 auto r = run_process(prog_args, loop, sub_buf);
                 if (r.did_exit() && r.get_exit_status() == 0) {
