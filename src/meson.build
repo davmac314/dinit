@@ -28,7 +28,7 @@ misc_args = {
     'include_directories': default_incdir,
     'install': true,
     'install_dir': sbindir,
-    'dependencies': [libcap_dep]
+    'dependencies': [libcap_dep, libselinux_dep]
 }
 
 ## src/'s defines for igr-tests/
