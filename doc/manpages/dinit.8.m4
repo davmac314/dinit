@@ -305,7 +305,6 @@ Also, the \fB\-\-service\fR (\fB\-t\fR) option can be used to force a service na
 .SH SELINUX SUPPORT
 .LP
 When running as PID 1 on a SELinux enabled machine, \fBdinit\fR will by default load the system's SELinux policy.
-This behaviour can be disabled by passing the \fB\-\-disable\-selinux\-policy\fR option to dinit.
 .LP
 When loading the SELinux policy, dinit will automatically mount a few special filesystems needed to successfully load the policy.
 \fBsysfs\fR will be mounted at \fB/sys\fR, and \fBselinuxfs\fR will be mounted at \fB/sys/fs/selinux\fR.
