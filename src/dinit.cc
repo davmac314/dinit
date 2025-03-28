@@ -6,7 +6,6 @@
 #include <cstddef>
 #include <cstdlib>
 
-#include <sys/mount.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -42,6 +41,7 @@
 #include <selinux/avc.h>
 #include <selinux/label.h>
 #include <selinux/selinux.h>
+#include <sys/mount.h>
 #endif
 
 /*
