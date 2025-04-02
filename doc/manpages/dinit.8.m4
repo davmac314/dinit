@@ -309,10 +309,12 @@ If \fBdinit\fR fails to load the SELinux policy when requested to do so in enfor
 If however permissive mode was requested, \fBdinit\fR will log a warning and proceed.
 This feature requires \fBdinit\fR to have been built with SELinux support.
 .LP
-When loading the SELinux policy, dinit will automatically mount a few special filesystems needed to successfully load the policy.
-\fBsysfs\fR will be mounted at \fB/sys\fR, and \fBselinuxfs\fR will be mounted at \fB/sys/fs/selinux\fR.
-\fBdinit\fR will not unmount either.
-\fBprocfs\fR will also be mounted at \fB/proc\fR, but \fBdinit\fR will unmount it after loading the SELinux policy.
+When loading the SELinux policy, a few special filesystems may be mounted if they are not already.
+The SELinux library will mount \fBsysfs\fR at \fB/sys\fR, and \fBselinuxfs\fR at \fB/sys/fs/selinux\fR. Unless the SELinux policy load
+type has been set to \fBDisabled\fR, \fB/sys/fs/selinux\fR will not be unmounted by the SELinux library. \fBsysfs\fR is never unmounted.
+Dinit itself will temporarily mount \fBprocfs\fR at \fB/proc\fR in order to transition itself to the context it should be started in
+per the newly loaded SELinux policy. The \fB/proc\fR directory must exist on the filesystem for this to succeed. During the period which
+Dinit has temporarily mounted \fB/proc\fR, any previously-mounted \fB/proc\fR will be mounted over.
 .\"
 .SH FILES
 .\"
