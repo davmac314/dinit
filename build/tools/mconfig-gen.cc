@@ -89,6 +89,9 @@ int main(int argc, char **argv)
     if (vars.find("DEFAULT_AUTO_RESTART") != vars.end()) {
         cout << "#define DEFAULT_AUTO_RESTART " << vars["DEFAULT_AUTO_RESTART"] << "\n";
     }
+    if (vars.find("SUPPORT_SELINUX") != vars.end()) {
+        cout << "#define SUPPORT_SELINUX " << vars["SUPPORT_SELINUX"] << "\n";
+    }
 
     cout << "\n// Constants\n";
     cout << "\nconstexpr static char DINIT_VERSION[] = " << stringify(vars["VERSION"]) << ";\n";
