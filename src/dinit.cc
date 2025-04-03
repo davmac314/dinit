@@ -485,11 +485,14 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 // Returns:
 //   If we fail to load the system SELinux policy when requested to load in enforcing mode, return
 //   false, otherwise, return true.
-// This function will attempt to mount /sys and /proc unconditionally, but will not bail if it
-// fail to do so. /sys will remain mounted after returning, and it is possible for /sys to still
-// remain mounted despite returning false. This function will attempt to unmount /proc if it was
-// responsible for mounting it, but lazily unmounts it using MNT_DETACH so while /proc will be
-// unavailable for new accesses, it is not guarenteed to be unmounted.
+// This function will attempt to mount /sys and /sys/fs/selinux, done when calling the libselinux
+// function selinux_init_load_policy(3). It will also attempt to mount /proc, and will mount over
+// existing mounts on /proc. It will not bail if any of the attempted mounts fail, given that they
+// may already be mounted. However, all of those locations must be mounted, by dinit or otherwise,
+// in order for this function to succeed. /sys will remain mounted after returning, and it is
+// possible for /sys to still remain mounted despite returning false. This function will attempt to
+// unmount /proc if it was responsible for mounting it, but lazily unmounts it using MNT_DETACH so
+// while /proc will be unavailable for new accesses, it is not guarenteed to be unmounted.
 // When successful, this will cause SELinux labels as per the policy to be attached to processes
 // (and file descriptors owned by those processes). The SELinux framework will begin to enforce
 // restrictions on access based on these labels and the loaded policy.
@@ -566,6 +569,7 @@ cleanup:
     if (current_context) freecon(current_context);
     if (file_context) freecon(file_context);
     if (new_context) freecon(new_context);
+    // A procfs that has already been mounted on /proc (before we mounted it) may be in use.
     if (proc_mount_rc == 0) umount2("/proc", MNT_DETACH);
     return true;
 }
