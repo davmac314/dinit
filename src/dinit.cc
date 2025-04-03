@@ -615,7 +615,7 @@ int dinit_main(int argc, char **argv)
     // Error exit if we are the system manager and fail to load the selinux policy.
     //
     // This should be done directly after argument parsing. It's best to do this as early as
-    // possible to get init in the domain specified in the policy, and hence confine it, quickly.
+    // possible to get init in the context specified in the policy, and hence confine it, quickly.
     //
     // If selinux_transition fails, the system is not in the state requested by the user, and there
     // is nothing we can do about it. Instead of continuing to boot the rest of the system without
