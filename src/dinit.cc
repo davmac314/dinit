@@ -700,6 +700,9 @@ int dinit_main(int argc, char **argv)
         else if (shutdown_type == shutdown_type_t::POWEROFF) {
             log_msg_end(" Will power down.");
         }
+        else if (shutdown_type == shutdown_type_t::KEXEC) {
+            log_msg_end(" Will kexec.");
+        }
         else if (shutdown_type == shutdown_type_t::NONE) {
             log_msg_end(" Will handle boot failure.");
         }
@@ -767,6 +770,9 @@ int dinit_main(int argc, char **argv)
         }
         else if (shutdown_type == shutdown_type_t::REBOOT) {
             cmd_arg = "-r";
+        }
+        else if (shutdown_type == shutdown_type_t::KEXEC) {
+            cmd_arg = "-k";
         }
         else {
             // power off.
