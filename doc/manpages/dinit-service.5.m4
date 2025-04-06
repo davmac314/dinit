@@ -335,7 +335,7 @@ starting this service will not cause it to start (nor wait for it in that case).
 It does not by itself cause the named service to be loaded (if loaded later, the "after"
 relationship will be enforced from that point).
 .TP
-The name is subject to pre-load variable substitution.
+The name is subject to pre-load variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBbefore\fR: \fIservice-name\fR
 When starting the named service, if this service is also starting, wait for this service
@@ -344,7 +344,7 @@ an \fBafter\fR relationship to this service from the named service.
 However, it does not by itself cause the named service to be loaded (if loaded later, the "before"
 relationship will be enforced from that point).
 .TP
-The name is subject to pre-load variable substitution.
+The name is subject to pre-load variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBchain\-to\fR = \fIservice-name\fR
 When this service terminates (i.e. starts successfully, and then stops of its
@@ -367,7 +367,7 @@ abnormally or with an exit status indicating an error.
 However, if the \fBalways-chain\fR option is set the chain is started regardless of the
 reason and the status of this service termination.
 .IP
-The name is subject to pre-load variable substitution.
+The name is subject to pre-load variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBsocket\-listen\fR = \fIsocket-path\fR
 Pre-open a socket for the service and pass it to the service using the
@@ -771,17 +771,19 @@ the process environment of \fBdinit\fR (which is established on launch by the pr
 parent, amended by loading the environment file (if any) as specified in \fBdinit\fR(8), and further
 amended via \fBdinitctl setenv\fR commands or equivalent).
 .LP
-Note that since variable substitution is performed on service load, the values seen by a service process may differ from those
-used for substitution, if they have been changed in the meantime.
+Note that since variable substitution is performed on service load, the values seen by a service
+process may differ from those used for substitution, if they have been changed in the meantime.
 Using environment variable values in service commands and parameters can be used as means to
 provide easily-adjustable service configuration, but is not ideal for this purpose and alternatives
 should be considered. 
 .LP
-In dependency fields, including \fBdepends\-on\fR as well as \fBbefore\fR/\fBafter\fR and similar,
-variable substitution may happen before the service environment is loaded.
-This "pre-load" expansion can substitute service arguments and environment variables set within
-dinit only; any service-specific variables that will be loaded from file (as specified using \fBenv\-file\fR)
-are not available. 
+A "pre-load" variable substitution is performed for certain service properties (as documented),
+including \fBdepends\-on\fR as well as \fBbefore\fR/\fBafter\fR and similar, instead of the usual
+(post-load) substitution.
+This form of substitution is performed before the service environment is loaded.
+It can substitute service arguments and environment variables set within \fBdinit\fR only; any
+service-specific variables that will be loaded from file (as specified using \fBenv\-file\fR) are
+not available. 
 .\"
 .SS META-COMMANDS
 .\"
