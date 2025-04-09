@@ -45,6 +45,8 @@ template <unsigned SIZE> class cpbuffer
     
     unsigned get_contiguous_length(char *ptr)
     {
+        if (length == 0) return 0;
+
         unsigned eidx = cur_idx + length;
         if (eidx >= SIZE) eidx -= SIZE;
         
