@@ -21,7 +21,7 @@
 #include <sys/prctl.h>
 #endif
 
-#ifdef SUPPORT_CGROUPS
+#if SUPPORT_CGROUPS
 extern std::string cgroups_path;
 extern bool have_cgroups_path;
 #endif
