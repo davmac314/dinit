@@ -15,7 +15,7 @@
 #include "proc-service.h"
 #include "mconfig.h"
 
-#ifdef SUPPORT_CGROUPS
+#if SUPPORT_CGROUPS
 extern std::string cgroups_path;
 extern bool have_cgroups_path;
 #endif
