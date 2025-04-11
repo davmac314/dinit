@@ -67,7 +67,7 @@ static void flush_log() noexcept;
 
 static void control_socket_cb(eventloop_t *loop, int fd) noexcept;
 
-#ifdef SUPPORT_CGROUPS
+#if SUPPORT_CGROUPS
 static void find_cgroup_path() noexcept;
 #endif
 
@@ -102,7 +102,7 @@ static bool log_is_syslog = true; // if false, log is a file
 // Set to true (when console_input_watcher is active) if console input becomes available
 static bool console_input_ready = false;
 
-#ifdef SUPPORT_CGROUPS
+#if SUPPORT_CGROUPS
 // Path of the root cgroup according to dinit. This will be dinit's own cgroup path.
 std::string cgroups_path;
 bool have_cgroups_path = false;
@@ -357,7 +357,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             if (!arg_to_loglevel("--log-level", wanted_level)) return 1;
             log_level[DLOG_MAIN] = wanted_level;
         }
-        #ifdef SUPPORT_CGROUPS
+        #if SUPPORT_CGROUPS
         else if (strcmp(argv[i], "--cgroup-path") == 0 || strcmp(argv[i], "-b") == 0) {
             if (++i < argc && argv[i][0] != '\0') {
                 cgroups_path = argv[i];
@@ -400,7 +400,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
                     "                              path to control socket\n"
                     " --ready-fd <fd>, -F <fd>\n"
                     "                              file descriptor to report readiness\n"
-                    #ifdef SUPPORT_CGROUPS
+                    #if SUPPORT_CGROUPS
                     " --cgroup-path <path>, -b <path>\n"
                     "                              cgroup base path (for resolving relative paths)\n"
                     #endif
@@ -1105,7 +1105,7 @@ static void flush_log() noexcept
     }
 }
 
-#ifdef SUPPORT_CGROUPS
+#if SUPPORT_CGROUPS
 
 static void find_cgroup_path() noexcept
 {
@@ -1205,7 +1205,7 @@ static void printVersion()
 {
     std::cout << "Dinit version " << DINIT_VERSION << '.' << std::endl;
     const unsigned feature_count = 0
-#ifdef SUPPORT_CGROUPS
+#if SUPPORT_CGROUPS
             +1
 #endif
 #ifdef USE_UTMPX
@@ -1226,7 +1226,7 @@ static void printVersion()
             ;
     if (feature_count != 0) {
         std::cout << "Supported features:"
-#ifdef SUPPORT_CGROUPS
+#if SUPPORT_CGROUPS
                 " cgroups"
 #endif
 #ifdef USE_UTMPX
