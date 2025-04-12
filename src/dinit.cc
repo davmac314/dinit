@@ -1208,7 +1208,7 @@ static void printVersion()
 #if SUPPORT_CGROUPS
             +1
 #endif
-#ifdef USE_UTMPX
+#if USE_UTMPX
             +1
 #endif
 #if USE_INITGROUPS
@@ -1229,7 +1229,7 @@ static void printVersion()
 #if SUPPORT_CGROUPS
                 " cgroups"
 #endif
-#ifdef USE_UTMPX
+#if USE_UTMPX
                 " utmp"
 #endif
 #if USE_INITGROUPS
