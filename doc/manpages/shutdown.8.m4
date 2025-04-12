@@ -29,8 +29,10 @@ They can also perform shutdown directly, without service rollback.
 .LP
 Note that for consistency with other packages "$$$SHUTDOWN_PREFIX@@@halt" and "$$$SHUTDOWN_PREFIX@@@poweroff" aliases
 are provided, however they have no special significance. The default action
-is to power down the system if called as either "$$$SHUTDOWN_PREFIX@@@shutdown", "$$$SHUTDOWN_PREFIX@@@halt", or
+is to power down the system if called as any of "$$$SHUTDOWN_PREFIX@@@shutdown", "$$$SHUTDOWN_PREFIX@@@halt", or
 "$$$SHUTDOWN_PREFIX@@@poweroff".
+.LP
+Some features are available only on certain operating systems (and require kernel support).
 .\"
 .SH OPTIONS
 .TP
@@ -45,8 +47,6 @@ Request a shutdown followed by restart. This is the default if executed as
 Shutdown the system and boot directly into a new kernel, without firmware
 reinitialisation.
 A suitable kernel image must be loaded first; see \fBkexec\fR(8).
-This is only supported on Linux 2.6.13 or later with \fBCONFIG_KEXEC=y\fR; if
-you're unsure, most distribution kernels qualify.
 .TP
 \fB\-s\fP
 Restart the service manager and all user-space services without restarting the system.
