@@ -367,8 +367,10 @@ The path to the socket used to communicate with the \fBdinit\fR(8) daemon. May b
 command line options. If not set, and not overridden, the \fBdinit\fR defaults are used.
 .\"
 .SH SEE ALSO
+.\"
 \fBdinit\fR(8), \fBdinit-service\fR(5), \fB$$$SHUTDOWN_PREFIX@@@shutdown(8)\fR.
 .\"
 .SH AUTHOR
+.\"
 Dinit, and this manual, were written by Davin McCall.
 $$$dnl

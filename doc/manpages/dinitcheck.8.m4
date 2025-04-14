@@ -88,5 +88,6 @@ from the running instance of \fBdinit\fR.
 \fBdinit\fR(8), \fBdinit-service\fR(5).
 .\"
 .SH AUTHOR
+.\"
 Dinit, and this manual, were written by Davin McCall.
 $$$dnl

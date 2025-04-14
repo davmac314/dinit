@@ -110,5 +110,6 @@ If it does not unmount file systems, the script should not exit with status 0.
 \fBdinit\fR(8), \fBdinitctl\fR(8)
 .\"
 .SH AUTHOR
+.\"
 Dinit, and this manual, were written by Davin McCall.
 $$$dnl

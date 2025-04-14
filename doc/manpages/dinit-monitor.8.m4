@@ -95,8 +95,10 @@ The monitoring provided by \fBdinit-monitor\fR is not intended to be used for sy
 purposes. If system load is particularly high, for example, notifications may be skipped.
 .\"
 .SH SEE ALSO
+.\"
 \fBdinit\fR(8), \fBdinitctl\fR(8).
 .\"
 .SH AUTHOR
+.\"
 Dinit, and this manual, were written by Davin McCall.
 $$$dnl

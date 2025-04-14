@@ -867,7 +867,7 @@ The \fIpath\fR is subject to pre-load variable substitution
 As for \fB@include\fR, but produces no error if the named file does not exist.
 .\"
 .SH EXAMPLES
-.LP
+.\"
 Here is an example service description for the \fBmysql\fR database server.
 It has a dependency on the \fBrcboot\fR service (not shown) which is
 expected to have set up the system to a level suitable for basic operation.
@@ -916,5 +916,6 @@ depends-on: device-node-daemon
 More examples are provided with the Dinit distribution.
 .\"
 .SH AUTHOR
+.\"
 Dinit, and this manual, were written by Davin McCall.
 $$$dnl

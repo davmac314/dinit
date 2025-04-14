@@ -262,6 +262,7 @@ System shutdown or restart need to be handled by the primary \fBinit\fR, which s
 waiting for it to terminate after stopping services (possibly by invoking \fBdinitctl shutdown\fR).
 .\"
 .SH LOGGING
+.\"
 Dinit "logs" via two mechanisms simultaneously: the "console" (standard output, not necessarily associated
 with an actual console if \fBdinit\fR was started with output directed elsewhere) and the "main log facility"
 which is the syslog facility by default but which may be directed to a file.
@@ -282,7 +283,7 @@ also reset the level via the \fB\-\-console\-level\fR option to either \fBwarn\f
 This will reduce noise in the output from successful service startup.
 .\"
 .SH COMMAND LINE FROM KERNEL
-.LP
+.\"
 When running as PID 1, \fBdinit\fR may process the command line differently, to compensate for kernel behaviour.
 .LP
 On Linux, kernel command line options that are not recognised by the kernel will be passed on to \fBdinit\fR.
@@ -331,7 +332,7 @@ Default locations for service description files. The directories are searched in
 Default location for service description files for user instances. The directories are searched in the order listed.
 .\"
 .SH SIGNALS
-.LP
+.\"
 When run as a system manager, SIGINT stops all services and performs a reboot (on Linux, this signal can be
 generated using the control-alt-delete key combination); SIGTERM stops services and halts the system; and
 SIGQUIT performs an immediate shutdown with no service rollback.
@@ -344,5 +345,6 @@ and exit Dinit; SIGQUIT exits Dinit immediately.
 \fBdinitctl\fR(8), \fBdinit-service\fR(5), \fBdinitcheck\fR(8), \fB$$$SHUTDOWN_PREFIX@@@shutdown(8)\fR.
 .\"
 .SH AUTHOR
+.\"
 Dinit, and this manual, were written by Davin McCall.
 $$$dnl
