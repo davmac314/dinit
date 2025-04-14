@@ -455,13 +455,27 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
         reboot_type = RB_POWER_OFF;
         shutdown_type_arg = "poweroff";
     }
+#elif defined(RB_POWEROFF)
+    // FreeBSD spells it slightly differently
+    if (shutdown_type == shutdown_type_t::POWEROFF) {
+        reboot_type = RB_POWEROFF;
+        shutdown_type_arg = "poweroff";
+    }
+#elif defined(RB_POWERDOWN)
+    // NetBSD (at least) uses RB_POWERDOWN rather than RB_POWER_OFF
+    if (shutdown_type == shutdown_type_t::POWEROFF) {
+        reboot_type = RB_POWERDOWN;
+        shutdown_type_arg = "poweroff";
+    }
 #endif
 #if defined(RB_HALT_SYSTEM)
+    // Linux
     if (shutdown_type == shutdown_type_t::HALT) {
         reboot_type = RB_HALT_SYSTEM;
         shutdown_type_arg = "halt";
     }
 #elif defined(RB_HALT)
+    // NetBSD, FreeBSD
     if (shutdown_type == shutdown_type_t::HALT) {
         reboot_type = RB_HALT;
         shutdown_type_arg = "halt";
