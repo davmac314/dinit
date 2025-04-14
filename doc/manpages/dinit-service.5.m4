@@ -583,10 +583,15 @@ This setting is only available if \fBdinit\fR was built with cgroups support.
 \fBcapabilities\fR = \fIiab\fR
 .TQ
 \fBcapabilities\fR += \fIiab-addendum\fR
-Run the service process(es) with capabilities specified by \fIiab\fR (see \fBcapabilities\fR(7)).
-The syntax follows the regular capabilities IAB format, with comma-separated capabilities.
-The append form of this setting will add to the previous IAB string, automatically adding
-a comma to the previous string, so you do not need to add it manually.
+Run the service process(es) with capabilities specified by \fIiab\fR.
+The syntax follows the regular capabilities "IAB" format, with comma-separated capabilities
+(see \fBcapabilities\fR(7), \fBcap_iab\fR(3)).
+The append form of this setting will add to the previous IAB string, automatically inserting
+a comma as separator.
+.IP
+To provide a capability to an otherwise unprivileged process, add the capability to the "Ambient"
+(and "Inherited") capability sets using \fB^CAP_NAME\fR, where CAP_NAME is the name of the capability.
+For example, to allow a process to bind to privileged TCP/IP ports, use \fB^CAP_NET_BIND_SERVICE\fR. 
 .IP
 This setting is only available if \fBdinit\fR was built with capabilities support.
 .TP
