@@ -415,10 +415,17 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
     int reboot_type = RB_AUTOBOOT; // reboot
 #if defined(RB_POWER_OFF)
     if (shutdown_type == shutdown_type_t::POWEROFF) reboot_type = RB_POWER_OFF;
+#elif defined(RB_POWEROFF)
+    // FreeBSD spells it slightly differently
+    if (shutdown_type == shutdown_type_t::POWEROFF) reboot_type = RB_POWEROFF;
+#elif defined(RB_POWERDOWN)
+    // NetBSD (at least) uses RB_POWERDOWN rather than RB_POWER_OFF
+    if (shutdown_type == shutdown_type_t::POWEROFF) reboot_type = RB_POWERDOWN;
 #endif
 #if defined(RB_HALT_SYSTEM)
     if (shutdown_type == shutdown_type_t::HALT) reboot_type = RB_HALT_SYSTEM;
 #elif defined(RB_HALT)
+    // NetBSD, FreeBSD
     if (shutdown_type == shutdown_type_t::HALT) reboot_type = RB_HALT;
 #endif
     
