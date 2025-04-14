@@ -96,7 +96,8 @@ Only the first existing executable file from the above list will be executed. Th
 is intended to allow customisation by the system administrator (and should usually be a script
 which on completion executes the 2nd shutdown hook, if present).
 The 2nd location is intended for distribution control.
-The script will be passed one argument, either "poweroff", "halt", or "reboot" depending on the shutdown type.
+The script will be passed one argument, either "poweroff", "halt", or "reboot" depending on the shutdown type
+(for kexec, if supported, the argument will be "reboot", as for a regular reboot).
 .LP
 If found and successfully executed, the shutdown hook should perform any special shutdown actions
 that depend on all processes being terminated.
