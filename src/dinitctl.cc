@@ -101,7 +101,7 @@ int dinitctl_main(int argc, char **argv)
     bool cmdline_error = false;
     bool show_help = argc < 2; // show help if no arguments
     std::string control_socket_str;
-    const char * control_socket_path = nullptr;
+    const char *control_socket_path = nullptr;
     bool verbose = true;
     bool user_dinit = (getuid() != 0);  // communicate with user daemon
     service_dir_opt service_dir_opts;
@@ -673,12 +673,12 @@ int main(int argc, char **argv)
     return 1;
 }
 
-static const char * describe_state(bool stopped)
+static const char *describe_state(bool stopped)
 {
     return stopped ? "stopped" : "started";
 }
 
-static const char * describe_verb(bool stop)
+static const char *describe_verb(bool stop)
 {
     return stop ? "stop" : "start";
 }
@@ -1862,10 +1862,10 @@ static std::string get_service_description_dir(int socknum, cpbuffer_t &rbuffer,
     return result_str;
 }
 
-static std::string get_service_descr_filename(int socknum, cpbuffer_t &rbuffer, handle_t serivce_handle,
+static std::string get_service_descr_filename(int socknum, cpbuffer_t &rbuffer, handle_t service_handle,
         const char *service_name)
 {
-    std::string r = get_service_description_dir(socknum, rbuffer, serivce_handle);
+    std::string r = get_service_description_dir(socknum, rbuffer, service_handle);
     if (r.empty())
         throw dinit_protocol_error();
     if (r.back() != '/')
