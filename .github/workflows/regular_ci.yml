@@ -33,7 +33,7 @@ jobs:
 
   Debian-bullseye_build:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     container:
       image: debian:bullseye
     strategy:
@@ -109,7 +109,7 @@ jobs:
 
   Alpine-latest_build:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     container:
       image: alpine:latest
     strategy:
