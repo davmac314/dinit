@@ -1870,7 +1870,12 @@ static std::string get_service_descr_filename(int socknum, cpbuffer_t &rbuffer, 
         throw dinit_protocol_error();
     if (r.back() != '/')
         r.append(1, '/');
-    r.append(service_name);
+
+    // Check for service argument which must be stripped
+    auto at_ptr = service_name;
+    while (*at_ptr != '\0' && *at_ptr != '@') ++at_ptr;
+
+    r.append(service_name, at_ptr);
     return r;
 }
 
@@ -1880,8 +1885,12 @@ static void find_service_desc(const char *svc_name, const std::vector<std::strin
 {
     using namespace std;
 
+    // Check for service argument which must be stripped
+    auto at_ptr = svc_name;
+    while (*at_ptr != '\0' && *at_ptr != '@') ++at_ptr;
+
     for (std::string path : paths) {
-        string test_path = combine_paths(path, svc_name);
+        string test_path = combine_paths(path, string_view(svc_name, at_ptr - svc_name));
 
         service_file.open(test_path.c_str(), ios::in);
         if (service_file || errno != ENOENT) {
@@ -1909,7 +1918,11 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
     string service_file_path;
     string to_service_file_path;
     ifstream service_file;
-    ifstream to_service_file;
+
+    if (strchr(from, '@') != nullptr) {
+        cerr << "dinitctl: cannot enable/disable from a service with argument (service@arg).\n";
+        return 1;
+    }
 
     if (socknum >= 0) {
         if (!load_service(socknum, rbuffer, from, &from_handle, &from_state)
@@ -1921,7 +1934,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
             service_dir_paths = get_service_description_dirs(socknum, rbuffer);
         }
         catch (dinit_protocol_error &) {
-            cerr << "dinitctl: unknown configuration or protocol error, unable to load service descriptions" << endl;
+            cerr << "dinitctl: unknown configuration or protocol error, unable to load service descriptions\n";
         }
 
         service_file_path = get_service_descr_filename(socknum, rbuffer, from_handle, from);
@@ -1954,6 +1967,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
             return EXIT_FAILURE;
         }
 
+        ifstream to_service_file;
         find_service_desc(to, service_dir_paths, to_service_file, to_service_file_path);
         if (!to_service_file) {
             cerr << "dinitctl: could not locate service file for target service '" << to << "'" << endl;
