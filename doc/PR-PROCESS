@@ -1,0 +1,109 @@
+Pull Request process for Dinit
+=============================
+
+To make a contribution to Dinit, the easiest way is open a Pull Request (PR). Please read
+CONTRIBUTING first.
+
+The basic process is:
+
+0. The potential contributor determines that their desired changes are appropriate.
+
+   See CONTRIBUTING for details. In general new features (and their design) should be agreed upon
+   *before* a PR is opened.
+
+1. The potential contributor creates a branch with suggested changes.
+
+   The contributor makes a best effort to ensure that the changes are acceptable quality and meet
+   all criteria for a contribution (see CONTRIBUTING, CODE-STYLE, DESIGN).
+   
+   1.1 Commits and commit messages
+   
+     Individual unrelated changes should be represented in separate commits. Each commit should
+     encompass a complete self-contained change.
+   
+     Commit messages should include a single line (up to 76 characters) giving an overview of the
+     change, followed by a blank line and a more comprehensive description of the change (unless
+     trivial). Read existing commit messages to get a sense for the expected style/tone.
+   
+     Do NOT include a so-called "conventional commit" tag ("fix:", "chore:" etc).
+     
+     Do NOT include a "Signed-off-by:" line. 
+
+2. The contributor reviews their changes in full to ensure they meet the criteria for a
+   contribution (and adjusts as necessary).
+
+3. The contributor opens a PR, based on their branch.
+
+4. A maintainer will briefly inspect the PR to ensure that the contributor has read the
+   CONTRIBUTING document as well as this document and complied with the basic initial
+   requirements.
+
+   If not, the PR will be set to draft and the contributor will be requested to read the
+   CONTRIBUTING document and making appropriate amendments before setting the PR as ready for
+   review.
+
+5. A maintainer will review the changes.
+
+   The maintainer may request changes, and may ask questions. For significant requests the
+   maintainer will generally provide reasoning.
+
+   The verdict will either be that the PR is approved, that changes are requested, or that the PR
+   is unacceptable. The latter may occur if the quality is too low or if it is clear that the
+   contributor has not properly followed the process and requirements for contribution.
+   
+If the PR was accepted, the process is mostly complete (a maintainer will merge the PR at some
+point; they may request that the changes first be rebased onto the current target branch).
+
+If, however, changes were requested in the review:
+
+6. The contributor reviews comments to resolve outstanding questions.
+
+   If any questions were asked in the review, the contributor should answer them. There may be
+   some back-and-forth discussion until the maintainer is satisfied. The maintainer may request
+   additional changes (and ask additional questions) as part of the discussion.
+
+   Any explanations or reasoning that the maintainer provides should be acknowledged (if accepted)
+   or, if there is disagreement, suitably rebutted.
+
+   Maintainers do sometimes make mistakes. The contributor may raise disagreements and provide any
+   necessary explanation. The conversation must be resolved to the satisfaction of both parties
+   before proceeding.
+
+   The contributor should avoid opinionated argument. Remain objective. A maintainer's
+   preferences should be respected. Excessive argumentation may result in the PR being closed by
+   the maintainer.
+
+7. The contributor makes changes to the PR, to satisfy the review.
+
+   At this stage changes made should be squashed into the original commits that formed the review
+   (unless they truly belong as separate commits according to the criteria described in 1.1).
+   
+   Do NOT rebase onto any changes that have since been made to the master branch (see "Rebasing"
+   below).
+   
+   Do NOT push any changes until all changes are complete and the self-review (step 8) is complete
+   (see "Draft PRs" below).
+
+8. The contributor performs a self-review to double-check that the PR still/now meets the criteria
+   for a contribution.
+   
+9. The contributor pushes their changes to the branch, making them part of the PR.
+
+10. Return to step 5 (maintainer review).
+
+
+Rebasing
+--------
+
+As mentioned, do not rebase an in-progress review on changes that have since happened on the
+target branch. If this is necessary for some reason (eg. a fix from the target branch is required)
+then post a message in the PR and wait for maintainer approval to do the rebase.
+
+
+Draft PRs
+---------
+
+The above process requires that you do not push changes that are not ready reviewed. You may do
+this however, so long as you _first_ set the PR status to "draft".
+
+Once the PR is ready for review, remove the "draft" status, to mark the PR as ready for review.

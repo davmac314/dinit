@@ -15,13 +15,18 @@ development of Dinit include:
   guarded (eg stopping a service via dinitctl requires a "--force" argument if it would also cause
   dependent services to stop). Common use cases should be supported by the feature set.
   Documentation should be complete. Error messages should be useful. Traceability/debugging is
-  important.
+  important; errors should be logged appropriately.
+- Transparency. It should be clear what the software is doing. Dinit does not make system-level
+  changes behind the back of the user. Documentation should be clear about what Dinit does.
+  Behaviour should not be surprising to anyone who has read the documentation (and ideally, even
+  to someone who hasn't).
 - Compatibility and interopability. The software should work together with other pre-existing
   software; it is a piece of a larger puzzle. New interfaces should only be created when they
   provide a tangible benefit (eg Dinit supports the same readiness protocol as S6, and works with
   legacy processes that fork after launching via the bgprocess service type. It logs via the
   standard syslog mechanism).
 - Scope. The feature set is restricted, but is large enough to provide utility and usability.
+  Features that belong elsewhere should remain elsewhere.
 - Generality. Arbitrary restrictions should be avoided. Size is kept small and memory use low to
   make Dinit usable on systems with limited resources. Code remains portable across different
   operating systems.

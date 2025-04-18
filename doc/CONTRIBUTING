@@ -1,8 +1,13 @@
 Contributing to Dinit's development
 ===================================
 
-At the time of writing there have been only minimal outside contributions, but I'm writing this
-contribution guide in readiness for contributions being made by other persons.
+This is a guide to contributing to Dinit. It should be read from start to finish before attempting
+to make a contribution to the Dinit codebase or documentation.
+
+Note:  Yes, this is a lot of text (especially since it refers to information contained in other
+       files). Having a proper process for contribution is important for maintainer sanity and to
+       avoid burn-out.
+
 
 Before making a contribution
 ----------------------------
@@ -33,11 +38,25 @@ should ask the maintainers. Also, if the proposed fix is not completely straight
 Remember:
  - submitting a merge request is an act that, by itself, creates work for the maintainer(s)!
  - always talk to the maintainers before doing a significant amount of work on a project, and
-   consider doing so before commencing even minor work
+   consider doing so before commencing even minor work.
  - if you disagree with a maintainer, you need to consider who has invested more in the project.
    Maintainers will often have a good "feel" for how their software should work, and they may have
    a philosophy that doesn't align with your own. Arguing over subjective issues may frustrate both
    parties. It may be better to let it go!
+
+Importantly: you should not rely on the maintainers to ensure your changes/additions are suitable
+and correct. That is your job! If you are not capable (do not have the necessary technical
+expertise, or are not willing or able to spend the time to properly adhere to contribution
+requirements), then please do not try to contribute. Maintainers do not have the resources to
+instruct you or guide you through the process. (You are welcome to request mentoring, before
+attempting to make a contribution, in a discussion; please accept however that you may not get a
+response).
+
+Dinit is critical system software. If you are not aware of how that affects the way that it should
+be designed and coded, then you probably do not have the expertise required to contribute. 
+
+I will endeavour to respond to all offered contributions with civility and respect, even if I
+choose not to accept them.
 
 
 Code contributions
@@ -60,11 +79,57 @@ contribution includes features outside the intended scope. I encourage anyone wh
 making a contribution to contact me to sound out whether I would be likely to accept a submission
 for a particular feature or behavioural change.
 
-Contributors should feel free to add themselves to the CONTRIBUTORS list as part of the patch/pull
-request.
 
-I will endeavour to respond to all offered contributions with civility and respect, even if I
-choose not to accept them.
+Documentation contributions
+---------------------------
+
+Many code contributions require accompanying documentation contributions, and it is possible to
+contribute appropriate documentation by itself if applicable.
+
+Documentation (including comments in code) should be:
+ - Consistent: in terminology, style and tone, with existing documentation and itself.
+ - Clear, unambiguous, and correct.
+ - Written for the audience. Do not use developer-centric terminology/language in end-user
+   documentation.
+ - Grammatically correct, and correctly spelled. Use a checker if you are not comfortable enough
+   with English. Do not invent terms. Do not use unnecessary abbreviations unless they are very
+   commonly used elsewhere. (We have some tolerance for mistakes, but the onus is still on you
+   to make a best effort). 
+ - No shorter, but also no longer, than it needs to be. If discussing other software, keep the
+   discussion restricted to what is necessary for understanding Dinit's interaction or own
+   behaviour.
+ - Link/refer to other information (man pages, documentation) where appropriate. However, be aware
+   of web impermanence: if linking to a web resource that may not be permanent, try (if practical)
+   to replicate the necessary information in documentation, and/or explain what was linked to (so
+   that a reader can perhaps find it even if it has moved).
+
+For comments in code, some additional concerns apply:
+ - To document classes, functions and variables, see notes in CODE-STYLE.
+ - Use comments to explain anything in the code that is not apparent or any aspect that has
+   significance beyond what is apparently just be reading the code. Be specific.
+ - Do not simply state what the code does in code terms.
+
+Examples of good/bad code comments:
+    "Call foo() now" - bad, just saying what is obvious from reading the code.
+    "We need to account for the string terminator" - ok (explanatory), but could be better.
+    "Some OSes require us to call frob() after sniggle()" - could be better (which OSes, why?).
+    "We +1 here to account for the string terminator" - good, explanatory.
+    "Not that since ziggle was set to true above, this call to frobnicate() is guaranteed to return
+     without an error" - good, adds explanatory context.
+
+
+Using code/documentation from elsewhere
+---------------------------------------
+
+In general you should not use code (including comments) or documentation from any other project or
+external source. This is true even for small snippets, and even if you make modifications. It is
+preferable to write new code and documentation from scratch. The only exception is if the code is
+identically licensed or is available under permissive terms that allow it to be distributed under
+the same license as Dinit.
+
+If you do use anything from another project in a contribution, you must make the reviewer
+(maintainer) aware of what you have used, where it is from, and why you believe it is reasonable
+to use it, and why you believe that it does not infringe copyright.
 
 
 Contributor Conduct
@@ -88,3 +153,29 @@ In short: don't be nasty to others; arseholes won't be tolerated.
 
 If you feel that a contributor has behaved inappropriately, please feel free to contact me to
 discuss it; such communication will be kept confidential (unless and until otherwise agreed).
+
+
+New contributors
+----------------
+
+New contributors should introduce themselves briefly when making a contribution. If this applies
+to you, please briefly explain your interest in Dinit, and outline your relevant experience 
+to software development (eg list one or two other projects you have worked on).
+
+Finally, new contributors must acknowledge that they have read and understood this document, by
+including this exact text in the introduction to the pull request (or patch email):
+
+    I have read and understand the CONTRIBUTING guide in full.
+
+Failure to include this will result in the PR being marked as a draft (or equivalent) with an
+explanatory note.
+
+Contributors should feel free to add themselves to the CONTRIBUTORS list as part of the patch/pull
+request.
+
+
+Process for contributing
+------------------------
+
+The preferred way to contribute is via a pull request (PR). See PR-PROCESS for details of the
+expectations on contributors and how the process operates.
