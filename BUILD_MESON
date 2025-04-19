@@ -168,6 +168,11 @@ Custom options:
                              Available values : enabled, disabled, auto
                              Default value : auto
 
+ support-selinux           : Whether to build support for loading the system SELinux policy at boot
+                             (Linux only). See doc/linux/SELinux.md for more information.
+                             Available values : enabled, disabled, auto
+                             Default value : auto
+
 
 Running the test suite
 =-=-=-=-=-=-=-=-=-=-=-
