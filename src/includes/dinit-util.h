@@ -107,11 +107,20 @@ public:
         return (&(*it) - begin());
     }
 
+    char operator[](unsigned index) const noexcept { return s[index]; }
+
     operator std::string() const
     {
         return std::string(s, count);
     }
 };
+
+inline std::string operator+(const std::string &a, const string_view &b)
+{
+    std::string r = a;
+    r.append(b.begin(), b.end());
+    return r;
+}
 
 #if SUPPORT_CAPABILITIES
 // A thin wrapper around the cap_iab_t structure to manage ownership (supports move)
@@ -180,10 +189,21 @@ inline ssize_t complete_read(int fd, void * buf, size_t n)
 
 // Combine two paths to produce a path. If the second path is absolute, it is returned unmodified;
 // otherwise, it is appended to the first path (with a slash separator added if needed).
-inline std::string combine_paths(string_view p1, const char * p2)
+inline std::string combine_paths(string_view p1, const char *p2)
 {
     if (*p2 == 0) return (std::string)p1;
     if (p1.empty()) return std::string(p2);
+
+    if (p2[0] == '/') return p2;
+
+    if (*(p1.rbegin()) == '/') return (std::string)p1 + p2;
+    return (std::string)p1 + '/' + p2;
+}
+
+inline std::string combine_paths(string_view p1, string_view p2)
+{
+    if (p2.empty()) return (std::string)p1;
+    if (p1.empty()) return (std::string)p2;
 
     if (p2[0] == '/') return p2;
 
