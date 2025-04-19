@@ -1890,7 +1890,7 @@ static void find_service_desc(const char *svc_name, const std::vector<std::strin
     while (*at_ptr != '\0' && *at_ptr != '@') ++at_ptr;
 
     for (std::string path : paths) {
-        string test_path = combine_paths(path, string_view(svc_name, at_ptr - svc_name));
+        string test_path = combine_paths(path, ::string_view(svc_name, at_ptr - svc_name));
 
         service_file.open(test_path.c_str(), ios::in);
         if (service_file || errno != ENOENT) {
