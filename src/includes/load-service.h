@@ -110,8 +110,8 @@ class service_load_exc
     std::string service_name;
     std::string exc_description;
 
-    service_load_exc(const std::string &serviceName, std::string &&desc)
-        : service_name(serviceName), exc_description(std::move(desc))
+    service_load_exc(const std::string &service_name_p, std::string &&desc)
+        : service_name(service_name_p), exc_description(std::move(desc))
     {
     }
 
@@ -124,8 +124,8 @@ class service_load_exc
 class service_not_found : public service_load_exc
 {
     public:
-    service_not_found(const std::string &serviceName)
-        : service_load_exc(serviceName, "service description not found.")
+    service_not_found(const std::string &service_name)
+        : service_load_exc(service_name, "service description not found.")
     {
     }
 };
@@ -134,8 +134,8 @@ class service_not_found : public service_load_exc
 class service_load_error : public service_load_exc
 {
     public:
-    service_load_error(const std::string &serviceName, std::string &&path, int fail_errno)
-        : service_load_exc(serviceName, path + ": " + strerror(fail_errno))
+    service_load_error(const std::string &service_name, std::string &&path, int fail_errno)
+        : service_load_exc(service_name, path + ": " + strerror(fail_errno))
     {
     }
 };
@@ -143,8 +143,8 @@ class service_load_error : public service_load_exc
 class service_cyclic_dependency : public service_load_exc
 {
     public:
-    service_cyclic_dependency(const std::string &serviceName)
-        : service_load_exc(serviceName, "has cyclic dependency.")
+    service_cyclic_dependency(const std::string &service_name)
+        : service_load_exc(service_name, "has cyclic dependency.")
     {
     }
 };
@@ -227,21 +227,21 @@ class service_description_exc : public service_load_exc
     {
     }
 
-    service_description_exc(const std::string &serviceName, std::string &&exc_info,
+    service_description_exc(const std::string &service_name, std::string &&exc_info,
             const file_pos_ref &input_pos_p)
-        : service_load_exc(serviceName, std::move(exc_info)), input_pos(input_pos_p)
+        : service_load_exc(service_name, std::move(exc_info)), input_pos(input_pos_p)
     {
     }
 
-    service_description_exc(const std::string &serviceName, std::string &&exc_info,
+    service_description_exc(const std::string &service_name, std::string &&exc_info,
             const char *setting_name)
-        : service_load_exc(serviceName, std::move(exc_info)), setting_name(setting_name)
+        : service_load_exc(service_name, std::move(exc_info)), setting_name(setting_name)
     {
     }
 
-    service_description_exc(const std::string &serviceName, std::string &&exc_info,
+    service_description_exc(const std::string &service_name, std::string &&exc_info,
             const char *setting_name, const file_pos_ref &input_pos_p)
-        : service_load_exc(serviceName, std::move(exc_info)), input_pos(input_pos_p),
+        : service_load_exc(service_name, std::move(exc_info)), input_pos(input_pos_p),
           setting_name(setting_name)
     {
     }
