@@ -718,7 +718,7 @@ inline uid_t parse_uid_param(file_pos_ref input_pos, const std::string &param,
 }
 
 inline gid_t parse_gid_param(file_pos_ref input_pos, const std::string &param,
-        const std::string &service_name, const char *setting_name)
+        ::string_view service_name, const char *setting_name)
 {
     const char * gid_err_msg = "specified group id contains invalid numeric characters or is "
             "outside allowed range.";
@@ -1686,7 +1686,7 @@ template <typename settings_wrapper,
     typename load_service_t,
     typename process_dep_dir_t,
     typename lookup_var_t = decltype(null_resolve_env_var)>
-void process_service_line(settings_wrapper &settings, const char *name, const char *service_arg,
+void process_service_line(settings_wrapper &settings, ::string_view name, const char *service_arg,
         string &line, file_pos_ref input_pos, string &setting, setting_op_t setting_op,
         string::iterator &i, string::iterator &end, load_service_t load_service,
         process_dep_dir_t process_dep_dir, const lookup_var_t &lookup_var = null_resolve_env_var)

@@ -586,9 +586,9 @@ static void process_dep_dir(const char *servicename,
     }
 
     errno = 0;
-    dirent * dent = readdir(depdir);
+    dirent *dent = readdir(depdir);
     while (dent != nullptr) {
-        char * name =  dent->d_name;
+        char *name = dent->d_name;
         if (name[0] != '.') {
             deplist.emplace_back(name, dep_type);
         }
@@ -607,10 +607,20 @@ service_record *load_service(service_set_t &services, const std::string &name,
 {
     using namespace std;
     using namespace dinit_load;
+    using ::string_view;
 
     auto found = services.find(name);
     if (found != services.end()) {
         return found->second;
+    }
+
+    string_view base_name = name;
+
+    string service_arg;
+    auto at_pos = name.find('@');
+    if (at_pos != string::npos) {
+    	service_arg = name.substr(at_pos + 1);
+    	base_name = string_view(name.data(), at_pos);
     }
 
     string service_wdir;
@@ -628,7 +638,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
         if (*(service_filename.rbegin()) != '/') {
             service_filename += '/';
         }
-        service_filename += name;
+        service_filename += base_name;
 
         service_file.open(service_filename.c_str(), ios::in);
         if (service_file) break;
@@ -641,7 +651,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     if (!service_file) {
         if (fail_load_errno == 0) {
-            throw service_not_found(string(name));
+            throw service_not_found(name);
         }
         else {
             throw service_load_error(name, std::move(fail_load_path), fail_load_errno);
@@ -675,7 +685,8 @@ service_record *load_service(service_set_t &services, const std::string &name,
                 [&](string &line, file_pos_ref input_pos, string &setting, setting_op_t op,
                         string_iterator &i, string_iterator &end) -> void {
 
-                    auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist, const std::string &waitsford,
+                    auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist,
+                    		const std::string &waitsford,
                             dependency_type dep_type) -> void {
                         const string &service_filename = input_stack.current_file_name();
                         process_dep_dir(name.c_str(), service_filename, deplist, waitsford, dep_type);
@@ -686,8 +697,9 @@ service_record *load_service(service_set_t &services, const std::string &name,
                     };
 
                     try {
-                        process_service_line(settings, name.c_str(), nullptr, line, input_pos,
-                                setting, op, i, end, load_service_n, process_dep_dir_n, resolve_var);
+                        process_service_line(settings, name.c_str(), service_arg.c_str(), line,
+                        		input_pos, setting, op, i, end, load_service_n, process_dep_dir_n,
+								resolve_var);
                     }
                     catch (service_description_exc &exc) {
                         if (exc.service_name.empty()) {
@@ -696,7 +708,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
                         report_service_description_exc(exc);
                     }
                 },
-                nullptr /* service arg FIXME */, resolve_var);
+                service_arg.c_str(), resolve_var);
     }
     catch (std::system_error &sys_err)
     {
