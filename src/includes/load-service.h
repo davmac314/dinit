@@ -718,7 +718,7 @@ inline uid_t parse_uid_param(file_pos_ref input_pos, const std::string &param,
 }
 
 inline gid_t parse_gid_param(file_pos_ref input_pos, const std::string &param,
-        const char *setting_name, const std::string &service_name)
+        const std::string &service_name, const char *setting_name)
 {
     const char * gid_err_msg = "specified group id contains invalid numeric characters or is "
             "outside allowed range.";
@@ -1832,7 +1832,7 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
         case setting_id_t::SOCKET_GID:
         {
             string sock_gid_s = read_setting_value(input_pos, i, end, nullptr);
-            settings.socket_gid = parse_gid_param(input_pos, sock_gid_s, "socket-gid", name);
+            settings.socket_gid = parse_gid_param(input_pos, sock_gid_s, name, "socket-gid");
             break;
         }
         case setting_id_t::STOP_COMMAND:
