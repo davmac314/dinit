@@ -1798,8 +1798,8 @@ void process_service_line(settings_wrapper &settings, const char *name, const ch
                 settings.ioprio = 3 << 13;
             }
             else {
-                    throw service_description_exc(name, "invalid value for ioprio: " + ioprio_str,
-                            name, input_pos);
+                throw service_description_exc(name, "invalid value for ioprio: " + ioprio_str,
+                        "ioprio", input_pos);
             }
             break;
         }
