@@ -966,9 +966,10 @@ inline string read_include_path(string const &svcname, string const &meta_cmd, f
         string_iterator &i, string_iterator end, const char *argval, const resolve_var_t &resolve_var);
 
 // Process an opened service file, line by line.
-//    name - the service name
-//    service_input - the service file input stream (stack)
-//    process_line_func - a function to process settings, of the form:
+// Parameters:
+//   name - the service name
+//   service_input - the service file input stream (stack)
+//   process_line_func - a function to process settings, of the form:
 //             void(string &line, file_pos_ref position, string &setting, string_iterator i,
 //                     string_iterator end)
 //           Called with:
@@ -978,8 +979,12 @@ inline string read_include_path(string const &svcname, string const &meta_cmd, f
 //               op - the operation (setting_op_t)
 //               i - iterator at the beginning of the setting value
 //               end - iterator marking the end of the line
-//
-// May throw service load exceptions or I/O exceptions if enabled on stream.
+//   argval - the service argument, or nullptr if none
+//   resolve_var - a functor to resolve variable values.
+//       Accepts: const std::string & - the variable name.
+//       Returns char * - the resolved value.
+// Throws:
+//   service load exceptions or I/O exceptions if enabled on stream.
 template <typename T, typename resolve_var_t>
 void process_service_file(string name, file_input_stack &service_input, T process_line_func,
         const char *argval, const resolve_var_t &resolve_var)
@@ -1121,10 +1126,20 @@ inline const char *null_resolve_env_var(const string &name)
 // the location of separate arguments after word splitting and are adjusted appropriately.
 // If you simply wish to substitute all variables in the given string, pass an offsets list
 // containing one pair with the string's bounds (0, size). '$$' resolves to a single '$'.
-//
-// throws: service_description_exc if a $-substitution is ill-formed
-//         std::length_error if string length limit exceeded or command line is too long
-//         std::bad_alloc on allocation failure
+// Parameters:
+//   setting_name - the name of the setting from which the value comes (used for errors)
+//   line (by ref.) - the complete setting value line (on call), with variable references
+//                    replaced on return.
+//   offsets (by ref.) - the position as [start,end) for each token in the line (must be
+//                    valid on call, is updated on return).
+//   var_resolve - a functor to resolve variable values.
+//       Accepts: const std::string & - the variable name.
+//       Returns char * - the resolved value.
+//   argval - the service argument value, if any (nullptr if none).
+// Throws:
+//   service_description_exc - if a $-substitution is ill-formed
+//   std::length_error - if string length limit exceeded or command line is too long
+//   std::bad_alloc - on allocation failure
 template <typename T>
 static void value_var_subst(const char *setting_name, std::string &line,
         std::list<std::pair<unsigned,unsigned>> &offsets, const T &var_resolve, const char *argval)
