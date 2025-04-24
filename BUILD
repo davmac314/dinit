@@ -2,7 +2,7 @@ Building Dinit
 =-=-=-=-=-=-=-
 
 Building Dinit should be a straight-forward process. It requires GNU make and a C++11 compiler
-(GCC version 4.9 and later, or Clang ~5.0 and later, should be fine), as well as a handful of
+(GCC version 11 and later, or Clang ~7.0 and later, should be fine), as well as a handful of
 utilities that should be available on any POSIX-compliant system; in particular, the "m4"
 processor is required for the manual pages.
 
