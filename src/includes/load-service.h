@@ -1758,8 +1758,8 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                 settings.secbits.clear();
             }
             for (auto indexpair : indices) {
-                string secbit_txt = onstart_cmds.substr(indexpair.first,
-                        indexpair.second - indexpair.first);
+                ::string_view secbit_txt { onstart_cmds.data() + indexpair.first,
+                        indexpair.second - indexpair.first };
                 if (secbit_txt == "keep-caps") {
                     settings.secbits.keep_caps = true;
                 }
@@ -1779,7 +1779,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                     settings.secbits.noroot_locked = true;
                 }
                 else {
-                    throw service_description_exc(name, "unknown secure bit: " + secbit_txt,
+                    throw service_description_exc(name, "unknown securebits flag: " + secbit_txt,
                             "secure-bits", input_pos);
                 }
             }
@@ -2043,8 +2043,8 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             std::list<std::pair<unsigned,unsigned>> indices;
             string onstart_cmds = read_setting_value(input_pos, i, end, &indices);
             for (auto indexpair : indices) {
-                string option_txt = onstart_cmds.substr(indexpair.first,
-                        indexpair.second - indexpair.first);
+                ::string_view option_txt { onstart_cmds.data() + indexpair.first,
+                        indexpair.second - indexpair.first };
                 if (option_txt == "starts-rwfs") {
                     settings.onstart_flags.rw_ready = true;
                 }
@@ -2104,8 +2104,8 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             std::list<std::pair<unsigned,unsigned>> indices;
             string load_opts = read_setting_value(input_pos, i, end, &indices);
             for (auto indexpair : indices) {
-                string option_txt = load_opts.substr(indexpair.first,
-                        indexpair.second - indexpair.first);
+                ::string_view option_txt { load_opts.data() + indexpair.first,
+                        indexpair.second - indexpair.first };
                 if (option_txt == "export-passwd-vars") {
                     settings.export_passwd_vars = true;
                 }
