@@ -74,12 +74,18 @@ public:
 
     bool operator==(const char *other) const noexcept
     {
-        if (strncmp(s, other, count) == 0) {
-            if (other[count] == '\0') {
-                return true;
+        // Note: we can't use strncmp, it might deduce equal strings if other is shorter and our
+        // string contains a nul character.
+        const char *sp = s;
+        const char *op = other;
+        while (*op != '\0') {
+            if (*op != *sp) {
+                return false;
             }
+            ++op; ++sp;
         }
-        return false;
+
+        return ((size_t)(op - other) == count);
     }
 
     const char *data() const noexcept { return s; }
