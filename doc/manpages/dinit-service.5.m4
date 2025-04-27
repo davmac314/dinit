@@ -595,35 +595,35 @@ For example, to allow a process to bind to privileged TCP/IP ports, use \fB^CAP_
 .IP
 This setting is only available if \fBdinit\fR was built with capabilities support.
 .TP
-\fBsecure\-bits\fR = \fIsecbits\fR
+\fBsecure\-bits\fR = \fIsecurebits\fR
 .TQ
-\fBsecure\-bits\fR += \fIsecbits-addendum\fR
-This is a companion option to \fBcapabilities\fR, specifying the secure bits for the
-process.
-Here, it is a space-separated list of keywords. The allowed keywords are \fIkeep-caps\fR,
-\fIno-setuid-fixup\fR, \fInoroot\fR, and variants of the three with the \fI-locked\fR
-suffix.
-The append form can be used to add more secure bits, with everything being ORed together
-at the end and used as an integer.
+\fBsecure\-bits\fR += \fIsecurebits-addendum\fR
+This is a companion option to \fBcapabilities\fR, specifying the `securebits' flags
+(see \fBcapabilities\fR(7)) for the service process(es).
+It is specified as a list of flags separated by white space.
+The allowed flags are \fBkeep\-caps\fR,
+\fBno\-setuid\-fixup\fR, \fBnoroot\fR, and each of these with \fB\-locked\fR appended.
+The `+=' operator used with this setting can be used to add additional securebits on top of those
+specified previously.
 .IP
 This setting is only available if \fBdinit\fR was built with capabilities support.
 .TP
 \fBioprio\fR = \fIioprio-value\fR
-Specifies the I/O priority class and value for the process.
-The permitted values are \fInone\fR, \fIidle\fR, \fIrealtime:PRIO\fR, and
-\fIbest-effort:PRIO\fR, where \fIPRIO\fR is an integer value no less than 0
+Specifies the I/O priority class and value for the service's process(es).
+The permitted values are \fBnone\fR, \fBidle\fR, \fBrealtime:\fR\fIPRIO\fR, and
+\fBbest\-effort:\fR\fIPRIO\fR, where \fIPRIO\fR is an integer value no less than 0
 and no more than 7.
 .IP
 This setting is only available if \fBdinit\fR was built with ioprio support.
 .TP
 \fBoom-score-adj\fR = \fIadj-value\fR
-Specifies the OOM killer score adjustment for the service.
+Specifies the OOM killer score adjustment for the service's process(es).
 The value is an integer no less than -1000 and no more than 1000.
 .IP
 This setting is only available if \fBdinit\fR was built with OOM score adjustment support.
 .IP
-This setting requires the proc filesystem to be mounted, and will result in a
-service startup failure if that is not the case.
+This setting requires the `proc' filesystem to be mounted (at \fB/proc\fR) before the service
+process begins execution, and will result in a service startup failure if that is not the case.
 .\"
 .SS OPTIONS
 .\"
