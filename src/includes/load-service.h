@@ -63,11 +63,11 @@ struct service_flags_t
 
 #if SUPPORT_CAPABILITIES
 // A thin wrapper around a "securebits" flags value.
-struct secure_bits_t
+struct securebits_t
 {
     unsigned long value = 0;
 
-    secure_bits_t() noexcept = default;
+    securebits_t() noexcept = default;
 
     void set(unsigned long bits)
     {
@@ -1448,7 +1448,7 @@ class service_settings_wrapper
 
     #if SUPPORT_CAPABILITIES
     cap_iab_wrapper capabilities;
-    secure_bits_t secbits;
+    securebits_t secbits;
     #endif
 
     #if SUPPORT_IOPRIO
