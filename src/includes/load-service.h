@@ -269,7 +269,7 @@ enum class setting_id_t {
 #endif
 #if SUPPORT_CAPABILITIES
     CAPABILITIES,
-    SECURE_BITS,
+    SECUREBITS,
 #endif
 #if SUPPORT_IOPRIO
     IOPRIO,
@@ -1521,7 +1521,7 @@ class service_settings_wrapper
                 report_lint("'capabilities' specified, but ignored for the specified (or default) service type.");
             }
             if (secbits.get()) {
-                report_lint("'secure-bits' specified, but ignored for the specified (or default) service type.");
+                report_lint("'securebits' specified, but ignored for the specified (or default) service type.");
             }
             #endif
             if (run_as_uid != (uid_t)-1) {
@@ -1746,7 +1746,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             settings.capabilities = std::move(cap_iab);
             break;
         }
-        case setting_id_t::SECURE_BITS:
+        case setting_id_t::SECUREBITS:
         {
             std::list<std::pair<unsigned,unsigned>> indices;
             string onstart_cmds = read_setting_value(input_pos, i, end, &indices);
@@ -1777,7 +1777,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                 }
                 else {
                     throw service_description_exc(name, "unknown securebits flag: " + secbit_txt,
-                            "secure-bits", input_pos);
+                            "securebits", input_pos);
                 }
             }
             break;

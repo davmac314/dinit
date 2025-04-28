@@ -595,16 +595,16 @@ For example, to allow a process to bind to privileged TCP/IP ports, use \fB^CAP_
 .IP
 This setting is only available if \fBdinit\fR was built with capabilities support.
 .TP
-\fBsecure\-bits\fR = \fIsecurebits\fR
+\fBsecurebits\fR = \fIsecurebits-flags\fR
 .TQ
-\fBsecure\-bits\fR += \fIsecurebits-addendum\fR
+\fBsecure\-bits\fR += \fIsecurebits-flags-addendum\fR
 This is a companion option to \fBcapabilities\fR, specifying the `securebits' flags
 (see \fBcapabilities\fR(7)) for the service process(es).
-It is specified as a list of flags separated by white space.
+It is specified as a list of flag names separated by white space.
 The allowed flags are \fBkeep\-caps\fR,
 \fBno\-setuid\-fixup\fR, \fBnoroot\fR, and each of these with \fB\-locked\fR appended.
-The `+=' operator used with this setting can be used to add additional securebits on top of those
-specified previously.
+The `+=' operator used with this setting can be used to add additional securebits flags on top of
+those specified previously.
 .IP
 This setting is only available if \fBdinit\fR was built with capabilities support.
 .TP

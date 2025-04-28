@@ -65,7 +65,7 @@ setting_details all_settings[] = {
 
 #if SUPPORT_CAPABILITIES
         {"capabilities",            setting_id_t::CAPABILITIES,             false,  true,    true},
-        {"secure-bits",             setting_id_t::SECURE_BITS,              false,  true,    true},
+        {"securebits",              setting_id_t::SECUREBITS,              false,  true,    true},
 #endif
 
 #if SUPPORT_IOPRIO
