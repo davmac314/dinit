@@ -27,6 +27,7 @@
 
 #if SUPPORT_CAPABILITIES
 #include <sys/capability.h>
+#include <linux/securebits.h>
 #endif
 
 #if SUPPORT_IOPRIO
@@ -61,37 +62,26 @@ struct service_flags_t
 };
 
 #if SUPPORT_CAPABILITIES
+// A thin wrapper around a "securebits" flags value.
 struct secure_bits_t
 {
-    bool keep_caps : 1;
-    bool keep_caps_locked : 1;
-    bool no_setuid_fixup : 1;
-    bool no_setuid_fixup_locked : 1;
-    bool noroot : 1;
-    bool noroot_locked : 1;
+    unsigned long value = 0;
 
-    secure_bits_t() noexcept : keep_caps(false), keep_caps_locked(false),
-            no_setuid_fixup(false), no_setuid_fixup_locked(false),
-            noroot(false), noroot_locked(false)
+    secure_bits_t() noexcept = default;
+
+    void set(unsigned long bits)
     {
+        value |= bits;
     }
 
-    void clear() noexcept {
-        keep_caps = keep_caps_locked = false;
-        no_setuid_fixup = no_setuid_fixup_locked = false;
-        noroot = noroot_locked = false;
+    void clear() noexcept
+    {
+        value = 0;
     }
 
-    unsigned int get() const noexcept {
-        unsigned int r = 0;
-        // as referenced in uapi
-        if (noroot) r |= 1 << 0;
-        if (noroot_locked) r |= 1 << 1;
-        if (no_setuid_fixup) r |= 1 << 2;
-        if (no_setuid_fixup_locked) r |= 1 << 3;
-        if (keep_caps) r |= 1 << 4;
-        if (keep_caps_locked) r |= 1 << 5;
-        return r;
+    unsigned long get() const noexcept
+    {
+        return value;
     }
 };
 #endif
@@ -1768,22 +1758,22 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                 ::string_view secbit_txt { onstart_cmds.data() + indexpair.first,
                         indexpair.second - indexpair.first };
                 if (secbit_txt == "keep-caps") {
-                    settings.secbits.keep_caps = true;
+                    settings.secbits.set(SECBIT_KEEP_CAPS);
                 }
                 else if (secbit_txt == "keep-caps-locked") {
-                    settings.secbits.keep_caps_locked = true;
+                    settings.secbits.set(SECBIT_KEEP_CAPS_LOCKED);
                 }
                 else if (secbit_txt == "no-setuid-fixup") {
-                    settings.secbits.no_setuid_fixup = true;
+                    settings.secbits.set(SECBIT_NO_SETUID_FIXUP);
                 }
                 else if (secbit_txt == "no-setuid-fixup-locked") {
-                    settings.secbits.no_setuid_fixup_locked = true;
+                    settings.secbits.set(SECBIT_NO_SETUID_FIXUP_LOCKED);
                 }
                 else if (secbit_txt == "noroot") {
-                    settings.secbits.noroot = true;
+                    settings.secbits.set(SECBIT_NOROOT);
                 }
                 else if (secbit_txt == "noroot-locked") {
-                    settings.secbits.noroot_locked = true;
+                    settings.secbits.set(SECBIT_NOROOT_LOCKED);
                 }
                 else {
                     throw service_description_exc(name, "unknown securebits flag: " + secbit_txt,
