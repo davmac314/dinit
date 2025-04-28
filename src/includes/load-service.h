@@ -29,6 +29,10 @@
 #include <sys/capability.h>
 #endif
 
+#if SUPPORT_IOPRIO
+#include <linux/ioprio.h>
+#endif
+
 struct service_flags_t
 {
     // on-start flags:
@@ -1458,6 +1462,9 @@ class service_settings_wrapper
     #endif
 
     #if SUPPORT_IOPRIO
+    // The ioprio value, as passed to ioprio_set(...). An ioprio of -1 is invalid (it is returned
+    // by ioprio_get() to indicate an error). A value of 0 specifies the default behaviour (I/O
+    // priority determined by CPU "nice" value).
     int ioprio = -1;
     #endif
 
@@ -1803,14 +1810,15 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             }
             else if (starts_with(ioprio_str, "realtime:")) {
                 auto nval = parse_unum_param(input_pos, ioprio_str.substr(9 /* len 'realtime:' */), name, 7);
-                settings.ioprio = (1 << 13) | nval;
+                settings.ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_RT, nval);
             }
             else if (starts_with(ioprio_str, "best-effort:")) {
                 auto nval = parse_unum_param(input_pos, ioprio_str.substr(12 /* len 'best-effort:' */), name, 7);
-                settings.ioprio = (2 << 13) | nval;
+                settings.ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, nval);
             }
             else if (ioprio_str == "idle") {
                 settings.ioprio = 3 << 13;
+                settings.ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
             }
             else {
                 throw service_description_exc(name, "invalid value for ioprio: " + ioprio_str,
