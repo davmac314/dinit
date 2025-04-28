@@ -7,7 +7,6 @@
 #include <sys/ioctl.h>
 #include <sys/un.h>
 #include <sys/socket.h>
-#include <sys/syscall.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
@@ -24,6 +23,10 @@
 #if SUPPORT_CGROUPS
 extern std::string cgroups_path;
 extern bool have_cgroups_path;
+#endif
+
+#if SUPPORT_IOPRIO
+#include <sys/syscall.h>
 #endif
 
 #if USE_INITGROUPS
