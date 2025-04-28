@@ -38,7 +38,7 @@ struct run_proc_params
     #endif
     #if SUPPORT_CAPABILITIES
     cap_iab_t cap_iab;
-    unsigned int secbits = 0;
+    unsigned long secbits = 0;
     bool no_new_privs = false;
     #endif
     bool on_console;          // whether to run on console
@@ -221,7 +221,7 @@ class base_process_service : public service_record
 
 #if SUPPORT_CAPABILITIES
     cap_iab_wrapper cap_iab;
-    unsigned int secbits = 0;
+    unsigned long secbits = 0;
     bool no_new_privs = false;
 #endif
 
