@@ -359,7 +359,7 @@ if [ "$PLATFORM" = "Linux" ]; then
     : "${BUILD_SHUTDOWN:="yes"}"
     : "${SUPPORT_CGROUPS:="1"}"
     : "${SUPPORT_CAPABILITIES:="AUTO"}"
-    : "${SUPPORT_IOPRIO:="1"}"
+    : "${SUPPORT_IOPRIO:="0"}"    # the required header <linux/ioprio.h> may not be available
     : "${SUPPORT_OOM_ADJ:="1"}"
     : "${SYSCONTROLSOCKET:="/run/dinitctl"}"
 else

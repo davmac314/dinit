@@ -73,7 +73,7 @@ mconfig_data.set('DEFAULT_STOP_TIMEOUT', default_stop_timeout)
 mconfig_data.set10('USE_INITGROUPS', use_initgroups)
 mconfig_data.set10('SUPPORT_CGROUPS', support_cgroups.auto() and platform == 'linux' or support_cgroups.enabled())
 mconfig_data.set10('SUPPORT_CAPABILITIES', libcap_dep.found() and not support_capabilities.disabled())
-mconfig_data.set10('SUPPORT_IOPRIO', support_ioprio.auto() and platform == 'linux' or support_ioprio.enabled())
+mconfig_data.set10('SUPPORT_IOPRIO', support_ioprio.enabled())
 mconfig_data.set10('SUPPORT_OOM_ADJ', support_oom_adj.auto() and platform == 'linux' or support_oom_adj.enabled())
 if use_utmpx.enabled() or (use_utmpx.auto() and compiler.has_header_symbol('utmpx.h', '_PATH_UTMPX') and
         compiler.has_header_symbol('utmpx.h', '_PATH_WTMPX'))
