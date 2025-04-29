@@ -192,7 +192,7 @@ Installation directories:
   --syscontrolsocket=SOCKETPATH Dinitctl socket location [/run/dinitctl] on Linux systems
                                                          [/var/run/dinitctl] on other systems
 
-Optional options:
+Build and configuration options:
   --enable-strip                    Strip debug information in installation process [Enabled]
   --disable-strip                   Don't strip debug information in installation process
   --shutdown-prefix=PREFIX          Name prefix for shutdown, poweroff, reboot, soft-reboot, halt
@@ -206,6 +206,12 @@ Optional options:
   --enable-capabilities             Enable capabilities support
                                     [Enabled on Linux if libcap available]
   --disable-capabilities            Disable capabilities support
+  --enable-ioprio                   Enable support for I/O priority setting (via Linux API)
+                                    [Disabled]
+  --disable-ioprio                  Disable support for I/O priority setting
+  --enable-oom-adj                  Enable support for Linux "OOM" score adjustment
+                                    [Enabled only on Linux] 
+  --disable-oom-adj                 Disable support for Linux "OOM" score adjustment
   --enable-utmpx                    Enable manipulating the utmp/utmpx database via the related
                                     POSIX functions [Depends on system]
   --disable-utmpx                   Disable manipulating the utmp/utmpx database via the related
