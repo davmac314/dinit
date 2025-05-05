@@ -50,7 +50,7 @@ mandir = get_option('mandir')
 
 ## If Meson's default sbindir is modifed; Warn users about it:
 if get_option('sbindir') != 'sbin'
-    warning('It appears that "sbindir" has been set/modified. Dinit\'s build doesn\'t use the "sbindir" option. Please use "dinit-sbindir" option instead!')
+    warning('Use "dinit-sbindir" option instead of "sbindir"! See BUILD_MESON for details.')
 endif
 
 ## Use -lrt?
@@ -71,10 +71,13 @@ mconfig_data.set('DEFAULT_AUTO_RESTART', default_auto_restart)
 mconfig_data.set('DEFAULT_START_TIMEOUT', default_start_timeout)
 mconfig_data.set('DEFAULT_STOP_TIMEOUT', default_stop_timeout)
 mconfig_data.set10('USE_INITGROUPS', use_initgroups)
-mconfig_data.set10('SUPPORT_CGROUPS', support_cgroups.auto() and platform == 'linux' or support_cgroups.enabled())
+mconfig_data.set10('SUPPORT_CGROUPS', support_cgroups.auto() and platform == 'linux' or
+        support_cgroups.enabled())
 mconfig_data.set10('SUPPORT_CAPABILITIES', libcap_dep.found() and not support_capabilities.disabled())
-mconfig_data.set10('SUPPORT_IOPRIO', support_ioprio.auto() and compiler.has_header('linux/ioprio.h') or support_ioprio.enabled())
-mconfig_data.set10('SUPPORT_OOM_ADJ', support_oom_adj.auto() and platform == 'linux' or support_oom_adj.enabled())
+mconfig_data.set10('SUPPORT_IOPRIO', support_ioprio.auto() and compiler.has_header('linux/ioprio.h') or
+        support_ioprio.enabled())
+mconfig_data.set10('SUPPORT_OOM_ADJ', support_oom_adj.auto() and platform == 'linux' or
+        support_oom_adj.enabled())
 if use_utmpx.enabled() or (use_utmpx.auto() and compiler.has_header_symbol('utmpx.h', '_PATH_UTMPX') and
         compiler.has_header_symbol('utmpx.h', '_PATH_WTMPX'))
     mconfig_data.set('USE_UTMPX', '1')
