@@ -7,6 +7,19 @@ with a lot of peculiarities. For the Dinit manpages we try to stick to the subse
 
 Roff formatting guide:
 
+Overall structure:
+
+Documents should start with a .TH header line ("8" is the man section):
+
+   .TH DINIT "8" "October 2022" "Dinit 0.16.1" "Dinit - service management system"
+     
+This should be followed by a NAME section:
+
+   .SH NAME
+   dinit \- supervise processes and manage services
+
+The ".TH" and ".SH" macros are explained (a little) below.
+
 
 Inline formatting ("escapes"):
 
@@ -38,7 +51,8 @@ spaces.
 .TH <title> <section> [<up to three extras>] - title macro. See "structure" notes below.
 .SH <name> - section heading for <name> (name usually capitalised). If name is omitted the
              next line is used.
-.LP - begin a new normal paragraph
+.SS <name> - heading for a subsection (similar to .SH, for one level down in the document structure).
+.LP - begin a new normal paragraph (not required after .SH/.SS, and should be omitted).
 .HP - begin a hanging paragraph (lines after the first are indented)
 .TP - begin an indented paragraph with unindented label (label is on the next line); .TQ can be used
       immediately after the first label, in order to specify additional labels, each appearing on their
@@ -50,15 +64,6 @@ spaces.
 .EX - begin example (monospace font, line ends as they appear in source)
 .EE - end example
 
-Structure:
-Documents should start with a .TH header line ("8" is the man section):
-
-   .TH DINIT "8" "October 2022" "Dinit 0.16.1" "Dinit - service management system"
-     
-This should be followed by a NAME section:
-
-   .SH NAME
-   dinit \- supervise processes and manage services
 
 
 Gotchas:
