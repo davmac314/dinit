@@ -1,60 +1,51 @@
 # Included from top-level meson.build
 
 ## Includes
-for_tests_incdir = include_directories(
-    '../../',
-    'test-includes/',
-    '../includes/',
-    '../../dasynq/include/'
-)
-for_tests_dinit_sources = [
-    '../service.cc', 
-    '../proc-service.cc',
-    '../dinit-log.cc',
-    '../load-service.cc',
-    '../baseproc-service.cc',
-    '../dinit-env.cc',
-    '../control.cc',
-    '../settings.cc'
-]
-for_tests_general_sources = [
+for_tests_incdir = include_directories('test-includes/')
+libtests = static_library(
+    'for_tests_general_objects',
     'test-dinit.cc',
     'test-bpsys.cc',
-    'test-run-child-proc.cc'
-]
+    'test-run-child-proc.cc',
+    '../service.cc',
+    '../proc-service.cc',
+    '../load-service.cc',
+    '../baseproc-service.cc',
+    '../dinit-log.cc',
+    '../control.cc',
+    link_with: libdinit,
+    include_directories: [ for_tests_incdir, default_incdir ],
+    install: false
+)
 
 ## Outputs
 # Unit tests
 tests_exec = executable(
     'tests',
     'tests.cc',
-    for_tests_general_sources,
-    for_tests_dinit_sources,
-    include_directories: for_tests_incdir,
+    link_with: libtests,
+    include_directories: [ for_tests_incdir, default_incdir ],
     dependencies: [libcap_dep]
 )
 proctests_exec = executable(
     'proctests',
     'proctests.cc',
-    for_tests_general_sources,
-    for_tests_dinit_sources,
-    include_directories: for_tests_incdir,
+    link_with: libtests,
+    include_directories: [ for_tests_incdir, default_incdir ],
     dependencies: [libcap_dep]
 )
 loadtests_exec = executable(
     'loadtests',
     'loadtests.cc',
-    for_tests_general_sources,
-    for_tests_dinit_sources,
-    include_directories: for_tests_incdir,
+    link_with: libtests,
+    include_directories: [ for_tests_incdir, default_incdir ],
     dependencies: [libcap_dep]
 )
 envtests_exec = executable(
     'envtests',
     'envtests.cc',
-    for_tests_general_sources,
-    for_tests_dinit_sources, 
-    include_directories: for_tests_incdir,
+    link_with: libtests,
+    include_directories: [ for_tests_incdir, default_incdir ],
     dependencies: [libcap_dep]
 )
 test('tests', tests_exec, suite: 'unit_tests')

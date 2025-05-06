@@ -1,26 +1,39 @@
 # Included from top-level meson.build
 
 ## Includes
-# We include `../`, `./includes/` & `../dasynq/include/` as defualt_incdir
 default_incdir = include_directories(
     '../',
     'includes/',
     '../dasynq/include/'
 )
-dinit_source_files = [
-    'dinit-main.cc',
-    'dinit.cc',
-    'load-service.cc',
-    'service.cc',
-    'proc-service.cc',
-    'baseproc-service.cc',
-    'control.cc',
-    'dinit-log.cc',
-    'run-child-proc.cc',
+libdinit = static_library(
+    'shared_dinit_objects',
     'options-processing.cc',
     'dinit-env.cc',
-    'settings.cc'
-]
+    'settings.cc',
+    include_directories: default_incdir,
+    install: false
+)
+
+## src/'s defines for tests/ and fuzzer
+if unit_tests or fuzzer
+    for_tests_incdir = include_directories('tests/test-includes/')
+    libtests = static_library(
+        'for_tests_general_objects',
+        'tests/test-dinit.cc',
+        'tests/test-bpsys.cc',
+        'tests/test-run-child-proc.cc',
+        'service.cc',
+        'proc-service.cc',
+        'load-service.cc',
+        'baseproc-service.cc',
+        'dinit-log.cc',
+        'control.cc',
+        link_with: libdinit,
+        include_directories: [ for_tests_incdir, default_incdir ],
+        install: false
+    )
+endif
 
 ## src/'s Defines
 shutdown_built = false
@@ -28,6 +41,7 @@ misc_args = {
     'include_directories': default_incdir,
     'install': true,
     'install_dir': sbindir,
+    'link_with': libdinit,
     'dependencies': [libcap_dep]
 }
 
@@ -40,21 +54,25 @@ endif
 # Standard apps: dinit, dinitctl, dinitcheck, dinit-monitor
 executable(
     'dinit',
-    dinit_source_files,
+    'dinit-main.cc',
+    'dinit.cc',
+    'run-child-proc.cc',
+    'service.cc',
+    'proc-service.cc',
+    'load-service.cc',
+    'baseproc-service.cc',
+    'dinit-log.cc',
+    'control.cc',
     kwargs: misc_args
 )
 executable(
     'dinitctl',
     'dinitctl.cc',
-    'options-processing.cc',
-    'settings.cc',
     kwargs: misc_args
 )
 executable(
     'dinitcheck',
     'dinitcheck.cc',
-    'options-processing.cc',
-    'settings.cc',
     kwargs: misc_args
 )
 executable(
