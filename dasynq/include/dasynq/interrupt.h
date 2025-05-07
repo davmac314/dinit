@@ -4,7 +4,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#ifdef DASYNQ_HAVE_EVENTFD
+#include <system_error>
+#include <tuple>
+
+#if DASYNQ_HAVE_EVENTFD
 #include <sys/eventfd.h>
 #endif
 
@@ -24,7 +27,7 @@ template <typename Base, typename Mutex = typename Base::mutex_t> class interrup
 template <typename Base> class interrupt_channel<Base, null_mutex> : public Base
 {
     public:
-    void interrupt_wait()
+    void interrupt_wait() noexcept
     {
 
     }
@@ -33,7 +36,7 @@ template <typename Base> class interrupt_channel<Base, null_mutex> : public Base
 template <typename Base, typename Mutex> class interrupt_channel : public Base
 {
 #if !DASYNQ_HAVE_EVENTFD
-    static inline int create_pipe(int filedes[2])
+    static inline int create_pipe(int filedes[2]) noexcept
     {
         return pipe2(filedes, O_CLOEXEC | O_NONBLOCK);
     }
@@ -63,6 +66,9 @@ template <typename Base, typename Mutex> class interrupt_channel : public Base
         pipe_w_fd = pipedes[1];
 #else
         pipe_r_fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+        if (pipe_r_fd == -1) {
+            throw std::system_error(errno, std::system_category());
+        }
 #endif
 
         try {
@@ -106,7 +112,7 @@ template <typename Base, typename Mutex> class interrupt_channel : public Base
         }
     }
 
-    void interrupt_wait()
+    void interrupt_wait() noexcept
     {
 #if !DASYNQ_HAVE_EVENTFD
         char buf[1] = { 0 };
