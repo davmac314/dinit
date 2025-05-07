@@ -53,7 +53,7 @@
 // ---------------------------------------------------------------------------------------------------------
 
 #if !defined(DASYNQ_HAVE_KQUEUE)
-#if defined(__OpenBSD__) || defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__OpenBSD__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
 #define DASYNQ_HAVE_KQUEUE 1
 #endif
 #endif

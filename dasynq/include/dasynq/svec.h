@@ -93,8 +93,13 @@ private:
     bool change_capacity(size_type c)
             noexcept(std::is_nothrow_move_constructible<T>::value || std::is_nothrow_copy_constructible<T>::value)
     {
+        _Pragma ("GCC diagnostic push")
+        _Pragma ("GCC diagnostic ignored \"-Walloc-size-larger-than=\"")
+
         T *new_storage = (T *)(new (std::nothrow) char[c * sizeof(T)]);
         if (new_storage == nullptr) return false;
+
+        _Pragma ("GCC diagnostic pop")
 
         // To transfer, we prefer move unless it is throwing and copy exists
         svec_helper::move_helper<T>::move(array, new_storage, size_v);
@@ -223,9 +228,8 @@ public:
         return std::numeric_limits<size_type>::max() / sizeof(T);
 
         // if we were to support allocators:
-        //size_t max = std::allocator_traits<std::allocator<char>>::max_size(std::allocator<T>());
-        //return max / sizeof(T);
-        //  (but not / sizeof(T) for C++17 apparently)
+        //size_t max = std::allocator_traits<std::allocator<T>>::max_size(std::allocator<T>());
+        //return max;
     }
 
     void reserve(size_t amount)
