@@ -258,6 +258,8 @@ Build and configuration options:
   --disable-cgroups                 Disable Cgroups support
   --enable-capabilities             Enable capabilities support
                                     [Enabled on Linux if libcap available]
+  --enable-capabilties=pkgconfig    Enable capabilities support after checking libcap availablity
+                                    with pkgconfig
   --disable-capabilities            Disable capabilities support
   --enable-ioprio                   Enable support for I/O priority setting (via Linux API)
                                     [Disabled]
@@ -372,6 +374,7 @@ for arg in "$@"; do
         --enable-cgroups|--enable-cgroups=yes) SUPPORT_CGROUPS=1 ;;
         --disable-cgroups|--enable-cgroups=no) SUPPORT_CGROUPS=0 ;;
         --enable-capabilities|--enable-capabilities=yes) SUPPORT_CAPABILITIES=1 ;;
+        --enable-capabilities=pkgconfig) SUPPORT_CAPABILITIES=pkgconfig ;;
         --disable-capabilities|--enable-capabilities=no) SUPPORT_CAPABILITIES=0 ;;
         --enable-ioprio|--enable-ioprio=yes) SUPPORT_IOPRIO=1 ;;
         --disable-ioprio|--enable-ioprio=no) SUPPORT_IOPRIO=0 ;;
@@ -538,7 +541,9 @@ fi
 if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$PLATFORM" = FreeBSD ]; then
     try_ld_argument LDFLAGS_BASE -lrt
 fi
-if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
+if [ "$SUPPORT_CAPABILITIES" = "pkgconfig" ]; then
+    try_optional_pkgconfig_dependency SUPPORT_CAPABILITIES LDFLAGS_LIBCAP CXXFLAGS libcap
+elif [ "$SUPPORT_CAPABILITIES" != 0 ]; then
     if [ "$AUTO_LDFLAGS_LIBCAP" = true ]; then
         try_ld_argument LDFLAGS_LIBCAP -lcap
         if [ "$SUPPORT_CAPABILITIES" = AUTO ]; then
