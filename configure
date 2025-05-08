@@ -166,6 +166,60 @@ try_both_argument()
     fi
 }
 
+# Query from pkg-config if the specified library could be found.
+# Note: this function will return failure if the library is missing (use try_optional_pkgconfig_dependency
+# instead, to avoid erroring out).
+#   $1 - the name of the variable to passing library compiler flags
+#   $2 - the name of the variable to passing library linking flags
+#   $3 - the name of the library
+#   $4 (optional) - the minimum required version based on pkg-config syntax for version checking.
+try_pkgconfig_dependency()
+{
+    info Checking through pkg-config whether the "$3" could be found...
+
+    if ! type "$PKG_CONFIG" > /dev/null 2>&1; then
+        sub_info "No. Cannot find $PKG_CONFIG for library query."
+        return 1
+    fi
+
+    if ! "$PKG_CONFIG" --exists "$3"; then
+        sub_info "No."
+        return 1
+    fi
+
+    PKGCONFIG_LIBRARY_VERSION=$("$PKG_CONFIG" --modversion "$3")
+
+    if [ -n "${4:-}" ] && ! "$PKG_CONFIG" --modversion "$3" "$4" >/dev/null 2>&1; then
+        sub_info "No. Incompatible version found: $PKGCONFIG_LIBRARY_VERSION vs $4"
+        return 1
+    fi
+
+    sub_info "Yes. Version: $PKGCONFIG_LIBRARY_VERSION"
+    PKGCONFIG_LIBRARY_CFLAGS=$("$PKG_CONFIG" --cflags "$3" "${4:-}" 2>/dev/null)
+    PKGCONFIG_LIBRARY_LIBS=$("$PKG_CONFIG" --libs "$3" "${4:-}" 2>/dev/null)
+    eval "$1=\"\${$1} \$PKGCONFIG_LIBRARY_CFLAGS\""
+    eval "$1=\${$1# }"
+    eval "$2=\"\${$2} \$PKGCONFIG_LIBRARY_LIBS\""
+    eval "$2=\${$2# }"
+    return 0
+}
+
+# Query from pkg-config if the specified library could be found; same as try_pkgconfig_dependency, but
+# disables a feature instead of returning failure.
+#   $1 - the name of the variable to set to 1 or 0 based on library availability
+#   $2 - the name of the variable to passing library compiler flags
+#   $3 - the name of the variable to passing library linking flags
+#   $4 - the name of the library
+#   $5 (optional) - the minimum required version based on pkg-config syntax for version checking.
+try_optional_pkgconfig_dependency()
+{
+    if try_pkgconfig_dependency "$2" "$3" "$4" "${5:-}"; then
+        eval "$1"=1
+    else
+        eval "$1"=0
+    fi
+}
+
 usage()
 {
     cat << _EOF
@@ -264,6 +318,8 @@ Build variables:
   TEST_LDFLAGS_BASE             Link flags to use when building test executables, in addition to
                                 LTO-releated options.
   
+  PKG_CONFIG                    Absolute path to pkg-config binary. Use this when path doesn't
+                                contain pkg-config binary.
   LDFLAGS_LIBCAP                Additional Link flags to link capabilities support (libcap).
 
 Note: paths specified via --prefix/--exec-prefix/--sbindir/--mandir, and build variable values,
@@ -339,7 +395,7 @@ for arg in "$@"; do
         |LDFLAGS_FOR_BUILD=*|CXXFLAGS=*|CXXFLAGS_EXTRA=*|TEST_CXXFLAGS=*\
         |TEST_CXXFLAGS_EXTRA=*|LDFLAGS=*|LDFLAGS_EXTRA=*|TEST_LDFLAGS=*\
         |TEST_LDFLAGS_EXTRA=*|CPPFLAGS=*|LDFLAGS_BASE=*|TEST_LDFLAGS_BASE=*\
-        |LDFLAGS_LIBCAP=*) eval "${arg%%=*}=\${arg#*=}" ;;
+        |PKG_CONFIG=*|LDFLAGS_LIBCAP=*) eval "${arg%%=*}=\${arg#*=}" ;;
         *=*) warning "Unknown variable: ${arg%%=*}" ;;
         *) warning "Unknown argument: $arg" ;;
     esac
@@ -361,6 +417,7 @@ done
 : "${DEFAULT_START_TIMEOUT:="60"}"
 : "${DEFAULT_STOP_TIMEOUT:="10"}"
 : "${USE_INITGROUPS:="1"}"
+: "${PKG_CONFIG:="pkg-config"}"
 if [ "$PLATFORM" = "Linux" ]; then
     : "${BUILD_SHUTDOWN:="yes"}"
     : "${SUPPORT_CGROUPS:="1"}"
