@@ -167,12 +167,12 @@ try_both_argument()
 }
 
 # Test if the specifced library could be used.
-# NOTE: This function will return failure if library is missing, use try_optional_pkgconfig_dependency()
-# when library is not required.
-# $1 - variable name for passing library linking flags
-# $2 - variable name for passing library compiler flags (include directiories etc.)
-# $3 - library name
-# $4 (Optional) - minimum required version based on pkg-config syntax for version checking.
+# Note: This function will return failure if library is missing, (use try_optional_pkg_dependency
+# instead, to avoid errorring out).
+#   $1 - variable name for passing library linking flags
+#   $2 - variable name for passing library compiler flags (include directiories etc.)
+#   $3 - library name
+#   $4 (Optional) - minimum required version based on pkg-config syntax for version checking.
 try_pkgconfig_dependency()
 {
     info Checking whether the "$3" could be used...
@@ -204,11 +204,11 @@ try_pkgconfig_dependency()
 }
 
 # Test if the specifced library could be used but disable a feature instead of failing out.
-# $1 - variable name for setting 1 or 0 based on library availablity
-# $2 - variable name for passing library linking flags
-# $3 - variable name for passing library compiler flags (include directiories etc.)
-# $4 - library name
-# $5 (Optional) - minimum required version based on pkg-config syntax for version checking.
+#   $1 - variable name for setting 1 or 0 based on library availablity
+#   $2 - variable name for passing library linking flags
+#   $3 - variable name for passing library compiler flags (include directiories etc.)
+#   $4 - library name
+#   $5 (Optional) - minimum required version based on pkg-config syntax for version checking.
 try_optional_pkgconfig_dependency()
 {
     if try_pkgconfig_dependency "$2" "$3" "$4" "${5:-}"; then
@@ -258,6 +258,8 @@ Build and configuration options:
   --disable-cgroups                 Disable Cgroups support
   --enable-capabilities             Enable capabilities support
                                     [Enabled on Linux if libcap available]
+  --enable-capabilties=pkg-config   Enable capabilities support after checking libcap availablity
+                                    with pkg-config
   --disable-capabilities            Disable capabilities support
   --enable-ioprio                   Enable support for I/O priority setting (via Linux API)
                                     [Disabled]
@@ -374,6 +376,7 @@ for arg in "$@"; do
         --enable-cgroups|--enable-cgroups=yes) SUPPORT_CGROUPS=1 ;;
         --disable-cgroups|--enable-cgroups=no) SUPPORT_CGROUPS=0 ;;
         --enable-capabilities|--enable-capabilities=yes) SUPPORT_CAPABILITIES=1 ;;
+        --enable-capabilities=pkg-config) SUPPORT_CAPABILITIES=pkg-config ;;
         --disable-capabilities|--enable-capabilities=no) SUPPORT_CAPABILITIES=0 ;;
         --enable-ioprio|--enable-ioprio=yes) SUPPORT_IOPRIO=1 ;;
         --disable-ioprio|--enable-ioprio=no) SUPPORT_IOPRIO=0 ;;
@@ -541,7 +544,9 @@ fi
 if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$PLATFORM" = FreeBSD ]; then
     try_ld_argument LDFLAGS_BASE -lrt
 fi
-if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
+if [ "$SUPPORT_CAPABILITIES" = "pkg-config" ]; then
+    try_optional_pkgconfig_dependency SUPPORT_CAPABILITIES LDFLAGS_LIBCAP CXXFLAGS libcap
+elif [ "$SUPPORT_CAPABILITIES" != 0 ]; then
     if [ "$AUTO_LDFLAGS_LIBCAP" = true ]; then
         try_ld_argument LDFLAGS_LIBCAP -lcap
         if [ "$SUPPORT_CAPABILITIES" = AUTO ]; then
