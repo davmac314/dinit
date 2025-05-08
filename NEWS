@@ -1,6 +1,23 @@
-== Version ???
+== Version 0.19.4 (beta release #8)
 
-TBA
+This release contains minor bug fixes compared to the previous release. It also adds explicit
+support for NetBSD as a platform.
+
+Thanks to current sponsors: Paweł Zmarzły (pzmarzly), Wesley Moore (wezm),
+M. Herdiansyah (konimex), Coleman McFarland (dontlaugh), q66, saolof, and private sponsors. 
+
+New features:
+ * Added explicit support for NetBSD as a platform at build time, and support shutdown on NetBSD
+   (Emile 'iMil' Heitor). (Note that shutdown is still not built by default except on Linux).
+
+Fixes:
+ * fix for a glitch where dinitctl status would incorrectly show "no error" as the reason for
+   service start failure.
+ * fix for corrupted error message for bad values for certain service settings.
+ * fix building Cgroups support even when SUPPORT_CGROUPS is set to 0 (MahnoKropotkinvich).
+
+As usual, a number of minor fixes and improvements (in addition to those already mentioned) were
+contributed by Mobin Aydinfar.
 
 == Version 0.19.3 (beta release #7)
 
@@ -12,7 +29,7 @@ small number of documentation fixes and improvements also.
 Thanks to current sponsors: Paweł Zmarzły (pzmarzly), Wesley Moore (wezm),
 M. Herdiansyah (konimex), Coleman McFarland (dontlaugh), q66, saolof, and private sponsors. 
 
-== Version 0.19.2
+== Version 0.19.2 (beta release #6)
 
 This beta release contains minor bugfixes compared to the prior release. It does not contain
 various feature changes that be released in version 0.20.0 in due course.

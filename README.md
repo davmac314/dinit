@@ -1,6 +1,6 @@
 # Dinit
 
-v0.19.4pre
+v0.19.4
 
 ---
 ![Dinit logo](doc/dinit-logo.png)
