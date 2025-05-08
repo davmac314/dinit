@@ -318,8 +318,7 @@ Build variables:
   TEST_LDFLAGS_BASE             Link flags to use when building test executables, in addition to
                                 LTO-releated options.
   
-  PKG_CONFIG                    Absolute path to pkg-config binary. Use this when path doesn't
-                                contain pkg-config binary.
+  PKG_CONFIG                    Absolute path to pkg-config binary. Defaults to pkg-config in \$PATH
   LDFLAGS_LIBCAP                Additional Link flags to link capabilities support (libcap).
 
 Note: paths specified via --prefix/--exec-prefix/--sbindir/--mandir, and build variable values,
@@ -544,12 +543,16 @@ if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$PLATFORM" = FreeBSD ]; then
 fi
 if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
     if [ "$AUTO_LDFLAGS_LIBCAP" = true ]; then
-        try_ld_argument LDFLAGS_LIBCAP -lcap
-        if [ "$SUPPORT_CAPABILITIES" = AUTO ]; then
-            if [ -z "$LDFLAGS_LIBCAP" ]; then
-                SUPPORT_CAPABILITIES=0
-            else
-                SUPPORT_CAPABILITIES=1
+        if try_pkgconfig_dependency CXXFLAGS LDFLAGS_LIBCAP libcap; then
+            SUPPORT_CAPABILITIES=1
+        else
+            try_ld_argument LDFLAGS_LIBCAP -lcap
+            if [ "$SUPPORT_CAPABILITIES" = AUTO ]; then
+                if [ -z "$LDFLAGS_LIBCAP" ]; then
+                    SUPPORT_CAPABILITIES=0
+                else
+                    SUPPORT_CAPABILITIES=1
+                fi
             fi
         fi
     else
