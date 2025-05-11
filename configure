@@ -70,16 +70,16 @@ mktmpdir()
     echo "$dirname"    
 }
 
-# Check whether the compiler ($CXX) seems to work
+# Check whether the specified compiler ($1) seems to work
 cxx_works()
 {
     info Checking whether \""$1"\" is a working C++ compiler...
-    if $CXX -o "$configtmpdir"/testfile "$configtmpdir"/testfile.cc; then
+    if "$1" -o "$configtmpdir"/testfile "$configtmpdir"/testfile.cc; then
         rm -f "$configtmpdir"/testfile
         sub_info Yes.
     else
         rm -f "$configtmpdir"/testfile*
-        sub_error It seems like \""$CXX"\" is not working a working C++ compiler. Please specify compiler.
+        sub_error It seems like \""$1"\" is not working a working C++ compiler. Please specify compiler.
     fi
 }
 
