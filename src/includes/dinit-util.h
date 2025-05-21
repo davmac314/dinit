@@ -219,7 +219,16 @@ inline std::string combine_paths(string_view p1, string_view p2)
 }
 
 // Find the parent path of a given path, which should refer to a named file or directory (not . or ..).
-// If the path contains no directory, returns the empty string.
+// If the path contains no directory, returns the empty string. If the path is in the root then return
+// "/". Otherwise return the original path with the trailing basename removed, and all trailing slashes
+// then removed.
+//
+// Examples:   "/a"        ->    "/"
+//             "/a/b/c"    ->    "/a/b"
+//             "foo"       ->    ""
+//             "foo/bar"   ->    "foo"
+//
+// Note: for a path that contains symbolic links, the returned parent path is not the "real path".
 inline string_view parent_path(string_view p)
 {
     auto spos = p.rfind('/');
@@ -227,7 +236,15 @@ inline string_view parent_path(string_view p)
         return string_view {};
     }
 
-    return p.substr(0, spos + 1);
+    // In case there are multiple slashes, remove the duplicates:
+    while (spos > 0 && p[spos - 1] == '/') --spos;
+
+    if (spos == 0) {
+        // special case (parent is root directory)
+        return {p.data(), 1};
+    }
+
+    return p.substr(0, spos);
 }
 
 // Find the base name of a path (the name after the final '/').
