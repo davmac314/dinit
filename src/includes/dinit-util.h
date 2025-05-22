@@ -13,6 +13,7 @@
 #include <cerrno>
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <baseproc-sys.h>
@@ -239,6 +240,133 @@ inline const char *base_name(const char *path) noexcept
         s++;
     }
     return basen;
+}
+
+// Read a symbolic link into a vector<char> (i.e. a string wrapped as a vector).
+// The string will have a terminating nul character.
+// Returns:
+//   A pair of {success, link string}; success is false on failure (errno set).
+//
+// Note: from C++17, this can be changed to return a string instead. Prior to that it is not
+// legal to write to a string via the data pointer.
+inline std::pair<bool, std::vector<char>> readlink_at_str(int dirfd, const char *path) noexcept
+{
+    struct stat sb;
+    if (bp_sys::fstatat(dirfd, path, &sb, AT_SYMLINK_NOFOLLOW) == -1) {
+        return {false, {}};
+    }
+
+    size_t vec_size = sb.st_size + 1; // add oine for nul terminator
+
+    try {
+        std::vector<char> vec_str(vec_size);
+
+        try_read_link:
+
+        ssize_t r = bp_sys::readlinkat(dirfd, path, vec_str.data(), vec_size);
+
+        if (r < 0) {
+            return {false, {}};
+        }
+
+        if ((size_t)r > vec_size) {
+            // Our size estimate was off (link changed?), try again
+            vec_size = r;
+            vec_str.resize(vec_size);
+            goto try_read_link;
+        }
+
+        // shrink, or even expand (append nul) as necessary
+        vec_str.resize(r + 1);
+
+        return {true, std::move(vec_str)};
+    }
+    catch (std::bad_alloc &) {
+        errno = ENOMEM;
+        return {false, {}};
+    }
+}
+
+// Open a file and its (real) parent directory, at the same time. This is guaranteed to work even
+// if the path specifies a symbolic link (in this case, the parent directory is the parent of the
+// destination, not of the link). This function is designed to avoid races that can arise when
+// symlinks are present (eg even if you realpath a symlink, by the time you open that path any of
+// its components may have been replaced with another symlink; we avoid that by resolving symlinks
+// manually and opening the parent directory before the final path component).
+// Returns:
+//   A pair of file descriptors {parent dir fd, file fd}; on failure, {-1, errno}.
+inline std::pair<int,int> open_with_dir(const char *path) noexcept
+{
+    // For a file /x/y/z, if the final component 'z' is a link to /a/b/c, then the real parent
+    // directory is /a/b (not /x/y).
+
+    // This vector is used as backing for the next path if we need to "recurse" (i.e. if we need
+    // to manually follow a symlink).
+    std::vector<char> path_vec;
+    int resolve_fd = AT_FDCWD;
+
+    long link_resolve_times = sysconf(_SC_SYMLOOP_MAX);
+
+    // strip the basename and open as a directory
+    #ifdef O_SEARCH
+        constexpr int dir_search_flag = O_SEARCH;
+    #else
+        // O_SEARCH is not available on Linux
+        constexpr int dir_search_flag = O_PATH;
+    #endif
+
+    begin:
+
+    string_view parent_dir = parent_path(path);
+    const char *base_name_str = base_name(path + parent_dir.length());
+
+    if (parent_dir.length() == 0) {
+        parent_dir = string_view(".");
+    }
+
+    int parent_dir_fd = openat(resolve_fd, std::string(parent_dir).c_str(), dir_search_flag | O_DIRECTORY);
+    if (resolve_fd != AT_FDCWD) bp_sys::close(resolve_fd);
+    if (parent_dir_fd == -1) {
+        return {-1, errno};
+    }
+
+    // open the final file (basename) without following symlinks
+    int file_fd = bp_sys::openat(parent_dir_fd, base_name_str, O_RDONLY | O_NOFOLLOW);
+    if (file_fd == -1) {
+        if (errno == ELOOP) {
+            // It's a symlink
+            if (link_resolve_times == 0) {
+                // We've tried to resolve as many as the system normally would, so give up.
+                bp_sys::close(parent_dir_fd);
+                return {-1, ELOOP};
+            }
+
+            link_resolve_times--;
+
+            // read the next path
+            auto link_path_r = readlink_at_str(parent_dir_fd, base_name_str);
+            if (!link_path_r.first) {
+                // If EINVAL, it's supposedly not a symbolic link. Maybe it changed out from
+                // underneath this. The risk of handling this by looping back and trying as a file
+                // again seems greater than the risk that this will actually happen, so let's not
+                // worry about it, and just error out now:
+                bp_sys::close(parent_dir_fd);
+                return {-1, errno};
+            }
+
+            // Ok, we successfully read the link target:
+            path_vec = std::move(link_path_r.second);
+            path = path_vec.data();
+            resolve_fd = parent_dir_fd;
+            goto begin;
+        }
+
+        // Other errors: bail out
+        bp_sys::close(parent_dir_fd);
+        return {-1, errno};
+    }
+
+    return {parent_dir_fd, file_fd};
 }
 
 // Check if one string starts with another
