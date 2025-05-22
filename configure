@@ -166,6 +166,59 @@ try_both_argument()
     fi
 }
 
+# Test if the specifced library could be used.
+# Note: This function will return failure if library is missing, (use try_optional_pkg_dependency
+# instead, to avoid errorring out).
+#   $1 - variable name for passing library linking flags
+#   $2 - variable name for passing library compiler flags (include directiories etc.)
+#   $3 - library name
+#   $4 (Optional) - minimum required version based on pkg-config syntax for version checking.
+try_pkgconfig_dependency()
+{
+    info Checking whether the "$3" could be used...
+
+    if ! command -v pkg-config > /dev/null 2>&1; then
+        sub_info "Cannot find pkg-config for library query."
+        return 1
+    fi
+
+    if ! pkg-config --exists "$3"; then
+        sub_info "Not Found."
+        return 1;
+    fi
+
+    PKGCONFIG_RESULT_VERSION=$(pkg-config --modversion "$3")
+    if [ -n "$4" ] && [ "$PKGCONFIG_RESULT_VERSION" != "${4:-}" ]; then
+        sub_info "Incompatible version found: $(pkg-config --modversion "$3") vs $4".
+        return 1
+    fi
+
+    sub_info "Found: $PKGCONFIG_RESULT_VERSION"
+    PKGCONFIG_RESULT_LIBS=$(pkg-config --libs "$3" "${4:-}" 2>/dev/null)
+    PKGCONFIG_RESULT_CFLAGS=$(pkg-config --cflags "$3" "${4:-}" 2>/dev/null)
+    eval "$1=\"\${$1} \$PKGCONFIG_RESULT_LIBS\""
+    eval "$1=\${$1# }"
+    eval "$2=\"\${$2} \$PKGCONFIG_RESULT_CFLAGS\""
+    eval "$2=\${$2# }"
+    return 0
+}
+
+# Test if the specifced library could be used but disable a feature instead of failing out.
+#   $1 - variable name for setting 1 or 0 based on library availablity
+#   $2 - variable name for passing library linking flags
+#   $3 - variable name for passing library compiler flags (include directiories etc.)
+#   $4 - library name
+#   $5 (Optional) - minimum required version based on pkg-config syntax for version checking.
+try_optional_pkgconfig_dependency()
+{
+    if try_pkgconfig_dependency "$2" "$3" "$4" "${5:-}"; then
+        eval "$1"=1
+    else
+        sub_info Skipping "$1" feature.
+        eval "$1"=0
+    fi
+}
+
 usage()
 {
     cat << _EOF
@@ -205,6 +258,8 @@ Build and configuration options:
   --disable-cgroups                 Disable Cgroups support
   --enable-capabilities             Enable capabilities support
                                     [Enabled on Linux if libcap available]
+  --enable-capabilties=pkgconfig    Enable capabilities support after checking libcap availablity
+                                    with pkgconfig
   --disable-capabilities            Disable capabilities support
   --enable-ioprio                   Enable support for I/O priority setting (via Linux API)
                                     [Disabled]
@@ -319,6 +374,7 @@ for arg in "$@"; do
         --enable-cgroups|--enable-cgroups=yes) SUPPORT_CGROUPS=1 ;;
         --disable-cgroups|--enable-cgroups=no) SUPPORT_CGROUPS=0 ;;
         --enable-capabilities|--enable-capabilities=yes) SUPPORT_CAPABILITIES=1 ;;
+        --enable-capabilities=pkgconfig) SUPPORT_CAPABILITIES=pkgconfig ;;
         --disable-capabilities|--enable-capabilities=no) SUPPORT_CAPABILITIES=0 ;;
         --enable-ioprio|--enable-ioprio=yes) SUPPORT_IOPRIO=1 ;;
         --disable-ioprio|--enable-ioprio=no) SUPPORT_IOPRIO=0 ;;
@@ -485,7 +541,9 @@ fi
 if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$PLATFORM" = FreeBSD ]; then
     try_ld_argument LDFLAGS_BASE -lrt
 fi
-if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
+if [ "$SUPPORT_CAPABILITIES" = "pkgconfig" ]; then
+    try_optional_pkgconfig_dependency SUPPORT_CAPABILITIES LDFLAGS_LIBCAP CXXFLAGS libcap
+elif [ "$SUPPORT_CAPABILITIES" != 0 ]; then
     if [ "$AUTO_LDFLAGS_LIBCAP" = true ]; then
         try_ld_argument LDFLAGS_LIBCAP -lcap
         if [ "$SUPPORT_CAPABILITIES" = AUTO ]; then
