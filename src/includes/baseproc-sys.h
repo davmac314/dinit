@@ -12,8 +12,9 @@
 
 #include <dasynq.h> // for pipe2
 
-#include <sys/uio.h> // writev
+#include <sys/uio.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -25,7 +26,9 @@ using dasynq::pipe2;
 
 using ::fcntl;
 using ::open;
+using ::openat;
 using ::close;
+using ::fstatat;
 using ::kill;
 using ::getpgid;
 using ::tcsetpgrp;
@@ -34,6 +37,7 @@ using ::read;
 using ::write;
 using ::writev;
 using ::waitid;
+using ::readlinkat;
 using std::getenv;
 
 using ::environ;

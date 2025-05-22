@@ -7,10 +7,12 @@
 #include <cassert>
 #include <csignal>
 
+#include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 // Mock system functions for testing.
 
@@ -64,6 +66,21 @@ inline int fcntl(int fd, int cmd, ...)
 {
     // This is used for setting the CLOEXEC flag, we can just return 0:
     return 0;
+}
+
+inline int fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags)
+{
+    throw std::string("unexpected call to fstatat");
+}
+
+inline int openat(int dirfd, const char *pathname, int flags)
+{
+    throw std::string("unexpected call to openat");
+}
+
+inline ssize_t readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsize)
+{
+    throw std::string("unexpected call to readlinkat");
 }
 
 inline pid_t getpgid(pid_t pid)
