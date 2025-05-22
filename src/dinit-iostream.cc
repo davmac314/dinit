@@ -614,22 +614,22 @@ void istream::clear() noexcept
 getc_result istream::getc_nx() noexcept
 {
     if (!good()) {
-        return getc_result{-1, false};
+        return {0, false};
     }
     if (buf->get_length() == 0) {
         int r = load_into_buf(1);
         if (r == 0) {
             eof_state = true;
-            return getc_result{-1, false};
+            return {false, 0};
         }
         if (r < 0) {
             io_error = errno;
-            return getc_result{-1, false};
+            return {false, 0};
         }
     }
     char result = *buf->get_ptr(0);
     buf->consume(1);
-    return getc_result{result, true};
+    return {true, result};
 }
 
 getc_result istream::getc()
