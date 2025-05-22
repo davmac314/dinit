@@ -95,8 +95,8 @@ using streambuf = cpbuffer<IOSTREAM_BUFSIZE>;
 // A type representing the result of an attempt to read a character (getc[_nx]() functions).
 struct getc_result
 {
-    int character;
     bool success;
+    char character;
 };
 
 // A class to provide basic variables and methods which are shared between ostream and istream.
