@@ -21,7 +21,7 @@ template <typename T> constexpr unsigned type_max_numdigits(T num = std::numeric
     return (num == 0) ? pow : type_max_numdigits(num / 10, pow + 1);
 }
 
-} /* anonymous namespace */
+} // (anonymous namespace)
 
 namespace dio {
 
@@ -740,4 +740,4 @@ istream::~istream() noexcept
     close_nx();
 }
 
-} /* dio namespace */
+} // namespace dio
