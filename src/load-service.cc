@@ -410,6 +410,7 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
         }
         service_filename += name;
 
+        // XXX
         service_file.open(service_filename.c_str(), ios::in);
         if (service_file) break;
 
