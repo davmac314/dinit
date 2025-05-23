@@ -104,10 +104,10 @@ ssize_t ostream::put(const char *msg, size_t count) noexcept
 
 void ostream::throw_exception_on(const int states)
 {
-    if ((states & io_states::buffer_failbit) && buffer_failure()) {
+    if ((states & io_states::buffer_fail_bit) && buffer_failure()) {
         throw std::bad_alloc();
     }
-    if ((states & io_states::io_failbit) && io_failure()) {
+    if ((states & io_states::io_fail_bit) && io_failure()) {
         throw iostream_system_err(io_failure());
     }
 }
@@ -127,7 +127,7 @@ void ostream::open(const char *path)
     bool r = open_nx(path);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::io_failbit);
+        throw_exception_on(io_states::io_fail_bit);
     }
 }
 
@@ -146,7 +146,7 @@ void ostream::open(const char *path, const int flags)
     bool r = open_nx(path, flags);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::io_failbit);
+        throw_exception_on(io_states::io_fail_bit);
     }
 }
 
@@ -165,7 +165,7 @@ void ostream::open(const char *path, const int flags, const mode_t mode)
     bool r = open_nx(path, flags, mode);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::io_failbit);
+        throw_exception_on(io_states::io_fail_bit);
     }
 }
 
@@ -192,15 +192,15 @@ void ostream::close()
     bool r = close_nx();
     if (!r) {
         // Failed close_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
+        throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
     }
 }
 
 int ostream::current_state() noexcept
 {
     int bits = 0;
-    if (!buf) bits |= io_states::buffer_failbit;
-    if (io_error) bits |= io_states::io_failbit;
+    if (!buf) bits |= io_states::buffer_fail_bit;
+    if (io_error) bits |= io_states::io_fail_bit;
     return bits;
 }
 
@@ -262,7 +262,7 @@ void ostream::flush()
     bool r = flush_nx();
     if (!r) {
         // Failed flush_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
+        throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
     }
 }
 
@@ -277,7 +277,7 @@ void ostream::write(const char *msg)
     bool r = write_nx(msg);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
+        throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
     }
 }
 
@@ -291,7 +291,7 @@ void ostream::write(char msg)
     bool r = write_nx(msg);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
+        throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
     }
 }
 
@@ -305,7 +305,7 @@ void ostream::write(const std::string &msg)
     bool r = write_nx(msg);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
+        throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
     }
 }
 
@@ -323,7 +323,7 @@ void ostream::write(const int num)
     bool r = write_nx(num);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
+        throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
     }
 }
 
@@ -340,7 +340,7 @@ void ostream::write(const unsigned num)
     bool r = write_nx(num);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
+        throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
     }
 }
 
@@ -358,7 +358,7 @@ void ostream::write(const long num)
     bool r = write_nx(num);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
+        throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
     }
 }
 
@@ -375,7 +375,7 @@ void ostream::write(const unsigned long num)
     bool r = write_nx(num);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
+        throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
     }
 }
 
@@ -391,7 +391,7 @@ void ostream::write(const endline &)
     bool r = write_nx(endl);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
+        throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
     }
 }
 
@@ -415,7 +415,7 @@ ssize_t ostream::write_buf(const char *msg, size_t len)
     ssize_t r = write_buf_nx(msg, len);
     if (r < 0) {
         // Failed write_buf_nx leaves an error state bit set, so this will always throw:
-        throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
+        throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
     }
     return r;
 }
@@ -430,7 +430,7 @@ ssize_t ostream::write_buf(const std::string &msg)
     ssize_t r = write_buf_nx(msg);
     if (r < 0) {
         // Failed write_buf_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
+        throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
     }
     return r;
 }
@@ -460,16 +460,16 @@ int istream::load_into_buf(unsigned len) noexcept
 
 void istream::throw_exception_on(const int states)
 {
-    if ((states & io_states::eofbit) && eof()) {
+    if ((states & io_states::eof_bit) && eof()) {
         throw iostream_eof();
     }
-    if ((states & io_states::buffer_failbit) && buffer_failure()) {
+    if ((states & io_states::buffer_fail_bit) && buffer_failure()) {
         throw std::bad_alloc();
     }
-    if ((states & io_states::string_failbit) && string_failure()) {
+    if ((states & io_states::input_fail_bit) && string_failure()) {
         throw std::bad_alloc();
     }
-    if ((states & io_states::io_failbit) && io_failure()) {
+    if ((states & io_states::io_fail_bit) && io_failure()) {
         throw iostream_system_err(io_failure());
     }
 }
@@ -489,7 +489,7 @@ void istream::open(const char *path)
     bool r = open_nx(path);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::io_failbit);
+        throw_exception_on(io_states::io_fail_bit);
     }
 }
 
@@ -508,7 +508,7 @@ void istream::open(const char *path, const int flags)
     bool r = open_nx(path, flags);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::io_failbit);
+        throw_exception_on(io_states::io_fail_bit);
     }
 }
 
@@ -527,7 +527,7 @@ void istream::open(const char *path, const int flags, const mode_t mode)
     bool r = open_nx(path, flags, mode);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::io_failbit);
+        throw_exception_on(io_states::io_fail_bit);
     }
 }
 
@@ -548,17 +548,17 @@ void istream::close()
     bool r = close_nx();
     if (!r) {
         // Failed close_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::io_failbit);
+        throw_exception_on(io_states::io_fail_bit);
     }
 }
 
 int istream::current_state() noexcept
 {
     int bits = 0;
-    if (eof_state) bits |= io_states::eofbit;
-    if (!buf) bits |= io_states::buffer_failbit;
-    if (string_failed) bits |= io_states::string_failbit;
-    if (io_error) bits |= io_states::io_failbit;
+    if (eof_state) bits |= io_states::eof_bit;
+    if (!buf) bits |= io_states::buffer_fail_bit;
+    if (string_failed) bits |= io_states::input_fail_bit;
+    if (io_error) bits |= io_states::io_fail_bit;
     return bits;
 }
 
@@ -620,8 +620,8 @@ char istream::getc()
     getc_result r = getc_nx();
     if (!r.success) {
         // Failed getc_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::eofbit | io_states::buffer_failbit | io_states::string_failbit
-                | io_states::io_failbit);
+        throw_exception_on(io_states::eof_bit | io_states::buffer_fail_bit
+                | io_states::input_fail_bit | io_states::io_fail_bit);
     }
     return r.character;
 }
@@ -697,19 +697,20 @@ void istream::get_line(std::string &dest, char delim)
     bool r = get_line_nx(dest, delim);
     if (!r) {
         // Failed get_line_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::eofbit | io_states::buffer_failbit | io_states::string_failbit
-                | io_states::io_failbit);
+        throw_exception_on(io_states::eof_bit | io_states::buffer_fail_bit
+                | io_states::input_fail_bit | io_states::io_fail_bit);
     }
 }
 
 void istream::get_line_until_eof(std::string &dest, char delim)
 {
     // If we had already hit eof, we fail at this point
-    throw_exception_on(io_states::buffer_failbit | io_states::string_failbit
-            | io_states::io_failbit | io_states::eofbit);
+    throw_exception_on(io_states::buffer_fail_bit | io_states::input_fail_bit
+            | io_states::io_fail_bit | io_states::eof_bit);
     bool r = get_line_nx(dest, delim);
     if (!r) {
-        throw_exception_on(io_states::buffer_failbit | io_states::string_failbit | io_states::io_failbit);
+        throw_exception_on(io_states::buffer_fail_bit | io_states::input_fail_bit
+                | io_states::io_fail_bit);
     }
     // (eof_state may be set, i.e. we reached end-of-file, but that's not an error)
 }
