@@ -130,19 +130,19 @@ void istream_basic_test()
 
     std::string line;
 
-    assert(dio::get_line(stream, line));
+    assert(stream.get_line(line));
     assert(line.compare("L1") == 0);
 
-    assert(dio::get_line(stream, line));
+    assert(stream.get_line(line));
     assert(line.compare("L2") == 0);
 
-    assert(dio::get_line(stream, line));
+    assert(stream.get_line(line));
     assert(line.size() == 0);
 
-    assert(dio::get_line(stream, line));
+    assert(stream.get_line(line));
     assert(line.compare("L3") == 0);
 
-    assert(!dio::get_line_until_eof(stream, line));
+    assert(!stream.get_line_until_eof(line));
     assert(stream.eof());
     assert(line.compare("L3") == 0);
 
@@ -166,7 +166,7 @@ void istream_buffer_boundary_test()
     buf->append(msg.begin(), 100);
 
     std::string line;
-    assert(dio::get_line(stream, line));
+    assert(stream.get_line(line));
     assert(line.size() == IOSTREAM_BUFSIZE);
     assert(strncmp(line.c_str(), msg.begin(), IOSTREAM_BUFSIZE));
 }
