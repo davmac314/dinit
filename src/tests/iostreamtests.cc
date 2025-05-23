@@ -19,7 +19,7 @@ void ostream_basic_test()
 
     const char msg[] = "This is a test message!\n";
 
-    assert(stream.write(msg));
+    stream.write(msg);
     assert(buf->get_length() == sizeof(msg) - 1);
 
     char* ptr = buf->get_ptr(0);
@@ -75,7 +75,7 @@ void ostream_int_conversion_test()
     const int msg2 = 4;
     const char msg_full[] = "The 2 + 2 equals to: 4";
 
-    assert(stream.write(msg1, msg2));
+    stream.write(msg1, msg2);
     assert(buf->get_length() == sizeof(msg_full) - 1);
 
     char* ptr = buf->get_ptr(0);
@@ -104,7 +104,7 @@ void ostream_large_msg_test()
     std::fill_n(msg, IOSTREAM_BUFSIZE + 1, 'a');
     msg[IOSTREAM_BUFSIZE + 1] = '\0';
 
-    assert(stream.write(msg));
+    stream.write(msg);
     assert(buf->get_length() == 0);
 
     std::vector<char> wdata;
@@ -130,22 +130,22 @@ void istream_basic_test()
 
     std::string line;
 
-    assert(stream.get_line(line));
+    stream.get_line(line);
     assert(line.compare("L1") == 0);
 
-    assert(stream.get_line(line));
+    stream.get_line(line);
     assert(line.compare("L2") == 0);
 
-    assert(stream.get_line(line));
+    stream.get_line(line);
     assert(line.size() == 0);
 
-    assert(stream.get_line(line));
+    stream.get_line(line);
     assert(line.compare("L3") == 0);
 
     stream.get_line_until_eof(line);
     assert(stream.eof());
 
-    assert(stream.close());
+    stream.close();
 }
 
 void istream_buffer_boundary_test()
@@ -165,7 +165,7 @@ void istream_buffer_boundary_test()
     buf->append(msg.begin(), 100);
 
     std::string line;
-    assert(stream.get_line(line));
+    stream.get_line(line);
     assert(line.size() == IOSTREAM_BUFSIZE);
     assert(strncmp(line.c_str(), msg.begin(), IOSTREAM_BUFSIZE));
 }

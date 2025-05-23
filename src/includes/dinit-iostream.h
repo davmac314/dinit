@@ -249,29 +249,27 @@ class ostream : public io_base
     // implicitly.
     // Note: opening an already opened stream is not supported; the stream must be closed before
     // opening it again.
-    // Returns:
+    // Returns (_nx variants):
     //   true on success, false on failure.
-    // Throws:
-    //   Non _nx variant may throw:
-    //     dio::iostream_system_err on I/O error
+    // Throws (non-_nx variants):
+    //   dio::iostream_system_err on I/O error
     bool open_nx(const char *path) noexcept;
-    bool open(const char *path);
+    void open(const char *path);
 
     bool open_nx(const char *path, const int flags) noexcept;
-    bool open(const char *path, const int flags);
+    void open(const char *path, const int flags);
 
     bool open_nx(const char *path, const int flags, const mode_t mode) noexcept;
-    bool open(const char *path, const int flags, const mode_t mode);
+    void open(const char *path, const int flags, const mode_t mode);
 
     // Flush the buffer and close the current file descriptor.
-    // Returns:
+    // Returns (_nx variant):
     //   true on success, false on failure cases.
-    // Throws:
-    //   Non _nx variant may throw:
-    //     std::bad_alloc on buffer failure (buffer could not be allocated at construction).
-    //     dio::iostream_system_err on system I/O failure.
+    // Throws (non-_nx variant):
+    //   std::bad_alloc on buffer failure (buffer could not be allocated at construction).
+    //   dio::iostream_system_err on system I/O failure.
     bool close_nx() noexcept;
-    bool close();
+    void close();
 
     // Check the current state of the stream.
     // Returns:
@@ -297,14 +295,13 @@ class ostream : public io_base
     void clear() noexcept;
 
     // Flush the stream's buffer.
-    // Returns:
+    // Returns (_nx variant):
     //   true if the buffer was successfully fully-flushed buffer, false otherwise.
-    // Throws:
-    //   Non _nx variant may throw:
-    //     std::bad_alloc on buffer failure (buffer could not be allocated at construction).
-    //     dio::iostream_system_err on system I/O failure.
+    // Throws (non-_nx variant):
+    //   std::bad_alloc on buffer failure (buffer could not be allocated at construction).
+    //   dio::iostream_system_err on system I/O failure.
     bool flush_nx() noexcept;
-    bool flush();
+    void flush();
 
     // write(...) functions: write (text) to the stream. Accepts string and numeric arguments;
     // numbers are written as decimal digits.
@@ -323,39 +320,38 @@ class ostream : public io_base
     //      output_a.write("This is an example message.\n");
     //      output_b.write("2 + 2 equals: ", 2 + 2, endl);
     //
-    // Returns:
+    // Returns (_nx variants):
     //   true if the data was completely written to the stream (including by being buffered);
     //     false if an error occurred (including if the data could be partly written/buffered).
-    // Throws:
-    //   Non _nx variants may throw:
-    //     std::bad_alloc on buffer failure (buffer could not be allocated at construction).
-    //     dio::iostream_system_err on system I/O failure.
+    // Throws (non-_nx variants):
+    //   std::bad_alloc on buffer failure (buffer could not be allocated at construction).
+    //   dio::iostream_system_err on system I/O failure.
     bool write_nx(const char *msg) noexcept;
-    bool write(const char *msg);
+    void write(const char *msg);
 
     bool write_nx(char msg) noexcept;
-    bool write(char msg);
+    void write(char msg);
 
     bool write_nx(const std::string &msg) noexcept;
-    bool write(const std::string &msg);
+    void write(const std::string &msg);
 
     bool write_nx(const int num) noexcept;
-    bool write(const int num);
+    void write(const int num);
 
     bool write_nx(const unsigned num) noexcept;
-    bool write(const unsigned num);
+    void write(const unsigned num);
 
     bool write_nx(const long num) noexcept;
-    bool write(const long num);
+    void write(const long num);
 
     bool write_nx(const unsigned long num) noexcept;
-    bool write(const unsigned long num);
+    void write(const unsigned long num);
 
     bool write_nx(const endline &) noexcept;
-    bool write(const endline &);
+    void write(const endline &);
 
     bool write_nx(const flushbuf &) noexcept;
-    bool write(const flushbuf &);
+    void write(const flushbuf &);
 
     template <typename A, typename B, typename ...C> inline bool write_nx(const A &a, const B &b, const C & ...c)
             noexcept
@@ -366,14 +362,13 @@ class ostream : public io_base
         return true;
     }
 
-    template <typename A, typename B, typename ...C> inline bool write(const A &a, const B &b, const C & ...c)
+    template <typename A, typename B, typename ...C> inline void write(const A &a, const B &b, const C & ...c)
     {
         bool r = write_nx(a, b, c...);
         if (!r) {
             // This will definitely throw an exception
             throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
         }
-        return r;
     }
 
     // write_buf() functions: write bytes to the stream.
@@ -527,28 +522,26 @@ class istream : public io_base
     // implicitly.
     // Note: opening an already opened stream is not supported; the stream must be closed before
     // opening it again.
-    // Returns:
+    // Returns (_nx variants):
     //   true on success, false on failure.
-    // Throws:
-    //   Non _nx variant may throw:
-    //     dio::iostream_system_err on I/O error
+    // Throws (non-_nx variants):
+    //   dio::iostream_system_err on I/O error
     bool open_nx(const char *path) noexcept;
-    bool open(const char *path);
+    void open(const char *path);
 
     bool open_nx(const char *path, const int flags) noexcept;
-    bool open(const char *path, const int flags);
+    void open(const char *path, const int flags);
 
     bool open_nx(const char *path, const int flags, const mode_t mode) noexcept;
-    bool open(const char *path, const int flags, const mode_t mode);
+    void open(const char *path, const int flags, const mode_t mode);
 
     // Flush the buffer and close the current file descriptor.
-    // Returns:
+    // Returns (_nx variant):
     //   true on success, false on failure cases.
-    // Throws:
-    //   Non _nx variant may throw:
-    //     dio::iostream_system_err on system I/O failure.
+    // Throws (non-_nx variant):
+    //   dio::iostream_system_err on system I/O failure.
     bool close_nx() noexcept;
-    bool close();
+    void close();
 
     // Check the current state of the stream.
     // Returns:
@@ -585,30 +578,28 @@ class istream : public io_base
 
     // Reads and returns one character from the stream.
     // Returns:
-    //   The character read (if successful) and success status.
-    // Throws:
-    //   Non _nx variant may throw:
-    //     dio::iostream_eof on end-of-file.
-    //     std::bad_alloc on buffer failure (buffer could not be allocated at construction) or if
-    //         out-of-memory or length error occurred during (earlier) input to string
-    //     dio::iostream_system_err on system I/O failure.
+    //   The success status (_nx variant) and character read.
+    // Throws (non-_nx variant):
+    //   dio::iostream_eof on end-of-file.
+    //   std::bad_alloc on buffer failure (buffer could not be allocated at construction) or if
+    //       out-of-memory or length error occurred during (earlier) input to string.
+    //   dio::iostream_system_err on system I/O failure.
     getc_result getc_nx() noexcept;
-    getc_result getc();
+    char getc();
 
     // Reads and stores one line from the stream into the given std::string, until a delimiter
     // character (usually '\n') is found, and store what was read in the given string. The
     // previous contents of the string are destroyed. Reaching end-of-file will flag a failure
     // condition.
-    // Returns:
+    // Returns (_nx variant):
     //   true for success, false otherwise.
-    // Throws:
-    //   Non _nx variant may throw:
-    //     dio::iostream_eof on end-of-file.
-    //     std::bad_alloc on buffer failure (buffer could not be allocated at construction) or if
-    //         out-of-memory or length error occurred during (earlier) input to string
-    //     dio::iostream_system_err on system I/O failure.
+    // Throws (non-_nx variant):
+    //   dio::iostream_eof on end-of-file.
+    //   std::bad_alloc on buffer failure (buffer could not be allocated at construction) or if
+    //       out-of-memory or length error occurred during (earlier) input to string
+    //   dio::iostream_system_err on system I/O failure.
     bool get_line_nx(std::string &dest, char delim = '\n') noexcept;
-    bool get_line(std::string &dest, char delim = '\n');
+    void get_line(std::string &dest, char delim = '\n');
 
     // Reads and stores one line from the stream into the given std::string, until a delimiter
     // character (usually '\n') is found or end-of-file is reached, and store what was read in the

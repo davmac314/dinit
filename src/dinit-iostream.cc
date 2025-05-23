@@ -122,14 +122,13 @@ bool ostream::open_nx(const char *path) noexcept
     return true;
 }
 
-bool ostream::open(const char *path)
+void ostream::open(const char *path)
 {
     bool r = open_nx(path);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::io_failbit);
     }
-    return r;
 }
 
 bool ostream::open_nx(const char *path, const int flags) noexcept
@@ -142,14 +141,13 @@ bool ostream::open_nx(const char *path, const int flags) noexcept
     return true;
 }
 
-bool ostream::open(const char *path, const int flags)
+void ostream::open(const char *path, const int flags)
 {
     bool r = open_nx(path, flags);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::io_failbit);
     }
-    return r;
 }
 
 bool ostream::open_nx(const char *path, const int flags, const mode_t mode) noexcept
@@ -162,14 +160,13 @@ bool ostream::open_nx(const char *path, const int flags, const mode_t mode) noex
     return true;
 }
 
-bool ostream::open(const char *path, const int flags, const mode_t mode)
+void ostream::open(const char *path, const int flags, const mode_t mode)
 {
     bool r = open_nx(path, flags, mode);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::io_failbit);
     }
-    return r;
 }
 
 bool ostream::close_nx() noexcept
@@ -190,14 +187,13 @@ bool ostream::close_nx() noexcept
     return true;
 }
 
-bool ostream::close()
+void ostream::close()
 {
     bool r = close_nx();
     if (!r) {
         // Failed close_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
     }
-    return r;
 }
 
 int ostream::current_state() noexcept
@@ -261,14 +257,13 @@ bool ostream::flush_nx() noexcept
     return true;
 }
 
-bool ostream::flush()
+void ostream::flush()
 {
     bool r = flush_nx();
     if (!r) {
         // Failed flush_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
     }
-    return r;
 }
 
 bool ostream::write_nx(const char *msg) noexcept
@@ -277,14 +272,13 @@ bool ostream::write_nx(const char *msg) noexcept
     return (put(msg, len) == static_cast<ssize_t>(len));
 }
 
-bool ostream::write(const char *msg)
+void ostream::write(const char *msg)
 {
     bool r = write_nx(msg);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
     }
-    return r;
 }
 
 bool ostream::write_nx(char msg) noexcept
@@ -292,14 +286,13 @@ bool ostream::write_nx(char msg) noexcept
     return (put(&msg, 1) == 1);
 }
 
-bool ostream::write(char msg)
+void ostream::write(char msg)
 {
     bool r = write_nx(msg);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
     }
-    return r;
 }
 
 bool ostream::write_nx(const std::string &msg) noexcept
@@ -307,14 +300,13 @@ bool ostream::write_nx(const std::string &msg) noexcept
     return (put(msg.c_str(), msg.size()) == static_cast<ssize_t>(msg.size()));
 }
 
-bool ostream::write(const std::string &msg)
+void ostream::write(const std::string &msg)
 {
     bool r = write_nx(msg);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
     }
-    return r;
 }
 
 bool ostream::write_nx(const int num) noexcept
@@ -326,14 +318,13 @@ bool ostream::write_nx(const int num) noexcept
     return (put(tmp, len) == len);
 }
 
-bool ostream::write(const int num)
+void ostream::write(const int num)
 {
     bool r = write_nx(num);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
     }
-    return r;
 }
 
 bool ostream::write_nx(const unsigned num) noexcept
@@ -344,14 +335,13 @@ bool ostream::write_nx(const unsigned num) noexcept
     return (put(tmp, len) == len);
 }
 
-bool ostream::write(const unsigned num)
+void ostream::write(const unsigned num)
 {
     bool r = write_nx(num);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
     }
-    return r;
 }
 
 bool ostream::write_nx(const long num) noexcept
@@ -363,14 +353,13 @@ bool ostream::write_nx(const long num) noexcept
     return (put(tmp, len) == len);
 }
 
-bool ostream::write(const long num)
+void ostream::write(const long num)
 {
     bool r = write_nx(num);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
     }
-    return r;
 }
 
 bool ostream::write_nx(const unsigned long num) noexcept
@@ -381,14 +370,13 @@ bool ostream::write_nx(const unsigned long num) noexcept
     return (put(tmp, len) == len);
 }
 
-bool ostream::write(const unsigned long num)
+void ostream::write(const unsigned long num)
 {
     bool r = write_nx(num);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
     }
-    return r;
 }
 
 bool ostream::write_nx(const endline &) noexcept
@@ -398,14 +386,13 @@ bool ostream::write_nx(const endline &) noexcept
     return flush_nx();
 }
 
-bool ostream::write(const endline &)
+void ostream::write(const endline &)
 {
     bool r = write_nx(endl);
     if (!r) {
         // Failed write_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
     }
-    return r;
 }
 
 bool ostream::write_nx(const flushbuf &) noexcept
@@ -413,9 +400,9 @@ bool ostream::write_nx(const flushbuf &) noexcept
     return flush_nx();
 }
 
-bool ostream::write(const flushbuf &)
+void ostream::write(const flushbuf &)
 {
-    return flush();
+    flush();
 }
 
 ssize_t ostream::write_buf_nx(const char *msg, size_t len) noexcept
@@ -497,14 +484,13 @@ bool istream::open_nx(const char *path) noexcept
     return true;
 }
 
-bool istream::open(const char *path)
+void istream::open(const char *path)
 {
     bool r = open_nx(path);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::io_failbit);
     }
-    return r;
 }
 
 bool istream::open_nx(const char *path, const int flags) noexcept
@@ -517,14 +503,13 @@ bool istream::open_nx(const char *path, const int flags) noexcept
     return true;
 }
 
-bool istream::open(const char *path, const int flags)
+void istream::open(const char *path, const int flags)
 {
     bool r = open_nx(path, flags);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::io_failbit);
     }
-    return r;
 }
 
 bool istream::open_nx(const char *path, const int flags, const mode_t mode) noexcept
@@ -537,14 +522,13 @@ bool istream::open_nx(const char *path, const int flags, const mode_t mode) noex
     return true;
 }
 
-bool istream::open(const char *path, const int flags, const mode_t mode)
+void istream::open(const char *path, const int flags, const mode_t mode)
 {
     bool r = open_nx(path, flags, mode);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::io_failbit);
     }
-    return r;
 }
 
 bool istream::close_nx() noexcept
@@ -559,14 +543,13 @@ bool istream::close_nx() noexcept
     return true;
 }
 
-bool istream::close()
+void istream::close()
 {
     bool r = close_nx();
     if (!r) {
         // Failed close_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::io_failbit);
     }
-    return r;
 }
 
 int istream::current_state() noexcept
@@ -632,7 +615,7 @@ getc_result istream::getc_nx() noexcept
     return {true, result};
 }
 
-getc_result istream::getc()
+char istream::getc()
 {
     getc_result r = getc_nx();
     if (!r.success) {
@@ -640,7 +623,7 @@ getc_result istream::getc()
         throw_exception_on(io_states::eofbit | io_states::buffer_failbit | io_states::string_failbit
                 | io_states::io_failbit);
     }
-    return r;
+    return r.character;
 }
 
 bool istream::get_line_nx(std::string &dest, char delim) noexcept
@@ -709,7 +692,7 @@ bool istream::get_line_nx(std::string &dest, char delim) noexcept
     return true;
 }
 
-bool istream::get_line(std::string &dest, char delim)
+void istream::get_line(std::string &dest, char delim)
 {
     bool r = get_line_nx(dest, delim);
     if (!r) {
@@ -717,7 +700,6 @@ bool istream::get_line(std::string &dest, char delim)
         throw_exception_on(io_states::eofbit | io_states::buffer_failbit | io_states::string_failbit
                 | io_states::io_failbit);
     }
-    return r;
 }
 
 void istream::get_line_until_eof(std::string &dest, char delim)
