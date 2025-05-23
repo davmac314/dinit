@@ -612,14 +612,14 @@ class istream : public io_base
 
     // Reads and stores one line from the stream into the given std::string, until a delimiter
     // character (usually '\n') is found or end-of-file is reached, and store what was read in the
-    // given string. The previous contents of the string are destroyed.
-    // Returns:
-    //   true for success, false otherwise.
+    // given string. The previous contents of the string are destroyed. Note that this may return
+    // with the end-of-file condition true.
     // Throws:
+    //   dio::iostream_eof on end-of-file (if hit prior to this call)
     //   std::bad_alloc on buffer failure (buffer could not be allocated at construction) or if
     //       out-of-memory or length error occurred during (earlier) input to string
     //   dio::iostream_system_err on system I/O failure.
-    bool get_line_until_eof(std::string &dest, char delim = '\n');
+    void get_line_until_eof(std::string &dest, char delim = '\n');
 
     // Convenience conversion to bool, equivalent to good().
     // Returns:
