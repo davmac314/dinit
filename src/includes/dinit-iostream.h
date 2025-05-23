@@ -63,21 +63,33 @@ static constexpr flushbuf flush;
 
 // Specialise system_error & runtime_error for more meaningful exceptions on error states:
 
+// Base class for other exceptions
+class io_failed_exc
+{
+};
+
 // Exception thrown on end-of-file (eofbit).
-class iostream_eof : public std::runtime_error
+class iostream_eof : public io_failed_exc
 {
     public:
-    iostream_eof(const char *msg) : runtime_error(msg)
+    iostream_eof()
     {
     }
 };
 
 // Exception thrown on I/O error (io_failbit).
-class iostream_system_err : public std::system_error
+class iostream_system_err : public io_failed_exc
 {
+    int error_code;
+
     public:
-    iostream_system_err(const int error_code) : system_error(error_code, std::system_category())
+    iostream_system_err(const int error_code_p) : error_code(error_code_p)
     {
+    }
+
+    int get_errno()
+    {
+        return error_code;
     }
 };
 
