@@ -20,6 +20,7 @@
 #include "dinit-log.h"
 #include "dinit-util.h"
 #include "dinit-utmp.h"
+#include "dinit-iostream.h"
 
 using string = std::string;
 using string_iterator = std::string::iterator;
@@ -395,6 +396,7 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
     service_record *dummy = nullptr;
 
     ifstream service_file;
+    //dio::istream service_file;
     string service_filename;
 
     int fail_load_errno = 0;
