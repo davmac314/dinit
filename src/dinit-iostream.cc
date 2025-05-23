@@ -105,7 +105,7 @@ ssize_t ostream::put(const char *msg, size_t count) noexcept
 void ostream::throw_exception_on(const int states)
 {
     if ((states & io_states::buffer_failbit) && buffer_failure()) {
-        throw iostream_internal_err("Cannot use stream's buffer: buffer is nullptr!");
+        throw std::bad_alloc();
     }
     if ((states & io_states::io_failbit) && io_failure()) {
         throw iostream_system_err(io_failure());
@@ -477,10 +477,10 @@ void istream::throw_exception_on(const int states)
         throw iostream_eof("End Of File has been reached.");
     }
     if ((states & io_states::buffer_failbit) && buffer_failure()) {
-        throw iostream_internal_err("Cannot use stream's buffer: buffer is nullptr!");
+        throw std::bad_alloc();
     }
     if ((states & io_states::string_failbit) && string_failure()) {
-        throw iostream_internal_err("Cannot put lines into given std::string.");
+        throw std::bad_alloc();
     }
     if ((states & io_states::io_failbit) && io_failure()) {
         throw iostream_system_err(io_failure());

@@ -72,15 +72,6 @@ class iostream_eof : public std::runtime_error
     }
 };
 
-// Exception thrown on allocation failure (buffer_failbit, string_failbit).
-class iostream_internal_err : public std::runtime_error
-{
-    public:
-    iostream_internal_err(const char *msg) : runtime_error(msg)
-    {
-    }
-};
-
 // Exception thrown on I/O error (io_failbit).
 class iostream_system_err : public std::system_error
 {
@@ -265,8 +256,7 @@ class ostream : public io_base
     //   true on success, false on failure cases.
     // Throws:
     //   Non _nx variant may throw:
-    //     dio::iostream_internal_err on buffer failure (buffer could not be allocated at
-    //       construction).
+    //     std::bad_alloc on buffer failure (buffer could not be allocated at construction).
     //     dio::iostream_system_err on system I/O failure.
     bool close_nx() noexcept;
     bool close();
@@ -299,8 +289,7 @@ class ostream : public io_base
     //   true if the buffer was successfully fully-flushed buffer, false otherwise.
     // Throws:
     //   Non _nx variant may throw:
-    //     dio::iostream_internal_err on buffer failure (buffer could not be allocated at
-    //       construction).
+    //     std::bad_alloc on buffer failure (buffer could not be allocated at construction).
     //     dio::iostream_system_err on system I/O failure.
     bool flush_nx() noexcept;
     bool flush();
@@ -327,8 +316,7 @@ class ostream : public io_base
     //     false if an error occurred (including if the data could be partly written/buffered).
     // Throws:
     //   Non _nx variants may throw:
-    //     dio::iostream_internal_err on buffer failure (buffer could not be allocated at
-    //       construction).
+    //     std::bad_alloc on buffer failure (buffer could not be allocated at construction).
     //     dio::iostream_system_err on system I/O failure.
     bool write_nx(const char *msg) noexcept;
     bool write(const char *msg);
@@ -385,8 +373,7 @@ class ostream : public io_base
     //   Number of successfully written-or-buffered characters.
     // Throws:
     //   Non _nx variants may throw:
-    //     dio::iostream_internal_err on buffer failure (buffer could not be allocated at
-    //       construction).
+    //     std::bad_alloc on buffer failure (buffer could not be allocated at construction).
     //     dio::iostream_system_err on system I/O failure.
     ssize_t write_buf_nx(const char *msg) noexcept;
     ssize_t write_buf(const char *msg);
@@ -590,8 +577,8 @@ class istream : public io_base
     // Throws:
     //   Non _nx variant may throw:
     //     dio::iostream_eof on end-of-file.
-    //     dio::iostream_internal_err on buffer failure (buffer could not be allocated at construction).
-    //     dio::iostream_internal_err on (earlier) string failure.
+    //     std::bad_alloc on buffer failure (buffer could not be allocated at construction) or if
+    //         out-of-memory or length error occurred during (earlier) input to string
     //     dio::iostream_system_err on system I/O failure.
     getc_result getc_nx() noexcept;
     getc_result getc();
@@ -605,8 +592,8 @@ class istream : public io_base
     // Throws:
     //   Non _nx variant may throw:
     //     dio::iostream_eof on end-of-file.
-    //     dio::iostream_internal_err on buffer failure (buffer could not be allocated at construction).
-    //     dio::iostream_internal_err on putting into given std::string failure.
+    //     std::bad_alloc on buffer failure (buffer could not be allocated at construction) or if
+    //         out-of-memory or length error occurred during (earlier) input to string
     //     dio::iostream_system_err on system I/O failure.
     bool get_line_nx(std::string &dest, char delim = '\n') noexcept;
     bool get_line(std::string &dest, char delim = '\n');
@@ -617,8 +604,8 @@ class istream : public io_base
     // Returns:
     //   true for success, false otherwise.
     // Throws:
-    //   dio::iostream_internal_err on buffer failure (buffer could not be allocated at construction).
-    //   dio::iostream_internal_err on putting into given std::string failure.
+    //   std::bad_alloc on buffer failure (buffer could not be allocated at construction) or if
+    //       out-of-memory or length error occurred during (earlier) input to string
     //   dio::iostream_system_err on system I/O failure.
     bool get_line_until_eof(std::string &dest, char delim = '\n');
 
