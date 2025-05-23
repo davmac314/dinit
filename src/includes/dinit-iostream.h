@@ -30,13 +30,13 @@ namespace dio {
 
 // Stream state bits:
 //
-// 1. 'eofbit' indicates that the End Of File has been reached, and there is nothing left in
+// 1. 'eof_bit' indicates that the End Of File has been reached, and there is nothing left in
 //    the buffer (istream only).
-// 2. 'buffer_failbit' indicates an attempt to use the buffer when the buffer pointer was nullptr
+// 2. 'buffer_fail_bit' indicates an attempt to use the buffer when the buffer pointer was nullptr
 //    (e.g. failure to allocate a unique_ptr of streambuf) (ostream & istream).
-// 3. 'string_failbit' indicates a failed operation in std::string related calls (e.g. failure in
-//    pushing a line from the buffer to the given std::string in get_line()) (istream only).
-// 4. 'io_failbit' indicates that a system I/O function failed, and the error number (errno) was
+// 3. 'input_fail_bit' indicates failure to store received input (e.g. failure in pushing a line
+//    from the buffer to the given std::string in get_line()) (istream only).
+// 4. 'io_fail_bit' indicates that a system I/O function failed, and the error number (errno) was
 //    recorded (istream & ostream).
 //
 // If all of the above bits are false, the stream status is "good".
@@ -45,10 +45,10 @@ namespace dio {
 // table.
 enum io_states
 {
-    eofbit = 0x01,
-    buffer_failbit = 0x02,
-    string_failbit = 0x04,
-    io_failbit = 0x08
+    eof_bit = 0x01,
+    buffer_fail_bit = 0x02,
+    input_fail_bit = 0x04,
+    io_fail_bit = 0x08
 };
 
 // Some (empty) classes for signalling special buffer operations. These are used to implement
@@ -68,7 +68,7 @@ class io_failed_exc
 {
 };
 
-// Exception thrown on end-of-file (eofbit).
+// Exception thrown on end-of-file (eof_bit).
 class iostream_eof : public io_failed_exc
 {
     public:
@@ -77,7 +77,7 @@ class iostream_eof : public io_failed_exc
     }
 };
 
-// Exception thrown on I/O error (io_failbit).
+// Exception thrown on I/O error (io_fail_bit).
 class iostream_system_err : public io_failed_exc
 {
     int error_code;
@@ -111,7 +111,7 @@ class io_base
 
     public:
     // Get raw pointer to the current buffer.
-    // Note: The buffer may be null if allocation failed (buffer_failbit will be set).
+    // Note: The buffer may be null if allocation failed (buffer_fail_bit will be set).
     streambuf *get_buf() noexcept;
 
     // Is the current stream's file descriptor open?
@@ -186,11 +186,11 @@ class io_base
 // There are two possible error states in an ostream: buffer failure and I/O failure. These are each
 // represented by a bit in the value returned by the current_state() function.
 //
-// 1. buffer_failbit is false by default and means the class constructor failed to allocate a unique_ptr
+// 1. buffer_fail_bit is false by default and means the class constructor failed to allocate a unique_ptr
 //    of the buffer at construction time.
-// 2. io_failbit is false by default and means there is something wrong with system I/O functions.
+// 2. io_fail_bit is false by default and means there is something wrong with system I/O functions.
 //
-// Note: if the io_failbit is set in the return value of current_state(), then io_failure() will
+// Note: if the io_fail_bit is set in the return value of current_state(), then io_failure() will
 // return the errno value corresponding to the failed operation. If it is clear, io_failure() will return 0.
 //
 // Exception handling
@@ -281,17 +281,17 @@ class ostream : public io_base
     //   true when there are no error states on the stream; false otherwise.
     bool good() noexcept;
 
-    // Check whether the allocation failure bit ('buffer_failbit') is set in the stream state.
+    // Check whether the allocation failure bit ('buffer_fail_bit') is set in the stream state.
     // Returns:
-    //   The value of 'buffer_failbit' in the the current state.
+    //   The value of 'buffer_fail_bit' in the the current state.
     bool buffer_failure() noexcept;
 
-    // Check whether an I/O error has been recorded in the stream state ('io_failbit').
+    // Check whether an I/O error has been recorded in the stream state ('io_fail_bit').
     // Returns:
     //   0 if no error recorded; otherwise, the 'errno' value that was recorded.
     int io_failure() noexcept;
 
-    // Resets current state, other than 'buffer_failbit', to clear (error-free).
+    // Resets current state, other than 'buffer_fail_bit', to clear (error-free).
     void clear() noexcept;
 
     // Flush the stream's buffer.
@@ -367,7 +367,7 @@ class ostream : public io_base
         bool r = write_nx(a, b, c...);
         if (!r) {
             // This will definitely throw an exception
-            throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
+            throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
         }
     }
 
@@ -450,14 +450,14 @@ class ostream : public io_base
 // There are four possible states in an istream: EOF, buffer failure, string related operations failure and
 // I/O failure. These are each represented by a bit in the value returned by the current_state() function.
 //
-// 1. eofbit is false by default and means there is nothing left in the file descriptor and the buffer
+// 1. eof_bit is false by default and means there is nothing left in the file descriptor and the buffer
 //    of the stream.
-// 2. buffer_failbit is false by default and means the class constructor failed to allocate a unique_ptr
+// 2. buffer_fail_bit is false by default and means the class constructor failed to allocate a unique_ptr
 //    of the buffer at construction time.
-// 3. string_failbit is false by default and means a std::string related operation was failed.
-// 4. io_failbit is false by default and means there is something wrong from system I/O calls.
+// 3. input_fail_bit is false by default and means a std::string related operation was failed.
+// 4. io_fail_bit is false by default and means there is something wrong from system I/O calls.
 //
-// Note: if the io_failbit is set in the return value of current_state(), then io_failure() will
+// Note: if the io_fail_bit is set in the return value of current_state(), then io_failure() will
 // return the errno value corresponding to the failed operation. If it is clear, io_failure() will return 0.
 //
 // Exception handling
@@ -553,27 +553,27 @@ class istream : public io_base
     //   true when there are no error states on the stream; false otherwise.
     bool good() noexcept;
 
-    // Check whether end-of-file ('eofbit') is set in the stream state.
+    // Check whether end-of-file ('eof_bit') is set in the stream state.
     // Returns:
-    //   The value of 'eofbit' in the the current state.
+    //   The value of 'eof_bit' in the the current state.
     bool eof() noexcept;
 
-    // Check whether the allocation failure bit ('buffer_failbit') is set in the stream state.
+    // Check whether the allocation failure bit ('buffer_fail_bit') is set in the stream state.
     // Returns:
-    //   The value of 'buffer_failbit' in the the current state.
+    //   The value of 'buffer_fail_bit' in the the current state.
     bool buffer_failure() noexcept;
 
-    // Check whether the string store failure bit ('string_failbit') is set in the stream state.
+    // Check whether the string store failure bit ('input_fail_bit') is set in the stream state.
     // Returns:
-    //   The value of 'string_failbit' in the the current state.
+    //   The value of 'input_fail_bit' in the the current state.
     bool string_failure() noexcept;
 
-    // Check whether an I/O error has been recorded in the stream state ('io_failbit').
+    // Check whether an I/O error has been recorded in the stream state ('io_fail_bit').
     // Returns:
     //   0 if no error recorded; otherwise, the 'errno' value that was recorded.
     int io_failure() noexcept;
 
-    // Resets current state, other than buffer_failbit, to clear (error-free).
+    // Resets current state, other than buffer_fail_bit, to clear (error-free).
     void clear() noexcept;
 
     // Reads and returns one character from the stream.
