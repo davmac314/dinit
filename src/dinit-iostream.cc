@@ -474,7 +474,7 @@ int istream::load_into_buf(unsigned len) noexcept
 void istream::throw_exception_on(const int states)
 {
     if ((states & io_states::eofbit) && eof()) {
-        throw iostream_eof("End Of File has been reached.");
+        throw iostream_eof();
     }
     if ((states & io_states::buffer_failbit) && buffer_failure()) {
         throw std::bad_alloc();
