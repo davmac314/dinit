@@ -418,16 +418,16 @@ bool ostream::write(const flushbuf &)
     return flush();
 }
 
-ssize_t ostream::write_buf_nx(const char *msg) noexcept
+ssize_t ostream::write_buf_nx(const char *msg, size_t len) noexcept
 {
-    return put(msg, strlen(msg));
+    return put(msg, len);
 }
 
-ssize_t ostream::write_buf(const char *msg)
+ssize_t ostream::write_buf(const char *msg, size_t len)
 {
-    ssize_t r = write_buf_nx(msg);
+    ssize_t r = write_buf_nx(msg, len);
     if (r < 0) {
-        // Failed write_buf_nx leaves an error state bit set, so this will throw:
+        // Failed write_buf_nx leaves an error state bit set, so this will always throw:
         throw_exception_on(io_states::buffer_failbit | io_states::io_failbit);
     }
     return r;

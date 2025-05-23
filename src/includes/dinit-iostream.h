@@ -387,8 +387,8 @@ class ostream : public io_base
     //   Non _nx variants may throw:
     //     std::bad_alloc on buffer failure (buffer could not be allocated at construction).
     //     dio::iostream_system_err on system I/O failure.
-    ssize_t write_buf_nx(const char *msg) noexcept;
-    ssize_t write_buf(const char *msg);
+    ssize_t write_buf_nx(const char *msg, size_t len) noexcept;
+    ssize_t write_buf(const char *msg, size_t len);
 
     ssize_t write_buf_nx(const std::string &msg) noexcept;
     ssize_t write_buf(const std::string &msg);
