@@ -630,42 +630,6 @@ class istream : public io_base
     ~istream() noexcept;
 };
 
-// Reads and stores one line from the given stream into the given std::string, until a delimiter
-// character (usually '\n') is found, and store what was read in the given string. The
-// previous contents of the string are destroyed. Reaching end-of-file will flag a failure
-// condition.
-// Returns:
-//   true for success, false otherwise.
-// Throws:
-//   Non _nx variant may throw:
-//     dio::iostream_eof on end-of-file.
-//     dio::iostream_internal_err on buffer failure (buffer could not be allocated at construction).
-//     dio::iostream_internal_err on putting into given std::string failure.
-//     dio::iostream_system_err on system I/O failure.
-inline bool get_line_nx(istream &stream, std::string &dest, char delim = '\n') noexcept
-{
-    return stream.get_line_nx(dest, delim);
-}
-
-inline bool get_line(istream &stream, std::string &dest, char delim = '\n')
-{
-    return stream.get_line(dest, delim);
-}
-
-// Reads and stores one line from the given stream into the given std::string, until a delimiter
-// character (usually '\n') is found or end-of-file is reached, and store what was read in the
-// given string. The previous contents of the string are destroyed.
-// Returns:
-//   true for success, false otherwise.
-// Throws:
-//   dio::iostream_internal_err on buffer failure (buffer could not be allocated at construction).
-//   dio::iostream_internal_err on putting into given std::string failure.
-//   dio::iostream_system_err on system I/O failure.
-inline bool get_line_until_eof(istream &stream, std::string &dest, char delim = '\n')
-{
-    return stream.get_line_until_eof(dest, delim);
-}
-
 } // dio namespace
 
 #endif // DINIT_IOSTREAM_H_INCLUDED
