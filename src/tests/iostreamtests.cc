@@ -142,9 +142,8 @@ void istream_basic_test()
     assert(stream.get_line(line));
     assert(line.compare("L3") == 0);
 
-    assert(!stream.get_line_until_eof(line));
+    stream.get_line_until_eof(line);
     assert(stream.eof());
-    assert(line.compare("L3") == 0);
 
     assert(stream.close());
 }

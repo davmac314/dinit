@@ -720,13 +720,16 @@ bool istream::get_line(std::string &dest, char delim)
     return r;
 }
 
-bool istream::get_line_until_eof(std::string &dest, char delim)
+void istream::get_line_until_eof(std::string &dest, char delim)
 {
+    // If we had already hit eof, we fail at this point
+    throw_exception_on(io_states::buffer_failbit | io_states::string_failbit
+            | io_states::io_failbit | io_states::eofbit);
     bool r = get_line_nx(dest, delim);
     if (!r) {
         throw_exception_on(io_states::buffer_failbit | io_states::string_failbit | io_states::io_failbit);
     }
-    return r;
+    // (eof_state may be set, i.e. we reached end-of-file, but that's not an error)
 }
 
 istream::operator bool() noexcept
