@@ -78,7 +78,7 @@ ssize_t ostream::put(const char *msg, size_t count) noexcept
         bufv[2].iov_base = const_cast<char *>(msg);
         bufv[2].iov_len = remaining_bytes;
 
-        ssize_t cur_written_bytes = bp_sys::writev(fd, bufv, 3);
+        ssize_t cur_written_bytes = writev_unintr(fd, bufv, 3);
         if (cur_written_bytes < 0) {
             io_error = errno;
             // Some bytes may be written in previous iteration
@@ -246,7 +246,7 @@ bool ostream::flush_nx() noexcept
             bufv[1].iov_len = buf->get_length() - len;
         }
 
-        ssize_t r = bp_sys::writev(fd, bufv, iovs_to_write);
+        ssize_t r = writev_unintr(fd, bufv, iovs_to_write);
         if (r < 0) {
             io_error = errno;
             return false;
@@ -450,7 +450,10 @@ ostream::~ostream() noexcept
 
 int istream::load_into_buf(unsigned len) noexcept
 {
-    int r = buf->fill(fd, len);
+    int r;
+    do {
+        r = buf->fill(fd, len);
+    } while (r < 0 && errno == EINTR);
     if (r < 0) {
         io_error = errno;
         return -1;
