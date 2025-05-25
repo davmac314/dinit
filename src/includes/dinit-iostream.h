@@ -109,6 +109,16 @@ class io_base
     int fd = -1;
     std::unique_ptr<streambuf> buf;
 
+    // Wrapper for writev: don't fail (but retry instead) on EINTR
+    static int writev_unintr(int fd, struct iovec *vec, int vec_count)
+    {
+        int r;
+        do {
+            r = bp_sys::writev(fd, vec, vec_count);
+        } while (r < 1 && errno == EINTR);
+        return r;
+    }
+
     public:
     // Get raw pointer to the current buffer.
     // Note: The buffer may be null if allocation failed (buffer_fail_bit will be set).
