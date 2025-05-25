@@ -174,12 +174,21 @@ void ostream::open(const char *path, const int flags, const mode_t mode)
 
 bool ostream::close_nx() noexcept
 {
+    if (fd < 0) {
+        // Only mark an error if none have been recorded yet:
+        if (good()) {
+            io_error = EBADF;
+        }
+        return false;
+    }
+
     if (!flush_nx()) {
         // error state was checked/set by flush_nx() call
         bp_sys::close(fd);
         fd = -1;
         return false;
     }
+
     if (bp_sys::close(fd) < 0) {
         io_error = errno;
         fd = -1;
@@ -542,6 +551,14 @@ void istream::open(const char *path, const int flags, const mode_t mode)
 
 bool istream::close_nx() noexcept
 {
+    if (fd < 0) {
+        // Only mark an error if one has not been recorded yet:
+        if (good()) {
+            io_error = EBADF;
+        }
+        return false;
+    }
+
     if (bp_sys::close(fd) < 0) {
         io_error = errno;
         fd = -1;
