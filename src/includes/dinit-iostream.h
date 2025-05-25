@@ -551,6 +551,9 @@ class istream : public io_base
     // Returns (_nx variant):
     //   true on success, false on failure cases.
     // Throws (non-_nx variant):
+    //   dio::iostream_eof on (earlier) end-of-file.
+    //   std::bad_alloc on buffer failure (buffer could not be allocated at construction) or if
+    //       out-of-memory or length error occurred during (earlier) input to string.
     //   dio::iostream_system_err on system I/O failure.
     bool close_nx() noexcept;
     void close();
