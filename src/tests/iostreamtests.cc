@@ -145,7 +145,7 @@ void istream_basic_test()
     stream.get_line_until_eof(line);
     assert(stream.eof());
 
-    assert(stream.eof() && !stream.buffer_failure() && !stream.string_failure());
+    assert(stream.eof() && !stream.buffer_failure() && !stream.input_failure());
     stream.clear();
     stream.close();
 }

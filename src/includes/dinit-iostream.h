@@ -581,7 +581,7 @@ class istream : public io_base
     // Check whether the string store failure bit ('input_fail_bit') is set in the stream state.
     // Returns:
     //   The value of 'input_fail_bit' in the the current state.
-    bool string_failure() noexcept;
+    bool input_failure() noexcept;
 
     // Check whether an I/O error has been recorded in the stream state ('io_fail_bit').
     // Returns:

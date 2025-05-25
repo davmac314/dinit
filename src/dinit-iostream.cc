@@ -481,7 +481,7 @@ void istream::throw_exception_on(const int states)
     if ((states & io_states::buffer_fail_bit) && buffer_failure()) {
         throw std::bad_alloc();
     }
-    if ((states & io_states::input_fail_bit) && string_failure()) {
+    if ((states & io_states::input_fail_bit) && input_failure()) {
         throw std::bad_alloc();
     }
     if ((states & io_states::io_fail_bit) && io_failure()) {
@@ -604,7 +604,7 @@ bool istream::buffer_failure() noexcept
     return !buf;
 }
 
-bool istream::string_failure() noexcept
+bool istream::input_failure() noexcept
 {
     return string_failed;
 }
