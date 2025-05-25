@@ -262,7 +262,8 @@ class ostream : public io_base
     // Returns (_nx variants):
     //   true on success, false on failure.
     // Throws (non-_nx variants):
-    //   dio::iostream_system_err on I/O error
+    //   dio::iostream_system_err on I/O error.
+    //   std::bad_alloc on buffer failure (buffer could not be allocated at construction).
     bool open_nx(const char *path) noexcept;
     void open(const char *path);
 
@@ -536,6 +537,7 @@ class istream : public io_base
     //   true on success, false on failure.
     // Throws (non-_nx variants):
     //   dio::iostream_system_err on I/O error
+    //   std::bad_alloc on buffer failure (buffer could not be allocated at construction).
     bool open_nx(const char *path) noexcept;
     void open(const char *path);
 
