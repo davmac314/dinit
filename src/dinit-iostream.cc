@@ -114,6 +114,7 @@ void ostream::throw_exception_on(const int states)
 
 bool ostream::open_nx(const char *path) noexcept
 {
+    if (!buf) return false;
     fd = bp_sys::open(path, O_WRONLY);
     if (fd < 0) {
         io_error = errno;
@@ -127,12 +128,13 @@ void ostream::open(const char *path)
     bool r = open_nx(path);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::io_fail_bit);
+        throw_exception_on(io_states::io_fail_bit | io_states::buffer_fail_bit);
     }
 }
 
 bool ostream::open_nx(const char *path, const int flags) noexcept
 {
+    if (!buf) return false;
     fd = bp_sys::open(path, O_WRONLY | flags);
     if (fd < 0) {
         io_error = errno;
@@ -146,12 +148,13 @@ void ostream::open(const char *path, const int flags)
     bool r = open_nx(path, flags);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::io_fail_bit);
+        throw_exception_on(io_states::io_fail_bit | io_states::buffer_fail_bit);
     }
 }
 
 bool ostream::open_nx(const char *path, const int flags, const mode_t mode) noexcept
 {
+    if (!buf) return false;
     fd = bp_sys::open(path, O_WRONLY | flags, mode);
     if (fd < 0) {
         io_error = errno;
@@ -165,7 +168,7 @@ void ostream::open(const char *path, const int flags, const mode_t mode)
     bool r = open_nx(path, flags, mode);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::io_fail_bit);
+        throw_exception_on(io_states::io_fail_bit | io_states::buffer_fail_bit);
     }
 }
 
@@ -479,6 +482,7 @@ void istream::throw_exception_on(const int states)
 
 bool istream::open_nx(const char *path) noexcept
 {
+    if (!buf) return false;
     fd = bp_sys::open(path, O_RDONLY);
     if (fd < 0) {
         io_error = errno;
@@ -492,12 +496,13 @@ void istream::open(const char *path)
     bool r = open_nx(path);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::io_fail_bit);
+        throw_exception_on(io_states::io_fail_bit | io_states::buffer_fail_bit);
     }
 }
 
 bool istream::open_nx(const char *path, const int flags) noexcept
 {
+    if (!buf) return false;
     fd = bp_sys::open(path, O_RDONLY | flags);
     if (fd < 0) {
         io_error = errno;
@@ -511,12 +516,13 @@ void istream::open(const char *path, const int flags)
     bool r = open_nx(path, flags);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::io_fail_bit);
+        throw_exception_on(io_states::io_fail_bit | io_states::buffer_fail_bit);
     }
 }
 
 bool istream::open_nx(const char *path, const int flags, const mode_t mode) noexcept
 {
+    if (!buf) return false;
     fd = bp_sys::open(path, O_RDONLY | flags, mode);
     if (fd < 0) {
         io_error = errno;
@@ -530,7 +536,7 @@ void istream::open(const char *path, const int flags, const mode_t mode)
     bool r = open_nx(path, flags, mode);
     if (!r) {
         // Failed open_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::io_fail_bit);
+        throw_exception_on(io_states::io_fail_bit | io_states::buffer_fail_bit);
     }
 }
 
