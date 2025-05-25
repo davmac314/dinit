@@ -175,7 +175,7 @@ void ostream::open(const char *path, const int flags, const mode_t mode)
 bool ostream::close_nx() noexcept
 {
     if (!flush_nx()) {
-        // io_error was set by flush_nx() call
+        // error state was checked/set by flush_nx() call
         bp_sys::close(fd);
         fd = -1;
         return false;
@@ -545,11 +545,11 @@ bool istream::close_nx() noexcept
     if (bp_sys::close(fd) < 0) {
         io_error = errno;
         fd = -1;
-        return false; // Failed
+        return false;
     }
 
     fd = -1;
-    return true;
+    return good();
 }
 
 void istream::close()
@@ -557,7 +557,8 @@ void istream::close()
     bool r = close_nx();
     if (!r) {
         // Failed close_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::io_fail_bit);
+        throw_exception_on(io_states::io_fail_bit | io_states::eof_bit
+                | io_states::input_fail_bit | io_states::buffer_fail_bit);
     }
 }
 
