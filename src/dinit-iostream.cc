@@ -40,6 +40,7 @@ bool io_base::is_open() noexcept
 void io_base::set_fd(const int newfd) noexcept
 {
     fd = newfd;
+    if (!buf) buf = std::unique_ptr<streambuf>(new(std::nothrow) streambuf);
 }
 
 int io_base::get_fd() noexcept
@@ -114,12 +115,19 @@ void ostream::throw_exception_on(const int states)
 
 bool ostream::open_nx(const char *path) noexcept
 {
-    if (!buf) return false;
     fd = bp_sys::open(path, O_WRONLY);
     if (fd < 0) {
         io_error = errno;
         return false;
     }
+
+    buf = std::unique_ptr<streambuf>(new(std::nothrow) streambuf);
+    if (!buf) {
+        bp_sys::close(fd);
+        fd = -1;
+        return false;
+    }
+
     return true;
 }
 
@@ -134,7 +142,9 @@ void ostream::open(const char *path)
 
 bool ostream::open_nx(const char *path, const int flags) noexcept
 {
+    buf = std::unique_ptr<streambuf>(new(std::nothrow) streambuf);
     if (!buf) return false;
+
     fd = bp_sys::open(path, O_WRONLY | flags);
     if (fd < 0) {
         io_error = errno;
@@ -154,7 +164,9 @@ void ostream::open(const char *path, const int flags)
 
 bool ostream::open_nx(const char *path, const int flags, const mode_t mode) noexcept
 {
+    buf = std::unique_ptr<streambuf>(new(std::nothrow) streambuf);
     if (!buf) return false;
+
     fd = bp_sys::open(path, O_WRONLY | flags, mode);
     if (fd < 0) {
         io_error = errno;
@@ -186,8 +198,11 @@ bool ostream::close_nx() noexcept
         // error state was checked/set by flush_nx() call
         bp_sys::close(fd);
         fd = -1;
+        buf.reset();
         return false;
     }
+
+    buf.reset();
 
     if (bp_sys::close(fd) < 0) {
         io_error = errno;
@@ -201,10 +216,14 @@ bool ostream::close_nx() noexcept
 
 void ostream::close()
 {
+    bool buf_fail = (fd >= 0 && buf == nullptr);
     bool r = close_nx();
     if (!r) {
         // Failed close_nx leaves an error state bit set, so this will throw:
-        throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
+        throw_exception_on(io_states::io_fail_bit);
+        if (buf_fail) {
+            throw_exception_on(io_states::buffer_fail_bit);
+        }
     }
 }
 
@@ -491,12 +510,19 @@ void istream::throw_exception_on(const int states)
 
 bool istream::open_nx(const char *path) noexcept
 {
-    if (!buf) return false;
     fd = bp_sys::open(path, O_RDONLY);
     if (fd < 0) {
         io_error = errno;
         return false;
     }
+
+    buf = std::unique_ptr<streambuf>(new(std::nothrow) streambuf);
+    if (!buf) {
+        bp_sys::close(fd);
+        fd = -1;
+        return false;
+    }
+
     return true;
 }
 
@@ -511,7 +537,9 @@ void istream::open(const char *path)
 
 bool istream::open_nx(const char *path, const int flags) noexcept
 {
+    buf = std::unique_ptr<streambuf>(new(std::nothrow) streambuf);
     if (!buf) return false;
+
     fd = bp_sys::open(path, O_RDONLY | flags);
     if (fd < 0) {
         io_error = errno;
@@ -531,7 +559,9 @@ void istream::open(const char *path, const int flags)
 
 bool istream::open_nx(const char *path, const int flags, const mode_t mode) noexcept
 {
+    buf = std::unique_ptr<streambuf>(new(std::nothrow) streambuf);
     if (!buf) return false;
+
     fd = bp_sys::open(path, O_RDONLY | flags, mode);
     if (fd < 0) {
         io_error = errno;
@@ -559,6 +589,8 @@ bool istream::close_nx() noexcept
         return false;
     }
 
+    buf.reset();
+
     if (bp_sys::close(fd) < 0) {
         io_error = errno;
         fd = -1;
@@ -571,11 +603,15 @@ bool istream::close_nx() noexcept
 
 void istream::close()
 {
+    bool buf_fail = (fd >= 0 && buf == nullptr);
     bool r = close_nx();
     if (!r) {
         // Failed close_nx leaves an error state bit set, so this will throw:
         throw_exception_on(io_states::io_fail_bit | io_states::eof_bit
-                | io_states::input_fail_bit | io_states::buffer_fail_bit);
+                | io_states::input_fail_bit);
+        if (buf_fail) {
+            throw_exception_on(io_states::buffer_fail_bit);
+        }
     }
 }
 

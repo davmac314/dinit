@@ -121,12 +121,15 @@ void istream_basic_test()
 
     dio::istream stream;
     dio::streambuf *buf = stream.get_buf();
-    assert(buf != nullptr);
-    assert(stream.good());
+    assert(buf == nullptr);
+    assert(!stream.good());
 
     assert(stream.open_nx("file"));
     assert(stream.is_open());
     assert(stream.get_fd() >= 0);
+    buf = stream.get_buf();
+    assert(buf != nullptr);
+    assert(stream.good());
 
     std::string line;
 
