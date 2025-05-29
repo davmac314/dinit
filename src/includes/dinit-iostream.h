@@ -130,7 +130,8 @@ class io_base
     // Set the file descriptor. Setting a new file descriptor will replace any current descriptor
     // in the stream. The buffer must be flushed before replacing the file descriptor. The
     // previous file descriptor remains open and it is the responsibility of the caller to ensure
-    // that it is closed to avoid a file descriptor leak.
+    // that it is closed to avoid a file descriptor leak. If there is no buffer allocated yet
+    // (eg if the stream was not open) this will attempt to allocate a buffer.
     void set_fd(const int newfd) noexcept;
 
     // Get the current file descriptor.
@@ -139,36 +140,26 @@ class io_base
 
 // ostream
 //
-// This class provides file output functionality. It holds a std::unique_ptr of streambuf (a fixed-size
-// circular buffer which that's size can be changed at compile-time) and controls its file descriptor
-// and handle it gracefully when needed.
+// This class provides stream output functionality. It holds, via a std::unique_ptr, a circular
+// buffer (streambuf) and associated file descriptor. The buffer is allocated when the stream
+// is opened and released when it is closed. Data written to the stream is buffered before
+// being written to the descriptor.
 //
 // Constructors
 // ------------
 //
-// The ostream class has four constructors:
+// The ostream class has three constructors:
 //
 //      // Simple construction
-//      dio::ostream output_a;
-//      if (output_a.buffer_failure()) return -1; // Failure in buffer allocation
-//
-//      // Construction with moving a pre-allocated unique_ptr to the buffer
-//      try {
-//          std::unique_ptr<streambuf> my_buffer(new streambuf);
-//      }
-//      catch(const std::bad_alloc &) {
-//          print_err("Cannot allocate memory for the output buffer!\n");
-//          return -1;
-//      }
-//      dio::ostream output_b(std::move(my_buffer)); // Takes ownership of my_buffer
+//      dio::ostream output_a; // Not open, no allocation
 //
 //      // Construction with a file descriptor
-//      dio::ostream output_c(3);
+//      dio::ostream output_b(3);
 //      if (output_c.buffer_failure()) return -1; // Failure in buffer allocation
 //
-//      // Construction with a combination of a file descriptor and moving a
-//      // pre-allocated unique_ptr to the buffer
-//      dio::ostream output_d(3, std::move(buffer_2));
+//      // Construction with a file descriptor and pre-allocated buffer
+//      // (buffer_ptr is a std::unique_ptr<streambuf>)
+//      dio::ostream output_c(3, std::move(buffer_2));
 //
 // Setting (or changing) the file descriptor after construction is available through the set_fd()
 // function (See note in top of set_fd() func). opening and closing files is possible through open()
@@ -226,12 +217,6 @@ class ostream : public io_base
     public:
     ostream() noexcept
     {
-        buf = std::unique_ptr<streambuf>(new(std::nothrow) streambuf);
-    }
-
-    ostream(std::unique_ptr<streambuf> passed_buf) noexcept
-    {
-        buf = std::move(passed_buf);
     }
 
     ostream(const int tfd) noexcept
@@ -418,29 +403,18 @@ class ostream : public io_base
 // The istream class has four constructors:
 //
 //      // Simple construction
-//      dio::istream input_a;
-//      if (input_a.buffer_failure()) return -1; // Failure in buffer allocation
-//
-//      // Construction with moving a pre-allocated unique_ptr to the buffer
-//      try {
-//          std::unique_ptr<streambuf> my_buffer(new streambuf);
-//      }
-//      catch(const std::bad_alloc &) {
-//          print_err("Cannot allocate memory for input buffer!\n");
-//          return -1;
-//      }
-//      dio::istream input_b(std::move(my_buffer)); // Takes ownership of my_buffer
+//      dio::istream input_a; // No allocation, can't fail
 //
 //      // Construction with a file descriptor
-//      dio::istream input_c(3);
+//      dio::istream input_b(3);
 //      if (input_c.buffer_failure()) return -1; // Failure in buffer allocation
 //
-//      // Construction with a combination of a file descriptor and moving a
-//      // pre-allocated unique_ptr to the buffer
-//      dio::istream input_d(3, std::move(buffer_2));
+//      // Construction with a file descriptor and pre-allocated buffer
+//      // (buffer_ptr is a std::unique_ptr<streambuf>)
+//      dio::istream input_c(3, std::move(buffer_ptr));
 //
-// Also, setting (or changing) file descriptor after construction is available through set_fd() function
-// (See note in top of set_fd()). Opening and closing files is possible through open() function.
+// Also, setting (or changing) file descriptor after construction is possible via the set_fd(...)
+// function. Opening and closing files is possible via the open(...) function.
 //
 // Copy/move constructors/assignments and destructor
 // -------------------------------------------------
@@ -452,8 +426,8 @@ class ostream : public io_base
 // Public member inherited from io_base: is_open()
 // ------------------------------------------------------
 //
-// istream through base io_base class provides is_open() function which return true when the
-// istream currently has an open file descriptor or false when it's not.
+// istream through the io_base base class provides the is_open() function which return true when
+// the istream currently has an open file descriptor or false when it does not.
 //
 // Error handling and Stream states
 // --------------------------------
@@ -500,12 +474,6 @@ class istream : public io_base
     public:
     istream() noexcept
     {
-        buf = std::unique_ptr<streambuf>(new(std::nothrow) streambuf);
-    }
-
-    istream(std::unique_ptr<streambuf> passed_buf) noexcept
-    {
-        buf = std::move(passed_buf);
     }
 
     istream(const int tfd) noexcept
