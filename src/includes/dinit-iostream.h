@@ -109,6 +109,24 @@ class io_base
     int fd = -1;
     std::unique_ptr<streambuf> buf;
 
+    // Default constructor:
+    io_base() = default;
+
+    // Move:
+    io_base(io_base &&source)
+    {
+        fd = source.fd;
+        source.fd = -1;
+        buf = std::move(source.buf);
+    }
+
+    // Copy/assign (deleted)
+    io_base(const io_base &) = delete;
+    io_base &operator=(const io_base &) = delete;
+
+    // Move/assign
+    io_base &operator=(io_base &&) = default;
+
     // Wrapper for writev: don't fail (but retry instead) on EINTR
     static int writev_unintr(int fd, struct iovec *vec, int vec_count)
     {
@@ -168,7 +186,7 @@ class io_base
 // Copy/move constructors/assignments and destructor
 // -------------------------------------------------
 //
-// ostream objects cannot be moved, copied or assigned.
+// ostream objects can be moved (including by move-assignment), but not otherwise copied/assigned.
 //
 // The ostream destructor will write all of the buffer content into its file descriptor through the
 // flush_nx() call and close the its current fd.
@@ -232,12 +250,11 @@ class ostream : public io_base
     }
 
     ostream(const ostream &) = delete;
-
     void operator=(const ostream &) = delete;
 
-    ostream(const ostream &&) = delete;
-
-    void operator=(const ostream &&) = delete;
+    // Default move/move-assignment:
+    ostream(ostream &&) = default;
+    ostream &operator=(ostream &&) = default;
 
     // Open file by path, optionally with flags and mode as given to open(2). If flags are not
     // specified, the file will be opened write-only. If flags are specified, O_WRONLY is added
@@ -419,9 +436,9 @@ class ostream : public io_base
 // Copy/move constructors/assignments and destructor
 // -------------------------------------------------
 //
-// istream objects cannot be moved, copied or assigned.
+// istream objects can be moved (including by move-assignment), but not otherwise copied/assigned.
 //
-// The istream destructer will close its fd.
+// The istream destructor closes the stream's file descriptor.
 //
 // Public member inherited from io_base: is_open()
 // ------------------------------------------------------
@@ -489,12 +506,11 @@ class istream : public io_base
     }
 
     istream(const istream &) = delete;
-
     void operator=(const istream &) = delete;
 
-    istream(const istream &&) = delete;
-
-    void operator=(const istream &&) = delete;
+    // Default move/move-assignment:
+    istream(istream &&) = default;
+    istream &operator=(istream &&) = default;
 
     // Open file path, optionally with flags and modes as given to open(2). If flags are not
     // specified, the file will be opened read-only. If flags are specified, O_RDONLY is added
