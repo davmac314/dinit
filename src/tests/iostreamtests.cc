@@ -116,6 +116,10 @@ void ostream_large_msg_test()
 
 void istream_basic_test()
 {
+    // L1
+    // L2
+    //
+    // L3  (no linefeed)
     std::vector<char> wdata = { 'L', '1', '\n', 'L','2', '\n', '\n', 'L', '3' };
     bp_sys::supply_file_content("file", std::move(wdata));
 
@@ -142,11 +146,49 @@ void istream_basic_test()
     stream.get_line(line);
     assert(line.size() == 0);
 
-    stream.get_line(line);
+    stream.get_line_until_eof(line);
     assert(line.compare("L3") == 0);
 
+    // Trying to read another line once end-of-file hit should error
+    assert(!stream.get_line_until_eof_nx(line));
+
+    assert(stream.eof() && !stream.buffer_failure() && !stream.input_failure());
+    stream.clear();
+    stream.close();
+}
+
+void istream_getline_at_eof()
+{
+    // L1
+    // L2
+    std::vector<char> wdata = { 'L', '1', '\n', 'L','2', '\n' };
+    bp_sys::supply_file_content("file", std::move(wdata));
+
+    dio::istream stream;
+    dio::streambuf *buf = stream.get_buf();
+    assert(buf == nullptr);
+    assert(!stream.good());
+
+    assert(stream.open_nx("file"));
+    assert(stream.is_open());
+    assert(stream.get_fd() >= 0);
+    buf = stream.get_buf();
+    assert(buf != nullptr);
+    assert(stream.good());
+
+    std::string line;
+
+    stream.get_line(line);
+    assert(line.compare("L1") == 0);
+
+    stream.get_line(line);
+    assert(line.compare("L2") == 0);
+
     stream.get_line_until_eof(line);
-    assert(stream.eof());
+    assert(line.size() == 0);
+
+    // Trying to read another line once end-of-file hit should error
+    assert(!stream.get_line_until_eof_nx(line));
 
     assert(stream.eof() && !stream.buffer_failure() && !stream.input_failure());
     stream.clear();
@@ -170,7 +212,7 @@ void istream_buffer_boundary_test()
     buf->append(msg.begin(), 100);
 
     std::string line;
-    stream.get_line(line);
+    stream.get_line_until_eof(line);
     assert(line.size() == IOSTREAM_BUFSIZE);
     assert(strncmp(line.c_str(), msg.begin(), IOSTREAM_BUFSIZE));
 }
@@ -187,6 +229,7 @@ int main(int argc, char **argv)
     RUN_TEST(ostream_int_conversion_test, "  ");
     RUN_TEST(ostream_large_msg_test, "       ");
     RUN_TEST(istream_basic_test, "           ");
+    RUN_TEST(istream_getline_at_eof, "       ");
     RUN_TEST(istream_buffer_boundary_test, " ");
 
     return 0;

@@ -30,14 +30,13 @@ namespace dio {
 
 // Stream state bits:
 //
-// 1. 'eof_bit' indicates that the End Of File has been reached, and there is nothing left in
-//    the buffer (istream only).
+// 1. 'eof_bit' indicates that a read past end-of-file has been attempted (istream only).
 // 2. 'buffer_fail_bit' indicates an attempt to use the buffer when the buffer pointer was nullptr
 //    (e.g. failure to allocate a unique_ptr of streambuf) (ostream & istream).
 // 3. 'input_fail_bit' indicates failure to store received input (e.g. failure in pushing a line
 //    from the buffer to the given std::string in get_line()) (istream only).
 // 4. 'io_fail_bit' indicates that a system I/O function failed, and the error number (errno) was
-//    recorded (istream & ostream).
+//    recorded in the stream state (istream & ostream).
 //
 // If all of the above bits are false, the stream status is "good".
 //
@@ -603,12 +602,16 @@ class istream : public io_base
     // Reads and stores one line from the stream into the given std::string, until a delimiter
     // character (usually '\n') is found or end-of-file is reached, and store what was read in the
     // given string. The previous contents of the string are destroyed. Note that this may return
-    // with the end-of-file condition true.
-    // Throws:
+    // with the end-of-file condition true. If the end-of-file condition is already true when this
+    // function is called, the function will fail.
+    // Returnes (_nx variant):
+    //   true for success, false otherwise.
+    // Throws (non-_nx variant):
     //   dio::iostream_eof on end-of-file (if hit prior to this call)
     //   std::bad_alloc on buffer failure (buffer could not be allocated at construction) or if
     //       out-of-memory or length error occurred during (earlier) input to string
     //   dio::iostream_system_err on system I/O failure.
+    bool get_line_until_eof_nx(std::string &dest, char delim = '\n') noexcept;
     void get_line_until_eof(std::string &dest, char delim = '\n');
 
     // Convenience conversion to bool, equivalent to good().

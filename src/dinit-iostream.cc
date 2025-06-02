@@ -694,6 +694,7 @@ bool istream::get_line_nx(std::string &dest, char delim) noexcept
     if (!good()) {
         return false;
     }
+    dest.clear();
     if (buf->get_length() == 0) {
         int r = load_into_buf(buf->get_size());
         if (r == 0) {
@@ -705,7 +706,6 @@ bool istream::get_line_nx(std::string &dest, char delim) noexcept
             return false;
         }
     }
-    dest.clear();
 
     char *ptr = buf->get_ptr(0);
     unsigned len = buf->get_contiguous_length(ptr);
@@ -730,7 +730,8 @@ bool istream::get_line_nx(std::string &dest, char delim) noexcept
         if (buf->get_length() == 0) {
             int r = load_into_buf(buf->get_size());
             if (r == 0) {
-                return true;
+                eof_state = true;
+                return false;
             }
             if (r < 0) {
                 io_error = errno;
@@ -776,6 +777,19 @@ void istream::get_line_until_eof(std::string &dest, char delim)
                 | io_states::io_fail_bit);
     }
     // (eof_state may be set, i.e. we reached end-of-file, but that's not an error)
+}
+
+bool istream::get_line_until_eof_nx(std::string &dest, char delim) noexcept
+{
+    if (!good()) return false;
+    bool r = get_line_nx(dest, delim);
+    if (!r) {
+        // If we hit end-of-file and there is no other error, return success.
+        // (We can ignore buffer failure, that can't happen between the initial
+        // check above and this point).
+        if (io_error != 0 || string_failed) return false;
+    }
+    return true;
 }
 
 istream::operator bool() noexcept
