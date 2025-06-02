@@ -339,7 +339,7 @@ for arg in "$@"; do
         |LDFLAGS_FOR_BUILD=*|CXXFLAGS=*|CXXFLAGS_EXTRA=*|TEST_CXXFLAGS=*\
         |TEST_CXXFLAGS_EXTRA=*|LDFLAGS=*|LDFLAGS_EXTRA=*|TEST_LDFLAGS=*\
         |TEST_LDFLAGS_EXTRA=*|CPPFLAGS=*|LDFLAGS_BASE=*|TEST_LDFLAGS_BASE=*\
-        |LDFLAGS_LIBCAP) eval "${arg%%=*}=\${arg#*=}" ;;
+        |LDFLAGS_LIBCAP=*) eval "${arg%%=*}=\${arg#*=}" ;;
         *=*) warning "Unknown variable: ${arg%%=*}" ;;
         *) warning "Unknown argument: $arg" ;;
     esac
