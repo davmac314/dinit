@@ -105,8 +105,10 @@ struct getc_result
 class io_base
 {
     protected:
+
     int fd = -1;
     std::unique_ptr<streambuf> buf;
+    int io_error = 0;
 
     // Default constructor:
     io_base() = default;
@@ -137,9 +139,21 @@ class io_base
     }
 
     public:
+
     // Get raw pointer to the current buffer.
     // Note: The buffer may be null if allocation failed (buffer_fail_bit will be set).
     streambuf *get_buf() noexcept;
+
+    // Check the buffer allocation was successful, and throw std::bad_alloc if not. This can be
+    // used after a failed open(...) operation to handle the specific case of buffer allocation
+    // failure, without throwing an exception in other cases. It should not be used outside of
+    // this use case.
+    void check_buf()
+    {
+        if (io_error == 0 && !buf) {
+            throw std::bad_alloc();
+        }
+    }
 
     // Is the current stream's file descriptor open?
     bool is_open() noexcept;
@@ -220,8 +234,6 @@ class io_base
 // functions guarantee not to throw any exceptions.
 class ostream : public io_base
 {
-    int io_error = 0;
-
     // Internal function to appending into the buffer. Returns written bytes from message or -1 on
     // error (error number can be retrieved via io_failure()).
     ssize_t put(const char *msg, size_t count) noexcept;
@@ -474,7 +486,6 @@ class istream : public io_base
     // Variables to capture stream current status:
     bool eof_state = false;
     bool string_failed = false;
-    int io_error = 0;
 
     // Helper function to fill the buffer by reading from the file descriptor (a wrapper for
     // buf->fill()).
