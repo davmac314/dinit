@@ -54,6 +54,7 @@ void supply_file_content(const std::string &path, std::vector<char> &&data);
 
 // implementations elsewhere:
 int open(const char *pathname, int flags);
+int open(const char *pathname, int flags, mode_t mode);
 int pipe2(int pipefd[2], int flags);
 int close(int fd);
 int kill(pid_t pid, int sig);
