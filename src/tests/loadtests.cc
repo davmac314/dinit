@@ -1,6 +1,8 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <vector>
+
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -14,9 +16,40 @@ std::string test_service_dir;
 environment tenv;
 environment::env_map tenvmap;
 
+static std::vector<char> read_file_contents(const std::string &file_name)
+{
+    std::vector<char> contents;
+
+    int fd = open(file_name.c_str(), O_RDONLY);
+    if (fd == -1) {
+        throw std::system_error(errno, std::generic_category(), "read_file_contents: open");
+    }
+
+    char buf[1024];
+    int r = read(fd, buf, 1024);
+    while (r > 0) {
+        contents.insert(contents.end(), &buf[0], &buf[r]);
+        r = read(fd, buf, 1024);
+    }
+
+    if (r == -1) {
+        throw std::system_error(errno, std::generic_category(), "read_file_contents: read");
+    }
+
+    return contents;
+}
+
 void init_test_service_dir()
 {
     test_service_dir = "./test-services";
+
+    auto supply_service_file = [](const std::string &filename){
+        bp_sys::supply_file_content(filename, read_file_contents(filename));
+    };
+    supply_service_file("./test-services/t1");
+    supply_service_file("./test-services/t2");
+    supply_service_file("./test-services/t3");
+
     tenvmap = tenv.build(main_env);
 }
 
@@ -219,7 +252,10 @@ void test_settings()
             "rlimit-data = -:-";
 
     file_input_stack input_stack;
-    input_stack.add_source(ss.str(), "dummy");
+    bp_sys::supply_file_content("./dummy", ss.str());
+    dio::istream infile;
+    infile.open("./dummy");
+    input_stack.push("./dummy", std::move(infile));
 
     try {
         auto resolve_var = [](const std::string &name) {
@@ -295,7 +331,10 @@ void test_path_env_subst()
             "logfile = /some/$1/$username/${1}/dir\n";
 
     file_input_stack input_stack;
-    input_stack.add_source(ss.str(), "dummy");
+    bp_sys::supply_file_content("./dummy", ss.str());
+    dio::istream infile;
+    infile.open("./dummy");
+    input_stack.push("./dummy", std::move(infile));
 
     try {
         auto resolve_var = [](const std::string &name) {
@@ -377,7 +416,10 @@ void test_newline_err()
         dinit_load::service_settings_wrapper<prelim_dep> settings;
 
         file_input_stack input_stack;
-        input_stack.add_source(ss.str(), "dummy");
+        bp_sys::supply_file_content("./dummy", ss.str());
+        dio::istream infile;
+        infile.open("./dummy");
+        input_stack.push("./dummy", std::move(infile));
 
         auto resolve_var = [](const std::string &name) {
             return (char *)nullptr;
@@ -447,7 +489,10 @@ void test_newline2()
             " next line\n";
 
     file_input_stack input_stack;
-    input_stack.add_source(ss.str(), "dummy");
+    bp_sys::supply_file_content("./dummy", ss.str());
+    dio::istream infile;
+    infile.open("./dummy");
+    input_stack.push("./dummy", std::move(infile));
 
     try {
         auto resolve_var = [](const std::string &name) {

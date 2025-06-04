@@ -49,6 +49,7 @@ void set_blocking(int fd);
 void extract_written_data(int fd, std::vector<char> &data);
 void supply_file_content(const std::string &path, const std::vector<char> &data);
 void supply_file_content(const std::string &path, std::vector<char> &&data);
+void supply_file_content(const std::string &path, const std::string &data);
 
 // Mock system calls:
 

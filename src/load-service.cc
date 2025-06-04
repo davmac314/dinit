@@ -20,6 +20,7 @@
 #include "dinit-log.h"
 #include "dinit-util.h"
 #include "dinit-utmp.h"
+#include "dinit-iostream.h"
 
 using string = std::string;
 using string_iterator = std::string::iterator;
@@ -394,7 +395,7 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
     service_record *rval = nullptr;
     service_record *dummy = nullptr;
 
-    ifstream service_file;
+    dio::istream service_file;
     string service_filename;
 
     int fail_load_errno = 0;
@@ -410,11 +411,13 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
         }
         service_filename += name;
 
-        service_file.open(service_filename.c_str(), ios::in);
+        service_file.open_nx(service_filename.c_str());
         if (service_file) break;
 
-        if (errno != ENOENT && fail_load_errno == 0) {
-            fail_load_errno = errno;
+        service_file.check_buf();
+        int service_file_err = service_file.io_failure();
+        if (service_file_err != ENOENT && fail_load_errno == 0) {
+            fail_load_errno = service_file_err;
             fail_load_path = std::move(service_filename);
         }
     }
@@ -434,7 +437,7 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
     string line;
     // getline can set failbit if it reaches end-of-file, we don't want an exception in that case. There's
     // no good way to handle an I/O error however, so we'll have exceptions thrown on badbit:
-    service_file.exceptions(ios::badbit);
+    //service_file.exceptions(ios::badbit);
 
     bool create_new_record = true;
 
@@ -1019,9 +1022,16 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
     }
     catch (std::system_error &sys_err)
     {
+        // TODO: remove this handling when we read all files via dinit-io
         exception_cleanup();
         // don't use sys_err.what() since libstdc++ sometimes includes class names (basic_filebuf):
         std::string msg = input_stack.current_file_name() + ": " + sys_err.code().message();
+        throw service_load_exc(name, std::move(msg));
+    }
+    catch (dio::iostream_system_err &sys_err)
+    {
+        exception_cleanup();
+        std::string msg = input_stack.current_file_name() + ": " + strerror(sys_err.get_errno());
         throw service_load_exc(name, std::move(msg));
     }
     catch (std::length_error &len_err) {

@@ -22,6 +22,7 @@
 #include "cpbuffer.h"
 #include "dinit-client.h"
 #include "dinit-util.h"
+#include "dinit-iostream.h"
 #include "file-input-stack.h"
 #include "load-service.h"
 #include "options-processing.h"
@@ -1881,7 +1882,7 @@ static std::string get_service_descr_filename(int socknum, cpbuffer_t &rbuffer, 
 
 // find (and open) a service description file in a set of paths
 static void find_service_desc(const char *svc_name, const std::vector<std::string> &paths,
-        std::ifstream &service_file, std::string &service_file_path)
+        dio::istream &service_file, std::string &service_file_path)
 {
     using namespace std;
 
@@ -1892,8 +1893,9 @@ static void find_service_desc(const char *svc_name, const std::vector<std::strin
     for (std::string path : paths) {
         string test_path = combine_paths(path, ::string_view(svc_name, at_ptr - svc_name));
 
-        service_file.open(test_path.c_str(), ios::in);
-        if (service_file || errno != ENOENT) {
+        service_file.open_nx(test_path.c_str());
+        service_file.check_buf();
+        if (service_file || service_file.io_failure() != ENOENT) {
             service_file_path = test_path;
             break;
         }
@@ -1917,7 +1919,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 
     string service_file_path;
     string to_service_file_path;
-    ifstream service_file;
+    dio::istream service_file;
 
     if (strchr(from, '@') != nullptr) {
         cerr << "dinitctl: cannot enable/disable from a service with argument (service@arg).\n";
@@ -1941,10 +1943,11 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
         to_service_file_path = get_service_descr_filename(socknum, rbuffer, to_handle, to);
 
         // open from file
-        service_file.open(service_file_path.c_str());
+        service_file.open_nx(service_file_path.c_str());
         if (!service_file) {
+            service_file.check_buf();
             cerr << "dinitctl: could not open service description file '"
-                    << service_file_path << "': " << strerror(errno) << "\n";
+                    << service_file_path << "': " << strerror(service_file.io_failure()) << "\n";
             return EXIT_FAILURE;
         }
     }
@@ -1957,19 +1960,20 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 
         find_service_desc(from, service_dir_paths, service_file, service_file_path);
         if (!service_file) {
-            if (errno == ENOENT) {
+            if (service_file.io_failure() == ENOENT) {
                 cerr << "dinitctl: could not locate service file for service '" << from << "'\n";
             }
             else {
                 cerr << "dinitctl: could not open service description file '"
-                        << service_file_path << "': " << strerror(errno) << "\n";
+                        << service_file_path << "': " << strerror(service_file.io_failure())
+                        << "\n";
             }
             return EXIT_FAILURE;
         }
 
-        ifstream to_service_file;
+        dio::istream to_service_file;
         find_service_desc(to, service_dir_paths, to_service_file, to_service_file_path);
-        if (!to_service_file) {
+        if (!to_service_file && to_service_file.io_failure() == ENOENT) {
             cerr << "dinitctl: could not locate service file for target service '" << to << "'" << endl;
             return EXIT_FAILURE;
         }
@@ -1979,8 +1983,6 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
     // make sure the service is not listed as a dependency individually.
 
     string waits_for_d;
-
-    service_file.exceptions(ios::badbit);
 
     file_input_stack input_stack;
     input_stack.push(service_file_path, std::move(service_file));

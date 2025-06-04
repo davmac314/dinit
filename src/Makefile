@@ -10,7 +10,7 @@ ifeq ($(BUILD_SHUTDOWN),yes)
 endif
 
 dinit_objects = dinit.o load-service.o service.o proc-service.o baseproc-service.o control.o dinit-log.o \
-		dinit-main.o run-child-proc.o options-processing.o dinit-env.o settings.o
+		dinit-main.o run-child-proc.o options-processing.o dinit-env.o settings.o dinit-iostream.o
 
 objects = $(dinit_objects) dinitctl.o dinitcheck.o shutdown.o dinit-monitor.o
 
@@ -23,11 +23,11 @@ all: dinit dinitctl dinitcheck dinit-monitor $(SHUTDOWN)
 dinit: $(dinit_objects)
 	$(CXX) -o dinit $(dinit_objects) $(ALL_LDFLAGS) $(LDFLAGS_LIBCAP)
 
-dinitctl: dinitctl.o options-processing.o settings.o
-	$(CXX) -o dinitctl dinitctl.o options-processing.o settings.o $(ALL_LDFLAGS)
+dinitctl: dinitctl.o options-processing.o settings.o dinit-iostream.o
+	$(CXX) -o dinitctl dinitctl.o options-processing.o settings.o dinit-iostream.o $(ALL_LDFLAGS)
 
-dinitcheck: dinitcheck.o options-processing.o settings.o
-	$(CXX) -o dinitcheck dinitcheck.o options-processing.o settings.o $(ALL_LDFLAGS) $(LDFLAGS_LIBCAP)
+dinitcheck: dinitcheck.o options-processing.o settings.o dinit-iostream.o
+	$(CXX) -o dinitcheck dinitcheck.o options-processing.o settings.o dinit-iostream.o $(ALL_LDFLAGS) $(LDFLAGS_LIBCAP)
 
 dinit-monitor: dinit-monitor.o
 	$(CXX) -o dinit-monitor dinit-monitor.o $(ALL_LDFLAGS)
