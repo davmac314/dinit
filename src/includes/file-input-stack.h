@@ -6,11 +6,13 @@
 #include <string>
 #include <utility>
 
+#include "dinit-iostream.h"
+
 // A stack of input sources (open files) for a service description
 class file_input_stack
 {
     struct input_file {
-        std::ifstream stream;
+        dio::istream stream;
         std::string file_name;
         int line_num;
     };
@@ -23,7 +25,7 @@ public:
 
     // Push a new input file
     // TODO limit depth and/or prevent recursion
-    void push(std::string file_name, std::ifstream &&file)
+    void push(std::string file_name, dio::istream &&file)
     {
         input_stack.emplace(input_file {std::move(file), std::move(file_name), 0});
     }
@@ -34,10 +36,11 @@ public:
             input_file &top = input_stack.top();
             top.line_num++;
 
-            if (std::getline(top.stream, rline)) {
+            if (top.stream.get_line_until_eof_nx(rline)) {
                 return true;
             }
 
+            top.stream.throw_exception_on(dio::buffer_fail_bit | dio::input_fail_bit | dio::io_fail_bit);
             input_stack.pop();
         }
         return false;
@@ -49,10 +52,12 @@ public:
         if (!input_stack.empty()) {
             input_file &top = input_stack.top();
 
-            if (std::getline(top.stream, rline)) {
+            if (top.stream.get_line_until_eof_nx(rline)) {
                 top.line_num++;
                 return true;
             }
+
+            top.stream.throw_exception_on(dio::buffer_fail_bit | dio::input_fail_bit | dio::io_fail_bit);
         }
         return false;
     }
