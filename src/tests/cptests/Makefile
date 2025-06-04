@@ -5,7 +5,8 @@ ALL_TEST_LDFLAGS=$(TEST_LDFLAGS) $(TEST_LDFLAGS_EXTRA)
 
 objects = cptests.o
 parent_test_objects = ../test-bpsys.o ../test-dinit.o ../test-run-child-proc.o
-parent_objs = control.o dinit-log.o service.o load-service.o proc-service.o baseproc-service.o dinit-env.o settings.o
+parent_objs = control.o dinit-log.o service.o load-service.o proc-service.o baseproc-service.o dinit-env.o \
+	settings.o dinit-iostream.o
 
 check: build-tests run-tests
 
