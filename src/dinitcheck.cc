@@ -625,7 +625,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     string service_wdir;
     string service_filename;
-    ifstream service_file;
+    dio::istream service_file;
     int dirfd;
 
     int fail_load_errno = 0;
@@ -640,11 +640,12 @@ service_record *load_service(service_set_t &services, const std::string &name,
         }
         service_filename += base_name;
 
-        service_file.open(service_filename.c_str(), ios::in);
+        service_file.open_nx(service_filename.c_str());
         if (service_file) break;
 
-        if (errno != ENOENT && fail_load_errno == 0) {
-            fail_load_errno = errno;
+        service_file.check_buf();
+        if (service_file.io_failure() != ENOENT && fail_load_errno == 0) {
+            fail_load_errno = service_file.io_failure();
             fail_load_path = std::move(service_filename);
         }
     }
@@ -675,7 +676,6 @@ service_record *load_service(service_set_t &services, const std::string &name,
     service_settings_wrapper<prelim_dep> settings;
 
     string line;
-    service_file.exceptions(ios::badbit);
 
     file_input_stack input_stack;
     input_stack.push(std::move(service_filename), std::move(service_file));

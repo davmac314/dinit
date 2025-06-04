@@ -123,6 +123,17 @@ void supply_file_content(const std::string &path, std::vector<char> &&data)
     file_content_map[path] = std::move(data);
 }
 
+void supply_file_content(const std::string &path, const std::string &data)
+{
+    std::vector<char> vec_data;
+    size_t len = data.length();
+    const char *data_cstr = data.c_str();
+
+    vec_data.reserve(len);
+    vec_data.insert(vec_data.end(), &data_cstr[0], &data_cstr[len]);
+    supply_file_content(path, std::move(vec_data));
+}
+
 // Mock implementations of system calls:
 
 int open(const char *pathname, int flags)

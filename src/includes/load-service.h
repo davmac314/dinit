@@ -21,6 +21,7 @@
 #include <dinit-env.h>
 #include <dinit-utmp.h>
 #include <dinit-util.h>
+#include <dinit-iostream.h>
 #include <file-input-stack.h>
 #include <service-constants.h>
 #include <mconfig.h>
@@ -1042,8 +1043,8 @@ void process_service_file(string name, file_input_stack &service_input, T proces
                     file_pos_ref input_pos { service_input.current_file_name(), line_num };
                     std::string include_name = read_include_path(name, meta_cmd, input_pos, i, end, argval, resolve_var);
 
-                    std::ifstream file(include_name);
-                    file.exceptions(std::ios::badbit);
+                    dio::istream file;
+                    file.open(include_name.c_str());
                     if (file) {
                         service_input.push(include_name, std::move(file));
                     }
