@@ -1880,9 +1880,13 @@ static std::string get_service_descr_filename(int socknum, cpbuffer_t &rbuffer, 
     return r;
 }
 
-// find (and open) a service description file in a set of paths
-static void find_service_desc(const char *svc_name, const std::vector<std::string> &paths,
-        dio::istream &service_file, std::string &service_file_path)
+// Find (and open) a service description file in a set of paths
+// Returns:
+//   The file descriptor for the SDF, or -1 if the file cannot be found or opened (with errno set
+//   accordingly). If an SDF is found (whether opened successfully or not) its path will be stored
+//   in 'service_file_path'.
+static int find_service_desc(const char *svc_name, const std::vector<std::string> &paths,
+        std::string &service_file_path)
 {
     using namespace std;
 
@@ -1893,13 +1897,15 @@ static void find_service_desc(const char *svc_name, const std::vector<std::strin
     for (std::string path : paths) {
         string test_path = combine_paths(path, ::string_view(svc_name, at_ptr - svc_name));
 
-        service_file.open_nx(test_path.c_str());
-        service_file.check_buf();
-        if (service_file || service_file.io_failure() != ENOENT) {
+        int sdf_fd = open(test_path.c_str(), O_RDONLY);
+        if (sdf_fd != -1 || errno != ENOENT) {
             service_file_path = test_path;
-            break;
+            return sdf_fd;
         }
     }
+
+    // errno has been set to ENOENT by last attempt
+    return -1;
 }
 
 // exception for cancelling a service operation
@@ -1958,25 +1964,27 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
             service_dir_paths.emplace_back(path.get_dir());
         }
 
-        find_service_desc(from, service_dir_paths, service_file, service_file_path);
-        if (!service_file) {
-            if (service_file.io_failure() == ENOENT) {
+        int sdf_fd = find_service_desc(from, service_dir_paths, service_file_path);
+        if (sdf_fd == -1) {
+            if (errno == ENOENT) {
                 cerr << "dinitctl: could not locate service file for service '" << from << "'\n";
             }
             else {
                 cerr << "dinitctl: could not open service description file '"
-                        << service_file_path << "': " << strerror(service_file.io_failure())
+                        << service_file_path << "': " << strerror(errno)
                         << "\n";
             }
             return EXIT_FAILURE;
         }
 
-        dio::istream to_service_file;
-        find_service_desc(to, service_dir_paths, to_service_file, to_service_file_path);
-        if (!to_service_file && to_service_file.io_failure() == ENOENT) {
+        int to_sdf_fd = find_service_desc(to, service_dir_paths, to_service_file_path);
+        if (to_sdf_fd == -1 && errno == ENOENT) {
             cerr << "dinitctl: could not locate service file for target service '" << to << "'" << endl;
             return EXIT_FAILURE;
         }
+
+        service_file.set_fd(sdf_fd);
+        service_file.check_buf();
     }
 
     // We now need to read the service file, identify the waits-for.d directory (bail out if more than one),
