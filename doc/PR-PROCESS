@@ -95,15 +95,16 @@ If, however, changes were requested in the review:
 Rebasing
 --------
 
-As mentioned, do not rebase an in-progress review on changes that have since happened on the
-target branch. If this is necessary for some reason (eg. a fix from the target branch is required)
-then post a message in the PR and wait for maintainer approval to do the rebase.
+As mentioned, do not rebase an in-progress PR on changes that have since happened on the target
+branch. If this is necessary for some reason (eg. a fix from the target branch is required) then
+post a message in the PR and wait for maintainer approval to do the rebase.
 
 
 Draft PRs
 ---------
 
-The above process requires that you do not push changes that are not ready reviewed. You may do
-this however, so long as you _first_ set the PR status to "draft".
+The above process requires that you do not push changes that are not ready to be reviewed. You may
+do this however, so long as you _first_ set the PR status to "draft". This should be done only
+during step 7 of the process.
 
 Once the PR is ready for review, remove the "draft" status, to mark the PR as ready for review.
