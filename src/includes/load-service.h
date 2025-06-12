@@ -1043,15 +1043,31 @@ void process_service_file(string name, file_input_stack &service_input, T proces
                     file_pos_ref input_pos { service_input.current_file_name(), line_num };
                     std::string include_name = read_include_path(name, meta_cmd, input_pos, i, end, argval, resolve_var);
 
-                    dio::istream file;
-                    file.open(include_name.c_str());
-                    if (file) {
-                        service_input.push(include_name, std::move(file));
+                    const char *include_name_base = base_name(include_name.c_str());
+                    const char *include_name_dir;
+                    if (include_name_base == include_name.c_str()) {
+                        include_name_dir = "";
+                    }
+                    else if (include_name_base == (include_name.c_str() + 1)) {
+                        // Parent path must be '/' but we may not have space to insert a nul
+                        include_name_dir = "/";
                     }
                     else {
-                        if (!is_include_opt || errno != ENOENT) {
-                            throw service_load_exc(name, include_name + ": cannot open: " + strerror(errno));
+                        include_name_dir = include_name.c_str();
+                        // store nul terminator:
+                        include_name[include_name_base - include_name_dir - 1] = '\0';
+                    }
+
+                    auto inc_sdf_fds = open_with_dir(include_name_dir, include_name_base,
+                            service_input.current_resolve_dir());
+                    if (inc_sdf_fds.first == -1) {
+                        if (!is_include_opt || inc_sdf_fds.second != ENOENT) {
+                            throw service_load_exc(name, include_name + ": cannot open: " + strerror(inc_sdf_fds.second));
                         }
+                    }
+                    else {
+                        dio::istream file(inc_sdf_fds.second);
+                        service_input.push(include_name, std::move(file), inc_sdf_fds.first);
                     }
                 }
                 else {
@@ -1361,6 +1377,7 @@ inline string read_value_resolved(const char *setting_name, file_pos_ref input_p
     return rval;
 }
 
+// XXX this doesn't really need to exist:
 // Reads an include path while performing minimal argument expansion in it.
 template <typename resolve_var_t>
 inline string read_include_path(string const &svcname, string const &meta_cmd, file_pos_ref input_pos,

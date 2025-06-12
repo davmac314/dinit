@@ -312,7 +312,10 @@ inline std::pair<bool, std::vector<char>> readlink_at_str(int dirfd, const char 
 // manually and opening the parent directory before the final path component).
 // Returns:
 //   A pair of file descriptors {parent dir fd, file fd}; on failure, {-1, errno}.
-inline std::pair<int,int> open_with_dir(const char *path) noexcept
+// Throws:
+//   std::bad_alloc on out-of-memory.
+inline std::pair<int,int> open_with_dir(const char *dirname, const char *basename,
+        int resolve_fd = AT_FDCWD) noexcept
 {
     // For a file /x/y/z, if the final component 'z' is a link to /a/b/c, then the real parent
     // directory is /a/b (not /x/y).
@@ -320,7 +323,10 @@ inline std::pair<int,int> open_with_dir(const char *path) noexcept
     // This vector is used as backing for the next path if we need to "recurse" (i.e. if we need
     // to manually follow a symlink).
     std::vector<char> path_vec;
-    int resolve_fd = AT_FDCWD;
+
+    // Whether to close resolve_fd after use (initially false because it is supplied by caller,
+    // and we don't want to close the caller's fd):
+    bool close_resolve_fd = false;
 
     long link_resolve_times = sysconf(_SC_SYMLOOP_MAX);
 
@@ -334,21 +340,18 @@ inline std::pair<int,int> open_with_dir(const char *path) noexcept
 
     begin:
 
-    string_view parent_dir = parent_path(path);
-    const char *base_name_str = base_name(path + parent_dir.length());
-
-    if (parent_dir.length() == 0) {
-        parent_dir = string_view(".");
+    if (*dirname == '\0') {
+        dirname = ".";
     }
 
-    int parent_dir_fd = openat(resolve_fd, std::string(parent_dir).c_str(), dir_search_flag | O_DIRECTORY);
-    if (resolve_fd != AT_FDCWD) bp_sys::close(resolve_fd);
+    int parent_dir_fd = openat(resolve_fd, dirname, dir_search_flag | O_DIRECTORY);
+    if (close_resolve_fd) bp_sys::close(resolve_fd);
     if (parent_dir_fd == -1) {
         return {-1, errno};
     }
 
     // open the final file (basename) without following symlinks
-    int file_fd = bp_sys::openat(parent_dir_fd, base_name_str, O_RDONLY | O_NOFOLLOW);
+    int file_fd = bp_sys::openat(parent_dir_fd, basename, O_RDONLY | O_NOFOLLOW);
     if (file_fd == -1) {
         if (errno == ELOOP) {
             // It's a symlink
@@ -361,7 +364,7 @@ inline std::pair<int,int> open_with_dir(const char *path) noexcept
             link_resolve_times--;
 
             // read the next path
-            auto link_path_r = readlink_at_str(parent_dir_fd, base_name_str);
+            auto link_path_r = readlink_at_str(parent_dir_fd, basename);
             if (!link_path_r.first) {
                 // If EINVAL, it's supposedly not a symbolic link. Maybe it changed out from
                 // underneath this. The risk of handling this by looping back and trying as a file
@@ -371,10 +374,37 @@ inline std::pair<int,int> open_with_dir(const char *path) noexcept
                 return {-1, errno};
             }
 
-            // Ok, we successfully read the link target:
+            // Ok, we successfully read the link target. We need to extract the parent directory
+            // name and base name, and then we'll jump back to 'begin' to iterate:
             path_vec = std::move(link_path_r.second);
-            path = path_vec.data();
+            char *path = path_vec.data();
+            dirname = path;
+            basename = base_name(dirname);
+            if (basename == dirname) {
+                dirname = "";
+            }
+            else if (*basename == '\0') {
+                bp_sys::close(parent_dir_fd);
+                return {-1, ENOENT};
+            }
+            else {
+                string_view path_ish {path, (size_t)(basename - path)};
+                string_view parent_path_v = parent_path(path_ish);
+                if (parent_path_v.length() == 1) {
+                    // Parent path must be '/'. Inserting nul might overwrite base name string,
+                    // so we need a separate string:
+                    dirname = "/";
+                }
+                else if (parent_path_v.empty()) {
+                    dirname = "";
+                }
+                else {
+                    path[parent_path_v.length()] = '\0';
+                }
+            }
+
             resolve_fd = parent_dir_fd;
+            close_resolve_fd = true;
             goto begin;
         }
 
@@ -385,6 +415,37 @@ inline std::pair<int,int> open_with_dir(const char *path) noexcept
 
     return {parent_dir_fd, file_fd};
 }
+
+// Open a file and its (real) parent directory, at the same time. This is guaranteed to work even
+// if the path specifies a symbolic link (in this case, the parent directory is the parent of the
+// destination, not of the link). This function is designed to avoid races that can arise when
+// symlinks are present (eg even if you realpath a symlink, by the time you open that path any of
+// its components may have been replaced with another symlink; we avoid that by resolving symlinks
+// manually and opening the parent directory before the final path component).
+// Returns:
+//   A pair of file descriptors {parent dir fd, file fd}; on failure, {-1, errno}.
+// Throws:
+//   std::bad_alloc on out-of-memory.
+//inline std::pair<int,int> open_with_dir(const char *path)
+//{
+//    const char *path_base = base_name(path);
+//    const char *path_dir;
+//    std::string path_dir_str;
+//
+//
+//    if (path_base == path) {
+//        path_dir = "";
+//    }
+//    else if (path_base == (path + 1)) {
+//        path_dir = "/";
+//    }
+//    else {
+//        path_dir_str.append(path, path_base - 1);
+//        path_dir = path_dir_str.c_str();
+//    }
+//
+//    return open_with_dir(path_dir, path_base);
+//}
 
 // Check if one string starts with another
 inline bool starts_with(const std::string &s, const char *prefix) noexcept
