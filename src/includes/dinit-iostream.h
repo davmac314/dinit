@@ -50,6 +50,8 @@ enum io_states
     io_fail_bit = 0x08
 };
 
+static constexpr int all_errors = eof_bit | buffer_fail_bit | input_fail_bit | io_fail_bit;
+
 // Some (empty) classes for signalling special buffer operations. These are used to implement
 // support for 'endl' and 'flush' in ostream::write(...) functions.
 class endline { };
@@ -238,11 +240,6 @@ class ostream : public io_base
     // error (error number can be retrieved via io_failure()).
     ssize_t put(const char *msg, size_t count) noexcept;
 
-    // Throw an exception if current state flags indicate an error condition. 'states' is a
-    // bitmask formed by combining values in the io_states enum, indicating which state flags are
-    // to be tested.
-    void throw_exception_on(const int states);
-
     public:
     ostream() noexcept
     {
@@ -299,6 +296,11 @@ class ostream : public io_base
     // Returns:
     //  The current state bits in stream (a combination of values from 'io_states').
     int current_state() noexcept;
+
+    // Throw an exception if current state flags indicate an error condition. 'states' is a
+    // bitmask formed by combining values in the io_states enum, indicating which state flags are
+    // to be tested.
+    void throw_exception_on(const int states);
 
     // Check whether the stream is currently "good".
     // Returns:
@@ -493,11 +495,6 @@ class istream : public io_base
     //   The number of bytes read into the buffer, or -1 on error (with io_error set).
     int load_into_buf(unsigned len) noexcept;
 
-    // Throw an exception if current state flags indicate an error condition. 'states' is a
-    // bitmask formed by combining values in the io_states enum, indicating which state flags are
-    // to be tested.
-    void throw_exception_on(const int states);
-
     public:
     istream() noexcept
     {
@@ -556,6 +553,11 @@ class istream : public io_base
     // Returns:
     //  The current state bits in stream (a combination of values from 'io_states').
     int current_state() noexcept;
+
+    // Throw an exception if current state flags indicate an error condition. 'states' is a
+    // bitmask formed by combining values in the io_states enum, indicating which state flags are
+    // to be tested.
+    void throw_exception_on(const int states);
 
     // Check whether the stream is currently "good".
     // Returns:
