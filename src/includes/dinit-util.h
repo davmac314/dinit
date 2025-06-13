@@ -131,7 +131,8 @@ inline std::string operator+(const std::string &a, const string_view &b)
 
 #if SUPPORT_CAPABILITIES
 // A thin wrapper around the cap_iab_t structure to manage ownership (supports move)
-struct cap_iab_wrapper {
+struct cap_iab_wrapper
+{
     cap_iab_wrapper() {}
     cap_iab_wrapper(std::string const &str) noexcept {
         if (str.empty()) return;
@@ -164,6 +165,43 @@ private:
     cap_iab_t iab = nullptr;
 };
 #endif
+
+// An owning wrapper around a file descriptor, ensuring that the descriptor is closed when the
+// wrapper is destroyed.
+class fd_holder
+{
+    int fd = -1;
+
+    public:
+    fd_holder() {}
+    fd_holder(int fd_v) : fd(fd_v) {}
+    fd_holder(fd_holder &&other) {
+        fd = other.fd;
+        other.fd = -1;
+    }
+
+    fd_holder &operator=(int fd_v)
+    {
+        if (fd != -1) bp_sys::close(fd);
+        fd = fd_v;
+        return *this;
+    }
+
+    fd_holder(const fd_holder &) = delete;
+    fd_holder &operator=(const fd_holder &) = delete;
+
+    ~fd_holder()
+    {
+        if (fd != -1) bp_sys::close(fd);
+    }
+
+    int release()
+    {
+        int r = fd;
+        fd = -1;
+        return r;
+    }
+};
 
 // Complete read - read the specified size until end-of-file or error; continue read if
 // interrupted by signal.
