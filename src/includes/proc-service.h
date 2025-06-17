@@ -37,7 +37,7 @@ struct run_proc_params
     const char *run_in_cgroup = nullptr; //  cgroup path
     #endif
     #if SUPPORT_CAPABILITIES
-    cap_iab_t cap_iab;
+    cap_iab_t cap_iab = nullptr;
     unsigned long secbits = 0;
     bool no_new_privs = false;
     #endif
