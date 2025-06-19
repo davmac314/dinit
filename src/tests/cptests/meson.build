@@ -18,7 +18,8 @@ sources = [
     '../../proc-service.cc',
     '../../baseproc-service.cc',
     '../../dinit-env.cc',
-    '../../settings.cc'
+    '../../settings.cc',
+    '../../dinit-iostream.cc'
 ]
 
 ## dinit with libfuzzer can't be compiled without clang/clang++. For some reasons, Meson don't support set default compiler in default_options.
