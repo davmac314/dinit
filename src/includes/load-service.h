@@ -1041,17 +1041,44 @@ void process_service_file(string name, file_input_stack &service_input, T proces
                 if (is_include_opt || meta_cmd == "include") {
                     // @include-opt or @include
                     file_pos_ref input_pos { service_input.current_file_name(), line_num };
-                    std::string include_name = read_include_path(name, meta_cmd, input_pos, i, end, argval, resolve_var);
+                    std::string include_name = read_include_path(name, meta_cmd, input_pos, i,
+                            end, argval, resolve_var);
 
-                    dio::istream file;
-                    file.open(include_name.c_str());
-                    if (file) {
-                        service_input.push(include_name, std::move(file));
+                    const char *include_name_base = base_name(include_name.c_str());
+                    const char *include_name_dir;
+                    size_t nul_pos = std::string::npos;
+                    if (include_name_base == include_name.c_str()) {
+                        include_name_dir = "";
+                    }
+                    else if (include_name_base == (include_name.c_str() + 1)) {
+                        // Parent path must be '/' but we may not have space to insert a nul
+                        include_name_dir = "/";
                     }
                     else {
-                        if (!is_include_opt || errno != ENOENT) {
-                            throw service_load_exc(name, include_name + ": cannot open: " + strerror(errno));
+                        include_name_dir = include_name.c_str();
+                        // We insert a nul between the include file path name and base name,
+                        // temporarily, so we can pass both separately to open_with_dir (below);
+                        // we need to restore it to a separator ('/') just after.
+                        nul_pos = include_name_base - include_name_dir - 1;
+                        include_name[nul_pos] = '\0';
+                    }
+
+                    auto inc_sdf_fds = open_with_dir(include_name_dir, include_name_base,
+                            service_input.current_resolve_dir());
+
+                    if (nul_pos != std::string::npos) {
+                        // Need to restore the separator between path and base name
+                        include_name[nul_pos] = '/';
+                    }
+
+                    if (inc_sdf_fds.first == -1) {
+                        if (!is_include_opt || inc_sdf_fds.second != ENOENT) {
+                            throw service_load_exc(name, include_name + ": cannot open: " + strerror(inc_sdf_fds.second));
                         }
+                    }
+                    else {
+                        dio::istream file(inc_sdf_fds.second);
+                        service_input.push(include_name, std::move(file), inc_sdf_fds.first);
                     }
                 }
                 else {
@@ -1361,6 +1388,7 @@ inline string read_value_resolved(const char *setting_name, file_pos_ref input_p
     return rval;
 }
 
+// XXX this doesn't really need to exist:
 // Reads an include path while performing minimal argument expansion in it.
 template <typename resolve_var_t>
 inline string read_include_path(string const &svcname, string const &meta_cmd, file_pos_ref input_pos,

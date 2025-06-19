@@ -15,6 +15,17 @@ class file_input_stack
         dio::istream stream;
         std::string file_name;
         int line_num;
+        int parent_dir_fd;
+
+        input_file(dio::istream &&stream_p, std::string &&file_name_p, int line_num_p, int parent_dir_fd_p) :
+                stream(std::move(stream_p)), file_name(std::move(file_name_p)), line_num(line_num_p),
+                parent_dir_fd(parent_dir_fd_p)
+        {}
+
+        ~input_file() noexcept
+        {
+            bp_sys::close(parent_dir_fd);
+        }
     };
 
     std::stack<input_file> input_stack;
@@ -25,9 +36,16 @@ public:
 
     // Push a new input file
     // TODO limit depth and/or prevent recursion
-    void push(std::string file_name, dio::istream &&file)
+    void push(std::string file_name, dio::istream &&file, int parent_dir_fd)
     {
-        input_stack.emplace(input_file {std::move(file), std::move(file_name), 0});
+        try {
+            input_stack.emplace(std::move(file), std::move(file_name), 0, parent_dir_fd);
+        }
+        catch (...) {
+            // we accept ownership of 'parent_dir_fd' at call:
+            bp_sys::close(parent_dir_fd);
+            throw;
+        }
     }
 
     bool getline(std::string &rline)
@@ -71,6 +89,12 @@ public:
     const std::string &current_file_name() const
     {
         return input_stack.top().file_name;
+    }
+
+    // Get the directory to resolve file references against (from the current top-of-stack).
+    int current_resolve_dir() const
+    {
+        return input_stack.top().parent_dir_fd;
     }
 };
 

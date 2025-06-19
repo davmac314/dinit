@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <memory>
 #include <map>
+#include <string>
+#include <iostream>
 
 #include <cstdlib>
 #include <cstring>
@@ -19,7 +21,7 @@ struct read_result
 {
     read_result(int errcode_p) : errcode(errcode_p) {}
 
-    read_result(std::vector<char> &data_p) : errcode(0), data(data_p) {}
+    read_result(const std::vector<char> &data_p) : errcode(0), data(data_p) {}
     read_result(std::vector<char> &&data_p) : errcode(0), data(std::move(data_p)) {}
 
     int errcode; // errno return
@@ -35,14 +37,224 @@ class read_cond : public std::vector<read_result>
     bool is_blocking = false;
 };
 
-// map of fd to read results to supply for reads of that fd
-std::map<int,read_cond> read_data;
+class fs_node
+{
+    public:
+    virtual fs_node *resolve(const char *name) = 0;
+    virtual fs_node *create_dir(const char *name) = 0;
+    virtual fs_node *create_file(const char *name) = 0;
+    virtual bool set_file_content(std::vector<char> &&content) = 0;
+    virtual const std::vector<char> *get_file_content() = 0;
+    virtual ~fs_node() {}
+};
+
+class file_fs_node : public fs_node
+{
+    std::vector<char> contents;
+
+    public:
+    fs_node *resolve(const char *name) override
+    {
+        errno = ENOTDIR;
+        return nullptr;
+    }
+
+    fs_node *create_dir(const char *name) override
+    {
+        errno = ENOTDIR;
+        return nullptr;
+    }
+
+    fs_node *create_file(const char *name) override
+    {
+        errno = ENOTDIR;
+        return nullptr;
+    }
+
+    bool set_file_content(std::vector<char> &&content) override
+    {
+        contents = std::move(content);
+        return true;
+    }
+
+    const std::vector<char> *get_file_content() override
+    {
+        return &contents;
+    }
+};
+
+class dir_fs_node : public fs_node
+{
+    std::map<std::string, std::unique_ptr<fs_node>> entries;
+
+    public:
+    virtual fs_node *resolve(const char *name) override
+    {
+        auto i = entries.find(std::string(name));
+        if (i == entries.end()) return nullptr;
+        return i->second.get();
+    }
+
+    fs_node *create_dir(const char *name) override
+    {
+        auto i = entries.find(std::string(name));
+        if (i != entries.end()) {
+            errno = EEXIST;
+            return nullptr;
+        }
+
+        dir_fs_node *new_hndlr = new dir_fs_node();
+        entries[std::string(name)] = std::unique_ptr<fs_node>(new_hndlr);
+        return new_hndlr;
+    }
+
+    fs_node *create_file(const char *name) override
+    {
+        auto i = entries.find(std::string(name));
+        if (i != entries.end()) {
+            errno = EEXIST;
+            return nullptr;
+        }
+
+        file_fs_node *new_hndlr = new file_fs_node();
+        entries[std::string(name)] = std::unique_ptr<fs_node>(new_hndlr);
+        return new_hndlr;
+    }
+
+    bool set_file_content(std::vector<char> &&content) override
+    {
+        errno = EISDIR;
+        return false;
+    }
+
+    const std::vector<char> *get_file_content() override
+    {
+        errno = EISDIR;
+        return nullptr;
+    }
+};
+
+// Handle operations on a file descriptor
+class fd_handler
+{
+    public:
+    // read call with fd
+    virtual int read(void *buf, size_t size) = 0;
+    // set blocking/non-blocking (affects end-of-input behaviour, EAGAIN vs EOF).
+    virtual bool set_blocking(bool blocking) = 0;
+    // supply data to be read from the fd
+    virtual void supply_data(std::vector<char> &&data) = 0;
+    // for resolving against (openat etc)
+    virtual fs_node *get_fs_node() { return nullptr; }
+
+    virtual ~fd_handler() {}
+};
+
+class file_fd_handler : public fd_handler
+{
+    public:
+    read_cond rrs;
+
+    file_fd_handler() {}
+
+    file_fd_handler(fs_node *fsnode)
+    {
+        const auto *file_content_ptr = fsnode->get_file_content();
+        if (file_content_ptr == nullptr) {
+            abort();
+        }
+
+        rrs.push_back(read_result(*file_content_ptr));
+    }
+
+    int read(void *buf, size_t count) override
+    {
+        if (rrs.empty()) {
+            if (rrs.is_blocking) {
+                errno = EAGAIN;
+                return -1;
+            }
+            return 0;
+        }
+
+        read_result &rr = rrs.front();
+        if (rr.errcode != 0) {
+            errno = rr.errcode;
+            // Remove the result record:
+            auto i = rrs.begin();
+            i++;
+            rrs.erase(rrs.begin(), i);
+            return -1;
+        }
+
+        auto dsize = rr.data.size();
+        if (dsize <= count) {
+            // Consume entire result:
+            std::copy_n(rr.data.begin(), dsize, (char *)buf);
+            // Remove the result record:
+            rrs.erase(rrs.begin());
+            return dsize;
+        }
+
+        // Consume partial result:
+        std::copy_n(rr.data.begin(), count, (char *)buf);
+        rr.data.erase(rr.data.begin(), rr.data.begin() + count);
+        return count;
+    }
+
+    virtual void supply_data(std::vector<char> &&data) override
+    {
+        rrs.emplace_back(std::move(data));
+    }
+
+    virtual bool set_blocking(bool blocking_io) override
+    {
+        rrs.is_blocking = blocking_io;
+        return true;
+    }
+
+    virtual ~file_fd_handler() override {}
+};
+
+class dir_fd_handler : public fd_handler
+{
+    fs_node *node;
+
+    public:
+    dir_fd_handler(fs_node *node_p) : node(node_p) { }
+
+    int read(void *buf, size_t count) override
+    {
+        errno = EINVAL;
+        return false;
+    }
+
+    bool set_blocking(bool blocking_io) override
+    {
+        errno = EINVAL;
+        return false;
+    }
+
+    void supply_data(std::vector<char> &&data) override
+    {
+        abort();
+    }
+
+    fs_node *get_fs_node() override
+    {
+        return node;
+    }
+};
+
+
+fs_node *current_dir_node = nullptr;
+fs_node *root_dir_hndlr = nullptr;
+
+// map of fd to fd handler
+std::map<int,fd_handler *> fd_handlers;
 
 // map of fd to the handler for writes to that fd
 std::map<int, std::unique_ptr<bp_sys::write_handler>> write_hndlr_map;
-
-// map of path to file content
-std::map<std::string, std::vector<char>> file_content_map;
 
 // environment variables, in "NAME=VALUE" form
 std::vector<char *> env_vars;
@@ -88,19 +300,33 @@ int allocfd(write_handler *whndlr)
 }
 
 // Supply data to be returned by read()
-void supply_read_data(int fd, std::vector<char> &data)
-{
-    read_data[fd].emplace_back(data);
-}
-
 void supply_read_data(int fd, std::vector<char> &&data)
 {
-    read_data[fd].emplace_back(std::move(data));
+    auto i = fd_handlers.find(fd);
+    if (i == fd_handlers.end()) {
+        auto *hndlr = new file_fd_handler();
+        hndlr->rrs.emplace_back(std::move(data));
+        fd_handlers[fd] = hndlr;
+    }
+    else {
+        i->second->supply_data(std::move(data));
+    }
+
+
+}
+
+void supply_read_data(int fd, std::vector<char> &data)
+{
+    std::vector<char> data_copy = data;
+    supply_read_data(fd, std::move(data_copy));
 }
 
 void set_blocking(int fd)
 {
-    read_data[fd].is_blocking = true;
+    if (fd_handlers.count(fd) == 0) {
+        abort();
+    }
+    fd_handlers[fd]->set_blocking(true);
 }
 
 // retrieve data written via write()
@@ -112,15 +338,121 @@ void extract_written_data(int fd, std::vector<char> &data)
     data = std::move(dwhndlr->data);
 }
 
-// Supply a file content
-void supply_file_content(const std::string &path, std::vector<char> &data)
+// beginning at offset, look for the next segment in a path (skip any leading slashes)
+static std::pair<size_t,size_t> next_path_seg(const std::string &path, size_t offset)
 {
-    file_content_map[path] = data;
+    while (offset < path.length() && path[offset] == '/') ++offset;
+    size_t first = offset;
+    while (offset < path.length() && path[offset] != '/') ++offset;
+    size_t last = offset;
+    return {first, last};
 }
 
+static fs_node *find_or_create_dir_file(const std::string &path, bool create_file = true)
+{
+    if (path.empty()) return nullptr;
+
+    fs_node *base_hndlr;
+    if (path[0] == '/') {
+        // start at root
+        if (root_dir_hndlr == nullptr) {
+            root_dir_hndlr = new dir_fs_node();
+        }
+        base_hndlr = root_dir_hndlr;
+    }
+    else {
+        // start at cwd
+        if (current_dir_node == nullptr) {
+            current_dir_node = new dir_fs_node();
+        }
+        base_hndlr = current_dir_node;
+    }
+
+    size_t offset = 0;
+    do {
+        auto next_seg = next_path_seg(path, offset);
+        if (next_seg.first == next_seg.second) break;
+        bool last_seg = (next_seg.second == path.length());
+        offset = next_seg.second;
+
+        std::string next_seg_str = path.substr(next_seg.first, next_seg.second - next_seg.first);
+        auto *next_hndlr = base_hndlr->resolve(next_seg_str.c_str());
+        if (next_hndlr == nullptr) {
+            if (last_seg && create_file) {
+                return base_hndlr->create_file(next_seg_str.c_str());
+            }
+            else {
+                next_hndlr = base_hndlr->create_dir(next_seg_str.c_str());
+            }
+        }
+
+        if (next_hndlr == nullptr) return nullptr;
+        base_hndlr = next_hndlr;
+
+    } while (true);
+
+    return base_hndlr;
+}
+
+static fs_node *resolve_from(fs_node *base, const std::string &path)
+{
+    if (path.empty()) return base;
+
+    size_t offset = 0;
+    do {
+        auto next_seg = next_path_seg(path, offset);
+        if (next_seg.first == next_seg.second) break;
+        offset = next_seg.second;
+
+        std::string next_seg_str = path.substr(next_seg.first, next_seg.second - next_seg.first);
+        auto *next_hndlr = base->resolve(next_seg_str.c_str());
+
+        if (next_hndlr == nullptr) return nullptr;
+        base = next_hndlr;
+
+    } while (true);
+
+    return base;
+}
+
+static fs_node *resolve_path(const std::string &path)
+{
+    if (path.empty()) return nullptr;
+
+    fs_node *base_hndlr;
+    if (path[0] == '/') {
+        // start at root
+        if (root_dir_hndlr == nullptr) {
+            root_dir_hndlr = new dir_fs_node();
+        }
+        base_hndlr = root_dir_hndlr;
+    }
+    else {
+        // start at cwd
+        if (current_dir_node == nullptr) {
+            current_dir_node = new dir_fs_node();
+        }
+        base_hndlr = current_dir_node;
+    }
+
+    return resolve_from(base_hndlr, path);
+}
+
+// Supply a file content
 void supply_file_content(const std::string &path, std::vector<char> &&data)
 {
-    file_content_map[path] = std::move(data);
+    fs_node *node = find_or_create_dir_file(path);
+    if (node == nullptr) {
+        throw std::string("Can't supply file content for path");
+    }
+
+    node->set_file_content(std::move(data));
+}
+
+void supply_file_content(const std::string &path, const std::vector<char> &data)
+{
+    std::vector<char> data_copy = data;
+    supply_file_content(path, std::move(data_copy));
 }
 
 void supply_file_content(const std::string &path, const std::string &data)
@@ -138,14 +470,22 @@ void supply_file_content(const std::string &path, const std::string &data)
 
 int open(const char *pathname, int flags)
 {
-    auto i = file_content_map.find(pathname);
-    if (i == file_content_map.end()) {
+    fs_node *node = resolve_path(pathname);
+    if (node == nullptr) {
         errno = ENOENT;
         return -1;
     }
 
+    fd_handler *hndlr;
+    if (node->get_file_content() != nullptr) {
+        hndlr = new file_fd_handler(node);
+    }
+    else {
+        hndlr = new dir_fd_handler(node);
+    }
+
     int nfd = allocfd();
-    supply_read_data(nfd, i->second);
+    fd_handlers[nfd] = hndlr;
     return nfd;
 }
 
@@ -153,6 +493,38 @@ int open(const char *pathname, int flags)
 int open(const char *pathname, int flags, mode_t mode)
 {
     return open(pathname, flags);
+}
+
+int openat(int dirfd, const char *pathname, int flags)
+{
+    if (pathname[0] == '/') return open(pathname, flags);
+    if (dirfd == AT_FDCWD) return open(pathname, flags);
+
+    auto i = fd_handlers.find(dirfd);
+    if (i == fd_handlers.end()) {
+        abort();
+        //errno = EBADF;
+        //return -1;
+    }
+
+    fd_handler *fdh = i->second;
+    fs_node *fsnode = fdh->get_fs_node();
+    if (fsnode == nullptr) {
+        errno = ENOTDIR;
+        return -1;
+    }
+
+    fs_node *resolved = resolve_from(fsnode, pathname);
+    if (resolved == nullptr) {
+        errno = ENOENT;
+        return -1;
+    }
+
+    fd_handler *hndlr = new file_fd_handler(resolved);
+
+    int nfd = allocfd();
+    fd_handlers[nfd] = hndlr;
+    return nfd;
 }
 
 int pipe2(int fds[2], int flags)
@@ -164,11 +536,17 @@ int pipe2(int fds[2], int flags)
 
 int close(int fd)
 {
-    if (size_t(fd) >= usedfds.size()) abort();
-    if (! usedfds[fd]) abort();
+    if (size_t(fd) >= usedfds.size() || !usedfds[fd]) {
+        abort();
+    }
 
     usedfds[fd] = false;
     write_hndlr_map.erase(fd);
+    auto it = fd_handlers.find(fd);
+    if (it != fd_handlers.end()) {
+        delete it->second;
+        fd_handlers.erase(it);
+    }
     return 0;
 }
 
@@ -180,38 +558,14 @@ int kill(pid_t pid, int sig)
 
 ssize_t read(int fd, void *buf, size_t count)
 {
-    read_cond & rrs = read_data[fd];
-    if (rrs.empty()) {
-        if (rrs.is_blocking) {
-            errno = EAGAIN;
-            return -1;
-        }
-        return 0;
+    auto hndlr_it = fd_handlers.find(fd);
+    if (hndlr_it == fd_handlers.end()) {
+        //errno = EBADF;
+        //return -1;
+        throw std::string("Use of bad file descriptor");
     }
 
-    read_result &rr = rrs.front();
-    if (rr.errcode != 0) {
-        errno = rr.errcode;
-        // Remove the result record:
-        auto i = rrs.begin();
-        i++;
-        rrs.erase(rrs.begin(), i);
-        return -1;
-    }
-
-    auto dsize = rr.data.size();
-    if (dsize <= count) {
-        // Consume entire result:
-        std::copy_n(rr.data.begin(), dsize, (char *)buf);
-        // Remove the result record:
-        rrs.erase(rrs.begin());
-        return dsize;
-    }
-
-    // Consume partial result:
-    std::copy_n(rr.data.begin(), count, (char *)buf);
-    rr.data.erase(rr.data.begin(), rr.data.begin() + count);
-    return count;
+    return hndlr_it->second->read(buf, count);
 }
 
 ssize_t write(int fd, const void *buf, size_t count)

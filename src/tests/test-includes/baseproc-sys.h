@@ -61,6 +61,7 @@ int open(const char *pathname, int flags, mode_t mode);
 int pipe2(int pipefd[2], int flags);
 int close(int fd);
 int kill(pid_t pid, int sig);
+int openat(int dirfd, const char *pathname, int flags);
 
 inline int fcntl(int fd, int cmd, ...)
 {
@@ -71,11 +72,6 @@ inline int fcntl(int fd, int cmd, ...)
 inline int fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags)
 {
     throw std::string("unexpected call to fstatat");
-}
-
-inline int openat(int dirfd, const char *pathname, int flags)
-{
-    throw std::string("unexpected call to openat");
 }
 
 inline ssize_t readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsize)

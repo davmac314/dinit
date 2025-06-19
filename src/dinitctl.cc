@@ -1880,32 +1880,45 @@ static std::string get_service_descr_filename(int socknum, cpbuffer_t &rbuffer, 
     return r;
 }
 
-// Find (and open) a service description file in a set of paths
+// Find (and open) a service description file in a set of paths, together with the directory in
+// which it was located.
+// Parameters:
+//   svc_name - the name of the service (possibly with '@<argument>' suffix).
+//   paths - the list of paths to search for the service description file.
+//   service_file_path (out) - contains the service description file path on return.
 // Returns:
-//   The file descriptor for the SDF, or -1 if the file cannot be found or opened (with errno set
-//   accordingly). If an SDF is found (whether opened successfully or not) its path will be stored
-//   in 'service_file_path'.
-static int find_service_desc(const char *svc_name, const std::vector<std::string> &paths,
+//   - The pair {-1, errno} if there was an error opening the service description file, or
+//   - The pair {dir_fd, sdf_fd} on success, where 'dir_fd' is a file descriptor for the parent
+//     directory and 'sdf_fd' is a descriptor for the file itself.
+//   If an SDF is found (whether opened successfully or not) its path will be stored in
+//   'service_file_path'.
+static std::pair<int,int> find_service_desc(const char *svc_name, const std::vector<std::string> &paths,
         std::string &service_file_path)
 {
     using namespace std;
 
+    // We use this to store a copy of the service name without argument, if needed
+    std::string svc_name_store;
+
     // Check for service argument which must be stripped
     auto at_ptr = svc_name;
     while (*at_ptr != '\0' && *at_ptr != '@') ++at_ptr;
+    if (*at_ptr == '@') {
+        svc_name_store = std::string(svc_name, at_ptr - svc_name);
+        svc_name = svc_name_store.c_str();
+    }
 
     for (std::string path : paths) {
         string test_path = combine_paths(path, ::string_view(svc_name, at_ptr - svc_name));
 
-        int sdf_fd = open(test_path.c_str(), O_RDONLY);
-        if (sdf_fd != -1 || errno != ENOENT) {
+        auto sdf_fds = open_with_dir(path.c_str(), svc_name);
+        if (sdf_fds.first != -1 || sdf_fds.second != ENOENT) {
             service_file_path = test_path;
-            return sdf_fd;
+            return sdf_fds;
         }
     }
 
-    // errno has been set to ENOENT by last attempt
-    return -1;
+    return {-1, ENOENT};
 }
 
 // exception for cancelling a service operation
@@ -1926,6 +1939,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
     string service_file_path;
     string to_service_file_path;
     dio::istream service_file;
+    fd_holder parent_dir_fd;
 
     if (strchr(from, '@') != nullptr) {
         cerr << "dinitctl: cannot enable/disable from a service with argument (service@arg).\n";
@@ -1945,17 +1959,25 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
             cerr << "dinitctl: unknown configuration or protocol error, unable to load service descriptions\n";
         }
 
-        service_file_path = get_service_descr_filename(socknum, rbuffer, from_handle, from);
         to_service_file_path = get_service_descr_filename(socknum, rbuffer, to_handle, to);
 
-        // open from file
-        service_file.open_nx(service_file_path.c_str());
-        if (!service_file) {
-            service_file.check_buf();
+        std::string from_sdf_dir = get_service_description_dir(socknum, rbuffer, from_handle);
+        if (from_sdf_dir.empty())
+            throw dinit_protocol_error();
+
+        auto sdf_fds = open_with_dir(from_sdf_dir.c_str(), from);
+        if (sdf_fds.first == -1) {
             cerr << "dinitctl: could not open service description file '"
-                    << service_file_path << "': " << strerror(service_file.io_failure()) << "\n";
+                    << service_file_path << "': " << strerror(sdf_fds.second) << "\n";
             return EXIT_FAILURE;
         }
+
+        parent_dir_fd = sdf_fds.first;
+        service_file.set_fd(sdf_fds.second);
+
+        service_file_path = from_sdf_dir;
+        if (*service_file_path.rbegin() != '/') service_file_path += '/';
+        service_file_path += from;
     }
     else {
         // offline case
@@ -1964,36 +1986,42 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
             service_dir_paths.emplace_back(path.get_dir());
         }
 
-        int sdf_fd = find_service_desc(from, service_dir_paths, service_file_path);
-        if (sdf_fd == -1) {
-            if (errno == ENOENT) {
+        auto sdf_fds = find_service_desc(from, service_dir_paths, service_file_path);
+        if (sdf_fds.first == -1) {
+            if (sdf_fds.second == ENOENT) {
                 cerr << "dinitctl: could not locate service file for service '" << from << "'\n";
             }
             else {
                 cerr << "dinitctl: could not open service description file '"
-                        << service_file_path << "': " << strerror(errno)
+                        << service_file_path << "': " << strerror(sdf_fds.second)
                         << "\n";
             }
             return EXIT_FAILURE;
         }
 
-        int to_sdf_fd = find_service_desc(to, service_dir_paths, to_service_file_path);
-        if (to_sdf_fd == -1 && errno == ENOENT) {
+        parent_dir_fd = sdf_fds.first;
+        service_file.set_fd(sdf_fds.second);
+
+        auto to_sdf_fds = find_service_desc(to, service_dir_paths, to_service_file_path);
+        if (to_sdf_fds.first == -1 && to_sdf_fds.second == ENOENT) {
             cerr << "dinitctl: could not locate service file for target service '" << to << "'" << endl;
             return EXIT_FAILURE;
         }
 
-        service_file.set_fd(sdf_fd);
-        service_file.check_buf();
+        if (to_sdf_fds.first != -1) {
+            close(to_sdf_fds.first);
+            close(to_sdf_fds.second);
+        }
     }
 
     // We now need to read the service file, identify the waits-for.d directory (bail out if more than one),
     // make sure the service is not listed as a dependency individually.
 
     string waits_for_d;
+    fd_holder waits_for_d_fd;
 
     file_input_stack input_stack;
-    input_stack.push(service_file_path, std::move(service_file));
+    input_stack.push(service_file_path, std::move(service_file), parent_dir_fd.release());
 
     try {
         auto resolve_var = [](const std::string &name) {
@@ -2047,6 +2075,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
     }
 
     // The waits-for.d path is relative to the service file path, combine:
+    // XXX should use parent dir fd
     string waits_for_d_full = combine_paths(parent_path(service_file_path), waits_for_d.c_str());
 
     // check if dependency already exists

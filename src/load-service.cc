@@ -401,6 +401,7 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
     int fail_load_errno = 0;
     std::string fail_load_path;
     const char *service_dsc_dir = nullptr;
+    std::pair<int,int> sdf_fds;
 
     // Couldn't find one. Have to load it.
     for (auto &service_dir : service_dirs) {
@@ -411,18 +412,18 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
         }
         service_filename += name;
 
-        service_file.open_nx(service_filename.c_str());
-        if (service_file) break;
+        sdf_fds = open_with_dir(service_dsc_dir, name.c_str());
+        if (sdf_fds.first != -1) {
+            break; // found
+        }
 
-        service_file.check_buf();
-        int service_file_err = service_file.io_failure();
-        if (service_file_err != ENOENT && fail_load_errno == 0) {
-            fail_load_errno = service_file_err;
+        if (sdf_fds.second != ENOENT && fail_load_errno == 0) {
+            fail_load_errno = sdf_fds.second;
             fail_load_path = std::move(service_filename);
         }
     }
 
-    if (!service_file) {
+    if (sdf_fds.first == -1) {
         if (fail_load_errno == 0) {
             throw service_not_found(name);
         }
@@ -430,6 +431,11 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
             throw service_load_error(name, std::move(fail_load_path), fail_load_errno);
         }
     }
+
+    fd_holder sdf_parent_fd = sdf_fds.first;
+
+    service_file.set_fd(sdf_fds.second);
+    service_file.check_buf();
 
     service_settings_wrapper<prelim_dep> settings;
     service_record *consumer_of_svc = nullptr;
@@ -499,7 +505,7 @@ service_record * dirload_service_set::load_reload_service(const char *fullname, 
     }
 
     file_input_stack input_stack;
-    input_stack.push(std::move(service_filename), std::move(service_file));
+    input_stack.push(std::move(service_filename), std::move(service_file), sdf_parent_fd.release());
 
     try {
         environment srv_env;

@@ -626,7 +626,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
     string service_wdir;
     string service_filename;
     dio::istream service_file;
-    int dirfd;
+    fd_holder sdf_parent_dir_fd;
 
     int fail_load_errno = 0;
     std::string fail_load_path;
@@ -640,12 +640,16 @@ service_record *load_service(service_set_t &services, const std::string &name,
         }
         service_filename += base_name;
 
-        service_file.open_nx(service_filename.c_str());
-        if (service_file) break;
+        auto sdf_fds = open_with_dir(service_dir.get_dir(), ((std::string)base_name).c_str());
+        if (sdf_fds.first != -1) {
+            // Found
+            sdf_parent_dir_fd = sdf_fds.first;
+            service_file.set_fd(sdf_fds.second);
+            break;
+        }
 
-        service_file.check_buf();
-        if (service_file.io_failure() != ENOENT && fail_load_errno == 0) {
-            fail_load_errno = service_file.io_failure();
+        if (sdf_fds.second != ENOENT && fail_load_errno == 0) {
+            fail_load_errno = sdf_fds.second;
             fail_load_path = std::move(service_filename);
         }
     }
@@ -675,10 +679,8 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     service_settings_wrapper<prelim_dep> settings;
 
-    string line;
-
     file_input_stack input_stack;
-    input_stack.push(std::move(service_filename), std::move(service_file));
+    input_stack.push(std::move(service_filename), std::move(service_file), sdf_parent_dir_fd.release());
 
     try {
         process_service_file(name, input_stack,
@@ -772,7 +774,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
 #else
     oflags |= O_RDONLY;
 #endif
-    dirfd = open(service_wdir.c_str(), oflags);
+    int dirfd = open(service_wdir.c_str(), oflags);
     if (dirfd < 0) {
         report_service_description_err(name,
                 std::string("could not open service working directory: ") + strerror(errno));

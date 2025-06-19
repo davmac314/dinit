@@ -862,6 +862,8 @@ Include the contents of another file, specified via its full path.
 If the specified file does not exist, an error is produced.
 The \fIpath\fR is subject to pre-load variable substitution
 (see \fBVARIABLE SUBSTITUTION\fR).
+It is resolved relative to the path of the service description file or fragment containing the
+directive.
 .TP
 \fB@include\-opt\fR \fIpath\fR
 As for \fB@include\fR, but produces no error if the named file does not exist.
