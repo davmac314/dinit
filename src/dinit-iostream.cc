@@ -485,6 +485,10 @@ int istream::load_into_buf(unsigned len) noexcept
     do {
         r = buf->fill(fd, len);
     } while (r < 0 && errno == EINTR);
+    if (r == 0) {
+        eof_state = true;
+        return -1;
+    }
     if (r < 0) {
         io_error = errno;
         return -1;
@@ -664,14 +668,7 @@ getc_result istream::getc_nx() noexcept
     }
     if (buf->get_length() == 0) {
         int r = load_into_buf(1);
-        if (r == 0) {
-            eof_state = true;
-            return {false, 0};
-        }
-        if (r < 0) {
-            io_error = errno;
-            return {false, 0};
-        }
+        if (r <= 0) return {false, 0};
     }
     char result = *buf->get_ptr(0);
     buf->consume(1);
@@ -697,14 +694,7 @@ bool istream::get_line_nx(std::string &dest, char delim) noexcept
     dest.clear();
     if (buf->get_length() == 0) {
         int r = load_into_buf(buf->get_size());
-        if (r == 0) {
-            eof_state = true;
-            return false;
-        }
-        if (r < 0) {
-            io_error = errno;
-            return false;
-        }
+        if (r <= 0) return false;
     }
 
     char *ptr = buf->get_ptr(0);
@@ -729,14 +719,7 @@ bool istream::get_line_nx(std::string &dest, char delim) noexcept
 
         if (buf->get_length() == 0) {
             int r = load_into_buf(buf->get_size());
-            if (r == 0) {
-                eof_state = true;
-                return false;
-            }
-            if (r < 0) {
-                io_error = errno;
-                return false;
-            }
+            if (r <= 0) return false;
         }
 
         ptr = buf->get_ptr(0);
