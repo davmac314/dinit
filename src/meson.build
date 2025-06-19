@@ -19,7 +19,8 @@ dinit_source_files = [
     'run-child-proc.cc',
     'options-processing.cc',
     'dinit-env.cc',
-    'settings.cc'
+    'settings.cc',
+    'dinit-iostream.cc'
 ]
 
 ## src/'s Defines
@@ -48,6 +49,7 @@ executable(
     'dinitctl.cc',
     'options-processing.cc',
     'settings.cc',
+    'dinit-iostream.cc',
     kwargs: misc_args
 )
 executable(
@@ -55,6 +57,7 @@ executable(
     'dinitcheck.cc',
     'options-processing.cc',
     'settings.cc',
+    'dinit-iostream.cc',
     kwargs: misc_args
 )
 executable(
