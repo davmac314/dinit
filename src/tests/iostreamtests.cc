@@ -198,6 +198,8 @@ void istream_getline_at_eof()
 void istream_buffer_boundary_test()
 {
     int fd = bp_sys::allocfd();
+    bp_sys::supply_read_data(fd, {});
+
     dio::istream stream(fd);
     dio::streambuf *buf = stream.get_buf();
     assert(buf != nullptr);

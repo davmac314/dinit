@@ -51,6 +51,12 @@ void test_proc_service_start()
     assert(p.get_state() == service_state_t::STARTED);
     assert(event_loop.active_timers.size() == 0);
 
+    p.stop();
+    sset.process_queues();
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STOPPED);
+
     sset.remove_service(&p);
 }
 
@@ -93,6 +99,12 @@ void test_proc_notify_start()
 
     assert(p.get_state() == service_state_t::STARTED);
     assert(event_loop.active_timers.size() == 0);
+
+    p.stop();
+    sset.process_queues();
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STOPPED);
 
     sset.remove_service(&p);
 }
@@ -188,7 +200,7 @@ void test_proc_term_start()
 
     // explicit restart:
     p.start();
-    sset.process_queues();
+    sset.process_queues(); // <--
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
     assert(p.get_state() == service_state_t::STARTED);
@@ -931,6 +943,7 @@ void test_proc_notify_fail()
     assert(nfd > 0);
 
     // Signal EOF on notify fd:
+    bp_sys::supply_read_data(nfd, {});
     event_loop.regd_fd_watchers[nfd]->fd_event(event_loop, nfd, dasynq::IN_EVENTS);
 
     assert(p.get_state() == service_state_t::STOPPING);

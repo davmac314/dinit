@@ -255,7 +255,7 @@ void test_settings()
     bp_sys::supply_file_content("./dummy", ss.str());
     dio::istream infile;
     infile.open("./dummy");
-    input_stack.push("./dummy", std::move(infile));
+    input_stack.push("./dummy", std::move(infile), bp_sys::open(".", O_DIRECTORY));
 
     try {
         auto resolve_var = [](const std::string &name) {
@@ -334,7 +334,7 @@ void test_path_env_subst()
     bp_sys::supply_file_content("./dummy", ss.str());
     dio::istream infile;
     infile.open("./dummy");
-    input_stack.push("./dummy", std::move(infile));
+    input_stack.push("./dummy", std::move(infile), bp_sys::open(".", O_DIRECTORY));
 
     try {
         auto resolve_var = [](const std::string &name) {
@@ -419,7 +419,7 @@ void test_newline_err()
         bp_sys::supply_file_content("./dummy", ss.str());
         dio::istream infile;
         infile.open("./dummy");
-        input_stack.push("./dummy", std::move(infile));
+        input_stack.push("./dummy", std::move(infile), bp_sys::open(".", O_DIRECTORY));
 
         auto resolve_var = [](const std::string &name) {
             return (char *)nullptr;
@@ -492,7 +492,7 @@ void test_newline2()
     bp_sys::supply_file_content("./dummy", ss.str());
     dio::istream infile;
     infile.open("./dummy");
-    input_stack.push("./dummy", std::move(infile));
+    input_stack.push("./dummy", std::move(infile), bp_sys::open(".", O_DIRECTORY));
 
     try {
         auto resolve_var = [](const std::string &name) {
