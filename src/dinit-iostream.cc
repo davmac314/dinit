@@ -664,7 +664,7 @@ void istream::clear() noexcept
 getc_result istream::getc_nx() noexcept
 {
     if (!good()) {
-        return {0, false};
+        return {false, 0};
     }
     if (buf->get_length() == 0) {
         int r = load_into_buf(1);
