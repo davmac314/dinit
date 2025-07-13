@@ -2,6 +2,8 @@ Support files for launching dinit from /etc/rc.d/ on FreeBSD
 
 To install dinit on FreeBSD, run the following commands as root:
 
+** Note: these instructions are out-of-data. Building with Meson is no longer supported. **
+
 ```
 # (Optional) Install build dependencies
 pkg install -y meson rsync
