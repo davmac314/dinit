@@ -127,8 +127,7 @@ template <unsigned SIZE> class cpbuffer
             // wrap-around copy
             unsigned half = SIZE - index;
             std::memcpy(dest, buf + index, half);
-            std::memcpy(reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(dest) + half),
-                    buf, length - half);
+            std::memcpy(reinterpret_cast<char *>(dest) + half, buf, length - half);
         }
         else {
             std::memcpy(dest, buf + index, length);
