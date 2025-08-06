@@ -364,6 +364,7 @@ inline std::pair<int,int> open_with_dir(const char *dirname, const char *basenam
     // Whether to close resolve_fd after use (initially false because it is supplied by caller,
     // and we don't want to close the caller's fd):
     bool close_resolve_fd = false;
+    bool close_parent_dir_fd;
 
     long link_resolve_times = sysconf(_SC_SYMLOOP_MAX);
 
@@ -377,14 +378,18 @@ inline std::pair<int,int> open_with_dir(const char *dirname, const char *basenam
 
     begin:
 
+    int parent_dir_fd;
     if (*dirname == '\0') {
-        dirname = ".";
+        parent_dir_fd = resolve_fd;
+        close_parent_dir_fd = close_resolve_fd;
     }
-
-    int parent_dir_fd = bp_sys::openat(resolve_fd, dirname, dir_search_flag | O_DIRECTORY);
-    if (close_resolve_fd) bp_sys::close(resolve_fd);
-    if (parent_dir_fd == -1) {
-        return {-1, errno};
+    else {
+        parent_dir_fd = bp_sys::openat(resolve_fd, dirname, dir_search_flag | O_DIRECTORY);
+        if (close_resolve_fd) bp_sys::close(resolve_fd);
+        if (parent_dir_fd == -1) {
+            return {-1, errno};
+        }
+        close_parent_dir_fd = true;
     }
 
     // open the final file (basename) without following symlinks
@@ -394,7 +399,7 @@ inline std::pair<int,int> open_with_dir(const char *dirname, const char *basenam
             // It's a symlink
             if (link_resolve_times == 0) {
                 // We've tried to resolve as many as the system normally would, so give up.
-                bp_sys::close(parent_dir_fd);
+                if (close_parent_dir_fd) bp_sys::close(parent_dir_fd);
                 return {-1, ELOOP};
             }
 
@@ -407,7 +412,7 @@ inline std::pair<int,int> open_with_dir(const char *dirname, const char *basenam
                 // underneath us. The risk of handling this by looping back and trying as a file
                 // again seems greater than the risk that this will actually happen, so let's not
                 // worry about it, and just error out now:
-                bp_sys::close(parent_dir_fd);
+                if (close_parent_dir_fd) bp_sys::close(parent_dir_fd);
                 return {-1, errno};
             }
 
@@ -421,7 +426,7 @@ inline std::pair<int,int> open_with_dir(const char *dirname, const char *basenam
                 dirname = "";
             }
             else if (*basename == '\0') {
-                bp_sys::close(parent_dir_fd);
+                if (close_parent_dir_fd) bp_sys::close(parent_dir_fd);
                 return {-1, ENOENT};
             }
             else {
@@ -446,7 +451,7 @@ inline std::pair<int,int> open_with_dir(const char *dirname, const char *basenam
         }
 
         // Other errors: bail out
-        bp_sys::close(parent_dir_fd);
+        if (close_parent_dir_fd) bp_sys::close(parent_dir_fd);
         return {-1, errno};
     }
 
