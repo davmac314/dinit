@@ -55,9 +55,10 @@ struct service_flags_t
     bool no_new_privs : 1;      // set PR_SET_NO_NEW_PRIVS
 
     service_flags_t() noexcept : rw_ready(false), log_ready(false),
-            runs_on_console(false), starts_on_console(false), shares_console(false), unmask_intr(false),
-            pass_cs_fd(false), start_interruptible(false), skippable(false), signal_process_only(false),
-            always_chain(false), kill_all_on_stop(false), no_new_privs(false)
+            runs_on_console(false), starts_on_console(false), shares_console(false),
+            unmask_intr(false), pass_cs_fd(false), start_interruptible(false), skippable(false),
+            signal_process_only(false), always_chain(false), kill_all_on_stop(false),
+            no_new_privs(false)
     {
     }
 };
@@ -212,7 +213,8 @@ class service_description_exc : public service_load_exc
     {
     }
 
-    service_description_exc(const std::string &file_name, unsigned line_num, std::string &&exc_info)
+    service_description_exc(const std::string &file_name, unsigned line_num,
+            std::string &&exc_info)
             : service_load_exc(std::move(exc_info)), input_pos(file_name, line_num)
     {
     }
@@ -417,19 +419,21 @@ inline int signal_name_to_number(const std::string &signame) noexcept
 
 // Read a setting/variable name; return empty string if no valid name
 //
-// If env is set, dashes/dots are not allowed within names. They are not typically allowed by shells
-// and they interfere with substitution patterns.
-inline string read_config_name(string_iterator & i, string_iterator end, bool env = false, bool *num = nullptr) noexcept
+// If env is set, dashes/dots are not allowed within names. They are not typically allowed by
+// shells and they interfere with substitution patterns.
+inline string read_config_name(string_iterator & i, string_iterator end, bool env = false,
+        bool *num = nullptr) noexcept
 {
     using std::locale;
     using std::ctype;
     using std::use_facet;
 
-    // To avoid the horror of locales, we'll use the classic facet only, to identify digits, control
-    // characters and punctuation. (Unless something is totally crazy, we are talking about ASCII or
-    // a superset of it, but using the facet allows us to avoid that assumption). However, we're only
-    // working with "narrow" char type so accuracy is limited. In general, that's not going to matter
-    // much, but may allow certain unicode punctuation characters to be used as part of a name for example.
+    // To avoid the horror of locales, we'll use the classic facet only, to identify digits,
+    // control characters and punctuation. (Unless something is totally crazy, we are talking
+    // about ASCII or a superset of it, but using the facet allows us to avoid that assumption).
+    // However, we're only working with "narrow" char type so accuracy is limited. In general,
+    // that's not going to matter much, but may allow certain unicode punctuation characters to be
+    // used as part of a name for example.
     const ctype<char> & facet = use_facet<ctype<char>>(locale::classic());
 
     string rval;
@@ -487,7 +491,7 @@ inline string read_config_name(string_iterator & i, string_iterator end, bool en
 //    i           - reference to string iterator through the line (updated to end of setting on
 //                  return)
 //    end         - iterator at end of line (not including newline character if any)
-//    part_positions -  list of pair<unsigned,unsigned> to which the position of each setting value
+//    part_positions - list of pair<unsigned,unsigned> to which the position of each setting value
 //                  part will be added as [start,end). May be null.
 inline void read_setting_value(std::string &setting_val, setting_op_t operation,
         file_pos_ref input_pos, string_iterator &i, string_iterator end,
@@ -565,9 +569,10 @@ inline void read_setting_value(std::string &setting_val, setting_op_t operation,
             continue;
         }
         else if (c == '#') {
-            // Possibly intended a comment; we require leading whitespace to reduce occurrence of accidental
-            // comments in setting values.
-            throw service_description_exc(input_pos, "hashmark (`#') comment must be separated from setting value by whitespace");
+            // Possibly intended a comment; we require leading whitespace to reduce occurrence of
+            // accidental comments in setting values.
+            throw service_description_exc(input_pos,
+                    "hashmark (`#') comment must be separated from setting value by whitespace");
         }
         else {
             if (new_part) {
@@ -621,9 +626,11 @@ inline void fill_environment_userinfo(uid_t uid, const std::string &service_name
 
     if (!pwent) {
         if (!errno) {
-            throw service_load_exc(service_name, std::string("user id '") + buf + "' does not exist in system database");
+            throw service_load_exc(service_name, std::string("user id '") + buf
+                    + "' does not exist in system database");
         } else {
-            throw service_load_exc(service_name, std::string("error accessing user database: ") + strerror(errno));
+            throw service_load_exc(service_name, std::string("error accessing user database: ")
+                    + strerror(errno));
         }
     }
 
@@ -680,7 +687,8 @@ inline uid_t parse_uid_param(file_pos_ref input_pos, const std::string &param,
         unsigned long long v = std::stoull(param, &ind, 0);
         if (v > static_cast<unsigned long long>(std::numeric_limits<uid_t>::max())
                 || ind != param.length()) {
-            throw service_description_exc(service_name, std::string(setting_name) + ": " + uid_err_msg, input_pos);
+            throw service_description_exc(service_name, std::string(setting_name) + ": "
+                    + uid_err_msg, input_pos);
         }
         return v;
     }
@@ -696,7 +704,8 @@ inline uid_t parse_uid_param(file_pos_ref input_pos, const std::string &param,
     if (pwent == nullptr) {
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
-            throw service_description_exc(service_name, std::string(setting_name) + ": specified user \"" + param
+            throw service_description_exc(service_name,
+                    std::string(setting_name) + ": specified user \"" + param
                     + "\" does not exist in system database.", input_pos);
         }
         else {
@@ -796,11 +805,13 @@ inline void parse_timespec(file_pos_ref input_pos, const std::string &paramval,
             break;
         }
         if (ch < '0' || ch > '9') {
-            throw service_description_exc(servicename, std::string("bad value for ") + paramname, input_pos);
+            throw service_description_exc(servicename, std::string("bad value for ") + paramname,
+                    input_pos);
         }
         // check for overflow
         if (isec >= max_secs) {
-           throw service_description_exc(servicename, std::string("too-large value for ") + paramname, input_pos);
+           throw service_description_exc(servicename,
+                   std::string("too-large value for ") + paramname, input_pos);
         }
         isec *= 10;
         isec += ch - '0';
@@ -809,7 +820,8 @@ inline void parse_timespec(file_pos_ref input_pos, const std::string &paramval,
     for ( ; i < len; i++) {
         char ch = paramval[i];
         if (ch < '0' || ch > '9') {
-            throw service_description_exc(servicename, std::string("bad value for ") + paramname, input_pos);
+            throw service_description_exc(servicename, std::string("bad value for ") + paramname,
+                    input_pos);
         }
         insec += (ch - '0') * insec_m;
         insec_m /= 10;
@@ -820,7 +832,8 @@ inline void parse_timespec(file_pos_ref input_pos, const std::string &paramval,
 
 // Parse an unsigned numeric parameter value
 inline unsigned long long parse_unum_param(file_pos_ref input_pos, const std::string &param,
-        const std::string &service_name, unsigned long long max = std::numeric_limits<unsigned long long>::max())
+        const std::string &service_name,
+        unsigned long long max = std::numeric_limits<unsigned long long>::max())
 {
     const char * num_err_msg = "specified value contains invalid numeric characters or is outside "
             "allowed range.";
@@ -909,7 +922,9 @@ inline void parse_rlimit(const std::string &line, file_pos_ref input_pos,
                 char *nindex;
                 unsigned long long limit = std::strtoull(cline, &nindex, 0);
                 index = nindex;
-                if (errno == ERANGE || limit > std::numeric_limits<rlim_t>::max()) throw std::out_of_range("");
+                if (errno == ERANGE || limit > std::numeric_limits<rlim_t>::max()) {
+                    throw std::out_of_range("");
+                }
                 if (index == cline) throw std::invalid_argument("");
                 rlimit.limits.rlim_cur = limit;
             }
@@ -921,7 +936,8 @@ inline void parse_rlimit(const std::string &line, file_pos_ref input_pos,
             }
 
             if (*index != ':') {
-                throw service_description_exc(service_name, std::string(param_name) + ": bad value.", input_pos);
+                throw service_description_exc(service_name,
+                        std::string(param_name) + ": bad value.", input_pos);
             }
         }
 
@@ -933,7 +949,8 @@ inline void parse_rlimit(const std::string &line, file_pos_ref input_pos,
         if (*index == '-') {
             rlimit.limits.rlim_max = RLIM_INFINITY;
             if (index[1] != 0) {
-                throw service_description_exc(service_name, std::string(param_name) + ": bad value.", input_pos);
+                throw service_description_exc(service_name,
+                        std::string(param_name) + ": bad value.", input_pos);
             }
         }
         else {
@@ -951,14 +968,16 @@ inline void parse_rlimit(const std::string &line, file_pos_ref input_pos,
         throw service_description_exc(service_name, std::string(param_name) + ": bad value.", input_pos);
     }
     catch (std::out_of_range &exc) {
-        throw service_description_exc(service_name, std::string(param_name) + ": too-large value.", input_pos);
+        throw service_description_exc(service_name, std::string(param_name) + ": too-large value.",
+                input_pos);
     }
 }
 
 // forward declaration:
 template <typename resolve_var_t>
-inline string read_include_path(string const &svcname, string const &meta_cmd, file_pos_ref input_pos,
-        string_iterator &i, string_iterator end, const char *argval, const resolve_var_t &resolve_var);
+inline string read_include_path(string const &svcname, string const &meta_cmd,
+        file_pos_ref input_pos, string_iterator &i, string_iterator end, const char *argval,
+        const resolve_var_t &resolve_var);
 
 // Process an opened service file, line by line.
 // Parameters:
@@ -1073,7 +1092,8 @@ void process_service_file(string name, file_input_stack &service_input, T proces
 
                     if (inc_sdf_fds.first == -1) {
                         if (!is_include_opt || inc_sdf_fds.second != ENOENT) {
-                            throw service_load_exc(name, include_name + ": cannot open: " + strerror(inc_sdf_fds.second));
+                            throw service_load_exc(name, include_name + ": cannot open: "
+                                    + strerror(inc_sdf_fds.second));
                         }
                     }
                     else {
@@ -1227,7 +1247,8 @@ static void value_var_subst(const char *setting_name, std::string &line,
                         colon = true;
                         ++j;
                         if (*j != '+' && *j != '-') {
-                            throw service_description_exc(setting_name, "invalid syntax in variable substitution");
+                            throw service_description_exc(setting_name,
+                                    "invalid syntax in variable substitution");
                         }
                     }
                     if (*j == '+' || *j == '-') {
@@ -1239,7 +1260,8 @@ static void value_var_subst(const char *setting_name, std::string &line,
                         altend = j;
                     }
                     if (*j != '}') {
-                        throw service_description_exc(setting_name, "unmatched '{' in variable substitution");
+                        throw service_description_exc(setting_name,
+                                "unmatched '{' in variable substitution");
                     }
                     ++j;
                 }
@@ -1305,7 +1327,8 @@ static void value_var_subst(const char *setting_name, std::string &line,
 
                         if (line_len_after > (size_t)std::numeric_limits<int>::max()) {
                             // (avoid potential overflow)
-                            throw service_description_exc(setting_name, "value too long (after substitution)");
+                            throw service_description_exc(setting_name,
+                                    "value too long (after substitution)");
                         }
 
                         // Create new argument from split:
@@ -1532,66 +1555,82 @@ class service_settings_wrapper
         if (do_report_lint && (service_type == service_type_t::INTERNAL
                 || service_type == service_type_t::TRIGGERED)) {
             if (!command.empty()) {
-                report_lint("'command' specified, but ignored for the specified (or default) service type.");
+                report_lint("'command' specified, but ignored for the specified (or default)"
+                        " service type.");
             }
             if (!stop_command.empty()) {
-                report_lint("'stop-command' specified, but ignored for the specified (or default) service type.");
+                report_lint("'stop-command' specified, but ignored for the specified (or default)"
+                        " service type.");
             }
             if (!working_dir.empty()) {
-                report_lint("'working-dir' specified, but ignored for the specified (or default) service type.");
+                report_lint("'working-dir' specified, but ignored for the specified (or default)"
+                        " service type.");
             }
             #if SUPPORT_CGROUPS
             if (!run_in_cgroup.empty()) {
-                report_lint("'run-in-cgroup' specified, but ignored for the specified (or default) service type.");
+                report_lint("'run-in-cgroup' specified, but ignored for the specified (or default)"
+                        " service type.");
             }
             #endif
             #if SUPPORT_CAPABILITIES
             if (capabilities.get()) {
-                report_lint("'capabilities' specified, but ignored for the specified (or default) service type.");
+                report_lint("'capabilities' specified, but ignored for the specified (or default)"
+                        " service type.");
             }
             if (secbits.get()) {
-                report_lint("'securebits' specified, but ignored for the specified (or default) service type.");
+                report_lint("'securebits' specified, but ignored for the specified (or default)"
+                        " service type.");
             }
             #endif
             if (run_as_uid != (uid_t)-1) {
                 report_lint("'run-as' specified, but ignored for the specified (or default) service type.");
             }
             if (!socket_path.empty()) {
-                report_lint("'socket-listen' specified, but ignored for the specified (or default) service type'.");
+                report_lint("'socket-listen' specified, but ignored for the specified (or default)"
+                        " service type'.");
             }
             #if USE_UTMPX
             if (inittab_id[0] != 0 || inittab_line[0] != 0) {
-                report_lint("'inittab_line' or 'inittab_id' specified, but ignored for the specified (or default) service type.");
+                report_lint("'inittab_line' or 'inittab_id' specified, but ignored for the"
+                        " specified (or default) service type.");
             }
             #endif
             if (onstart_flags.signal_process_only || onstart_flags.start_interruptible) {
-                report_lint("signal options were specified, but ignored for the specified (or default) service type.");
+                report_lint("signal options were specified, but ignored for the specified (or"
+                        " default) service type.");
             }
             if (onstart_flags.pass_cs_fd) {
-                report_lint("option 'pass_cs_fd' was specified, but ignored for the specified (or default) service type.");
+                report_lint("option 'pass_cs_fd' was specified, but ignored for the specified (or"
+                        " default) service type.");
             }
             if (onstart_flags.skippable) {
-                report_lint("option 'skippable' was specified, but ignored for the specified (or default) service type.");
+                report_lint("option 'skippable' was specified, but ignored for the specified (or"
+                        " default) service type.");
             }
             #if SUPPORT_CAPABILITIES
             if (onstart_flags.no_new_privs) {
-                report_lint("option 'no_new_privs' was specified, but ignored for the specified (or default) service type.");
+                report_lint("option 'no_new_privs' was specified, but ignored for the specified (or"
+                        " default) service type.");
             }
             #endif
             if (log_type != log_type_id::NONE) {
-                report_lint("option 'log_type' was specified, but ignored for the specified (or default) service type.");
+                report_lint("option 'log_type' was specified, but ignored for the specified (or"
+                        " default) service type.");
             }
             if (nice_is_set) {
-                report_lint("option 'nice' was specified, but ignored for the specified (or default) service type.");
+                report_lint("option 'nice' was specified, but ignored for the specified (or"
+                        " default) service type.");
             }
             #if SUPPORT_IOPRIO
             if (ioprio >= 0) {
-                report_lint("option 'ioprio' was specified, but ignored for the specified (or default) service type.");
+                report_lint("option 'ioprio' was specified, but ignored for the specified"
+                        " (or default) service type.");
             }
             #endif
             #if SUPPORT_OOM_ADJ
             if (oom_adj_is_set) {
-                report_lint("option 'oom-score-adj' was specified, but ignored for the specified (or default) service type.");
+                report_lint("option 'oom-score-adj' was specified, but ignored for the specified"
+                        " (or default) service type.");
             }
             #endif
         }
@@ -1668,7 +1707,8 @@ class service_settings_wrapper
 
         if (!value(service_type).is_in(service_type_t::PROCESS, service_type_t::BGPROCESS)) {
             if (!consumer_of_name.empty()) {
-                report_error("only a process or bgprocess service can be a log consumer ('consume-for') another service.");
+                report_error("only a process or bgprocess service can be a log consumer "
+                        "('consume-for') another service.");
             }
         }
     }
@@ -1828,11 +1868,13 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                 settings.ioprio = 0;
             }
             else if (starts_with(ioprio_str, "realtime:")) {
-                auto nval = parse_unum_param(input_pos, ioprio_str.substr(9 /* len 'realtime:' */), name, 7);
+                auto nval = parse_unum_param(input_pos, ioprio_str.substr(9 /* len 'realtime:' */),
+                        name, 7);
                 settings.ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_RT, nval);
             }
             else if (starts_with(ioprio_str, "best-effort:")) {
-                auto nval = parse_unum_param(input_pos, ioprio_str.substr(12 /* len 'best-effort:' */), name, 7);
+                auto nval = parse_unum_param(input_pos, ioprio_str.substr(12 /* len 'best-effort:' */),
+                        name, 7);
                 settings.ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, nval);
             }
             else if (ioprio_str == "idle") {
@@ -2168,7 +2210,8 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         case setting_id_t::RESTART_LIMIT_INTERVAL:
         {
             string interval_str = read_setting_value(input_pos, i, end, nullptr);
-            parse_timespec(input_pos, interval_str, name, "restart-limit-interval", settings.restart_interval);
+            parse_timespec(input_pos, interval_str, name, "restart-limit-interval",
+                    settings.restart_interval);
             break;
         }
         case setting_id_t::RESTART_DELAY:
@@ -2179,7 +2222,8 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         }
         case setting_id_t::RESTART_LIMIT_COUNT: {
             string limit_str = read_setting_value(input_pos, i, end, nullptr);
-            settings.max_restarts = parse_unum_param(input_pos, limit_str, name, std::numeric_limits<int>::max());
+            settings.max_restarts = parse_unum_param(input_pos, limit_str, name,
+                    std::numeric_limits<int>::max());
             break;
         }
         case setting_id_t::STOP_TIMEOUT:
@@ -2197,7 +2241,8 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         case setting_id_t::RUN_AS:
         {
             string run_as_str = read_setting_value(input_pos, i, end, nullptr);
-            settings.run_as_uid = parse_uid_param(input_pos, run_as_str, name, "run-as", &settings.run_as_uid_gid);
+            settings.run_as_uid = parse_uid_param(input_pos, run_as_str, name, "run-as",
+                    &settings.run_as_uid_gid);
             break;
         }
         case setting_id_t::CHAIN_TO:
@@ -2207,7 +2252,8 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         {
             string notify_setting = read_setting_value(input_pos, i, end, nullptr);
             if (starts_with(notify_setting, "pipefd:")) {
-                settings.readiness_fd = parse_unum_param(input_pos, notify_setting.substr(7 /* len 'pipefd:' */),
+                settings.readiness_fd = parse_unum_param(input_pos,
+                        notify_setting.substr(7 /* len 'pipefd:' */),
                         name, std::numeric_limits<int>::max());
             }
             else if (starts_with(notify_setting, "pipevar:")) {
