@@ -353,7 +353,18 @@ public:
     }
 };
 
-// Read and set environment variables from a file. May throw std::bad_alloc, std::system_error.
+// Read and set environment variables (encapsulated in an 'environment' object) from a file.
+// File contains "VAR=VALUE" assignments (line by line) and "!" meta-commands.
+// Parameters:
+//   env_file_path - the path to the environment file to process
+//   log_warnings - whether warnings should be logged (eg about invalid embedded commands)
+//   env - the environment to modify
+//   throw_on_open_failure - whether to throw an exception on failure to open the specified
+//                           file. If false, returns instead (without logging failure).
+//   log_inv_setting - function/functor to log invalid lines
+//   log_bad_cmd - function/functor to log bad meta commands
+// Throws:
+//   std::bad_alloc, std::system_error
 template <typename LOG_INV_SETTING, typename LOG_BAD_COMMAND>
 inline void read_env_file_inline(const char *env_file_path, bool log_warnings, environment &env,
         bool throw_on_open_failure, LOG_INV_SETTING &log_inv_setting, LOG_BAD_COMMAND &log_bad_cmd)
