@@ -44,7 +44,7 @@ jobs:
           - arch: 'i386'
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Add i386 repos
       if: ${{ matrix.arch == 'i386' }}
       run: dpkg --add-architecture i386
@@ -85,7 +85,7 @@ jobs:
           - arch: 'aarch64'
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     # on MacOS, g++ symlinked to clang++
     # We must verify that
     - name: Verify g++ (is it g++ or clang++?)
@@ -119,7 +119,7 @@ jobs:
           - arch: 'amd64'
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Getting depends
       run: |
         apk update
