@@ -1547,7 +1547,7 @@ class service_settings_wrapper
     //   report_error - functor to report any errors
     //   service_arg - service argument, if any (may be null)
     //   envmap - environment variables
-    //   report_line - functor to report lint (default: don't report)
+    //   report_lint - functor to report lint (default: don't report)
     //   var_subst - functor to resolve environment variable values
     // Throws:
     //   service_description_exc, bad_alloc
