@@ -2389,13 +2389,9 @@ static int signal_send(int socknum, cpbuffer_t &rbuffer, const char *service_nam
 
     wait_for_reply(rbuffer, socknum);
     cp_rply reply_pkt_h = (cp_rply)rbuffer[0];
-    if (reply_pkt_h == cp_rply::NAK) {
-        cerr << "dinitctl: cannot send signal to service.\n";
-        return 1;
-    }
     if (reply_pkt_h == cp_rply::SIGNAL_NOPID) {
-        cerr << "dinitctl: could not get vaild PID of service; service is not process, "
-        "service in wrong state.\n";
+        cerr << "dinitctl: could not get valid PID of service; service is not process-based or "
+                "is in wrong state.\n";
         return 1;
     }
     if (reply_pkt_h == cp_rply::SIGNAL_BADSIG) {
