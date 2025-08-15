@@ -1603,7 +1603,7 @@ class service_settings_wrapper
             }
             if (!socket_path.empty()) {
                 report_lint("'socket-listen' specified, but ignored for the specified (or default)"
-                        " service type'.");
+                        " service type.");
             }
             #if USE_UTMPX
             if (inittab_id[0] != 0 || inittab_line[0] != 0) {
