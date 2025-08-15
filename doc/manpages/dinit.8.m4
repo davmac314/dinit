@@ -337,8 +337,11 @@ When run as a system manager, SIGINT stops all services and performs a reboot (o
 generated using the control-alt-delete key combination); SIGTERM stops services and halts the system; and
 SIGQUIT performs an immediate shutdown with no service rollback.
 .LP
-When run as a user process or system service manager only, SIGINT and SIGTERM both stop services
-and exit Dinit; SIGQUIT exits Dinit immediately.
+When run as a user instance or system service manager (but not system manager), SIGINT and SIGTERM
+both stop services and exit Dinit; SIGQUIT exits Dinit immediately.
+.LP
+Regardless of operation mode, SIGUSR1 will open the control socket, if it is not yet open or if it
+has been deleted from the file system.
 .\"
 .SH SEE ALSO
 .\"

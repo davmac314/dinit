@@ -59,6 +59,7 @@ eventloop_t event_loop(dasynq::delayed_init {});
 static void sigint_reboot_cb(eventloop_t &eloop) noexcept;
 static void sigquit_cb(eventloop_t &eloop) noexcept;
 static void sigterm_cb(eventloop_t &eloop) noexcept;
+static void sigusr1_cb(eventloop_t &eloop) noexcept;
 static bool open_control_socket(bool report_ro_failure = true) noexcept;
 static void close_control_socket() noexcept;
 static void control_socket_ready() noexcept;
@@ -528,6 +529,7 @@ int dinit_main(int argc, char **argv)
         sigaddset(&sigwait_set, SIGCHLD);
         sigaddset(&sigwait_set, SIGINT);
         sigaddset(&sigwait_set, SIGTERM);
+        sigaddset(&sigwait_set, SIGUSR1);
     }
     sigprocmask(SIG_BLOCK, &sigwait_set, &orig_signal_mask);
 
@@ -565,6 +567,7 @@ int dinit_main(int argc, char **argv)
     callback_signal_handler sigterm_watcher {sigterm_cb};
     callback_signal_handler sigint_watcher;
     callback_signal_handler sigquit_watcher;
+    callback_signal_handler sigusr1_watcher {sigusr1_cb};
 
     if (am_system_mgr) {
         sigint_watcher.set_cb_func(sigint_reboot_cb);
@@ -576,7 +579,8 @@ int dinit_main(int argc, char **argv)
 
     sigint_watcher.add_watch(event_loop, SIGINT);
     sigterm_watcher.add_watch(event_loop, SIGTERM);
-    
+    sigusr1_watcher.add_watch(event_loop, SIGUSR1);
+
     if (am_system_mgr) {
         // PID 1: we may ask for console input; SIGQUIT exec's shutdown
         console_input_io.add_watch(event_loop, STDIN_FILENO, dasynq::IN_EVENTS, false);
@@ -1274,4 +1278,10 @@ static void sigquit_cb(eventloop_t &eloop) noexcept
 static void sigterm_cb(eventloop_t &eloop) noexcept
 {
     services->stop_all_services();
+}
+
+// handle SIGUSR1 - attempt to (re)open control socket
+static void sigusr1_cb(eventloop_t &eloop) noexcept
+{
+    open_control_socket(true);
 }
