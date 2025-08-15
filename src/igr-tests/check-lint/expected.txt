@@ -1,8 +1,8 @@
 Checking service: boot...
-Service 'boot': 'command' specified, but ignored for the specified (or default) service type.
-Service 'boot': 'working-dir' specified, but ignored for the specified (or default) service type.
-Service 'boot': 'run-as' specified, but ignored for the specified (or default) service type.
-Service 'boot': 'socket-listen' specified, but ignored for the specified (or default) service type.
+Service 'boot': warning: 'command' specified, but ignored for the specified (or default) service type.
+Service 'boot': warning: 'working-dir' specified, but ignored for the specified (or default) service type.
+Service 'boot': warning: 'run-as' specified, but ignored for the specified (or default) service type.
+Service 'boot': warning: 'socket-listen' specified, but ignored for the specified (or default) service type.
 Service 'boot': warning: could not stat command executable '/this/command/does/not/exist': No such file or directory
 Performing secondary checks...
 Secondary checks complete.

@@ -724,6 +724,12 @@ service_record *load_service(service_set_t &services, const std::string &name,
         report_service_description_err(name, msg);
     };
 
+    auto report_lint = [&](const char *msg) {
+        std::string s = "warning: ";
+        s += msg;
+        report_service_description_err(name, s.c_str());
+    };
+
     environment srv_env{};
 
     // Fill user vars before reading env file
@@ -769,7 +775,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     renvmap = srv_env.build(menv);
 
-    settings.finalise(report_err, nullptr, report_err, resolve_var);
+    settings.finalise(report_err, nullptr, report_lint, resolve_var);
 
     if (!settings.working_dir.empty()) {
         service_wdir = settings.working_dir;
