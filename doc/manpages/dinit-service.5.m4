@@ -209,7 +209,7 @@ Specifies a file containing value assignments for environment variables, in the 
 format recognised by the \fBdinit\fR command's \fB\-\-env\-file\fR option (see \fBdinit\fR(8)).
 The file is read when the service is loaded, therefore values from it can be used in variable
 substitutions (see \fBVARIABLE SUBSTITUTION\fR).
-Minimal variable substitution is performed on the \fBenv\-file\fR property value itself.
+Pre-load variable substitution is performed on the \fBenv\-file\fR property value itself.
 If the path is not absolute, it is resolved relative to the directory containing the service
 description.
 .TP
