@@ -6,8 +6,10 @@
 #include <unordered_set>
 #include <string>
 
-#include <dinit-util.h>
 #include <baseproc-sys.h>
+#include <dinit-util.h>
+#include <dinit-iostream.h>
+
 
 class environment;
 extern environment main_env;
@@ -369,21 +371,23 @@ template <typename LOG_INV_SETTING, typename LOG_BAD_COMMAND>
 inline void read_env_file_inline(const char *env_file_path, bool log_warnings, environment &env,
         bool throw_on_open_failure, LOG_INV_SETTING &log_inv_setting, LOG_BAD_COMMAND &log_bad_cmd)
 {
-    std::ifstream env_file(env_file_path);
-    if (!env_file) {
+    int env_file_fd = bp_sys::open(env_file_path, O_RDONLY);
+    if (env_file_fd == -1) {
         if (throw_on_open_failure) {
             throw std::system_error(errno, std::generic_category());
         }
         return;
     }
 
-    env_file.exceptions(std::ios::badbit);
+    dio::istream env_file(env_file_fd);
+    env_file.throw_exception_on(dio::buffer_fail_bit);
 
     auto &clocale = std::locale::classic();
     std::string line;
     int linenum = 0;
 
-    while (std::getline(env_file, line)) {
+    while (!env_file.eof()) {
+        env_file.get_line_until_eof(line);
         linenum++;
         auto lpos = line.begin();
         auto lend = line.end();
