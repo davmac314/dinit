@@ -1708,7 +1708,7 @@ class service_settings_wrapper
         if (!value(service_type).is_in(service_type_t::PROCESS, service_type_t::BGPROCESS)) {
             if (!consumer_of_name.empty()) {
                 report_error("only a process or bgprocess service can be a log consumer "
-                        "('consume-for') another service.");
+                        "('consumer-of') another service.");
             }
         }
     }
