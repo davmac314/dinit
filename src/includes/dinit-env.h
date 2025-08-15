@@ -14,13 +14,22 @@
 class environment;
 extern environment main_env;
 
-// Read an environment file and set variables in the current environment.
-//   file - the file to read
-//   log_warnings - if true, syntactic errors are logged
-//   throw_on_open_failure - if true, failure to open file will result in a std::system_error exception
-// May throw bad_alloc or system_error. This function is available within dinit only, not utilities,
-// but see read_env_file_inline below.
-void read_env_file(const char *file, bool log_warnings, environment &env, bool throw_on_open_failure);
+// Read and set environment variables (encapsulated in an 'environment' object) from a file.
+// File contains "VAR=VALUE" assignments (line by line) and "!" meta-commands.
+// Parameters:
+//   env_file_path - the path to the environment file to process
+//   resolve_fd - directory to resolve path against; may be AT_FDCWD
+//   log_warnings - whether warnings should be logged (eg about invalid embedded commands)
+//   env - the environment to modify
+//   throw_on_open_failure - whether to throw an exception on failure to open the specified
+//                           file. If false, returns instead (without logging failure).
+// Throws:
+//   std::bad_alloc, std::system_error
+//
+// This function is available within dinit only, not utilities, but see read_env_file_inline
+// below.
+void read_env_file(const char *file, int resolve_fd, bool log_warnings, environment &env,
+        bool throw_on_open_failure);
 
 // Note that our sets (defined as part of environment class below) allow searching based on a name
 // only (string_view) or "NAME=VALUE" assignment pair (std::string). It is important to always
@@ -359,6 +368,7 @@ public:
 // File contains "VAR=VALUE" assignments (line by line) and "!" meta-commands.
 // Parameters:
 //   env_file_path - the path to the environment file to process
+//   resolve_fd - directory to resolve path against; may be AT_FDCWD
 //   log_warnings - whether warnings should be logged (eg about invalid embedded commands)
 //   env - the environment to modify
 //   throw_on_open_failure - whether to throw an exception on failure to open the specified
@@ -368,10 +378,11 @@ public:
 // Throws:
 //   std::bad_alloc, std::system_error
 template <typename LOG_INV_SETTING, typename LOG_BAD_COMMAND>
-inline void read_env_file_inline(const char *env_file_path, bool log_warnings, environment &env,
-        bool throw_on_open_failure, LOG_INV_SETTING &log_inv_setting, LOG_BAD_COMMAND &log_bad_cmd)
+inline void read_env_file_inline(const char *env_file_path, int resolve_fd, bool log_warnings,
+        environment &env, bool throw_on_open_failure, LOG_INV_SETTING &log_inv_setting,
+        LOG_BAD_COMMAND &log_bad_cmd)
 {
-    int env_file_fd = bp_sys::open(env_file_path, O_RDONLY);
+    int env_file_fd = bp_sys::openat(resolve_fd, env_file_path, O_RDONLY);
     if (env_file_fd == -1) {
         if (throw_on_open_failure) {
             throw std::system_error(errno, std::generic_category());

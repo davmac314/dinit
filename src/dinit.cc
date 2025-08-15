@@ -642,7 +642,7 @@ int dinit_main(int argc, char **argv)
     }
 
     if (env_file != nullptr) {
-        read_env_file(env_file, true, main_env, false);
+        read_env_file(env_file, AT_FDCWD, true, main_env, false);
     }
 
     for (auto svc : services_to_start) {

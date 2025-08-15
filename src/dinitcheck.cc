@@ -227,7 +227,7 @@ int main(int argc, char **argv)
                     return EXIT_SUCCESS;
                 }
                 else {
-                    std::cerr << "dinitcheck: Unrecognized option: '" << argv[i] << "' (use '--help' for help)\n";
+                    std::cerr << "dinitcheck: unrecognized option: '" << argv[i] << "' (use '--help' for help)\n";
                     return EXIT_FAILURE;
                 }
             }
@@ -254,19 +254,21 @@ int main(int argc, char **argv)
         }
         if (!env_file.empty()) {
             auto log_inv_env_setting = [&](int line_num) {
-                std::cerr << "dinitcheck: warning: Invalid environment variable setting in environment file "
-                        << env_file << " (line " << std::to_string(line_num) << ")\n";
+                std::cerr << "dinitcheck: warning: invalid environment variable setting in "
+                            "environment file " << env_file << " (line "
+                        << std::to_string(line_num) << ")\n";
             };
             auto log_bad_env_command = [&](int line_num) {
-                std::cerr << "dinitcheck: warning: Bad command in environment file "
+                std::cerr << "dinitcheck: warning: bad command in environment file "
                         << env_file << " (line " << std::to_string(line_num) << ")\n";
             };
 
             try {
-                read_env_file_inline(env_file.c_str(), true, menv, false, log_inv_env_setting, log_bad_env_command);
+                read_env_file_inline(env_file.c_str(), AT_FDCWD, true, menv, false,
+                        log_inv_env_setting, log_bad_env_command);
             }
             catch (std::system_error &err) {
-                std::cerr << "dinitcheck: error read environment file " << env_file << ": "
+                std::cerr << "dinitcheck: error reading environment file " << env_file << ": "
                         << err.code().message() << "\n";
                 return EXIT_FAILURE;
             }
@@ -742,22 +744,26 @@ service_record *load_service(service_set_t &services, const std::string &name,
     }
 
     if (!settings.env_file.empty()) {
+        fd_holder env_resolve_fd = std::move(settings.env_file_dir_fd);
         try {
-            std::string fullpath = combine_paths(service_wdir, settings.env_file.c_str());
-
             auto log_inv_env_setting = [&](int line_num) {
                 report_service_description_err(name,
-                        std::string("Invalid environment variable setting in environment file " + fullpath
-                                + " (line ") + std::to_string(line_num) + ")");
+                        std::string("Invalid environment variable setting in environment file "
+                                + settings.env_file + " (line ") + std::to_string(line_num)
+                                + ")");
             };
             auto log_bad_env_command = [&](int line_num) {
                 report_service_description_err(name,
-                        std::string("Bad command in environment file ") + fullpath + " (line " + std::to_string(line_num) + ")");
+                        std::string("Bad command in environment file ") + settings.env_file
+                                + " (line " + std::to_string(line_num) + ")");
             };
 
-            read_env_file_inline(fullpath.c_str(), false, srv_env, true, log_inv_env_setting, log_bad_env_command);
-        } catch (const std::system_error &se) {
-            report_service_description_err(name, std::string("could not load environment file: ") + se.what());
+            read_env_file_inline(settings.env_file.c_str(), env_resolve_fd.get(), false, srv_env, true,
+                    log_inv_env_setting, log_bad_env_command);
+        }
+        catch (const std::system_error &se) {
+            report_service_description_err(name, std::string("could not load environment file: ")
+                    + se.what());
         }
     }
 

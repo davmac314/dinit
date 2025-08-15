@@ -195,6 +195,11 @@ class fd_holder
         if (fd != -1) bp_sys::close(fd);
     }
 
+    int get()
+    {
+        return fd;
+    }
+
     int release()
     {
         int r = fd;

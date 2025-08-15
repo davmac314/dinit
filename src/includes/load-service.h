@@ -150,10 +150,18 @@ class file_pos_ref
 {
     unsigned line_num;
     const std::string &file_name;
+    int resolve_dir_fd = -1;
 
     public:
     file_pos_ref(file_input_stack &stack)
-        : line_num(stack.current_line()), file_name(stack.current_file_name())
+        : line_num(stack.current_line()), file_name(stack.current_file_name()),
+          resolve_dir_fd(stack.current_resolve_dir())
+    {
+    }
+
+    file_pos_ref(file_input_stack &stack, unsigned line_num_p)
+        : line_num(line_num_p), file_name(stack.current_file_name()),
+          resolve_dir_fd(stack.current_resolve_dir())
     {
     }
 
@@ -175,6 +183,11 @@ class file_pos_ref
     unsigned &get_line_num_ref()
     {
         return line_num;
+    }
+
+    int get_resolve_fd()
+    {
+        return resolve_dir_fd;
     }
 };
 
@@ -1144,7 +1157,7 @@ void process_service_file(string name, file_input_stack &service_input, T proces
 
             i = skipwsln(++i, end, line_num);
 
-            file_pos_ref fpr { service_input.current_file_name(), line_num };
+            file_pos_ref fpr { service_input, line_num };
             process_line_func(line, fpr, setting, setting_op, i, end);
         }
     }
@@ -1447,6 +1460,9 @@ class service_settings_wrapper
     string working_dir;
     string pid_file;
     string env_file;
+
+    // file descriptor to resolve env_file against (if it is relative).
+    fd_holder env_file_dir_fd;
 
     bool export_passwd_vars = false;
     bool export_service_name = false;
@@ -1765,7 +1781,7 @@ class service_settings_wrapper
 //
 // Throws:
 //  service_description_exc, std::bad_alloc, std::length_error (string too long; unlikely),
-//  anything thrown by lookup_var
+//  std::system_error, anything thrown by lookup_var
 template <typename settings_wrapper,
     typename load_service_t,
     typename process_dep_dir_t,
@@ -1798,6 +1814,17 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         case setting_id_t::ENV_FILE:
             settings.env_file = read_value_resolved(setting.c_str(), input_pos, i, end,
                     service_arg, lookup_var);
+            if (settings.env_file[0] != '/') {
+                // We need to duplicate the resolve-fd as it is owned by the input stack and will
+                // be closed before the environment file is actually resolved
+                int rfd = input_pos.get_resolve_fd();
+                rfd = dup(rfd);
+                if (rfd == -1) {
+                    // TODO: throw a more bespoke exception (dio::-exception perhaps)
+                    throw std::system_error(errno, std::generic_category(), "dup");
+                }
+                settings.env_file_dir_fd = rfd;
+            }
             break;
         #if SUPPORT_CGROUPS
         case setting_id_t::RUN_IN_CGROUP:
