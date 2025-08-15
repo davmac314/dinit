@@ -1718,7 +1718,7 @@ class service_settings_wrapper
     // See finalise() above.
     //
     // Throws:
-    //    service_description_exc
+    //    service_description_exc, bad_alloc
     //
     template <bool propagate_sde = false, typename T, typename U = decltype(dummy_lint),
             typename V = decltype(resolve_env_var),
