@@ -1761,8 +1761,11 @@ class service_settings_wrapper
 //                    arguments: decltype(settings.depends) &dependencies
 //                               const string &waitsford - directory as specified in parameter
 //                               dependency_type dep_type - type of dependency to add
+//   lookup_var   : function to look up a variable value
+//
 // Throws:
-//  service_description_exc, std::bad_alloc, std::length_error (string too long; unlikely)
+//  service_description_exc, std::bad_alloc, std::length_error (string too long; unlikely),
+//  anything thrown by lookup_var
 template <typename settings_wrapper,
     typename load_service_t,
     typename process_dep_dir_t,
