@@ -439,7 +439,7 @@ int main(int argc, char **argv)
 
     for (size_t i = 0; i < num_services_to_check; ++i) {
         service_record *root = service_set[services_to_check[i]];
-        if (! root) continue;
+        if (!root) continue;
         if (root->visited) continue;
 
         // invariant: service_chain is empty
@@ -566,7 +566,7 @@ static void report_dir_error(const char *service_name, const std::string &dirpat
 
 static void report_general_warning(string_view msg)
 {
-    std::cerr << "dinitcheck: Warning: " << msg.data() << "\n";
+    std::cerr << "dinitcheck: warning: " << msg.data() << "\n";
 }
 
 // Process a dependency directory - filenames contained within correspond to service names which
@@ -671,7 +671,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     auto resolve_var = [&](const string &name) {
         if (offline_operation && !issued_var_subst_warning) {
-            report_general_warning("Variable substitution performed by dinitcheck "
+            report_general_warning("variable substitution performed by dinitcheck "
                     "for file paths may not match dinit daemon (environment may differ); "
                     "use --online to avoid this warning");
             issued_var_subst_warning = true;
@@ -748,13 +748,13 @@ service_record *load_service(service_set_t &services, const std::string &name,
         try {
             auto log_inv_env_setting = [&](int line_num) {
                 report_service_description_err(name,
-                        std::string("Invalid environment variable setting in environment file "
+                        std::string("invalid environment variable setting in environment file "
                                 + settings.env_file + " (line ") + std::to_string(line_num)
                                 + ")");
             };
             auto log_bad_env_command = [&](int line_num) {
                 report_service_description_err(name,
-                        std::string("Bad command in environment file ") + settings.env_file
+                        std::string("bad command in environment file ") + settings.env_file
                                 + " (line " + std::to_string(line_num) + ")");
             };
 
@@ -783,7 +783,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
     int dirfd = open(service_wdir.c_str(), oflags);
     if (dirfd < 0) {
         report_service_description_err(name,
-                std::string("could not open service working directory: ") + strerror(errno));
+                std::string("warning: could not open service working directory: ") + strerror(errno));
         dirfd = AT_FDCWD;
     }
 
@@ -791,21 +791,22 @@ service_record *load_service(service_set_t &services, const std::string &name,
         struct stat command_stat;
         if (command[0] != '/') {
             report_service_description_err(name,
-                    std::string("executable '") + command + "' is not an absolute path");
+                    std::string("warning: ") + setting_name + " executable '" + command
+                            + "' is not an absolute path");
         }
         else if (fstatat(dirfd, command, &command_stat, 0) == -1) {
             report_service_description_err(name,
-                    std::string("could not stat ") + setting_name + " executable '" + command
-                    + "': " + strerror(errno));
+                    std::string("warning: could not stat ") + setting_name + " executable '" + command
+                            + "': " + strerror(errno));
         }
         else {
             if ((command_stat.st_mode & S_IFMT) != S_IFREG) {
-                report_service_description_err(name, std::string(setting_name) + " executable '"
-                        + command + "' is not a regular file.");
+                report_service_description_err(name, std::string("warning: ") + setting_name
+                        + " executable '" + command + "' is not a regular file.");
             }
             else if ((command_stat.st_mode & S_IXUSR) == 0) {
-                report_service_description_err(name, std::string(setting_name) + " executable '" + command
-                        + "' is not executable by owner.");
+                report_service_description_err(name, std::string("warning: ") + setting_name
+                        + " executable '" + command + "' is not executable by owner.");
             }
         }
     };
@@ -828,11 +829,12 @@ service_record *load_service(service_set_t &services, const std::string &name,
             struct stat logfile_dir_stat;
             if (fstatat(dirfd, logfile_dir.c_str(), &logfile_dir_stat, 0) == -1) {
                 report_service_description_err(name,
-                        std::string("could not access logfile directory '") + logfile_dir + "': " + strerror(errno));
+                        std::string("warning: could not access logfile directory '") + logfile_dir
+                                + "': " + strerror(errno));
             }
             else {
                 if ((logfile_dir_stat.st_mode & S_IFDIR) == 0) {
-                    report_service_description_err(name, std::string("logfile directory '")
+                    report_service_description_err(name, std::string("warning: logfile directory '")
                             + logfile_dir + "' exists but is not a directory.");
                 }
             }
