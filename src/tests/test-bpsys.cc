@@ -251,10 +251,10 @@ fs_node *current_dir_node = nullptr;
 fs_node *root_dir_hndlr = nullptr;
 
 // map of fd to fd handler
-std::map<int,fd_handler *> fd_handlers;
+std::map<int, std::shared_ptr<fd_handler>> fd_handlers;
 
 // map of fd to the handler for writes to that fd
-std::map<int, std::unique_ptr<bp_sys::write_handler>> write_hndlr_map;
+std::map<int, std::shared_ptr<bp_sys::write_handler>> write_hndlr_map;
 
 // environment variables, in "NAME=VALUE" form
 std::vector<char *> env_vars;
@@ -306,13 +306,11 @@ void supply_read_data(int fd, std::vector<char> &&data)
     if (i == fd_handlers.end()) {
         auto *hndlr = new file_fd_handler();
         hndlr->rrs.emplace_back(std::move(data));
-        fd_handlers[fd] = hndlr;
+        fd_handlers[fd] = std::shared_ptr<fd_handler>(hndlr);
     }
     else {
         i->second->supply_data(std::move(data));
     }
-
-
 }
 
 void supply_read_data(int fd, std::vector<char> &data)
@@ -485,7 +483,7 @@ int open(const char *pathname, int flags)
     }
 
     int nfd = allocfd();
-    fd_handlers[nfd] = hndlr;
+    fd_handlers[nfd] = std::shared_ptr<fd_handler>(hndlr);
     return nfd;
 }
 
@@ -507,7 +505,7 @@ int openat(int dirfd, const char *pathname, int flags)
         //return -1;
     }
 
-    fd_handler *fdh = i->second;
+    fd_handler *fdh = i->second.get();
     fs_node *fsnode = fdh->get_fs_node();
     if (fsnode == nullptr) {
         errno = ENOTDIR;
@@ -523,7 +521,29 @@ int openat(int dirfd, const char *pathname, int flags)
     fd_handler *hndlr = new file_fd_handler(resolved);
 
     int nfd = allocfd();
-    fd_handlers[nfd] = hndlr;
+    fd_handlers[nfd] = std::shared_ptr<fd_handler>(hndlr);
+    return nfd;
+}
+
+int dup(int src_fd)
+{
+    int nfd = allocfd();
+    bool found_src_fd = false;
+
+    auto it = fd_handlers.find(src_fd);
+    if (it != fd_handlers.end()) {
+        found_src_fd = true;
+        fd_handlers[nfd] = it->second;
+    }
+
+    auto it_w = write_hndlr_map.find(src_fd);
+    if (it_w != write_hndlr_map.end()) {
+        found_src_fd = true;
+        write_hndlr_map[nfd] = it_w->second;
+    }
+
+    if (!found_src_fd) abort();
+
     return nfd;
 }
 
@@ -544,7 +564,6 @@ int close(int fd)
     write_hndlr_map.erase(fd);
     auto it = fd_handlers.find(fd);
     if (it != fd_handlers.end()) {
-        delete it->second;
         fd_handlers.erase(it);
     }
     return 0;

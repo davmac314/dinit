@@ -460,6 +460,23 @@ inline std::pair<int,int> open_with_dir(const char *dirname, const char *basenam
         return {-1, errno};
     }
 
+    if (!close_parent_dir_fd) {
+        // If we never moved outside the parent directory (which may be AT_FDCWD, the current
+        // working directory) then we never opened a file descriptor for it. Do so now.
+        // (Note that doing this here isn't be thread-safe, since we are assuming that the CWD
+        // doesn't change during execution of this function. That doesn't matter for Dinit).
+        if (parent_dir_fd == AT_FDCWD) {
+            parent_dir_fd = bp_sys::open(".", dir_search_flag | O_DIRECTORY);
+        }
+        else {
+            parent_dir_fd = bp_sys::dup(parent_dir_fd);
+        }
+        if (parent_dir_fd == -1) {
+            bp_sys::close(file_fd);
+            return {-1, errno};
+        }
+    }
+
     return {parent_dir_fd, file_fd};
 }
 

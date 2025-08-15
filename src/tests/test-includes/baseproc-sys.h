@@ -62,6 +62,7 @@ int pipe2(int pipefd[2], int flags);
 int close(int fd);
 int kill(pid_t pid, int sig);
 int openat(int dirfd, const char *pathname, int flags);
+int dup(int src_fd);
 
 inline int fcntl(int fd, int cmd, ...)
 {

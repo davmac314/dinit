@@ -1,0 +1,3 @@
+# file using fragments
+@include "fragment-1"
+@include "fragment-2"

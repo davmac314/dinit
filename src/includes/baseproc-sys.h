@@ -38,6 +38,8 @@ using ::write;
 using ::writev;
 using ::waitid;
 using ::readlinkat;
+using ::dup;
+
 using std::getenv;
 
 using ::environ;

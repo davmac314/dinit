@@ -49,6 +49,9 @@ void init_test_service_dir()
     supply_service_file("./test-services/t1");
     supply_service_file("./test-services/t2");
     supply_service_file("./test-services/t3");
+    supply_service_file("./test-services/t4");
+    supply_service_file("./test-services/fragment-1");
+    supply_service_file("./test-services/fragment-2");
 
     tenvmap = tenv.build(main_env);
 }
@@ -622,6 +625,14 @@ void test_plusassign()
     assert(ppi->second == 17);
 }
 
+void test_includes()
+{
+    dirload_service_set sset(test_service_dir.c_str());
+    auto t1 = sset.load_service("t4");
+    assert(t1->get_name() == "t4");
+    assert(t1->get_type() == service_type_t::PROCESS);
+}
+
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
     name(); \
@@ -642,6 +653,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_newline2, "             ");
     RUN_TEST(test_comments, "             ");
     RUN_TEST(test_plusassign, "           ");
+    RUN_TEST(test_includes, "             ");
     bp_sys::clearenv();
     return 0;
 }
