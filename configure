@@ -117,6 +117,27 @@ try_link_object()
             -o '"$configtmpdir"/"$2"' > /dev/null 2>&1
 }
 
+# Test if the compiler successfully compiles and links a source file, and execute it if so; returns
+# program exit code or failure on compile/link failure.
+#   $1 - the name of the source file to compile
+#   $2 - the name of the object file to link
+#   $3 - the name of the result executable file
+try_execute_source()
+{
+    if [ ! -e "$configtmpdir"/"$3" ]; then
+        if [ ! -e "$configtmpdir"/"$2" ]; then
+            if ! try_compile_source "$1" "$2"; then
+                return 1
+            fi
+        fi
+        if ! try_link_object "$2" "$3"; then
+            return 1
+        fi
+    fi
+
+    "$configtmpdir"/"$3" > /dev/null 2>&1
+}
+
 # Test if the compiler accepts an argument (for compilation only); if so add it to named variable.
 # Note: this function will return failure if the flag is unsupported (use try_optional_cxx_argument
 # instead, to avoid errorring out).
@@ -211,6 +232,27 @@ check_header()
         sub_info "No."
         eval "$1=0"
     fi
+}
+
+# Write the test code for testing exception handling with -fno-rtti
+write_no_rtti_check()
+{
+    cat << _EOF > "$configtmpdir"/no-rtti-check.cc
+#include <string>
+#include <stdexcept>
+
+int main()
+{
+    try {
+        std::stoull("invalid for stoull");
+    }
+    catch (std::invalid_argument &exc) {
+        return 0;
+    }
+
+    return -1;
+}
+_EOF
 }
 
 
@@ -548,8 +590,26 @@ if [ "$AUTO_CXXFLAGS" = "true" ]; then
     do
         try_optional_cxx_argument CXXFLAGS $argument
     done
-    if [ "$PLATFORM" != "Darwin" ]; then
-        try_optional_cxx_argument CXXFLAGS -fno-rtti
+
+    # -fno-rtti is a special case. Some compilers (e.g. clang+libcxxrt) generate broken code
+    # when disabling run-time type information with code which uses exceptions.
+    info Checking whether -fno-rtti is accepted for compilation...
+    if [ -n "${CXX_FOR_BUILD:-}" ]; then
+        sub_info Cross-compiltion detected. Disabling -fno-rtti to be safe about exception handling.
+    else
+        write_no_rtti_check
+        if try_compile_source no-rtti-check.cc no-rtti-check.o -fno-rtti; then
+            sub_info "Yes."
+            info Checking whether -fno-rtti breaks exceptions...
+            if try_execute_source no-rtti-check.cc no-rtti-check.o no-rtti-check; then
+                sub_info "No."
+                CXXFLAGS="$CXXFLAGS -fno-rtti"
+            else
+                sub_info "Yes. Disabling -fno-rtti"
+            fi
+        else
+            sub_info "No."
+        fi
     fi
 fi
 if [ "$AUTO_LDFLAGS" = true ] && [ "$AUTO_CXXFLAGS" = true ]; then
