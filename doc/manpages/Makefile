@@ -6,16 +6,16 @@ all: generate
 generate: dinit.8 dinitctl.8 dinitcheck.8 dinit-monitor.8 dinit-service.5 shutdown.8
 
 install: generate
-	mkdir -p "$(DESTDIR)$(MANDIR)/man8"
-	install -m644 dinit.8 dinitctl.8 dinitcheck.8 dinit-monitor.8 "$(DESTDIR)$(MANDIR)/man8"
-	mkdir -p "$(DESTDIR)$(MANDIR)/man5"
-	install -m644 dinit-service.5 "$(DESTDIR)$(MANDIR)/man5"
+	mkdir -p $(DESTDIR)$(MANDIR)/man8
+	install -m644 dinit.8 dinitctl.8 dinitcheck.8 dinit-monitor.8 $(DESTDIR)$(MANDIR)/man8
+	mkdir -p $(DESTDIR)$(MANDIR)/man5
+	install -m644 dinit-service.5 $(DESTDIR)$(MANDIR)/man5
 ifeq ($(BUILD_SHUTDOWN),yes)
-	install -m644 shutdown.8 "$(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)shutdown.8"
-	ln -sf "$(SHUTDOWN_PREFIX)shutdown.8" "$(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)halt.8"
-	ln -sf "$(SHUTDOWN_PREFIX)shutdown.8" "$(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)reboot.8"
-	ln -sf "$(SHUTDOWN_PREFIX)shutdown.8" "$(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)poweroff.8"
-	ln -sf "$(SHUTDOWN_PREFIX)shutdown.8" "$(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)soft-reboot.8"
+	install -m644 shutdown.8 $(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)shutdown.8
+	ln -sf $(SHUTDOWN_PREFIX)shutdown.8 $(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)halt.8
+	ln -sf $(SHUTDOWN_PREFIX)shutdown.8 $(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)reboot.8
+	ln -sf $(SHUTDOWN_PREFIX)shutdown.8 $(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)poweroff.8
+	ln -sf $(SHUTDOWN_PREFIX)shutdown.8 $(DESTDIR)$(MANDIR)/man8/$(SHUTDOWN_PREFIX)soft-reboot.8
 endif
 
 clean:

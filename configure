@@ -74,7 +74,7 @@ mktmpdir()
 cxx_works()
 {
     info Checking whether \""$1"\" is a working C++ compiler...
-    if "$1" -o "$configtmpdir"/testfile "$configtmpdir"/testfile.cc; then
+    if eval $1 -o '"$configtmpdir"/testfile' '"$configtmpdir"/testfile.cc'; then
         rm -f "$configtmpdir"/testfile
         sub_info Yes.
     else
@@ -93,8 +93,8 @@ cxx_works()
 try_cxx_argument()
 {
     info Checking whether "$2" is accepted for compilation...
-    if $CXX $CXXFLAGS $2 $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA "$configtmpdir"/testfile.cc \
-            -c -o "$configtmpdir"/testfile.o > /dev/null 2>&1; then
+    if eval $CXX $CXXFLAGS $2 $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA '"$configtmpdir"/testfile.cc' \
+            -c -o '"$configtmpdir"/testfile.o' > /dev/null 2>&1; then
         rm "$configtmpdir"/testfile.o
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
@@ -127,14 +127,14 @@ try_ld_argument()
     info Checking whether "$2" is accepted as a link-time option...
     if [ ! -e "$configtmpdir"/testfile.o ]; then
         # If the object file doesn't exist yet, need to compile
-        if ! $CXX $CXXFLAGS $CXXFLAGS_EXTRA "$configtmpdir"/testfile.cc \
-                -c -o "$configtmpdir"/testfile.o > /dev/null 2>&1; then
+        if ! eval $CXX $CXXFLAGS $CXXFLAGS_EXTRA '"$configtmpdir"/testfile.cc' \
+                -c -o '"$configtmpdir"/testfile.o' > /dev/null 2>&1; then
             sub_info "No (compilation failed)."
             return
         fi
     fi
-    if $CXX $LDFLAGS $LDFLAGS_EXTRA $2 "$configtmpdir"/testfile.o \
-            -o "$configtmpdir"/testfile > /dev/null 2>&1; then
+    if eval $CXX $LDFLAGS $LDFLAGS_EXTRA $2 '"$configtmpdir"/testfile.o' \
+            -o '"$configtmpdir"/testfile' > /dev/null 2>&1; then
         sub_info Yes.
         rm "$configtmpdir"/testfile
         eval "$1=\"\${$1} \$2\""
@@ -153,7 +153,7 @@ try_ld_argument()
 try_both_argument()
 {
     info Checking whether "$3" is accepted for compiling and linking...
-    if $CXX $CXXFLAGS $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA $3 "$configtmpdir"/testfile.cc \
+    if eval $CXX $CXXFLAGS $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA $3 "$configtmpdir"/testfile.cc \
             -o "$configtmpdir"/testfile > /dev/null 2>&1; then
         sub_info Yes.
         rm "$configtmpdir"/testfile
@@ -164,6 +164,42 @@ try_both_argument()
     else
         sub_info No.
     fi
+}
+
+
+
+# Quote a string to preserve its original form after shell evaluation (except that an empty
+# string remains as an empty string).
+quote_for_shell()
+{
+    # The strategy: surround the string with '-quotes. Look for any such quotes embedded in the
+    # string and replace them with the sequence "'\''", i.e. end ', literal-', begin '.
+    result="'"
+    remaining=$1
+    smallest_prefix=${remaining%%\'*}
+    while [ "$smallest_prefix" != "$remaining" ]; do
+        result="$result$smallest_prefix'\''"
+        remaining=${remaining#*\'}
+        smallest_prefix=${remaining%%\'*}
+    done
+    result="$result$remaining'"
+    if [ "$result" = "''" ]; then result=""; fi
+    printf "%s" "$result"
+}
+
+# Quote a string for use in a make file.
+quote_for_make()
+{
+    result=""
+    remaining=$1
+    smallest_prefix=${remaining%%\$*}
+    while [ "$smallest_prefix" != "$remaining" ]; do
+        result="$result$smallest_prefix\$\$"
+        remaining=${remaining#*\$}
+        smallest_prefix=${remaining%%\$*}
+    done
+    result="$result$remaining"
+    printf "%s" "$result"	
 }
 
 usage()
@@ -266,10 +302,8 @@ Build variables:
   
   LDFLAGS_LIBCAP                Additional Link flags to link capabilities support (libcap).
 
-Note: paths specified via --prefix/--exec-prefix/--sbindir/--mandir, and build variable values,
-must be escaped for use in a makefile and in shell commands. If there are spaces in paths it is
-recommended to prepend a backslash (\) to them.
-For example: ./configure --prefix="/home/my\ home"
+Note: build variable values representing commands or arguments must be suitably quoted for use in
+shell commands (i.e. quoted twice if executing $0 via shell command line).  
 
 See BUILD file for more information.
 _EOF
@@ -503,10 +537,15 @@ else
     LDFLAGS_LIBCAP=""
 fi
 
+# "XXX_MK" variables are for values already quoted for use in makefiles. The following will now be
+# set: TEST_LDFLAGS_BASE_MK, LDFLAGS_MK, TEST_LDFLAGS_MK, TEST_CXXFLAGS_MK. For other build
+# variables, we'll just do the quoting when we write the value to mconfig.
+
 if [ "$AUTO_TEST_LDFLAGS_BASE" = true ]; then
-    TEST_LDFLAGS_BASE="\$(LDFLAGS_BASE)"
+    TEST_LDFLAGS_BASE_MK="\$(LDFLAGS_BASE)"
     established_TEST_LDFLAGS="$LDFLAGS_BASE"
 else
+    TEST_LDFLAGS_BASE_MK="$(quote_for_make "$TEST_LDFLAGS_BASE")"
     established_TEST_LDFLAGS="$TEST_LDFLAGS_BASE"
 fi
 
@@ -514,31 +553,36 @@ fi
 # options, shortly. 
 if [ "$HAS_LTO" = true ]; then
     if [ "$AUTO_LDFLAGS" = true ]; then
-        LDFLAGS="\$(LDFLAGS_BASE) \$(CXXFLAGS)"
+        LDFLAGS_MK="\$(LDFLAGS_BASE) \$(CXXFLAGS)"
+    else
+        LDFLAGS_MK="$(quote_for_make "$LDFLAGS")"
     fi
     if [ "$AUTO_TEST_LDFLAGS" = true ]; then
-        TEST_LDFLAGS="\$(TEST_LDFLAGS_BASE) \$(TEST_CXXFLAGS)"
+        TEST_LDFLAGS_MK="\$(TEST_LDFLAGS_BASE) \$(TEST_CXXFLAGS)"
         established_TEST_LDFLAGS="$established_TEST_LDFLAGS $TEST_CXXFLAGS"
     else
+        TEST_LDFLAGS_MK="$(quote_for_make "$TEST_LDFLAGS")"
         established_TEST_LDFLAGS="$TEST_LDFLAGS"
     fi
 else
     # default LDFLAGS are just $(LDFLAGS_BASE)
     if [ "$AUTO_LDFLAGS" = true ]; then
-        LDFLAGS="\$(LDFLAGS_BASE)"
+        LDFLAGS_MK="\$(LDFLAGS_BASE)"
     fi
     if [ "$AUTO_TEST_LDFLAGS" = true ]; then
-        TEST_LDFLAGS="\$(TEST_LDFLAGS_BASE)"
+        TEST_LDFLAGS_MK="\$(TEST_LDFLAGS_BASE)"
     else
         established_TEST_LDFLAGS="$TEST_LDFLAGS"
+        TEST_LDFLAGS_MK="$(quote_for_make "$TEST_LDFLAGS")"
     fi
 fi
 
 # Default for test flags (TEST_CXXFLAGS, TEST_LDFLAGS) is to use the build flags
 if [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
-    TEST_CXXFLAGS="\$(CXXFLAGS)"
+    TEST_CXXFLAGS_MK="\$(CXXFLAGS)"
     established_TEST_CXXFLAGS="$CXXFLAGS"
 else
+    TEST_CXXFLAGS_MK=$(quote_for_make "$TEST_CXXFLAGS")
     established_TEST_CXXFLAGS="$TEST_CXXFLAGS"
 fi
 
@@ -549,11 +593,12 @@ if [ "$AUTO_TEST_LDFLAGS" = "true" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
         # Avoid doubling-up sanitizer options
         LDFLAGS_VAR=DUMMY_LDFLAGS
     else
-        LDFLAGS_VAR=TEST_LDFLAGS
+        LDFLAGS_VAR=TEST_LDFLAGS_MK
     fi
+    # (Note that we append directly to TEST_CXXFLAGS_MK/TEST_LDFLAGS_MK here)
     CXXFLAGS="$established_TEST_CXXFLAGS" CXXFLAGS_EXTRA="$TEST_CXXFLAGS_EXTRA" \
             LDFLAGS="$established_TEST_LDFLAGS" LDFLAGS_EXTRA="$TEST_LDFLAGS_EXTRA" \
-            try_both_argument TEST_CXXFLAGS $LDFLAGS_VAR -fsanitize=address,undefined
+            try_both_argument TEST_CXXFLAGS_MK $LDFLAGS_VAR -fsanitize=address,undefined
     unset DUMMY_LDFLAGS
 fi
 
@@ -568,31 +613,31 @@ cat << _EOF > mconfig
 
 # Installation path options.
 
-SBINDIR=$SBINDIR
-MANDIR=$MANDIR
-SYSCONTROLSOCKET=$SYSCONTROLSOCKET
+SBINDIR=$(quote_for_make "$(quote_for_shell "$SBINDIR")")
+MANDIR=$(quote_for_make "$(quote_for_shell "$MANDIR")")
+SYSCONTROLSOCKET=$(quote_for_make "$(quote_for_shell "$SYSCONTROLSOCKET")")
 
 # General build options.
 
-CXX=$CXX
-CXXFLAGS=$CXXFLAGS
-CXXFLAGS_EXTRA=$CXXFLAGS_EXTRA
-TEST_CXXFLAGS=$TEST_CXXFLAGS
-TEST_CXXFLAGS_EXTRA=$TEST_CXXFLAGS_EXTRA
-CPPFLAGS=$CPPFLAGS
-LDFLAGS_BASE=$LDFLAGS_BASE
-LDFLAGS=$LDFLAGS
-LDFLAGS_EXTRA=$LDFLAGS_EXTRA
-TEST_LDFLAGS_BASE=$TEST_LDFLAGS_BASE
-TEST_LDFLAGS=$TEST_LDFLAGS
-TEST_LDFLAGS_EXTRA=$TEST_LDFLAGS_EXTRA
-BUILD_SHUTDOWN=$BUILD_SHUTDOWN
-STRIPOPTS=$STRIPOPTS
+CXX=$(quote_for_make "$CXX")
+CXXFLAGS=$(quote_for_make "$CXXFLAGS")
+CXXFLAGS_EXTRA=$(quote_for_make "$CXXFLAGS_EXTRA")
+TEST_CXXFLAGS=$TEST_CXXFLAGS_MK
+TEST_CXXFLAGS_EXTRA=$(quote_for_make "$TEST_CXXFLAGS_EXTRA")
+CPPFLAGS=$(quote_for_make "$CPPFLAGS")
+LDFLAGS_BASE=$(quote_for_make "$LDFLAGS_BASE")
+LDFLAGS=$LDFLAGS_MK
+LDFLAGS_EXTRA=$(quote_for_make "$LDFLAGS_EXTRA")
+TEST_LDFLAGS_BASE=$TEST_LDFLAGS_BASE_MK
+TEST_LDFLAGS=$TEST_LDFLAGS_MK
+TEST_LDFLAGS_EXTRA=$(quote_for_make "$TEST_LDFLAGS_EXTRA")
+STRIPOPTS=$(quote_for_make "$STRIPOPTS")
 
 # Dependencies
-LDFLAGS_LIBCAP=$LDFLAGS_LIBCAP
+LDFLAGS_LIBCAP=$(quote_for_make "$LDFLAGS_LIBCAP")
 
 # Feature settings
+BUILD_SHUTDOWN=$BUILD_SHUTDOWN
 SUPPORT_CGROUPS=$SUPPORT_CGROUPS
 USE_INITGROUPS=$USE_INITGROUPS
 SUPPORT_CAPABILITIES=$SUPPORT_CAPABILITIES
@@ -600,7 +645,7 @@ SUPPORT_IOPRIO=$SUPPORT_IOPRIO
 SUPPORT_OOM_ADJ=$SUPPORT_OOM_ADJ
 
 # Optional settings
-SHUTDOWN_PREFIX=${SHUTDOWN_PREFIX:-}
+SHUTDOWN_PREFIX=$(quote_for_make "$(quote_for_shell "${SHUTDOWN_PREFIX:-}")")
 
 # Service defaults
 DEFAULT_AUTO_RESTART=$DEFAULT_AUTO_RESTART
