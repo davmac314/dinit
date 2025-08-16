@@ -198,6 +198,23 @@ try_both_argument()
     fi
 }
 
+# Test if the specified header is usable.
+#   $1 - the name of the variable to set to 1 or 0 based on header availability
+#   $2 - the header path
+check_header()
+{
+    info Checking whether "$2" header is available...
+    echo "#include <$2>" > "$configtmpdir/testheader.cc"
+    if try_compile_source testheader.cc testheader.o; then
+        sub_info "Yes."
+        rm "$configtmpdir"/testheader.o
+        eval "$1=1"
+    else
+        sub_info "No."
+        eval "$1=0"
+    fi
+}
+
 
 
 # Quote a string to preserve its original form after shell evaluation (except that an empty
@@ -275,7 +292,7 @@ Build and configuration options:
                                     [Enabled on Linux if libcap available]
   --disable-capabilities            Disable capabilities support
   --enable-ioprio                   Enable support for I/O priority setting (via Linux API)
-                                    [Disabled]
+                                    [Enabled on linux if linux/ioprio.h available]
   --disable-ioprio                  Disable support for I/O priority setting
   --enable-oom-adj                  Enable support for Linux "OOM" score adjustment
                                     [Enabled only on Linux] 
@@ -431,7 +448,7 @@ if [ "$PLATFORM" = "Linux" ]; then
     : "${BUILD_SHUTDOWN:="yes"}"
     : "${SUPPORT_CGROUPS:="1"}"
     : "${SUPPORT_CAPABILITIES:="AUTO"}"
-    : "${SUPPORT_IOPRIO:="0"}"    # the required header <linux/ioprio.h> may not be available
+    : "${SUPPORT_IOPRIO:="AUTO"}"
     : "${SUPPORT_OOM_ADJ:="1"}"
     : "${SYSCONTROLSOCKET:="/run/dinitctl"}"
 else
@@ -565,6 +582,10 @@ if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
     fi
 else
     LDFLAGS_LIBCAP=""
+fi
+
+if [ "$SUPPORT_IOPRIO" = "AUTO" ]; then
+    check_header SUPPORT_IOPRIO "linux/ioprio.h"
 fi
 
 # "XXX_MK" variables are for values already quoted for use in makefiles. The following will now be
