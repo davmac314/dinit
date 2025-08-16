@@ -215,6 +215,27 @@ check_header()
     fi
 }
 
+# Write the test code for testing exception handling with -fno-rtti
+write_no_rtti_check()
+{
+    cat << _EOF > "$configtmpdir"/no-rtti-check.cc
+#include <string>
+#include <stdexcept>
+
+int main()
+{
+    try {
+        std::stoull("invalid for stoull");
+    }
+    catch (std::invalid_argument &exc) {
+        return 0;
+    }
+
+    return -1;
+}
+_EOF
+}
+
 
 
 # Quote a string to preserve its original form after shell evaluation (except that an empty
@@ -550,8 +571,28 @@ if [ "$AUTO_CXXFLAGS" = "true" ]; then
     do
         try_optional_cxx_argument CXXFLAGS $argument
     done
-    if [ "$PLATFORM" != "Darwin" ]; then
-        try_optional_cxx_argument CXXFLAGS -fno-rtti
+
+    # -fno-rtti is a special case. Clang+libcxxrt is known for generating broken code when
+    # disabling run-time type information with code which uses exceptions; details regarding the
+    # issue can be found here: https://github.com/llvm/llvm-project/issues/66117
+    info Checking whether -fno-rtti is accepted for compilation...
+    if [ -n "${CXX_FOR_BUILD:-}" ]; then
+        # May not be able to execute the check when cross-compiling.
+        sub_info Cross-compilation detected. Disabling -fno-rtti to avoid a compiler bug on some platforms.
+    else
+        write_no_rtti_check
+        if try_compile_source no-rtti-check.cc no-rtti-check.o -fno-rtti; then
+            sub_info "Yes."
+            info Checking whether -fno-rtti breaks exceptions...
+            if try_link_object no-rtti-check.o no-rtti-check && "$configtmpdir"/no-rtti-check; then
+                sub_info "No."
+                CXXFLAGS="$CXXFLAGS -fno-rtti"
+            else
+                sub_info "Yes. Disabling -fno-rtti"
+            fi
+        else
+            sub_info "No."
+        fi
     fi
 fi
 if [ "$AUTO_LDFLAGS" = true ] && [ "$AUTO_CXXFLAGS" = true ]; then
