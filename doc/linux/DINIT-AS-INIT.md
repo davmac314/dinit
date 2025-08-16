@@ -247,13 +247,13 @@ use `log-type = buffered` to log to an in-memory buffer.
   arguments.
 - `rootfscheck` - via the `rootfscheck.sh` script, this service runs a filesystem check
   on the root filesystem (if it is marked dirty). The script runs "on the console" so
-  that output is visible during boot, and is marked `start-interruptible` and `skippable`
-  so that pressing Ctrl+C can skip the check. The default `start-timeout` of 60 seconds is
-  overridden to 0 (no start timeout), since a filesystem check may take some time. If the
-  filesystem check requires manual intervention, the user is prompted to enter the root
-  password and a maintenance shell is spawned (once it is exited, the system is rebooted).
-  The system is also rebooted if the filesystem check makes automatic changes that require
-  it.
+  that output is visible during boot, and is marked `start-interruptible` and
+  `skippable` as well as `unmask-intr` so that pressing Ctrl+C can skip the check. The
+  default `start-timeout` of 60 seconds is overridden to 0 (no start timeout), since a
+  filesystem check may take some time. If the filesystem check requires manual
+  intervention, the user is prompted to enter the root password and a maintenance shell
+  is spawned (once it is exited, the system is rebooted). The system is also rebooted if
+  the filesystem check makes automatic changes that require it.
 - `rootrw` - once the root filesystem has been checked, it can be mounted read-write (the
   kernel normally mounts root as read-only). This service has the `starts-rwfs` option set, to
   prompt dinit to create its control socket (if not already done).
