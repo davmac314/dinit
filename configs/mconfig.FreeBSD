@@ -12,7 +12,7 @@ SYSCONTROLSOCKET=/var/run/dinitctl
 # FreeBSD: use clang++ by default, supports sanitizers, requires linking with -lrt
 # Cannot use LTO with default linker.
 CXX=clang++
-CXXFLAGS=-std=c++11 -Os -Wall -fno-plt -fno-rtti
+CXXFLAGS=-std=c++11 -Os -Wall -fno-plt
 CPPFLAGS=
 LDFLAGS_BASE=-lrt
 LDFLAGS=$(LDFLAGS_BASE)
@@ -23,12 +23,13 @@ BUILD_SHUTDOWN=no
 
 
 # Notes:
-#   -fno-rtti (optional) : Dinit does not require C++ Run-time Type Information
 #   -fno-plt  (optional) : Recommended optimisation
 #   -fsanitize=address,undefined :  Apply sanitizers (during unit tests)
 #
-# Old versions of FreeBSD had issues with -fno-plt/-fno-rtti.
-
+# Clang on FreeBSD has issues with -fno-rtti. See:
+# - https://github.com/llvm/llvm-project/issues/66117
+# - https://github.com/davmac314/dinit/issues/486
+# Probably the issue is with clang+libcxxrt combination. Also affects MacOS.
 
 # Service defaults.
 
