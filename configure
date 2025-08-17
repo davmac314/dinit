@@ -338,16 +338,16 @@ for arg in "$@"; do
             sub_info() { true; }
             warning() { true; }
         ;;
-        -c|--clear) rm -f test* & rm -f mconfig && exit 0 ;;
-        --platform=*) PLATFORM="${arg#*=}" && shift ;;
-        --prefix=*) PREFIX="${arg#*=}" && shift ;;
-        --exec-prefix=*) EPREFIX="${arg#*=}" && shift;;
-        --sbindir=*) SBINDIR="${arg#*=}" && shift ;;
-        --mandir=*) MANDIR="${arg#*=}" && shift ;;
-        --default-start-timeout=*) DEFAULT_START_TIMEOUT="${arg#*=}" && shift ;;
-        --default-stop-timeout=*) DEFAULT_STOP_TIMEOUT="${arg#*=}" && shift ;;
-        --syscontrolsocket=*) SYSCONTROLSOCKET="${arg#*=}" && shift ;;
-        --shutdown-prefix=*) SHUTDOWN_PREFIX="${arg#*=}" && shift ;;
+        -c|--clear) rm -f mconfig && exit 0 ;;
+        --platform=*) PLATFORM="${arg#*=}" ;;
+        --prefix=*) PREFIX="${arg#*=}" ;;
+        --exec-prefix=*) EPREFIX="${arg#*=}" ;;
+        --sbindir=*) SBINDIR="${arg#*=}" ;;
+        --mandir=*) MANDIR="${arg#*=}" ;;
+        --default-start-timeout=*) DEFAULT_START_TIMEOUT="${arg#*=}" ;;
+        --default-stop-timeout=*) DEFAULT_STOP_TIMEOUT="${arg#*=}" ;;
+        --syscontrolsocket=*) SYSCONTROLSOCKET="${arg#*=}" ;;
+        --shutdown-prefix=*) SHUTDOWN_PREFIX="${arg#*=}" ;;
         --enable-shutdown|--enable-shutdown=yes) BUILD_SHUTDOWN=yes ;;
         --disable-shutdown|--enable-shutdown=no) BUILD_SHUTDOWN=no ;;
         --enable-cgroups|--enable-cgroups=yes) SUPPORT_CGROUPS=1 ;;
