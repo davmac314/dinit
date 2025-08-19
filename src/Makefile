@@ -50,9 +50,11 @@ run-cppcheck:
 	cppcheck --std=c++11 -Iincludes -Idasynq --force --enable=all *.cc 2>../cppcheck-report.txt
 
 install: all
-	install -d $(DESTDIR)$(SBINDIR)
-	install $(STRIPOPTS) dinit dinitctl dinitcheck dinit-monitor $(SHUTDOWN) $(DESTDIR)$(SBINDIR)
+	install -d $(DESTDIR)$(BINDIR)
+	install $(STRIPOPTS) dinit dinitctl dinitcheck dinit-monitor $(DESTDIR)$(BINDIR)
 ifeq ($(BUILD_SHUTDOWN),yes)
+	install -d $(DESTDIR)$(SBINDIR)
+	install $(STRIPOPTS) $(SHUTDOWN) $(DESTDIR)$(SBINDIR)
 	ln -sf $(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWN_PREFIX)halt
 	ln -sf $(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWN_PREFIX)reboot
 	ln -sf $(SHUTDOWN) $(DESTDIR)$(SBINDIR)/$(SHUTDOWN_PREFIX)soft-reboot

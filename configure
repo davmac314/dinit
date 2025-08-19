@@ -209,21 +209,22 @@ Usage: $0 [OPTION]...
 
 Generates build configuration for Dinit.
 
-Defaults for the options are specified in brackets.
+Defaults are shown in [brackets].
 
   -h, --help                    This help message.
   -q, --quiet                   Don't print normal messages, just errors.
-  -c, --clear                   Clear mconfig and configure's temporary files.
+  -c, --clear                   Clear previously generated mconfig.
 
 Target options:
   --platform=PLATFORM           Set the platform manually (for cross compilation)
                                 Note: for all cross-compiles please specify correct CXX and
-                                CXX_FOR_BUILD!
+                                CXX_FOR_BUILD.
 
 Installation directories:
   --prefix=PREFIX               Main installation prefix [/usr]
-  --exec-prefix=EPREFIX         Main executables prefix  [/]
-  --sbindir=SBINDIR             Dinit executables        [EPREFIX/sbin]
+  --exec-prefix=EPREFIX         Main executables prefix  [PREFIX]
+  --bindir=BINDIR               Dinit executables        [EPREFIX/bin]
+  --sbindir=SBINDIR             Dinit system executables [EPREFIX/sbin]
   --mandir=MANDIR               Dinit man-pages location [PREFIX/share/man]
   --syscontrolsocket=SOCKETPATH Dinitctl socket location [/run/dinitctl] on Linux systems
                                                          [/var/run/dinitctl] on other systems
@@ -313,6 +314,7 @@ _EOF
 ## Don't take values from environment for these variables:
 for var in PREFIX \
            EPREFIX \
+           BINDIR \
            SBINDIR \
            MANDIR \
            SHUTDOWN_PREFIX \
@@ -342,6 +344,7 @@ for arg in "$@"; do
         --platform=*) PLATFORM="${arg#*=}" ;;
         --prefix=*) PREFIX="${arg#*=}" ;;
         --exec-prefix=*) EPREFIX="${arg#*=}" ;;
+        --bindir=*) BINDIR="${arg#*=}" ;;
         --sbindir=*) SBINDIR="${arg#*=}" ;;
         --mandir=*) MANDIR="${arg#*=}" ;;
         --default-start-timeout=*) DEFAULT_START_TIMEOUT="${arg#*=}" ;;
@@ -382,7 +385,8 @@ done
 ## Defaults for variables not specified by user
 : "${PLATFORM:=$(uname)}"
 : "${PREFIX:="/usr"}"
-: "${EPREFIX:="/"}"
+: "${EPREFIX:="$PREFIX"}"
+: "${BINDIR:="${EPREFIX%%/}/bin"}"
 : "${SBINDIR:="${EPREFIX%%/}/sbin"}"
 : "${MANDIR:="${PREFIX%%/}/share/man"}"
 : "${SHUTDOWN_PREFIX:=""}"
@@ -613,6 +617,7 @@ cat << _EOF > mconfig
 
 # Installation path options.
 
+BINDIR=$(quote_for_make "$(quote_for_shell "$BINDIR")")
 SBINDIR=$(quote_for_make "$(quote_for_shell "$SBINDIR")")
 MANDIR=$(quote_for_make "$(quote_for_shell "$MANDIR")")
 SYSCONTROLSOCKET=$(quote_for_make "$(quote_for_shell "$SYSCONTROLSOCKET")")

@@ -55,7 +55,9 @@ Main build variables
 There are some build variables that may typically require adjustment. In particular, some
 variables control installation paths or paths that are used at runtime; they are:
 
-  SBINDIR  : set to the directory where the executable files should be installed
+  BINDIR   : set to the directory where the executable files should be installed  
+  SBINDIR  : set to the directory where the "system" executable files should be installed (i.e.
+             shutdown and aliases will be installed here, if built).
   MANDIR   : set to the directory where manual pages should be installed 
   SYSCONTROLSOCKET : set to the default location of the control socket when Dinit is run as a system
                      manager (as opposed to a user service manager)
@@ -100,7 +102,7 @@ specifically include the compilation options as they will be included in LDFLAGS
 
 For cross-compilation, the following can be specified:
 
-  CXX_FOR_BUILD : C++ compiler for compiling code to run on the build host
+  CXX_FOR_BUILD       : C++ compiler for code to run on the build host (i.e. non-cross compiler)
   CXXFLAGS_FOR_BUILD  : any options for compiling code to run on the build host
   CPPFLAGS_FOR_BUILD  : any preprocessor options for code to run on the build host
   LDFLAGS_FOR_BUILD   : any options for linking code to run on the build host
