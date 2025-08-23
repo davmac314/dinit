@@ -83,6 +83,61 @@ cxx_works()
     fi
 }
 
+# Test if the compiler successfully compiles the specified source file. If the optional compilation
+# argument is specified ($3) then pass it to the compiler along with the already-established
+# arguments (this can be used to test if the compiler accepts the argument).
+#   $1 - the name of the source file to compile
+#   $2 - the name of the result object file
+#   $3 - the argument to test (optional)
+#   CXX - the name of the compiler
+#   CXXFLAGS, CXXFLAGS_EXTRA - any predetermined flags
+try_compile_source()
+{
+    eval $CXX $CXXFLAGS ${3:-} $CXXFLAGS_EXTRA '"$configtmpdir"/"$1"' \
+            -c -o '"$configtmpdir"/"$2"' > /dev/null 2>&1
+}
+
+# Test if the linker successfully links the specified object file. If the optional link argument
+# is specified ($3) then pass it to the linker along with the already-established arguments
+# (this can be used to test if the linker accepts the argument).
+#   $1 - the name of the object file to link
+#   $2 - the name of the result executable file
+#   $3 - the argument to test (optional)
+#   CXX - the name of the compiler
+#   LDFLAGS, LDFLAGS_EXTRA - any predetermined flag
+try_link_object()
+{
+    if [ ! -e "$configtmpdir"/"$1" ]; then
+        # If the object file doesn't exist yet, need to compile
+        if ! try_compile_source "${1%%.o}.cc" "$1" "$3"; then
+            return 1
+        fi
+    fi
+    eval $CXX $LDFLAGS $LDFLAGS_EXTRA ${3:-} '"$configtmpdir"/"$1"' \
+            -o '"$configtmpdir"/"$2"' > /dev/null 2>&1
+}
+
+# Test if the compiler successfully compiles and links a source file, and execute it if so; returns
+# program exit code or failure on compile/link failure.
+#   $1 - the name of the source file to compile
+#   $2 - the name of the object file to link
+#   $3 - the name of the result executable file
+try_execute_source()
+{
+    if [ ! -e "$configtmpdir"/"$3" ]; then
+        if [ ! -e "$configtmpdir"/"$2" ]; then
+            if ! try_compile_source "$1" "$2"; then
+                return 1
+            fi
+        fi
+        if ! try_link_object "$2" "$3"; then
+            return 1
+        fi
+    fi
+
+    "$configtmpdir"/"$3" > /dev/null 2>&1
+}
+
 # Test if the compiler accepts an argument (for compilation only); if so add it to named variable.
 # Note: this function will return failure if the flag is unsupported (use try_optional_cxx_argument
 # instead, to avoid errorring out).
@@ -93,8 +148,7 @@ cxx_works()
 try_cxx_argument()
 {
     info Checking whether "$2" is accepted for compilation...
-    if eval $CXX $CXXFLAGS $2 $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA '"$configtmpdir"/testfile.cc' \
-            -c -o '"$configtmpdir"/testfile.o' > /dev/null 2>&1; then
+    if try_compile_source testfile.cc testfile.o "$2"; then
         rm "$configtmpdir"/testfile.o
         sub_info Yes.
         eval "$1=\"\${$1} \$2\""
@@ -125,16 +179,7 @@ try_optional_cxx_argument()
 try_ld_argument()
 {
     info Checking whether "$2" is accepted as a link-time option...
-    if [ ! -e "$configtmpdir"/testfile.o ]; then
-        # If the object file doesn't exist yet, need to compile
-        if ! eval $CXX $CXXFLAGS $CXXFLAGS_EXTRA '"$configtmpdir"/testfile.cc' \
-                -c -o '"$configtmpdir"/testfile.o' > /dev/null 2>&1; then
-            sub_info "No (compilation failed)."
-            return
-        fi
-    fi
-    if eval $CXX $LDFLAGS $LDFLAGS_EXTRA $2 '"$configtmpdir"/testfile.o' \
-            -o '"$configtmpdir"/testfile' > /dev/null 2>&1; then
+    if try_link_object testfile.o testfile "$2"; then
         sub_info Yes.
         rm "$configtmpdir"/testfile
         eval "$1=\"\${$1} \$2\""
@@ -145,6 +190,8 @@ try_ld_argument()
 }
 
 # Test if an argument is supported during both compiling and linking.
+# Note: caller can specify the dash ("-") keyword instead of the compiler/link-flags variable name
+# to avoid writing flag to the compiler/link-flags variable.
 #   $1 - the name of the compiler-flags variable to potentially add the argument to
 #   $2 - the name of the link-flags variable to potentially add the argument to
 #   $3 - the argument to test/add
@@ -153,17 +200,59 @@ try_ld_argument()
 try_both_argument()
 {
     info Checking whether "$3" is accepted for compiling and linking...
-    if eval $CXX $CXXFLAGS $CXXFLAGS_EXTRA $LDFLAGS $LDFLAGS_EXTRA $3 "$configtmpdir"/testfile.cc \
-            -o "$configtmpdir"/testfile > /dev/null 2>&1; then
+    if try_compile_source testfile.cc testfile.o "$3" && try_link_object testfile.o testfile "$3"; then
         sub_info Yes.
+        rm "$configtmpdir"/testfile.o
         rm "$configtmpdir"/testfile
-        eval "$1=\"\${$1} \$3\""
-        eval "$1=\${$1# }"
-        eval "$2=\"\${$2} \$3\""
-        eval "$2=\${$2# }"
+        if [ "$1" != "-" ]; then
+            eval "$1=\"\${$1} \$3\""
+            eval "$1=\${$1# }"
+        fi
+        if [ "$2" != "-" ]; then
+            eval "$2=\"\${$2} \$3\""
+            eval "$2=\${$2# }"
+        fi
     else
         sub_info No.
     fi
+}
+
+# Test if the specified header is usable.
+#   $1 - the name of the variable to set to 1 or 0 based on header availability
+#   $2 - the header path
+check_header()
+{
+    info Checking whether "$2" header is available...
+    echo "#include <$2>" > "$configtmpdir/testheader.cc"
+    if try_compile_source testheader.cc testheader.o; then
+        sub_info "Yes."
+        rm "$configtmpdir"/testheader.o
+        eval "$1=1"
+    else
+        sub_info "No."
+        eval "$1=0"
+    fi
+}
+
+# Write the test code for testing exception handling with -fno-rtti
+write_no_rtti_check()
+{
+    cat << _EOF > "$configtmpdir"/no-rtti-check.cc
+#include <string>
+#include <stdexcept>
+
+int main()
+{
+    try {
+        std::stoull("invalid for stoull");
+    }
+    catch (std::invalid_argument &exc) {
+        return 0;
+    }
+
+    return -1;
+}
+_EOF
 }
 
 
@@ -403,7 +492,7 @@ if [ "$PLATFORM" = "Linux" ]; then
     : "${BUILD_SHUTDOWN:="yes"}"
     : "${SUPPORT_CGROUPS:="1"}"
     : "${SUPPORT_CAPABILITIES:="AUTO"}"
-    : "${SUPPORT_IOPRIO:="0"}"    # the required header <linux/ioprio.h> may not be available
+    : "${SUPPORT_IOPRIO:="AUTO"}"
     : "${SUPPORT_OOM_ADJ:="1"}"
     : "${SYSCONTROLSOCKET:="/run/dinitctl"}"
 else
@@ -505,20 +594,36 @@ if [ "$AUTO_CXXFLAGS" = "true" ]; then
     do
         try_optional_cxx_argument CXXFLAGS $argument
     done
-    if [ "$PLATFORM" != "Darwin" ]; then
-        try_optional_cxx_argument CXXFLAGS -fno-rtti
+
+    # -fno-rtti is a special case. Some compilers (e.g. clang+libcxxrt) generate broken code
+    # when disabling run-time type information with code which uses exceptions.
+    info Checking whether -fno-rtti is accepted for compilation...
+    if [ -n "${CXX_FOR_BUILD:-}" ]; then
+        sub_info Cross-compiltion detected. Disabling -fno-rtti to be safe about exception handling.
+    else
+        write_no_rtti_check
+        if try_compile_source no-rtti-check.cc no-rtti-check.o -fno-rtti; then
+            sub_info "Yes."
+            info Checking whether -fno-rtti breaks exceptions...
+            if try_execute_source no-rtti-check.cc no-rtti-check.o no-rtti-check; then
+                sub_info "No."
+                CXXFLAGS="$CXXFLAGS -fno-rtti"
+            else
+                sub_info "Yes. Disabling -fno-rtti"
+            fi
+        else
+            sub_info "No."
+        fi
     fi
 fi
 if [ "$AUTO_LDFLAGS" = true ] && [ "$AUTO_CXXFLAGS" = true ]; then
-    DUMMY_LDFLAGS=""
     # -flto must work for both compiling and linking, but we don't want to add it to LDFLAGS as,
     # if LTO is used, CXXFLAGS will always be used alongside LDFLAGS.
-    if try_both_argument CXXFLAGS DUMMY_LDFLAGS -flto; then
+    if try_both_argument CXXFLAGS - -flto; then
         HAS_LTO="true"
     else
         HAS_LTO="false"
     fi
-    unset DUMMY_LDFLAGS
 fi
 if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$PLATFORM" = FreeBSD ]; then
     try_ld_argument LDFLAGS_BASE -lrt
@@ -539,6 +644,10 @@ if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
     fi
 else
     LDFLAGS_LIBCAP=""
+fi
+
+if [ "$SUPPORT_IOPRIO" = "AUTO" ]; then
+    check_header SUPPORT_IOPRIO "linux/ioprio.h"
 fi
 
 # "XXX_MK" variables are for values already quoted for use in makefiles. The following will now be
@@ -592,10 +701,9 @@ fi
 
 # Check whether sanitizers can be used for tests
 if [ "$AUTO_TEST_LDFLAGS" = "true" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
-    DUMMY_LDFLAGS=""
     if [ "$HAS_LTO" = true ]; then
         # Avoid doubling-up sanitizer options
-        LDFLAGS_VAR=DUMMY_LDFLAGS
+        LDFLAGS_VAR=-
     else
         LDFLAGS_VAR=TEST_LDFLAGS_MK
     fi
@@ -603,7 +711,6 @@ if [ "$AUTO_TEST_LDFLAGS" = "true" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
     CXXFLAGS="$established_TEST_CXXFLAGS" CXXFLAGS_EXTRA="$TEST_CXXFLAGS_EXTRA" \
             LDFLAGS="$established_TEST_LDFLAGS" LDFLAGS_EXTRA="$TEST_LDFLAGS_EXTRA" \
             try_both_argument TEST_CXXFLAGS_MK $LDFLAGS_VAR -fsanitize=address,undefined
-    unset DUMMY_LDFLAGS
 fi
 
 ## Create mconfig
