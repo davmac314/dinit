@@ -11,22 +11,62 @@ The basic process is:
    See CONTRIBUTING for details. In general new features (and their design) should be agreed upon
    *before* a PR is opened.
 
+   Each PR should, in general, add only a single feature or significant change.
+
 1. The potential contributor creates a branch with suggested changes.
 
    The contributor makes a best effort to ensure that the changes are acceptable quality and meet
    all criteria for a contribution (see CONTRIBUTING, CODE-STYLE, DESIGN).
    
    1.1 Commits and commit messages
-   
+
      Individual unrelated changes should be represented in separate commits. Each commit should
      encompass a complete self-contained change.
-   
-     Commit messages should include a single line (up to 76 characters) giving an overview of the
-     change, followed by a blank line and a more comprehensive description of the change (unless
-     trivial). Read existing commit messages to get a sense for the expected style/tone.
-   
+
+     Commit messages should include a single line (up to 72 characters, preferably shorter) giving
+     a summary of the functional change, followed by a blank line and then a more comprehensive
+     description of the change (unless trivial) with lines wrapping at or before 72 characters.
+     Read existing commit messages to get a sense for the expected style/tone. Messages should be
+     concise but not at the expense of necessary detail.
+
+     If a commit affects a particular component (a function, program, or "tests", or "build") that
+     component should be at the head of the commit summary, examples:
+
+         -- example 1 --
+         check_frobz: make sure to set gromit before return
+
+         This fixes check_frobz so that ...(etc)
+
+         -- example 2 --
+         Tests: add test for correct frobzing of gerschnicketts
+
+         Recently we found an issue (see #78) where gerschnicketts were not
+         correctly frobzzed in certain corner cases, including ... (etc)
+
+     Summary lines (and message bodies) start with a capital unless lead with a noun that doesn't
+     capitalise (such as a function or file name).
+
+     The message should fully explain what has been changed and the reason for it (the "why" and
+     "how" of the change). Make sure that there is a complete explanation of the functional nature
+     of the change (i.e. how does it affect the behaviour of the software) - it is less important
+     to say what has changed in the code.
+
+     Use dot-point lists if appropriate:
+
+         Handle fuzzits consistently
+
+         This change:
+         - adds function solve_fuzzit() to solve fuzzits
+         - fixes the foo function to correctly handle fuzzits (using solve_fuzzit)
+         - in the bar and baz functions, defer fuzzit handling to foo
+
+         This makes handling of fuzzits consistent, and resolves #42.
+
+     Always include a reference to any related issue in the issue tracker by number, with leading
+     hash, as in the examples above.
+
      Do NOT include a so-called "conventional commit" tag ("fix:", "chore:" etc).
-     
+
      Do NOT include a "Signed-off-by:" line. 
 
 2. The contributor reviews their changes in full to ensure they meet the criteria for a
