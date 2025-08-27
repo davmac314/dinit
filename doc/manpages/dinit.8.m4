@@ -65,7 +65,7 @@ services are finished starting yet. The path to the currently open control
 socket is written on the file descriptor.
 .TP
 \fB\-l\fR \fIpath\fP, \fB\-\-log\-file\fR \fIpath\fP
-Species \fIpath\fP as the path to the log file, to which Dinit will log status
+Specifies \fIpath\fP as the path to the log file, to which Dinit will log status
 and error messages.
 Using this option inhibits logging via the syslog facility, however, all logging messages are
 duplicated as usual to the console (as long as \fB\-\-quiet\fR has not also been specified).
