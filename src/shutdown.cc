@@ -320,6 +320,10 @@ int main(int argc, char **argv)
             }
         }
         else {
+            // Ignore a single "now" argument. I.e., "shutdown -r now".
+            if (i == argc-1 && strcmp(argv[i], "now") == 0)
+                break;
+
             // time argument? TODO
             show_help = true;
         }
