@@ -39,7 +39,7 @@ See \fBSERVICE DESCRIPTION FILES\fR for details of the service description forma
 .SH OPTIONS
 .TP
 \fB\-d\fR \fIdir\fP, \fB\-\-services\-dir\fR \fIdir\fP
-Specifies \fIdir\fP as the directory containing service definition files.
+Specifies \fIdir\fP as the directory containing service description files.
 This can be specified multiple times for multiple service directories.
 .IP
 The default service directories are listed in the \fBFILES\fR section.
@@ -77,7 +77,7 @@ with an error.
 \fB\-s\fR, \fB\-\-system\fR
 Run as the system service manager.
 This is the default if invoked as the root user.
-This option affects the default service definition directory and control socket path.
+This option affects the default service description directory and control socket path.
 .TP
 \fB\-m\fR, \fB\-\-system\-mgr\fR
 Run as the system manager (perform operations directly related to machine startup

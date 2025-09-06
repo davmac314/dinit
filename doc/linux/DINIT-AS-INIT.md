@@ -318,7 +318,7 @@ not normally start at all:
   kernel command line. When the shell exits, the `chain-to` setting will cause normal
   startup to resume (i.e. via the `boot` service).
 
-While they are a little rough around the edges, these service definitions demonstrate the
+While they are a little rough around the edges, these service descriptions demonstrate the
 essentials of getting a system up and running.
 
 
