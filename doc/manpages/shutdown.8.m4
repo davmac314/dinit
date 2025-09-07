@@ -8,6 +8,7 @@ $$$SHUTDOWN_PREFIX@@@shutdown, $$$SHUTDOWN_PREFIX@@@halt, $$$SHUTDOWN_PREFIX@@@p
 .B $$$SHUTDOWN_PREFIX@@@shutdown
 [\fB\-r\fR|\fB\-h\fR|\fB\-p\fR] [\fB\-\-use\-passed\-cfd\fR]
 [\fB\-\-system\fR]
+[\fBnow\fR]
 .br
 \fB$$$SHUTDOWN_PREFIX@@@halt\fR [\fIoptions...\fR]
 .br
@@ -78,6 +79,9 @@ the service manager has stopped responding.
 .IP
 The service manager may invoke \fB$$$SHUTDOWN_PREFIX@@@shutdown\fR with this option in order to perform
 system shutdown after it has rolled back services.
+.TP
+\fBnow\fR
+Ignored for compatiblity with other shutdown implementations.
 .\"
 .SH SHUTDOWN HOOKS
 .\"

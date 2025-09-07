@@ -319,6 +319,10 @@ int main(int argc, char **argv)
                 return 1;
             }
         }
+        else if (i == argc-1 && strcmp(argv[i], "now") == 0) {
+            // ignore a single "now" argument
+            break;
+        }
         else {
             // time argument? TODO
             show_help = true;
