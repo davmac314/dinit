@@ -2,8 +2,7 @@ For version 1.0 (release requirements):
 ---------------------------------------
 * Be able to boot and shutdown Linux and FreeBSD (or OpenBSD).
 * Documentation must be complete (mostly done; will need updates as other items are completed).
-* signal (SIGUSR1) to open control socket (useful for recovery/single-user)
-* dinitctl command to release console (useful for recovery/single-user)
+* [DONE] signal (SIGUSR1) to open control socket (useful for recovery/single-user)
 
 
 For later (post 1.0):
