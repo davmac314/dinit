@@ -41,8 +41,9 @@ Some features are available only on certain operating systems (and require kerne
 Display brief help text and then exit.
 .TP
 \fB\-r\fP
-Request a shutdown followed by restart. This is the default if executed as
-\fB$$$SHUTDOWN_PREFIX@@@reboot\fR.
+Request a shutdown followed by a restart.
+If dinit detected a loaded kexec kernel in memory, then this flag is equivalent to \fB\-k\fR.
+This is the default if executed as \fB$$$SHUTDOWN_PREFIX@@@reboot\fR.
 .TP
 \fB\-k\fP
 Shutdown the system and boot directly into a new kernel, without firmware
