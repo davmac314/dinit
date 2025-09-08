@@ -430,10 +430,14 @@ inline int signal_name_to_number(const std::string &signame) noexcept
     return sig;
 }
 
-// Read a setting/variable name; return empty string if no valid name
+// Read a setting/variable name; return empty string if no valid name.
 //
-// If env is set, dashes/dots are not allowed within names. They are not typically allowed by
-// shells and they interfere with substitution patterns.
+// Parameters:
+//   env - if set, dashes/dots are not allowed within names (they are not typically allowed by
+//         shells and they interfere with substitution patterns), and numeric "names" will be
+//         allowed.
+//   num - if specified and not null, the pointee will be set true if the name is numeric, and
+//         set false otherwise.
 inline string read_config_name(string_iterator & i, string_iterator end, bool env = false,
         bool *num = nullptr) noexcept
 {
