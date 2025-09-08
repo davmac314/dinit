@@ -1979,6 +1979,10 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
         if (from_sdf_dir.empty())
             throw dinit_protocol_error();
 
+        service_file_path = from_sdf_dir;
+        if (*service_file_path.rbegin() != '/') service_file_path += '/';
+        service_file_path += from;
+
         auto sdf_fds = open_with_dir(from_sdf_dir.c_str(), from);
         if (sdf_fds.first == -1) {
             cerr << "dinitctl: could not open service description file '"
@@ -1988,10 +1992,6 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 
         parent_dir_fd = sdf_fds.first;
         service_file.set_fd(sdf_fds.second);
-
-        service_file_path = from_sdf_dir;
-        if (*service_file_path.rbegin() != '/') service_file_path += '/';
-        service_file_path += from;
     }
     else {
         // offline case
