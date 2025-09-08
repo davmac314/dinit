@@ -996,6 +996,9 @@ inline string read_include_path(string const &svcname, string const &meta_cmd,
         file_pos_ref input_pos, string_iterator &i, string_iterator end, const char *argval,
         const resolve_var_t &resolve_var);
 
+// (Dummy function for default argument to process_service_file)
+inline void null_process_meta(string::iterator begin, string::iterator end) {}
+
 // Process an opened service file, line by line.
 // Parameters:
 //   name - the service name
@@ -1014,11 +1017,17 @@ inline string read_include_path(string const &svcname, string const &meta_cmd,
 //   resolve_var - a functor to resolve variable values.
 //       Accepts: const std::string & - the variable name.
 //       Returns char * - the resolved value.
+//   process_meta - a functor to process '@meta' commands
+//       Accepts: string::iterator i - beginning of command (following '@meta')
+//                string::iterator e - end of line
+//       Returns: void.
 // Throws:
-//   service load exceptions or I/O exceptions if enabled on stream.
-template <typename T, typename resolve_var_t>
+//   service load exceptions or I/O exceptions.
+template <typename T, typename resolve_var_t,
+        typename process_meta_t = decltype(null_process_meta)>
 void process_service_file(string name, file_input_stack &service_input, T process_line_func,
-        const char *argval, const resolve_var_t &resolve_var)
+        const char *argval, const resolve_var_t &resolve_var,
+        const process_meta_t &process_meta = null_process_meta)
 {
     string line;
 
@@ -1117,6 +1126,10 @@ void process_service_file(string name, file_input_stack &service_input, T proces
                         dio::istream file(inc_sdf_fds.second);
                         service_input.push(include_name, std::move(file), inc_sdf_fds.first);
                     }
+                }
+                else if (meta_cmd == "meta") {
+                    // @meta can be used to add information for other tools; ignore
+                    process_meta(i, end);
                 }
                 else {
                     file_pos_ref input_pos { service_input.current_file_name(), line_num };

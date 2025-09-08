@@ -515,10 +515,6 @@ int dinitctl_main(int argc, char **argv)
         service_dir_opts.build_paths(!user_dinit);
 
         if (command == ctl_cmd::ENABLE_SERVICE || command == ctl_cmd::DISABLE_SERVICE) {
-            // If only one service specified, assume that we enable for 'boot' service:
-            if (service_name == nullptr) {
-                service_name = "boot";
-            }
             return enable_disable_service(-1, rbuffer, service_dir_opts, service_name, to_service_name,
                     command == ctl_cmd::ENABLE_SERVICE, verbose, 0);
         }
@@ -591,9 +587,6 @@ int dinitctl_main(int argc, char **argv)
             if (daemon_protocol_ver < 3) {
                 // We need QUERYSERVICEDSCDIR
                 throw cp_old_server_exception();
-            }
-            if (service_name == nullptr) {
-                service_name = "boot";
             }
             return enable_disable_service(socknum, rbuffer, service_dir_opts, service_name, to_service_name,
                     command == ctl_cmd::ENABLE_SERVICE, verbose, daemon_protocol_ver);
@@ -1874,21 +1867,13 @@ static std::string get_service_description_dir(int socknum, cpbuffer_t &rbuffer,
     return result_str;
 }
 
-static std::string get_service_descr_filename(int socknum, cpbuffer_t &rbuffer, handle_t service_handle,
-        const char *service_name)
+// Strip any service argument ('@xxx') from the end of a service name, and return a pointer just-
+// past-the-end of the service name.
+static const char *strip_service_arg(const char *service_name)
 {
-    std::string r = get_service_description_dir(socknum, rbuffer, service_handle);
-    if (r.empty())
-        throw dinit_protocol_error();
-    if (r.back() != '/')
-        r.append(1, '/');
-
-    // Check for service argument which must be stripped
-    auto at_ptr = service_name;
+    const char *at_ptr = service_name;
     while (*at_ptr != '\0' && *at_ptr != '@') ++at_ptr;
-
-    r.append(service_name, at_ptr);
-    return r;
+    return at_ptr;
 }
 
 // Find (and open) a service description file in a set of paths, together with the directory in
@@ -1933,6 +1918,55 @@ static std::pair<int,int> find_service_desc(const char *svc_name, const std::vec
     return {-1, ENOENT};
 }
 
+// Throws:
+//   std::system_error, other service load exceptions
+static std::string get_enable_via(const char *service_name, const std::string &sd_file_name,
+        int sd_fd, int parent_dir_fd)
+{
+    using std::string;
+
+    dio::istream sd_in(sd_fd);
+
+    file_input_stack input_stack;
+    input_stack.push(sd_file_name, std::move(sd_in), parent_dir_fd);
+
+    string enable_via_name;
+
+    try {
+        auto resolve_var = [](const std::string &name) {
+            return (char *)nullptr; // FIXME
+        };
+
+        process_service_file(service_name, input_stack, [&](string &line, file_pos_ref fpr,
+                string &setting, dinit_load::setting_op_t op,
+                dinit_load::string_iterator i, dinit_load::string_iterator end) -> void {
+                    // Nothing to do
+                },
+                nullptr /* service arg */, resolve_var,
+                [&enable_via_name, service_name](string::iterator i, string::iterator e) -> void {
+                    i = dinit_load::skipws(i, e);
+                    std::string meta_cmd = dinit_load::read_config_name(i, e);
+                    if (meta_cmd == "enable-via") {
+                        i = dinit_load::skipws(i, e);
+                        // TODO should use read_setting_value rather than read_config_name here.
+                        enable_via_name = dinit_load::read_config_name(i, e);
+                        i = dinit_load::skipws(i, e);
+                        if (enable_via_name.empty() || i != e) {
+                            // TODO give filename/line number
+                            throw service_load_exc(service_name, "'@meta enable-via' argument missing or malformed");
+                        }
+                    }
+                }
+            );
+    }
+    catch (std::system_error &err) {
+        throw service_load_exc(service_name, input_stack.current_file_name() + ": "
+                + strerror(errno) + "\n");
+    }
+
+    return enable_via_name;
+}
+
 // exception for cancelling a service operation
 class service_op_cancel { };
 
@@ -1945,6 +1979,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 
     service_state_t from_state = service_state_t::STARTED;
     handle_t from_handle;
+    string from_name_str; // used as backing for 'from' in some cases
 
     handle_t to_handle;
 
@@ -1955,14 +1990,57 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
     dio::istream service_file;
     fd_holder parent_dir_fd;
 
-    if (strchr(from, '@') != nullptr) {
+    if (from != nullptr && strchr(from, '@') != nullptr) {
         cerr << "dinitctl: cannot enable/disable from a service with argument (service@arg).\n";
         return 1;
     }
 
     if (socknum >= 0) {
-        if (!load_service(socknum, rbuffer, from, &from_handle, &from_state)
-                || !load_service(socknum, rbuffer, to, &to_handle, nullptr)) {
+        // Find 'to' service
+        if (!load_service(socknum, rbuffer, to, &to_handle, nullptr)) {
+            return 1;
+        }
+
+        std::string to_sdf_dir = get_service_description_dir(socknum, rbuffer, from_handle);
+        if (to_sdf_dir.empty())
+            throw dinit_protocol_error();
+
+        to_service_file_path = to_sdf_dir;
+        if (*to_service_file_path.rbegin() != '/') to_service_file_path += '/';
+        const char *to_service_name_end = strip_service_arg(to);
+        to_service_file_path.append(to, to_service_name_end);
+
+        if (from == nullptr) {
+            // If "from" service wasn't specified, check '@meta enable-via' in to's service
+            // description, with fallback to "boot"
+
+            auto to_sdf_fds = open_with_dir(to_sdf_dir.c_str(), to);
+            if (to_sdf_fds.first == -1) {
+                cerr << "dinitctl: could not open service description file '"
+                        << to_service_file_path << "': " << strerror(to_sdf_fds.second) << "\n";
+                return EXIT_FAILURE;
+            }
+
+            int to_parent_dir_fd = to_sdf_fds.first;
+            int to_sdf_fd = to_sdf_fds.second;
+
+            try {
+                from_name_str = get_enable_via(to, to_service_file_path, to_sdf_fd, to_parent_dir_fd);
+            }
+            catch (service_load_exc &sle) {
+                std::cerr << "dinitctl: error loading " << sle.service_name << ": " << sle.exc_description << "\n";
+                return EXIT_FAILURE;
+            }
+
+            if (!from_name_str.empty()) {
+                from = from_name_str.c_str();
+            }
+            else {
+                from = "boot";
+            }
+        }
+
+        if (!load_service(socknum, rbuffer, from, &from_handle, &from_state)) {
             return 1;
         }
 
@@ -1972,8 +2050,6 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
         catch (dinit_protocol_error &) {
             cerr << "dinitctl: unknown configuration or protocol error, unable to load service descriptions\n";
         }
-
-        to_service_file_path = get_service_descr_filename(socknum, rbuffer, to_handle, to);
 
         std::string from_sdf_dir = get_service_description_dir(socknum, rbuffer, from_handle);
         if (from_sdf_dir.empty())
@@ -2000,6 +2076,40 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
             service_dir_paths.emplace_back(path.get_dir());
         }
 
+        auto to_sdf_fds = find_service_desc(to, service_dir_paths, to_service_file_path);
+        if (to_sdf_fds.first == -1 && to_sdf_fds.second == ENOENT) {
+            cerr << "dinitctl: could not locate service file for target service '" << to << "'\n";
+            return EXIT_FAILURE;
+        }
+
+        if (from == nullptr) {
+            if (to_sdf_fds.first == -1) {
+                cerr << "dinitctl: could not read service description file '"
+                        << to_service_file_path << "': " << strerror(to_sdf_fds.second) << "\n";
+                return EXIT_FAILURE;
+            }
+            try {
+                from_name_str = get_enable_via(to, to_service_file_path, to_sdf_fds.second, to_sdf_fds.first);
+            }
+            catch (service_load_exc &sle) {
+                std::cerr << "dinitctl: error loading " << sle.service_name << ": " << sle.exc_description << "\n";
+                return EXIT_FAILURE;
+            }
+
+            if (!from_name_str.empty()) {
+                from = from_name_str.c_str();
+            }
+            else {
+                from = "boot";
+            }
+        }
+        else {
+            if (to_sdf_fds.first != -1) {
+                close(to_sdf_fds.first);
+                close(to_sdf_fds.second);
+            }
+        }
+
         auto sdf_fds = find_service_desc(from, service_dir_paths, service_file_path);
         if (sdf_fds.first == -1) {
             if (sdf_fds.second == ENOENT) {
@@ -2015,17 +2125,6 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 
         parent_dir_fd = sdf_fds.first;
         service_file.set_fd(sdf_fds.second);
-
-        auto to_sdf_fds = find_service_desc(to, service_dir_paths, to_service_file_path);
-        if (to_sdf_fds.first == -1 && to_sdf_fds.second == ENOENT) {
-            cerr << "dinitctl: could not locate service file for target service '" << to << "'\n";
-            return EXIT_FAILURE;
-        }
-
-        if (to_sdf_fds.first != -1) {
-            close(to_sdf_fds.first);
-            close(to_sdf_fds.second);
-        }
     }
 
     // We now need to read the service file, identify the waits-for.d directory (bail out if more than one),

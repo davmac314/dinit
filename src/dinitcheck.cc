@@ -712,7 +712,10 @@ service_record *load_service(service_set_t &services, const std::string &name,
                         report_service_description_exc(exc);
                     }
                 },
-                service_arg.c_str(), resolve_var);
+                service_arg.c_str(), resolve_var,
+                [](string::iterator i, string::iterator e) -> void {
+                    // TODO: check valid (known) meta commands
+                });
     }
     catch (std::system_error &sys_err)
     {
