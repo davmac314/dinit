@@ -1999,19 +1999,22 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         }
         case setting_id_t::WAITS_FOR_D:
         {
-            string waitsford = read_setting_value(input_pos, i, end);
+            string waitsford = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             process_dep_dir(settings.depends, waitsford, dependency_type::WAITS_FOR);
             break;
         }
         case setting_id_t::DEPENDS_ON_D:
         {
-            string depends_on_d = read_setting_value(input_pos, i, end);
+            string depends_on_d = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             process_dep_dir(settings.depends, depends_on_d, dependency_type::REGULAR);
             break;
         }
         case setting_id_t::DEPENDS_MS_D:
         {
-            string depends_ms_d = read_setting_value(input_pos, i, end);
+            string depends_ms_d = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             process_dep_dir(settings.depends, depends_ms_d, dependency_type::MILESTONE);
             break;
         }
