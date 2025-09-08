@@ -867,6 +867,17 @@ directive.
 .TP
 \fB@include\-opt\fR \fIpath\fR
 As for \fB@include\fR, but produces no error if the named file does not exist.
+.TP
+\fB@meta\fR \fIsub-command\fR
+Introduces information (about a service) that is not used by \fBdinit\fR(8) but that may be used
+or processed by other tools.
+The following sub-command is supported by \fBdinitctl\fR(8):
+.RS
+.TP
+\fB@meta enable-via\fB \fIservice-name\fR
+Specifies the default service that this service should be added as a dependency of in order to
+"enable" it (as per the \fBdinitctl enable\fR command).
+.RE
 .\"
 .SH EXAMPLES
 .\"

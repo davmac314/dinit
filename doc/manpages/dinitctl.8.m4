@@ -299,6 +299,7 @@ description (there must be only one such directive) so that the dependency will 
 sessions.
 .IP
 If the \fB--from\fR option is not used to specify the dependent, the dependency is created from the
+service specified by any \fB@meta enable-via\fR directive in the service description, or from the
 \fBboot\fR service by default.
 .TP
 \fBdisable\fR
