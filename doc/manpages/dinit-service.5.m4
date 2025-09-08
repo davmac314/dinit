@@ -107,7 +107,7 @@ start successfully, or fail to start, before the dependent starts.
 Starting the dependent will attempt to first start the dependency, but failure will
 not prevent the dependent from starting.
 If the dependency starts, stopping it will have no effect on the dependent.
-This type of relationship is specified using a \fBwaits-for\fR property.
+This type of relationship is specified using a \fBwaits\-for\fR property.
 .LP
 See the \fBSERVICE ACTIVATION MODEL\fR section in \fBdinit\fR(8) for more details of how service
 dependencies affect starting and stopping of services.
@@ -161,7 +161,7 @@ starting from the directory containing the top-level service description file, w
 resolved from the directory containing the service description fragment in which the setting value
 is defined (a "fragment" may be the service description file itself, or it may be a file included
 via \fB@include\fR or similar; see \fBMETA-COMMANDS\fR). In particular, the `\-\-\-.d' settings
-(such as \fBwaits-for.d\fR) are resolved from the containing fragment. For all other settings, it
+(such as \fBwaits\-for.d\fR) are resolved from the containing fragment. For all other settings, it
 is recommended to provide absolute paths to be robust against future changes in Dinit.
 .LP
 The following properties can be specified:
