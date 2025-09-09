@@ -319,7 +319,9 @@ is not considered fatal.
 .IP
 The directory path, if not absolute, is relative to the directory containing the service
 description file.
-No variable substitution is done for path dependencies.
+The \fIdirectory-path\fR is subject to pre-load variable substitution
+(see \fBVARIABLE SUBSTITUTION\fR).
+
 .TP
 \fBdepends\-ms.d\fR: \fIdirectory-path\fR
 As for \fBdepends-on.d\fR, but with dependency type \fBdepends\-ms\fR.
