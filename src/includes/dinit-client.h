@@ -1,7 +1,9 @@
 #include <cstdint>
 #include <cstring>
 
+#include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/un.h>
 #include <pwd.h>
 
 #include <mconfig.h>
@@ -9,6 +11,7 @@
 #include <control-cmds.h>
 #include <control-datatypes.h>
 #include <dinit-util.h>
+#include <dinit-env.h>
 #include <service-constants.h>
 
 // Client library for Dinit clients
@@ -543,3 +546,6 @@ inline std::vector<std::string> get_service_description_dirs(int socknum, cpbuff
 
     return paths;
 }
+
+// Get the environment from remote dinit instance
+void get_remote_env(int csfd, cpbuffer_t &rbuffer, environment &menv);
