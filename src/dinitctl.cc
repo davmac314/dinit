@@ -2001,7 +2001,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
             return 1;
         }
 
-        std::string to_sdf_dir = get_service_description_dir(socknum, rbuffer, from_handle);
+        std::string to_sdf_dir = get_service_description_dir(socknum, rbuffer, to_handle);
         if (to_sdf_dir.empty())
             throw dinit_protocol_error();
 
