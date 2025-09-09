@@ -52,6 +52,11 @@ void init_test_service_dir()
     supply_service_file("./test-services/t4");
     supply_service_file("./test-services/fragment-1");
     supply_service_file("./test-services/fragment-2");
+    supply_service_file("./test-services/dirtest1");
+    supply_service_file("./test-services/dirtest2");
+    supply_service_file("./test-services/dirtest3");
+    supply_service_file("./test-services/d1/d2/dirtest2");
+    supply_service_file("./test-services/d1/d2/dirtest3");
 
     tenvmap = tenv.build(main_env);
 }
@@ -633,6 +638,21 @@ void test_includes()
     assert(t1->get_type() == service_type_t::PROCESS);
 }
 
+void test_dir_env_subst()
+{
+    dirload_service_set sset(test_service_dir.c_str());
+    bp_sys::setenv("DIR", "./d1/", true);
+    
+    auto dirtest1 = sset.load_service("dirtest1");
+    assert(dirtest1->get_dependencies().size() == 2);
+    auto &dep1 = dirtest1->get_dependencies().front();
+    auto &dep2 = dirtest1->get_dependencies().back();
+    assert(dep1.dep_type == dependency_type::WAITS_FOR);
+    assert(dep2.dep_type == dependency_type::WAITS_FOR);
+    assert(dep1.get_to()->get_name() == "dirtest2" || dep2.get_to()->get_name() == "dirtest2");
+    assert(dep1.get_to()->get_name() == "dirtest3" || dep2.get_to()->get_name() == "dirtest3");
+}
+
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
     name(); \
@@ -654,6 +674,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_comments, "             ");
     RUN_TEST(test_plusassign, "           ");
     RUN_TEST(test_includes, "             ");
+    RUN_TEST(test_dir_env_subst, "        ");
     bp_sys::clearenv();
     return 0;
 }
