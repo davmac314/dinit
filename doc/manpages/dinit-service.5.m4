@@ -585,9 +585,13 @@ This setting is only available if \fBdinit\fR was built with cgroups support.
 \fBcapabilities\fR = \fIiab\fR
 .TQ
 \fBcapabilities\fR += \fIiab-addendum\fR
-Run the service process(es) with capabilities specified by \fIiab\fR.
-The syntax follows the regular capabilities "IAB" format, with comma-separated capabilities
-(see \fBcapabilities\fR(7), \fBcap_iab\fR(3)).
+Set the "IAB" capability vectors, which will determine the capabilities that the service
+process(es) are run with.
+The syntax of \fIiab\fR follows the regular capabilities "IAB" format, with comma-separated capabilities
+(see \fBcapabilities\fR(7), \fBcap_iab\fR(3)) for three vectors: inheritable (I), "ambient" i.e.
+effective by default (A), and blocked (B).
+If this property is not specified, the IAB vectors for service processes will not be modified by
+\fBdinit\fR. 
 The append form of this setting will add to the previous IAB string, automatically inserting
 a comma as separator.
 .IP
