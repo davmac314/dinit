@@ -217,20 +217,21 @@ termination (or have its termination command executed) until all dependent servi
 .LP
 If a service stops, and is a hard dependency of another service, the other service must also stop
 (and will be stopped automatically, though may restart automatically if configured to do so, which
-may in turn also cause the dependency to restart). 
+may in turn also cause the dependency to restart).
+A service will not be stopped by \fBdinit\fR until its dependents have completely stopped.
 .LP
 Services can be explicitly activated using the \fBdinitctl\fR(8) subcommand, \fBstart\fR (activating
 a service will also cause it to start, if it is not already started).
 Explicit activation can be removed using the \fBrelease\fR subcommand (which will stop the service only if
-it is not also a dependency of another active service). Note that the \fBstop\fR subcommand also removes
-explicit activation, but can fail with no effect if the service will not be stopped (due to being a
-dependency of another active service).
+it is not also a dependency of another active service).
+Note that the \fBstop\fR subcommand also removes explicit activation, but can fail with no effect
+if the service will not be stopped (due to being a dependency of another active service).
 .LP
 If a running service is not explicitly activated and has no running dependents, it will be stopped.
 As a consequence, a service stopping may result in some or all of its dependencies also stopping.
 A general rule is that starting a service by explicitly activating it will also start any of its
 dependencies which are not currently started, and that then stopping the same service will result
-in the same set of dependencies also stopping; there are exceptions to this, however - in particular,
+in the same set of dependencies also stopping; there are exceptions to this, however\(emin particular,
 a stopped service which is a soft dependency of an otherwise unrelated active service may be
 started as a result of the starting of a third service, of which it is also a dependency, and in
 this case the third service stopping again will not cause the first to stop, since the second
