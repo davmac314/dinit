@@ -58,7 +58,8 @@ static int shutdown_dinit(int soclknum, cpbuffer_t &, bool verbose);
 static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, const char *service_from,
         const char *service_to, dependency_type dep_type, bool verbose);
 static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_opt &service_dir_opts,
-        const char *from, const char *to, bool enable, bool verbose, uint16_t proto_version);
+        const char *from, const char *to, bool enable, const char *environment_file, bool verbose,
+        uint16_t proto_version);
 static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names, bool unset);
 static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool trigger_value);
 static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool do_clear);
@@ -108,6 +109,7 @@ int dinitctl_main(int argc, char **argv)
     bool user_dinit = (getuid() != 0);  // communicate with user daemon
     service_dir_opt service_dir_opts;
     bool offline = false;
+    const char *env_file = nullptr;
 
     // general command options
     ctl_cmd command = ctl_cmd::NONE;
@@ -513,10 +515,13 @@ int dinitctl_main(int argc, char **argv)
         }
 
         service_dir_opts.build_paths(!user_dinit);
+        if (env_file == nullptr && !user_dinit) {
+            env_file = "/etc/dinit/environment";
+        }
 
         if (command == ctl_cmd::ENABLE_SERVICE || command == ctl_cmd::DISABLE_SERVICE) {
             return enable_disable_service(-1, rbuffer, service_dir_opts, service_name, to_service_name,
-                    command == ctl_cmd::ENABLE_SERVICE, verbose, 0);
+                    command == ctl_cmd::ENABLE_SERVICE, env_file, verbose, 0);
         }
     }
 
@@ -589,7 +594,7 @@ int dinitctl_main(int argc, char **argv)
                 throw cp_old_server_exception();
             }
             return enable_disable_service(socknum, rbuffer, service_dir_opts, service_name, to_service_name,
-                    command == ctl_cmd::ENABLE_SERVICE, verbose, daemon_protocol_ver);
+                    command == ctl_cmd::ENABLE_SERVICE, env_file, verbose, daemon_protocol_ver);
         }
         else if (command == ctl_cmd::SETENV || command == ctl_cmd::UNSETENV) {
             return do_setenv(socknum, rbuffer, cmd_args, command == ctl_cmd::UNSETENV);
@@ -1918,10 +1923,22 @@ static std::pair<int,int> find_service_desc(const char *svc_name, const std::vec
     return {-1, ENOENT};
 }
 
+// Scan a service description for the '@meta enable-via' directive, specifying that the service
+// should be enabled "from" another particular service.
+// Parameters:
+//   service_name - the name of the service for which the description is to be scanned.
+//   sd_file_name - the filename of the service description.
+//   sd_fd - an file descriptor for reading from the service description file (i.e. sd_file_name).
+//   parent_dir_fd - a file descriptor referring to the parent directory of the service
+//                   description file,
+// Returns:
+//   The name of the service specified via the 'enable-via' directive, if any, or an empty string
+//   otherwise
 // Throws:
 //   std::system_error, other service load exceptions
+template <typename resolve_var_t>
 static std::string get_enable_via(const char *service_name, const std::string &sd_file_name,
-        int sd_fd, int parent_dir_fd)
+        int sd_fd, int parent_dir_fd, resolve_var_t resolve_var)
 {
     using std::string;
 
@@ -1933,10 +1950,6 @@ static std::string get_enable_via(const char *service_name, const std::string &s
     string enable_via_name;
 
     try {
-        auto resolve_var = [](const std::string &name) {
-            return (char *)nullptr; // FIXME
-        };
-
         process_service_file(service_name, input_stack, [&](string &line, file_pos_ref fpr,
                 string &setting, dinit_load::setting_op_t op,
                 dinit_load::string_iterator i, dinit_load::string_iterator end) -> void {
@@ -1971,7 +1984,8 @@ static std::string get_enable_via(const char *service_name, const std::string &s
 class service_op_cancel { };
 
 static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_opt &service_dir_opts,
-        const char *from, const char *to, bool enable, bool verbose, uint16_t proto_version)
+        const char *from, const char *to, bool enable, const char *environment_file, bool verbose,
+        uint16_t proto_version)
 {
     using std::cout;
     using std::cerr;
@@ -1992,8 +2006,37 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 
     if (from != nullptr && strchr(from, '@') != nullptr) {
         cerr << "dinitctl: cannot enable/disable from a service with argument (service@arg).\n";
-        return 1;
+        return EXIT_FAILURE;
     }
+
+    // Read the dinit environment, either via the running instance or from environment file
+    environment dinit_env;
+    dinit_env.clear_no_inherit();
+    if (socknum != -1) {
+        get_remote_env(socknum, rbuffer, dinit_env);
+    }
+    else {
+        if (environment_file != nullptr && *environment_file != 0) {
+            try {
+                auto log_bad_setting_or_cmd = [](int line_num){};
+                read_env_file_inline(environment_file, AT_FDCWD, true, dinit_env, false,
+                    log_bad_setting_or_cmd, log_bad_setting_or_cmd);
+            }
+            catch (std::system_error &se) {
+                cerr << "dinitctl: cannot read environment file '" << environment_file << "' :"
+                        << strerror(errno) << "\n";
+                return EXIT_FAILURE;
+            }
+        }
+    }
+
+    auto resolve_var = [&dinit_env](const std::string &name) -> const char * {
+        string_view var_and_val = dinit_env.get(name);
+        if (var_and_val.empty()) return nullptr;
+        auto eq_pos = std::find(var_and_val.begin(), var_and_val.end(), '=');
+        if (*eq_pos == 0) return nullptr;
+        return (eq_pos + 1);
+    };
 
     if (socknum >= 0) {
         // Find 'to' service
@@ -2025,7 +2068,8 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
             int to_sdf_fd = to_sdf_fds.second;
 
             try {
-                from_name_str = get_enable_via(to, to_service_file_path, to_sdf_fd, to_parent_dir_fd);
+                from_name_str = get_enable_via(to, to_service_file_path, to_sdf_fd,
+                        to_parent_dir_fd, resolve_var);
             }
             catch (service_load_exc &sle) {
                 std::cerr << "dinitctl: error loading " << sle.service_name << ": " << sle.exc_description << "\n";
@@ -2089,10 +2133,12 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
                 return EXIT_FAILURE;
             }
             try {
-                from_name_str = get_enable_via(to, to_service_file_path, to_sdf_fds.second, to_sdf_fds.first);
+                from_name_str = get_enable_via(to, to_service_file_path, to_sdf_fds.second,
+                        to_sdf_fds.first, resolve_var);
             }
             catch (service_load_exc &sle) {
-                std::cerr << "dinitctl: error loading " << sle.service_name << ": " << sle.exc_description << "\n";
+                std::cerr << "dinitctl: error loading " << sle.service_name << ": "
+                        << sle.exc_description << "\n";
                 return EXIT_FAILURE;
             }
 
@@ -2137,10 +2183,6 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
     input_stack.push(service_file_path, std::move(service_file), parent_dir_fd.release());
 
     try {
-        auto resolve_var = [](const std::string &name) {
-            return (char *)nullptr; // FIXME
-        };
-
         auto is_setting = [](const std::string &setting, dinit_load::setting_id_t setting_id) {
             return (setting == dinit_load::all_settings[(size_t)setting_id].setting_str);
         };
@@ -2163,9 +2205,9 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
                     }
                     else if (is_setting(setting, setting_id_t::WAITS_FOR_D)) {
                         string dname = dinit_load::read_setting_value(fpr, i, end);
-                        if (! waits_for_d.empty()) {
-                            cerr << "dinitctl: service '" << from << "' has multiple waits-for.d directories "
-                                    << "specified in service description\n";
+                        if (!waits_for_d.empty()) {
+                            cerr << "dinitctl: service '" << from << "' has multiple waits-for.d "
+                                    "directories specified in service description\n";
                             throw service_op_cancel();
                         }
                         waits_for_d = std::move(dname);

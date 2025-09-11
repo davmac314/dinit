@@ -23,8 +23,8 @@ all: dinit dinitctl dinitcheck dinit-monitor $(SHUTDOWN)
 dinit: $(dinit_objects)
 	$(CXX) -o dinit $(dinit_objects) $(ALL_LDFLAGS) $(LDFLAGS_LIBCAP)
 
-dinitctl: dinitctl.o options-processing.o settings.o dinit-iostream.o
-	$(CXX) -o dinitctl dinitctl.o options-processing.o settings.o dinit-iostream.o $(ALL_LDFLAGS)
+dinitctl: dinitctl.o options-processing.o settings.o dinit-iostream.o dinit-client.o
+	$(CXX) -o dinitctl dinitctl.o options-processing.o settings.o dinit-iostream.o dinit-client.o $(ALL_LDFLAGS)
 
 dinitcheck: dinitcheck.o options-processing.o settings.o dinit-iostream.o dinit-client.o
 	$(CXX) -o dinitcheck dinitcheck.o options-processing.o settings.o dinit-iostream.o dinit-client.o $(ALL_LDFLAGS) $(LDFLAGS_LIBCAP)
