@@ -134,10 +134,11 @@ inline std::string operator+(const std::string &a, const string_view &b)
 struct cap_iab_wrapper
 {
     cap_iab_wrapper() {}
+
+    // Construct IAB based on a textual representation. If this fails the wrapped cap_iab_t will
+    // be nullptr; in this case (it's not well documented but) errno should be EINVAL or ENOMEM.
     cap_iab_wrapper(std::string const &str) noexcept {
         if (str.empty()) return;
-        // this may end up being nullptr
-        // throwing from constructors is bad, so always check .get() afterwards
         iab = cap_iab_from_text(str.c_str());
     }
 
@@ -157,6 +158,7 @@ struct cap_iab_wrapper
         if (iab) cap_free(iab);
     }
 
+    // Get wrapped capabilities; this is a pointer and will be null if invalid.
     cap_iab_t get() const noexcept {
         return iab;
     }

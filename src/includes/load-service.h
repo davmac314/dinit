@@ -1856,6 +1856,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
 
             cap_iab_wrapper cap_iab(capabilities_str);
             if (!cap_iab.get()) {
+                if (errno == ENOMEM) throw std::bad_alloc();
                 throw service_description_exc(name, "invalid capabilities: " + capabilities_str,
                         "capabilities", input_pos);
             }
