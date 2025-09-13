@@ -8,6 +8,7 @@ $$$SHUTDOWN_PREFIX@@@shutdown, $$$SHUTDOWN_PREFIX@@@halt, $$$SHUTDOWN_PREFIX@@@p
 .B $$$SHUTDOWN_PREFIX@@@shutdown
 [\fB\-r\fR|\fB\-h\fR|\fB\-p\fR] [\fB\-\-use\-passed\-cfd\fR]
 [\fB\-\-system\fR]
+[\fBnow\fR]
 .br
 \fB$$$SHUTDOWN_PREFIX@@@halt\fR [\fIoptions...\fR]
 .br
@@ -40,8 +41,9 @@ Some features are available only on certain operating systems (and require kerne
 Display brief help text and then exit.
 .TP
 \fB\-r\fP
-Request a shutdown followed by restart. This is the default if executed as
-\fB$$$SHUTDOWN_PREFIX@@@reboot\fR.
+Request a shutdown followed by a restart.
+If dinit detected a loaded kexec kernel in memory, then this flag is equivalent to \fB\-k\fR.
+This is the default if executed as \fB$$$SHUTDOWN_PREFIX@@@reboot\fR.
 .TP
 \fB\-k\fP
 Shutdown the system and boot directly into a new kernel, without firmware
@@ -78,6 +80,9 @@ the service manager has stopped responding.
 .IP
 The service manager may invoke \fB$$$SHUTDOWN_PREFIX@@@shutdown\fR with this option in order to perform
 system shutdown after it has rolled back services.
+.TP
+\fBnow\fR
+Ignored for compatiblity with other shutdown implementations.
 .\"
 .SH SHUTDOWN HOOKS
 .\"
