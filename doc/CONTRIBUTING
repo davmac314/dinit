@@ -35,6 +35,10 @@ are fixing really is a bug, or whether it's intended behaviour - if there's any 
 should ask the maintainers. Also, if the proposed fix is not completely straight-forward or is
 "hacky", you should consider discussing it with maintainers first.
 
+New features, on the other hand, should *always* be discussed with maintainers and an agreement
+reached *before* beginning implementation. The feature might not be wanted, and if it is, there
+might be requirements for how it should be implemented.
+
 Remember:
  - submitting a merge request is an act that, by itself, creates work for the maintainer(s)!
  - always talk to the maintainers before doing a significant amount of work on a project, and
@@ -104,7 +108,10 @@ Documentation (including comments in code) should be:
    that a reader can perhaps find it even if it has moved).
 
 For comments in code, some additional concerns apply:
- - To document classes, functions and variables, see notes in CODE-STYLE.
+ - To document classes, functions and variables, see notes in CODE-STYLE. Function comments should
+   describe what the function does, and anything that someone writing code that called the
+   function would need to know in order to use it properly (as if they couldn't read the code of
+   the function itself).
  - Use comments to explain anything in the code that is not apparent or any aspect that has
    significance beyond what is apparently just be reading the code. Be specific.
  - Do not simply state what the code does in code terms.
@@ -171,7 +178,7 @@ Failure to include this will result in the PR being marked as a draft (or equiva
 explanatory note.
 
 Contributors should feel free to add themselves to the CONTRIBUTORS list as part of the patch/pull
-request.
+request (or in a separate pull request afterwards).
 
 
 Process for contributing
