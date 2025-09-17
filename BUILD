@@ -140,9 +140,13 @@ Dinit should generally build fine with no additional options, other than:
 
 Recommended options, supported by at least GCC and Clang, are:
  -Os       : optimise for size
- -fno-rtti : disable RTTI (run-time type information), it is not required by Dinit. However, on
-             some platforms such as Mac OS (and historically FreeBSD, IIRC), this prevents
-             exceptions working correctly.
+ -fno-rtti : disable RTTI (run-time type information) for some types (that Dinit doesn't need RTTI
+             for) to reduce output binary size. RTTI is a feature of C++ that exposes (at runtime)
+             information about the dynamic types of objects. However, when Dinit is compiled by
+             Clang with the Libcxxrt C++ runtime library on certain platforms, this option prevents
+             Dinit from working correctly (the known platforms exhibiting this problem are FreeBSD
+             and macOS); see "Special note for the Clang compiler and the Libcxxrt C++ runtime",
+             below.
  -fno-plt  : enables better code generation for non-static builds, but may cause unit test
              failures on some older versions of FreeBSD (eg 11.2-RELEASE-p4 with clang++ 6.0.0).
  -flto     : perform link-time optimisation (option required at compile and link).
@@ -292,3 +296,19 @@ upgrading GCC. If you have libstdc++ corresponding to GCC 5.x or 6.x, you *must*
 old ABI, but Dinit will be broken if you upgrade to GCC 7. If you have libstdc++ from GCC 7, you
 *must* build with the new ABI. If the wrong ABI is used, Dinit may still run successfully but any
 attempt to load a non-existing service, for example, will cause Dinit to crash.
+
+
+Special note for the Clang compiler and the Libcxxrt C++ runtime
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+Clang when used as a compiler together with the Libcxxrt C++ runtime library on certain platforms,
+has an issue that prevents exceptions from working properly in particular cases and may prevent
+Dinit from working correctly when compiled with the "-fno-rtti" compiler option (see "Recommended
+compiler options"). The known platforms exhibiting this problem are FreeBSD and macOS.
+
+Details regarding the issue with Clang can be found here:
+
+    https://github.com/llvm/llvm-project/issues/66117
+
+It's recommended not to use the "-fno-rtti" compiler option on the mentioned platforms. As a
+consequence, the output binary will be larger.
