@@ -36,17 +36,35 @@ this file by hand, before proceeding with the build. Note that the the generated
 a symbolic link to a system-specific default config file. It is not necessary to edit the file; you
 can override variables on the "make" command line if you prefer.
 
-An alternative to "make mconfig" is to use the provided "configure" script. It will try to
-generate a suitable "mconfig" file, based on sensible defaults and options provided on the command
-line when the script is run.
+An alternative to "make mconfig" is to use the provided "configure" script. See "configure script",
+below.
+
+You can also create and edit the "mconfig" file completely by hand (or start by copying one for a
+particular OS from the "configs" directory) to choose appropriate values for the configuration
+variables defined within.
+
+
+"configure" script
+=-=-=-=-=-=-=-=-=-
+
+"configure" is a script to generate a suitable "mconfig" file, based on sensible defaults and
+options provided on the command line when the script is run. It also has checks to enable/disable
+certain features based on the availability of their requirements (such as presence of certain
+header files).
 
 For more information on available options from the configure script, run:
 
     ./configure --help
 
-You can also create and edit the "mconfig" file completely by hand (or start by copying one for a
-particular OS from the "configs" directory) to choose appropriate values for the configuration
-variables defined within.
+One of the checks performed by "configure" is the check for "-fno-rtti" compiler option (see
+"Recommended compiler options", below), which involves compiling a test program and running it to
+ensure that the compiler option works correctly (see "Special note for the Clang compiler and the
+Libcxxrt C++ runtime", below for why this check is needed). However, when building Dinit for
+another platform (i.e. cross-compiling), because of the inability to run the test program on the
+target machine, this check cannot be performed. "configure" disables "-fno-rtti" for cross builds
+and prints out this warning:
+
+    Cross-compilation detected. Disabling -fno-rtti to avoid a compiler bug on some platforms.
 
 
 Main build variables
