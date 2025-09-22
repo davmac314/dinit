@@ -27,7 +27,9 @@ The basic process is:
      a summary of the functional change, followed by a blank line and then a more comprehensive
      description of the change (unless trivial) with lines wrapping at or before 72 characters.
      Read existing commit messages to get a sense for the expected style/tone. Messages should be
-     concise but not at the expense of necessary detail.
+     concise but not at the expense of necessary detail. Write in the imperative, i.e. the message
+     should be able to follow "This change will ..." (background information can be provided
+     before the imperative statement, if necessary). 
 
      If a commit affects a particular component (a function, program, or "tests", or "build") that
      component should be at the head of the commit summary, examples:
@@ -35,13 +37,14 @@ The basic process is:
          -- example 1 --
          check_frobz: make sure to set gromit before return
 
-         This fixes check_frobz so that ...(etc)
+         Fix check_frobz so that ...(etc)
 
          -- example 2 --
          Tests: add test for correct frobzing of gerschnicketts
 
-         Recently we found an issue (see #78) where gerschnicketts were not
-         correctly frobzzed in certain corner cases, including ... (etc)
+         Add a test which catches the recently discovered issue (see #78) where
+         gerschnicketts were not correctly frobzzed in certain corner cases,
+         including ... (etc)
 
      Summary lines (and message bodies) start with a capital unless lead with a noun that doesn't
      capitalise (such as a function or file name).
@@ -55,9 +58,8 @@ The basic process is:
 
          Handle fuzzits consistently
 
-         This change:
-         - adds function solve_fuzzit() to solve fuzzits
-         - fixes the foo function to correctly handle fuzzits (using solve_fuzzit)
+         - add function solve_fuzzit() to solve fuzzits
+         - fix the foo function to correctly handle fuzzits (using solve_fuzzit)
          - in the bar and baz functions, defer fuzzit handling to foo
 
          This makes handling of fuzzits consistent, and resolves #42.
