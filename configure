@@ -452,7 +452,7 @@ if [ -z "${TEST_LDFLAGS_BASE+IS_SET}" ]; then
     TEST_LDFLAGS_BASE=""
     AUTO_TEST_LDFLAGS_BASE="true"
 else
-    AUTO_TEST_LDFLAGS=BASE="false"
+    AUTO_TEST_LDFLAGS_BASE="false"
 fi
 if [ -z "${LDFLAGS_LIBCAP+IS_SET}" ]; then
     LDFLAGS_LIBCAP=""
