@@ -24,7 +24,9 @@
 #include "load-service.h"
 #include "options-processing.h"
 
-// dinitcheck:  utility to check Dinit configuration for correctness/lint
+// dinit-check:  utility to check Dinit configuration for correctness/lint
+
+#define DINIT_CHECK_APPNAME "dinit-check"
 
 using string = std::string;
 using string_iterator = std::string::iterator;
@@ -112,7 +114,7 @@ int main(int argc, char **argv)
                         service_dir_opts.set_specified_service_dir(argv[i]);
                     }
                     else {
-                        cerr << "dinitcheck: '--services-dir' (-d) requires an argument" << endl;
+                        cerr << DINIT_CHECK_APPNAME ": '--services-dir' (-d) requires an argument\n";
                         return 1;
                     }
                 }
@@ -125,7 +127,8 @@ int main(int argc, char **argv)
                 else if (strcmp(argv[i], "--socket-path") == 0 || strcmp(argv[i], "-p") == 0) {
                     ++i;
                     if (i == argc || argv[i][0] == '\0') {
-                        cerr << "dinitcheck: --socket-path/-p should be followed by socket path\n";
+                        cerr << DINIT_CHECK_APPNAME ": --socket-path/-p should be followed by "
+                                "socket path\n";
                         return 1;
                     }
                     control_socket_str = argv[i];
@@ -136,13 +139,14 @@ int main(int argc, char **argv)
                 else if (strcmp(argv[i], "--env-file") == 0 || strcmp(argv[i], "-e") == 0) {
                     ++i;
                     if (i == argc || argv[i][0] == '\0') {
-                        cerr << "dinitcheck: --env-file/-e should be followed by environment file path\n";
+                        cerr << DINIT_CHECK_APPNAME ": --env-file/-e should be followed by "
+                                "environment file path\n";
                         return 1;
                     }
                     env_file = argv[i];
                 }
                 else if (strcmp(argv[i], "--help") == 0) {
-                    cout << "dinitcheck: check dinit service descriptions\n"
+                    cout << DINIT_CHECK_APPNAME ": check dinit service descriptions\n"
                             " --help                       display help\n"
                             " --services-dir <dir>, -d <dir>\n"
                             "                              set base directory for service description\n"
@@ -159,7 +163,8 @@ int main(int argc, char **argv)
                     return EXIT_SUCCESS;
                 }
                 else {
-                    std::cerr << "dinitcheck: unrecognized option: '" << argv[i] << "' (use '--help' for help)\n";
+                    std::cerr << DINIT_CHECK_APPNAME ": unrecognized option: '" << argv[i]
+                            << "' (use '--help' for help)\n";
                     return EXIT_FAILURE;
                 }
             }
@@ -186,13 +191,13 @@ int main(int argc, char **argv)
         }
         if (!env_file.empty()) {
             auto log_inv_env_setting = [&](int line_num) {
-                std::cerr << "dinitcheck: warning: invalid environment variable setting in "
-                            "environment file " << env_file << " (line "
-                        << std::to_string(line_num) << ")\n";
+                std::cerr << DINIT_CHECK_APPNAME ": warning: invalid environment variable setting "
+                            "in environment file " << env_file << " (line "
+                        << line_num << ")\n";
             };
             auto log_bad_env_command = [&](int line_num) {
-                std::cerr << "dinitcheck: warning: bad command in environment file "
-                        << env_file << " (line " << std::to_string(line_num) << ")\n";
+                std::cerr << DINIT_CHECK_APPNAME ": warning: bad command in environment file "
+                        << env_file << " (line " << line_num << ")\n";
             };
 
             try {
@@ -200,8 +205,8 @@ int main(int argc, char **argv)
                         log_inv_env_setting, log_bad_env_command);
             }
             catch (std::system_error &err) {
-                std::cerr << "dinitcheck: error reading environment file " << env_file << ": "
-                        << err.code().message() << "\n";
+                std::cerr << DINIT_CHECK_APPNAME ": error reading environment file " << env_file
+                        << ": " << err.code().message() << "\n";
                 return EXIT_FAILURE;
             }
         }
@@ -213,7 +218,7 @@ int main(int argc, char **argv)
         else {
             control_socket_path = get_default_socket_path(control_socket_str, user_dinit);
             if (control_socket_path == nullptr) {
-                cerr << "dinitcheck: cannot locate user home directory (set XDG_RUNTIME_DIR, HOME, check /etc/passwd file, or "
+                cerr << DINIT_CHECK_APPNAME ": cannot locate user home directory (set XDG_RUNTIME_DIR, HOME, check /etc/passwd file, or "
                         "specify socket path via -p)" << endl;
                 return EXIT_FAILURE;
             }
@@ -235,27 +240,27 @@ int main(int argc, char **argv)
             get_remote_env(socknum, rbuffer, menv);
         }
         catch (cp_old_client_exception &e) {
-            std::cerr << "dinitcheck: too old (daemon reports newer protocol version)" << std::endl;
+            std::cerr << DINIT_CHECK_APPNAME ": too old (daemon reports newer protocol version)" << std::endl;
             return EXIT_FAILURE;
         }
         catch (cp_old_server_exception &e) {
-            std::cerr << "dinitcheck: daemon too old or protocol error" << std::endl;
+            std::cerr << DINIT_CHECK_APPNAME ": daemon too old or protocol error" << std::endl;
             return EXIT_FAILURE;
         }
         catch (cp_read_exception &e) {
-            cerr << "dinitcheck: control socket read failure or protocol error" << endl;
+            cerr << DINIT_CHECK_APPNAME ": control socket read failure or protocol error" << endl;
             return EXIT_FAILURE;
         }
         catch (cp_write_exception &e) {
-            cerr << "dinitcheck: control socket write error: " << std::strerror(e.errcode) << endl;
+            cerr << DINIT_CHECK_APPNAME ": control socket write error: " << std::strerror(e.errcode) << endl;
             return EXIT_FAILURE;
         }
         catch (dinit_protocol_error &e) {
-            cerr << "dinitcheck: protocol error" << endl;
+            cerr << DINIT_CHECK_APPNAME ": protocol error" << endl;
             return EXIT_FAILURE;
         }
         catch (general_error &ge) {
-            std::cerr << "dinitcheck";
+            std::cerr << DINIT_CHECK_APPNAME;
             if (ge.get_action() != nullptr) {
                 std::cerr << ": " << ge.get_action();
                 std::string &arg = ge.get_arg();
@@ -498,7 +503,7 @@ static void report_dir_error(const char *service_name, const std::string &dirpat
 
 static void report_general_warning(string_view msg)
 {
-    std::cerr << "dinitcheck: warning: " << msg.data() << "\n";
+    std::cerr << DINIT_CHECK_APPNAME ": warning: " << msg.data() << "\n";
 }
 
 // Process a dependency directory - filenames contained within correspond to service names which
@@ -603,7 +608,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     auto resolve_var = [&](const string &name) {
         if (offline_operation && !issued_var_subst_warning) {
-            report_general_warning("variable substitution performed by dinitcheck "
+            report_general_warning("variable substitution performed by " DINIT_CHECK_APPNAME " "
                     "for file paths may not match dinit daemon (environment may differ); "
                     "use --online to avoid this warning");
             issued_var_subst_warning = true;

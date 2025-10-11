@@ -20,7 +20,7 @@ code.Nm, .Fl, .Cm, .Ic, code.In, .Fd, .Fn, .Cd { font-weight: bold; font-family:
 EOM
 
 cat dinit.8         | mandoc -man -Thtml -Ostyle=style.css > html/dinit.8.html
-cat dinitcheck.8    | mandoc -man -Thtml -Ostyle=style.css > html/dinitcheck.8.html
+cat dinit-check.8   | mandoc -man -Thtml -Ostyle=style.css > html/dinit-check.8.html
 cat dinitctl.8      | mandoc -man -Thtml -Ostyle=style.css > html/dinitctl.8.html
 cat dinit-monitor.8 | mandoc -man -Thtml -Ostyle=style.css > html/dinit-monitor.8.html
 cat dinit-service.5 | mandoc -man -Thtml -Ostyle=style.css > html/dinit-service.5.html

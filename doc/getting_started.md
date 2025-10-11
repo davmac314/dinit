@@ -199,5 +199,5 @@ track of what should be started by default.
 In this guide, we've really only scratched the surface of what Dinit can do.
 For example, we've hardly touched on dependencies (where one service depends
 upon another to function). For full details about service configuration, read
-the `dinit-service(5)` manual page. The `dinit`, `dinitctl` and `dinitcheck`
+the `dinit-service(5)` manual page. The `dinit`, `dinitctl` and `dinit-check`
 commands also have manual pages.

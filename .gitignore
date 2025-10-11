@@ -4,7 +4,7 @@
 /src/**/*.d
 /src/dinit
 /src/dinitctl
-/src/dinitcheck
+/src/dinit-check
 /src/dinit-monitor
 /src/shutdown
 /src/tests/tests

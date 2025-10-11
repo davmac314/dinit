@@ -1,14 +1,14 @@
 changequote(`@@@',`$$$')dnl
-@@@.TH DINITCHECK "8" "$$$MONTH YEAR@@@" "Dinit $$$VERSION@@@" "Dinit \- service management system"
+@@@.TH DINIT-CHECK "8" "$$$MONTH YEAR@@@" "Dinit $$$VERSION@@@" "Dinit \- service management system"
 .SH NAME
-dinitcheck \- check service configuration
+dinit\-check \- check service configuration
 .\"
 .SH SYNOPSIS
 .\"
 .nh
 .\"
 .HP
-.B dinitcheck
+.B dinit\-check
 [\fB\-d\fR|\fB\-\-services\-dir\fR \fIdir\fR]
 [\fIservice-name\fR...]
 .\"
@@ -16,12 +16,12 @@ dinitcheck \- check service configuration
 .\"
 .SH DESCRIPTION
 .\"
-The \fBdinitcheck\fR utility checks the service configuration for
+The \fBdinit\-check\fR utility checks the service configuration for
 \fBDinit\fR services (see \fBdinit\fR(8)), and reports any errors it finds.
 This allows for finding errors before they can cause a service to fail to
 load during system operation.
 .LP
-Errors reported by \fBdinitcheck\fR include:
+Errors reported by \fBdinit\-check\fR include:
 .IP \(bu
 Syntax errors
 .IP \(bu
@@ -77,9 +77,9 @@ service description for the \fIboot\fR service exists).
 .\"
 For service properties that are subject to environment variable substitution, including
 \fBsocket\-listen\fR, \fBlogfile\fR, \fBenv\-file\fR, \fBworking\-dir\fR and \fBpid\-file\fR, the
-substitution may have a different result when performed by \fBdinitcheck\fR than when performed by
+substitution may have a different result when performed by \fBdinit\-check\fR than when performed by
 \fBdinit\fR if the two processes have a different environment.
-For this reason \fBdinitcheck\fR will issue a warning whenever substitution is used, unless run in
+For this reason \fBdinit\-check\fR will issue a warning whenever substitution is used, unless run in
 "online" mode (\fB\-\-online\fR or \fB\-n\fR), in which case environment variable values are obtained
 from the running instance of \fBdinit\fR.
 .\"

@@ -158,7 +158,7 @@ igr-tests/ - integration tests
 The utility sources are:
 
 dinitctl.cc - the control/status utility
-dinitcheck.cc - dinitcheck utility
+dinit-check.cc - dinit-check utility
 dinit-monitor.cc - the dinit-monitor utility
 shutdown.cc - shutdown/halt/reboot utility
 

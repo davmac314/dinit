@@ -329,7 +329,7 @@ public:
 
     void start(const char *wdir, std::vector<std::string> args = {})
     {
-        igr_proc::start((igr_input_basedir + "/" + wdir).c_str(), (dinit_bindir + "/dinitcheck").c_str(), args,
+        igr_proc::start((igr_input_basedir + "/" + wdir).c_str(), (dinit_bindir + "/dinit-check").c_str(), args,
                 true /* combine stdout/err */);
     }
 };

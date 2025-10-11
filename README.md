@@ -91,7 +91,7 @@ Full documentation for Dinit is available in the form of manual (man) pages:
   service description format and service settings
 - [dinitctl(8)](https://davmac.org/projects/dinit/man-pages-html/dinitctl.8.html) - _dinitctl_, a
   utility to control the dinit daemon and manage services
-- [dinitcheck(8)](https://davmac.org/projects/dinit/man-pages-html/dinitcheck.8.html) - _dinitcheck_,
+- [dinit-check(8)](https://davmac.org/projects/dinit/man-pages-html/dinit-check.8.html) - _dinit-check_,
   a utility to check service descriptions for errors/lint
 - [dinit-monitor(8)](https://davmac.org/projects/dinit/man-pages-html/dinit-monitor.8.html) -
   _dinit-monitor_, a utility to monitor a service and run a command when service state changes

@@ -1,2 +1,2 @@
 dinitctl: error loading service (or dependency of service).
-dinitctl: try 'dinitcheck <service-name>' or check log for more information.
+dinitctl: try 'dinit-check <service-name>' or check log for more information.

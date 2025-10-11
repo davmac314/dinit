@@ -346,7 +346,7 @@ has been deleted from the file system.
 .\"
 .SH SEE ALSO
 .\"
-\fBdinitctl\fR(8), \fBdinit-service\fR(5), \fBdinitcheck\fR(8), \fB$$$SHUTDOWN_PREFIX@@@shutdown(8)\fR.
+\fBdinitctl\fR(8), \fBdinit\-service\fR(5), \fBdinit\-check\fR(8), \fB$$$SHUTDOWN_PREFIX@@@shutdown(8)\fR.
 .\"
 .SH AUTHOR
 .\"

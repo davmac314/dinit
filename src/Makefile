@@ -12,9 +12,9 @@ endif
 dinit_objects = dinit.o load-service.o service.o proc-service.o baseproc-service.o control.o dinit-log.o \
 		dinit-main.o run-child-proc.o options-processing.o dinit-env.o settings.o dinit-iostream.o
 
-objects = $(dinit_objects) dinitctl.o dinitcheck.o shutdown.o dinit-monitor.o dinit-client.o
+objects = $(dinit_objects) dinitctl.o dinit-check.o shutdown.o dinit-monitor.o dinit-client.o
 
-all: dinit dinitctl dinitcheck dinit-monitor $(SHUTDOWN)
+all: dinit dinitctl dinit-check dinit-monitor $(SHUTDOWN)
 
 ../mconfig:
 	@echo "*** No mconfig, please run make from top level"
@@ -26,8 +26,8 @@ dinit: $(dinit_objects)
 dinitctl: dinitctl.o options-processing.o settings.o dinit-iostream.o dinit-client.o
 	$(CXX) -o dinitctl dinitctl.o options-processing.o settings.o dinit-iostream.o dinit-client.o $(ALL_LDFLAGS)
 
-dinitcheck: dinitcheck.o options-processing.o settings.o dinit-iostream.o dinit-client.o
-	$(CXX) -o dinitcheck dinitcheck.o options-processing.o settings.o dinit-iostream.o dinit-client.o $(ALL_LDFLAGS) $(LDFLAGS_LIBCAP)
+dinit-check: dinit-check.o options-processing.o settings.o dinit-iostream.o dinit-client.o
+	$(CXX) -o dinit-check dinit-check.o options-processing.o settings.o dinit-iostream.o dinit-client.o $(ALL_LDFLAGS) $(LDFLAGS_LIBCAP)
 
 dinit-monitor: dinit-monitor.o
 	$(CXX) -o dinit-monitor dinit-monitor.o $(ALL_LDFLAGS)
@@ -43,7 +43,7 @@ $(objects): %.o: %.cc
 check: ../build/includes/mconfig.h $(dinit_objects)
 	$(MAKE) -C tests check
 
-check-igr: dinit dinitctl dinitcheck
+check-igr: dinit dinitctl dinit-check
 	$(MAKE) -C igr-tests check-igr
 
 run-cppcheck:
@@ -51,7 +51,7 @@ run-cppcheck:
 
 install: all
 	install -d $(DESTDIR)$(BINDIR)
-	install $(STRIPOPTS) dinit dinitctl dinitcheck dinit-monitor $(DESTDIR)$(BINDIR)
+	install $(STRIPOPTS) dinit dinitctl dinit-check dinit-monitor $(DESTDIR)$(BINDIR)
 ifeq ($(BUILD_SHUTDOWN),yes)
 	install -d $(DESTDIR)$(SBINDIR)
 	install $(STRIPOPTS) $(SHUTDOWN) $(DESTDIR)$(SBINDIR)
@@ -63,7 +63,7 @@ endif
 
 clean:
 	rm -f *.o *.d
-	rm -f dinit dinitctl dinitcheck $(SHUTDOWN_PREFIX)shutdown dinit-monitor
+	rm -f dinit dinitctl dinit-check $(SHUTDOWN_PREFIX)shutdown dinit-monitor
 	$(MAKE) -C tests clean
 	$(MAKE) -C igr-tests clean
 

@@ -31,6 +31,8 @@
 
 // dinitctl:  utility to control the Dinit daemon, including starting and stopping of services.
 
+#define DINIT_CHECK_APPNAME "dinit-check"
+
 // This utility communicates with the dinit daemon via a unix stream socket (as specified in
 // SYSCONTROLSOCKET, or $HOME/.dinitctl).
 
@@ -1183,14 +1185,16 @@ static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p
     else if (reply_pkt_h == cp_rply::SERVICE_DESC_ERR) {
         if (write_error) {
             cerr << "dinitctl: error in service description.\n";
-            cerr << "dinitctl: try 'dinitcheck <service-name>' or check log for more information.\n";
+            cerr << "dinitctl: try '" DINIT_CHECK_APPNAME " <service-name>' or check log for more"
+                    " information.\n";
         }
         return 1;
     }
     else if (reply_pkt_h == cp_rply::SERVICE_LOAD_ERR) {
         if (write_error) {
             cerr << "dinitctl: error loading service (or dependency of service).\n";
-            cerr << "dinitctl: try 'dinitcheck <service-name>' or check log for more information.\n";
+            cerr << "dinitctl: try '" DINIT_CHECK_APPNAME " <service-name>' or check log for more"
+                    " information.\n";
         }
         return 1;
     }
