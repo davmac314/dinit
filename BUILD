@@ -153,13 +153,11 @@ Dinit should generally build fine with no additional options, other than:
 
 Recommended options, supported by at least GCC and Clang, are:
  -Os       : optimise for size
- -fno-rtti : disable RTTI (run-time type information) for some types (that Dinit doesn't need RTTI
-             for) to reduce output binary size. RTTI is a feature of C++ that exposes (at runtime)
-             information about the dynamic types of objects. However, when Dinit is compiled by
-             Clang with the Libcxxrt C++ runtime library on certain platforms, this option prevents
-             Dinit from working correctly (the known platforms exhibiting this problem are FreeBSD
-             and macOS); see "Special note for the Clang compiler and the Libcxxrt C++ runtime",
-             below.
+ -fno-rtti : disable generation of RTTI (run-time type information) for types for which it should
+             not be required by the runtime (i.e. for types not thrown/caught as exceptions).
+             Dinit does not require RTTI other than for exceptions, and this option reduces the
+             size of binaries slightly. However, it is not always safe to use this option; see
+             "Special note for the Clang compiler and the Libcxxrt C++ runtime".
  -fno-plt  : enables better code generation for non-static builds, but may cause unit test
              failures on some older versions of FreeBSD (eg 11.2-RELEASE-p4 with clang++ 6.0.0).
  -flto     : perform link-time optimisation (option required at compile and link).
