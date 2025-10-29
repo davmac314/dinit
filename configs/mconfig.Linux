@@ -15,11 +15,9 @@ SYSCONTROLSOCKET=/run/dinitctl
 
 # General build options.
 
-# Linux (GCC). Note with GCC 5.x you must use the old (pre-C++11) ABI, with
-# newer versions you can use either (the new ABI is preferable). See BUILD file
-# for more information.
+# Linux (GCC).
 CXX=g++
-CPPFLAGS=-D_GLIBCXX_USE_CXX11_ABI=1
+CPPFLAGS=
 CXXFLAGS=-std=c++11 -Os -Wall -fno-rtti -fno-plt -flto
 LDFLAGS_BASE=
 LDFLAGS=$(LDFLAGS_BASE) $(CXXFLAGS)
