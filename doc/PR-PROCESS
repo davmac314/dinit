@@ -29,7 +29,7 @@ The basic process is:
      Read existing commit messages to get a sense for the expected style/tone. Messages should be
      concise but not at the expense of necessary detail. Write in the imperative, i.e. the message
      should be able to follow "This change will ..." (background information can be provided
-     before the imperative statement, if necessary). 
+     before the imperative statement, if really necessary, but ideally comes afterwards). 
 
      If a commit affects a particular component (a function, program, or "tests", or "build") that
      component should be at the head of the commit summary, examples:
@@ -96,7 +96,7 @@ The basic process is:
 If the PR was accepted, the process is mostly complete (a maintainer will merge the PR at some
 point; they may request that the changes first be rebased onto the current target branch).
 
-If, however, changes were requested in the review:
+If, however, changes were requested in the review, or questions were raised:
 
 6. The contributor reviews comments to resolve outstanding questions.
 
@@ -114,8 +114,14 @@ If, however, changes were requested in the review:
    The contributor should avoid opinionated argument. Remain objective. A maintainer's
    preferences should be respected. Excessive argumentation may result in the PR being closed by
    the maintainer.
+   
+   All questions should be resolved before moving on to step 7.
 
 7. The contributor makes changes to the PR, to satisfy the review.
+
+   Changes should be made first in the contributor's working tree. Do not post details about any
+   changes, or potential changes, as review comments (if clarification is required on a review
+   comment, ask direct questions to resolve the confusion instead).
 
    At this stage changes made should be squashed into the original commits that formed the review
    (unless they truly belong as separate commits according to the criteria described in 1.1).
