@@ -286,7 +286,7 @@ Defaults are shown in [brackets].
   -c, --clear                   Clear previously generated mconfig.
 
 Target options:
-  --platform=PLATFORM           Set the platform manually (for cross compilation)
+  --platform=PLATFORM           Set the platform manually (for cross-compilation)
                                 Note: for all cross-compiles please specify correct CXX and
                                 CXX_FOR_BUILD.
 
