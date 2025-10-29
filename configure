@@ -45,10 +45,8 @@ sub_error()
 # $1: Info, $2: Extra info (optional)
 warning()
 {
-    >&2 echo
     >&2 echo "Warning: $1"
-    [ -n "${2:-}" ] && >&2 echo "  ... $2"
-    >&2 echo
+    [ -z "${2:-}" ] || >&2 echo "  ... $2"
 }
 
 # Produce (as output) a random number from 0-65535
