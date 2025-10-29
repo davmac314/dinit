@@ -452,6 +452,14 @@ for arg in "$@"; do
     esac
 done
 
+## Check platform is specified for a cross-build
+if [ -n "${CXX_FOR_BUILD:-}" ]; then
+    if [ -z "${PLATFORM:-}" ]; then
+        warning "Platform not specified for cross-build, defaulting to \"unknown\"."
+        PLATFORM=unknown
+    fi
+fi
+
 ## Defaults for variables not specified by user
 : "${PLATFORM:=$(uname)}"
 : "${PREFIX:="/usr"}"
@@ -535,9 +543,10 @@ fi
 
 ## Verify PLATFORM value
 case "$PLATFORM" in
-    Linux|FreeBSD|NetBSD|OpenBSD|Darwin) ;;
-    *) warning "$PLATFORM platform is unknown!" \
-        "Known Platforms are: Linux, FreeBSD, NetBSD, OpenBSD, Darwin"
+    # (Allow "unknown" platform as that may be set by cross-build, with warning already triggered) 
+    Linux|FreeBSD|NetBSD|OpenBSD|Darwin|unknown) ;;
+    *) warning "Platform \"$PLATFORM\" is unknown!" \
+        "Known platforms are: Linux, FreeBSD, NetBSD, OpenBSD, Darwin"
     ;;
 esac
 
