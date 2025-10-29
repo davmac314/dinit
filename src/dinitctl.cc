@@ -2637,4 +2637,3 @@ static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service
 
     return 0;
 }
-
