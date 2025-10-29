@@ -539,19 +539,18 @@ void log_msg_end(const char *msg) noexcept
 
 void log_service_started(const char *service_name) noexcept
 {
-    do_log_cons(loglevel_t::NOTICE, "[  OK  ] ", service_name, "\n");
+    do_log_cons(loglevel_t::NOTICE,"[", "\033[1;92m", "  OK  ", "\033[0m] ", service_name, "\n");
     do_log_main(loglevel_t::NOTICE, "dinit: service ", service_name, " started.\n");
 }
 
 void log_service_failed(const char *service_name, bool dep_failed) noexcept
 {
-    loglevel_t cons_lvl = dep_failed ? loglevel_t::WARN : loglevel_t::ERROR;
-    do_log_cons(cons_lvl, "[FAILED] ", service_name, "\n");
+    do_log_cons(loglevel_t::NOTICE, "[", "\033[1;91m", "FAILED", "\033[0m] ", service_name, "\n");
     do_log_main(loglevel_t::ERROR, "dinit: service ", service_name, " failed to start.\n");
 }
 
 void log_service_stopped(const char *service_name) noexcept
 {
-    do_log_cons(loglevel_t::NOTICE, "[STOPPD] ", service_name, "\n");
+    do_log_cons(loglevel_t::NOTICE, "[", "\033[1;93m", "STOPPD", "\033[0m] ", service_name, "\n");
     do_log_main(loglevel_t::NOTICE, "dinit: service ", service_name, " stopped.\n");
 }
