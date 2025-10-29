@@ -71,13 +71,13 @@ mktmpdir()
 # Check whether the specified compiler ($1) seems to work
 cxx_works()
 {
-    info Checking whether \""$1"\" is a working C++ compiler...
+    info Checking whether \"$1\" is a working C++ compiler...
     if eval $1 -o '"$configtmpdir"/testfile' '"$configtmpdir"/testfile.cc'; then
         rm -f "$configtmpdir"/testfile
         sub_info Yes.
     else
         rm -f "$configtmpdir"/testfile*
-        sub_error It seems like \""$1"\" is not working a working C++ compiler. Please specify compiler.
+        sub_error It seems like \""$1"\" is not a working C++ compiler. Please specify compiler.
     fi
 }
 
@@ -118,7 +118,7 @@ try_link_object()
 #   CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
 try_cxx_argument()
 {
-    info Checking whether "$2" is accepted for compilation...
+    info Checking whether \"$2\" is accepted by the compiler...
     if try_compile_source testfile.cc testfile.o "$2"; then
         rm "$configtmpdir"/testfile.o
         sub_info Yes.
@@ -149,7 +149,7 @@ try_optional_cxx_argument()
 #   CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
 try_ld_argument()
 {
-    info Checking whether "$2" is accepted as a link-time option...
+    info Checking whether \"$2\" is accepted as a link-time option...
     if [ ! -e "$configtmpdir"/testfile.o ]; then
         # If the object file doesn't exist yet, need to compile
         if ! try_compile_source testfile.cc testfile.o; then
@@ -177,7 +177,7 @@ try_ld_argument()
 #   CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
 try_both_argument()
 {
-    info Checking whether "$3" is accepted for compiling and linking...
+    info Checking whether \"$3\" is accepted as an option for both compiling and linking...
     if try_compile_source testfile.cc testfile.o "$3" \
             && try_link_object testfile.o testfile "$3"; then
         sub_info Yes.
@@ -201,7 +201,7 @@ try_both_argument()
 #   $2 - the header path
 check_header()
 {
-    info Checking whether "$2" header is available...
+    info Checking whether header \"$2\" is available...
     echo "#include <$2>" > "$configtmpdir/testheader.cc"
     if try_compile_source testheader.cc testheader.o; then
         sub_info "Yes."
@@ -233,8 +233,6 @@ int main()
 }
 _EOF
 }
-
-
 
 # Quote a string to preserve its original form after shell evaluation (except that an empty
 # string remains as an empty string).
@@ -586,15 +584,15 @@ if [ "$AUTO_CXXFLAGS" = "true" ]; then
     # -fno-rtti is a special case. Clang+libcxxrt is known for generating broken code when
     # disabling run-time type information with code which uses exceptions; details regarding the
     # issue can be found here: https://github.com/llvm/llvm-project/issues/66117
-    info Checking whether -fno-rtti is accepted for compilation...
+    info Checking whether \"-fno-rtti\" is accepted by the compiler...
     if [ -n "${CXX_FOR_BUILD:-}" ]; then
         # May not be able to execute the check when cross-compiling.
-        sub_info Cross-compilation detected. Disabling -fno-rtti to avoid a compiler bug on some platforms.
+        sub_info Cross-compilation detected. Disabling \"-fno-rtti\" to avoid a compiler bug on some platforms.
     else
         write_no_rtti_check
         if try_compile_source no-rtti-check.cc no-rtti-check.o -fno-rtti; then
             sub_info "Yes."
-            info Checking whether -fno-rtti breaks exceptions...
+            info Checking whether \"-fno-rtti\" breaks exceptions...
             if try_link_object no-rtti-check.o no-rtti-check && "$configtmpdir"/no-rtti-check; then
                 sub_info "No."
                 CXXFLAGS="$CXXFLAGS -fno-rtti"
