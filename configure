@@ -584,7 +584,7 @@ if [ "$AUTO_CXXFLAGS" = "true" ]; then
     # -fno-rtti is a special case. Clang+libcxxrt is known for generating broken code when
     # disabling run-time type information with code which uses exceptions; details regarding the
     # issue can be found here: https://github.com/llvm/llvm-project/issues/66117
-    info Checking whether \"-fno-rtti\" is accepted by the compiler...
+    info "Checking whether \"-fno-rtti\" is accepted by the compiler..."
     if [ -n "${CXX_FOR_BUILD:-}" ]; then
         # May not be able to execute the check when cross-compiling.
         sub_info "Cross-compilation detected. Disabling \"-fno-rtti\" to avoid a compiler bug on some platforms."
