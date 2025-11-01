@@ -34,49 +34,51 @@
 namespace dasynq {
 
 namespace dprivate {
-class proc_status; // forward declaration
+
+class macos_kq_fd_r;
+
+// File descriptor optional storage. If the mechanism can return the file descriptor, this
+// class will be empty, otherwise it can hold a file descriptor.
+class macos_kq_fd_s {
+    public:
+    macos_kq_fd_s(int) { }
+
+    DASYNQ_EMPTY_BODY
+};
+
+// File descriptor reference (passed to event callback). If the mechanism can return the
+// file descriptor, this class holds the file descriptor. Otherwise, the file descriptor
+// must be stored in an fd_s instance.
+class macos_kq_fd_r {
+    int fd;
+    public:
+    int get_fd(macos_kq_fd_s ss)
+    {
+        return fd;
+    }
+    macos_kq_fd_r(int nfd) : fd(nfd)
+    {
+    }
+};
+
 }
 
-inline namespace v2 {
+inline namespace v3 {
 
-class macos_kqueue_traits : public signal_traits
+template <class Base> class macos_kqueue_loop;
+
+template <typename Base>
+struct macos_kqueue_traits : public signal_traits, public Base
 {
-    template <class Base> friend class macos_kqueue_loop;
-
-    public:
-
-    class fd_r;
-
-    // File descriptor optional storage. If the mechanism can return the file descriptor, this
-    // class will be empty, otherwise it can hold a file descriptor.
-    class fd_s {
-        public:
-        fd_s(int) { }
-
-        DASYNQ_EMPTY_BODY
-    };
-
-    // File descriptor reference (passed to event callback). If the mechanism can return the
-    // file descriptor, this class holds the file descriptor. Otherwise, the file descriptor
-    // must be stored in an fd_s instance.
-    class fd_r {
-        int fd;
-        public:
-        int getFd(fd_s ss)
-        {
-            return fd;
-        }
-        fd_r(int nfd) : fd(nfd)
-        {
-        }
-    };
-
-    using proc_status_t = dprivate::proc_status;
+    using fd_r = dprivate::macos_kq_fd_r;
+    using fd_s = dprivate::macos_kq_fd_s;
 
     constexpr static bool has_bidi_fd_watch = false;
     constexpr static bool has_separate_rw_fd_watches = true;
     constexpr static bool interrupt_after_fd_add = false;
     constexpr static bool supports_non_oneshot_fd = false;
+
+    template <typename T> using backend_tmpl = macos_kqueue_loop<typename Base::template backend_tmpl<T>>;
 };
 
 template <class Base> class macos_kqueue_loop : public signal_events<Base, true>
@@ -89,7 +91,7 @@ template <class Base> class macos_kqueue_loop : public signal_events<Base, true>
     //   receive_signal(sigdata_t &, user *) noexcept
     //   receive_fd_event(fd_r, user *, int flags) noexcept
 
-    using fd_r = typename macos_kqueue_traits::fd_r;
+    using fd_r = dprivate::macos_kq_fd_r;
 
     // The flag to specify poll() semantics for regular file readiness: that is, we want
     // ready-for-read to be returned even at end of file:
@@ -417,7 +419,7 @@ template <class Base> class macos_kqueue_loop : public signal_events<Base, true>
     }
 };
 
-} // namespace v2
+} // namespace v3
 } // namespace dasynq
 
 #endif /* DASYNQ_KQUEUE_MACOS_H_ */

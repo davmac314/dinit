@@ -12,6 +12,21 @@
 // where we need to keep some reserved capacity beyond the current size, we need an alternative solution: hence,
 // this class, svector.
 
+#if defined(__GNUC__) && !defined(__clang__)
+
+// Disable/re-enable spurious "allocation size exceeds largest object" warning (Clang doesn't
+// recognise these)
+#define NO_LARGE_ALLOC_WARN_ON  _Pragma ("GCC diagnostic push") \
+    _Pragma ("GCC diagnostic ignored \"-Walloc-size-larger-than=\"")
+#define NO_LARGE_ALLOC_WARN_OFF _Pragma ("GCC diagnostic pop")
+
+#else
+
+#define NO_LARGE_ALLOC_WARN_ON
+#define NO_LARGE_ALLOC_WARN_OFF
+
+#endif
+
 namespace dasynq {
 
 namespace svec_helper {
@@ -93,13 +108,12 @@ private:
     bool change_capacity(size_type c)
             noexcept(std::is_nothrow_move_constructible<T>::value || std::is_nothrow_copy_constructible<T>::value)
     {
-        _Pragma ("GCC diagnostic push")
-        _Pragma ("GCC diagnostic ignored \"-Walloc-size-larger-than=\"")
+        NO_LARGE_ALLOC_WARN_ON
 
         T *new_storage = (T *)(new (std::nothrow) char[c * sizeof(T)]);
         if (new_storage == nullptr) return false;
 
-        _Pragma ("GCC diagnostic pop")
+        NO_LARGE_ALLOC_WARN_OFF
 
         // To transfer, we prefer move unless it is throwing and copy exists
         svec_helper::move_helper<T>::move(array, new_storage, size_v);

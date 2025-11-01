@@ -22,7 +22,15 @@ namespace dasynq {
 // next timeout, an interrupt is issued (interrupt_wait()) to interrupt any current polling and allow
 // the mechanism to resume polling with an adjusted timeout.
 
+template <class Base, bool provide_mono_timer = true> class itimer_events;
+
 template <class Base, bool provide_mono_timer = true>
+struct itimer_traits : public Base
+{
+    template <typename T> using backend_tmpl = itimer_events<typename Base::template backend_tmpl<T>>;
+};
+
+template <class Base, bool provide_mono_timer /* = true */>
 class itimer_events : public timer_base<Base>
 {
     private:

@@ -22,6 +22,15 @@ namespace dasynq {
 // we are given a handle; we need to use this to modify the watch. We delegate the
 // process of allocating a handle to a priority heap implementation (BinaryHeap).
 
+
+template <class Base> class timer_fd_events;
+
+template <typename Base>
+struct timer_fd_traits : public Base
+{
+    template <typename T> using backend_tmpl = timer_fd_events<typename Base::template backend_tmpl<T>>;
+};
+
 template <class Base> class timer_fd_events : public timer_base<Base>
 {
     private:

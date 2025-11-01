@@ -23,6 +23,12 @@ namespace dasynq {
 
 template <typename Base, typename Mutex = typename Base::mutex_t> class interrupt_channel;
 
+template <typename Base>
+struct interrupt_channel_traits : public Base
+{
+    template <typename T> using backend_tmpl = interrupt_channel<typename Base::template backend_tmpl<T>>;
+};
+
 // In the non-multi-thread case, this doesn't need to be supported:
 template <typename Base> class interrupt_channel<Base, null_mutex> : public Base
 {

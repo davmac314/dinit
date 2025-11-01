@@ -16,91 +16,93 @@
 #include <csignal>
 
 namespace dasynq {
-inline namespace v2 {
+
+inline namespace v3 {
+
+// forward declaration:
+template <class Base> class epoll_loop;
+
+} // v3
 
 namespace dprivate {
-class proc_status; // forward declaration
-}
+
+class epoll_sigdata_t
+{
+    template <class Base> friend class dasynq::v3::epoll_loop;
+
+    struct signalfd_siginfo info;
+
+    public:
+    // mandatory:
+    int get_signo() { return info.ssi_signo; }
+    int get_sicode() { return info.ssi_code; }
+    pid_t get_sipid() { return info.ssi_pid; }
+    uid_t get_siuid() { return info.ssi_uid; }
+    void *get_siaddr() { return reinterpret_cast<void *>(info.ssi_addr); }
+    int get_sistatus() { return info.ssi_status; }
+    int get_sival_int() { return info.ssi_int; }
+    void *get_sival_ptr() { return reinterpret_cast<void *>(info.ssi_ptr); }
+
+    // XSI
+    int get_sierrno() { return info.ssi_errno; }
+
+    // XSR (streams) OB (obselete)
+    int get_siband() { return info.ssi_band; }
+
+    // Linux:
+    int32_t get_sifd() { return info.ssi_fd; }
+    uint32_t get_sittimerid() { return info.ssi_tid; }
+    uint32_t get_sioverrun() { return info.ssi_overrun; }
+    uint32_t get_sitrapno() { return info.ssi_trapno; }
+    uint32_t get_siutime() { return info.ssi_utime; }
+    uint32_t get_sistime() { return info.ssi_stime; }
+    // Field exposed by Linux kernel but not Glibc:
+    // uint16_t get_siaddr_lsb() { return info.ssi_addr_lsb; }
+
+    void set_signo(int signo) { info.ssi_signo = signo; }
+};
+
+class epoll_fd_s {
+    friend class epoll_fd_r;
+
+    // Epoll doesn't return the file descriptor (it can, but it can't return both file
+    // descriptor and user data).
+    int fd;
+
+    public:
+    epoll_fd_s(int fd_p) noexcept : fd(fd_p) { }
+};
+
+class epoll_fd_r {
+    public:
+    int get_fd(epoll_fd_s ss)
+    {
+        return ss.fd;
+    }
+};
+
+} // namespace dprivate
+
+inline namespace v3 {
 
 template <class Base> class epoll_loop;
 
-class epoll_traits
+template <typename Base>
+struct epoll_traits : public Base
 {
-    template <class Base> friend class epoll_loop;
+    using sigdata_t = dprivate::epoll_sigdata_t;
 
-    public:
-
-    class sigdata_t
-    {
-        template <class Base> friend class epoll_loop;
-        
-        struct signalfd_siginfo info;
-        
-        public:
-        // mandatory:
-        int get_signo() { return info.ssi_signo; }
-        int get_sicode() { return info.ssi_code; }
-        pid_t get_sipid() { return info.ssi_pid; }
-        uid_t get_siuid() { return info.ssi_uid; }
-        void * get_siaddr() { return reinterpret_cast<void *>(info.ssi_addr); }
-        int get_sistatus() { return info.ssi_status; }
-        int get_sival_int() { return info.ssi_int; }
-        void * get_sival_ptr() { return reinterpret_cast<void *>(info.ssi_ptr); }
-
-        // XSI
-        int get_sierrno() { return info.ssi_errno; }
-
-        // XSR (streams) OB (obselete)
-        int get_siband() { return info.ssi_band; }
-
-        // Linux:
-        int32_t get_sifd() { return info.ssi_fd; }
-        uint32_t get_sittimerid() { return info.ssi_tid; }
-        uint32_t get_sioverrun() { return info.ssi_overrun; }
-        uint32_t get_sitrapno() { return info.ssi_trapno; }
-        uint32_t get_siutime() { return info.ssi_utime; }
-        uint32_t get_sistime() { return info.ssi_stime; }
-        // Field exposed by Linux kernel but not Glibc:
-        // uint16_t get_siaddr_lsb() { return info.ssi_addr_lsb; }
-        
-        void set_signo(int signo) { info.ssi_signo = signo; }
-    };
-
-    using proc_status_t = dprivate::proc_status;
-
-    class fd_r;
-
-    // File descriptor optional storage. If the mechanism can return the file descriptor, this
-    // class will be empty, otherwise it can hold a file descriptor.
-    class fd_s {
-        friend class fd_r;
-        
-        // Epoll doesn't return the file descriptor (it can, but it can't return both file
-        // descriptor and user data).
-        int fd;
-
-        public:
-        fd_s(int fd_p) noexcept : fd(fd_p) { }
-    };
-
-    // File descriptor reference (passed to event callback). If the mechanism can return the
-    // file descriptor, this class holds the file descriptor. Otherwise, the file descriptor
-    // must be stored in an fd_s instance.
-    class fd_r {
-        public:
-        int get_fd(fd_s ss)
-        {
-            return ss.fd;
-        }
-    };
+    using fd_r = dprivate::epoll_fd_r;
+    using fd_s = dprivate::epoll_fd_s;
     
     constexpr static bool has_bidi_fd_watch = true;
     constexpr static bool has_separate_rw_fd_watches = false;
     constexpr static bool interrupt_after_fd_add = false;
     constexpr static bool interrupt_after_signal_add = false;
     constexpr static bool supports_non_oneshot_fd = true;
-};
 
+    template <typename T> using backend_tmpl = epoll_loop<typename Base::template backend_tmpl<T>>;
+};
 
 template <class Base> class epoll_loop : public Base
 {
@@ -116,15 +118,15 @@ template <class Base> class epoll_loop : public Base
     //   receive_signal(sigdata_t &, user *) noexcept
     //   receive_fd_event(fd_r, user *, int flags) noexcept
     
-    using sigdata_t = epoll_traits::sigdata_t;
-    using fd_r = typename epoll_traits::fd_r;
+    using sigdata_t = dprivate::epoll_sigdata_t;
+    using fd_r = typename dprivate::epoll_fd_r;
     
     void process_events(epoll_event *events, int r)
     {
         std::lock_guard<decltype(Base::lock)> guard(Base::lock);
         
         for (int i = 0; i < r; i++) {
-            void * ptr = events[i].data.ptr;
+            void *ptr = events[i].data.ptr;
             
             if (ptr == &sigfd) {
                 // Signal
@@ -390,7 +392,7 @@ template <class Base> class epoll_loop : public Base
     }
 };
 
-} // namespace v2
+} // namespace v3
 } // namespace dasynq
 
 #endif /* DASYNQ_EPOLL_H_ */

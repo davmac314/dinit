@@ -19,7 +19,15 @@ namespace dasynq {
 
 // See itimer_events - this class works essentially works in the same way (but using posix timers).
 
+template <class Base, bool provide_mono_timer = true> class posix_timer_events;
+
 template <class Base, bool provide_mono_timer = true>
+struct posix_timer_traits : public Base
+{
+    template <typename T> using backend_tmpl = posix_timer_events<typename Base::template backend_tmpl<T>>;
+};
+
+template <class Base, bool provide_mono_timer /* = true */>
 class posix_timer_events : public timer_base<Base>
 {
     private:

@@ -31,87 +31,87 @@
 // mechanism must be used together with kqueue.
 
 namespace dasynq {
-
 namespace dprivate {
-class proc_status; // forward declaration
-}
 
-inline namespace v2 {
-
-template <class Base> class kqueue_loop;
-
-class kqueue_traits
+class kq_sigdata_t
 {
     template <class Base> friend class kqueue_loop;
 
+    siginfo_t info;
+
     public:
+    // mandatory:
+    int get_signo() { return info.si_signo; }
+    int get_sicode() { return info.si_code; }
+    pid_t get_sipid() { return info.si_pid; }
+    uid_t get_siuid() { return info.si_uid; }
+    void * get_siaddr() { return info.si_addr; }
+    int get_sistatus() { return info.si_status; }
+    int get_sival_int() { return info.si_value.sival_int; }
+    void * get_sival_ptr() { return info.si_value.sival_ptr; }
 
-    class sigdata_t
-    {
-        template <class Base> friend class kqueue_loop;
-        
-        siginfo_t info;
-        
-        public:
-        // mandatory:
-        int get_signo() { return info.si_signo; }
-        int get_sicode() { return info.si_code; }
-        pid_t get_sipid() { return info.si_pid; }
-        uid_t get_siuid() { return info.si_uid; }
-        void * get_siaddr() { return info.si_addr; }
-        int get_sistatus() { return info.si_status; }
-        int get_sival_int() { return info.si_value.sival_int; }
-        void * get_sival_ptr() { return info.si_value.sival_ptr; }
-        
-        // XSI
-        int get_sierrno() { return info.si_errno; }
+    // XSI
+    int get_sierrno() { return info.si_errno; }
 
-        // XSR (streams) OB (obselete)
+    // XSR (streams) OB (obselete)
 #if !defined(__OpenBSD__)
-        // Note: OpenBSD doesn't have this; most other systems do. Technically it is part of the STREAMS
-        // interface.
-        int get_siband() { return info.si_band; }
+    // Note: OpenBSD doesn't have this; most other systems do. Technically it is part of the STREAMS
+    // interface.
+    int get_siband() { return info.si_band; }
 #endif
 
-        void set_signo(int signo) { info.si_signo = signo; }
-    };
+    void set_signo(int signo) { info.si_signo = signo; }
+};
 
-    using proc_status_t = dasynq::dprivate::proc_status;
+class kq_fd_r;
 
-    class fd_r;
+// File descriptor optional storage. If the mechanism can return the file descriptor, this
+// class will be empty, otherwise it can hold a file descriptor.
+class kq_fd_s {
+    public:
+    kq_fd_s(int) { }
 
-    // File descriptor optional storage. If the mechanism can return the file descriptor, this
-    // class will be empty, otherwise it can hold a file descriptor.
-    class fd_s {
-        public:
-        fd_s(int) { }
+    DASYNQ_EMPTY_BODY
+};
 
-        DASYNQ_EMPTY_BODY
-    };
+// File descriptor reference (passed to event callback). If the mechanism can return the
+// file descriptor, this class holds the file descriptor. Otherwise, the file descriptor
+// must be stored in an fd_s instance.
+class kq_fd_r {
+    int fd;
+    public:
+    int get_fd(kq_fd_s ss)
+    {
+        return fd;
+    }
+    kq_fd_r(int nfd) : fd(nfd)
+    {
+    }
+};
 
-    // File descriptor reference (passed to event callback). If the mechanism can return the
-    // file descriptor, this class holds the file descriptor. Otherwise, the file descriptor
-    // must be stored in an fd_s instance.
-    class fd_r {
-        int fd;
-        public:
-        int getFd(fd_s ss)
-        {
-            return fd;
-        }
-        fd_r(int nfd) : fd(nfd)
-        {
-        }
-    };
-    
+}
+
+inline namespace v3 {
+
+template <class Base> class kqueue_loop;
+
+template <typename Base>
+struct kqueue_traits : public Base
+{
+    using sigdata = dprivate::kq_sigdata_t;
+    using fd_r = dprivate::kq_fd_r;
+    using fd_s = dprivate::kq_fd_s;
+
     constexpr static bool has_bidi_fd_watch = false;
     constexpr static bool has_separate_rw_fd_watches = true;
     constexpr static bool interrupt_after_fd_add = false;
     constexpr static bool interrupt_after_signal_add = false;
     constexpr static bool supports_non_oneshot_fd = false;
+
+    template <typename T> using backend_tmpl = kqueue_loop<typename Base::template backend_tmpl<T>>;
 };
 
-} // namespace v2
+} // namespace v3
 
 namespace dprivate {
 namespace dkqueue {
@@ -171,10 +171,11 @@ inline bool get_siginfo(int signo, siginfo_t *siginfo)
 }
 
 #endif
+
 } // namespace dkqueue
 } // namespace dprivate
 
-inline namespace v2 {
+inline namespace v3 {
 
 template <class Base> class kqueue_loop : public Base
 {
@@ -627,7 +628,7 @@ template <class Base> class kqueue_loop : public Base
     }
 };
 
-} // namespace v2
+} // namespace v3
 } // namespace dasynq
 
 #endif /* DASYNQ_KQUEUE_H_ */

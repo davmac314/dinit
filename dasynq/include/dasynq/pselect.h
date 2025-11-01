@@ -5,6 +5,19 @@
 #include "signal.h"
 
 namespace dasynq {
+inline namespace v3 {
+
+template <class Base> class pselect_events; // forward-decl
+
+} // namespace v3
+
+template <typename Base>
+struct pselect_traits : public select_traits<Base>
+{
+    template <typename T> using backend_tmpl = pselect_events<typename Base::template backend_tmpl<T>>;
+};
+
+inline namespace v3 {
 
 template <class Base> class pselect_events : public signal_events<Base, false>
 {
@@ -27,7 +40,7 @@ template <class Base> class pselect_events : public signal_events<Base, false>
     //   receive_signal(sigdata_t &, user *) noexcept
     //   receive_fd_event(fd_r, user *, int flags) noexcept
 
-    using fd_r = typename select_traits::fd_r;
+    using fd_r = typename dprivate::select_fd_r;
 
     void process_events(fd_set *read_set_p, fd_set *write_set_p, fd_set *error_set_p)
     {
@@ -300,6 +313,7 @@ template <class Base> class pselect_events : public signal_events<Base, false>
     }
 };
 
+} // namespace dasynq::v3
 } // namespace dasynq
 
 #endif /* DASYNQ_PSELECT_H_ */

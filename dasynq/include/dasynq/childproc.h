@@ -111,6 +111,14 @@ inline namespace v2 {
 
 using pid_watch_handle_t = dasynq::dprivate::pid_map::pid_handle_t;
 
+template <class Base> class child_proc_events;
+
+struct child_proc_traits
+{
+    using proc_status_t = dasynq::dprivate::proc_status;
+    template <typename T> using backend_tmpl = child_proc_events<T>;
+};
+
 template <class Base> class child_proc_events : public Base
 {
     public:
