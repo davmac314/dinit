@@ -76,6 +76,10 @@ The basic process is:
 
 3. The contributor opens a PR, based on their branch.
 
+   The PR summary should contain a description of the changes (in trivial cases with a single
+   commit, this could be a duplicate of commit comment). It should also mention how the changes
+   have been tested. It should contain links to any relevant issues.
+
 4. A maintainer will briefly inspect the PR to ensure that the contributor has read the
    CONTRIBUTING document as well as this document and complied with the basic initial
    requirements.

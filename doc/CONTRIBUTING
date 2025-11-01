@@ -5,8 +5,8 @@ This is a guide to contributing to Dinit. It should be read from start to finish
 to make a contribution to the Dinit codebase or documentation.
 
 Note:  Yes, this is a lot of text (especially since it refers to information contained in other
-       files). Having a proper process for contribution is important for maintainer sanity and to
-       avoid burn-out.
+       files). Having a proper process for contribution is important for quality, and also to
+       avoid maintainer burn-out.
 
 
 Before making a contribution
