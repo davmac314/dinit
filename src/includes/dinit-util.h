@@ -376,11 +376,15 @@ inline std::pair<int,int> open_with_dir(const char *dirname, const char *basenam
     long link_resolve_times = sysconf(_SC_SYMLOOP_MAX);
 
     // strip the basename and open as a directory
-    #ifdef O_SEARCH
+    #if defined(O_SEARCH)
         constexpr int dir_search_flag = O_SEARCH;
-    #else
-        // O_SEARCH is not available on Linux
+    #elif defined (O_PATH)
+        // O_SEARCH is not available on Linux, but O_PATH is; it's almost the same.
         constexpr int dir_search_flag = O_PATH;
+    #else
+        // Neither O_SEARCH nor O_PATH are available on OpenBSD. We can use O_DIRECTORY but will
+        // have to specify an access mode (O_RDONLY).
+        constexpr int dir_search_flag = O_DIRECTORY | O_RDONLY;
     #endif
 
     begin:
