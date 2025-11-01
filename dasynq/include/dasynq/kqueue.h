@@ -31,11 +31,17 @@
 // mechanism must be used together with kqueue.
 
 namespace dasynq {
+
+// forward-declare dasynq::v3::kqueue_loop
+inline namespace v3 {
+template <class Base> class kqueue_loop;
+}
+
 namespace dprivate {
 
 class kq_sigdata_t
 {
-    template <class Base> friend class kqueue_loop;
+    template <class Base> friend class v3::kqueue_loop;
 
     siginfo_t info;
 
@@ -89,16 +95,14 @@ class kq_fd_r {
     }
 };
 
-}
+} // namespace dasynq::dprivate
 
 inline namespace v3 {
-
-template <class Base> class kqueue_loop;
 
 template <typename Base>
 struct kqueue_traits : public Base
 {
-    using sigdata = dprivate::kq_sigdata_t;
+    using sigdata_t = dprivate::kq_sigdata_t;
     using fd_r = dprivate::kq_fd_r;
     using fd_s = dprivate::kq_fd_s;
 
@@ -205,8 +209,8 @@ template <class Base> class kqueue_loop : public Base
     //   receive_signal(sigdata_t &, user *) noexcept
     //   receive_fd_event(fd_r, user *, int flags) noexcept
     
-    using sigdata_t = kqueue_traits::sigdata_t;
-    using fd_r = typename kqueue_traits::fd_r;
+    using sigdata_t = dprivate::kq_sigdata_t;
+    using fd_r = dprivate::kq_fd_r;
     
     // The flag to specify poll() semantics for regular file readiness: that is, we want
     // ready-for-read to be returned even at end of file:
