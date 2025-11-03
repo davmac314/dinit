@@ -10,8 +10,8 @@ This is the README for Dinit, the service manager and init system. It is
 intended to provide an overview; For full documentation please check the manual pages. 
 The impatient may wish to check out the [getting started guide](doc/getting_started.md).
 
-Dinit is used as the init system for [Chimera Linux](https://chimera-linux.org/), and is an init
-system option for [Artix Linux](https://artixlinux.org/).
+Dinit is used as the init system for [Chimera Linux](https://chimera-linux.org/) and
+[eweOS](https://os.ewe.moe/), and is an init system option for [Artix Linux](https://artixlinux.org/).
 
 ---
 
