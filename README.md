@@ -12,6 +12,7 @@ The impatient may wish to check out the [getting started guide](doc/getting_star
 
 Dinit is used as the init system for [Chimera Linux](https://chimera-linux.org/) and
 [eweOS](https://os.ewe.moe/), and is an init system option for [Artix Linux](https://artixlinux.org/).
+It is also packaged as a user service manager on many other OSes.
 
 ---
 
