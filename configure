@@ -175,7 +175,7 @@ try_ld_argument()
 #   $3 - the argument to test/add
 #   CXX - the name of the compiler
 #   CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
-try_both_argument()
+try_compile_link_argument()
 {
     info "Checking whether \"$3\" is accepted as an option for both compiling and linking..."
     if try_compile_source testfile.cc testfile.o "$3" \
@@ -607,7 +607,7 @@ fi
 if [ "$AUTO_LDFLAGS" = true ] && [ "$AUTO_CXXFLAGS" = true ]; then
     # -flto must work for both compiling and linking, but we don't want to add it to LDFLAGS as,
     # if LTO is used, CXXFLAGS will always be used alongside LDFLAGS.
-    if try_both_argument CXXFLAGS - -flto; then
+    if try_compile_link_argument CXXFLAGS - -flto; then
         HAS_LTO="true"
     else
         HAS_LTO="false"
@@ -698,7 +698,7 @@ if [ "$AUTO_TEST_LDFLAGS" = "true" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
     # (Note that we append directly to TEST_CXXFLAGS_MK/TEST_LDFLAGS_MK here)
     CXXFLAGS="$established_TEST_CXXFLAGS" CXXFLAGS_EXTRA="$TEST_CXXFLAGS_EXTRA" \
             LDFLAGS="$established_TEST_LDFLAGS" LDFLAGS_EXTRA="$TEST_LDFLAGS_EXTRA" \
-            try_both_argument TEST_CXXFLAGS_MK $LDFLAGS_VAR -fsanitize=address,undefined
+            try_compile_link_argument TEST_CXXFLAGS_MK $LDFLAGS_VAR -fsanitize=address,undefined
 fi
 
 ## Create mconfig
