@@ -110,10 +110,10 @@ try_link_object()
 }
 
 # Test if the compiler accepts an argument (for compilation only); if so add it to named variable.
-# Note: this function will return failure if the flag is unsupported (use try_optional_cxx_argument
-# instead, to avoid errorring out).
 #   $1 - the name of the variable to potentially add the argument to
 #   $2 - the argument to test/add
+#   $3 - either "MANDATORY" or empty/not set; if MANDATORY, this function returns failure if the
+#        argument isn't supported by the compiler. 
 #   CXX - the name of the compiler
 #   CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
 try_cxx_argument()
@@ -127,20 +127,13 @@ try_cxx_argument()
         return 0
     else
         sub_info "No."
-        return 1
+        if [ "${3:-}" = MANDATORY ]; then
+            return 1
+        fi
+        return 0
     fi
 }
 
-# Test if the compiler accepts an argument; same as try_cxx_argument, but doesn't return failure
-# if the flag is unsupported.
-#   $1 - the name of the variable to potentially add the argument to
-#   $2 - the argument to test/add
-#   CXX - the name of the compiler
-#   CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
-try_optional_cxx_argument()
-{
-    try_cxx_argument "$1" "$2" || :
-}
 
 # Test if an argument is supported during linking.
 #   $1 - the name of the variable to potentially add the argument to
@@ -571,14 +564,14 @@ fi
 
 ## Test compiler/linker supported arguments
 if [ "$AUTO_CXXFLAGS" = "true" ]; then
-    if ! try_cxx_argument CXXFLAGS -std=c++11; then
+    if ! try_cxx_argument CXXFLAGS -std=c++11 MANDATORY; then
         sub_error "The C++ compiler ($CXX) doesn't accept '-std=c++11' and may be too old."
     fi
     for argument in -Wall \
                     -Os \
                     -fno-plt
     do
-        try_optional_cxx_argument CXXFLAGS $argument
+        try_cxx_argument CXXFLAGS $argument
     done
 
     # -fno-rtti is a special case. Clang+libcxxrt is known for generating broken code when
