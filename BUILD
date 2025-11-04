@@ -155,7 +155,7 @@ Recommended options, supported by at least GCC and Clang, are:
              not be required by the runtime (i.e. for types not thrown/caught as exceptions).
              Dinit does not require RTTI other than for exceptions, and this option reduces the
              size of binaries slightly. However, it is not always safe to use this option; see
-             "Special note for the Clang compiler and the Libcxxrt C++ runtime".
+             "Special note for the Clang compiler and the Libcxxrt/Libcxxabi runtime".
  -fno-plt  : enables better code generation for non-static builds, but may cause unit test
              failures on some older versions of FreeBSD (eg 11.2-RELEASE-p4 with clang++ 6.0.0).
  -flto     : perform link-time optimisation (option required at compile and link).
@@ -166,7 +166,7 @@ Consult compiler documentation for further information on the above options.
 Cross-compilation with "configure" script
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-If cross-compiling (i.e. specifying any of the xxx_FOR_BUILD variables), there are some additional
+If cross-compiling (i.e. specifying the CXX_FOR_BUILD variable), there are some additional
 considerations regarding use of the "configure" script.  
 
 Unless compiler arguments to use are specified when "configure" is invoked, the script will check
@@ -289,17 +289,18 @@ Note that if you specify installation paths via variables on the "make" command 
 specify the same values for both build and install steps.  
 
 
-Special note for the Clang compiler and the Libcxxrt C++ runtime
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+Special note for the Clang compiler and the Libcxxrt/Libcxxabi runtime
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-Clang when used as a compiler together with the Libcxxrt C++ runtime library on certain platforms,
-has an issue that prevents exceptions from working properly in particular cases and may prevent
-Dinit from working correctly when compiled with the "-fno-rtti" compiler option (see "Recommended
-compiler options"). The known platforms exhibiting this problem are FreeBSD and macOS.
+Clang when used as a compiler together with the Libcxxrt or Libcxxabi C++ runtime library on
+certain platforms has an issue  that prevents exceptions from working properly in particular cases
+when the "-fno-rtti" compiler option (see "Recommended compiler options") is used. This issue
+can prevent Dinit from working correctly. The known platforms exhibiting this problem are FreeBSD,
+OpenBSD and macOS; it may affect other *BSD variants using Clang, but this hasn't been verified.
 
-Some details regarding the issue with Clang can be found here:
+Some details regarding the issue can be found here:
 
     https://github.com/llvm/llvm-project/issues/66117
 
-It's recommended not to use the "-fno-rtti" compiler option on the mentioned platforms. As a
-consequence, the output binary will be larger.
+It's recommended not to use the "-fno-rtti" compiler option when building Dinit on the mentioned
+platforms. As a consequence of not using this option, the output binary will be larger.
