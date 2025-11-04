@@ -622,7 +622,7 @@ and no more than 7.
 .IP
 This setting is only available if \fBdinit\fR was built with ioprio support.
 .TP
-\fBoom-score-adj\fR = \fIadj-value\fR
+\fBoom\-score\-adj\fR = \fIadj-value\fR
 Specifies the OOM killer score adjustment for the service's process(es).
 The value is an integer no less than -1000 and no more than 1000.
 .IP
