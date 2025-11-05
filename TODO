@@ -1,3 +1,14 @@
+- Validation for service names
+- deal with infinite service chains (depends-on = myself@xyz$1)
+  i.e. limit dependency depth.
+- Better/more efficient identification of dependency cycles
+- Document a chosen style for quoting (`this' or "this") and parameters (eg \fIthis\fR) and
+  keywords in man pages and ensure the chosen style is used consistently
+- Man page documentation should show only relevant (compiled-in) options
+- Close fds > 3 on startup?
+- Optional locale support?
+
+
 For version 1.0 (release requirements):
 ---------------------------------------
 * Be able to boot and shutdown Linux and FreeBSD (or OpenBSD).
