@@ -73,7 +73,7 @@ static void control_socket_cb(eventloop_t *loop, int fd) noexcept;
 static void find_cgroup_path() noexcept;
 #endif
 
-static void printVersion();
+static void print_version();
 
 // Variables
 
@@ -381,7 +381,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             }
         }
         else if (strcmp(argv[i], "--version") == 0) {
-            printVersion();
+            print_version();
             return -1;
         }
         else if (strcmp(argv[i], "--help") == 0) {
@@ -1238,7 +1238,7 @@ static void find_cgroup_path() noexcept
 
 #endif // SUPPORT_CGROUPS
 
-static void printVersion()
+static void print_version()
 {
     std::cout << "Dinit version " << DINIT_VERSION << '.' << std::endl;
     const unsigned feature_count = 0
