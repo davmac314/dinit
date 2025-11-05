@@ -93,6 +93,7 @@ int main(int argc, char **argv)
     cout << "\n// Constants\n";
     cout << "\nconstexpr static char DINIT_VERSION[] = " << stringify(vars["VERSION"]) << ";\n";
     cout << "constexpr static char SYSCONTROLSOCKET[] = " << stringify(vars["SYSCONTROLSOCKET"]) << ";\n";
+    cout << "constexpr static char BINDIR[] = " << stringify(vars["BINDIR"]) << ";\n";
     cout << "constexpr static char SBINDIR[] = " << stringify(vars["SBINDIR"]) << ";\n";
     cout << "constexpr static char SHUTDOWN_PREFIX[] = " << stringify(vars["SHUTDOWN_PREFIX"]) << ";\n";
 

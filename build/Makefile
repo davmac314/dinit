@@ -9,7 +9,7 @@ all: ../mconfig includes/mconfig.h
 
 includes/mconfig.h: ../mconfig tools/mconfig-gen.cc version.conf
 	$(MAKE) -C tools mconfig-gen
-	./tools/mconfig-gen SBINDIR=$(SBINDIR) SYSCONTROLSOCKET=$(SYSCONTROLSOCKET) \
+	./tools/mconfig-gen BINDIR=$(BINDIR) SBINDIR=$(SBINDIR) SYSCONTROLSOCKET=$(SYSCONTROLSOCKET) \
 		SHUTDOWN_PREFIX=$(SHUTDOWN_PREFIX) VERSION=$(VERSION) \
 		DEFAULT_AUTO_RESTART=$(DEFAULT_AUTO_RESTART) \
 		DEFAULT_START_TIMEOUT=$(DEFAULT_START_TIMEOUT) \

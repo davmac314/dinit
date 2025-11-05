@@ -195,7 +195,7 @@ namespace {
 
     // These need to be at namespace scope to prevent causing stack allocations when using them:
     constexpr auto shutdown_exec = literal(SBINDIR) + "/" + SHUTDOWN_PREFIX + "shutdown";
-    constexpr auto dinit_exec = literal(SBINDIR) + "/" + "dinit";
+    constexpr auto dinit_exec = literal(BINDIR) + "/" + "dinit";
     constexpr auto error_exec_sd = literal("Error executing ") + shutdown_exec + ": ";
     constexpr auto error_exec_dinit = literal("Error executing ") + dinit_exec + ": ";
 }
