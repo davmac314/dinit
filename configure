@@ -662,6 +662,8 @@ else
     # default LDFLAGS are just $(LDFLAGS_BASE)
     if [ "$AUTO_LDFLAGS" = true ]; then
         LDFLAGS_MK="\$(LDFLAGS_BASE)"
+    else
+        LDFLAGS_MK="$(quote_for_make "$LDFLAGS")"
     fi
     if [ "$AUTO_TEST_LDFLAGS" = true ]; then
         TEST_LDFLAGS_MK="\$(TEST_LDFLAGS_BASE)"
