@@ -2,6 +2,8 @@
 #include <cstdio>
 #include <csignal>
 #include <cstring>
+#include <cstdlib>
+
 #include <string>
 #include <iostream>
 #include <exception>
@@ -491,6 +493,7 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
     sigfillset(&allsigs);
     sigprocmask(SIG_SETMASK, &allsigs, nullptr);
     
+    bool soft_reboot = false;
     int reboot_type = RB_AUTOBOOT; // reboot
     const char *shutdown_type_arg = "reboot";
 #if defined(RB_POWER_OFF)
@@ -527,6 +530,10 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
 #if defined(RB_KEXEC)
     if (shutdown_type == shutdown_type_t::KEXEC) reboot_type = RB_KEXEC;
 #endif
+    if (shutdown_type == shutdown_type_t::SOFTREBOOT) {
+        shutdown_type_arg = "soft";
+        soft_reboot = true;
+    }
     
     // Write to console rather than any terminal, since we lose the terminal it seems:
     int consfd = open("/dev/console", O_WRONLY);
@@ -600,6 +607,11 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
 
     sync();
     
+    if (soft_reboot) {
+        // For a soft reboot we are not PID 1; init is still running, and waiting for us.
+        exit(0);
+    }
+
     sub_buf.append("Issuing shutdown via kernel...\n");
     loop.poll();  // give message a chance to get to console
 #ifdef __NetBSD__
@@ -614,6 +626,9 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
                     "\nIt is possible that no suitable kernel image was loaded before"
                     "\nreboot with kexec was attempted.\n"
             );
+        }
+        else {
+            sub_buf.append("\n");
         }
         while (true) loop.run();
     }

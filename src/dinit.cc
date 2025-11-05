@@ -65,6 +65,7 @@ static void close_control_socket() noexcept;
 static void control_socket_ready() noexcept;
 static void confirm_restart_boot() noexcept;
 static void flush_log() noexcept;
+static void do_soft_reboot(char **argv) noexcept;
 
 static void control_socket_cb(eventloop_t *loop, int fd) noexcept;
 
@@ -718,10 +719,7 @@ int dinit_main(int argc, char **argv)
     
     if (am_system_mgr) {
         if (shutdown_type == shutdown_type_t::SOFTREBOOT) {
-            sync(); // Sync to minimise data loss in case soft-boot fails
-
-            execv(dinit_exec, argv);
-            log(loglevel_t::ERROR, error_exec_dinit, strerror(errno));
+            do_soft_reboot(argv);
 
             // if we get here, soft reboot failed; reboot normally
             log(loglevel_t::ERROR, "Could not soft-reboot. Will attempt reboot.");
@@ -870,6 +868,35 @@ static void confirm_restart_boot() noexcept
     term_attr.c_lflag |= ICANON;
     tcsetattr(STDIN_FILENO, TCSANOW, &term_attr);
     fcntl(STDIN_FILENO, F_SETFL, origFlags);
+}
+
+static void do_soft_reboot(char **argv) noexcept
+{
+    sync(); // Sync to minimise data loss in case soft-boot fails
+
+    // Fork-exec "shutdown --system -s", which will run any shutdown hooks.
+    int child_pid;
+    if ((child_pid = fork()) == 0) {
+        // child
+        execl(shutdown_exec.c_str(), shutdown_exec.c_str(), "--system", "-s", nullptr);
+        _exit(EXIT_FAILURE);
+    }
+    else if (child_pid < 0) {
+        log(loglevel_t::ERROR, error_exec_sd, strerror(errno));
+        flush_log();
+    }
+    else {
+        int wstatus;
+        waitpid(child_pid, &wstatus, 0);
+        if (wstatus != 0) {
+            log(loglevel_t::ERROR, "Execution of shutdown returned non-zero status");
+            flush_log();
+        }
+    }
+
+    // Re-exec the dinit process.
+    execv(dinit_exec, argv);
+    log(loglevel_t::ERROR, error_exec_dinit, strerror(errno));
 }
 
 // Callback for control socket
