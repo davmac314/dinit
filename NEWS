@@ -1,6 +1,85 @@
-== Version ???
+== Version 0.20.0 (TBA)
 
-TBA
+This release fully incorporates the incoming feature contributions that were made during the
+preceding (0.19.x) beta period. It is anticipated that the next release will be a release
+candidate for the 1.0 release. New features will not be added until after the final version 1.0
+release has been made. 
+
+Thanks to current sponsors: Paweł Zmarzły (pzmarzly), Wesley Moore (wezm),
+M. Herdiansyah (konimex), Coleman McFarland (dontlaugh), q66, saolof, and private sponsors.
+Thanks also to one-time sponsors Matthew Simmonz (Simmonz), hlclemson, and fictitiousexistence. 
+
+Note that some of the new features below were included in the 0.19.x releases by mistake. They
+are officially supported as of this release. In some cases, some changes have been made to the
+features as they were found in 0.19.x; these changes are also documented below.
+
+Important changes:
+ * The 'dinitcheck' utility has been renamed to 'dinit-check'.
+ * "Soft" reboot ('reboot -s') now invokes shutdown as with other reboot/shutdown types. This
+   means that any shutdown hook will be executed, and filesystems may be unmounted.
+ * The Meson-based build has been removed.
+ * The default installation location for binaries, other than "shutdown" and its aliases, is now
+   "/usr/bin". For shutdown etc it is now "/usr/sbin". Previously, the default for all binaries
+   was "/sbin". The BINDIR build variable has been added to specify the location of binaries other
+   than "shutdown" (the SBINDIR variable remains and controls the location of "shutdown"). For
+   those using "configure" to generate build configuration, "--bindir=..." can be used to specify
+   the BINDIR directory.
+
+New features:
+ * Add support for service arguments, allowing any number of services to be created from a single
+   "template" service description file (initial functionality implemented by q66).
+ * A new '@meta' command is available in service descriptions to specify meta-information, i.e.
+   information about a service which does not affect how the service runs. This may be useful for
+   use with external tooling. A '@meta enable-via' subcommand can be used to specify which other
+   service the described service should be added as a dependency of when enabled via "dinitctl
+   enable" (assuming "--from" is not specified); if not specified, the default remains "boot".
+ * A new "pre-load" variable expansion is used for certain service settings. This takes place
+   before the service-specific environment (if any) has been loaded, but allows substituting
+   global environment variable values and service arguments. (Implemented for different settings
+   by various contributors, including q66 and Mark Karlinsky).
+ * Support for specifying the "nice" level of service processes. This affects scheduling priority.
+   Implemented by q66.
+ * Support for setting the ioprio (I/O priority) value on Linux (q66).
+ * Support for setting the oom-score-adj (OOM killer "score") value on Linux (q66).
+ * Support for Linux capabilities. This allows services to be granted extra capabilities compared
+   to unprivileged processes, even when they do not run as root. Implemented by q66.
+ * Support for non-interactive recovery, which after a boot failure runs the recovery service
+   without any interactive prompt ("--auto-recovery") (Jami Kettunen).
+ * The shutdown type (halt, reboot etc) is now passed as an argument to the shutdown hook script
+   (Mara). 
+ * Support for reboot via kexec on Linux (executing a new kernel without going through firmware
+   initialisation) (el-remph), via "shutdown -k". A kernel must be loaded first (via the "kexec"
+   command, which is part of a separate package).
+ * Sending the SIGUSR1 signal to dinit now causes it to open the control socket if it has not yet
+   been opened, or if it has been opened previously but is no longer visible in the filesystem.
+   This may be useful for system recovery scenarios.
+
+Changes:
+ * Pre-load variable expansion is performed on service description file include paths, service
+   dependency settings ('depends-on' etc), the 'env-file' setting path, and various other
+   settings, including directory-based dependency groups ('depends-on.d' etc) (the latter
+   implemented by Mark Karlinksky).
+ * File paths specified in a service description file or fragment (that is @include'd from another
+   file) are now in general resolved against the location of that service description file or
+   fragment. This means paths can be relative to the location of the service configuration.
+ * The "secure-bits" setting (which was classified as an in-development feature in previous
+   releases) has been renamed to "securebits", to match relevant Linux documentation (see
+   capabilities(7)).
+ * Building support for ioprio now requires the <linux/ioprio.h> header to be present on the
+   system (note that ioprio support was previously unofficial).
+ * The configure script allows specifying build variables containing spaces and shell
+   metacharacters by quoting them using shell quoting rules. Note that such a value supplied
+   on the configure command line must typically be doubly-quoted: once for the invoking shell,
+   and then for processing by configure.
+ * Default build options for FreeBSD have changed, to avoid a bug in exception handling in
+   clang/libcxxruntime.
+
+Fixes:
+ * Fix error message from "dinitctl enable" when the "from" service description file cannot be
+   read, to include the correct location of the problematic file.
+
+As usual, a number of minor fixes and improvements (in addition to those already mentioned) were
+contributed by Mobin Aydinfar.
 
 == Version 0.19.4 (beta release #8)
 
