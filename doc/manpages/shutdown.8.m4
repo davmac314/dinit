@@ -6,7 +6,7 @@ $$$SHUTDOWN_PREFIX@@@shutdown, $$$SHUTDOWN_PREFIX@@@halt, $$$SHUTDOWN_PREFIX@@@p
 .SH SYNOPSIS
 .\"
 .B $$$SHUTDOWN_PREFIX@@@shutdown
-[\fB\-r\fR|\fB\-h\fR|\fB\-p\fR] [\fB\-\-use\-passed\-cfd\fR]
+[\fB\-r\fR|\fB\-h\fR|\fB\-p\fR|\fB-s\fR] [\fB\-\-use\-passed\-cfd\fR]
 [\fB\-\-system\fR]
 .br
 \fB$$$SHUTDOWN_PREFIX@@@halt\fR [\fIoptions...\fR]
@@ -104,7 +104,7 @@ that depend on all processes being terminated.
 If the shutdown hook cleanly unmounts (or remounts as read-only) all file systems including the
 root file system, it should exit with status 0 (success), which will prevent \fB$$$SHUTDOWN_PREFIX@@@shutdown\fR from
 attempting to unmount file systems itself.
-If it does not unmount file systems, the script should not exit with status 0. 
+If it does not unmount file systems, the script should exit with a status other than 0.
 .\"
 .SH SEE ALSO
 .\"
