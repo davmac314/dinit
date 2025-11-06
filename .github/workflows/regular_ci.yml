@@ -47,15 +47,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Add i386 repos
+    - name: Add i386 repositories
       if: ${{ matrix.arch == 'i386' }}
       run: dpkg --add-architecture i386
-    - name: Getting depends (amd64)
+    - name: Getting dependencies (amd64)
       if: ${{ matrix.arch == 'amd64' }}
       run: |
         apt-get update
         DEBIAN_FRONTEND=noninteractive apt-get install g++ make m4 libcap-dev file -y
-    - name: Getting depends (i386)
+    - name: Getting dependencies (i386)
       if: ${{ matrix.arch == 'i386' }}
       run: |
         apt-get update
@@ -64,7 +64,7 @@ jobs:
       run: g++ -dumpmachine
     - name: Build
       run: make
-    - name: Print dinit executive file architecture
+    - name: Print dinit executable file architecture
       run: file ./src/dinit
     - name: Unit tests
       run: make check
@@ -96,7 +96,7 @@ jobs:
       run: g++ -dumpmachine
     - name: Build
       run: make
-    - name: Print dinit executive file architecture
+    - name: Print dinit executable file architecture
       run: file ./src/dinit
     - name: Unit tests
       run: make check
@@ -122,7 +122,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Getting depends
+    - name: Getting dependencies
       run: |
         apk update
         apk add make g++ m4 file libcap-dev
@@ -130,7 +130,7 @@ jobs:
       run: g++ -dumpmachine
     - name: Build
       run: make
-    - name: Print dinit executive file architecture
+    - name: Print dinit executable file architecture
       run: file ./src/dinit
     - name: Unit tests
       run: make check
