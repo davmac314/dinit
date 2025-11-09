@@ -1,0 +1,28 @@
+`dinit-edit` -- list all dinit service files or edit one
+
+## Usage
+
+```
+# list all
+dinit-edit
+
+# edit one
+dinit-edit <service>
+```
+
+Note: Please don't have space or other weird characters inside the service file path, since it's passed to `sh -c '$EDITOR $service_file_path'`.
+
+## Building
+
+There are two equivalent implementations, 1 in Go, 1 in Zig.
+
+## Buliding The Go implementation
+
+```
+ninja
+```
+
+## Building The Zig implementatinon
+
+See build.ninja. You must use Zig 0.14.1.
+
