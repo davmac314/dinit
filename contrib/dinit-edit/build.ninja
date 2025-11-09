@@ -1,0 +1,8 @@
+rule zig
+    command = zig build-exe -O ReleaseSafe $in
+
+rule go
+    command = go build $in
+
+#build dinit-edit: zig dinit-edit.zig
+build dinit-edit: go dinit-edit.go
