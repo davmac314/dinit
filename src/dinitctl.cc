@@ -1738,11 +1738,19 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
             cout << "    Process ID: " << service_pid << "\n";
         }
 
-        std::string service_dir = get_service_description_dir(socknum, rbuffer, handle);
-        if (!service_dir.empty()) {
-            std::string path = service_dir + "/" + service_name;
-            cout << "    Path: " << path << "\n";
+
+        handle_t from_handle;
+
+        if (!load_service(socknum, rbuffer, service_name, &from_handle, nullptr)) {
+            // TODO: handle error here?
+        } else {
+            std::string service_dir = get_service_description_dir(socknum, rbuffer, from_handle);
+            if (!service_dir.empty()) {
+                std::string path = service_dir + "/" + service_name;
+                cout << "    Path: " << path << "\n";
+            }
         }
+
     }
 
     return 0;
