@@ -1,4 +1,4 @@
-== Version 0.20.0 (TBA)
+== Version 0.20.0 (beta release #9)
 
 This release fully incorporates the incoming feature contributions that were made during the
 preceding (0.19.x) beta period. It is anticipated that the next release will be a release
@@ -66,8 +66,8 @@ Changes:
    releases) has been renamed to "securebits", to match relevant Linux documentation (see
    capabilities(7)).
  * Building support for ioprio now requires the <linux/ioprio.h> header to be present on the
-   system (note that ioprio support was previously unofficial).
- * The configure script allows specifying build variables containing spaces and shell
+   system (note that ioprio support was considered in-development prior to this release).
+ * The "configure" script allows specifying build variables containing spaces and shell
    metacharacters by quoting them using shell quoting rules. Note that such a value supplied
    on the configure command line must typically be doubly-quoted: once for the invoking shell,
    and then for processing by configure.
