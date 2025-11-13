@@ -17,7 +17,7 @@ public:
     // changing the environment (HOME variable) or using the getpwuid() function).
     static const char * get_user_home();
 
-    void set_specified_service_dir(const char *specified_dir)
+    void add_specified_service_dir(const char *specified_dir)
     {
         service_dirs.push_back(specified_dir);
     }

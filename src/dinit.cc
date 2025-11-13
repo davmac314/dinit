@@ -274,7 +274,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
         }
         else if (strcmp(argv[i], "--services-dir") == 0 || strcmp(argv[i], "-d") == 0) {
             if (++i < argc && argv[i][0] != '\0') {
-                service_dir_opts.set_specified_service_dir(argv[i]);
+                service_dir_opts.add_specified_service_dir(argv[i]);
             }
             else {
                 cerr << "dinit: '--services-dir' (-d) requires an argument\n";
