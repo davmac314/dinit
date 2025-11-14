@@ -197,7 +197,7 @@ int dinit_monitor_main(int argc, char **argv)
     signal(SIGCHLD, sigchld_handler);
 
     // Locate control socket
-    if (! control_socket_str.empty()) {
+    if (!control_socket_str.empty()) {
         control_socket_path = control_socket_str.c_str();
     }
     else {

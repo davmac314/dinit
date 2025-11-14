@@ -406,7 +406,7 @@ int main(int argc, char **argv)
                 continue;
             }
             if (next_link->visited) {
-                if (! next_link->cycle_free) {
+                if (!next_link->cycle_free) {
                     // We've found a cycle. Clear entries before the beginning of the cycle, then
                     // exit the loop.
                     auto first = std::find_if(service_chain.begin(), service_chain.end(),
@@ -447,7 +447,7 @@ int main(int argc, char **argv)
 
     std::cerr << "Secondary checks complete.\n";
 
-    if (! errors_found) {
+    if (!errors_found) {
         std::cout << "No problems found.\n";
     }
     else {

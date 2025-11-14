@@ -563,7 +563,7 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
 
     do {
       loop.run();
-    } while (! timeout_reached);
+    } while (!timeout_reached);
 
     kill(-1, SIGKILL);
 

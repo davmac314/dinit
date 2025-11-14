@@ -81,7 +81,7 @@ bool control_conn_t::process_packet()
 
                 services->stop_all_services(sd_type);
                 char ackBuf[] = { (char)cp_rply::ACK };
-                if (! queue_packet(ackBuf, 1)) return false;
+                if (!queue_packet(ackBuf, 1)) return false;
 
                 // Clear the packet from the buffer
                 rbuf.consume(2);
@@ -149,7 +149,7 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
     if (srvname_len <= 0 || srvname_len > (1024 - 3)) {
         // Queue error response / mark connection bad
         char badreqRep[] = { (char)cp_rply::BADREQ };
-        if (! queue_packet(badreqRep, 1)) return false;
+        if (!queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
         return true;
     }
@@ -197,7 +197,7 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
     
     if (record == nullptr) {
         std::vector<char> rp_buf = { (char)fail_code };
-        if (! queue_packet(std::move(rp_buf))) return false;
+        if (!queue_packet(std::move(rp_buf))) return false;
         return true;
     }
 
@@ -211,7 +211,7 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
         rp_buf.push_back(*(((char *) &handle) + i));
     }
     rp_buf.push_back(static_cast<char>(record->get_target_state()));
-    if (! queue_packet(std::move(rp_buf))) return false;
+    if (!queue_packet(std::move(rp_buf))) return false;
     
     return true;
 }
@@ -387,7 +387,7 @@ bool control_conn_t::process_start_stop(cp_cmd pktType)
             }
             service_state_t wanted_state;
             if (do_restart) {
-                if (! service->restart()) {
+                if (!service->restart()) {
                     ack_buf[0] = (char)cp_rply::NAK;
                     break;
                 }
@@ -480,7 +480,7 @@ bool control_conn_t::process_unpin_service()
     if (service == nullptr) {
         // Service handle is bad
         char badreqRep[] = { (char)cp_rply::BADREQ };
-        if (! queue_packet(badreqRep, 1)) return false;
+        if (!queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
         return true;
     }
@@ -488,7 +488,7 @@ bool control_conn_t::process_unpin_service()
     service->unpin();
     services->process_queues();
     char ack_buf[] = { (char) cp_rply::ACK };
-    if (! queue_packet(ack_buf, 1)) return false;
+    if (!queue_packet(ack_buf, 1)) return false;
     
     // Clear the packet from the buffer
     rbuf.consume(pkt_size);
@@ -517,7 +517,7 @@ bool control_conn_t::process_unload_service()
     if (service == nullptr) {
         // Service handle is bad
         char badreq_rep[] = { (char)cp_rply::BADREQ };
-        if (! queue_packet(badreq_rep, 1)) return false;
+        if (!queue_packet(badreq_rep, 1)) return false;
         bad_conn_close = true;
         return true;
     }
@@ -567,7 +567,7 @@ bool control_conn_t::process_reload_service()
     if (service == nullptr) {
         // Service handle is bad
         char badreq_rep[] = { (char)cp_rply::BADREQ };
-        if (! queue_packet(badreq_rep, 1)) return false;
+        if (!queue_packet(badreq_rep, 1)) return false;
         bad_conn_close = true;
         return true;
     }
@@ -575,7 +575,7 @@ bool control_conn_t::process_reload_service()
     if (!service->has_lone_ref(false)) {
         // Cannot unload: has other references
         char nak_rep[] = { (char)cp_rply::NAK };
-        if (! queue_packet(nak_rep, 1)) return false;
+        if (!queue_packet(nak_rep, 1)) return false;
     }
     else {
         try {
@@ -590,13 +590,13 @@ bool control_conn_t::process_reload_service()
 
             // send ack
             char ack_buf[] = { (char) cp_rply::ACK };
-            if (! queue_packet(ack_buf, 1)) return false;
+            if (!queue_packet(ack_buf, 1)) return false;
         }
         catch (service_load_exc &slexc) {
             log(loglevel_t::ERROR, "Could not reload service ", slexc.service_name, ": ",
                     slexc.exc_description);
             char nak_rep[] = { (char)cp_rply::NAK };
-            if (! queue_packet(nak_rep, 1)) return false;
+            if (!queue_packet(nak_rep, 1)) return false;
         }
     }
 
@@ -887,7 +887,7 @@ bool control_conn_t::add_service_dep(bool do_enable)
                 to_service->get_state() != service_state_t::STARTED) {
             // Cannot create dependency now since it would be contradicted:
             char nak_rep[] = { (char)cp_rply::NAK };
-            if (! queue_packet(nak_rep, 1)) return false;
+            if (!queue_packet(nak_rep, 1)) return false;
             rbuf.consume(pkt_size);
             chklen = 0;
             return true;
@@ -898,7 +898,7 @@ bool control_conn_t::add_service_dep(bool do_enable)
     std::unordered_set<service_record *> dep_marks;
     std::vector<service_record *> dep_queue;
     dep_queue.push_back(to_service);
-    while (! dep_queue.empty()) {
+    while (!dep_queue.empty()) {
         service_record * sr = dep_queue.back();
         dep_queue.pop_back();
         // iterate deps; if dep == from, abort; otherwise add to set/queue
@@ -908,7 +908,7 @@ bool control_conn_t::add_service_dep(bool do_enable)
             if (dep_to == from_service) {
                 // fail, circular dependency!
                 char nak_rep[] = { (char)cp_rply::NAK };
-                if (! queue_packet(nak_rep, 1)) return false;
+                if (!queue_packet(nak_rep, 1)) return false;
                 rbuf.consume(pkt_size);
                 chklen = 0;
                 return true;
@@ -935,7 +935,7 @@ bool control_conn_t::add_service_dep(bool do_enable)
         }
     }
 
-    if (! dep_exists) {
+    if (!dep_exists) {
         // Create dependency:
         dep_record = &(from_service->add_dep(to_service, dep_type));
         services->process_queues();
@@ -952,7 +952,7 @@ bool control_conn_t::add_service_dep(bool do_enable)
     }
 
     char ack_rep[] = { (char)cp_rply::ACK };
-    if (! queue_packet(ack_rep, 1)) return false;
+    if (!queue_packet(ack_rep, 1)) return false;
     rbuf.consume(pkt_size);
     chklen = 0;
     return true;
@@ -982,17 +982,17 @@ bool control_conn_t::rm_service_dep()
     if (from_service == nullptr || to_service == nullptr || from_service == to_service) {
         // Service handle is bad
         char badreq_rep[] = { (char)cp_rply::BADREQ };
-        if (! queue_packet(badreq_rep, 1)) return false;
+        if (!queue_packet(badreq_rep, 1)) return false;
         bad_conn_close = true;
         return true;
     }
 
     // Check dependency type is valid:
     int dep_type_int = rbuf[1];
-    if (! contains({dependency_type::MILESTONE, dependency_type::REGULAR,
+    if (!contains({dependency_type::MILESTONE, dependency_type::REGULAR,
             dependency_type::WAITS_FOR}, dep_type_int)) {
         char badreqRep[] = { (char)cp_rply::BADREQ };
-        if (! queue_packet(badreqRep, 1)) return false;
+        if (!queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
     }
     dependency_type dep_type = static_cast<dependency_type>(dep_type_int);
@@ -1002,7 +1002,7 @@ bool control_conn_t::rm_service_dep()
     services->process_queues();
 
     char ack_rep[] = { did_remove ? (char)cp_rply::ACK : (char)cp_rply::NAK };
-    if (! queue_packet(ack_rep, 1)) return false;
+    if (!queue_packet(ack_rep, 1)) return false;
     rbuf.consume(pkt_size);
     chklen = 0;
     return true;
@@ -1322,7 +1322,7 @@ bool control_conn_t::process_query_dsc_dir()
     std::memcpy(&reppkt[1], &sdir_len, sizeof(sdir_len));
     std::memcpy(&reppkt[1 + sizeof(uint32_t)], service->get_service_dsc_dir(), sdir_len);
 
-    if (! queue_packet(std::move(reppkt))) return false;
+    if (!queue_packet(std::move(reppkt))) return false;
     return true;
 }
 
@@ -1357,7 +1357,7 @@ bool control_conn_t::query_load_mech()
                 // Overflow. In theory we could now limit to size_t max, but the size must already
                 // be crazy long; let's abort.
                 char ack_rep[] = { (char)cp_rply::NAK };
-                if (! queue_packet(ack_rep, 1)) return false;
+                if (!queue_packet(ack_rep, 1)) return false;
                 return true;
             }
             reppkt.resize(total_size);
@@ -1392,7 +1392,7 @@ bool control_conn_t::query_load_mech()
         uint32_t fsize = reppkt.size();
         std::memcpy(reppkt.data() + 2, &fsize, sizeof(fsize));
 
-        if (! queue_packet(std::move(reppkt))) return false;
+        if (!queue_packet(std::move(reppkt))) return false;
         return true;
     }
     else {

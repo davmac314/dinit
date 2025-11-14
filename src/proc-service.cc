@@ -859,7 +859,7 @@ void scripted_service::bring_down() noexcept
     if (stop_command.length() == 0) {
         stopped();
     }
-    else if (! start_ps_process(stop_arg_parts, false)) {
+    else if (!start_ps_process(stop_arg_parts, false)) {
         // Couldn't execute stop script, but there's not much we can do:
         stopped();
     }
@@ -924,7 +924,7 @@ bool process_service::start_stop_process(const std::vector<const char *> &cmd) n
     if (forkpid == 0) {
         close(pipefd[0]);
         const char * working_dir_c = service_dsc_dir;
-        if (! working_dir.empty()) working_dir_c = working_dir.c_str();
+        if (!working_dir.empty()) working_dir_c = working_dir.c_str();
         run_proc_params run_params{cmd.data(), working_dir_c, logfile, pipefd[1], run_as_uid, run_as_gid, rlimits};
         run_params.on_console = false;
         run_params.in_foreground = false;

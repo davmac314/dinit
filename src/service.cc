@@ -366,7 +366,7 @@ void service_record::do_start() noexcept
             return;
         }
 
-        if (! can_interrupt_stop()) {
+        if (!can_interrupt_stop()) {
             return;
         }
 

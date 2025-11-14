@@ -706,7 +706,8 @@ bool istream::get_line_nx(std::string &dest, char delim) noexcept
         return true; // An empty line
     }
     while (eptr == nullptr) {
-        // while no delimiter is found, append the entire buffer contents to the 'dest' string and refill the buffer.
+        // while no delimiter is found, append the entire buffer contents to the 'dest' string and
+        // refill the buffer.
         try {
             // dest.append() may throw length_error or bad_alloc
             dest.append(ptr, len);

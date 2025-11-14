@@ -311,7 +311,7 @@ int dinitctl_main(int argc, char **argv)
                 return 1;
             }
             if (command == ctl_cmd::ADD_DEPENDENCY || command == ctl_cmd::RM_DEPENDENCY) {
-                if (! dep_type_set) {
+                if (!dep_type_set) {
                     if (strcmp(argv[i], "need") == 0 || strcmp(argv[i], "regular") == 0) {
                         dep_type = dependency_type::REGULAR;
                     }
@@ -429,7 +429,7 @@ int dinitctl_main(int argc, char **argv)
         }
         else {
             if (command == ctl_cmd::ADD_DEPENDENCY || command == ctl_cmd::RM_DEPENDENCY) {
-                if (! dep_type_set || service_name == nullptr || to_service_name == nullptr) {
+                if (!dep_type_set || service_name == nullptr || to_service_name == nullptr) {
                     cmdline_error = true;
                 }
             }
@@ -1211,7 +1211,7 @@ static int unpin_service(int socknum, cpbuffer_t &rbuffer, const char *service_n
     handle_t handle;
     
     // Build buffer;
-    if (! load_service(socknum, rbuffer, service_name, &handle, nullptr)) {
+    if (!load_service(socknum, rbuffer, service_name, &handle, nullptr)) {
         return 1;
     }
     
@@ -1749,8 +1749,8 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
     handle_t from_handle;
     handle_t to_handle;
 
-    if (! load_service(socknum, rbuffer, service_from, &from_handle, nullptr)
-            || ! load_service(socknum, rbuffer, service_to, &to_handle, nullptr)) {
+    if (!load_service(socknum, rbuffer, service_from, &from_handle, nullptr)
+            || !load_service(socknum, rbuffer, service_to, &to_handle, nullptr)) {
         return 1;
     }
 
@@ -2474,7 +2474,8 @@ static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *>
         if (rbuffer[0] == (char)cp_rply::BADREQ) {
             cerr << "dinitctl: failed to export environment.\n";
             return 1;
-        } else if (rbuffer[0] != (char)cp_rply::ACK) {
+        }
+        else if (rbuffer[0] != (char)cp_rply::ACK) {
             throw dinit_protocol_error();
         }
         rbuffer.consume(1);

@@ -5,8 +5,9 @@ This document presents a brief overview of the style used in the Dinit source co
 exhaustive. If you would like to contribute, please check this guide and also observe any existing
 code style.
 
-1. Line widths - do not exceed 110 characters; try to limit to 100. When wrapping a line, the
-   indent should be increased by at least two levels on the subsequent lines.
+1. Line widths - do not exceed 110 characters; try to limit to 100 (a line which does wrap should
+   always wrap before 100). When wrapping a line, the indent should be increased by at least two
+   levels on the subsequent lines.
 
 2. Curly braces - for classes and functions, the opening brace appears by itself on an empty line,
    as does the closing brace. In other cases the opening brace should appear at the end of the
@@ -27,14 +28,14 @@ code style.
            }
        }
 
-   2.1. Else - "else" follows the closing brace of the associated "if". Rules for braces are the
-        same as for "if".
+   2.1. Else - "else" follows on the next line from the closing brace of the associated "if".
+        Rules for braces are the same as for "if".
 
    2.2. Omit "else" if the body of the associated "if" does not fall through (i.e. if it always
         either returns or throws an exception).
 
 3. Indentation - is 4 spaces per level. Never tabs. Indentation level increases after an opening
-   curly brace, though for long namespace declarations this is optional.
+   curly brace, except for namespace declarations.
 
 4. Blank lines - should be used between method and class definitions, and can be used in code
    to break it into sections with different concerns. A double blank line should never appear

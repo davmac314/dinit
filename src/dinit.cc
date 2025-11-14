@@ -508,7 +508,7 @@ int dinit_main(int argc, char **argv)
         if (onefd > 2) close(onefd);
         if (twofd > 2) close(twofd);
 
-        if (! env_file_set) {
+        if (!env_file_set) {
             env_file = env_file_path;
         }
 
@@ -830,7 +830,7 @@ static void confirm_restart_boot() noexcept
     console_input_io.set_enabled(event_loop, true);
     do {
         event_loop.run();
-    } while (! console_input_ready && services->get_shutdown_type() == shutdown_type_t::NONE);
+    } while (!console_input_ready && services->get_shutdown_type() == shutdown_type_t::NONE);
     console_input_io.set_enabled(event_loop, false);
 
     // We either have input, or shutdown type has been set, or both.

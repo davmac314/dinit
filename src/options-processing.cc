@@ -47,7 +47,7 @@ void service_dir_opt::build_paths(bool am_system_init)
                 std::memcpy(service_dir_w + xdg_config_home_len, "/dinit.d", dinit_d_len);
                 service_dir_w[full_len - 1] = 0;
 
-                service_dir_paths.emplace_back(service_dir_w, /*dyn_allocd=*/true);
+                service_dir_paths.emplace_back(service_dir_w, true);
                 home_service_dir_set = true;
             }
 
@@ -69,7 +69,7 @@ void service_dir_opt::build_paths(bool am_system_init)
                 std::memcpy(service_dir_w + user_home_len, "/.config/dinit.d", dinit_d_len);
                 service_dir_w[full_len - 1] = 0;
 
-                service_dir_paths.emplace_back(service_dir_w, /*dyn_allocd=*/true);
+                service_dir_paths.emplace_back(service_dir_w, true);
                 home_service_dir_set = true;
             }
         }
@@ -77,12 +77,12 @@ void service_dir_opt::build_paths(bool am_system_init)
         done_user_home:
 
         if (home_service_dir_set) {
-            service_dir_paths.emplace_back("/etc/dinit.d/user", /*dyn_allocd=*/false);
-            service_dir_paths.emplace_back("/usr/lib/dinit.d/user", /*dyn_allocd=*/false);
-            service_dir_paths.emplace_back("/usr/local/lib/dinit.d/user", /*dyn_allocd=*/false);
+            service_dir_paths.emplace_back("/etc/dinit.d/user", false);
+            service_dir_paths.emplace_back("/usr/lib/dinit.d/user", false);
+            service_dir_paths.emplace_back("/usr/local/lib/dinit.d/user", false);
         }
         else {
-            service_dir_paths.emplace_back("/etc/dinit.d", /*dyn_allocd=*/false);
+            service_dir_paths.emplace_back("/etc/dinit.d", false);
             service_dir_paths.emplace_back("/run/dinit.d", false);
             service_dir_paths.emplace_back("/usr/local/lib/dinit.d", false);
             service_dir_paths.emplace_back("/lib/dinit.d", false);
@@ -90,7 +90,7 @@ void service_dir_opt::build_paths(bool am_system_init)
     }
     else {
         for (const char *dir : service_dirs) {
-            service_dir_paths.emplace_back(dir, /*dyn_allocd=*/false);
+            service_dir_paths.emplace_back(dir, false);
         }
     }
 }

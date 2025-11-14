@@ -78,7 +78,7 @@ class buffered_log_stream : public eventloop_t::fd_watcher_impl<buffered_log_str
     {
         bool was_first = current_index == 0;
         current_index = log_buffer.get_length();
-        if (was_first && ! release) {
+        if (was_first && !release) {
             set_enabled(event_loop, true);
         }
     }
@@ -159,14 +159,14 @@ void buffered_log_stream::flush_for_release()
 
 rearm buffered_log_stream::fd_event(eventloop_t &loop, int fd, int flags) noexcept
 {
-    if ((! partway) && (! special) && discarded) {
+    if ((!partway) && (!special) && discarded) {
         special_buf = "dinit: *** log message discarded due to full buffer ***\n";
         special = true;
         discarded = false;
         msg_index = 0;
     }
 
-    if ((! partway) && special) {
+    if ((!partway) && special) {
         const char * start = special_buf + msg_index;
         const char * end = start;
         while (*end != '\n') end++;
@@ -245,7 +245,7 @@ rearm buffered_log_stream::fd_event(eventloop_t &loop, int fd, int flags) noexce
         if (r >= 0) {
             bool complete = (r == len) && will_complete;
             log_buffer.consume(len);
-            partway = ! complete;
+            partway = !complete;
             if (complete) {
                 current_index -= len;
                 if (current_index == 0 || release) {
@@ -325,8 +325,8 @@ bool is_log_flushed() noexcept
 // queued in the service set will acquire the console.
 void enable_console_log(bool enable) noexcept
 {
-    bool log_to_console = ! log_stream[DLOG_CONS].is_release_set();
-    if (enable && ! log_to_console) {
+    bool log_to_console = !log_stream[DLOG_CONS].is_release_set();
+    if (enable && !log_to_console) {
         // Set non-blocking IO:
         int flags = fcntl(STDOUT_FILENO, F_GETFL, 0);
         fcntl(STDOUT_FILENO, F_SETFL, flags | O_NONBLOCK);
@@ -334,7 +334,7 @@ void enable_console_log(bool enable) noexcept
         log_stream[DLOG_CONS].init(STDOUT_FILENO);
         log_stream[DLOG_CONS].set_enabled(event_loop, true);
     }
-    else if (! enable && log_to_console) {
+    else if (!enable && log_to_console) {
         log_stream[DLOG_CONS].flush_for_release();
     }
 }
@@ -392,7 +392,7 @@ static int log_level_to_syslog_level(loglevel_t l)
 // Variadic method to log a sequence of strings as a single message to a particular facility:
 template <typename ... T> static void push_to_log(int idx, T ... args) noexcept
 {
-    if (! log_current_line[idx]) return;
+    if (!log_current_line[idx]) return;
     int amount = sum_length(args...);
     if (log_stream[idx].get_free() >= amount) {
         append(log_stream[idx], args...);

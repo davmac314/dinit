@@ -645,7 +645,8 @@ inline void fill_environment_userinfo(uid_t uid, const std::string &service_name
         if (!errno) {
             throw service_load_exc(service_name, std::string("user id '") + buf
                     + "' does not exist in system database");
-        } else {
+        }
+        else {
             throw service_load_exc(service_name, std::string("error accessing user database: ")
                     + strerror(errno));
         }
