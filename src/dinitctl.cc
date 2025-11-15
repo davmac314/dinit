@@ -1842,16 +1842,14 @@ static std::string get_service_description_dir(int socknum, cpbuffer_t &rbuffer,
     write_all_x(socknum, m);
     wait_for_reply(rbuffer, socknum);
 
-    if (rbuffer[0] != (char)cp_rply::SVCDSCDIR) {
-        throw dinit_protocol_error();
-    }
-    rbuffer.consume(1);
+    if (rbuffer[0] != (char)cp_rply::SVCDSCDIR) throw dinit_protocol_error();
 
-    fill_buffer_to(rbuffer, socknum, 4);
+    rbuffer.consume(1); // consume reply type (SVCDSCDIR)
 
     uint32_t sdir_len;
+    fill_buffer_to(rbuffer, socknum, sizeof(uint32_t));
     rbuffer.extract(&sdir_len, 0, sizeof(uint32_t));
-    rbuffer.consume(4);
+    rbuffer.consume(sizeof(uint32_t));
 
     std::string result_str;
     static_assert(sizeof(unsigned) >= sizeof(uint32_t), "");
@@ -1872,6 +1870,8 @@ static std::string get_service_description_dir(int socknum, cpbuffer_t &rbuffer,
         rbuffer.consume(to_use);
         needed -= to_use;
     }
+
+    if (result_str.empty()) throw dinit_protocol_error();
 
     return result_str;
 }
@@ -2049,8 +2049,6 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
         }
 
         std::string to_sdf_dir = get_service_description_dir(socknum, rbuffer, to_handle);
-        if (to_sdf_dir.empty())
-            throw dinit_protocol_error();
 
         to_service_file_path = to_sdf_dir;
         if (*to_service_file_path.rbegin() != '/') to_service_file_path += '/';
@@ -2100,8 +2098,6 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
         }
 
         std::string from_sdf_dir = get_service_description_dir(socknum, rbuffer, from_handle);
-        if (from_sdf_dir.empty())
-            throw dinit_protocol_error();
 
         service_file_path = from_sdf_dir;
         if (*service_file_path.rbegin() != '/') service_file_path += '/';
