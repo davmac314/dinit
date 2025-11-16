@@ -84,6 +84,9 @@ cxx_works()
 # Test if the compiler successfully compiles the specified source file. If the optional compilation
 # argument is specified ($3) then pass it to the compiler along with the already-established
 # arguments (this can be used to test if the compiler accepts the argument).
+#
+# If successful, the compiled object file is left in place (at "$configtmpdir/$2").
+#
 #   $1 - the name of the source file to compile
 #   $2 - the name of the result object file
 #   $3 - the argument to test (optional)
@@ -91,13 +94,21 @@ cxx_works()
 #   CXXFLAGS, CXXFLAGS_EXTRA - any predetermined flags
 try_compile_source()
 {
-    eval $CXX $CXXFLAGS ${3:-} $CXXFLAGS_EXTRA '"$configtmpdir"/"$1"' \
-            -c -o '"$configtmpdir"/"$2"' > /dev/null 2>&1
+    if ! eval $CXX $CXXFLAGS ${3:-} $CXXFLAGS_EXTRA '"$configtmpdir"/"$1"' \
+            -c -o '"$configtmpdir"/"$2"' > /dev/null 2>&1; then
+        # Clean up any output, i.e. don't leave potentially broken object file
+        rm -f "$configtmpdir"/"$2"
+        return 1
+    fi
+    return 0
 }
 
 # Test if the specified object file can be linked into an executable. If the optional link argument
 # is specified ($3) then pass it to the compiler driver along with the already-established
 # arguments (this can be used to test if the compiler driver accepts the argument).
+#
+# If successful, the resulting executable is left in place (at "$configtmpdir/$2").
+#
 #   $1 - the name of the object file to link
 #   $2 - the name of the result executable file
 #   $3 - the argument to test (optional)
@@ -134,8 +145,7 @@ try_cxx_argument()
     fi
 }
 
-
-# Test if an argument is supported during linking.
+# Test if an argument is supported during linking. If called after try_cxx_argument
 #   $1 - the name of the variable to potentially add the argument to
 #   $2 - the argument to test/add
 #   CXX - the name of the compiler
@@ -143,12 +153,10 @@ try_cxx_argument()
 try_ld_argument()
 {
     info "Checking whether \"$2\" is accepted as a link-time option..."
-    if [ ! -e "$configtmpdir"/testfile.o ]; then
-        # If the object file doesn't exist yet, need to compile
-        if ! try_compile_source testfile.cc testfile.o; then
-            sub_info "No (compilation failed)."
-            return
-        fi
+    # Re-compile the test object to ensure it has been compiled with the correct flags.
+    if ! try_compile_source testfile.cc testfile.o; then
+        sub_info "No (compilation failed)."
+        return
     fi
     if try_link_object testfile.o testfile "$2"; then
         sub_info "Yes."
