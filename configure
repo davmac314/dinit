@@ -150,7 +150,7 @@ try_cxx_argument()
 #   $2 - the argument to test/add
 #   CXX - the name of the compiler
 #   CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
-try_ld_argument()
+try_link_argument()
 {
     info "Checking whether \"$2\" is accepted as a link-time option..."
     # Re-compile the test object to ensure it has been compiled with the correct flags.
@@ -615,11 +615,11 @@ if [ "$AUTO_LDFLAGS" = true ] && [ "$AUTO_CXXFLAGS" = true ]; then
     fi
 fi
 if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$PLATFORM" = FreeBSD ]; then
-    try_ld_argument LDFLAGS_BASE -lrt
+    try_link_argument LDFLAGS_BASE -lrt
 fi
 if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
     if [ "$AUTO_LDFLAGS_LIBCAP" = true ]; then
-        try_ld_argument LDFLAGS_LIBCAP -lcap
+        try_link_argument LDFLAGS_LIBCAP -lcap
         if [ "$SUPPORT_CAPABILITIES" = AUTO ]; then
             if [ -z "$LDFLAGS_LIBCAP" ]; then
                 SUPPORT_CAPABILITIES=0
