@@ -127,7 +127,7 @@ try_link_object()
 #        argument isn't supported by the compiler. 
 #   CXX - the name of the compiler
 #   CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
-try_cxx_argument()
+check_cxx_argument()
 {
     info "Checking whether \"$2\" is accepted by the compiler..."
     if try_compile_source testfile.cc testfile.o "$2"; then
@@ -145,12 +145,12 @@ try_cxx_argument()
     fi
 }
 
-# Test if an argument is supported during linking. If called after try_cxx_argument
+# Test if an argument is supported during linking.
 #   $1 - the name of the variable to potentially add the argument to
 #   $2 - the argument to test/add
 #   CXX - the name of the compiler
 #   CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
-try_link_argument()
+check_link_argument()
 {
     info "Checking whether \"$2\" is accepted as a link-time option..."
     # Re-compile the test object to ensure it has been compiled with the correct flags.
@@ -176,7 +176,7 @@ try_link_argument()
 #   $3 - the argument to test/add
 #   CXX - the name of the compiler
 #   CXXFLAGS, CXXFLAGS_EXTRA, LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
-try_compile_link_argument()
+check_compile_link_argument()
 {
     info "Checking whether \"$3\" is accepted as an option for both compiling and linking..."
     if try_compile_source testfile.cc testfile.o "$3" \
@@ -572,14 +572,14 @@ fi
 
 ## Test compiler/linker supported arguments
 if [ "$AUTO_CXXFLAGS" = "true" ]; then
-    if ! try_cxx_argument CXXFLAGS -std=c++11 MANDATORY; then
+    if ! check_cxx_argument CXXFLAGS -std=c++11 MANDATORY; then
         sub_error "The C++ compiler ($CXX) doesn't accept '-std=c++11' and may be too old."
     fi
     for argument in -Wall \
                     -Os \
                     -fno-plt
     do
-        try_cxx_argument CXXFLAGS $argument
+        check_cxx_argument CXXFLAGS $argument
     done
 
     # -fno-rtti is a special case. Clang+libcxxrt is known for generating broken code when
@@ -608,18 +608,18 @@ fi
 if [ "$AUTO_LDFLAGS" = true ] && [ "$AUTO_CXXFLAGS" = true ]; then
     # -flto must work for both compiling and linking, but we don't want to add it to LDFLAGS as,
     # if LTO is used, CXXFLAGS will always be used alongside LDFLAGS.
-    if try_compile_link_argument CXXFLAGS - -flto; then
+    if check_compile_link_argument CXXFLAGS - -flto; then
         HAS_LTO="true"
     else
         HAS_LTO="false"
     fi
 fi
 if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$PLATFORM" = FreeBSD ]; then
-    try_link_argument LDFLAGS_BASE -lrt
+    check_link_argument LDFLAGS_BASE -lrt
 fi
 if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
     if [ "$AUTO_LDFLAGS_LIBCAP" = true ]; then
-        try_link_argument LDFLAGS_LIBCAP -lcap
+        check_link_argument LDFLAGS_LIBCAP -lcap
         if [ "$SUPPORT_CAPABILITIES" = AUTO ]; then
             if [ -z "$LDFLAGS_LIBCAP" ]; then
                 SUPPORT_CAPABILITIES=0
@@ -701,7 +701,7 @@ if [ "$AUTO_TEST_LDFLAGS" = "true" ] && [ "$AUTO_TEST_CXXFLAGS" = "true" ]; then
     # (Note that we append directly to TEST_CXXFLAGS_MK/TEST_LDFLAGS_MK here)
     CXXFLAGS="$established_TEST_CXXFLAGS" CXXFLAGS_EXTRA="$TEST_CXXFLAGS_EXTRA" \
             LDFLAGS="$established_TEST_LDFLAGS" LDFLAGS_EXTRA="$TEST_LDFLAGS_EXTRA" \
-            try_compile_link_argument TEST_CXXFLAGS_MK $LDFLAGS_VAR -fsanitize=address,undefined
+            check_compile_link_argument TEST_CXXFLAGS_MK $LDFLAGS_VAR -fsanitize=address,undefined
 fi
 
 ## Create mconfig
