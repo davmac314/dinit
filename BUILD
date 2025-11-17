@@ -94,7 +94,9 @@ The following variables affect compilation and link options:
              (FreeBSD requires -lrt; link time optimisation requires -flto and other flags).
   TEST_CXXFLAGS : are options passed to the compiler when compiling code for tests
   TEST_LDFLAGS  : are options to be used when linking test code
-  LDFLAGS_LIBCAP : addition link options required to link with "libcap" (needed if capabilities
+  CPPFLAGS_LIBCAP : additional compiler options to include "libcap" headers on the header search
+                    path (not normally necessary).
+  LDFLAGS_LIBCAP : additional link options required to link with "libcap" (needed if capabilities
                    support is enabled).
 
 For convenience, generated configuration also allows setting the following:

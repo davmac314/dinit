@@ -368,7 +368,8 @@ Build variables:
   TEST_LDFLAGS_BASE             Link flags to use when building test executables, in addition to
                                 LTO-releated options.
   
-  LDFLAGS_LIBCAP                Additional Link flags to link capabilities support (libcap).
+  CPPFLAGS_LIBCAP               Additional compilation flags for capabilities support (libcap). 
+  LDFLAGS_LIBCAP                Additional link flags for capabilities support (libcap).
 
 Note: build variable values representing commands or arguments must be suitably quoted for use in
 shell commands (i.e. quoted twice if executing $0 via shell command line).  
@@ -443,7 +444,7 @@ for arg in "$@"; do
         |LDFLAGS_FOR_BUILD=*|CXXFLAGS=*|CXXFLAGS_EXTRA=*|TEST_CXXFLAGS=*\
         |TEST_CXXFLAGS_EXTRA=*|LDFLAGS=*|LDFLAGS_EXTRA=*|TEST_LDFLAGS=*\
         |TEST_LDFLAGS_EXTRA=*|CPPFLAGS=*|LDFLAGS_BASE=*|TEST_LDFLAGS_BASE=*\
-        |LDFLAGS_LIBCAP=*) eval "${arg%%=*}=\${arg#*=}" ;;
+        |LDFLAGS_LIBCAP=*|CPPFLAGS_LIBCAP=*) eval "${arg%%=*}=\${arg#*=}" ;;
         *=*) warning "Unknown variable: ${arg%%=*}" ;;
         *) warning "Unknown argument: $arg" ;;
     esac
@@ -534,6 +535,12 @@ if [ -z "${LDFLAGS_LIBCAP+IS_SET}" ]; then
     AUTO_LDFLAGS_LIBCAP="true"
 else
     AUTO_LDFLAGS_LIBCAP="false"
+fi
+if [ -z "${CPPFLAGS_LIBCAP+IS_SET}" ]; then
+    CPPFLAGS_LIBCAP=""
+    AUTO_CPPFLAGS_LIBCAP="true"
+else
+    AUTO_CPPFLAGS_LIBCAP="false"
 fi
 
 [ -z "${STRIPOPTS+IS_SET}" ] && STRIPOPTS="-s"
@@ -631,8 +638,12 @@ if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
         # SUPPORT_CAPABILITIES may be set to AUTO, fix that:
         SUPPORT_CAPABILITES=1
     fi
+    if [ "$AUTO_CPPFLAGS_LIBCAP" = true ]; then
+        CPPFLAGS_LIBCAP=""
+    fi
 else
     LDFLAGS_LIBCAP=""
+    CPPFLAGS_LIBCAP=""
 fi
 
 if [ "$SUPPORT_IOPRIO" = "AUTO" ]; then
@@ -737,6 +748,7 @@ TEST_LDFLAGS_EXTRA=$(quote_for_make "$TEST_LDFLAGS_EXTRA")
 STRIPOPTS=$(quote_for_make "$STRIPOPTS")
 
 # Dependencies
+CPPFLAGS_LIBCAP=$(quote_for_make "$CPPFLAGS_LIBCAP")
 LDFLAGS_LIBCAP=$(quote_for_make "$LDFLAGS_LIBCAP")
 
 # Feature settings

@@ -35,10 +35,12 @@ iostreamtests: iostreamtests.o dinit-iostream.o test-bpsys.o
 	$(CXX) -o iostreamtests iostreamtests.o dinit-iostream.o test-bpsys.o $(ALL_TEST_LDFLAGS)
 
 $(objects): %.o: %.cc
-	$(CXX) $(ALL_TEST_CXXFLAGS) -MMD -MP -Itest-includes -I../../dasynq/include -I../../build/includes -I../includes -c $< -o $@
+	$(CXX) $(ALL_TEST_CXXFLAGS) $(CPPFLAGS_LIBCAP) -MMD -MP -Itest-includes \
+		-I../../dasynq/include -I../../build/includes -I../includes -c $< -o $@
 
 $(parent_objs): %.o: ../%.cc
-	$(CXX) $(ALL_TEST_CXXFLAGS) -MMD -MP -Itest-includes -I../../dasynq/include -I../../build/includes -I../includes -c $< -o $@
+	$(CXX) $(ALL_TEST_CXXFLAGS) $(CPPFLAGS_LIBCAP) -MMD -MP -Itest-includes \
+		-I../../dasynq/include -I../../build/includes -I../includes -c $< -o $@
 
 clean:
 	$(MAKE) -C cptests clean

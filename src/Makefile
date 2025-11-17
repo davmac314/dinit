@@ -38,7 +38,7 @@ $(SHUTDOWN_PREFIX)shutdown: shutdown.o
 $(objects): ../build/includes/mconfig.h
 
 $(objects): %.o: %.cc
-	$(CXX) $(ALL_CXXFLAGS) -MMD -MP -Iincludes -I../dasynq/include -I../build/includes -c $< -o $@
+	$(CXX) $(ALL_CXXFLAGS) $(CPPFLAGS_LIBCAP) -MMD -MP -Iincludes -I../dasynq/include -I../build/includes -c $< -o $@
 
 check: ../build/includes/mconfig.h $(dinit_objects)
 	$(MAKE) -C tests check
