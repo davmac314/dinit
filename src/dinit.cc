@@ -221,7 +221,6 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
 {
     using std::cerr;
     using std::cout;
-    using std::endl;
     using std::list;
 
     const char * &env_file = opts.env_file;
@@ -415,7 +414,7 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
         else {
             // unrecognized
             if (!opts.process_sys_args) {
-                cerr << "dinit: unrecognized option: " << argv[i] << endl;
+                cerr << "dinit: unrecognized option: " << argv[i] << "\n";
                 return 1;
             }
         }
@@ -1240,7 +1239,7 @@ static void find_cgroup_path() noexcept
 
 static void print_version()
 {
-    std::cout << "Dinit version " << DINIT_VERSION << '.' << std::endl;
+    std::cout << "Dinit version " << DINIT_VERSION << ".\n";
     const unsigned feature_count = 0
 #if SUPPORT_CGROUPS
             +1

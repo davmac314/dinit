@@ -219,7 +219,7 @@ int main(int argc, char **argv)
             control_socket_path = get_default_socket_path(control_socket_str, user_dinit);
             if (control_socket_path == nullptr) {
                 cerr << DINIT_CHECK_APPNAME ": cannot locate user home directory (set XDG_RUNTIME_DIR, HOME, check /etc/passwd file, or "
-                        "specify socket path via -p)" << endl;
+                        "specify socket path via -p)\n";
                 return EXIT_FAILURE;
             }
         }
@@ -240,23 +240,23 @@ int main(int argc, char **argv)
             get_remote_env(socknum, rbuffer, menv);
         }
         catch (cp_old_client_exception &e) {
-            std::cerr << DINIT_CHECK_APPNAME ": too old (daemon reports newer protocol version)" << std::endl;
+            std::cerr << DINIT_CHECK_APPNAME ": too old (daemon reports newer protocol version)\n";
             return EXIT_FAILURE;
         }
         catch (cp_old_server_exception &e) {
-            std::cerr << DINIT_CHECK_APPNAME ": daemon too old or protocol error" << std::endl;
+            std::cerr << DINIT_CHECK_APPNAME ": daemon too old or protocol error\n";
             return EXIT_FAILURE;
         }
         catch (cp_read_exception &e) {
-            cerr << DINIT_CHECK_APPNAME ": control socket read failure or protocol error" << endl;
+            cerr << DINIT_CHECK_APPNAME ": control socket read failure or protocol error\n";
             return EXIT_FAILURE;
         }
         catch (cp_write_exception &e) {
-            cerr << DINIT_CHECK_APPNAME ": control socket write error: " << std::strerror(e.errcode) << endl;
+            cerr << DINIT_CHECK_APPNAME ": control socket write error: " << std::strerror(e.errcode) << "\n";
             return EXIT_FAILURE;
         }
         catch (dinit_protocol_error &e) {
-            cerr << DINIT_CHECK_APPNAME ": protocol error" << endl;
+            cerr << DINIT_CHECK_APPNAME ": protocol error\n";
             return EXIT_FAILURE;
         }
         catch (general_error &ge) {

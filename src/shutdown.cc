@@ -349,7 +349,7 @@ int main(int argc, char **argv)
                 use_passed_cfd = true;
             }
             else {
-                cerr << "Unrecognized command-line parameter: " << argv[i] << endl;
+                cerr << "Unrecognized command-line parameter: " << argv[i] << "\n";
                 return 1;
             }
         }
@@ -455,24 +455,24 @@ int main(int argc, char **argv)
         wait_for_reply(rbuffer, socknum);
         
         if (rbuffer[0] != (dinit_cptypes::cp_rply_t)cp_rply::ACK) {
-            cerr << "shutdown: control socket protocol error" << endl;
+            cerr << "shutdown: control socket protocol error\n";
             return 1;
         }
     }
     catch (cp_old_client_exception &e) {
-        std::cerr << "shutdown: too old (server reports newer protocol version)" << std::endl;
+        std::cerr << "shutdown: too old (server reports newer protocol version)\n";
         return 1;
     }
     catch (cp_old_server_exception &e) {
-        std::cerr << "shutdown: server too old or protocol error" << std::endl;
+        std::cerr << "shutdown: server too old or protocol error\n";
         return 1;
     }
     catch (cp_read_exception &e) {
-        cerr << "shutdown: control socket read failure or protocol error" << endl;
+        cerr << "shutdown: control socket read failure or protocol error\n";
         return 1;
     }
     catch (cp_write_exception &e) {
-        cerr << "shutdown: control socket write error: " << std::strerror(e.errcode) << endl;
+        cerr << "shutdown: control socket write error: " << std::strerror(e.errcode) << "\n";
         return 1;
     }
 
