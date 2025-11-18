@@ -626,12 +626,40 @@ if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$PLATFORM" = FreeBSD ]; then
 fi
 if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
     if [ "$AUTO_LDFLAGS_LIBCAP" = true ]; then
-        check_link_argument LDFLAGS_LIBCAP -lcap
-        if [ "$SUPPORT_CAPABILITIES" = AUTO ]; then
-            if [ -z "$LDFLAGS_LIBCAP" ]; then
-                SUPPORT_CAPABILITIES=0
+        FOUND_LIBCAP_VIA_PKGCONFIG=0
+        if [ "$AUTO_CPPFLAGS_LIBCAP" = true ]; then
+            # No settings provided for libcap, try pkg-config before trying defaults
+            info "Looking for \"libcap\" via pkg-config..."
+            if pkg-config --exists libcap; then
+                # (Output from pkg-config should already be quoted for use in a shell eval, despite
+                #  its documentation which suggests otherwise)
+                LDFLAGS_LIBCAP="$(pkg-config --libs libcap)" &&
+                CPPFLAGS_LIBCAP="$(pkg-config --cflags libcap)" &&
+                FOUND_LIBCAP_VIA_PKGCONFIG=1 &&
+                SUPPORT_CAPABILITIES=1 &&
+                sub_info "Found." ||
+                {
+                    LDFLAGS_LIBCAP=""
+                    CPPFLAGS_LIBCAP=""
+                    sub_info "Couldn't determine flags for compiling/linking via pkg-config."
+                }
             else
-                SUPPORT_CAPABILITIES=1
+                sub_info "Not found, trying defaults."
+            fi
+        fi
+    
+        if [ "$FOUND_LIBCAP_VIA_PKGCONFIG" = 0 ]; then
+            check_link_argument LDFLAGS_LIBCAP -lcap
+            if [ "$SUPPORT_CAPABILITIES" = AUTO ]; then
+                if [ -z "$LDFLAGS_LIBCAP" ]; then
+                    SUPPORT_CAPABILITIES=0
+                else
+                    SUPPORT_CAPABILITIES=1
+                fi
+            else
+                if [ -z "$LDFLAGS_LIBCAP" ]; then
+                    error "Capabilities support enabled, but could not find libcap."
+                fi
             fi
         fi
     else
