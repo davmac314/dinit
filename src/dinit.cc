@@ -820,8 +820,8 @@ static void confirm_restart_boot() noexcept
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &term_attr);
 
     // Set non-blocking mode
-    int origFlags = fcntl(STDIN_FILENO, F_GETFL);
-    fcntl(STDIN_FILENO, F_SETFL, origFlags | O_NONBLOCK);
+    int orig_flags = fcntl(STDIN_FILENO, F_GETFL);
+    fcntl(STDIN_FILENO, F_SETFL, orig_flags | O_NONBLOCK);
 
     do_prompt:
     std::cout << "Choose: (r)eboot, r(e)covery, re(s)tart boot sequence, (p)ower off? " << std::flush;
@@ -866,7 +866,7 @@ static void confirm_restart_boot() noexcept
 
     term_attr.c_lflag |= ICANON;
     tcsetattr(STDIN_FILENO, TCSANOW, &term_attr);
-    fcntl(STDIN_FILENO, F_SETFL, origFlags);
+    fcntl(STDIN_FILENO, F_SETFL, orig_flags);
 }
 
 static void do_soft_reboot(char **argv) noexcept
