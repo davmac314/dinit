@@ -27,17 +27,17 @@ sub_info()
     echo "  ... $1"
 }
 
-# Output an error message, may be followed by a call to sub_error to provide additional information
-error()
+# Output additional error information, and exit (intended to follow call to info)
+sub_info_error()
 {
-    >&2 echo "Error: $1"
+    >&2 echo "  ... Error: $1"
     exit 1
 }
 
-# Output additional error information (intended to follow call to error)
-sub_error()
+# Output an error message, and exit
+error()
 {
-    >&2 echo "  ... Error: $1"
+    >&2 echo "Error: $1"
     exit 1
 }
 
@@ -77,7 +77,7 @@ cxx_works()
         sub_info "Yes."
     else
         rm -f "$configtmpdir"/testfile*
-        sub_error "It seems that \"$1\" is not a working C++ compiler. Please specify a compiler."
+        sub_info_error "It seems that \"$1\" is not a working C++ compiler. Please specify a compiler."
     fi
 }
 
@@ -569,7 +569,7 @@ if [ -z "${CXX:-}" ]; then
         fi
     done
     if [ -z "${CXX:-}" ]; then
-       sub_error "No C++ compiler found!"
+       sub_info_error "No C++ compiler found!"
     fi
 fi
 cxx_works "$CXX"
@@ -580,7 +580,7 @@ fi
 ## Test compiler/linker supported arguments
 if [ "$AUTO_CXXFLAGS" = "true" ]; then
     if ! check_cxx_argument CXXFLAGS -std=c++11 MANDATORY; then
-        sub_error "The C++ compiler ($CXX) doesn't accept '-std=c++11' and may be too old."
+        sub_info_error "The C++ compiler ($CXX) doesn't accept '-std=c++11' and may be too old."
     fi
     for argument in -Wall \
                     -Os \
