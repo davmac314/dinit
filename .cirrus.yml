@@ -21,7 +21,7 @@ Dinit with hardening CI_task:
     TEST_LDFLAGS: # ASLR breaks -fsanitize=address,undefined
 
   freebsd_instance:
-    image_family: freebsd-14-2
+    image_family: freebsd-14-3
 
   Getting depends_script: pkg update && ASSUME_ALWAYS_YES=YES pkg install gmake m4 file llvm15
   Configure_script: ./configure
