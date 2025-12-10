@@ -104,14 +104,13 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     sigfillset(&sigall_set);
     sigprocmask(SIG_SETMASK, &sigall_set, nullptr);
 
-    constexpr int bufsz = 11 + ((CHAR_BIT * sizeof(pid_t) + 2) / 3) + 1;
-    // "LISTEN_PID=" - 11 characters; the expression above gives a conservative estimate
-    // on the maxiumum number of bytes required for LISTEN=nnn, including nul terminator,
-    // where nnn is a pid_t in decimal (i.e. one decimal digit is worth just over 3 bits).
+    constexpr int bufsz = 11 + type_max_numdigits<pid_t>() + 1;
+    // "LISTEN_PID=" - 11 characters; the expression above calculates the maximum number of bytes
+    // required for LISTEN_PID=nnn, including nul terminator, where nnn is a pid_t in decimal
     char nbuf[bufsz];
 
     // "DINIT_CS_FD=" - 12 bytes. (we -1 from sizeof(int) in account of sign bit).
-    constexpr int csenvbufsz = 12 + ((CHAR_BIT * sizeof(int) - 1 + 2) / 3) + 1;
+    constexpr int csenvbufsz = 12 + type_max_numdigits<int>() + 1;
     char csenvbuf[csenvbufsz];
 
     environment::env_map proc_env_map;
@@ -180,8 +179,8 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             // We need to do an allocation: the variable name length, '=', and space for the value,
             // and nul terminator:
             int notify_var_len = strlen(notify_var);
-            int req_sz = notify_var_len + ((CHAR_BIT * sizeof(int) - 1 + 2) / 3) + 1;
-            char * var_str = (char *) malloc(req_sz);
+            int req_sz = notify_var_len + 1 /* '=' */ + type_max_numdigits<int>() + 1 /* '\0' */;
+            char *var_str = (char *)malloc(req_sz);
             if (var_str == nullptr) goto failure_out;
             snprintf(var_str, req_sz, "%s=%d", notify_var, notify_fd);
             service_env.set_var(var_str);
@@ -237,7 +236,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         // Either: notify_fd == 0, i.e. the notification fd is STDIN (bad form, but we'll allow it)
         //         and in that case it's already open
         //     or: params.input_fd != 1, i.e. our STDIN is already open
-        //     or: we most open STDIN ourself (from /dev/null)
+        //     or: we must open STDIN ourself (from /dev/null)
         if (notify_fd != 0 && params.input_fd == -1 && move_fd(open("/dev/null", O_RDONLY), 0) != 0) {
             goto failure_out;
         }

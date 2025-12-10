@@ -1,27 +1,15 @@
-#include <limits>
-#include <cstdio>
 #include <cstring>
 
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
 
-#include <dinit-iostream.h>
+#include <dinit-util.h>
 #include <baseproc-sys.h>
 
+#include <dinit-iostream.h>
+
 // See dinit-iostream.h for information about the usage
-
-namespace {
-
-// A simple trick for calculating how many digits can be in a type with compile-time integer
-// logarithm like function.
-template <typename T> constexpr unsigned type_max_numdigits(T num = std::numeric_limits<T>::max(),
-        unsigned pow = 0)
-{
-    return (num == 0) ? pow : type_max_numdigits(num / 10, pow + 1);
-}
-
-} // (anonymous namespace)
 
 namespace dio {
 
