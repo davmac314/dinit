@@ -24,20 +24,26 @@ The basic process is:
      encompass a complete self-contained change.
 
      Commit messages should include a single line (up to 72 characters, preferably shorter) giving
-     a summary of the functional change, followed by a blank line and then a more comprehensive
-     description of the change (unless trivial) with lines wrapping at or before 72 characters.
+     a summary of the functional change, followed by a blank line and then (unless trivial) a more
+     comprehensive description of the change (the "message body"), with lines wrapping at or
+     before 72 characters.
+
+     Summary lines (and message bodies) start with a capital unless lead with a noun that doesn't
+     capitalise (such as a function or file name). If a commit affects a particular component (a
+     function, program, or "tests", or "build") that component should be at the head of the commit
+     summary (see examples below).
+
      Read existing commit messages to get a sense for the expected style/tone. Messages should be
      concise but not at the expense of necessary detail. Write in the imperative, i.e. the message
-     should be able to follow "This change will ..." (background information can be provided
+     body should be able to follow "This change will ..." (background information can be provided
      before the imperative statement, if really necessary, but ideally comes afterwards). 
 
-     If a commit affects a particular component (a function, program, or "tests", or "build") that
-     component should be at the head of the commit summary, examples:
+     Examples:
 
          -- example 1 --
          check_frobz: make sure to set gromit before return
 
-         Fix check_frobz so that ...(etc)
+         Fix the check_frobz function so that ...(etc)
 
          -- example 2 --
          Tests: add test for correct frobzing of gerschnicketts
@@ -46,15 +52,12 @@ The basic process is:
          gerschnicketts were not correctly frobzzed in certain corner cases,
          including ... (etc)
 
-     Summary lines (and message bodies) start with a capital unless lead with a noun that doesn't
-     capitalise (such as a function or file name).
-
      The message should fully explain what has been changed and the reason for it (the "why" and
      "how" of the change). Make sure that there is a complete explanation of the functional nature
      of the change (i.e. how does it affect the behaviour of the software) - it is less important
      to say what has changed in the code.
 
-     Use dot-point lists if appropriate:
+     Use dot-point lists if appropriate, as in this example:
 
          Handle fuzzits consistently
 
@@ -65,7 +68,8 @@ The basic process is:
          This makes handling of fuzzits consistent, and resolves #42.
 
      Always include a reference to any related issue in the issue tracker by number, with leading
-     hash, as in the examples above.
+     hash, as in the examples above. Do not include URLs for issues/commits/PRs within the
+     project, they should always be referenced by number.
 
      Do NOT include a so-called "conventional commit" tag ("fix:", "chore:" etc).
 
