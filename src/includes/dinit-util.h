@@ -500,10 +500,10 @@ inline bool starts_with(const std::string &s, const char *prefix) noexcept
 
 // Calculate (at compile-time) the maximum number of decimal digits that can be in a value of a
 // specific numeric type (not including minus sign, trailing nul terminator).
-template <typename T> constexpr unsigned type_max_numdigits(T num = std::numeric_limits<T>::max(),
+template <typename T> constexpr unsigned type_max_num_digits(T num = std::numeric_limits<T>::max(),
         unsigned pow = 0)
 {
-    return (num == 0) ? pow : type_max_numdigits(num / 10, pow + 1);
+    return (num == 0) ? pow : type_max_num_digits(num / 10, pow + 1);
 }
 
 // An allocator that doesn't value-initialise for construction. Eg for containers of primitive types this

@@ -330,8 +330,8 @@ void ostream::write(const std::string &msg)
 
 bool ostream::write_nx(const int num) noexcept
 {
-    // Note that we need space for the sign in signed values
-    constexpr unsigned INT_MAX_CHARS = type_max_numdigits<int>() + 1;
+    // Note that we need space for the sign in signed values, hence +1:
+    constexpr unsigned INT_MAX_CHARS = type_max_num_digits<int>() + 1;
     char tmp[INT_MAX_CHARS + 1];
     int len = snprintf(tmp, INT_MAX_CHARS + 1, "%d", num);
     return (put(tmp, len) == len);
@@ -348,7 +348,7 @@ void ostream::write(const int num)
 
 bool ostream::write_nx(const unsigned num) noexcept
 {
-    constexpr unsigned UINT_MAX_CHARS = type_max_numdigits<unsigned>();
+    constexpr unsigned UINT_MAX_CHARS = type_max_num_digits<unsigned>();
     char tmp[UINT_MAX_CHARS + 1];
     int len = snprintf(tmp, UINT_MAX_CHARS + 1, "%d", num);
     return (put(tmp, len) == len);
@@ -365,8 +365,8 @@ void ostream::write(const unsigned num)
 
 bool ostream::write_nx(const long num) noexcept
 {
-    // Note that we need space for the sign in signed values
-    constexpr unsigned LONG_MAX_CHARS = type_max_numdigits<long>() + 1;
+    // Note that we need space for the sign in signed values, hence +1:
+    constexpr unsigned LONG_MAX_CHARS = type_max_num_digits<long>() + 1;
     char tmp[LONG_MAX_CHARS + 1];
     int len = snprintf(tmp, LONG_MAX_CHARS + 1, "%ld", num);
     return (put(tmp, len) == len);
@@ -383,8 +383,8 @@ void ostream::write(const long num)
 
 bool ostream::write_nx(const unsigned long num) noexcept
 {
-    constexpr unsigned ULONG_MAX_CHARS = type_max_numdigits<unsigned long>();
-    char tmp[ULONG_MAX_CHARS + 1];
+    constexpr unsigned ULONG_MAX_CHARS = type_max_num_digits<unsigned long>();
+    char tmp[ULONG_MAX_CHARS + 1]; // +1 for nul terminator
     int len = snprintf(tmp, ULONG_MAX_CHARS + 1, "%ld", num);
     return (put(tmp, len) == len);
 }

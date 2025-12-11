@@ -104,13 +104,13 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     sigfillset(&sigall_set);
     sigprocmask(SIG_SETMASK, &sigall_set, nullptr);
 
-    constexpr int bufsz = 11 + type_max_numdigits<pid_t>() + 1;
+    constexpr int bufsz = 11 + type_max_num_digits<pid_t>() + 1;
     // "LISTEN_PID=" - 11 characters; the expression above calculates the maximum number of bytes
     // required for LISTEN_PID=nnn, including nul terminator, where nnn is a pid_t in decimal
     char nbuf[bufsz];
 
     // "DINIT_CS_FD=" - 12 bytes. (we -1 from sizeof(int) in account of sign bit).
-    constexpr int csenvbufsz = 12 + type_max_numdigits<int>() + 1;
+    constexpr int csenvbufsz = 12 + type_max_num_digits<int>() + 1;
     char csenvbuf[csenvbufsz];
 
     environment::env_map proc_env_map;
@@ -179,7 +179,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             // We need to do an allocation: the variable name length, '=', and space for the value,
             // and nul terminator:
             int notify_var_len = strlen(notify_var);
-            int req_sz = notify_var_len + 1 /* '=' */ + type_max_numdigits<int>() + 1 /* '\0' */;
+            int req_sz = notify_var_len + 1 /* '=' */ + type_max_num_digits<int>() + 1 /* '\0' */;
             char *var_str = (char *)malloc(req_sz);
             if (var_str == nullptr) goto failure_out;
             snprintf(var_str, req_sz, "%s=%d", notify_var, notify_fd);
