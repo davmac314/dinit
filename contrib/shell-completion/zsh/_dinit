@@ -3,9 +3,19 @@
 local current_context="$current_context" current_command
 local -a state commands arguments global_options command_options data home
 
-zstyle ':completion:*:sudo:*' environ SRV_HOME="/etc/dinit.d"
+if [[ $EUID -eq 0 ]]; then
+    home="/etc/dinit.d"
+else
+	zstyle ':completion:*:sudo:*' environ SRV_HOME="/etc/dinit.d"
 
-home="$SRV_HOME/"
+	home="$SRV_HOME/"
+fi
+
+if [[ "$home" == "/" || -z "$home" ]]; then
+    if [[ -d "/etc/dinit.d/user/" ]]; then
+		home="/etc/dinit.d/user"
+    fi  
+fi
 
 commands=(
     'status:datalay service status'
@@ -70,7 +80,7 @@ _arguments -C -A "-*" $arguments
 
 case $state in
     services)
-        data=( $(find "$home" -type f -printf '%P\n') )
+        data=( $(find "$home" -type f -maxdepth 1 -printf '%P\n') )
         _describe -t 'services' 'service' data
         ret=0
         ;;
