@@ -350,7 +350,7 @@ bool ostream::write_nx(const unsigned num) noexcept
 {
     constexpr unsigned UINT_MAX_CHARS = type_max_num_digits<unsigned>();
     char tmp[UINT_MAX_CHARS + 1];
-    int len = snprintf(tmp, UINT_MAX_CHARS + 1, "%d", num);
+    int len = snprintf(tmp, UINT_MAX_CHARS + 1, "%u", num);
     return (put(tmp, len) == len);
 }
 
@@ -385,7 +385,7 @@ bool ostream::write_nx(const unsigned long num) noexcept
 {
     constexpr unsigned ULONG_MAX_CHARS = type_max_num_digits<unsigned long>();
     char tmp[ULONG_MAX_CHARS + 1]; // +1 for nul terminator
-    int len = snprintf(tmp, ULONG_MAX_CHARS + 1, "%ld", num);
+    int len = snprintf(tmp, ULONG_MAX_CHARS + 1, "%lu", num);
     return (put(tmp, len) == len);
 }
 
