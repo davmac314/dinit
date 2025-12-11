@@ -19,12 +19,37 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <system_error>
-#include <cmath>
+#include <type_traits>
 
 #include <cpbuffer.h>
+#include <dinit-util.h>
 
 constexpr unsigned IOSTREAM_BUFSIZE = 16384; // Size of the buffers
+
+namespace {
+
+// Get the printf format specifier string for a given type
+template <typename T>
+constexpr const char *get_printf_format_spec();
+
+template <>
+constexpr  const char *get_printf_format_spec<int>() {
+    return "%d";
+}
+template <>
+constexpr const char *get_printf_format_spec<unsigned>() {
+    return "%u";
+}
+template <>
+constexpr const char *get_printf_format_spec<long>() {
+    return "%ld";
+}
+template <>
+constexpr const char *get_printf_format_spec<unsigned long>() {
+    return "%lu";
+}
+
+}
 
 namespace dio {
 
@@ -361,17 +386,35 @@ class ostream : public io_base
     bool write_nx(const std::string &msg) noexcept;
     void write(const std::string &msg);
 
-    bool write_nx(const int num) noexcept;
-    void write(const int num);
+    template <typename T>
+    typename std::enable_if<std::is_same<T,int>::value
+        || std::is_same<T,unsigned>::value
+        || std::is_same<T,long>::value
+        || std::is_same<T,unsigned long>::value,
+        bool>::type
+    write_nx(T num) noexcept
+    {
+        // Note that we need space for the minus sign in signed values:
+        constexpr unsigned T_MAX_CHARS = type_max_num_digits<T>() + (std::is_signed<T>::value ? 1 : 0);
+        char buf[T_MAX_CHARS + 1]; // +1 for nul terminator
+        int len = snprintf(buf, sizeof(buf), get_printf_format_spec<T>(), num);
+        return (put(buf, len) == len);
+    }
 
-    bool write_nx(const unsigned num) noexcept;
-    void write(const unsigned num);
-
-    bool write_nx(const long num) noexcept;
-    void write(const long num);
-
-    bool write_nx(const unsigned long num) noexcept;
-    void write(const unsigned long num);
+    template <typename T>
+    typename std::enable_if<std::is_same<T,int>::value
+        || std::is_same<T,unsigned>::value
+        || std::is_same<T,long>::value
+        || std::is_same<T,unsigned long>::value,
+        void>::type
+    write(T num)
+    {
+        bool r = write_nx(num);
+        if (!r) {
+            // Failed write_nx leaves an error state bit set, so this will throw:
+            throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
+        }
+    }
 
     bool write_nx(const endline &) noexcept;
     void write(const endline &);
