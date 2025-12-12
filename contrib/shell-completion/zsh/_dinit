@@ -18,10 +18,12 @@ if [[ "$home" == "/" || -z "$home" ]]; then
 fi
 
 commands=(
-    'status:datalay service status'
     'start:start service (if not running yet)'
-    'restart:restart service (if already running)'
     'stop:stop service'
+    'status:datalay service status'
+    'is-started'
+    'is-failed'
+    'restart:restart service (if already running)'
     'wake'
     'release'
     'unpin'
@@ -33,18 +35,32 @@ commands=(
     'rm-dep'
     'enable:enable service'
     'disable:disable service'
+    'trigger'
+    'untrigger'
     'setenv'
+    'unsetenv'
+    'catlog'
+    'signal'
 )
 
 global_options=(
     '--help:show help'
+    '--version'
     '-s:control system daemon (default if run as root)]'
     '--system:control system daemon (default if run as root)]'
     '-u:control user daemon'
     '--user:control user daemon'
     '--quiet:suppress output (except errors)'
     '--socket-path:specify socket for communication with daemon]'
-    '-p:specify socket for communication with daemon]'
+    '--use-passed-cfd:use a pre-opened connection'
+    '--offline:without communicating with dinit daemon'
+    '-o:without communicating with dinit daemon'
+    '--services-dir: Specifies the directory containing service description file (ignored when no -o)'
+	'--no-wait:exit immediately'
+	'--pin:Service will not leavve state until unpinned'
+	'--force:Stop the service (applied to restart, dependent services also be restarted)'
+	'--ignore-unstarted:ignore the command and return a exit code indicating succes'
+	'--clear:Clear the log buffer after displaying it'
 )
 
 arguments=()
