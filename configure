@@ -629,22 +629,24 @@ if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
         FOUND_LIBCAP_VIA_PKGCONFIG=0
         if [ "$AUTO_CPPFLAGS_LIBCAP" = true ]; then
             # No settings provided for libcap, try pkg-config before trying defaults
-            info "Looking for \"libcap\" via pkg-config..."
-            if pkg-config --exists libcap; then
-                # (Output from pkg-config should already be quoted for use in a shell eval, despite
-                #  its documentation which suggests otherwise)
-                LDFLAGS_LIBCAP="$(pkg-config --libs libcap)" &&
-                CPPFLAGS_LIBCAP="$(pkg-config --cflags libcap)" &&
-                FOUND_LIBCAP_VIA_PKGCONFIG=1 &&
-                SUPPORT_CAPABILITIES=1 &&
-                sub_info "Found." ||
-                {
-                    LDFLAGS_LIBCAP=""
-                    CPPFLAGS_LIBCAP=""
-                    sub_info "Couldn't determine flags for compiling/linking via pkg-config."
-                }
-            else
-                sub_info "Not found, trying defaults."
+            if command -v pkg-config > /dev/null 2>&1; then
+                info "Looking for \"libcap\" via pkg-config..."
+                if pkg-config --exists libcap; then
+                    # (Output from pkg-config should already be quoted for use in a shell eval,
+                    #  despite its documentation which suggests otherwise)
+                    LDFLAGS_LIBCAP="$(pkg-config --libs libcap)" &&
+                    CPPFLAGS_LIBCAP="$(pkg-config --cflags libcap)" &&
+                    FOUND_LIBCAP_VIA_PKGCONFIG=1 &&
+                    SUPPORT_CAPABILITIES=1 &&
+                    sub_info "Found." ||
+                    {
+                        LDFLAGS_LIBCAP=""
+                        CPPFLAGS_LIBCAP=""
+                        sub_info "Couldn't determine flags for compiling/linking via pkg-config."
+                    }
+                else
+                    sub_info "Not found, trying defaults."
+                fi
             fi
         fi
     
