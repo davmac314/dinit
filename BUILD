@@ -295,7 +295,7 @@ Special note for the Clang compiler and the Libcxxrt/Libcxxabi runtime
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 Clang when used as a compiler together with the Libcxxrt or Libcxxabi C++ runtime library on
-certain platforms has an issue  that prevents exceptions from working properly in particular cases
+certain platforms has an issue that prevents exceptions from working properly in particular cases
 when the "-fno-rtti" compiler option (see "Recommended compiler options") is used. This issue
 can prevent Dinit from working correctly. The known platforms exhibiting this problem are FreeBSD,
 OpenBSD and macOS; it may affect other *BSD variants using Clang, but this hasn't been verified.
