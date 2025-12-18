@@ -635,7 +635,7 @@ inline void fill_environment_userinfo(uid_t uid, const std::string &service_name
         uid = geteuid();
     }
 
-    char buf[std::numeric_limits<unsigned long long>::digits10 + 1];
+    char buf[type_max_num_digits<unsigned long long>() + 1]; // +1 for nul terminator
     snprintf(buf, sizeof(buf), "%llu", (unsigned long long)uid);
 
     errno = 0;
