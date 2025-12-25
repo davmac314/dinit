@@ -168,8 +168,16 @@ Consult compiler documentation for further information on the above options.
 Cross-compilation with "configure" script
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-If cross-compiling (i.e. specifying the CXX_FOR_BUILD variable), there are some additional
-considerations regarding use of the "configure" script.
+If the CXX_FOR_BUILD variable is specified, the "configure" script will assume the build is a
+cross-build, unless all of the following conditions are met:
+
+* Both the host compiler (CXX variable) and the build compiler (CXX_FOR_BUILD variable) are the
+same.
+* Their respective compiler flags (CXXFLAGS and CXXFLAGS_FOR_BUILD variables) are the same or both
+unset.
+* The CXXFLAGS_EXTRA variable is unset.
+
+If all of these conditions are met, the "configure" script will instead assume the build is native.
 
 Some build options are currently defaulted based on the detected platform (operating system). When
 doing a cross-build, the target platform is not automatically detected, and "configure" prints a
