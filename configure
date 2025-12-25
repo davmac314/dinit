@@ -450,6 +450,21 @@ for arg in "$@"; do
     esac
 done
 
+## Verify the build is a cross-build when CXX_FOR_BUILD is specified
+if [ -n "${CXX_FOR_BUILD:-}" ]; then
+    # The $CXX_FOR_BUILD is a variable set by the user to the compiler for the build machine.
+    # Later parts of this script assume the build is a cross-build when the $CXX_FOR_BUILD is set.
+    # The following check ensures that either the host compiler and the build compiler and their
+    # respective compiler flags are actually different or that $CXX_FOR_BUILD is unset.
+    if [ "$CXX_FOR_BUILD" = "$CXX" ]; then
+        if [ -z "${CXXFLAGS_EXTRA:-}" ]; then
+            if [ "${CXXFLAGS:-}" = "${CXXFLAGS_FOR_BUILD:-}" ]; then
+                unset CXX_FOR_BUILD
+            fi
+        fi
+    fi
+fi
+
 ## Check platform is specified for a cross-build
 if [ -n "${CXX_FOR_BUILD:-}" ]; then
     if [ -z "${PLATFORM:-}" ]; then
