@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <limits>
+#include <type_traits>
 
 #include <cstring>
 #include <cstddef>
@@ -498,12 +499,34 @@ inline bool starts_with(const std::string &s, const char *prefix) noexcept
     return *prefix == 0;
 }
 
+// Numeric maximum as constexpr (not needed in C++14 which has constexpr std::max).
+template <typename T> constexpr
+T constexpr_max(T a, T b)
+{
+    return (a > b) ? a : b;
+}
+
 // Calculate (at compile-time) the maximum number of decimal digits that can be in a value of a
 // specific numeric type (not including minus sign, trailing nul terminator).
-template <typename T> constexpr unsigned type_max_num_digits(T num = std::numeric_limits<T>::max(),
+template <typename T> constexpr
+typename std::enable_if<std::is_unsigned<T>::value, unsigned>::type
+type_max_num_digits(T num = std::numeric_limits<T>::max(),
         unsigned pow = 0)
 {
-    return (num == 0) ? pow : type_max_num_digits(num / 10, pow + 1);
+    return (num == 0) ? pow : type_max_num_digits<T>(num / 10, pow + 1);
+}
+
+// Specialise type_max_num_digits for signed types. Since the (absolute value of the) minimum can
+// be larger than the maximum, account for that before counting digits.
+template <typename T> constexpr
+typename std::enable_if<std::is_signed<T>::value, unsigned>::type
+type_max_num_digits()
+{
+    // For signed types, the absolute value of the minimum representable value may be larger than
+    // the maximum representable value. Base the digit calculation on whichever is larger.
+    using T_u = typename std::make_unsigned<T>::type;
+    return type_max_num_digits<T_u>(constexpr_max((T_u)std::numeric_limits<T>::max(),
+            (T_u)(-(T_u)std::numeric_limits<T>::min())), 0);
 }
 
 // An allocator that doesn't value-initialise for construction. Eg for containers of primitive types this
