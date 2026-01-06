@@ -352,8 +352,8 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         errno = 0;
         int fd = open("/proc/self/oom_score_adj", O_WRONLY);
         if (fd < 0) goto failure_out;
-        // +4: round up, minus sign, newline, nul terminator
-        char val_str[std::numeric_limits<short>::digits10 + 4];
+        // +3: minus sign, newline, nul terminator
+        char val_str[type_max_num_digits<short>() + 3];
         int num_chars = snprintf(val_str, sizeof(val_str), "%hd\n", oom_adj);
         if (write(fd, val_str, num_chars) < 0) {
             close(fd);
@@ -397,8 +397,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         close(cgroup_dir_fd);
 
         // We need to write our own pid into the cgroup.procs file
-        char pidbuf[std::numeric_limits<pid_t>::digits10 + 3];
-        // +1 for most significant digit, +1 for '\n', +1 for nul terminator
+        char pidbuf[type_max_num_digits<pid_t>() + 2]; // +1 for '\n', +1 for nul terminator
         int num_chars;
         if (sizeof(pid_t) <= sizeof(unsigned)) {
             num_chars = sprintf(pidbuf, "%u\n", (unsigned)getpid());
