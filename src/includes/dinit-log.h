@@ -38,6 +38,8 @@
 #include <cstdio>
 #include <climits>
 
+#include <dinit-util.h>
+
 class service_set;
 
 enum class loglevel_t {
@@ -93,7 +95,7 @@ static inline void log_msg_begin(loglevel_t lvl, const std::string &str) noexcep
 
 static inline void log_msg_begin(loglevel_t lvl, int a) noexcept
 {
-    constexpr int bufsz = (CHAR_BIT * sizeof(int) - 1) / 3 + 2;
+    constexpr int bufsz = type_max_num_digits<int>() + 2; // sign, nul terminator
     char nbuf[bufsz];
     snprintf(nbuf, bufsz, "%d", a);
     log_msg_begin(lvl, nbuf);
@@ -106,7 +108,7 @@ static inline void log_msg_part(const std::string &str) noexcept
 
 static inline void log_msg_part(int a) noexcept
 {
-    constexpr int bufsz = (CHAR_BIT * sizeof(int) - 1) / 3 + 2;
+    constexpr int bufsz = type_max_num_digits<int>() + 2; // sign, nul terminator
     char nbuf[bufsz];
     snprintf(nbuf, bufsz, "%d", a);
     log_msg_part(nbuf);
@@ -119,7 +121,7 @@ static inline void log_msg_end(const std::string &str) noexcept
 
 static inline void log_msg_end(int a) noexcept
 {
-    constexpr int bufsz = (CHAR_BIT * sizeof(int) - 1) / 3 + 2;
+    constexpr int bufsz = type_max_num_digits<int>() + 2; // sign, nul terminator
     char nbuf[bufsz];
     snprintf(nbuf, bufsz, "%d", a);
     log_msg_end(nbuf);
