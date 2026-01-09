@@ -529,6 +529,76 @@ type_max_num_digits()
             (T_u)(-(T_u)std::numeric_limits<T>::min())), 0);
 }
 
+// Convert a value to a decimal representation. If negative, the representation will be lead with
+// a minus sign ('-'). The digits follow, with no separators; a nul terminator is appended.
+// Parameters:
+//   begin - where to store the decimal representation; sufficient space must be available in the
+//           buffer to store the complete representation including sign and nul terminator.
+//   val - the numeric value to convert to decimal
+// Returns:
+//   A pointer to the nul terminator at the end of the decimal.
+//
+// This avoids any reliance on standard library for output/formatting which may be affected by
+// locale (and for which implementations are heavy-weight due to locale support).
+template <typename T>
+inline char *to_dec_digits(char *begin, T val) noexcept
+{
+    // Use the unsigned type to hold the value as we process it, as it can deal with INT_MIN and
+    // similar values:
+    using unsigned_t = typename std::make_unsigned<T>::type;
+    unsigned_t uval;
+
+    char *cp = begin;
+
+    if (val < 0) {
+        *cp++ = '-';
+        uval = -(unsigned_t)val;
+    }
+    else {
+        uval = (unsigned_t)val;
+    }
+
+    if (uval == 0) {
+        *cp++ = '0';
+    }
+    else {
+        // Calculate the digits in reverse, then reverse them.
+        // First the calculation of digits:
+        char *first_digit = cp;
+        do {
+            unsigned digit_val = uval % 10u;
+            *cp++ = ('0' + digit_val);
+            uval /= 10u;
+        }
+        while (uval > 0);
+
+        // Reverse digits:
+        char *last_pos = cp;
+        last_pos--;
+        while (first_digit < last_pos) {
+            std::swap(*first_digit, *last_pos);
+            first_digit++;
+            last_pos--;
+        }
+    }
+
+    *cp = '\0';
+    return cp;
+}
+
+// Convenient wrapper holding a buffer for representing a number as a decimal
+template <typename T>
+struct dec_digits_buf
+{
+    char *end_ptr;
+    char buf[type_max_num_digits<T>() + (std::is_signed<T>::value ? 1 : 0) + 1];
+
+    dec_digits_buf(T value)
+    {
+        end_ptr = to_dec_digits(buf, value);
+    }
+};
+
 // An allocator that doesn't value-initialise for construction. Eg for containers of primitive types this
 // allocator avoids the overhead of initialising new elements to 0.
 template <typename T>
