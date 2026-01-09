@@ -323,10 +323,11 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         #endif
         if (setpriority(PRIO_PROCESS, getpid(), nice) != 0) goto failure_out;
         #ifdef __linux__
-        // we usually create a new session leader; that makes nice not very
-        // useful as the Linux kernel will autogroup processes by session id
-        // except when disabled - so also work around this where enabled
-        // the r+ is used in order to avoid creating it where already disabled
+        // We usually create a new session leader (via setsid(), above). If automatic grouping of
+        // tasks on a session basis is enabled in the kernel, the nice value will not affect the
+        // scheduling relative to other processes in the system; in that case we'll also set the
+        // nice value of the group, by writing to /proc/self/autogroup (if it doesn't exist, we
+        // assume automatic grouping is disabled).
         int ag_fd = open("/proc/self/autogroup", O_WRONLY);
         if (ag_fd != -1) {
             char nice_out_buf[type_max_num_digits<int>() + 2]; // +1 sign, +1 newline
