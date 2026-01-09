@@ -109,7 +109,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
     // required for LISTEN_PID=nnn, including nul terminator, where nnn is a pid_t in decimal
     char nbuf[bufsz];
 
-    // "DINIT_CS_FD=" - 12 bytes. (we -1 from sizeof(int) in account of sign bit).
+    // "DINIT_CS_FD=" - 12 bytes.
     constexpr int csenvbufsz = 12 + type_max_num_digits<int>() + 1;
     char csenvbuf[csenvbufsz];
 
@@ -182,7 +182,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             int req_sz = notify_var_len + 1 /* '=' */ + type_max_num_digits<int>() + 1 /* '\0' */;
             char *var_str = (char *)malloc(req_sz);
             if (var_str == nullptr) goto failure_out;
-            snprintf(var_str, req_sz, "%s=%d", notify_var, notify_fd);
+            buf_print(var_str, notify_var, '=', notify_fd);
             service_env.set_var(var_str);
         }
 
@@ -195,13 +195,13 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
             if (socket_fd != 3) close(socket_fd);
 
             service_env.set_var("LISTEN_FDS=1");
-            snprintf(nbuf, bufsz, "LISTEN_PID=%jd", static_cast<intmax_t>(getpid()));
+            buf_print(nbuf, "LISTEN_PID=", getpid());
             service_env.set_var(nbuf);
         }
 
         if (csfd != -1) {
             err.stage = exec_stage::SETUP_CONTROL_SOCKET;
-            snprintf(csenvbuf, csenvbufsz, "DINIT_CS_FD=%d", csfd);
+            buf_print(csenvbuf, "DINIT_CS_FD=", csfd);
             service_env.set_var(csenvbuf);
         }
 
@@ -327,11 +327,13 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         // useful as the Linux kernel will autogroup processes by session id
         // except when disabled - so also work around this where enabled
         // the r+ is used in order to avoid creating it where already disabled
-        errno = 0;
-        FILE *ag = std::fopen("/proc/self/autogroup", "r+");
-        if (ag) {
-            std::fprintf(ag, "%d\n", nice);
-            std::fclose(ag);
+        int ag_fd = open("/proc/self/autogroup", O_WRONLY);
+        if (ag_fd != -1) {
+            char nice_out_buf[type_max_num_digits<int>() + 2]; // +1 sign, +1 newline
+            char *end_ptr = to_dec_digits(nice_out_buf, nice);
+            *end_ptr++ = '\n';
+            if (write(ag_fd, nice_out_buf, end_ptr - nice_out_buf) == -1) goto failure_out;
+            if (close(ag_fd) == -1) goto failure_out;
         }
         else if (errno != ENOENT) goto failure_out;
         #endif
@@ -354,7 +356,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         if (fd < 0) goto failure_out;
         // +3: minus sign, newline, nul terminator
         char val_str[type_max_num_digits<short>() + 3];
-        int num_chars = snprintf(val_str, sizeof(val_str), "%hd\n", oom_adj);
+        int num_chars = buf_print(val_str, oom_adj, '\n') - val_str;
         if (write(fd, val_str, num_chars) < 0) {
             close(fd);
             goto failure_out;
@@ -398,18 +400,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
 
         // We need to write our own pid into the cgroup.procs file
         char pidbuf[type_max_num_digits<pid_t>() + 2]; // +1 for '\n', +1 for nul terminator
-        int num_chars;
-        if (sizeof(pid_t) <= sizeof(unsigned)) {
-            num_chars = sprintf(pidbuf, "%u\n", (unsigned)getpid());
-        }
-        else if (sizeof(pid_t) <= sizeof(unsigned long)) {
-            num_chars = sprintf(pidbuf, "%lu\n", (unsigned long)getpid());
-        }
-        else {
-            static_assert(sizeof(pid_t) <= sizeof(unsigned long long), "pid_t is too big");
-            num_chars = sprintf(pidbuf, "%llu\n", (unsigned long long)getpid());
-        }
-
+        int num_chars = to_dec_digits(pidbuf, get_pid()) - pidbuf;
         if (write(cgroup_procs_fd, pidbuf, num_chars) == -1) goto failure_out;
         close(cgroup_procs_fd);
     }
