@@ -593,11 +593,45 @@ struct dec_digits_buf
     char *end_ptr;
     char buf[type_max_num_digits<T>() + (std::is_signed<T>::value ? 1 : 0) + 1];
 
-    dec_digits_buf(T value)
+    dec_digits_buf(T value) noexcept
     {
         end_ptr = to_dec_digits(buf, value);
     }
 };
+
+// buf_print: "print" a value (or series of values) into a buffer. The buffer must be sized
+// correctly prior. A nul terminator will be stored.
+// Parameters:
+//   buf - the buffer to "print" to
+//   values - the values to write to the buffer (integers as decimals)
+// Returns:
+//   A pointer to the nul terminator stored at the end of the output.
+
+template <typename T>
+typename std::enable_if<std::is_integral<T>::value, char *>::type
+buf_print(char *buf, T value) noexcept
+{
+    return to_dec_digits(buf, value);
+}
+
+inline char *buf_print(char *buf, const char *str) noexcept
+{
+    return stpcpy(buf, str);
+}
+
+inline char *buf_print(char *buf, char c) noexcept
+{
+    *buf++ = c;
+    *buf = '\0';
+    return buf;
+}
+
+template <typename T, typename ...U>
+char *buf_print(char *buf, T value, U... values) noexcept
+{
+    char *p = buf_print(buf, value);
+    return buf_print(p, values...);
+}
 
 // An allocator that doesn't value-initialise for construction. Eg for containers of primitive types this
 // allocator avoids the overhead of initialising new elements to 0.

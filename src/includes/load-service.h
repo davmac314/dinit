@@ -635,8 +635,11 @@ inline void fill_environment_userinfo(uid_t uid, const std::string &service_name
         uid = geteuid();
     }
 
-    char buf[type_max_num_digits<unsigned long long>() + 1]; // +1 for nul terminator
-    snprintf(buf, sizeof(buf), "%llu", (unsigned long long)uid);
+    constexpr unsigned max_digits = constexpr_max(type_max_num_digits<uid_t>(),
+            type_max_num_digits<gid_t>());
+    char buf[max_digits + 1]; // +1 for nul terminator
+
+    to_dec_digits(buf, uid);
 
     errno = 0;
     struct passwd *pwent = getpwuid(uid);
@@ -672,12 +675,12 @@ inline void fill_environment_userinfo(uid_t uid, const std::string &service_name
     env.set_var(std::move(enval));
     // UID (non-standard, but useful)
     enval = "UID=";
-    snprintf(buf, sizeof(buf), "%llu", (unsigned long long)pwent->pw_uid);
+    to_dec_digits(buf, pwent->pw_uid);
     enval += buf;
     env.set_var(std::move(enval));
     // GID (non-standard, but useful)
     enval = "GID=";
-    snprintf(buf, sizeof(buf), "%llu", (unsigned long long)pwent->pw_gid);
+    to_dec_digits(buf, pwent->pw_gid);
     enval += buf;
     env.set_var(std::move(enval));
 }
