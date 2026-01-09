@@ -403,6 +403,24 @@ template <typename ... T> static void push_to_log(int idx, T ... args) noexcept
     }
 }
 
+namespace {
+
+// log-level/facility marker
+struct ll_marker {
+    char buf[1 + type_max_num_digits<int>() + 2]; // '<', (number), '>', '\0'
+
+    ll_marker(int lvl)
+    {
+        char *wp = buf;
+        *wp++ = '<';
+        wp = to_dec_digits(wp, lvl);
+        *wp++ = '>';
+        *wp++ = '\0';
+    }
+};
+
+} // end namespace
+
 // Variadic method to potentially log a sequence of strings as a single message with the given log level:
 template <typename ... T> static void do_log(loglevel_t lvl, bool to_cons, T ... args) noexcept
 {
@@ -412,9 +430,8 @@ template <typename ... T> static void do_log(loglevel_t lvl, bool to_cons, T ...
     
     if (log_current_line[DLOG_MAIN]) {
         if (log_format_syslog[DLOG_MAIN]) {
-            char svcbuf[10];
-            snprintf(svcbuf, 10, "<%d>", LOG_DAEMON | log_level_to_syslog_level(lvl));
-            push_to_log(DLOG_MAIN, svcbuf, args...);
+            ll_marker mark(LOG_DAEMON | log_level_to_syslog_level(lvl));
+            push_to_log(DLOG_MAIN, mark.buf, args...);
         }
         else {
             push_to_log(DLOG_MAIN, args...);
@@ -448,9 +465,8 @@ template <typename ... T> static void do_log_main(loglevel_t lvl, T ... args) no
     log_current_line[DLOG_MAIN] = true;
 
     if (log_format_syslog[DLOG_MAIN]) {
-        char svcbuf[10];
-        snprintf(svcbuf, 10, "<%d>", LOG_DAEMON | LOG_NOTICE);
-        push_to_log(DLOG_MAIN, svcbuf, args...);
+        ll_marker mark(LOG_DAEMON | log_level_to_syslog_level(lvl));
+        push_to_log(DLOG_MAIN, mark.buf, args...);
     }
     else {
         push_to_log(DLOG_MAIN, args...);
@@ -508,9 +524,8 @@ void log_msg_begin(loglevel_t lvl, const char *msg) noexcept
     // Prepend the syslog priority level string ("<N>") for the main log:
     if (log_current_line[DLOG_MAIN]) {
         if (log_format_syslog[DLOG_MAIN]) {
-            char svcbuf[10];
-            snprintf(svcbuf, 10, "<%d>", LOG_DAEMON | log_level_to_syslog_level(lvl));
-            do_log_part(DLOG_MAIN, svcbuf);
+            ll_marker mark(LOG_DAEMON | log_level_to_syslog_level(lvl));
+            do_log_part(DLOG_MAIN, mark.buf);
         }
     }
 
