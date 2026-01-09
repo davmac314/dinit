@@ -26,31 +26,6 @@
 
 constexpr unsigned IOSTREAM_BUFSIZE = 16384; // Size of the buffers
 
-namespace {
-
-// Get the printf format specifier string for a given type
-template <typename T>
-constexpr const char *get_printf_format_spec();
-
-template <>
-constexpr  const char *get_printf_format_spec<int>() {
-    return "%d";
-}
-template <>
-constexpr const char *get_printf_format_spec<unsigned>() {
-    return "%u";
-}
-template <>
-constexpr const char *get_printf_format_spec<long>() {
-    return "%ld";
-}
-template <>
-constexpr const char *get_printf_format_spec<unsigned long>() {
-    return "%lu";
-}
-
-}
-
 namespace dio {
 
 // Stream state bits:
@@ -397,7 +372,7 @@ class ostream : public io_base
         // Note that we need space for the minus sign in signed values:
         constexpr unsigned T_MAX_CHARS = type_max_num_digits<T>() + (std::is_signed<T>::value ? 1 : 0);
         char buf[T_MAX_CHARS + 1]; // +1 for nul terminator
-        int len = snprintf(buf, sizeof(buf), get_printf_format_spec<T>(), num);
+        int len = to_dec_digits(buf, num) - buf;
         return (put(buf, len) == len);
     }
 
