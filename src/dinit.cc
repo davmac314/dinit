@@ -66,6 +66,7 @@ static void control_socket_ready() noexcept;
 static void confirm_restart_boot() noexcept;
 static void flush_log() noexcept;
 static void do_soft_reboot(char **argv) noexcept;
+static void do_reexec(char **argv) noexcept;
 
 static void control_socket_cb(eventloop_t *loop, int fd) noexcept;
 
@@ -707,6 +708,9 @@ int dinit_main(int argc, char **argv)
         else if (shutdown_type == shutdown_type_t::KEXEC) {
             log_msg_end(" Will kexec.");
         }
+        else if (shutdown_type == shutdown_type_t::REEXEC) {
+            log_msg_end(" Will re-exec.");
+        }
         else if (shutdown_type == shutdown_type_t::NONE) {
             log_msg_end(" Will handle boot failure.");
         }
@@ -722,6 +726,15 @@ int dinit_main(int argc, char **argv)
 
             // if we get here, soft reboot failed; reboot normally
             log(loglevel_t::ERROR, "Could not soft-reboot. Will attempt reboot.");
+            shutdown_type = shutdown_type_t::REBOOT;
+            need_log_flush = true;
+        }
+
+        if (shutdown_type == shutdown_type_t::REEXEC) {
+            do_reexec(argv);
+
+            // if we get here, reexec failed
+            log(loglevel_t::ERROR, "Could not re-exec. Will attempt reboot.");
             shutdown_type = shutdown_type_t::REBOOT;
             need_log_flush = true;
         }
@@ -896,6 +909,15 @@ static void do_soft_reboot(char **argv) noexcept
     // Re-exec the dinit process.
     execv(dinit_exec, argv);
     log(loglevel_t::ERROR, error_exec_dinit, strerror(errno));
+}
+
+static void do_reexec(char **argv) noexcept
+{
+    sync(); // Sync to minimise data loss in case reexec fails
+
+    // Re-exec the dinit process using original argv[0]
+    execv(argv[0], argv);
+    log(loglevel_t::ERROR, "Error executing ", argv[0], ": ", strerror(errno));
 }
 
 // Callback for control socket

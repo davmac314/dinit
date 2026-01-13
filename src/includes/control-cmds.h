@@ -91,6 +91,9 @@ enum class cp_cmd : dinit_cptypes::cp_cmd_t {
 
     // Start listening to environment events
     LISTENENV = 27,
+
+    // Re-execute dinit binary
+    REEXEC = 28,
 };
 
 // Replies:

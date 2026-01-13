@@ -58,6 +58,7 @@ static int list_services(int socknum, cpbuffer_t &, uint16_t proto_version);
 static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_name,
         ctl_cmd command, uint16_t proto_version, bool verbose);
 static int shutdown_dinit(int soclknum, cpbuffer_t &, bool verbose);
+static int reexec_dinit(int socknum, cpbuffer_t &, bool verbose);
 static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, const char *service_from,
         const char *service_to, dependency_type dep_type, bool verbose);
 static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_opt &service_dir_opts,
@@ -82,6 +83,7 @@ enum class ctl_cmd {
     LIST_SERVICES,
     SERVICE_STATUS,
     SHUTDOWN,
+    REEXEC,
     ADD_DEPENDENCY,
     RM_DEPENDENCY,
     ENABLE_SERVICE,
@@ -270,6 +272,9 @@ int dinitctl_main(int argc, char **argv)
             else if (strcmp(argv[i], "shutdown") == 0) {
                 command = ctl_cmd::SHUTDOWN;
             }
+            else if (strcmp(argv[i], "reexec") == 0) {
+                command = ctl_cmd::REEXEC;
+            }
             else if (strcmp(argv[i], "add-dep") == 0) {
                 command = ctl_cmd::ADD_DEPENDENCY;
             }
@@ -422,6 +427,7 @@ int dinitctl_main(int argc, char **argv)
     else {
         bool no_service_cmd = (command == ctl_cmd::LIST_SERVICES
                               || command == ctl_cmd::SHUTDOWN
+                              || command == ctl_cmd::REEXEC
                               || command == ctl_cmd::SIG_LIST);
         if (no_service_cmd) {
             if (!cmd_args.empty()) {
@@ -464,6 +470,7 @@ int dinitctl_main(int argc, char **argv)
           "    " DINITCTL_APPNAME " [options] reload <service-name>\n"
           "    " DINITCTL_APPNAME " [options] list\n"
           "    " DINITCTL_APPNAME " [options] shutdown\n"
+          "    " DINITCTL_APPNAME " [options] reexec\n"
           "    " DINITCTL_APPNAME " [options] add-dep <type> <from-service> <to-service>\n"
           "    " DINITCTL_APPNAME " [options] rm-dep <type> <from-service> <to-service>\n"
           "    " DINITCTL_APPNAME " [options] enable [--from <from-service>] <to-service>\n"
@@ -586,6 +593,9 @@ int dinitctl_main(int argc, char **argv)
         }
         else if (command == ctl_cmd::SHUTDOWN) {
             return shutdown_dinit(socknum, rbuffer, verbose);
+        }
+        else if (command == ctl_cmd::REEXEC) {
+            return reexec_dinit(socknum, rbuffer, verbose);
         }
         else if (command == ctl_cmd::ADD_DEPENDENCY || command == ctl_cmd::RM_DEPENDENCY) {
             return add_remove_dependency(socknum, rbuffer, command == ctl_cmd::ADD_DEPENDENCY,
@@ -1827,6 +1837,44 @@ static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer, bool verbose)
     }
     catch (cp_read_exception &exc) {
         // Assume that the connection closed.
+    }
+
+    if (verbose) {
+        std::cout << "Connection closed." << std::endl;
+    }
+
+    return 0;
+}
+
+static int reexec_dinit(int socknum, cpbuffer_t &rbuffer, bool verbose)
+{
+    using std::cout;
+    using std::cerr;
+
+    auto m = membuf()
+            .append((char)cp_cmd::REEXEC);
+    write_all_x(socknum, m);
+
+    wait_for_reply(rbuffer, socknum);
+
+    if (rbuffer[0] != (char)cp_rply::ACK) {
+        cerr << DINITCTL_APPNAME ": control socket protocol error\n";
+        return 1;
+    }
+
+    if (verbose) {
+        std::cout << "Re-executing dinit...\n";
+    }
+
+    // Wait for connection to close (dinit will re-exec)
+    try {
+        while (true) {
+            wait_for_info(rbuffer, socknum);
+            rbuffer.consume(rbuffer[1]);
+        }
+    }
+    catch (cp_read_exception &exc) {
+        // Connection closed - dinit has re-exec'd
     }
 
     if (verbose) {

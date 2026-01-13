@@ -122,6 +122,16 @@ bool control_conn_t::process_packet()
             return process_signal();
         case cp_cmd::QUERYSERVICEDSCDIR:
             return process_query_dsc_dir();
+        case cp_cmd::REEXEC:
+        {
+            // Re-execute dinit binary
+            services->stop_all_services(shutdown_type_t::REEXEC);
+            char reexecAckBuf[] = { (char)cp_rply::ACK };
+            if (!queue_packet(reexecAckBuf, 1)) return false;
+            rbuf.consume(1);
+            chklen = 0;
+            return true;
+        }
         default:
             break;
     }

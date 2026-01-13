@@ -43,7 +43,8 @@ enum class shutdown_type_t : char {
     POWEROFF,          // Power off system
     REBOOT,            // Reboot system
     SOFTREBOOT,        // Reboot dinit
-    KEXEC              // Reboot with kexec (without firmware reinitialisation)
+    KEXEC,             // Reboot with kexec (without firmware reinitialisation)
+    REEXEC             // Re-execute dinit binary
 };
 
 /* Reasons for why service stopped */
