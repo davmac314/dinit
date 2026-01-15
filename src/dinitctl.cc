@@ -1966,13 +1966,13 @@ static std::string get_enable_via(const char *service_name, const std::string &s
                 },
                 nullptr /* service arg */, resolve_var,
                 [&enable_via_name, service_name](string::iterator i, string::iterator e) -> void {
-                    i = dinit_load::skipws(i, e);
+                    i = dinit_load::skip_ws(i, e);
                     std::string meta_cmd = dinit_load::read_config_name(i, e);
                     if (meta_cmd == "enable-via") {
-                        i = dinit_load::skipws(i, e);
+                        i = dinit_load::skip_ws(i, e);
                         // TODO should use read_setting_value rather than read_config_name here.
                         enable_via_name = dinit_load::read_config_name(i, e);
-                        i = dinit_load::skipws(i, e);
+                        i = dinit_load::skip_ws(i, e);
                         if (enable_via_name.empty() || i != e) {
                             // TODO give filename/line number
                             throw service_load_exc(service_name, "'@meta enable-via' argument missing or malformed");

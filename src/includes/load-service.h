@@ -307,7 +307,7 @@ struct setting_details {
 extern setting_details all_settings[];
 
 // skip whitespace and embedded comments.
-inline string_iterator skipcomment(string_iterator i, string_iterator end, unsigned & count) noexcept
+inline string_iterator skip_comment(string_iterator i, string_iterator end, unsigned & count) noexcept
 {
     using std::locale;
     using std::isspace;
@@ -331,7 +331,7 @@ inline string_iterator skipcomment(string_iterator i, string_iterator end, unsig
 
 // Utility function to skip white space. Returns an iterator at the
 // first non-white-space position (or at end).
-inline string_iterator skipws(string_iterator i, string_iterator end) noexcept
+inline string_iterator skip_ws(string_iterator i, string_iterator end) noexcept
 {
     using std::locale;
     using std::isspace;
@@ -346,7 +346,7 @@ inline string_iterator skipws(string_iterator i, string_iterator end) noexcept
 }
 
 // skipws using "char *" instead of iterator
-inline const char *skipws(const char *i, const char *end) noexcept
+inline const char *skip_ws(const char *i, const char *end) noexcept
 {
     using std::locale;
     using std::isspace;
@@ -361,7 +361,7 @@ inline const char *skipws(const char *i, const char *end) noexcept
 }
 
 // skipws, but newlines increment an integer reference.
-inline string_iterator skipwsln(string_iterator i, string_iterator end, unsigned & count) noexcept
+inline string_iterator skip_ws_ln(string_iterator i, string_iterator end, unsigned &count) noexcept
 {
     using std::locale;
     using std::isspace;
@@ -377,7 +377,7 @@ inline string_iterator skipwsln(string_iterator i, string_iterator end, unsigned
     return i;
 }
 
-inline const char *findws(const char *i, const char *end) noexcept
+inline const char *find_ws(const char *i, const char *end) noexcept
 {
     using std::locale;
     using std::isspace;
@@ -520,7 +520,7 @@ inline void read_setting_value(std::string &setting_val, setting_op_t operation,
 
     unsigned &line_num = input_pos.get_line_num_ref();
 
-    i = skipwsln(i, end, line_num);
+    i = skip_ws_ln(i, end, line_num);
 
     if (operation == setting_op_t::PLUSASSIGN) {
         // Ensure that values are correctly delimited. This is usually only for debugging
@@ -580,7 +580,7 @@ inline void read_setting_value(std::string &setting_val, setting_op_t operation,
                 part_positions->emplace_back(part_start, setting_val.length());
                 new_part = true;
             }
-            i = skipcomment(i, end, line_num);
+            i = skip_comment(i, end, line_num);
             if (i == end) break;
             setting_val += ' ';  // collapse ws to a single space
             continue;
@@ -1066,7 +1066,7 @@ void process_service_file(string name, file_input_stack &service_input, T proces
 
             j = nextline.begin();
             endnext = nextline.end();
-            j = skipws(j, endnext);
+            j = skip_ws(j, endnext);
             if (j == nextline.begin()) {
                 throw service_description_exc(service_input,
                         "line following line-continuation backslash (`\\') "
@@ -1078,7 +1078,7 @@ void process_service_file(string name, file_input_stack &service_input, T proces
         string::iterator i = line.begin();
         string::iterator end = line.end();
 
-        i = skipwsln(i, end, line_num);
+        i = skip_ws_ln(i, end, line_num);
         if (i != end) {
             if (*i == '#') continue; // comment without setting
 
@@ -1144,7 +1144,7 @@ void process_service_file(string name, file_input_stack &service_input, T proces
             }
 
             string setting = read_config_name(i, end);
-            i = skipwsln(i, end, line_num);
+            i = skip_ws_ln(i, end, line_num);
 
             setting_op_t setting_op;
 
@@ -1176,7 +1176,7 @@ void process_service_file(string name, file_input_stack &service_input, T proces
                 throw service_description_exc(name, "badly formed line.", service_input);
             }
 
-            i = skipwsln(++i, end, line_num);
+            i = skip_ws_ln(++i, end, line_num);
 
             file_pos_ref fpr { service_input, line_num };
             process_line_func(line, fpr, setting, setting_op, i, end);
@@ -1337,7 +1337,7 @@ static void value_var_subst(const char *setting_name, std::string &line,
                     // Must perform word splitting. Find first whitespace:
                     auto r_vw_beg = resolved_vw.data();
                     auto r_vw_end = r_vw_beg + resolved_vw.length();
-                    const char *wsp = findws(r_vw_beg, r_vw_end);
+                    const char *wsp = find_ws(r_vw_beg, r_vw_end);
 
                     // If we have whitespace, append up to that whitespace and then split:
                     while (wsp != r_vw_end) {
@@ -1372,8 +1372,8 @@ static void value_var_subst(const char *setting_name, std::string &line,
 
                         // Find the next break, if any:
                         next_section:
-                        r_vw_beg = skipws(wsp, r_vw_end);
-                        wsp = findws(r_vw_beg, r_vw_end);
+                        r_vw_beg = skip_ws(wsp, r_vw_end);
+                        wsp = find_ws(r_vw_beg, r_vw_end);
                         inhibit_collapse = false;
                     }
 
