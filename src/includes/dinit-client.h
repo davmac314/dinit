@@ -492,8 +492,17 @@ inline std::string read_string(int socknum, cpbuffer_t &rbuffer, uint32_t length
     return r;
 }
 
-// Get the service description directories configured for the daemon as a vector of strings.
-// throws: dinit_unknown_sd_conf, dinit_protocol_error, cp_read_exception, cp_write_exception
+// Get the service description directories configured for the daemon as a vector of strings
+// (containing absolute paths; relative directories are resolved against the daemon's current
+// working directory).
+// Parameters:
+//   socknum - the file descriptor with the socket connection to the daemon
+//   rbuffer - the communication buffer
+// Returns:
+//   A vector of strings representing the absolute directories used as service description
+//   directories by the daemon (i.e. where it will look for service description files).
+// Throws:
+//   dinit_unknown_sd_conf, dinit_protocol_error, cp_read_exception, cp_write_exception
 inline std::vector<std::string> get_service_description_dirs(int socknum, cpbuffer_t &rbuffer)
 {
     using namespace std;

@@ -1334,7 +1334,22 @@ bool control_conn_t::query_load_mech()
     if (services->get_set_type_id() == SSET_TYPE_DIRLOAD) {
         dirload_service_set *dss = static_cast<dirload_service_set *>(services);
         std::vector<char> reppkt;
-        reppkt.resize(2 + sizeof(uint32_t) * 2);  // packet type, loader type, packet size, # dirs
+
+        // Reply packet:
+        //   1 byte   packet type (LOADER_MECH)
+        //   1 byte   loader type (SSET_TYPE_DIRLOAD)
+        //   uint32_t packet size
+        //   uint32_t number of directories
+        //
+        //  Followed by daemon CWD:
+        //     uint32_t length
+        //     n bytes  (directory)
+        //
+        //  Followed by N directories:
+        //     uint32_t length
+        //     n bytes  (directory)
+
+        reppkt.resize(2 + sizeof(uint32_t) * 2);
         reppkt[0] = (char)cp_rply::LOADER_MECH;
         reppkt[1] = SSET_TYPE_DIRLOAD;
 
@@ -1357,8 +1372,7 @@ bool control_conn_t::query_load_mech()
                 // Overflow. In theory we could now limit to size_t max, but the size must already
                 // be crazy long; let's abort.
                 char ack_rep[] = { (char)cp_rply::NAK };
-                if (!queue_packet(ack_rep, 1)) return false;
-                return true;
+                return queue_packet(ack_rep, 1);
             }
             reppkt.resize(total_size);
             wd = getcwd(reppkt.data() + curpos, try_path_size);
