@@ -1431,7 +1431,21 @@ static void value_var_subst(const char *setting_name, std::string &line,
     value_var_subst(setting_name, line, offsets, var_lookup, argval);
 }
 
-// Reads a value while performing minimal argument expansion in it.
+// Reads a value while performing pre-load variable expansion (including argument expansion) in
+// it.
+// Parameters:
+//   setting_name - the name of the setting which the value is for; may be stored in exceptions
+//                  (so must have a suitable lifetime, generally should be a string constant).
+//   input_pos - the input position, used for error reporting (exceptions)
+//   i - iterator at beginning of value string (will be updated to end of setting value)
+//   end - iterator at end of value string
+//   argval - value of the service argument if any (or null otherwise)
+//   resolve_var - function to resolve named variables
+// Returns:
+//   The setting value after resolution.
+// Throws:
+//   service_description_exc (with service name unset) - for a syntax error in the setting value.
+//   May also propagate any exception thrown by resolve_var.
 template <typename resolve_var_t>
 inline string read_value_resolved(const char *setting_name, file_pos_ref input_pos, string_iterator &i,
         string_iterator end, const char *argval, const resolve_var_t &resolve_var)
@@ -1833,7 +1847,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             settings.working_dir = read_setting_value(input_pos, i, end, nullptr);
             break;
         case setting_id_t::ENV_FILE:
-            settings.env_file = read_value_resolved(setting.c_str(), input_pos, i, end,
+            settings.env_file = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
             if (settings.env_file[0] != '/') {
                 // We need to duplicate the resolve-fd as it is owned by the input stack and will
@@ -1980,7 +1994,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             break;
         case setting_id_t::DEPENDS_ON:
         {
-            string dependency_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+            string dependency_name = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::REGULAR);
@@ -1988,7 +2002,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         }
         case setting_id_t::DEPENDS_MS:
         {
-            string dependency_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+            string dependency_name = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::MILESTONE);
@@ -1996,7 +2010,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         }
         case setting_id_t::WAITS_FOR:
         {
-            string dependency_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+            string dependency_name = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::WAITS_FOR);
@@ -2004,35 +2018,35 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         }
         case setting_id_t::WAITS_FOR_D:
         {
-            string waitsford = read_value_resolved(setting.c_str(), input_pos, i, end,
+            string waitsford = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
             process_dep_dir(settings.depends, waitsford, dependency_type::WAITS_FOR);
             break;
         }
         case setting_id_t::DEPENDS_ON_D:
         {
-            string depends_on_d = read_value_resolved(setting.c_str(), input_pos, i, end,
+            string depends_on_d = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
             process_dep_dir(settings.depends, depends_on_d, dependency_type::REGULAR);
             break;
         }
         case setting_id_t::DEPENDS_MS_D:
         {
-            string depends_ms_d = read_value_resolved(setting.c_str(), input_pos, i, end,
+            string depends_ms_d = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
             process_dep_dir(settings.depends, depends_ms_d, dependency_type::MILESTONE);
             break;
         }
         case setting_id_t::AFTER:
         {
-            string after_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+            string after_name = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
             settings.after_svcs.emplace_back(std::move(after_name));
             break;
         }
         case setting_id_t::BEFORE:
         {
-            string before_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+            string before_name = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
             settings.before_svcs.emplace_back(std::move(before_name));
             break;
@@ -2095,8 +2109,8 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         }
         case setting_id_t::CONSUMER_OF:
         {
-            string consumed_svc_name = read_value_resolved(setting.c_str(), input_pos, i, end,
-                    service_arg, lookup_var);
+            string consumed_svc_name = read_value_resolved(details->setting_str, input_pos, i,
+                    end, service_arg, lookup_var);
             if (consumed_svc_name == name) {
                 throw service_description_exc(name, "service cannot be its own consumer", "consumer-of",
                         input_pos);
@@ -2301,7 +2315,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             break;
         }
         case setting_id_t::CHAIN_TO:
-            settings.chain_to_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+            settings.chain_to_name = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
             break;
         case setting_id_t::READY_NOTIFICATION:
