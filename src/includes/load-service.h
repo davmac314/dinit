@@ -2301,7 +2301,8 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             break;
         }
         case setting_id_t::CHAIN_TO:
-            settings.chain_to_name = read_setting_value(input_pos, i, end, nullptr);
+            settings.chain_to_name = read_value_resolved(setting.c_str(), input_pos, i, end,
+                    service_arg, lookup_var);
             break;
         case setting_id_t::READY_NOTIFICATION:
         {
