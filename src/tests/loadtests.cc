@@ -323,6 +323,74 @@ void test_settings()
     assert(settings.depends.front().name == "abc");
 }
 
+void test_subst_errs()
+{
+    using string = std::string;
+    using string_iterator = std::string::iterator;
+
+    using prelim_dep = test_prelim_dep;
+
+    dinit_load::service_settings_wrapper<prelim_dep> settings;
+
+    std::stringstream ss;
+
+    ss << "type = process\n"
+            "command = /something/test\n"
+            "env-file = $ \n"; // (error)
+
+    file_input_stack input_stack;
+    bp_sys::supply_file_content("./dummy", ss.str());
+    dio::istream infile;
+    infile.open("./dummy");
+    input_stack.push("./dummy", std::move(infile), bp_sys::open(".", O_DIRECTORY));
+
+    bool have_seen_error = false;
+
+    try {
+        auto resolve_var = [](const std::string &name) {
+            return (char *)nullptr;
+        };
+
+        process_service_file("test-service", input_stack,
+                [&](string &line, file_pos_ref input_pos, string &setting,
+                        dinit_load::setting_op_t op, string_iterator &i,
+                        string_iterator &end) -> void {
+
+                    auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist,
+                            const std::string &waitsford, dependency_type dep_type) -> void {
+                        //process_dep_dir(name.c_str(), service_filename, deplist, waitsford, dep_type);
+                    };
+
+                    auto load_service_n = [&](const string &dep_name) -> const string & {
+                        return dep_name;
+                    };
+
+                    process_service_line(settings, "test-service", nullptr, line, input_pos,
+                            setting, op, i, end, load_service_n, process_dep_dir_n);
+                },
+                nullptr, resolve_var);
+    }
+    catch (std::system_error &sys_err)
+    {
+        //report_error(sys_err, name);
+        throw service_description_exc("", "error while reading service description.", "unknown");
+    }
+    catch (service_description_exc &exc) {
+        for (int i = 0; ; ++i) {
+            // We expect to see the exact setting (by identity) in all_settings, i.e. the setting
+            // name from the exception is not a pointer into a string which likely no longer
+            // exists as an object.
+            assert(dinit_load::all_settings[i].setting_str != nullptr);
+            if (dinit_load::all_settings[i].setting_str == exc.setting_name) {
+                have_seen_error = true;
+                break;
+            }
+        }
+    }
+
+    assert(have_seen_error);
+}
+
 void test_path_env_subst()
 {
     using string = std::string;
@@ -667,6 +735,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_env_subst3, "           ");
     RUN_TEST(test_nonexistent, "          ");
     RUN_TEST(test_settings, "             ");
+    RUN_TEST(test_subst_errs, "           ");
     RUN_TEST(test_path_env_subst, "       ");
     RUN_TEST(test_newline, "              ");
     RUN_TEST(test_newline_err, "          ");
