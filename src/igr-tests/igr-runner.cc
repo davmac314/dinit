@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cstring>
 
+#include <dirent.h>
 #include <pwd.h>
 #include <spawn.h>
 #include <unistd.h>
@@ -148,6 +149,59 @@ int main(int argc, char **argv)
     std::cout << std::endl;
 
     return failed == 0 ? 0 : 1;
+}
+
+// Recurse through files in a directory tree, processing each one via the supplied function.
+template <typename process_func_t>
+void recurse_tree(const char *path, process_func_t process_func)
+{
+    DIR *dir_handle = opendir(path);
+    if (dir_handle == nullptr) {
+        throw igr_failure_exc(std::string("recurse_tree: opendir failed for: ") + path);
+    }
+
+    struct dirent *dir_entry;
+    while ((dir_entry = readdir(dir_handle)) != nullptr) {
+        if (dir_entry->d_name[0] == '.' && (dir_entry->d_name[1] == '\0' ||
+                (dir_entry->d_name[1] == '.' && dir_entry->d_name[2] == '\0'))) {
+            // skip "." and ".." entries
+            continue;
+        }
+
+        struct stat statbuf;
+        std::string full_path = path;
+        full_path += '/';
+        full_path += dir_entry->d_name;
+        if (lstat(full_path.c_str(), &statbuf) != 0) {
+            throw igr_failure_exc("recurse_tree: lstat failed for: " + full_path);
+        }
+        if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
+            recurse_tree(full_path.c_str(), process_func);
+        }
+
+        process_func(full_path, statbuf);
+    }
+
+    closedir(dir_handle);
+}
+
+// Recursively remove a directory (a la "rm -r")
+void rm_tree(const char *path)
+{
+    recurse_tree(path, [&](const std::string &filepath, const struct stat &statbuf) {
+        if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
+            int r = rmdir(filepath.c_str());
+            if (r != 0) {
+                throw igr_failure_exc("rm_tree: rmdir failed for " + filepath + ": " + strerror(errno));
+            }
+        }
+        else {
+            int r= unlink(filepath.c_str());
+            if (r != 0) {
+                throw igr_failure_exc("rm_tree: unlink failed for " + filepath + ": " + strerror(errno));
+            }
+        }
+    });
 }
 
 void basic_test()
@@ -909,6 +963,7 @@ void offline_enable_test()
     }
 
     igr_assert(file_gone, "Service A not disabled after disable command; sd/boot.d/A still exists");
+    rm_tree(sd_dir.c_str());
 }
 
 void xdg_config_test()
