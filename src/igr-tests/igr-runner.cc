@@ -43,6 +43,7 @@ void xdg_config_test();
 void cycles_test();
 void svc_arg_test();
 void svc_arg_consumer_test();
+void svc_arg_enable_test();
 
 int main(int argc, char **argv)
 {
@@ -59,7 +60,8 @@ int main(int argc, char **argv)
             { "before-after2", before_after2_test }, { "log-via-pipe", log_via_pipe_test },
             { "catlog", catlog_test }, { "offline-enable", offline_enable_test },
             { "xdg-config", xdg_config_test }, { "cycles", cycles_test },
-            { "svc-arg", svc_arg_test }, { "svc-arg-consumer", svc_arg_consumer_test } };
+            { "svc-arg", svc_arg_test }, { "svc-arg-consumer", svc_arg_consumer_test },
+            { "svc-arg-enable", svc_arg_enable_test } };
     constexpr int num_tests = sizeof(tests) / sizeof(tests[0]);
 
     dinit_bindir = "../..";
@@ -1097,4 +1099,58 @@ void svc_arg_consumer_test()
     nanosleepx(0, (1000000000u / 10u) * 2u);
 
     igr_assert_eq(read_file_contents(logged_output_file), "producer\n" "Producing output...\n" "Producing output...\n");
+}
+
+void svc_arg_enable_test()
+{
+    igr_test_setup setup("svc-arg-enable");
+    std::string socket_path = setup.prep_socket_path();
+
+    std::string sd_dir = setup.get_output_dir() + "/sd";
+
+    if (faccessat(AT_FDCWD, sd_dir.c_str(), F_OK, AT_EACCESS) == -1) {
+        if (errno != ENOENT) {
+            throw std::system_error(errno, std::generic_category(), std::string("faccessat: ") + sd_dir);
+        }
+    }
+    else {
+        rm_r(sd_dir.c_str());
+    }
+
+    mkdir(sd_dir.c_str(), S_IRWXU);
+    cp_file((igr_input_basedir + "/svc-arg-enable/sd/A").c_str(), (sd_dir + "/A").c_str());
+    cp_file((igr_input_basedir + "/svc-arg-enable/sd/boot").c_str(), (sd_dir + "/boot").c_str());
+    mkdir((sd_dir + "/boot.d").c_str(), S_IRWXU);
+
+    // dinit
+    dinit_proc dinit_p;
+    dinit_p.start("svc-arg-enable", {"-u", "-d", sd_dir.c_str(), "-p", socket_path, "-q"}, true);
+
+    // dinitctl -d "$IGR_OUTPUT/sd" enable A@1
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("svc-arg-enable", {"-p", socket_path.c_str(), "-d", sd_dir.c_str(), "enable", "A@1"});
+    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    if (faccessat(AT_FDCWD, (sd_dir + "/boot.d/A@1").c_str(), F_OK, AT_EACCESS) == -1) {
+        throw std::system_error(errno, std::generic_category(), std::string("faccessat: ")
+                + sd_dir + "/boot.d/A@1");
+    }
+
+    dinitctl_p.start("svc-arg-enable", {"-p", socket_path.c_str(), "-d", sd_dir.c_str(), "disable", "A@1"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    bool file_gone = false;
+    if (faccessat(AT_FDCWD, (sd_dir + "/boot.d/A@1").c_str(), F_OK, AT_EACCESS) == -1) {
+        if (errno == ENOENT) {
+            file_gone = true;
+        }
+        else {
+            throw std::system_error(errno, std::generic_category(), std::string("faccessat: ") + sd_dir);
+        }
+    }
+
+    igr_assert(file_gone, "Service A@1 not disabled after disable command; sd/boot.d/A@1 still exists");
+    rm_tree(sd_dir.c_str());
 }

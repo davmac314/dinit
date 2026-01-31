@@ -2058,13 +2058,15 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
         to_service_file_path = to_sdf_dir;
         if (*to_service_file_path.rbegin() != '/') to_service_file_path += '/';
         const char *to_service_name_end = strip_service_arg(to);
+        size_t to_service_file_name_begin = to_service_file_path.length();
         to_service_file_path.append(to, to_service_name_end);
+        const char *to_base_name = to_service_file_path.c_str() + to_service_file_name_begin;
 
         if (from == nullptr) {
             // If "from" service wasn't specified, check '@meta enable-via' in to's service
             // description, with fallback to "boot"
 
-            auto to_sdf_fds = open_with_dir(to_sdf_dir.c_str(), to);
+            auto to_sdf_fds = open_with_dir(to_sdf_dir.c_str(), to_base_name);
             if (to_sdf_fds.first == -1) {
                 cerr << DINITCTL_APPNAME ": could not open service description file '"
                         << to_service_file_path << "': " << strerror(to_sdf_fds.second) << "\n";
