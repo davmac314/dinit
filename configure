@@ -450,6 +450,16 @@ for arg in "$@"; do
     esac
 done
 
+## Assume the build as native if both $CXX and $CXX_FOR_BUILD have the same value.
+# If the compiler for the host and the build machine are the same, it's a native build. There is a
+# chance that the user may set both $CXX and $CXX_FOR_BUILD to the same compiler. For example,
+# cbuild (Chimera Linux package builder) sets both variables regardless of native or cross build
+# and because we use $CXX_FOR_BUILD for detecting cross build, we should unset that variable in
+# this case. Also, GNU autotools detects this case and assumes the build as native.
+if [ -n "${CXX_FOR_BUILD:-}" ] && [ "$CXX_FOR_BUILD" = "$CXX" ]; then
+    unset CXX_FOR_BUILD
+fi
+
 ## Check platform is specified for a cross-build
 if [ -n "${CXX_FOR_BUILD:-}" ]; then
     if [ -z "${PLATFORM:-}" ]; then
