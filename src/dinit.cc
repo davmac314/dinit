@@ -449,7 +449,13 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
         // recognise "single" as a service name and ignore everything else.
 
         if (!opts.process_sys_args || strcmp(argv[i], "single") == 0) {
-            services_to_start.push_back(argv[i]);
+            if (!dinit_load::validate_service_name(argv[i])) {
+                cerr << "dinit: error: invalid service name '" << argv[i] << "'.\n";
+                return 1;
+            }
+            else {
+                services_to_start.push_back(argv[i]);
+            }
         }
 #else
         services_to_start.push_back(argv[i]);

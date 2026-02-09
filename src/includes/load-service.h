@@ -226,12 +226,6 @@ class service_description_exc : public service_load_exc
     {
     }
 
-    service_description_exc(const std::string &file_name, unsigned line_num,
-            std::string &&exc_info)
-            : service_load_exc(std::move(exc_info)), input_pos(file_name, line_num)
-    {
-    }
-
     service_description_exc(const char *setting_name, std::string &&exc_info)
             : service_load_exc(std::move(exc_info)), setting_name(setting_name)
     {
@@ -428,6 +422,35 @@ inline int signal_name_to_number(const std::string &signame) noexcept
         }
     }
     return sig;
+}
+
+// Check whether a string is valid as a service name (possibly including a service argument).
+inline bool validate_service_name(string_view name_str) noexcept
+{
+    // Should not be empty;
+    // Should not start with '.' nor '@';
+    // Should not contain (before '@'): any punctuation other than '.'/'_'/'-'
+
+    if (name_str.empty()) return false;
+    if (name_str[0] == '.') return false;
+    if (name_str[0] == '@') return false;
+
+    return true;
+
+    for (char c : name_str) {
+        if (c == '@') break; // anything can follow '@'
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+                || c == '.' || c == '_' || c == '-') {
+            // ok, allowed character.
+        }
+        else if (c >= 128) {
+            // potentially multi-byte encoded UTF-8 (or other encoding); we don't want to prohibit
+            // typical identifier characters used in a non-english setting, so allow.
+        }
+        else return false;
+    }
+
+    return true;
 }
 
 // Read a setting/variable name; return empty string if no valid name.
@@ -1839,6 +1862,14 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         throw service_description_exc(name, "cannot use '+=' with setting '" + setting + "'", input_pos);
     }
 
+    // utility: validate a service name for a dependency, throw an exception on failure
+    auto validate_dep_name_x = [&](string &name){
+        if (!validate_service_name(name)) {
+            throw service_description_exc(name, std::string("invalid dependency name '")
+                    + name + "'", details->setting_str, input_pos);
+        }
+    };
+
     switch (details->setting_id) {
         case setting_id_t::COMMAND:
             read_setting_value(settings.command, setting_op, input_pos, i, end, &settings.command_offsets);
@@ -1996,6 +2027,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         {
             string dependency_name = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
+            validate_dep_name_x(dependency_name);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::REGULAR);
             break;
@@ -2004,6 +2036,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         {
             string dependency_name = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
+            validate_dep_name_x(dependency_name);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::MILESTONE);
             break;
@@ -2012,6 +2045,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         {
             string dependency_name = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
+            validate_dep_name_x(dependency_name);
             settings.depends.emplace_back(load_service(dependency_name.c_str()),
                     dependency_type::WAITS_FOR);
             break;
@@ -2041,6 +2075,10 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         {
             string after_name = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
+            if (!validate_service_name(after_name)) {
+                throw service_description_exc(name, std::string("invalid service name '")
+                        + after_name + "'", details->setting_str, input_pos);
+            }
             settings.after_svcs.emplace_back(std::move(after_name));
             break;
         }
@@ -2048,6 +2086,10 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         {
             string before_name = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
+            if (!validate_service_name(before_name)) {
+                throw service_description_exc(name, std::string("invalid service name '")
+                        + before_name + "'", details->setting_str, input_pos);
+            }
             settings.before_svcs.emplace_back(std::move(before_name));
             break;
         }
@@ -2111,11 +2153,15 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         {
             string consumed_svc_name = read_value_resolved(details->setting_str, input_pos, i,
                     end, service_arg, lookup_var);
+            if (!validate_service_name(consumed_svc_name)) {
+                throw service_description_exc(name, std::string("invalid service name '")
+                        + consumed_svc_name + "'", details->setting_str, input_pos);
+            }
             if (consumed_svc_name == name) {
                 throw service_description_exc(name, "service cannot be its own consumer", "consumer-of",
                         input_pos);
             }
-            settings.consumer_of_name = consumed_svc_name;
+            settings.consumer_of_name = std::move(consumed_svc_name);
             break;
         }
         case setting_id_t::RESTART:
@@ -2317,6 +2363,10 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         case setting_id_t::CHAIN_TO:
             settings.chain_to_name = read_value_resolved(details->setting_str, input_pos, i, end,
                     service_arg, lookup_var);
+            if (!validate_service_name(settings.chain_to_name)) {
+                throw service_description_exc(name, std::string("invalid chain-to service name '")
+                        + settings.chain_to_name + "'", details->setting_str, input_pos);
+            }
             break;
         case setting_id_t::READY_NOTIFICATION:
         {

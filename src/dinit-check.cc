@@ -528,7 +528,7 @@ static void process_dep_dir(const char *servicename,
     dirent *dent = readdir(depdir);
     while (dent != nullptr) {
         char *name = dent->d_name;
-        if (name[0] != '.') {
+        if (dinit_load::validate_service_name(name)) {
             deplist.emplace_back(name, dep_type);
         }
         dent = readdir(depdir);

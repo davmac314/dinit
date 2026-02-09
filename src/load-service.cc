@@ -64,10 +64,10 @@ static void process_dep_dir(dirload_service_set &sset,
     }
 
     errno = 0;
-    dirent * dent = readdir(depdir);
+    dirent *dent = readdir(depdir);
     while (dent != nullptr) {
-        char * name =  dent->d_name;
-        if (name[0] != '.') {
+        char *name =  dent->d_name;
+        if (dinit_load::validate_service_name(name)) {
             try {
                 service_record * sr = sset.load_service(name);
                 deplist.emplace_back(sr, dep_type);
@@ -314,8 +314,8 @@ static bool check_settings_for_reload(service_record *service,
     return create_new_record;
 }
 
-service_record * dirload_service_set::load_reload_service(const char *fullname, service_record *reload_svc,
-        const service_record *avoid_circular)
+service_record *dirload_service_set::load_reload_service(const char *fullname,
+        service_record *reload_svc, const service_record *avoid_circular)
 {
     // Load a new service, or reload an already-loaded service.
 

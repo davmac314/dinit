@@ -29,7 +29,16 @@ properties.
 .LP
 In addition to service properties, some meta-commands can be used within service
 description files.
-See the \fBMETA-COMMANDS\fR subsection for more information. 
+See the \fBMETA-COMMANDS\fR subsection for more information.
+.\"
+.SS SERVICE NAMES
+.\"
+Certain restrictions are placed on service names.
+They must be non-empty, must not begin with a dot character (`.'), and should consist of
+alphanumeric characters as well as a limited allowed set of punctuation characters (`.',
+except as the first character, '-', and '_').
+The validation performed by \fBdinit\fR also allows all byte values outside the ASCII range,
+allowing for multibyte-encoded characters to be used as part of a service name. 
 .\"
 .SS SERVICE ARGUMENTS
 .\"
