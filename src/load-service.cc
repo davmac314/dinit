@@ -208,24 +208,14 @@ static void update_command_and_dependencies(base_process_service *service,
         dinit_load::service_settings_wrapper<prelim_dep> &settings,
         std::list<service_dep> &before_deps)
 {
-    // Get the current command parts
-    ha_string orig_cmd; std::vector<const char *> orig_arg_parts;
-    service->get_command(orig_cmd, orig_arg_parts);
-
-    // Separate the new command parts and set
+    // Separate the new command parts and set (may fail)
     std::vector<const char *> cmd_arg_parts = separate_args(settings.command, settings.command_offsets);
+
+    // Update dependencies (may fail)
+    update_depenencies(service, settings, before_deps);
+
+    // Now we can safely set the command (failure not possible since we move the parts into place).
     service->set_command(std::move(settings.command), std::move(cmd_arg_parts));
-
-    try {
-        update_depenencies(service, settings, before_deps);
-    }
-    catch (...) {
-        // restore original command
-        service->set_command(std::move(orig_cmd), std::move(orig_arg_parts));
-
-        // re-throw the exception
-        throw;
-    }
 }
 
 // Check that the provided settings are compatible / ok to be applied to the specified (already loaded)

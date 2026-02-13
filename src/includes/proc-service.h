@@ -367,12 +367,6 @@ class base_process_service : public service_record
         exec_arg_parts = std::move(command_parts_p);
     }
 
-    void get_command(ha_string &command_p, std::vector<const char *> &command_parts_p)
-    {
-        command_p = program_name;
-        command_parts_p = exec_arg_parts;
-    }
-
     // Set the stop command and arguments (may throw std::bad_alloc)
     void set_stop_command(ha_string &command,
             std::list<std::pair<unsigned,unsigned>> &stop_command_offsets)
