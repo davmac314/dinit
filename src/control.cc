@@ -163,6 +163,12 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
     service_record * record = nullptr;
     
     string service_name = rbuf.extract_string(3, srvname_len);
+    if (!dinit_load::validate_service_name(service_name)) {
+        char badreqRep[] = { (char)cp_rply::BADREQ };
+        if (!queue_packet(badreqRep, 1)) return false;
+        bad_conn_close = true;
+        return true;
+    }
 
     // Clear the packet from the buffer
     rbuf.consume(chklen);
