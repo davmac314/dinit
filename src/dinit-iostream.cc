@@ -27,6 +27,7 @@ bool io_base::is_open() noexcept
 
 void io_base::set_fd(const int newfd) noexcept
 {
+    io_error = 0;
     fd = newfd;
     if (!buf) buf = std::unique_ptr<streambuf>(new(std::nothrow) streambuf);
 }

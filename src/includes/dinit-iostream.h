@@ -148,8 +148,8 @@ class io_base
 
     // Check the buffer allocation was successful, and throw std::bad_alloc if not. This can be
     // used after a failed open(...) operation to handle the specific case of buffer allocation
-    // failure, without throwing an exception in other cases. It should not be used outside of
-    // this use case.
+    // failure, without throwing an exception in other cases; it can also be used to check buffer
+    // allocation status after calling set_fd(). It should not be used outside of these use cases.
     void check_buf()
     {
         if (io_error == 0 && !buf) {
@@ -160,11 +160,12 @@ class io_base
     // Is the current stream's file descriptor open?
     bool is_open() noexcept;
 
-    // Set the file descriptor. Setting a new file descriptor will replace any current descriptor
-    // in the stream. The buffer must be flushed before replacing the file descriptor. The
-    // previous file descriptor remains open and it is the responsibility of the caller to ensure
-    // that it is closed to avoid a file descriptor leak. If there is no buffer allocated yet
-    // (eg if the stream was not open) this will attempt to allocate a buffer.
+    // Set the file descriptor and clear error states. Setting a new file descriptor will replace
+    // any current descriptor in the stream. The buffer must be flushed before replacing the file
+    // descriptor. The previous file descriptor remains open and it is the responsibility of the
+    // caller to ensure that it is closed to avoid a file descriptor leak. If there is no buffer
+    // allocated yet (eg if the stream was not open) this will attempt to allocate a buffer;
+    // failure to allocate a buffer can be checked via check_buf().
     void set_fd(const int newfd) noexcept;
 
     // Get the current file descriptor.
@@ -649,6 +650,14 @@ class istream : public io_base
     // Returns:
     //   true when there are no error states on the stream; false otherwise.
     explicit operator bool() noexcept;
+
+    // See: io_base::set_fd(int).
+    void set_fd(const int newfd) noexcept
+    {
+        io_base::set_fd(newfd);
+        eof_state = false;
+        string_failed = false;
+    }
 
     ~istream() noexcept;
 };
