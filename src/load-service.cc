@@ -426,14 +426,8 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
 
     service_file.set_fd(sdf_fds.second);
     service_file.check_buf();
-
     service_settings_wrapper<prelim_dep> settings;
     service_record *consumer_of_svc = nullptr;
-
-    string line;
-    // getline can set failbit if it reaches end-of-file, we don't want an exception in that case. There's
-    // no good way to handle an I/O error however, so we'll have exceptions thrown on badbit:
-    //service_file.exceptions(ios::badbit);
 
     bool create_new_record = true;
 
