@@ -144,7 +144,10 @@ class io_base
 
     // Get raw pointer to the current buffer.
     // Note: The buffer may be null if allocation failed (buffer_fail_bit will be set).
-    streambuf *get_buf() noexcept;
+    streambuf *get_buf() noexcept
+    {
+        return buf.get();
+    }
 
     // Check the buffer allocation was successful, and throw std::bad_alloc if not. This can be
     // used after a failed open(...) operation to handle the specific case of buffer allocation
@@ -158,7 +161,10 @@ class io_base
     }
 
     // Is the current stream's file descriptor open?
-    bool is_open() noexcept;
+    bool is_open() noexcept
+    {
+        return (fd >= 0);
+    }
 
     // Set the file descriptor and clear error states. Setting a new file descriptor will replace
     // any current descriptor in the stream. The buffer must be flushed before replacing the file
@@ -166,10 +172,18 @@ class io_base
     // caller to ensure that it is closed to avoid a file descriptor leak. If there is no buffer
     // allocated yet (eg if the stream was not open) this will attempt to allocate a buffer;
     // failure to allocate a buffer can be checked via check_buf().
-    void set_fd(const int newfd) noexcept;
+    void set_fd(const int newfd) noexcept
+    {
+        io_error = 0;
+        fd = newfd;
+        if (!buf) buf = std::unique_ptr<streambuf>(new(std::nothrow) streambuf);
+    }
 
     // Get the current file descriptor.
-    int get_fd() noexcept;
+    int get_fd() noexcept
+    {
+        return fd;
+    }
 };
 
 // ostream
@@ -296,7 +310,13 @@ class ostream : public io_base
     // Check the current state of the stream.
     // Returns:
     //  The current state bits in stream (a combination of values from 'io_states').
-    int current_state() noexcept;
+    int current_state() noexcept
+    {
+        int bits = 0;
+        if (!buf) bits |= io_states::buffer_fail_bit;
+        if (io_error) bits |= io_states::io_fail_bit;
+        return bits;
+    }
 
     // Throw an exception if current state flags indicate an error condition. 'states' is a
     // bitmask formed by combining values in the io_states enum, indicating which state flags are
@@ -306,20 +326,32 @@ class ostream : public io_base
     // Check whether the stream is currently "good".
     // Returns:
     //   true when there are no error states on the stream; false otherwise.
-    bool good() noexcept;
+    bool good() noexcept
+    {
+        return (current_state() == 0);
+    }
 
     // Check whether the allocation failure bit ('buffer_fail_bit') is set in the stream state.
     // Returns:
     //   The value of 'buffer_fail_bit' in the the current state.
-    bool buffer_failure() noexcept;
+    bool buffer_failure() noexcept
+    {
+        return !buf;
+    }
 
     // Check whether an I/O error has been recorded in the stream state ('io_fail_bit').
     // Returns:
     //   0 if no error recorded; otherwise, the 'errno' value that was recorded.
-    int io_failure() noexcept;
+    int io_failure() noexcept
+    {
+        return io_error;
+    }
 
     // Resets current state, other than 'buffer_fail_bit', to clear (error-free).
-    void clear() noexcept;
+    void clear() noexcept
+    {
+        io_error = 0;
+    }
 
     // Flush the stream's buffer.
     // Returns (_nx variant):
@@ -436,7 +468,10 @@ class ostream : public io_base
     // Convenience conversion to bool, equivalent to good().
     // Returns:
     //   true when there are no error states on the stream; false otherwise.
-    explicit operator bool() noexcept;
+    explicit operator bool() noexcept
+    {
+        return good();
+    }
 
     ~ostream() noexcept;
 };
@@ -581,27 +616,42 @@ class istream : public io_base
     // Check whether the stream is currently "good".
     // Returns:
     //   true when there are no error states on the stream; false otherwise.
-    bool good() noexcept;
+    bool good() noexcept
+    {
+        return (current_state() == 0);
+    }
 
     // Check whether end-of-file ('eof_bit') is set in the stream state.
     // Returns:
     //   The value of 'eof_bit' in the the current state.
-    bool eof() noexcept;
+    bool eof() noexcept
+    {
+        return eof_state;
+    }
 
     // Check whether the allocation failure bit ('buffer_fail_bit') is set in the stream state.
     // Returns:
     //   The value of 'buffer_fail_bit' in the the current state.
-    bool buffer_failure() noexcept;
+    bool buffer_failure() noexcept
+    {
+        return !buf;
+    }
 
     // Check whether the string store failure bit ('input_fail_bit') is set in the stream state.
     // Returns:
     //   The value of 'input_fail_bit' in the the current state.
-    bool input_failure() noexcept;
+    bool input_failure() noexcept
+    {
+        return string_failed;
+    }
 
     // Check whether an I/O error has been recorded in the stream state ('io_fail_bit').
     // Returns:
     //   0 if no error recorded; otherwise, the 'errno' value that was recorded.
-    int io_failure() noexcept;
+    int io_failure() noexcept
+    {
+        return io_error;
+    }
 
     // Resets current state, other than buffer_fail_bit, to clear (error-free).
     void clear() noexcept;
@@ -649,7 +699,10 @@ class istream : public io_base
     // Convenience conversion to bool, equivalent to good().
     // Returns:
     //   true when there are no error states on the stream; false otherwise.
-    explicit operator bool() noexcept;
+    explicit operator bool() noexcept
+    {
+        return good();
+    }
 
     // See: io_base::set_fd(int).
     void set_fd(const int newfd) noexcept

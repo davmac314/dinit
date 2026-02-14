@@ -13,30 +13,6 @@
 
 namespace dio {
 
-// class io_base
-
-streambuf *io_base::get_buf() noexcept
-{
-    return buf.get();
-}
-
-bool io_base::is_open() noexcept
-{
-    return (fd >= 0);
-}
-
-void io_base::set_fd(const int newfd) noexcept
-{
-    io_error = 0;
-    fd = newfd;
-    if (!buf) buf = std::unique_ptr<streambuf>(new(std::nothrow) streambuf);
-}
-
-int io_base::get_fd() noexcept
-{
-    return fd;
-}
-
 // class ostream
 
 ssize_t ostream::put(const char *msg, size_t count) noexcept
@@ -216,34 +192,6 @@ void ostream::close()
     }
 }
 
-int ostream::current_state() noexcept
-{
-    int bits = 0;
-    if (!buf) bits |= io_states::buffer_fail_bit;
-    if (io_error) bits |= io_states::io_fail_bit;
-    return bits;
-}
-
-bool ostream::good() noexcept
-{
-    return (current_state() == 0);
-}
-
-bool ostream::buffer_failure() noexcept
-{
-    return !buf;
-}
-
-int ostream::io_failure() noexcept
-{
-    return io_error;
-}
-
-void ostream::clear() noexcept
-{
-    io_error = 0;
-}
-
 bool ostream::flush_nx() noexcept
 {
     if (!good()) {
@@ -383,11 +331,6 @@ ssize_t ostream::write_buf(const std::string &msg)
         throw_exception_on(io_states::buffer_fail_bit | io_states::io_fail_bit);
     }
     return r;
-}
-
-ostream::operator bool() noexcept
-{
-    return good();
 }
 
 ostream::~ostream() noexcept
@@ -548,31 +491,6 @@ int istream::current_state() noexcept
     return bits;
 }
 
-bool istream::good() noexcept
-{
-    return (current_state() == 0);
-}
-
-bool istream::eof() noexcept
-{
-    return eof_state;
-}
-
-bool istream::buffer_failure() noexcept
-{
-    return !buf;
-}
-
-bool istream::input_failure() noexcept
-{
-    return string_failed;
-}
-
-int istream::io_failure() noexcept
-{
-    return io_error;
-}
-
 void istream::clear() noexcept
 {
     eof_state = false;
@@ -693,11 +611,6 @@ bool istream::get_line_until_eof_nx(std::string &dest, char delim) noexcept
         if (io_error != 0 || string_failed) return false;
     }
     return true;
-}
-
-istream::operator bool() noexcept
-{
-    return good();
 }
 
 istream::~istream() noexcept
