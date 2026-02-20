@@ -689,14 +689,12 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
                 check_cycle(settings.depends, before_svc, name);
             }
             else {
-                bool before_svc_added = false;
                 try {
                     before_svc = new placeholder_service(this, before_ent);
                     add_service(before_svc);
-                    before_svc_added = true;
                 }
                 catch (...) {
-                    if (before_svc_added) remove_service(before_svc);
+                    // (Service wasn't added to set)
                     delete before_svc;
                     throw;
                 }
