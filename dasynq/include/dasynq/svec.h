@@ -237,7 +237,7 @@ public:
         return size_v == 0;
     }
 
-    static size_t max_size() noexcept
+    constexpr static size_t max_size() noexcept
     {
         return std::numeric_limits<size_type>::max() / sizeof(T);
 

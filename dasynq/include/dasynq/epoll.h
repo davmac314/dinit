@@ -128,7 +128,12 @@ template <class Base> class epoll_loop : public Base
         for (int i = 0; i < r; i++) {
             void *ptr = events[i].data.ptr;
             
-            if (ptr == &sigfd) {
+            if (ptr == &epfd) {
+                // This indicates a disabled watch. Epoll still reports error events (including
+                // hangup) when all watches are disabled, so we must use &epfd as a special marker
+                // (set by disable_fd_watch) to indicate that the event should not be reported.
+            }
+            else if (ptr == &sigfd) {
                 // Signal
                 sigdata_t siginfo;
                 while (true) {
@@ -294,13 +299,13 @@ template <class Base> class epoll_loop : public Base
     void disable_fd_watch(int fd, int flags) noexcept
     {
         struct epoll_event epevent;
-        // epevent.data.fd = fd;
-        epevent.data.ptr = nullptr;
-        epevent.events = 0;
+        // Epoll *always* reports error events for an fd in the epoll set, there is no way to
+        // disable this completely even if input and output events are both unset. So we use a
+        // special marker (&epfd) to indicate a disabled watch, and we set EPOLLONESHOT so that
+        // such errors are reported only a single time.
+        epevent.data.ptr = &epfd;
+        epevent.events = EPOLLONESHOT;
         
-        // Epoll documentation says that hangup will still be reported, need to check
-        // whether this is really the case. Suspect it is really only the case if
-        // EPOLLIN is set.
         if (epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &epevent) == -1) {
             // Let's assume that this can't fail.
             // throw std::system_error(errno, std::system_category());
