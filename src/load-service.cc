@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <string>
 #include <fstream>
-#include <locale>
 #include <limits>
 #include <list>
 #include <utility>
@@ -90,9 +89,10 @@ static void process_dep_dir(dirload_service_set &sset,
     closedir(depdir);
 }
 
-service_record * dirload_service_set::load_service(const char * name, const service_record *avoid_circular)
+service_record * dirload_service_set::load_service(const char * name,
+        const service_record *avoid_circular, int recursion_depth)
 {
-    return load_reload_service(name, nullptr, avoid_circular);
+    return load_reload_service(name, nullptr, avoid_circular, recursion_depth);
 }
 
 service_record * dirload_service_set::reload_service(service_record * service)
@@ -305,7 +305,7 @@ static bool check_settings_for_reload(service_record *service,
 }
 
 service_record *dirload_service_set::load_reload_service(const char *fullname,
-        service_record *reload_svc, const service_record *avoid_circular)
+        service_record *reload_svc, const service_record *avoid_circular, int recursion_depth)
 {
     // Load a new service, or reload an already-loaded service.
 
@@ -351,13 +351,15 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
     using std::ifstream;
     using std::ios;
     using std::ios_base;
-    using std::locale;
-    using std::isspace;
 
     using std::list;
     using std::pair;
 
     using namespace dinit_load;
+
+    if (recursion_depth == MAX_DEP_DEPTH) {
+        throw service_load_exc(fullname, "maximum recursion depth exceeded");
+    }
 
     const auto *argp = strchr(fullname, '@');
     if (!argp) argp = fullname + strlen(fullname);
@@ -516,7 +518,7 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
 
                     auto load_service_n = [&](const string &dep_name) -> service_record * {
                         try {
-                            return load_service(dep_name.c_str(), reload_svc);
+                            return load_service(dep_name.c_str(), reload_svc, recursion_depth + 1);
                         }
                         catch (service_description_exc &sle) {
                             log_service_load_failure(sle);
@@ -537,6 +539,25 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
         auto report_err = [&](const char *msg){
             throw service_load_exc(name, msg);
         };
+
+        dep_depth_updater depth_updates;
+
+        if (reload_svc != nullptr) {
+            // Update dependency depth counts (and abort if too high)
+            depth_updates.add_potential_update(reload_svc);
+            depth_updates.process_updates();
+        }
+        else {
+            // Not reloading, so calculate a fresh dependency depth
+            unsigned my_depth = 0;
+            for (auto &dep : settings.depends) {
+                my_depth = std::min(my_depth, dep.to->get_dep_depth() + 1);
+            }
+
+            if (my_depth >= MAX_DEP_DEPTH) {
+                throw service_load_exc(fullname, "maximum recursion depth exceeded");
+            }
+        }
 
         // Fill user vars before reading env file
         if (settings.export_passwd_vars) {
@@ -860,8 +881,7 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
                 if (service_type == service_type_t::INTERNAL) {
                     rval = new service_record(this, string(fullname), service_type, settings.depends);
                 }
-                else {
-                    /* TRIGGERED */
+                else /* (service_type == TRIGGERED) */ {
                     rval = new triggered_service(this, string(fullname), service_type, settings.depends);
                 }
                 settings.depends.clear();
@@ -880,6 +900,10 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
                 settings.socket_uid, settings.socket_gid);
         rval->set_chain_to(std::move(settings.chain_to_name));
         rval->set_environment(std::move(srv_env));
+
+        if (reload_svc != nullptr && create_new_record) {
+            rval->set_dep_depth(reload_svc->get_dep_depth());
+        }
 
         if (create_new_record) {
             // switch dependencies on old record so that they refer to the new record
@@ -991,6 +1015,8 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
                 consumer_of_svc->set_log_consumer(psvc);
             }
         }
+
+        depth_updates.commit();
 
         return rval;
     }

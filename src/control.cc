@@ -928,7 +928,7 @@ bool control_conn_t::add_service_dep(bool do_enable)
     dep_queue.clear();
 
     bool dep_exists = false;
-    service_dep * dep_record = nullptr;
+    service_dep *dep_record = nullptr;
 
     // Prevent creation of duplicate dependency:
     for (auto &dep : from_service->get_dependencies()) {
@@ -944,6 +944,20 @@ bool control_conn_t::add_service_dep(bool do_enable)
     if (!dep_exists) {
         // Create dependency:
         dep_record = &(from_service->add_dep(to_service, dep_type));
+
+        // Update dependency depths:
+        try {
+            dep_depth_updater updater;
+            updater.add_potential_update(from_service);
+            updater.process_updates();
+            updater.commit();
+        }
+        catch (...) {
+            from_service->rm_dep(*dep_record);
+            services->process_queues();
+            throw;
+        }
+
         services->process_queues();
     }
 
@@ -1002,6 +1016,36 @@ bool control_conn_t::rm_service_dep()
         bad_conn_close = true;
     }
     dependency_type dep_type = static_cast<dependency_type>(dep_type_int);
+
+    // Recalculate dependency depth as if the dependency has already been removed:
+    unsigned orig_depth = from_service->get_dep_depth();
+    unsigned new_depth = 0;
+    bool dep_seen = false;
+    for (auto &dep : from_service->get_dependencies()) {
+        if (!dep_seen && dep.get_to() == to_service && dep.dep_type == dep_type) {
+            dep_seen = true;
+        }
+        else {
+            new_depth = std::min(new_depth, dep.get_to()->get_dep_depth() + 1);
+        }
+    }
+
+    // Update depth of all ancestors (including transitive):
+    if (new_depth != orig_depth) {
+        try {
+            from_service->set_dep_depth(new_depth);
+            dep_depth_updater updater;
+            for (auto *dept : from_service->get_dependents()) {
+                updater.add_potential_update(dept->get_from());
+            }
+            updater.process_updates();
+            updater.commit();
+        }
+        catch (...) {
+            from_service->set_dep_depth(orig_depth);
+            throw;
+        }
+    }
 
     // Remove dependency:
     bool did_remove = from_service->rm_dep(to_service, dep_type);
