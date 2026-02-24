@@ -49,9 +49,8 @@ class prelim_dep
         : name(std::move(name_p)), dep_type(dep_type_p) { }
 };
 
-class service_record
+struct service_record
 {
-public:
     service_record(const std::string &name_p, service_type_t service_type, const std::string &chain_to_p,
             std::list<prelim_dep> dependencies_p, const std::list<string> &before_svcs,
             const std::list<string> &after_svcs, std::string consumer_of_name, log_type_id log_type)
@@ -70,6 +69,9 @@ public:
     std::list<string> after_svcs;
     std::string consumer_of_name;
     log_type_id log_type;
+
+    unsigned dep_depth = 0;
+    unsigned topology_index = 0;
 
     bool visited = false;  // flag used to detect cyclic dependencies
     bool cycle_free = false;
@@ -102,7 +104,13 @@ int main(int argc, char **argv)
     const char * control_socket_path = nullptr;
     std::string env_file;
 
-    std::vector<std::string> services_to_check;
+    struct service_to_check
+    {
+        std::string name;
+        unsigned dep_depth;
+    };
+
+    std::vector<service_to_check> services_to_check;
 
     // Process command line
     if (argc > 1) {
@@ -169,7 +177,7 @@ int main(int argc, char **argv)
                 }
             }
             else {
-                services_to_check.push_back(argv[i]);
+                services_to_check.push_back({argv[i], 0});
             }
         }
     }
@@ -277,7 +285,7 @@ int main(int argc, char **argv)
     }
 
     if (services_to_check.empty()) {
-        services_to_check.push_back("boot");
+        services_to_check.push_back({"boot", 0});
     }
 
     size_t num_services_to_check = services_to_check.size();
@@ -288,38 +296,60 @@ int main(int argc, char **argv)
 
     std::map<std::string, service_record *> service_set;
 
+    // Add a service (specified by name and its known dependency depth at the time of call) to the
+    // list of services that need to be loaded and checked.
+    auto add_service_to_check = [&](std::string name, unsigned dep_depth) {
+
+        if (dep_depth > (MAX_DEP_DEPTH + 1)) {
+            // We allow depth to go just beyond maximum, so we can detect and report the exceeding
+            // service(s) in the final check which we do below. Once past that extended maximum
+            // though, refuse to load any further services:
+            return;
+        }
+
+        auto i = service_set.find(name);
+        if (i != service_set.end()) {
+            service_record *sr = i->second;
+            sr->dep_depth = std::max(sr->dep_depth, dep_depth);
+            return;
+        }
+        for (auto j = services_to_check.begin(); j != services_to_check.end(); ++j) {
+            if (j->name == name) {
+                j->dep_depth = std::max(j->dep_depth, dep_depth);
+                return;
+            }
+        }
+        services_to_check.push_back({name, dep_depth});
+    };
+
     for (size_t i = 0; i < services_to_check.size(); ++i) {
-        const std::string &name = services_to_check[i];
+        const std::string &name = services_to_check[i].name;
         std::cout << "Checking service: " << name << "...\n";
         try {
             service_record *sr = load_service(service_set, name, service_dir_paths);
             service_set[name] = sr;
             // add dependencies to services_to_check
             for (auto &dep : sr->dependencies) {
-                if (service_set.count(dep.name) == 0 && !contains(services_to_check, dep.name)) {
-                    services_to_check.push_back(dep.name);
-                }
+                add_service_to_check(dep.name, services_to_check[i].dep_depth + 1);
             }
+
+            // For chain_to, after, before, consumer_of, use depth 0 as this is not a real dependency.
+            // TODO: limit recursive loading for these pseudo-dependencies somehow.
+
             // add chain_to to services_to_check
-            if (!sr->chain_to.empty() && !contains(services_to_check, sr->chain_to)) {
-                if (!contains(services_to_check, sr->chain_to)) {
-                    services_to_check.push_back(sr->chain_to);
-                }
+            if (!sr->chain_to.empty()) {
+                add_service_to_check(sr->chain_to, 0);
             }
             // add before_svcs and after_svcs to services_to_check
             for (const std::string &before_name : sr->before_svcs) {
-                if (!contains(services_to_check, before_name)) {
-                    services_to_check.push_back(before_name);
-                }
+                add_service_to_check(before_name, 0);
             }
             for (const std::string &after_name : sr->after_svcs) {
-                if (!contains(services_to_check, after_name)) {
-                    services_to_check.push_back(after_name);
-                }
+                add_service_to_check(after_name, 0);
             }
             // add consumed service (if any) to services to check
             if (!sr->consumer_of_name.empty()) {
-                services_to_check.push_back(sr->consumer_of_name);
+                add_service_to_check(sr->consumer_of_name, 0);
             }
         }
         catch (service_load_exc &exc) {
@@ -330,25 +360,31 @@ int main(int argc, char **argv)
 
     std::cout << "Performing secondary checks...\n";
 
+    auto find_service_or_null = [&](const std::string &name) -> service_record * {
+        auto it = service_set.find(name);
+        if (it == service_set.end()) return nullptr;
+        return it->second;
+    };
+
     for (const auto &svc_name_record : service_set) {
         if (!svc_name_record.second->consumer_of_name.empty()) {
-            auto consumer_of_it = service_set.find(svc_name_record.second->consumer_of_name);
-            if (consumer_of_it != service_set.end()) {
-                if (consumer_of_it->second->log_type != log_type_id::PIPE) {
+            auto consumer_of_svc = find_service_or_null(svc_name_record.second->consumer_of_name);
+            if (consumer_of_svc != nullptr) {
+                if (consumer_of_svc->log_type != log_type_id::PIPE) {
                     std::cerr << "Service '" << svc_name_record.first << "': specified as consumer of service '"
-                            << consumer_of_it->first << "' which has log-type that is not 'pipe'.\n";
+                            << consumer_of_svc->name << "' which has log-type that is not 'pipe'.\n";
                     errors_found = true;
                 }
-                else if (!value(consumer_of_it->second->service_type).is_in(service_type_t::PROCESS,
+                else if (!value(consumer_of_svc->service_type).is_in(service_type_t::PROCESS,
                         service_type_t::BGPROCESS, service_type_t::SCRIPTED)) {
                     std::cerr << "Service '" << svc_name_record.first << "': specified as consumer of service '"
-                            << consumer_of_it->first << "' which is not a process-based service.\n";
+                            << consumer_of_svc->name << "' which is not a process-based service.\n";
                     errors_found = true;
                 }
             }
             else {
                 std::cerr << "Warning: Service '" << svc_name_record.first << "' specified as consumer of service '"
-                        << consumer_of_it->first << "' which was not found.\n";
+                        << consumer_of_svc->name << "' which was not found.\n";
             }
         }
 
@@ -356,19 +392,71 @@ int main(int argc, char **argv)
         // (from the dependent). Similarly for "after" links set up a dependency. These dependencies allow cycle
         // checking.
         for (const std::string &before_name : svc_name_record.second->before_svcs) {
-            auto before_svc_it = service_set.find(before_name);
-            if (before_svc_it != service_set.end()) {
-                before_svc_it->second->dependencies.emplace_back(svc_name_record.first,
+            service_record *before_svc = find_service_or_null(before_name);
+            if (before_svc != nullptr) {
+                before_svc->dependencies.emplace_back(svc_name_record.first,
                         dependency_type::BEFORE);
             }
         }
         for (const std::string &after_name : svc_name_record.second->after_svcs) {
-        	auto after_svc_it = service_set.find(after_name);
-        	if (after_svc_it != service_set.end()) {
-        		svc_name_record.second->dependencies.emplace_back(after_svc_it->first,
-        				dependency_type::AFTER);
-        	}
+            service_record *after_svc = find_service_or_null(after_name);
+            if (after_svc != nullptr) {
+                svc_name_record.second->dependencies.emplace_back(after_name,
+                        dependency_type::AFTER);
+            }
         }
+    }
+
+    // Perform topological sort. First, set topology index for each service to the number of
+    // incoming edges to the service:
+    for (auto &entry : service_set) {
+        for (const auto &dep : entry.second->dependencies) {
+            if (dep.dep_type == dependency_type::BEFORE || dep.dep_type == dependency_type::AFTER) continue;
+            service_record *dep_svc = find_service_or_null(dep.name);
+            if (dep_svc == nullptr) continue;
+            dep_svc->topology_index++;
+        }
+    }
+
+    unsigned current_depth = 0;
+
+    // Now pull out all services with topology index of 0 (int current_svcs)
+    std::list<service_record *> current_svcs;
+    for (auto &entry : service_set) {
+        if (entry.second == nullptr) continue;
+        if (entry.second->topology_index != 0) continue;
+        entry.second->dep_depth = current_depth;
+        current_svcs.push_back(entry.second);
+    }
+
+    while (!current_svcs.empty()) {
+        std::list<service_record *> next_svcs;
+        ++current_depth;
+
+        // For each service currently with topology_index of 0 (i.e. all services in the
+        // current_svcs list), decrement topology_index of its dependencies and, for any that
+        // also reach 0, put them in the next_svcs list (and set their depth value).
+        while (!current_svcs.empty()) {
+            service_record *cur_svc = current_svcs.front();
+            current_svcs.erase(current_svcs.begin());
+            for (auto &dep : cur_svc->dependencies) {
+                if (dep.dep_type == dependency_type::AFTER) continue;
+                if (dep.dep_type == dependency_type::BEFORE) continue;
+                service_record *dep_svc = find_service_or_null(dep.name);
+                if (dep_svc == nullptr) continue;
+                if (--(dep_svc->topology_index) == 0) {
+                    dep_svc->dep_depth = current_depth;
+                    if (current_depth > MAX_DEP_DEPTH) {
+                        std::cerr << "Service '" << dep_svc->name << "' exceeds maximum allowed "
+                                "dependency depth (" << MAX_DEP_DEPTH << ").\n";
+                    }
+                    next_svcs.push_back(dep_svc);
+                }
+            }
+        }
+
+        current_svcs = std::move(next_svcs);
+        next_svcs.clear();
     }
 
     // Check for circular dependencies.
@@ -377,7 +465,7 @@ int main(int argc, char **argv)
     std::vector<std::tuple<service_record *, size_t>> service_chain;
 
     for (size_t i = 0; i < num_services_to_check; ++i) {
-        service_record *root = service_set[services_to_check[i]];
+        service_record *root = service_set[services_to_check[i].name];
         if (!root) continue;
         if (root->visited) continue;
 

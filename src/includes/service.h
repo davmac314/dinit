@@ -7,6 +7,7 @@
 #include <csignal>
 #include <unordered_set>
 #include <algorithm>
+#include <set>
 
 #include <dasynq.h>
 
@@ -260,6 +261,10 @@ class service_record
     // 'desired_state' is only set to final states: STARTED or STOPPED.
     service_state_t service_state = service_state_t::STOPPED;
     service_state_t desired_state = service_state_t::STOPPED;
+
+    // Dependency depth; services with no dependencies have 0 and services with dependencies have
+    // one greater than the maximum value of all dependencies.
+    unsigned dep_depth = 0;
 
     protected:
     service_flags_t onstart_flags;
@@ -865,6 +870,19 @@ class service_record
     {
         return {-1,-1};
     }
+
+    // Get the (cached) dependency depth of this service, i.e. how long is the dependency tail of
+    // this service?
+    unsigned get_dep_depth() noexcept
+    {
+        return dep_depth;
+    }
+
+    // Set the dependency depth of this depth (from an appropriately calculated value)
+    void set_dep_depth(unsigned dep_depth_p) noexcept
+    {
+        dep_depth = dep_depth_p;
+    }
 };
 
 class placeholder_service : public service_record {
@@ -1166,7 +1184,7 @@ class service_set
     }
     
     // Set the console queue tail (returns previous tail)
-    void append_console_queue(service_record * newTail) noexcept
+    void append_console_queue(service_record *newTail) noexcept
     {
         bool was_empty = console_queue.is_empty();
         console_queue.append(newTail);
@@ -1191,7 +1209,7 @@ class service_set
         }
     }
     
-    void unqueue_console(service_record * service) noexcept
+    void unqueue_console(service_record *service) noexcept
     {
         if (console_queue.is_queued(service)) {
             console_queue.unlink(service);
@@ -1206,7 +1224,7 @@ class service_set
     }
 
     // Check whether a service is queued for the console
-    bool is_queued_for_console(service_record * service) noexcept
+    bool is_queued_for_console(service_record *service) noexcept
     {
         return console_queue.is_queued(service);
     }
@@ -1277,7 +1295,7 @@ class dirload_service_set : public service_set
     // if a memory allocation failure occurs.
     //
     service_record *load_reload_service(const char *name, service_record *reload_svc,
-            const service_record *avoid_circular);
+            const service_record *avoid_circular, int recursion_depth = 0);
 
     public:
     dirload_service_set() noexcept : service_set()
@@ -1302,7 +1320,7 @@ class dirload_service_set : public service_set
         return service_dirs.size();
     }
 
-    const char * get_service_dir(int n) noexcept
+    const char *get_service_dir(int n) noexcept
     {
         return service_dirs[n].get_dir();
     }
@@ -1312,13 +1330,114 @@ class dirload_service_set : public service_set
         return load_service(name, nullptr);
     }
 
-    service_record *load_service(const char *name, const service_record *avoid_circular);
+    service_record *load_service(const char *name, const service_record *avoid_circular,
+            int recursion_depth = 0);
 
     service_record *reload_service(service_record *service) override;
 
     int get_set_type_id() noexcept override
     {
         return SSET_TYPE_DIRLOAD;
+    }
+};
+
+// Manager for updates of service dependency depth, used when reloading a service or modifying
+// dependencies. Use as follows:
+// - Call add_potential_update(...) to add any service for which the depth may need to be
+//   recalculated;
+// - Call process_updates() to recalculate depth for any queued services, and any dependents
+//   (including transitive) of those as necessary; throws an exception if the maximum depth is
+//   exceeded by any service.
+// - Call commit() to prevent changes being rolled back on destruction.
+// Without the call to commit(), all depth changes are reverted when the object is destroyed.
+class dep_depth_updater
+{
+    // A record of a service and its original depth
+    struct svc_depth_update
+    {
+        service_record *service;
+        unsigned orig_depth;
+    };
+
+    // Comparator which orders lower-depth services before higher-depth services
+    struct compare_service_depth
+    {
+        bool operator()(const svc_depth_update &a, const svc_depth_update &b) noexcept
+        {
+            if (a.orig_depth < b.orig_depth) return true;
+            if (a.orig_depth > b.orig_depth) return false;
+            // if equal depth, fall back to pointer comparison to provide ordering
+            return (std::less<service_record *>{})(a.service, b.service);
+        }
+    };
+
+    // Services queued for processing, in order of depth. Processing a service updates its depth
+    // and (if the depth does change) queues any dependent services for later processing. Note
+    // that processing a service cannot queue lower-depth services (dependents must be higher
+    // depth) and so any service needs to be processed at most once.
+    std::set<svc_depth_update, compare_service_depth> depth_updates;
+
+    // Iterator marking progress through the update queue
+    decltype(depth_updates)::iterator proc_it = depth_updates.end();
+
+    public:
+
+    // throws: bad_alloc
+    void add_potential_update(service_record *svc)
+    {
+        depth_updates.insert({svc, svc->get_dep_depth()});
+    }
+
+    // Process the queue to completion, updating depths of queued services and all dependents as
+    // necessary.
+    // Throws:
+    //   std::bad_alloc, service_load_exc (max depth exceeded)
+    void process_updates()
+    {
+        proc_it = depth_updates.begin();
+
+        while (proc_it != depth_updates.end()) {
+            svc_depth_update cur_update = *proc_it;
+
+            // Check if it needs updating - calculate depth
+            unsigned new_depth = 0;
+            for (auto &dep : cur_update.service->get_dependencies()) {
+                new_depth = std::min(new_depth, dep.get_to()->get_dep_depth() + 1);
+            }
+
+            if (new_depth > MAX_DEP_DEPTH) {
+                throw service_load_exc(cur_update.service->get_name(), "maximum recursion depth exceeded");
+            }
+
+            if (new_depth != cur_update.service->get_dep_depth()) {
+                cur_update.service->set_dep_depth(new_depth);
+                ++proc_it;
+
+                for (auto *dept : cur_update.service->get_dependents()) {
+                    depth_updates.insert({dept->get_from(), dept->get_from()->get_dep_depth()});
+                }
+            }
+            else {
+                // depth didn't change, we can remove the entry as no rollback will be required
+                proc_it = depth_updates.erase(proc_it);
+            }
+        }
+    }
+
+    void commit() noexcept
+    {
+        depth_updates.clear();
+        proc_it = depth_updates.begin();
+    }
+
+    ~dep_depth_updater() noexcept
+    {
+        // Roll back changes (commit before destruction will prevent any rollback)
+        auto it = depth_updates.begin();
+        while (it != proc_it) {
+            it->service->set_dep_depth(it->orig_depth);
+            ++it;
+        }
     }
 };
 

@@ -35,6 +35,9 @@
 #include <linux/ioprio.h>
 #endif
 
+// Maximum dependency depth
+constexpr int MAX_DEP_DEPTH = 32;
+
 struct service_flags_t
 {
     // on-start flags:
