@@ -371,7 +371,9 @@ int main(int argc, char **argv)
         }
     }
 
-    // Check for circular dependencies
+    // Check for circular dependencies.
+    // Chain of services linked by dependency; each service is paired with the index of the
+    // current dependency (i.e. the dependency that will be/has been put next in the chain).
     std::vector<std::tuple<service_record *, size_t>> service_chain;
 
     for (size_t i = 0; i < num_services_to_check; ++i) {
@@ -382,15 +384,15 @@ int main(int argc, char **argv)
         // invariant: service_chain is empty
         service_chain.emplace_back(root, 0);
 
-        // Depth first traversal. If we find a link (dependency) on a service already visited (but not
-        // marked as cycle-free), we know then that we've found a cycle.
+        // Depth first traversal. If we find a link (dependency) on a service already visited (but
+        // not marked as cycle-free), we know then that we've found a cycle.
         while (true) {
             auto n = service_chain.size() - 1;
             auto &last = service_chain[n];
             service_record *last_record = std::get<0>(last);
             size_t &index = std::get<1>(last);
             if (index >= last_record->dependencies.size()) {
-                // Processed all dependencies, go back up:
+                // Processed all dependencies, drop the current end of the chain (and mark it cycle free):
                 last_record->cycle_free = true;
                 service_chain.pop_back();
                 if (n == 0) break;
@@ -398,7 +400,7 @@ int main(int argc, char **argv)
                 ++prev_index;
                 continue;
             }
-            // Down the tree:
+            // Check if the current dependency marks a cycle:
             auto dep_it = std::next(last_record->dependencies.begin(), index);
             service_record *next_link = service_set[dep_it->name];
             if (next_link == nullptr) {
@@ -406,7 +408,11 @@ int main(int argc, char **argv)
                 continue;
             }
             if (next_link->visited) {
-                if (!next_link->cycle_free) {
+                if (next_link->cycle_free) {
+                    ++index;
+                    continue;
+                }
+                else {
                     // We've found a cycle. Clear entries before the beginning of the cycle, then
                     // exit the loop.
                     auto first = std::find_if(service_chain.begin(), service_chain.end(),
