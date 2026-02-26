@@ -957,8 +957,6 @@ bool control_conn_t::add_service_dep(bool do_enable)
             services->process_queues();
             throw;
         }
-
-        services->process_queues();
     }
 
     if (do_enable && contains({service_state_t::STARTED, service_state_t::STARTING},
@@ -966,8 +964,10 @@ bool control_conn_t::add_service_dep(bool do_enable)
         // The dependency record is activated: mark it as holding acquisition of the dependency, and start
         // the dependency.
         if (!services->is_shutting_down()) {
-            dep_record->get_from()->start_dep(*dep_record);
-            services->process_queues();
+            if (!dep_record->holding_acq) { // (skip if already holding started)
+                dep_record->get_from()->start_dep(*dep_record);
+                services->process_queues();
+            }
         }
     }
 
