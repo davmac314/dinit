@@ -42,7 +42,7 @@ using namespace dinit_cptypes;
 
 // minimum and maximum protocol verions we can speak
 static constexpr uint16_t min_cp_version = 1;
-static constexpr uint16_t max_cp_version = 5;
+static constexpr uint16_t max_cp_version = 6;
 
 enum class ctl_cmd;
 
