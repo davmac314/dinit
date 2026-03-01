@@ -178,6 +178,7 @@ class control_conn_t : private service_listener, private env_listener
     // Query service status/
     bool process_service_status();
     bool process_service_status5();
+    bool process_service_status6();
 
     // Add a dependency between two services.
     bool add_service_dep(bool do_start = false);

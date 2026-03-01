@@ -13,6 +13,8 @@
 // 5 - dinit 0.19.1 (process status now represented as ([int]si_code + [int]si_status) rather than
 //                   a single integer; SERVICEEVENT5 sent alongside SERVICEEVENT; adds LISTENENV, ENVEVENT)
 //    (dinit 0.19.2 removed support for LISTENENV/ENVEVENT, they were added again in 0.19.3)
+// 6 - dinit 0.20.1 (adds SERVICESTATUS6, also returns service file modification time as
+//                  per when the service was loaded)
 
 // Requests:
 enum class cp_cmd : dinit_cptypes::cp_cmd_t {
@@ -91,6 +93,9 @@ enum class cp_cmd : dinit_cptypes::cp_cmd_t {
 
     // Start listening to environment events
     LISTENENV = 27,
+
+    // Service status (6+)
+    SERVICESTATUS6 = 28
 };
 
 // Replies:

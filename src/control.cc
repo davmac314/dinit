@@ -18,7 +18,7 @@ using namespace dinit_cptypes;
 namespace {
     // Control protocol minimum compatible version and current version:
     constexpr uint16_t min_compat_version = 1;
-    constexpr uint16_t cp_version = 5;
+    constexpr uint16_t cp_version = 6;
 
     // check for value in a set
     template <typename T, int N, typename U>
@@ -98,6 +98,8 @@ bool control_conn_t::process_packet()
             return process_service_status();
         case cp_cmd::SERVICESTATUS5:
             return process_service_status5();
+        case cp_cmd::SERVICESTATUS6:
+            return process_service_status6();
         case cp_cmd::ADD_DEP:
             return add_service_dep();
         case cp_cmd::REM_DEP:
@@ -702,6 +704,15 @@ static void fill_status_buffer5(char *buffer, service_record *service)
     }
 }
 
+constexpr static unsigned STATUS_BUFFER6_SIZE = 6 + 2 * sizeof(int) + sizeof(struct timespec);
+
+static void fill_status_buffer6(char *buffer, service_record *service)
+{
+    fill_status_buffer5(buffer, service);
+    struct timespec mod_time = service->get_file_mod_time();
+    memcpy(buffer + 6 + 2 * sizeof(int), &mod_time, sizeof(mod_time));
+}
+
 bool control_conn_t::list_services()
 {
     rbuf.consume(1); // clear request packet
@@ -844,6 +855,38 @@ bool control_conn_t::process_service_status5()
     pkt_buf[0] = (char)cp_rply::SERVICESTATUS;
     pkt_buf[1] = 0;
     fill_status_buffer5(pkt_buf.data() + 2, service);
+
+    return queue_packet(std::move(pkt_buf));
+}
+
+bool control_conn_t::process_service_status6()
+{
+    constexpr int pkt_size = 1 + sizeof(handle_t);
+    if (rbuf.get_length() < pkt_size) {
+        chklen = pkt_size;
+        return true;
+    }
+
+    handle_t handle;
+    rbuf.extract(&handle, 1, sizeof(handle));
+    rbuf.consume(pkt_size);
+    chklen = 0;
+
+    service_record *service = find_service_for_key(handle);
+    if (service == nullptr || service->get_name().length() > std::numeric_limits<uint16_t>::max()) {
+        char nak_rep[] = { (char)cp_rply::NAK };
+        return queue_packet(nak_rep, 1);
+    }
+
+    // Reply:
+    // 1 byte packet type = cp_rply::SERVICESTATUS
+    // 1 byte reserved ( = 0)
+    // STATUS_BUFFER6_SIZE bytes status
+
+    std::vector<char> pkt_buf(2 + STATUS_BUFFER6_SIZE);
+    pkt_buf[0] = (char)cp_rply::SERVICESTATUS;
+    pkt_buf[1] = 0;
+    fill_status_buffer6(pkt_buf.data() + 2, service);
 
     return queue_packet(std::move(pkt_buf));
 }

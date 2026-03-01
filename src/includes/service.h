@@ -5,6 +5,7 @@
 #include <list>
 #include <vector>
 #include <csignal>
+#include <ctime>
 #include <unordered_set>
 #include <algorithm>
 #include <set>
@@ -265,6 +266,9 @@ class service_record
     // Dependency depth; services with no dependencies have 0 and services with dependencies have
     // one greater than the maximum value of all dependencies.
     unsigned dep_depth = 0;
+
+    // Time when the service description file was last modified, before it was loaded
+    struct timespec sdf_mod_time = {};
 
     protected:
     service_flags_t onstart_flags;
@@ -745,6 +749,16 @@ class service_record
     virtual proc_status_t get_exit_status()
     {
         return {};
+    }
+
+    void set_file_mod_time(struct timespec load_time_p)
+    {
+        sdf_mod_time = load_time_p;
+    }
+
+    struct timespec get_file_mod_time()
+    {
+        return sdf_mod_time;
     }
 
     dep_list &get_dependencies()

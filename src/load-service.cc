@@ -426,6 +426,15 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
 
     fd_holder sdf_parent_fd = sdf_fds.first;
 
+    struct timespec mod_time = {};
+
+    {
+        struct stat file_stats;
+        if (fstat(sdf_fds.second, &file_stats) == 0) {
+            mod_time = file_stats.st_mtim;
+        }
+    }
+
     service_file.set_fd(sdf_fds.second);
     service_file.check_buf();
     service_settings_wrapper<prelim_dep> settings;
@@ -900,6 +909,7 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
                 settings.socket_uid, settings.socket_gid);
         rval->set_chain_to(std::move(settings.chain_to_name));
         rval->set_environment(std::move(srv_env));
+        rval->set_file_mod_time(mod_time);
 
         if (reload_svc != nullptr && create_new_record) {
             rval->set_dep_depth(reload_svc->get_dep_depth());
