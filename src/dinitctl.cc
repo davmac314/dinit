@@ -45,28 +45,28 @@ static constexpr uint16_t min_cp_version = 1;
 static constexpr uint16_t max_cp_version = 6;
 
 enum class ctl_cmd;
+struct dinit_conn_t;
 
 static int issue_load_service(int socknum, const char *service_name, bool find_only = false);
-static int check_load_reply(int socknum, cpbuffer_t &, handle_t *handle_p, service_state_t *state_p,
+static int check_load_reply(dinit_conn_t &, handle_t *handle_p, service_state_t *state_p,
         bool write_error=true);
-static int start_stop_service(int socknum, cpbuffer_t &, const char *service_name, ctl_cmd command,
+static int start_stop_service(dinit_conn_t &, const char *service_name, ctl_cmd command,
         bool do_pin, bool do_force, bool wait_for_service, bool ignore_unstarted, bool verbose);
-static int unpin_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
-static int unload_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
-static int reload_service(int socknum, cpbuffer_t &, const char *service_name, bool verbose);
-static int list_services(int socknum, cpbuffer_t &, uint16_t proto_version);
-static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_name,
-        ctl_cmd command, uint16_t proto_version, bool verbose);
-static int shutdown_dinit(int soclknum, cpbuffer_t &, bool verbose);
-static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add, const char *service_from,
+static int unpin_service(dinit_conn_t &, const char *service_name, bool verbose);
+static int unload_service(dinit_conn_t &, const char *service_name, bool verbose);
+static int reload_service(dinit_conn_t &, const char *service_name, bool verbose);
+static int list_services(dinit_conn_t &, uint16_t proto_version);
+static int service_status(dinit_conn_t &, const char *service_name, ctl_cmd command,
+        uint16_t proto_version, bool verbose);
+static int shutdown_dinit(dinit_conn_t &, bool verbose);
+static int add_remove_dependency(dinit_conn_t &, bool add, const char *service_from,
         const char *service_to, dependency_type dep_type, bool verbose);
-static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_opt &service_dir_opts,
-        const char *from, const char *to, bool enable, const char *environment_file, bool verbose,
-        uint16_t proto_version);
-static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names, bool unset);
-static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool trigger_value);
-static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool do_clear);
-static int signal_send(int socknum, cpbuffer_t &rbuffer, const char *service_name, sig_num_t sig_num);
+static int enable_disable_service(dinit_conn_t &, service_dir_opt &service_dir_opts,
+        const char *from, const char *to, bool enable, const char *environment_file, bool verbose);
+static int do_setenv(dinit_conn_t &, std::vector<const char *> &env_names, bool unset);
+static int trigger_service(dinit_conn_t &, const char *service_name, bool trigger_value);
+static int cat_service_log(dinit_conn_t &, const char *service_name, bool do_clear);
+static int signal_send(dinit_conn_t &, const char *service_name, sig_num_t sig_num);
 static int signal_list();
 
 enum class ctl_cmd {
@@ -95,6 +95,13 @@ enum class ctl_cmd {
     SIG_LIST,
     IS_STARTED,
     IS_FAILED,
+};
+
+struct dinit_conn_t
+{
+    int fd = -1;
+    std::unique_ptr<cpbuffer_t> buffer;
+    uint16_t protocol_version = 0;
 };
 
 // Entry point.
@@ -509,7 +516,7 @@ int dinitctl_main(int argc, char **argv)
         return signal_list();
     }
 
-    cpbuffer_t rbuffer;
+    dinit_conn_t dinit_conn;
 
     if (offline) {
         if (command != ctl_cmd::ENABLE_SERVICE && command != ctl_cmd::DISABLE_SERVICE) {
@@ -523,8 +530,8 @@ int dinitctl_main(int argc, char **argv)
         }
 
         if (command == ctl_cmd::ENABLE_SERVICE || command == ctl_cmd::DISABLE_SERVICE) {
-            return enable_disable_service(-1, rbuffer, service_dir_opts, service_name, to_service_name,
-                    command == ctl_cmd::ENABLE_SERVICE, env_file, verbose, 0);
+            return enable_disable_service(dinit_conn, service_dir_opts, service_name, to_service_name,
+                    command == ctl_cmd::ENABLE_SERVICE, env_file, verbose);
         }
     }
 
@@ -565,30 +572,35 @@ int dinitctl_main(int argc, char **argv)
             socknum = connect_to_daemon(control_socket_path);
         }
 
+        dinit_conn.fd = socknum;
+        dinit_conn.buffer = std::unique_ptr<cpbuffer_t>(new cpbuffer_t);
+
         // Start by querying protocol version:
-        uint16_t daemon_protocol_ver = check_protocol_version(min_cp_version, max_cp_version, rbuffer, socknum);
+        uint16_t daemon_protocol_ver = check_protocol_version(min_cp_version, max_cp_version,
+                *dinit_conn.buffer, dinit_conn.fd);
+        dinit_conn.protocol_version = daemon_protocol_ver;
 
         if (command == ctl_cmd::UNPIN_SERVICE) {
-            return unpin_service(socknum, rbuffer, service_name, verbose);
+            return unpin_service(dinit_conn, service_name, verbose);
         }
         else if (command == ctl_cmd::UNLOAD_SERVICE) {
-            return unload_service(socknum, rbuffer, service_name, verbose);
+            return unload_service(dinit_conn, service_name, verbose);
         }
         else if (command == ctl_cmd::RELOAD_SERVICE) {
-            return reload_service(socknum, rbuffer, service_name, verbose);
+            return reload_service(dinit_conn, service_name, verbose);
         }
         else if (command == ctl_cmd::LIST_SERVICES) {
-            return list_services(socknum, rbuffer, daemon_protocol_ver);
+            return list_services(dinit_conn, daemon_protocol_ver);
         }
         else if (command == ctl_cmd::SERVICE_STATUS || command == ctl_cmd::IS_STARTED
                 || command == ctl_cmd::IS_FAILED) {
-            return service_status(socknum, rbuffer, service_name, command, daemon_protocol_ver, verbose);
+            return service_status(dinit_conn, service_name, command, daemon_protocol_ver, verbose);
         }
         else if (command == ctl_cmd::SHUTDOWN) {
-            return shutdown_dinit(socknum, rbuffer, verbose);
+            return shutdown_dinit(dinit_conn, verbose);
         }
         else if (command == ctl_cmd::ADD_DEPENDENCY || command == ctl_cmd::RM_DEPENDENCY) {
-            return add_remove_dependency(socknum, rbuffer, command == ctl_cmd::ADD_DEPENDENCY,
+            return add_remove_dependency(dinit_conn, command == ctl_cmd::ADD_DEPENDENCY,
                     service_name, to_service_name, dep_type, verbose);
         }
         else if (command == ctl_cmd::ENABLE_SERVICE || command == ctl_cmd::DISABLE_SERVICE) {
@@ -597,32 +609,32 @@ int dinitctl_main(int argc, char **argv)
                 // We need QUERYSERVICEDSCDIR
                 throw cp_old_server_exception();
             }
-            return enable_disable_service(socknum, rbuffer, service_dir_opts, service_name, to_service_name,
-                    command == ctl_cmd::ENABLE_SERVICE, env_file, verbose, daemon_protocol_ver);
+            return enable_disable_service(dinit_conn, service_dir_opts, service_name, to_service_name,
+                    command == ctl_cmd::ENABLE_SERVICE, env_file, verbose);
         }
         else if (command == ctl_cmd::SETENV || command == ctl_cmd::UNSETENV) {
-            return do_setenv(socknum, rbuffer, cmd_args, command == ctl_cmd::UNSETENV);
+            return do_setenv(dinit_conn, cmd_args, command == ctl_cmd::UNSETENV);
         }
         else if (command == ctl_cmd::SET_TRIGGER || command == ctl_cmd::UNSET_TRIGGER) {
             if (daemon_protocol_ver < 2) {
                 throw cp_old_server_exception();
             }
-            return trigger_service(socknum, rbuffer, service_name, (command == ctl_cmd::SET_TRIGGER));
+            return trigger_service(dinit_conn, service_name, (command == ctl_cmd::SET_TRIGGER));
         }
         else if (command == ctl_cmd::CAT_LOG) {
             if (daemon_protocol_ver < 2) {
                 throw cp_old_server_exception();
             }
-            return cat_service_log(socknum, rbuffer, service_name, catlog_clear);
+            return cat_service_log(dinit_conn, service_name, catlog_clear);
         }
         else if (command == ctl_cmd::SIG_SEND) {
             if (daemon_protocol_ver < 2) {
                 throw cp_old_server_exception();
             }
-            return signal_send(socknum, rbuffer, service_name, sig_num);
+            return signal_send(dinit_conn, service_name, sig_num);
         }
         else {
-            return start_stop_service(socknum, rbuffer, service_name, command, do_pin, do_force,
+            return start_stop_service(dinit_conn, service_name, command, do_pin, do_force,
                     wait_for_service, ignore_unstarted, verbose);
         }
     }
@@ -687,25 +699,26 @@ static const char *describe_verb(bool stop)
     return stop ? "stop" : "start";
 }
 
-// Load a service: issue load command, wait for reply. Return true on success, display error message
-// and return false on failure.
-//      socknum  - the socket fd to communicate via
-//      rbuffer  - the buffer for communication
-//      name     - the name of the service to load
-//      handle   - where to store the handle of the loaded service
-//      state    - where to store the state of the loaded service (may be null).
-//      write_error - whether to write an error message if the service can't be loaded
-static bool load_service(int socknum, cpbuffer_t &rbuffer, const char *name, handle_t *handle,
+// Load a service: issue load command, wait for reply.
+// Parameters:
+//   dinit_conn - details of the connection to dinit server process
+//   name - the name of the service to load
+//   handle - where to store the handle of the loaded service
+//   state - where to store the state of the loaded service (may be null).
+//   write_error - whether to write an error message if the service can't be loaded
+// Returns:
+//   True on success, false on error (with error message output if write_error is true).
+static bool load_service(dinit_conn_t &dinit_conn, const char *name, handle_t *handle,
         service_state_t *state, bool write_error=true)
 {
     // Load 'to' service:
-    if (issue_load_service(socknum, name)) {
+    if (issue_load_service(dinit_conn.fd, name)) {
         return false;
     }
 
-    wait_for_reply(rbuffer, socknum);
+    wait_for_reply(*dinit_conn.buffer, dinit_conn.fd);
 
-    if (check_load_reply(socknum, rbuffer, handle, state, write_error) != 0) {
+    if (check_load_reply(dinit_conn, handle, state, write_error) != 0) {
         return false;
     }
 
@@ -713,8 +726,11 @@ static bool load_service(int socknum, cpbuffer_t &rbuffer, const char *name, han
 }
 
 // Get the service name for a given handle, by querying the daemon.
-static std::string get_service_name(int socknum, cpbuffer_t &rbuffer, handle_t handle)
+static std::string get_service_name(dinit_conn_t &dinit_conn, handle_t handle)
 {
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
+
     auto m = membuf()
             .append((char) cp_cmd::QUERYSERVICENAME)
             .append((char) 0)
@@ -916,9 +932,12 @@ static int process_service_event(cpbuffer_t &rbuffer, unsigned pktlen, handle_t 
 
 // Wait for a service to reached stopped (do_stop == true) or started (do_stop == false) state.
 // Returns 0 if the service started/stopped, 1 if start/stop was cancelled or failed.
-static int wait_service_state(int socknum, cpbuffer_t &rbuffer, handle_t handle,
+static int wait_service_state(dinit_conn_t &dinit_conn, handle_t handle,
         const std::string &service_name, bool do_stop, bool verbose)
 {
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
+
     // Wait until service started:
     int r = rbuffer.fill_to(socknum, 2);
     while (r > 0) {
@@ -955,12 +974,14 @@ static int wait_service_state(int socknum, cpbuffer_t &rbuffer, handle_t handle,
 }
 
 // Start/stop/restart a service
-static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *service_name,
-        ctl_cmd command, bool do_pin, bool do_force, bool wait_for_service, bool ignore_unstarted,
-        bool verbose)
+static int start_stop_service(dinit_conn_t &dinit_conn, const char *service_name, ctl_cmd command,
+        bool do_pin, bool do_force, bool wait_for_service, bool ignore_unstarted, bool verbose)
 {
     using std::cout;
     using std::cerr;
+
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
 
     bool do_stop = (command == ctl_cmd::STOP_SERVICE || command == ctl_cmd::RELEASE_SERVICE);
 
@@ -972,7 +993,7 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
         ignore_unstarted = false;
     }
 
-    if (!load_service(socknum, rbuffer, service_name, &handle, &state, !ignore_unstarted)) {
+    if (!load_service(dinit_conn, service_name, &handle, &state, !ignore_unstarted)) {
         return ignore_unstarted ? 0 : 1;
     }
 
@@ -1080,7 +1101,7 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
             // Print the directly affected dependents:
             cerr << " ";
             for (handle_t handle : handles) {
-                cerr << " " << get_service_name(socknum, rbuffer, handle);
+                cerr << " " << get_service_name(dinit_conn, handle);
             }
             cerr << "\n";
             return 1;
@@ -1124,7 +1145,7 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
                 cout << "Service '" << service_name << "' stopped.\n";
             }
         }
-        else if (wait_service_state(socknum, rbuffer, handle, service_name, true, verbose) != 0) {
+        else if (wait_service_state(dinit_conn, handle, service_name, true, verbose) != 0) {
             return EXIT_FAILURE;
         }
     }
@@ -1141,7 +1162,7 @@ static int start_stop_service(int socknum, cpbuffer_t &rbuffer, const char *serv
                     seen_states.exit_status, seen_states.exit_si_code, seen_states.exit_si_status);
         }
     }
-    return wait_service_state(socknum, rbuffer, handle, service_name, do_stop, verbose);
+    return wait_service_state(dinit_conn, handle, service_name, do_stop, verbose);
 }
 
 // Issue a "load service" command (LOADSERVICE), without waiting for
@@ -1166,11 +1187,15 @@ static int issue_load_service(int socknum, const char *service_name, bool find_o
 
 // Check that a "load service" reply was received, and that the requested service was found.
 //   state_p may be null.
-static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p, service_state_t *state_p, bool write_error)
+static int check_load_reply(dinit_conn_t &dinit_conn, handle_t *handle_p,
+        service_state_t *state_p, bool write_error)
 {
     using std::cout;
     using std::cerr;
     
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
+
     cp_rply reply_pkt_h = (cp_rply)rbuffer[0];
     if (reply_pkt_h == cp_rply::SERVICERECORD) {
         fill_buffer_to(rbuffer, socknum, 2 + sizeof(*handle_p));
@@ -1208,15 +1233,18 @@ static int check_load_reply(int socknum, cpbuffer_t &rbuffer, handle_t *handle_p
     }
 }
 
-static int unpin_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool verbose)
+static int unpin_service(dinit_conn_t &dinit_conn, const char *service_name, bool verbose)
 {
     using std::cout;
     using std::cerr;
 
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
+
     handle_t handle;
     
     // Build buffer;
-    if (!load_service(socknum, rbuffer, service_name, &handle, nullptr)) {
+    if (!load_service(dinit_conn, service_name, &handle, nullptr)) {
         return 1;
     }
     
@@ -1241,10 +1269,13 @@ static int unpin_service(int socknum, cpbuffer_t &rbuffer, const char *service_n
     return 0;
 }
 
-static int unload_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool verbose)
+static int unload_service(dinit_conn_t &dinit_conn, const char *service_name, bool verbose)
 {
     using std::cout;
     using std::cerr;
+
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
 
     if (issue_load_service(socknum, service_name, true) == 1) {
         return 1;
@@ -1259,7 +1290,7 @@ static int unload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
         return 1;
     }
 
-    if (check_load_reply(socknum, rbuffer, &handle, nullptr) != 0) {
+    if (check_load_reply(dinit_conn, &handle, nullptr) != 0) {
         return 1;
     }
 
@@ -1289,10 +1320,13 @@ static int unload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
     return 0;
 }
 
-static int reload_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool verbose)
+static int reload_service(dinit_conn_t &dinit_conn, const char *service_name, bool verbose)
 {
     using std::cout;
     using std::cerr;
+
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
 
     if (issue_load_service(socknum, service_name, true) == 1) {
         return 1;
@@ -1311,7 +1345,7 @@ static int reload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
 
         wait_for_reply(rbuffer, socknum);
 
-        if (check_load_reply(socknum, rbuffer, &handle, nullptr) != 0) {
+        if (check_load_reply(dinit_conn, &handle, nullptr) != 0) {
             return 1;
         }
 
@@ -1321,7 +1355,7 @@ static int reload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
         return 0;
     }
 
-    if (check_load_reply(socknum, rbuffer, &handle, nullptr) != 0) {
+    if (check_load_reply(dinit_conn, &handle, nullptr) != 0) {
         return 1;
     }
 
@@ -1351,11 +1385,14 @@ static int reload_service(int socknum, cpbuffer_t &rbuffer, const char *service_
     return 0;
 }
 
-static int list_services(int socknum, cpbuffer_t &rbuffer, uint16_t proto_version)
+static int list_services(dinit_conn_t &dinit_conn, uint16_t proto_version)
 {
     using std::cout;
     using std::cerr;
     
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
+
     char cmdbuf[] = { (char)cp_cmd::LISTSERVICES };
     if (proto_version >= 5) {
         cmdbuf[0] = (char)cp_cmd::LISTSERVICES5;
@@ -1505,11 +1542,14 @@ static int list_services(int socknum, cpbuffer_t &rbuffer, uint16_t proto_versio
     return 0;
 }
 
-static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_name,
-        ctl_cmd command, uint16_t proto_version, bool verbose)
+static int service_status(dinit_conn_t &dinit_conn, const char *service_name, ctl_cmd command,
+        uint16_t proto_version, bool verbose)
 {
     using std::cout;
     using std::cerr;
+
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
 
     bool is_status = command == ctl_cmd::SERVICE_STATUS;
 
@@ -1528,7 +1568,7 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
         return 1;
     }
 
-    if (check_load_reply(socknum, rbuffer, &handle, nullptr, is_status) != 0) {
+    if (check_load_reply(dinit_conn, &handle, nullptr, is_status) != 0) {
         return 1;
     }
 
@@ -1745,17 +1785,20 @@ static int service_status(int socknum, cpbuffer_t &rbuffer, const char *service_
     return 0;
 }
 
-static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
+static int add_remove_dependency(dinit_conn_t &dinit_conn, bool add,
         const char *service_from, const char *service_to, dependency_type dep_type, bool verbose)
 {
     using std::cout;
     using std::cerr;
 
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
+
     handle_t from_handle;
     handle_t to_handle;
 
-    if (!load_service(socknum, rbuffer, service_from, &from_handle, nullptr)
-            || !load_service(socknum, rbuffer, service_to, &to_handle, nullptr)) {
+    if (!load_service(dinit_conn, service_from, &from_handle, nullptr)
+            || !load_service(dinit_conn, service_to, &to_handle, nullptr)) {
         return 1;
     }
 
@@ -1796,11 +1839,14 @@ static int add_remove_dependency(int socknum, cpbuffer_t &rbuffer, bool add,
     return 0;
 }
 
-static int shutdown_dinit(int socknum, cpbuffer_t &rbuffer, bool verbose)
+static int shutdown_dinit(dinit_conn_t &dinit_conn, bool verbose)
 {
     // TODO support no-wait option.
     using std::cout;
     using std::cerr;
+
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
 
     auto m = membuf()
             .append((char)cp_cmd::SHUTDOWN)
@@ -1992,13 +2038,16 @@ static std::string get_enable_via(const char *service_name, const std::string &s
 // exception for cancelling a service operation
 class service_op_cancel { };
 
-static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_opt &service_dir_opts,
-        const char *from, const char *to, bool enable, const char *environment_file, bool verbose,
-        uint16_t proto_version)
+static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &service_dir_opts,
+        const char *from, const char *to, bool enable, const char *environment_file, bool verbose)
 {
     using std::cout;
     using std::cerr;
     using std::string;
+
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
+    uint16_t proto_version = dinit_conn.protocol_version;
 
     service_state_t from_state = service_state_t::STARTED;
     handle_t from_handle;
@@ -2049,7 +2098,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 
     if (socknum >= 0) {
         // Find 'to' service
-        if (!load_service(socknum, rbuffer, to, &to_handle, nullptr)) {
+        if (!load_service(dinit_conn, to, &to_handle, nullptr)) {
             return 1;
         }
 
@@ -2094,7 +2143,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
             }
         }
 
-        if (!load_service(socknum, rbuffer, from, &from_handle, &from_state)) {
+        if (!load_service(dinit_conn, from, &from_handle, &from_state)) {
             return 1;
         }
 
@@ -2419,7 +2468,7 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
 
         if (enable) {
             if (current != service_state_t::STARTED) {
-                wait_service_state(socknum, rbuffer, to_handle, to, false /* start */, verbose);
+                wait_service_state(dinit_conn, to_handle, to, false /* start */, verbose);
             }
         }
         else {
@@ -2437,10 +2486,13 @@ static int enable_disable_service(int socknum, cpbuffer_t &rbuffer, service_dir_
     return 0;
 }
 
-static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *> &env_names, bool unset)
+static int do_setenv(dinit_conn_t &dinit_conn, std::vector<const char *> &env_names, bool unset)
 {
     using std::cerr;
     using std::string;
+
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
 
     string buf;
 
@@ -2495,12 +2547,15 @@ static int do_setenv(int socknum, cpbuffer_t &rbuffer, std::vector<const char *>
     return 0;
 }
 
-static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool trigger_value)
+static int trigger_service(dinit_conn_t &dinit_conn, const char *service_name, bool trigger_value)
 {
     using std::cerr;
 
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
+
     handle_t handle;
-    if (!load_service(socknum, rbuffer, service_name, &handle, nullptr, true)) {
+    if (!load_service(dinit_conn, service_name, &handle, nullptr, true)) {
         return 1;
     }
 
@@ -2527,13 +2582,16 @@ static int trigger_service(int socknum, cpbuffer_t &rbuffer, const char *service
     return 0;
 }
 
-static int signal_send(int socknum, cpbuffer_t &rbuffer, const char *service_name, sig_num_t sig_num)
+static int signal_send(dinit_conn_t &dinit_conn, const char *service_name, sig_num_t sig_num)
 {
     using std::cerr;
 
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
+
     handle_t handle;
 
-    if (!load_service(socknum, rbuffer, service_name, &handle, nullptr, true)) {
+    if (!load_service(dinit_conn, service_name, &handle, nullptr, true)) {
         return 1;
     }
 
@@ -2589,13 +2647,16 @@ static int signal_list()
     return 0;
 }
 
-static int cat_service_log(int socknum, cpbuffer_t &rbuffer, const char *service_name, bool do_clear)
+static int cat_service_log(dinit_conn_t &dinit_conn, const char *service_name, bool do_clear)
 {
     using std::cout;
     using std::cerr;
 
+    int socknum = dinit_conn.fd;
+    cpbuffer_t &rbuffer = *dinit_conn.buffer;
+
     handle_t handle;
-    if (!load_service(socknum, rbuffer, service_name, &handle, nullptr, true)) {
+    if (!load_service(dinit_conn, service_name, &handle, nullptr, true)) {
         return 1;
     }
 
