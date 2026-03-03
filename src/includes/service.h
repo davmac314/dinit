@@ -1376,7 +1376,7 @@ class dep_depth_updater
     // Comparator which orders lower-depth services before higher-depth services
     struct compare_service_depth
     {
-        bool operator()(const svc_depth_update &a, const svc_depth_update &b) noexcept
+        bool operator()(const svc_depth_update &a, const svc_depth_update &b) const noexcept
         {
             if (a.orig_depth < b.orig_depth) return true;
             if (a.orig_depth > b.orig_depth) return false;
