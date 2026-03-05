@@ -47,9 +47,6 @@ static constexpr uint16_t max_cp_version = 6;
 enum class ctl_cmd;
 struct dinit_conn_t;
 
-static int issue_load_service(int socknum, const char *service_name, bool find_only = false);
-static int check_load_reply(dinit_conn_t &, handle_t *handle_p, service_state_t *state_p,
-        bool write_error=true);
 static int start_stop_service(dinit_conn_t &, const char *service_name, ctl_cmd command,
         bool do_pin, bool do_force, bool wait_for_service, bool ignore_unstarted, bool verbose);
 static int unpin_service(dinit_conn_t &, const char *service_name, bool verbose);
@@ -68,6 +65,14 @@ static int trigger_service(dinit_conn_t &, const char *service_name, bool trigge
 static int cat_service_log(dinit_conn_t &, const char *service_name, bool do_clear);
 static int signal_send(dinit_conn_t &, const char *service_name, sig_num_t sig_num);
 static int signal_list();
+
+// helpers:
+static int issue_load_service(int socknum, const char *service_name, bool find_only = false);
+static int check_load_reply(dinit_conn_t &, handle_t *handle_p, service_state_t *state_p,
+        bool write_error=true);
+static const char *strip_service_arg(const char *service_name);
+static std::string get_service_description_dir(int socknum, cpbuffer_t &rbuffer, handle_t service_handle);
+
 
 enum class ctl_cmd {
     NONE,
@@ -1016,6 +1021,61 @@ static int start_stop_service(dinit_conn_t &dinit_conn, const char *service_name
         default:
             // can't get here (hopefully)
             pcommand = cp_cmd::STOPSERVICE;
+    }
+
+    if (dinit_conn.protocol_version >= 6 && !do_stop) {
+        // Check the service description file hasn't changed. We need to first locate said file,
+        // then stat it to find the modification time, and compare that with the modification time
+        // according to dinit.
+
+        struct stat sdf_statbuf;
+
+        std::string sd_dir = get_service_description_dir(socknum, rbuffer, handle);
+        const char *end_name_ptr = strip_service_arg(service_name);
+        sd_dir.append(1, '/');
+        sd_dir.append(service_name, end_name_ptr);
+
+        if (stat(sd_dir.c_str(), &sdf_statbuf) == 0) {
+            // Success; now we need to query dinit's own record of the modification time, then
+            // compare and warn if there is a difference.
+
+            // Get modification time via SERVICESTATUS6 request:
+            char status_req_id = (char)cp_cmd::SERVICESTATUS6;
+            unsigned status_buf_size = STATUS_BUFFER6_SIZE;
+
+            auto m = membuf()
+                    .append(status_req_id)
+                    .append(handle);
+            write_all_x(socknum, m);
+
+            wait_for_reply(rbuffer, socknum);
+            if (rbuffer[0] != (char)cp_rply::SERVICESTATUS) {
+                cerr << DINITCTL_APPNAME ": protocol error.\n";
+                return 1;
+            }
+            rbuffer.consume(1);
+
+            fill_buffer_to(rbuffer, socknum, status_buf_size + 1 /* reserved */);
+            rbuffer.consume(1); // reserved byte
+
+            struct timespec dinit_sdf_time;
+            rbuffer.extract(&dinit_sdf_time, STATUS_BUFFER5_SIZE, sizeof(dinit_sdf_time));
+
+            // Compare dinit's recorded time with the time from stat():
+            #if !defined(__APPLE__)
+                struct timespec &file_time = sdf_statbuf.st_mtim;
+            #else
+                struct timespec &file_time = sdf_statbuf.st_mtimespec;
+            #endif
+
+            if (dinit_sdf_time.tv_sec != file_time.tv_sec
+                    || dinit_sdf_time.tv_nsec != file_time.tv_nsec) {
+                std::cerr << DINITCTL_APPNAME << ": warning: service description may have changed;"
+                        " use '" DINITCTL_APPNAME " reload " << service_name << "' to apply changes.\n";
+            }
+
+            rbuffer.consume(STATUS_BUFFER6_SIZE);
+        }
     }
 
     observed_states_t seen_states;

@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <cstring>
+#include <ctime>
 
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -87,6 +88,7 @@ struct observed_states_t
 // Size of service status info (in various packets)
 constexpr static unsigned STATUS_BUFFER_SIZE = 6 + ((sizeof(pid_t) > sizeof(int)) ? sizeof(pid_t) : sizeof(int));
 constexpr static unsigned STATUS_BUFFER5_SIZE = 6 + 2 * sizeof(int);
+constexpr static unsigned STATUS_BUFFER6_SIZE = 6 + 2 * sizeof(int) + sizeof(struct timespec);
 
 // static_membuf: a buffer of a fixed size (N) with one additional value (of type T). Don't use this
 // directly, construct via membuf.
