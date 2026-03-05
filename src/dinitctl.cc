@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstddef>
 #include <cstring>
+#include <optional>
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -68,6 +69,7 @@ static int trigger_service(dinit_conn_t &, const char *service_name, bool trigge
 static int cat_service_log(dinit_conn_t &, const char *service_name, bool do_clear);
 static int signal_send(dinit_conn_t &, const char *service_name, sig_num_t sig_num);
 static int signal_list();
+static std::string get_service_description_dir(int socknum, cpbuffer_t &rbuffer, handle_t service_handle);
 
 enum class ctl_cmd {
     NONE,
@@ -1780,6 +1782,20 @@ static int service_status(dinit_conn_t &dinit_conn, const char *service_name, ct
         if (service_pid != -1) {
             cout << "    Process ID: " << service_pid << "\n";
         }
+
+
+        handle_t from_handle;
+
+        if (!load_service(socknum, rbuffer, service_name, &from_handle, nullptr)) {
+            // TODO: handle error here?
+        } else {
+            std::string service_dir = get_service_description_dir(socknum, rbuffer, from_handle);
+            if (!service_dir.empty()) {
+                std::string path = service_dir + "/" + service_name;
+                cout << "    Path: " << path << "\n";
+            }
+        }
+
     }
 
     return 0;
@@ -1883,6 +1899,7 @@ static int shutdown_dinit(dinit_conn_t &dinit_conn, bool verbose)
 }
 
 // Get the service description directory for a loaded service
+// Returns empty string when cannot find the directory
 static std::string get_service_description_dir(int socknum, cpbuffer_t &rbuffer, handle_t service_handle)
 {
     auto m = membuf()
