@@ -401,7 +401,7 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
 
         // We need to write our own pid into the cgroup.procs file
         char pidbuf[type_max_num_digits<pid_t>() + 2]; // +1 for '\n', +1 for nul terminator
-        int num_chars = to_dec_digits(pidbuf, get_pid()) - pidbuf;
+        int num_chars = to_dec_digits(pidbuf, getpid()) - pidbuf;
         if (write(cgroup_procs_fd, pidbuf, num_chars) == -1) goto failure_out;
         close(cgroup_procs_fd);
     }
