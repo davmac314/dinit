@@ -1061,12 +1061,7 @@ static int start_stop_service(dinit_conn_t &dinit_conn, const char *service_name
             struct timespec dinit_sdf_time;
             rbuffer.extract(&dinit_sdf_time, STATUS_BUFFER5_SIZE, sizeof(dinit_sdf_time));
 
-            // Compare dinit's recorded time with the time from stat():
-            #if !defined(__APPLE__)
-                struct timespec &file_time = sdf_statbuf.st_mtim;
-            #else
-                struct timespec &file_time = sdf_statbuf.st_mtimespec;
-            #endif
+            auto &file_time = get_timespec(sdf_statbuf);
 
             if (dinit_sdf_time.tv_sec != file_time.tv_sec
                     || dinit_sdf_time.tv_nsec != file_time.tv_nsec) {

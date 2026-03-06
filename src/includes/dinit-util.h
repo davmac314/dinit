@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <limits>
+#include <tuple>
 #include <type_traits>
 
 #include <cstring>
@@ -239,6 +240,69 @@ inline ssize_t complete_read(int fd, void * buf, size_t n)
         r += res;
     }
     return n;
+}
+
+// Read a 'struct timespec'-type value from a 'struct stat' object. This deals with MacOS (which
+// uses a non-standard field name) and provides a fallback in case only time-in-seconds is
+// available.
+//
+// Effective signature:
+//   const struct timespec &get_timespec(const struct stat &statbuf);
+//
+// (may return a const reference, or an object).
+
+// Check for presence of st_mtim field:
+template <typename T, typename U = void>
+struct has_st_mtim
+{
+    const static bool v = false;
+};
+
+template <typename T>
+struct has_st_mtim<T, typename std::tuple_element<1,
+        std::tuple<decltype(std::declval<T>().st_mtim), void>>::type>
+{
+    const static bool v = true;
+};
+
+// Check for presence of st_timespec field:
+template <typename T, typename U = void>
+struct has_st_mtimespec
+{
+    const static bool v = false;
+};
+
+template <typename T>
+struct has_st_mtimespec<T, typename std::tuple_element<1,
+        std::tuple<decltype(std::declval<T>().st_mtimespec), void>>::type>
+{
+    const static bool v = true;
+};
+
+template <typename T>
+typename std::enable_if<!has_st_mtim<T>::v && !has_st_mtimespec<T>::v,
+        struct timespec>::type
+get_timespec(const T &t)
+{
+    struct timespec r;
+    r.tv_sec = t.st_mtime;
+    r.tv_nsec = 0;
+    return r;
+}
+
+template <typename T>
+typename std::enable_if<has_st_mtim<T>::v, const struct timespec &>::type
+get_timespec(const T &t)
+{
+    return t.st_mtim;
+}
+
+template <typename T>
+typename std::enable_if<has_st_mtimespec<T>::v && !has_st_mtim<T>::v,
+        const struct timespec &>::type
+get_timespec(const T &t)
+{
+    return t.st_mtimespec;
 }
 
 // Combine two paths to produce a path. If the second path is absolute, it is returned unmodified;

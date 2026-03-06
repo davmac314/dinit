@@ -431,12 +431,7 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
     {
         struct stat file_stats;
         if (fstat(sdf_fds.second, &file_stats) == 0) {
-            #if defined(__APPLE__)
-                // MacOS isn't keeping up with POSIX
-                mod_time = file_stats.st_mtimespec;
-            #else
-                mod_time = file_stats.st_mtim;
-            #endif
+            mod_time = get_timespec(file_stats);
         }
     }
 
