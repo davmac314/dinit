@@ -497,20 +497,25 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
     int reboot_type = RB_AUTOBOOT; // reboot
     const char *shutdown_type_arg = "reboot";
 #if defined(RB_POWER_OFF)
+    // Linux supports RB_POWER_OFF.
     if (shutdown_type == shutdown_type_t::POWEROFF) {
         reboot_type = RB_POWER_OFF;
         shutdown_type_arg = "poweroff";
     }
 #elif defined(RB_POWEROFF)
-    // FreeBSD spells it slightly differently
+    // FreeBSD spells it slightly differently, and combines it with RB_HALT. It's possible that
+    // RB_POWEROFF by itself would work (as judged after inspecting kernel sources), but the
+    // practice in FreeBSD tools is to combine them and never issue RB_POWEROFF alone.
     if (shutdown_type == shutdown_type_t::POWEROFF) {
-        reboot_type = RB_POWEROFF;
+        reboot_type = RB_HALT | RB_POWEROFF;
         shutdown_type_arg = "poweroff";
     }
 #elif defined(RB_POWERDOWN)
-    // NetBSD (at least) uses RB_POWERDOWN rather than RB_POWER_OFF
+    // NetBSD (at least) uses RB_POWERDOWN rather than RB_POWER_OFF. NetBSD reboot(2) specifies
+    // that POWERDOWN "is always used in conjunction with RB_HALT", but in fact RB_POWERDOWN is
+    // defined so that (RB_POWERDOWN == (RB_POWERDOWN | RB_HALT)) anyway.
     if (shutdown_type == shutdown_type_t::POWEROFF) {
-        reboot_type = RB_POWERDOWN;
+        reboot_type = RB_HALT | RB_POWERDOWN;
         shutdown_type_arg = "poweroff";
     }
 #endif
@@ -528,7 +533,11 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
     }
 #endif
 #if defined(RB_KEXEC)
-    if (shutdown_type == shutdown_type_t::KEXEC) reboot_type = RB_KEXEC;
+    // Linux kexec
+    if (shutdown_type == shutdown_type_t::KEXEC) {
+        reboot_type = RB_KEXEC;
+        // (leave shutdown_arg_type as "reboot")
+    }
 #endif
     if (shutdown_type == shutdown_type_t::SOFTREBOOT) {
         shutdown_type_arg = "soft";
