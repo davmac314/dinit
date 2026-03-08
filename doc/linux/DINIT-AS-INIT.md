@@ -71,6 +71,60 @@ filesystem directly; consult kernel, bootloader and distribution documentation
 for details (which are beyond the scope of this guide).
 
 
+## Tips for writing service descriptions
+
+Care must be taken when writing service descriptions. The following are some
+key points to remain aware of:
+
+- Most services will require dependencies:
+  - Any service that requires a writable filesystem should depend (directly or
+    indirectly) on a service which ensures that the filesystem is writable.
+    **This includes services for which a `logfile` is specified to a location
+    which is initially read-only**.
+  - Any service that requires pseudo filesystems to be mounted (such as `proc`
+    on `/proc`) should depend (directly or indirectly) on the service which
+    mounts those filesystems.
+  - Any service that expects to log via the system logging daemon (syslog)
+    should depend (directly or indirectly) on the service which runs that
+    daemon.
+  - Any service that requires other daemons, such as for dbus, should include
+    dependencies on the services for those daemons.
+  - Any service that requires the network to be configured and active should
+    depend on the appropriate service.
+- Failure to declare a dependency where it is required may cause problems that
+  are sporadic or difficult to reproduce. For example, a service that requires
+  the filesystem to be writable may start successfully on some occasions (but
+  not all) even if the appropriate dependency is not declared, because
+  services are started in parallel and sometimes the filesystem may become
+  writable "in time".
+  - For this reason, for most services, is it wise to include a basic set of
+    dependencies: at least for having the filesystem writable, pseudo
+    filesystems mounted, system time set, and having the system log daemon up
+    and running. If desired these can be "wrapped" in a single
+    (`type = internal`) service which provides the necessary dependencies
+    transitively.
+  - It is recommended to use `depends-on:` for such dependencies unless there
+    is a good reason not to. It is in general not worth trying to start a
+    service if critical system services have failed; using `waits-for:` or
+    especially `after:` will not prevent dinit from attempting to start the
+    service, with the common result that it shortly fails. This creates more
+    error noise and makes debugging boot issues more difficult.
+- Care should be observed when using the option `run-on-console`. Only one
+  service can be running on the console at a time; the idea is that the
+  service may require input. Use `shares-console` in cases where it is desired
+  only for service output to be visible on the console; otherwise services
+  may be unnecessarily started serially, or in the worst case the hierarchy
+  may deadlock or stall (one service holding the console and preventing others
+  from starting).
+- The `after:` and `before:` orderings should be used as sparingly as
+  possible. They do not create dependency relationships and so do not provide
+  related functionality (such as automatically stopping dependents when a
+  service is stopped). Consider using `depends-on:`, `depends-ms:`, or
+  `waits-for:` instead of `after:`; instead of `before:`, add a dependency
+  from the other service. Use `after:` or `before:` only for cases where it
+  cannot be guaranteed that the named service actually exists.
+
+
 ## General notes
 
 For example service description files, please check the [services](services)
