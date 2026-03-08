@@ -109,7 +109,7 @@ key points to remain aware of:
     especially `after:` will not prevent dinit from attempting to start the
     service, with the common result that it shortly fails. This creates more
     error noise and makes debugging boot issues more difficult.
-- Care should be observed when using the option `run-on-console`. Only one
+- Care should be observed when using the option `runs-on-console`. Only one
   service can be running on the console at a time; the idea is that the
   service may require input. Use `shares-console` in cases where it is desired
   only for service output to be visible on the console; otherwise services
@@ -123,6 +123,12 @@ key points to remain aware of:
   `waits-for:` instead of `after:`; instead of `before:`, add a dependency
   from the other service. Use `after:` or `before:` only for cases where it
   cannot be guaranteed that the named service actually exists.
+- The "boot" service should have a hard (`depends-on:` or `depends-ms:`)
+  dependency on any essential services (such as the service which mounts the
+  filesystem read-write). When this is the case, failure of an essential
+  service will be properly observed as a boot failure by dinit (and will
+  invoke recovery handling, providing the operator with several options
+  including to launch the "recovery" service).
 
 
 ## General notes
