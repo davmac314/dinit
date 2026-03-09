@@ -13,7 +13,7 @@
 // 5 - dinit 0.19.1 (process status now represented as ([int]si_code + [int]si_status) rather than
 //                   a single integer; SERVICEEVENT5 sent alongside SERVICEEVENT; adds LISTENENV, ENVEVENT)
 //    (dinit 0.19.2 removed support for LISTENENV/ENVEVENT, they were added again in 0.19.3)
-// 6 - dinit 0.20.1 (adds SERVICESTATUS6, also returns service file modification time as
+// 6 - dinit 0.21.0 (adds SERVICESTATUS6, also returns service file modification time as
 //                  per when the service was loaded)
 
 // Requests:

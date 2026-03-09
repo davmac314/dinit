@@ -1,3 +1,44 @@
+== Version 0.21.0 (beta release #10) - March 2026
+
+This is an interim release to fix a few serious (but rarely encountered) bugs that have been
+discovered since (but originating prior to) the 0.20.0 release. A small number of other changes
+have also been included.
+
+Thanks to sponsors: Paweł Zmarzły (pzmarzly), Wesley Moore (wezm),
+M. Herdiansyah (konimex), Coleman McFarland (dontlaugh), q66, saolof, and private sponsors.
+Thanks also to one-time sponsor leejm516. 
+
+Changes:
+ * "dinitctl start" and "dinitctl restart" will now issue a warning if the service description
+   file for the specified service is out-of-date (i.e. if it has changed since it was loaded by
+   dinit). (The warning includes a hint to use "dinitctl reload").
+ * The dependency graph now has a limit of 32 levels of dependency. This limit is designed to
+   prevent problems that could otherwise occur with an excessive dependency depth, which normally
+   only occurs if there is a mistake in the service descriptions. The limit is enforced when
+   dependencies are loaded or altered, and is checked by dinit-check.
+ * Service names are now validated, with only a specific set of punctuation characters now being
+   allowed in service names; '.', '_' and '-' are allowed ('.' is not allowed as a first
+   character). '@' remains valid to separate a service name from service arguments. Control
+   characters are not allowed.
+
+Build changes:
+ * Added the CPPFLAGS_LIBCAP build variable, which can be used to supply any additional
+   preprocessor arguments (such as to specify include directories) required for use of libcap.
+ * Fix detection of libcap ('-lcap') by configure in some cases.
+
+Fixes:
+ * Fix an issue causing a segfault if the console was issued a hangup (via vhangup(2) or similar).
+ * Fix a problem where the service command became corrupted if an attempt to reload a service was
+   rejected due to introducing a dependency cycle.
+ * Fix enabling (via "dinitctl enable") services with an argument; this was incorrectly issuing an
+   error.
+ * Fix a use-after-free on some error paths, which theoretically could have displayed garbled
+   setting names (but in practice apparently had no effect).
+
+Extra contributions:
+ * iacore, Wateir, and Aicaya Maro have contributed/updated shell completions and other utilities,
+   as found in the "contrib" directory in the source tree.
+
 == Version 0.20.0 (beta release #9)
 
 This release fully incorporates the incoming feature contributions that were made during the
