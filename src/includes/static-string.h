@@ -1,3 +1,6 @@
+#ifndef STATIC_STRING_H
+#define STATIC_STRING_H 1
+
 // This is a minimal compile-time string handling library (currently just handling concatenation)
 // which owes much to Andrzej Krzemieński, and his blog post:
 //
@@ -24,6 +27,8 @@
 // Note that to be most effective, it is necessary to construct literals at file/namespace scope.
 // If they are constructed as locals, the compiler may reconstruct the object each time the
 // function is called (i.e. it will allocate stack and copy the constant string result into it).
+
+#include <string>
 
 namespace cts {
 
@@ -98,7 +103,7 @@ constexpr char joined_index(const S1 &s1, const S2 &s2, int i);
 template <typename T>
 struct static_length_t
 {
-    constexpr static int len = T::length;
+    // default: no member
 };
 
 template <int N>
@@ -107,12 +112,16 @@ struct static_length_t<char [N]>
     constexpr static int len = N - 1;
 };
 
-template <typename T>
-constexpr int static_length()
+template <int N>
+struct static_length_t<static_string<N>>
+{
+    constexpr static int len = N;
+};
+
+template <typename T> constexpr decltype(static_length_t<T>::len) static_length()
 {
     return static_length_t<T>::len;
 }
-
 
 // A compile-time string
 template <int N>
@@ -162,11 +171,17 @@ constexpr char joined_index(const S1 &s1, const S2 &s2, int i)
     return (i < S1::length) ? s1[i] : s2[i - S1::length];
 }
 
+template <int N>
+struct static_length_t<array_string<N>>
+{
+    constexpr static int len = N;
+};
+
 // Allow concatenating array_string and static_string with any compile-time constant string
 // (including character string literal):
 
 template <int N, typename S2> constexpr
-array_string<N+static_length<S2>()> operator+(const array_string<N> &s1, const S2 &s2)
+array_string<N+static_length_t<S2>::len> operator+(const array_string<N> &s1, const S2 &s2)
 {
     return array_string<N+static_length<S2>()>(s1, s2);
 }
@@ -177,5 +192,31 @@ array_string<N+static_length<S2>()> operator+(const static_string<N> &s1, const 
     return array_string<N+static_length<S2>()>(s1, s2);
 }
 
+// Allow concatenating array_string/static_string with a dynamic string:
+template <int N>
+std::string operator+(const static_string<N> &s1, const std::string &s2)
+{
+    return s1.c_str() + s2;
+}
+
+template <int N>
+std::string operator+(const array_string<N> &s1, const std::string &s2)
+{
+    return s1.c_str() + s2;
+}
+
+template <int N>
+std::string operator+(const std::string &s2, const static_string<N> &s1)
+{
+    return s2 + s1.c_str();
+}
+
+template <int N>
+std::string operator+(const std::string &s2, const array_string<N> &s1)
+{
+    return s2 + s1.c_str();
+}
 
 }  // end "cts" namespace
+
+#endif
