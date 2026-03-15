@@ -19,6 +19,7 @@
 #include <pwd.h>
 
 #include <dinit-env.h>
+#include <dinit-settings.h>
 #include <dinit-utmp.h>
 #include <dinit-util.h>
 #include <dinit-iostream.h>
@@ -263,45 +264,6 @@ using string_iterator = std::string::iterator;
 enum class setting_op_t {
     ASSIGN /* = */, COLON /* : */, PLUSASSIGN /* += */
 };
-
-// The setting ids
-enum class setting_id_t {
-    LAST = -1, // used to indicate end of settings
-    TYPE, COMMAND, WORKING_DIR, ENV_FILE, SOCKET_LISTEN, SOCKET_PERMISSIONS, SOCKET_UID,
-    SOCKET_GID, STOP_COMMAND, PID_FILE, DEPENDS_ON, DEPENDS_MS, WAITS_FOR, WAITS_FOR_D,
-    DEPENDS_ON_D, DEPENDS_MS_D, AFTER, BEFORE, LOGFILE, LOGFILE_PERMISSIONS, LOGFILE_UID,
-    LOGFILE_GID, LOG_TYPE, LOG_BUFFER_SIZE, CONSUMER_OF, RESTART, SMOOTH_RECOVERY, OPTIONS,
-    LOAD_OPTIONS, TERM_SIGNAL, TERMSIGNAL /* deprecated */, RESTART_LIMIT_INTERVAL, RESTART_DELAY,
-    RESTART_LIMIT_COUNT, STOP_TIMEOUT, START_TIMEOUT, RUN_AS, CHAIN_TO, READY_NOTIFICATION,
-    INITTAB_ID, INITTAB_LINE, NICE,
-    // Prefixed with SETTING_ to avoid name collision with system macros:
-    SETTING_RLIMIT_NOFILE, SETTING_RLIMIT_CORE, SETTING_RLIMIT_DATA, SETTING_RLIMIT_ADDRSPACE,
-    // Possibly unsupported depending on platform/build options:
-#if SUPPORT_CGROUPS
-    RUN_IN_CGROUP,
-#endif
-#if SUPPORT_CAPABILITIES
-    CAPABILITIES,
-    SECUREBITS,
-#endif
-#if SUPPORT_IOPRIO
-    IOPRIO,
-#endif
-#if SUPPORT_OOM_ADJ
-    OOM_SCORE_ADJ,
-#endif
-};
-
-struct setting_details {
-    const char *setting_str; // (may be null for blank entry)
-    setting_id_t setting_id;
-    bool supp_colon : 1; // supports ':' assignment
-    bool supp_assign : 1; // supports '=' assignment
-    bool supp_plus_assign : 1; // supports '+=' assignment operator
-    // Note: if '=' not supported but ':' is, '=' maps to ':' for backwards compatibility
-};
-
-extern setting_details all_settings[];
 
 // skip whitespace and embedded comments.
 inline string_iterator skip_comment(string_iterator i, string_iterator end, unsigned & count) noexcept
@@ -819,7 +781,7 @@ inline gid_t parse_gid_param(file_pos_ref input_pos, const std::string &param,
 
 // Parse a permissions mask parameter value, specified as an octal (such as 0600)
 inline int parse_perms(file_pos_ref input_pos, string &paramval, const std::string &servicename,
-        const char * paramname)
+        const char *paramname)
 {
     std::size_t ind = 0;
     try {
@@ -1910,7 +1872,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             if (!cap_iab.get()) {
                 if (errno == ENOMEM) throw std::bad_alloc();
                 throw service_description_exc(name, "invalid capabilities: " + capabilities_str,
-                        "capabilities", input_pos);
+                        details->setting_str, input_pos);
             }
             settings.capabilities = std::move(cap_iab);
             break;
@@ -1946,7 +1908,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                 }
                 else {
                     throw service_description_exc(name, "unknown securebits flag: " + secbit_txt,
-                            "securebits", input_pos);
+                            details->setting_str, input_pos);
                 }
             }
             break;
@@ -1982,8 +1944,9 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                 settings.ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
             }
             else {
-                throw service_description_exc(name, "invalid value for ioprio: " + ioprio_str,
-                        "ioprio", input_pos);
+                throw service_description_exc(name, cts::literal("invalid value for ") +
+                        setting_str::str_ioprio + ": " + ioprio_str, details->setting_str,
+                        input_pos);
             }
             break;
         }
@@ -2003,20 +1966,20 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         case setting_id_t::SOCKET_PERMISSIONS:
         {
             string sock_perm_str = read_setting_value(input_pos, i, end, nullptr);
-            settings.socket_perms = parse_perms(input_pos, sock_perm_str, name, "socket-permissions");
+            settings.socket_perms = parse_perms(input_pos, sock_perm_str, name, details->setting_str);
             break;
         }
         case setting_id_t::SOCKET_UID:
         {
             string sock_uid_s = read_setting_value(input_pos, i, end, nullptr);
-            settings.socket_uid = parse_uid_param(input_pos, sock_uid_s, name, "socket-uid",
+            settings.socket_uid = parse_uid_param(input_pos, sock_uid_s, name, details->setting_str,
                     &settings.socket_uid_gid);
             break;
         }
         case setting_id_t::SOCKET_GID:
         {
             string sock_gid_s = read_setting_value(input_pos, i, end, nullptr);
-            settings.socket_gid = parse_gid_param(input_pos, sock_gid_s, name, "socket-gid");
+            settings.socket_gid = parse_gid_param(input_pos, sock_gid_s, name, details->setting_str);
             break;
         }
         case setting_id_t::STOP_COMMAND:
@@ -2107,20 +2070,20 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         case setting_id_t::LOGFILE_PERMISSIONS:
         {
             string log_perm_str = read_setting_value(input_pos, i, end, nullptr);
-            settings.logfile_perms = parse_perms(input_pos, log_perm_str, name, "logfile-permissions");
+            settings.logfile_perms = parse_perms(input_pos, log_perm_str, name, details->setting_str);
             break;
         }
         case setting_id_t::LOGFILE_UID:
         {
             string log_uid_s = read_setting_value(input_pos, i, end, nullptr);
-            settings.logfile_uid = parse_uid_param(input_pos, log_uid_s, name, "logfile-uid",
+            settings.logfile_uid = parse_uid_param(input_pos, log_uid_s, name, details->setting_str,
                     &settings.logfile_uid_gid);
             break;
         }
         case setting_id_t::LOGFILE_GID:
         {
             string log_gid_s = read_setting_value(input_pos, i, end, nullptr);
-            settings.logfile_gid = parse_gid_param(input_pos, log_gid_s, name, "logfile-gid");
+            settings.logfile_gid = parse_gid_param(input_pos, log_gid_s, name, details->setting_str);
             break;
         }
         case setting_id_t::LOG_TYPE:
@@ -2140,7 +2103,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             }
             else {
                 throw service_description_exc(name, "log type must be one of: \"file\", \"buffer\", \"pipe\","
-                        " or \"none\"", "log-type", input_pos);
+                        " or \"none\"", details->setting_str, input_pos);
             }
             break;
         }
@@ -2161,8 +2124,8 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                         + consumed_svc_name + "'", details->setting_str, input_pos);
             }
             if (consumed_svc_name == name) {
-                throw service_description_exc(name, "service cannot be its own consumer", "consumer-of",
-                        input_pos);
+                throw service_description_exc(name, "service cannot be its own consumer",
+                        details->setting_str, input_pos);
             }
             settings.consumer_of_name = std::move(consumed_svc_name);
             break;
@@ -2180,8 +2143,9 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                 settings.auto_restart = auto_restart_mode::NEVER;
             }
             else {
-                throw service_description_exc(name, "restart must be one of: \"yes\", \"true\","
-                        " \"no\", \"false\" or \"on-failure\"", "restart", input_pos);
+                throw service_description_exc(name, (setting_str::str_restart + " must be one of: "
+                        "\"yes\", \"true\", \"no\", \"false\" or \"on-failure\"").c_str(),
+                        details->setting_str, input_pos);
             }
             break;
         }
@@ -2195,8 +2159,9 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                 settings.smooth_recovery = false;
             }
             else {
-                throw service_description_exc(name, "smooth-recovery must be one of: \"yes\","
-                        " \"true\", \"no\" or \"false\"", "smooth-recovery", input_pos);
+                throw service_description_exc(name, (setting_str::str_smooth_recovery + " must be"
+                        " one of: \"yes\", \"true\", \"no\" or \"false\"").c_str(),
+                        details->setting_str, input_pos);
             }
             break;
         }
@@ -2221,7 +2186,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             else {
                 throw service_description_exc(name, "service type must be one of: \"scripted\","
                     " \"process\", \"bgprocess\", \"internal\" or \"triggered\"",
-                    "type", input_pos);
+                    details->setting_str, input_pos);
             }
             break;
         }
@@ -2281,7 +2246,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
 #endif
                 else {
                     throw service_description_exc(name, "unknown option: " + option_txt,
-                            "options", input_pos);
+                            details->setting_str, input_pos);
                 }
             }
             break;
@@ -2305,7 +2270,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                 }
                 else {
                     throw service_description_exc(name, "unknown load option: " + option_txt,
-                            "load-options", input_pos);
+                            details->setting_str, input_pos);
                 }
             }
             break;
@@ -2328,14 +2293,14 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         case setting_id_t::RESTART_LIMIT_INTERVAL:
         {
             string interval_str = read_setting_value(input_pos, i, end, nullptr);
-            parse_timespec(input_pos, interval_str, name, "restart-limit-interval",
+            parse_timespec(input_pos, interval_str, name, details->setting_str,
                     settings.restart_interval);
             break;
         }
         case setting_id_t::RESTART_DELAY:
         {
             string rsdelay_str = read_setting_value(input_pos, i, end, nullptr);
-            parse_timespec(input_pos, rsdelay_str, name, "restart-delay", settings.restart_delay);
+            parse_timespec(input_pos, rsdelay_str, name, details->setting_str, settings.restart_delay);
             break;
         }
         case setting_id_t::RESTART_LIMIT_COUNT: {
@@ -2347,19 +2312,19 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         case setting_id_t::STOP_TIMEOUT:
         {
             string stoptimeout_str = read_setting_value(input_pos, i, end, nullptr);
-            parse_timespec(input_pos, stoptimeout_str, name, "stop-timeout", settings.stop_timeout);
+            parse_timespec(input_pos, stoptimeout_str, name, details->setting_str, settings.stop_timeout);
             break;
         }
         case setting_id_t::START_TIMEOUT:
         {
             string starttimeout_str = read_setting_value(input_pos, i, end, nullptr);
-            parse_timespec(input_pos, starttimeout_str, name, "start-timeout", settings.start_timeout);
+            parse_timespec(input_pos, starttimeout_str, name, details->setting_str, settings.start_timeout);
             break;
         }
         case setting_id_t::RUN_AS:
         {
             string run_as_str = read_setting_value(input_pos, i, end, nullptr);
-            settings.run_as_uid = parse_uid_param(input_pos, run_as_str, name, "run-as",
+            settings.run_as_uid = parse_uid_param(input_pos, run_as_str, name, details->setting_str,
                     &settings.run_as_uid_gid);
             break;
         }
@@ -2383,12 +2348,12 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                 settings.readiness_var = notify_setting.substr(8 /* len 'pipevar:' */);
                 if (settings.readiness_var.empty()) {
                     throw service_description_exc(name, "invalid pipevar variable name",
-                            "ready-notification", input_pos);
+                            details->setting_str, input_pos);
                 }
             }
             else {
                 throw service_description_exc(name, "unrecognised setting: " + notify_setting,
-                        "ready-notification", input_pos);
+                        details->setting_str, input_pos);
             }
             break;
         }
@@ -2397,7 +2362,8 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             string inittab_setting = read_setting_value(input_pos, i, end, nullptr);
             #if USE_UTMPX
                 if (inittab_setting.length() > sizeof(settings.inittab_id)) {
-                    throw service_description_exc(name, "inittab-id setting is too long", input_pos);
+                    throw service_description_exc(name, (setting_str::str_inittab_id + " setting "
+                            "is too long").c_str(), input_pos);
                 }
                 strncpy(settings.inittab_id, inittab_setting.c_str(), sizeof(settings.inittab_id));
             #endif
@@ -2408,7 +2374,8 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             string inittab_setting = read_setting_value(input_pos, i, end, nullptr);
             #if USE_UTMPX
                 if (inittab_setting.length() > sizeof(settings.inittab_line)) {
-                    throw service_description_exc(name, "inittab-line setting is too long", input_pos);
+                    throw service_description_exc(name, (setting_str::str_inittab_line
+                            + " setting is too long").c_str(), input_pos);
                 }
                 strncpy(settings.inittab_line, inittab_setting.c_str(), sizeof(settings.inittab_line));
             #endif
@@ -2418,21 +2385,21 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
         {
             string nofile_setting = read_setting_value(input_pos, i, end, nullptr);
             service_rlimits &nofile_limits = find_rlimits(settings.rlimits, RLIMIT_NOFILE);
-            parse_rlimit(nofile_setting, input_pos, name, "rlimit-nofile", nofile_limits);
+            parse_rlimit(nofile_setting, input_pos, name, details->setting_str, nofile_limits);
             break;
         }
         case setting_id_t::SETTING_RLIMIT_CORE:
         {
             string core_setting = read_setting_value(input_pos, i, end, nullptr);
             service_rlimits &core_limits = find_rlimits(settings.rlimits, RLIMIT_CORE);
-            parse_rlimit(core_setting, input_pos, name, "rlimit-core", core_limits);
+            parse_rlimit(core_setting, input_pos, name, details->setting_str, core_limits);
             break;
         }
         case setting_id_t::SETTING_RLIMIT_DATA:
         {
             string data_setting = read_setting_value(input_pos, i, end, nullptr);
             service_rlimits &data_limits = find_rlimits(settings.rlimits, RLIMIT_DATA);
-            parse_rlimit(data_setting, input_pos, name, "rlimit-data", data_limits);
+            parse_rlimit(data_setting, input_pos, name, details->setting_str, data_limits);
             break;
         }
         case setting_id_t::SETTING_RLIMIT_ADDRSPACE:
@@ -2440,7 +2407,7 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             #if defined(RLIMIT_AS)
                 string addrspace_setting = read_setting_value(input_pos, i, end, nullptr);
                 service_rlimits &as_limits = find_rlimits(settings.rlimits, RLIMIT_AS);
-                parse_rlimit(addrspace_setting, input_pos, name, "rlimit-addrspace", as_limits);
+                parse_rlimit(addrspace_setting, input_pos, name, details->setting_str, as_limits);
             #endif
             break;
         }
