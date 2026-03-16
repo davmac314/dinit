@@ -327,14 +327,15 @@ void base_process_service::run_child_proc(run_proc_params params) noexcept
         // tasks on a session basis is enabled in the kernel, the nice value will not affect the
         // scheduling relative to other processes in the system; in that case we'll also set the
         // nice value of the group, by writing to /proc/self/autogroup (if it doesn't exist, we
-        // assume automatic grouping is disabled).
+        // assume automatic grouping is disabled). This apparently isn't allowed for unprivileged
+        // processes so we don't bail if the write to autogroup fails.
         int ag_fd = open("/proc/self/autogroup", O_WRONLY);
         if (ag_fd != -1) {
             char nice_out_buf[type_max_num_digits<int>() + 2]; // +1 sign, +1 newline
             char *end_ptr = to_dec_digits(nice_out_buf, nice);
             *end_ptr++ = '\n';
-            if (write(ag_fd, nice_out_buf, end_ptr - nice_out_buf) == -1) goto failure_out;
-            if (close(ag_fd) == -1) goto failure_out;
+            write(ag_fd, nice_out_buf, end_ptr - nice_out_buf); // ignore failure
+            close(ag_fd);
         }
         else if (errno != ENOENT) goto failure_out;
         #endif
