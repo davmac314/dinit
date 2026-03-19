@@ -982,11 +982,13 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
             // new service
             auto &dep_list_prev = orig_svc->get_dependencies();
             auto &dep_list = rval->get_dependencies();
-            for (auto i = dep_list_prev.begin(); i != dep_list_prev.end(); ++i) {
+            for (auto i = dep_list_prev.begin(); i != dep_list_prev.end(); ) {
                 if (i->dep_type == dependency_type::BEFORE) {
                     i->set_from(rval);
                     dep_list.splice(dep_list.end(), dep_list_prev, i++);
-                    continue;
+                }
+                else {
+                    ++i;
                 }
             }
 
