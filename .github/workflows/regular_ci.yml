@@ -65,7 +65,7 @@ jobs:
         g++ -dumpmachine
         g++ --version
     - name: Build
-      run: make
+      run: make CXXFLAGS_EXTRA=-D_GLIBCXX_DEBUG TEST_CXXFLAGS_EXTRA=-D_GLIBCXX_DEBUG
     - name: Print dinit executable file architecture
       run: file ./src/dinit
     - name: Unit tests
