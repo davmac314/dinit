@@ -252,6 +252,11 @@ public:
         return exit_status_to_int(pwatch.exit_status);
     }
 
+    bool check_did_term()
+    {
+        return pwatch.did_exit;
+    }
+
     std::string get_stdout()
     {
         return out.get_output();
@@ -302,6 +307,9 @@ public:
         if (with_ready_wait) {
             while (ready_pipe_ptr->get_output().empty()) {
                 event_loop.run();
+                if (check_did_term()) {
+                    throw igr_failure_exc("dinit process terminated before ready indication received");
+                }
             }
         }
     }
