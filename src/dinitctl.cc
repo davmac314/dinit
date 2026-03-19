@@ -2101,7 +2101,6 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
     using std::string;
 
     int socknum = dinit_conn.fd;
-    cpbuffer_t &rbuffer = *dinit_conn.buffer;
     uint16_t proto_version = dinit_conn.protocol_version;
 
     service_state_t from_state = service_state_t::STARTED;
@@ -2126,7 +2125,7 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
     environment dinit_env;
     dinit_env.clear_no_inherit();
     if (socknum != -1) {
-        get_remote_env(socknum, rbuffer, dinit_env);
+        get_remote_env(socknum, *dinit_conn.buffer, dinit_env);
     }
     else {
         if (environment_file != nullptr && *environment_file != 0) {
@@ -2157,7 +2156,7 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
             return 1;
         }
 
-        std::string to_sdf_dir = get_service_description_dir(socknum, rbuffer, to_handle);
+        std::string to_sdf_dir = get_service_description_dir(socknum, *dinit_conn.buffer, to_handle);
 
         to_service_file_path = to_sdf_dir;
         if (*to_service_file_path.rbegin() != '/') to_service_file_path += '/';
@@ -2203,14 +2202,14 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
         }
 
         try {
-            service_dir_paths = get_service_description_dirs(socknum, rbuffer);
+            service_dir_paths = get_service_description_dirs(socknum, *dinit_conn.buffer);
         }
         catch (dinit_protocol_error &) {
             cerr << DINITCTL_APPNAME ": unknown configuration or protocol error, unable to load "
                     "service descriptions\n";
         }
 
-        std::string from_sdf_dir = get_service_description_dir(socknum, rbuffer, from_handle);
+        std::string from_sdf_dir = get_service_description_dir(socknum, *dinit_conn.buffer, from_handle);
 
         service_file_path = from_sdf_dir;
         if (*service_file_path.rbegin() != '/') service_file_path += '/';
@@ -2380,6 +2379,7 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
         memcpy(cmdbuf + 2 + sizeof(from_handle), &to_handle, sizeof(to_handle));
         write_all_x(socknum, cmdbuf, enable_pktsize);
 
+        cpbuffer_t &rbuffer = *dinit_conn.buffer;
         wait_for_reply(rbuffer, socknum);
 
         // check reply
@@ -2453,6 +2453,8 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
         if (verbose) {
             cout << "Service '" << to << "' has been " << (enable ? "enabled" : "disabled") << ".\n";
         }
+
+        cpbuffer_t &rbuffer = *dinit_conn.buffer;
 
         char cmd_pkt = (char)(proto_version < 5 ? cp_cmd::SERVICESTATUS : cp_cmd::SERVICESTATUS5);
 
