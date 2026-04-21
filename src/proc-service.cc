@@ -227,15 +227,15 @@ dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t chil
     // (stop_watch instead of deregister, so that we hold watch reservation).
     stop_watch(loop);
 
+    if (sr->waiting_stopstart_timer) {
+        sr->process_timer.stop_timer(loop);
+        sr->waiting_stopstart_timer = false;
+    }
+
     if (sr->waiting_for_execstat) {
         // We still don't have an exec() status from the forked child, wait for that
         // before doing any further processing.
         return dasynq::rearm::NOOP; // hold watch reservation
-    }
-
-    if (sr->waiting_stopstart_timer) {
-        sr->process_timer.stop_timer(loop);
-        sr->waiting_stopstart_timer = false;
     }
 
     sr->handle_exit_status();
