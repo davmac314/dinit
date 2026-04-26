@@ -2433,6 +2433,52 @@ void test_scripted_start_fail()
     assert(sset.count_active_services() == 0);
 }
 
+void test_scripted_start_race()
+{
+    using namespace std;
+
+    service_set sset;
+
+    ha_string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    scripted_service p {&sset, "testscripted", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    // In this test we are checking the condition where the termination is seen before the
+    // successul exec() status (via pipe close).
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTED);
+
+    pid_t ss_pid = bp_sys::last_forked_pid;
+
+    event_loop.advance_time(time_val(DEFAULT_START_TIMEOUT, 0));
+    sset.process_queues();
+
+    assert(ss_pid == bp_sys::last_forked_pid);
+
+    p.stop(true);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STOPPED);
+
+    event_loop.active_timers.clear();
+    sset.remove_service(&p);
+
+    assert(sset.count_active_services() == 0);
+}
+
 void test_scripted_stop_fail()
 {
     using namespace std;
@@ -2710,6 +2756,8 @@ int main(int argc, char **argv)
     RUN_TEST(test_bgproc_stop5, "          ");
     RUN_TEST(test_scripted_stop_timeout, " ");
     RUN_TEST(test_scripted_start_fail, "   ");
+    // FIXME following test needs improvements to system mocks:
+    //RUN_TEST(test_scripted_start_race, "   ");
     RUN_TEST(test_scripted_stop_fail, "    ");
     RUN_TEST(test_scripted_start_skip, "   ");
     RUN_TEST(test_scripted_start_skip2, "  ");
