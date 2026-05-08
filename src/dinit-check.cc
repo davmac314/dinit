@@ -384,7 +384,7 @@ int main(int argc, char **argv)
             }
             else {
                 std::cerr << "Warning: Service '" << svc_name_record.first << "' specified as consumer of service '"
-                        << consumer_of_svc->name << "' which was not found.\n";
+                        << svc_name_record.second->consumer_of_name << "' which was not found.\n";
             }
         }
 
