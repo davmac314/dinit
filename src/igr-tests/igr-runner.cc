@@ -26,6 +26,7 @@ void check_basic_test();
 void check_cycle_test();
 void check_cycle2_test();
 void check_lint_test();
+void check_consumer_of_non_existent_test();
 void reload1_test();
 void reload2_test();
 void no_command_error_test();
@@ -52,15 +53,17 @@ int main(int argc, char **argv)
             { "chain-to", chain_to_test }, { "force-stop", force_stop_test },
             { "restart", restart_test }, { "check-basic", check_basic_test },
             { "check-cycle", check_cycle_test }, { "check-cycle2", check_cycle2_test },
-            { "check-lint", check_lint_test }, { "reload1", reload1_test },
-            { "reload2", reload2_test }, { "no-command-error", no_command_error_test },
-            { "add-rm-dep", add_rm_dep_test }, { "var-subst", var_subst_test },
-            { "svc-start-fail", svc_start_fail_test, }, { "dep-not-found", dep_not_found_test },
-            { "pseudo-cycle", pseudo_cycle_test }, { "before-after", before_after_test},
-            { "before-after2", before_after2_test }, { "log-via-pipe", log_via_pipe_test },
-            { "catlog", catlog_test }, { "offline-enable", offline_enable_test },
-            { "xdg-config", xdg_config_test }, { "cycles", cycles_test },
-            { "svc-arg", svc_arg_test }, { "svc-arg-consumer", svc_arg_consumer_test },
+            { "check-lint", check_lint_test },
+            { "check-consumer-of-non-existent", check_consumer_of_non_existent_test },
+            { "reload1", reload1_test }, { "reload2", reload2_test },
+            { "no-command-error", no_command_error_test }, { "add-rm-dep", add_rm_dep_test },
+            { "var-subst", var_subst_test }, { "svc-start-fail", svc_start_fail_test, },
+            { "dep-not-found", dep_not_found_test }, { "pseudo-cycle", pseudo_cycle_test },
+            { "before-after", before_after_test }, { "before-after2", before_after2_test },
+            { "log-via-pipe", log_via_pipe_test }, { "catlog", catlog_test },
+            { "offline-enable", offline_enable_test }, { "xdg-config", xdg_config_test },
+            { "cycles", cycles_test }, { "svc-arg", svc_arg_test },
+            { "svc-arg-consumer", svc_arg_consumer_test },
             { "svc-arg-enable", svc_arg_enable_test } };
     constexpr int num_tests = sizeof(tests) / sizeof(tests[0]);
 
@@ -440,6 +443,16 @@ void check_lint_test()
 
     auto check_result = run_dinitcheck("check-lint", {"-d", "sd"});
     igr_assert_eq(read_file_contents(igr_input_basedir + "/check-lint/expected.txt"), check_result.first);
+    igr_assert(check_result.second == 1, "dinitcheck exit status == 1");
+}
+
+void check_consumer_of_non_existent_test()
+{
+    igr_test_setup setup("check-consumer-of-non-existent");
+
+    auto check_result = run_dinitcheck("check-consumer-of-non-existent", {"-d", "sd"});
+    igr_assert_eq(read_file_contents(igr_input_basedir +
+            "/check-consumer-of-non-existent/expected.txt"), check_result.first);
     igr_assert(check_result.second == 1, "dinitcheck exit status == 1");
 }
 

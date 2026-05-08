@@ -1,0 +1,4 @@
+type = process
+command = /bin/sh
+
+consumer-of: non-existent
