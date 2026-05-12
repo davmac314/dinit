@@ -31,6 +31,7 @@ constexpr auto str_depends_on_d = cts::literal("depends-on.d");
 constexpr auto str_depends_ms_d = cts::literal("depends-ms.d");
 constexpr auto str_after = cts::literal("after");
 constexpr auto str_before = cts::literal("before");
+constexpr auto str_prepared_by = cts::literal("prepared-by");
 constexpr auto str_logfile = cts::literal("logfile");
 constexpr auto str_logfile_permissions = cts::literal("logfile-permissions");
 constexpr auto str_logfile_uid = cts::literal("logfile-uid");
@@ -84,11 +85,11 @@ enum class setting_id_t {
     LAST = -1, // used to indicate end of settings
     TYPE, COMMAND, WORKING_DIR, ENV_FILE, SOCKET_LISTEN, SOCKET_PERMISSIONS, SOCKET_UID,
     SOCKET_GID, STOP_COMMAND, PID_FILE, DEPENDS_ON, DEPENDS_MS, WAITS_FOR, WAITS_FOR_D,
-    DEPENDS_ON_D, DEPENDS_MS_D, AFTER, BEFORE, LOGFILE, LOGFILE_PERMISSIONS, LOGFILE_UID,
-    LOGFILE_GID, LOG_TYPE, LOG_BUFFER_SIZE, CONSUMER_OF, RESTART, SMOOTH_RECOVERY, OPTIONS,
-    LOAD_OPTIONS, TERM_SIGNAL, TERMSIGNAL /* deprecated */, RESTART_LIMIT_INTERVAL, RESTART_DELAY,
-    RESTART_LIMIT_COUNT, STOP_TIMEOUT, START_TIMEOUT, RUN_AS, CHAIN_TO, READY_NOTIFICATION,
-    INITTAB_ID, INITTAB_LINE, NICE,
+    DEPENDS_ON_D, DEPENDS_MS_D, AFTER, BEFORE, PREPARED_BY, LOGFILE, LOGFILE_PERMISSIONS,
+    LOGFILE_UID, LOGFILE_GID, LOG_TYPE, LOG_BUFFER_SIZE, CONSUMER_OF, RESTART, SMOOTH_RECOVERY,
+    OPTIONS, LOAD_OPTIONS, TERM_SIGNAL, TERMSIGNAL /* deprecated */, RESTART_LIMIT_INTERVAL,
+    RESTART_DELAY, RESTART_LIMIT_COUNT, STOP_TIMEOUT, START_TIMEOUT, RUN_AS, CHAIN_TO,
+    READY_NOTIFICATION, INITTAB_ID, INITTAB_LINE, NICE,
     // Prefixed with SETTING_ to avoid name collision with system macros:
     SETTING_RLIMIT_NOFILE, SETTING_RLIMIT_CORE, SETTING_RLIMIT_DATA, SETTING_RLIMIT_ADDRSPACE,
     // Possibly unsupported depending on platform/build options:

@@ -168,7 +168,7 @@ class service_dep
     // Check if the dependency is a hard dependency (including milestone still waiting).
     bool is_hard()
     {
-        return dep_type == dependency_type::REGULAR
+        return dep_type == dependency_type::REGULAR || dep_type == dependency_type::PREPARED_BY
                 || (dep_type == dependency_type::MILESTONE && waiting_on);
     }
 
@@ -809,7 +809,7 @@ class service_record
         }
 
         if (dep_type != dependency_type::BEFORE && dep_type != dependency_type::AFTER) {
-            if (dep_type == dependency_type::REGULAR
+            if (dep_type == dependency_type::REGULAR || dep_type == dependency_type::PREPARED_BY
                     || to->get_state() == service_state_t::STARTED
                     || to->get_state() == service_state_t::STARTING) {
                 if (service_state == service_state_t::STARTING

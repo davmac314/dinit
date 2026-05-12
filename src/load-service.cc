@@ -244,7 +244,8 @@ static bool check_settings_for_reload(service_record *service,
 
         // Check validity of dependencies (if started, regular deps must be started)
         for (auto &new_dep : settings.depends) {
-            if (new_dep.dep_type == dependency_type::REGULAR) {
+            if (new_dep.dep_type == dependency_type::REGULAR
+                    || new_dep.dep_type == dependency_type::PREPARED_BY) {
                 if (new_dep.to->get_state() != service_state_t::STARTED) {
                     throw service_load_exc(name,
                             std::string("cannot add non-started dependency '")

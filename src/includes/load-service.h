@@ -2059,6 +2059,15 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             settings.before_svcs.emplace_back(std::move(before_name));
             break;
         }
+        case setting_id_t::PREPARED_BY:
+        {
+            string dependency_name = read_value_resolved(details->setting_str, input_pos, i, end,
+                    service_arg, lookup_var);
+            validate_dep_name_x(dependency_name);
+            settings.depends.emplace_back(load_service(dependency_name.c_str()),
+                    dependency_type::PREPARED_BY);
+            break;
+        }
         case setting_id_t::LOGFILE:
         {
             settings.logfile = read_setting_value(input_pos, i, end);

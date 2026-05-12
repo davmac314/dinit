@@ -127,7 +127,8 @@ enum class dependency_type
     WAITS_FOR,  // as for SOFT, but dependent waits until dependency starts/fails before starting
     MILESTONE,  // dependency must start successfully, but once started the dependency becomes soft
     BEFORE,     // "before" ordering constraint (specified via the "to" service)
-    AFTER       // "after" ordering constraint (specified via the "from" service)
+    AFTER,      // "after" ordering constraint (specified via the "from" service)
+    PREPARED_BY // as for REGULAR, but dependency must restart if dependent does
 };
 
 enum class log_type_id

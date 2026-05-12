@@ -100,7 +100,8 @@ A \fBneed\fR (or "hard") relationship specifies that the dependent must wait
 for the dependency to be started before it starts, and that the dependency
 must remain started while the dependent is started.
 Starting the dependent will start the dependency, and stopping the dependency will stop the
-dependent. This type of relationship is specified using a \fBdepends-on\fR property.
+dependent. This type of relationship is specified using a \fBdepends\-on\fR or
+\fBprepared\-by\fB property (see the property descriptions below for details).
 .IP \(bu
 A \fBmilestone\fR relationship specifies that the dependency must
 start successfully before the dependent starts.
@@ -109,7 +110,7 @@ Once started, the relationship is satisfied; if the dependency then stops, it
 has no effect on the dependent.
 However, if the dependency fails to start or has its startup cancelled, the dependent will
 not start (and will return to the stopped state).
-This type of relationship is specified using a \fBdepends-ms\fR property.
+This type of relationship is specified using a \fBdepends\-ms\fR property.
 .IP \(bu
 A \fBwaits-for\fR relationship specifies that the dependency must
 start successfully, or fail to start, before the dependent starts.
@@ -300,6 +301,18 @@ If the named service stops then this service will also be stopped.
 The \fIservice-name\fR is subject to pre-load variable substitution
 (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
+\fBprepared\-by\fR: \fIservice-name\fR
+This service depends on the named service.
+This is almost equivalent to \fBdepends\-on\fR, with the difference being that the named service
+will also be restarted if this service is restarted.
+This is useful if a service needs special preparation (such as cleanup of files holding runtime
+state) that must be re-run if the service restarts.
+Note that a service undergoing "smooth recovery" (see \fBsmooth\-recovery\fR) does not count as a
+restarting service; a service that has a dependency of this type should generally have smooth
+recovery disabled. 
+The \fIservice-name\fR is subject to pre-load variable substitution
+(see \fBVARIABLE SUBSTITUTION\fR).
+.TP
 \fBdepends\-ms\fR: \fIservice-name\fR
 This service has a "milestone" dependency on the named service. Starting this
 service will start the named service; this service will not start until the
@@ -307,7 +320,8 @@ named service has started, and will fail to start if the named service does
 not start.
 Once the named (dependent) service reaches the started state, however, the
 dependency may stop without affecting the dependent service.
-The name is likewise subject to pre-load variable substitution.
+The \fIservice-name\fR is subject to pre-load variable substitution
+(see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBwaits\-for\fR: \fIservice-name\fR
 When this service is started, wait for the named service to finish starting
@@ -315,7 +329,8 @@ When this service is started, wait for the named service to finish starting
 Starting this service will automatically start the named service.
 If the named service fails to start, this service will start as usual (subject to
 other dependencies being met).
-The name is likewise subject to pre-load variable substitution.
+The \fIservice-name\fR is subject to pre-load variable substitution
+(see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBdepends\-on.d\fR: \fIdirectory-path\fR
 For each file name in \fIdirectory-path\fR which does not begin with a dot,
@@ -346,7 +361,7 @@ starting this service will not cause it to start (nor wait for it in that case).
 It does not by itself cause the named service to be loaded (if loaded later, the "after"
 relationship will be enforced from that point).
 .IP
-The name is subject to pre-load variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
+The \fIservice-name\fR is subject to pre-load variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBbefore\fR: \fIservice-name\fR
 When starting the named service, if this service is also starting, wait for this service
@@ -355,7 +370,7 @@ an \fBafter\fR relationship to this service from the named service.
 However, it does not by itself cause the named service to be loaded (if loaded later, the "before"
 relationship will be enforced from that point).
 .IP
-The name is subject to pre-load variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
+The \fIservice-name\fR is subject to pre-load variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBchain\-to\fR = \fIservice-name\fR
 When this service terminates (i.e. starts successfully, and then stops of its
@@ -378,7 +393,7 @@ abnormally or with an exit status indicating an error.
 However, if the \fBalways-chain\fR option is set the chain is started regardless of the
 reason and the status of this service termination.
 .IP
-The name is subject to pre-load variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
+The \fIservice-name\fR is subject to pre-load variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBsocket\-listen\fR = \fIsocket-path\fR
 Pre-open a socket for the service and pass it to the service using the

@@ -106,7 +106,7 @@ void service_record::stopped() noexcept
         }
     }
 
-    for (auto & dependency : depends_on) {
+    for (auto &dependency : depends_on) {
         // we signal dependencies in case they are waiting for us to stop:
         dependency.get_to()->dependent_stopped();
     }
@@ -114,6 +114,15 @@ void service_record::stopped() noexcept
     service_state = service_state_t::STOPPED;
 
     if (will_restart) {
+        // Look for dependencies of type PREPARED_BY. We must restart them now (forcing them into
+        // STOPPING state so that initiate_start() below does not proceed to restart this service
+        // immediately).
+        for (service_dep &dependency : depends_on) {
+            if (dependency.dep_type == dependency_type::PREPARED_BY) {
+                dependency.get_to()->restart();
+            }
+        }
+
         // Desired state is "started".
         initiate_start();
     }
@@ -519,10 +528,11 @@ void service_record::failed_to_start(bool depfailed, bool immediate_stop) noexce
     for (auto & dept : dependents) {
         switch (dept->dep_type) {
         case dependency_type::REGULAR:
+        case dependency_type::PREPARED_BY:
         case dependency_type::MILESTONE:
-            // If REGULAR and STARTED, we can't have failed to start i.e. we must be started, so
-            // we don't worry about that case. If MILESTONE and started the dependency is already
-            // satisfied so again we don't need to do anything.
+            // If REGULAR/PREPARED_BY and STARTED, we can't have failed to start i.e. we must be
+            // started, so we don't worry about that case. If MILESTONE and started the dependency
+            // is already satisfied so again we don't need to do anything.
             if (dept->get_from()->service_state == service_state_t::STARTING) {
                 dept->get_from()->prop_failure = true;
                 services->add_prop_queue(dept->get_from());

@@ -27,7 +27,7 @@ setting_details all_settings[] = {
         {str_depends_ms_d,          setting_id_t::DEPENDS_MS_D,             true,   false,  false},
         {str_after,                 setting_id_t::AFTER,                    true,   false,  false},
         {str_before,                setting_id_t::BEFORE,                   true,   false,  false},
-
+        {str_prepared_by,           setting_id_t::PREPARED_BY,              true,   false,  false},
         {str_logfile,               setting_id_t::LOGFILE,                  false,  true,   false},
         {str_logfile_permissions,   setting_id_t::LOGFILE_PERMISSIONS,      false,  true,   false},
         {str_logfile_uid,           setting_id_t::LOGFILE_UID,              false,  true,   false},

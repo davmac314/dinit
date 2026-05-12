@@ -2705,6 +2705,120 @@ void test_waitsfor_restart()
     sset.remove_service(&p);
 }
 
+void test_prepared_by_restart()
+{
+    using namespace std;
+
+    service_set sset;
+
+    ha_string prep_cmd = "prepare";
+    list<pair<unsigned,unsigned>> prep_command_offsets;
+    prep_command_offsets.emplace_back(0, prep_cmd.length());
+    std::list<prelim_dep> prep_depends;
+
+    scripted_service prep_svc {&sset, "prepsvc", std::move(prep_cmd), prep_command_offsets, prep_depends};
+    ha_string prep_stop = "cleanup";
+    list<pair<unsigned,unsigned>> prep_stop_offsets;
+    prep_stop_offsets.emplace_back(0, prep_stop.length());
+    prep_svc.set_stop_command(prep_stop, prep_stop_offsets);
+    sset.add_service(&prep_svc);
+
+    ha_string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+    depends.emplace_back(&prep_svc, dependency_type::PREPARED_BY);
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_auto_restart(auto_restart_mode::ALWAYS);
+    sset.add_service(&p);
+
+    pid_t first_pid = bp_sys::last_forked_pid;
+
+    p.start();
+    sset.process_queues();
+
+    // First the preparation service must start
+
+    // Should have forked for prepare:
+    assert(bp_sys::last_forked_pid == (first_pid + 1));
+
+    assert(prep_svc.get_state() == service_state_t::STARTING);
+    base_process_service_test::exec_succeeded(&prep_svc);
+    sset.process_queues();
+    assert(prep_svc.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::handle_exit(&prep_svc, 0);
+    sset.process_queues();
+    assert(prep_svc.get_state() == service_state_t::STARTED);
+    assert(p.get_state() == service_state_t::STARTING);
+    assert(bp_sys::last_forked_pid == (first_pid + 2)); // (p should have forked)
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+
+    // Ok, both the service and its prepared-by dependency have started.
+    // Now restart the service (via auto restart):
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+    assert(prep_svc.get_state() == service_state_t::STOPPING); // stopping for restart
+    assert(p.get_state() == service_state_t::STARTING);
+    assert(bp_sys::last_forked_pid == (first_pid + 3)); // (fork for cleanup)
+
+    base_process_service_test::exec_succeeded(&prep_svc); // cleanup exec
+    sset.process_queues();
+    base_process_service_test::handle_exit(&prep_svc, 0);
+    sset.process_queues();
+    assert(prep_svc.get_state() == service_state_t::STARTING);
+    assert(p.get_state() == service_state_t::STARTING);
+    assert(bp_sys::last_forked_pid == (first_pid + 4)); // (fork for prepare)
+
+    base_process_service_test::exec_succeeded(&prep_svc); // prepare exec
+    sset.process_queues();
+    base_process_service_test::handle_exit(&prep_svc, 0);
+    sset.process_queues();
+
+    // The restart delay timer needs to expire:
+    event_loop.advance_time(default_restart_interval);
+    sset.process_queues();
+
+    assert(bp_sys::last_forked_pid == (first_pid + 5)); // (fork for p)
+    assert(prep_svc.get_state() == service_state_t::STARTED);
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p); // process exec
+    sset.process_queues();
+    assert(prep_svc.get_state() == service_state_t::STARTED);
+    assert(p.get_state() == service_state_t::STARTED);
+
+    // Now stop them by stopping p:
+    p.stop(true);
+    sset.process_queues();
+    assert(prep_svc.get_state() == service_state_t::STOPPING);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    base_process_service_test::handle_exit(&p, 0);
+    sset.process_queues();
+
+    assert(prep_svc.get_state() == service_state_t::STOPPING);
+    assert(p.get_state() == service_state_t::STOPPED);
+
+    // cleanup should have forked now:
+    assert(bp_sys::last_forked_pid == (first_pid + 6)); // (fork for p)
+    base_process_service_test::exec_succeeded(&prep_svc); // process exec
+    sset.process_queues();
+    base_process_service_test::handle_exit(&prep_svc, 0);
+    sset.process_queues();
+
+    assert(prep_svc.get_state() == service_state_t::STOPPED);
+    assert(p.get_state() == service_state_t::STOPPED);
+
+    sset.remove_service(&p);
+    sset.remove_service(&prep_svc);
+}
 
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
@@ -2762,4 +2876,5 @@ int main(int argc, char **argv)
     RUN_TEST(test_scripted_start_skip, "   ");
     RUN_TEST(test_scripted_start_skip2, "  ");
     RUN_TEST(test_waitsfor_restart, "      ");
+    RUN_TEST(test_prepared_by_restart, "   ");
 }

@@ -278,7 +278,8 @@ bool control_conn_t::check_dependents(service_record *service, bool &had_depende
     size_t num_depts = 0;
 
     for (service_dep *dep : service->get_dependents()) {
-        if (dep->dep_type == dependency_type::REGULAR && dep->holding_acq) {
+        if (value(dep->dep_type).is_in(dependency_type::REGULAR, dependency_type::PREPARED_BY)
+                && dep->holding_acq) {
             num_depts++;
             // find or allocate a service handle
             handle_t dept_handle = allocate_service_handle(dep->get_from());
