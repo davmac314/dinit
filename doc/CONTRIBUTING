@@ -57,10 +57,46 @@ attempting to make a contribution, in a discussion; please accept however that y
 response).
 
 Dinit is critical system software. If you are not aware of how that affects the way that it should
-be designed and coded, then you probably do not have the expertise required to contribute. 
+be designed and coded, then you probably do not have the expertise required to contribute.
 
+As the maintainer and original author, I maintain the right to reject or request modification to
+contributions, for failure to comply with the points listed above or elsewhere in the
+documentation, for failure to adhere to a reasonable standard of conduct (see Contributor Conduct
+below), or because I deem that the contribution includes features outside the intended scope. I
+encourage anyone who is considering making a contribution to contact me to sound out whether I
+would be likely to accept a submission for a particular feature or behavioural change.
+ 
 I will endeavour to respond to all offered contributions with civility and respect, even if I
 choose not to accept them.
+
+
+General rules for contribution
+------------------------------
+
+Contributions must be clearly the work of the contributor (any other individuals involved must
+clearly be identified) and the contributor must have the legal right to contribute the work to
+the project and have it distributed as part of the project under the terms of the project's
+licence.
+
+Contributors must completely understand the contribution, its function, and its impact on the
+software's function overall (if applicable).
+
+(In general, these requirements do not permit the contribution of AI/LLM-produced code or
+documentation; nor do they allow copying code from other projects with incompatible licences).
+
+
+Using code/documentation from elsewhere
+---------------------------------------
+
+In general you should not use code (including comments) or documentation from any other project or
+external source. This is true even for small snippets, and even if you make modifications. It is
+preferable to write new code and documentation from scratch. The only exception is if the code is
+identically licensed or is available under permissive terms that allow it to be distributed under
+the same license as Dinit.
+
+If you do use anything from another project in a contribution, you must make the reviewer
+(maintainer) aware of what you have used, where it is from, and why you believe it is reasonable
+to use it, and why you believe that using it does not infringe copyright.
 
 
 Code contributions
@@ -76,12 +112,22 @@ In general, code contributions:
 [*] There is a little lee-way for comments, "truly obvious" code does not need to be and should
     not be commented.
 
-As the maintainer and original author, I maintain the right to reject or request modification to
-contributions, for failure to comply with the points listed above, for failure to adhere to a
-reasonable standard of conduct (see Contributor Conduct below), or because I deem that the
-contribution includes features outside the intended scope. I encourage anyone who is considering
-making a contribution to contact me to sound out whether I would be likely to accept a submission
-for a particular feature or behavioural change.
+For comments in code:
+ - To document classes, functions and variables, see notes in CODE-STYLE. Function comments should
+   describe what the function does, and anything that someone writing code that called the
+   function would need to know in order to use it properly (as if they couldn't read the code of
+   the function itself).
+ - Use comments to explain anything in the code that is not apparent or any aspect that has
+   significance beyond what is apparently just be reading the code. Be specific.
+ - Do not simply state what the code does in code terms.
+
+Examples of good/bad code comments:
+    "Call foo() now" - bad, just saying what is obvious from reading the code.
+    "We need to account for the string terminator" - ok (explanatory), but could be better.
+    "Some OSes require us to call frob() after sniggle()" - could be better (which OSes, why?).
+    "We +1 here to account for the string terminator" - good, explanatory.
+    "Not that since ziggle was set to true above, this call to frobnicate() is guaranteed to return
+     without an error" - good, adds explanatory context.
 
 
 Documentation contributions
@@ -107,36 +153,64 @@ Documentation (including comments in code) should be:
    to replicate the necessary information in documentation, and/or explain what was linked to (so
    that a reader can perhaps find it even if it has moved).
 
-For comments in code, some additional concerns apply:
- - To document classes, functions and variables, see notes in CODE-STYLE. Function comments should
-   describe what the function does, and anything that someone writing code that called the
-   function would need to know in order to use it properly (as if they couldn't read the code of
-   the function itself).
- - Use comments to explain anything in the code that is not apparent or any aspect that has
-   significance beyond what is apparently just be reading the code. Be specific.
- - Do not simply state what the code does in code terms.
 
-Examples of good/bad code comments:
-    "Call foo() now" - bad, just saying what is obvious from reading the code.
-    "We need to account for the string terminator" - ok (explanatory), but could be better.
-    "Some OSes require us to call frob() after sniggle()" - could be better (which OSes, why?).
-    "We +1 here to account for the string terminator" - good, explanatory.
-    "Not that since ziggle was set to true above, this call to frobnicate() is guaranteed to return
-     without an error" - good, adds explanatory context.
+Commits and Commit Messages
+---------------------------
 
+Individual unrelated changes should be represented in separate commits. Each commit should
+encompass a complete self-contained change.
 
-Using code/documentation from elsewhere
----------------------------------------
+Commit messages should include a single line (up to 72 characters, preferably shorter) giving a
+summary of the functional change, followed by a blank line and then (unless trivial) a more
+comprehensive description of the change (the "message body"), with lines wrapping at or before 72
+characters.
 
-In general you should not use code (including comments) or documentation from any other project or
-external source. This is true even for small snippets, and even if you make modifications. It is
-preferable to write new code and documentation from scratch. The only exception is if the code is
-identically licensed or is available under permissive terms that allow it to be distributed under
-the same license as Dinit.
+Summary lines (and message bodies) start with a capital unless lead with a noun that doesn't
+capitalise (such as a function or file name). If a commit affects a particular component (a
+function, program, or "tests", or "build") that component should specified, followed by a colon,
+at the head of the commit summary (see examples below).
 
-If you do use anything from another project in a contribution, you must make the reviewer
-(maintainer) aware of what you have used, where it is from, and why you believe it is reasonable
-to use it, and why you believe that it does not infringe copyright.
+Read existing commit messages to get a sense for the expected style/tone. Messages should be
+concise but not at the expense of necessary detail. Write in the imperative, i.e. the message body
+should be able to follow "This change will ..." (background information can be provided before the
+imperative statement, if really necessary, but ideally comes afterwards). 
+
+Examples:
+
+    -- example 1 --
+    check_frobz: make sure to set gromit before return
+
+    Fix the check_frobz function so that ... (etc)
+
+    -- example 2 --
+    Tests: add test for correct frobzing of gerschnicketts
+
+    Add a test which catches the recently discovered issue (see #78) where
+    gerschnicketts were not correctly frobzzed in certain corner cases,
+    including ... (etc)
+
+The message body should fully explain what has been changed and the reason for it (the "why" and
+"how" of the change). Make sure that there is a complete explanation of the functional nature of
+the change (i.e. how does it affect the behaviour of the software) - it is less important to say
+what has specifically changed in the code (although some information on this can be good too).
+
+Use dot-point lists if appropriate, as in this example:
+
+    Handle fuzzits consistently
+
+    - add function solve_fuzzit() to solve fuzzits
+    - fix the foo function to correctly handle fuzzits (using solve_fuzzit)
+    - in the bar and baz functions, defer fuzzit handling to foo
+
+    This makes handling of fuzzits consistent, and resolves #42.
+
+Always include a reference to any related issue in the issue tracker by number, with leading
+hash, as in the examples above. Do not include URLs for issues/commits/PRs within the
+project, they should always be referenced by number.
+
+Do NOT include a so-called "conventional commit" tag ("fix:", "chore:" etc).
+
+Do NOT include a "Signed-off-by:" line. 
 
 
 Contributor Conduct
