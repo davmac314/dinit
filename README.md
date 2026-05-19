@@ -1,6 +1,6 @@
 # Dinit
 
-v0.21.0
+v0.22.0
 
 ---
 ![Dinit logo](doc/dinit-logo.png)
@@ -11,8 +11,9 @@ intended to provide an overview; For full documentation please check the manual 
 The impatient may wish to check out the [getting started guide](doc/getting_started.md).
 
 Dinit is used as the init system for [Chimera Linux](https://chimera-linux.org/) and
-[eweOS](https://os.ewe.moe/), and is an init system option for [Artix Linux](https://artixlinux.org/).
-It is also packaged as a user service manager on many other OSes.
+[eweOS](https://os.ewe.moe/), and is an init system option for [Artix Linux](https://artixlinux.org/)
+and [antiX](https://antixlinux.com/). It is also packaged as a user service manager on many other
+Linux distributions and operating systems.
 
 ---
 

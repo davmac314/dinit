@@ -1,3 +1,35 @@
+== Version 0.22.0 (beta release #11) - May 2026
+
+This is primarily a bug-fix release, resolving a number of small but significant bugs that have
+discovered during ongoing testing since the previous release.
+
+In the absence of major bugs, the next release is expected to be 1.0. (Of course, we've said that
+before...)
+
+Thanks to sponsors: Paweł Zmarzły (pzmarzly), Wesley Moore (wezm),
+M. Herdiansyah (konimex), Coleman McFarland (dontlaugh), saolof, and private sponsors.
+
+Changes:
+ * A new dependency type, "prepared-by", is available. It is largely equivalent to "depends-on"
+   but a restart of the dependent will also restart the dependency, making it useful for
+   performing cleanup or preparation actions that need to happen between each execution of a
+   service process.
+
+Fixes:
+ * (Linux) ignore failure to write the "nice" value to /proc/self/autogroup. Normally if a "nice"
+   value is specified it is also used as the autogroup priority, since otherwise (in the presence
+   of the autogrouping feature) it has limited effect. However, this apparently fails for
+   unprivileged execution (dinit run as user session service manager).
+ * Avoid creation of null reference in dinitctl on offline enable/disable of a service. This
+   triggered an assertion when dinit was built with standard library hardening features available
+   in libstdc++.
+ * Fix an issue with "before" links which could lead to dangling pointers on service load in
+   certain circumstances.
+ * Fix an issue which could cause scripted services "start" commands to run twice. Reported by
+   Artix user omut; thanks to omut and capezotte for help in tracking down the cause.
+ * Fix an issue in dinit-check which caused a segmentation fault when a service was specified as a
+   "consumer-of" a non-existing service (Mobin Aydinfar). 
+
 == Version 0.21.0 (beta release #10) - March 2026
 
 This is an interim release to fix a few serious (but rarely encountered) bugs that have been
