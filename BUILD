@@ -169,7 +169,13 @@ Cross-compilation with "configure" script
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 If cross-compiling (i.e. specifying the CXX_FOR_BUILD variable), there are some additional
-considerations regarding use of the "configure" script.  
+considerations regarding use of the "configure" script.
+
+Some build options are currently defaulted based on the detected platform (operating system). When
+doing a cross-build, the target platform is not automatically detected, and "configure" prints a
+warning and defaults to the "unknown" platform. Use "--platform=<platform>" to specify the target
+platform; currently recognised platforms are "Linux", "FreeBSD", "NetBSD", "OpenBSD", "Darwin" and
+"unknown".
 
 Unless compiler arguments to use are specified when "configure" is invoked, the script will check
 for compiler support of certain options (and enable compilation with these options, if they are
