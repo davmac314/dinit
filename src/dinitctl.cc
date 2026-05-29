@@ -1634,8 +1634,13 @@ static int service_status(dinit_conn_t &dinit_conn, const char *service_name, ct
         return 1;
     }
 
-    // Issue STATUS request
     {
+        // Determine the service description path
+        std::string sdf_path = get_service_description_dir(socknum, rbuffer, handle);
+        sdf_path.append(1, '/');
+        sdf_path.append(service_name, strip_service_arg(service_name));
+
+        // Issue STATUS request
         char status_req_id = proto_version < 5 ? (char)cp_cmd::SERVICESTATUS : (char)cp_cmd::SERVICESTATUS5;
         unsigned status_buf_size = proto_version < 5 ? STATUS_BUFFER_SIZE : STATUS_BUFFER5_SIZE;
 
@@ -1727,6 +1732,7 @@ static int service_status(dinit_conn_t &dinit_conn, const char *service_name, ct
         }
 
         cout << "Service: " << service_name << "\n"
+                "    File: " << sdf_path << "\n"
                 "    State: ";
 
         switch (current) {
