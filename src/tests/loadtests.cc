@@ -265,40 +265,33 @@ void test_settings()
     infile.open("./dummy");
     input_stack.push("./dummy", std::move(infile), bp_sys::open(".", O_DIRECTORY));
 
-    try {
-        auto resolve_var = [](const std::string &name) {
-            return (char *)nullptr;
-        };
+    auto resolve_var = [](const std::string &name) {
+        return (char *)nullptr;
+    };
 
-        process_service_file("test-service", input_stack,
-                [&](string &line, file_pos_ref input_pos, string &setting,
-                        dinit_load::setting_op_t op, string_iterator &i,
-                        string_iterator &end) -> void {
+    process_service_file("test-service", input_stack,
+            [&](string &line, file_pos_ref input_pos, string &setting,
+                    dinit_load::setting_op_t op, string_iterator &i,
+                    string_iterator &end) -> void {
 
-                    auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist,
-                            const std::string &waitsford, dependency_type dep_type) -> void {
-                        //process_dep_dir(name.c_str(), service_filename, deplist, waitsford, dep_type);
-                    };
+                auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist,
+                        const std::string &waitsford, dependency_type dep_type) -> void {
+                    //process_dep_dir(name.c_str(), service_filename, deplist, waitsford, dep_type);
+                };
 
-                    auto load_service_n = [&](const string &dep_name) -> const string & {
-                        return dep_name;
-                    };
+                auto load_service_n = [&](const string &dep_name) -> const string & {
+                    return dep_name;
+                };
 
-                    try {
-                        process_service_line(settings, "test-service", nullptr, line, input_pos,
-                                setting, op, i, end, load_service_n, process_dep_dir_n);
-                    }
-                    catch (service_description_exc &exc) {
-                        //report_service_description_exc(exc);
-                    }
-                },
-                nullptr, resolve_var);
-    }
-    catch (std::system_error &sys_err)
-    {
-        //report_error(sys_err, name);
-        throw service_description_exc("", "error while reading service description.", "unknown");
-    }
+                try {
+                    process_service_line(settings, "test-service", nullptr, line, input_pos,
+                            setting, op, i, end, load_service_n, process_dep_dir_n);
+                }
+                catch (service_description_exc &exc) {
+                    //report_service_description_exc(exc);
+                }
+            },
+            nullptr, resolve_var);
 
     assert(settings.service_type == service_type_t::PROCESS);
     assert(settings.command == "/something/test");
@@ -370,11 +363,6 @@ void test_subst_errs()
                 },
                 nullptr, resolve_var);
     }
-    catch (std::system_error &sys_err)
-    {
-        //report_error(sys_err, name);
-        throw service_description_exc("", "error while reading service description.", "unknown");
-    }
     catch (service_description_exc &exc) {
         for (int i = 0; ; ++i) {
             // We expect to see the exact setting (by identity) in all_settings, i.e. the setting
@@ -412,48 +400,43 @@ void test_path_env_subst()
     infile.open("./dummy");
     input_stack.push("./dummy", std::move(infile), bp_sys::open(".", O_DIRECTORY));
 
-    try {
-        auto resolve_var = [](const std::string &name) {
-            return (char *)nullptr;
-        };
+    auto resolve_var = [](const std::string &name) {
+        return (char *)nullptr;
+    };
 
-        process_service_file("test-service", input_stack,
-                [&](string &line, file_pos_ref input_pos, string &setting,
-                        dinit_load::setting_op_t op, string_iterator &i,
-                        string_iterator &end) -> void {
+    process_service_file("test-service", input_stack,
+            [&](string &line, file_pos_ref input_pos, string &setting,
+                    dinit_load::setting_op_t op, string_iterator &i,
+                    string_iterator &end) -> void {
 
-                    auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist,
-                            const std::string &waitsford, dependency_type dep_type) -> void {
-                        //process_dep_dir(name.c_str(), service_filename, deplist, waitsford, dep_type);
-                    };
+                auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist,
+                        const std::string &waitsford, dependency_type dep_type) -> void {
+                    //process_dep_dir(name.c_str(), service_filename, deplist, waitsford, dep_type);
+                };
 
-                    auto load_service_n = [&](const string &dep_name) -> const string & {
-                        return dep_name;
-                    };
+                auto load_service_n = [&](const string &dep_name) -> const string & {
+                    return dep_name;
+                };
 
-                    try {
-                        process_service_line(settings, "test-service", nullptr, line, input_pos,
-                                setting, op, i, end, load_service_n, process_dep_dir_n);
-                    }
-                    catch (service_description_exc &exc) {
-                        //report_service_description_exc(exc);
-                    }
-                },
-                nullptr, resolve_var);
-    }
-    catch (std::system_error &sys_err)
-    {
-        throw service_description_exc("", "error while reading service description.", "unknown");
-    }
+                try {
+                    process_service_line(settings, "test-service", nullptr, line, input_pos,
+                            setting, op, i, end, load_service_n, process_dep_dir_n);
+                }
+                catch (service_description_exc &exc) {
+                    //report_service_description_exc(exc);
+                }
+            },
+            nullptr, resolve_var);
 
     auto report_error = [](const char *msg) {};
 
-    auto resolve_var = [](const std::string &name, environment::env_map const &) -> const char * {
+    auto resolve_var_username = [](const std::string &name, environment::env_map const &) ->
+            const char * {
         if (name == "username") return "testsuccess";
         return nullptr;
     };
 
-    settings.finalise(report_error, tenvmap, "foo", report_error /* lint */, resolve_var);
+    settings.finalise(report_error, tenvmap, "foo", report_error /* lint */, resolve_var_username);
 
     assert(settings.service_type == service_type_t::PROCESS);
     assert(settings.command == "/something/test");
@@ -570,41 +553,34 @@ void test_newline2()
     infile.open("./dummy");
     input_stack.push("./dummy", std::move(infile), bp_sys::open(".", O_DIRECTORY));
 
-    try {
-        auto resolve_var = [](const std::string &name) {
-            return (char *)nullptr;
-        };
+    auto resolve_var = [](const std::string &name) {
+        return (char *)nullptr;
+    };
 
-        process_service_file("test-service", input_stack,
-                [&](string &line, file_pos_ref input_pos, string &setting,
-                        dinit_load::setting_op_t op, string_iterator &i,
-                        string_iterator &end) -> void {
+    process_service_file("test-service", input_stack,
+            [&](string &line, file_pos_ref input_pos, string &setting,
+                    dinit_load::setting_op_t op, string_iterator &i,
+                    string_iterator &end) -> void {
 
-                    auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist,
-                            const std::string &waitsford,
-                            dependency_type dep_type) -> void {
-                        //process_dep_dir(name.c_str(), service_filename, deplist, waitsford, dep_type);
-                    };
+                auto process_dep_dir_n = [&](std::list<prelim_dep> &deplist,
+                        const std::string &waitsford,
+                        dependency_type dep_type) -> void {
+                    //process_dep_dir(name.c_str(), service_filename, deplist, waitsford, dep_type);
+                };
 
-                    auto load_service_n = [&](const string &dep_name) -> const string & {
-                        return dep_name;
-                    };
+                auto load_service_n = [&](const string &dep_name) -> const string & {
+                    return dep_name;
+                };
 
-                    try {
-                        process_service_line(settings, "test-service", nullptr, line, input_pos,
-                                setting, op, i, end, load_service_n, process_dep_dir_n);
-                    }
-                    catch (service_description_exc &exc) {
-                        //report_service_description_exc(exc);
-                    }
-                },
-                nullptr, resolve_var);
-    }
-    catch (std::system_error &sys_err)
-    {
-        //report_error(sys_err, name);
-        throw service_description_exc("", "error while reading service description.", "unknown");
-    }
+                try {
+                    process_service_line(settings, "test-service", nullptr, line, input_pos,
+                            setting, op, i, end, load_service_n, process_dep_dir_n);
+                }
+                catch (service_description_exc &exc) {
+                    //report_service_description_exc(exc);
+                }
+            },
+            nullptr, resolve_var);
 
     assert(settings.command == "/something/test\\");
     assert(settings.stop_command == "/something/stop\\ next line");

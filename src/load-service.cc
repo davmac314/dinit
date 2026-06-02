@@ -1041,14 +1041,6 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
         }
         throw;
     }
-    catch (std::system_error &sys_err)
-    {
-        // TODO: remove this handling when we read all files via dinit-io
-        exception_cleanup();
-        // don't use sys_err.what() since libstdc++ sometimes includes class names (basic_filebuf):
-        std::string msg = input_stack.current_file_name() + ": " + sys_err.code().message();
-        throw service_load_exc(name, std::move(msg));
-    }
     catch (dio::iostream_system_err &sys_err)
     {
         exception_cleanup();
