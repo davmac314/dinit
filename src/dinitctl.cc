@@ -2275,8 +2275,7 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
             }
             else {
                 cerr << DINITCTL_APPNAME ": could not open service description file '"
-                        << service_file_path << "': " << strerror(sdf_fds.second)
-                        << "\n";
+                        << service_file_path << "': " << strerror(sdf_fds.second) << "\n";
             }
             return EXIT_FAILURE;
         }
@@ -2290,6 +2289,14 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
 
     string waits_for_d;
     fd_holder waits_for_d_fd;
+
+    // Duplicate the service description parent directory fd, since we can use it later but the
+    // file_input_stack will release it once all input has been consumed (i.e. once the service
+    // description file has been processed).
+    fd_holder parent_dir_fd_retained = dup(parent_dir_fd.get());
+    if (parent_dir_fd_retained.get() == -1) {
+        cerr << DINITCTL_APPNAME ": dup: " << strerror(errno) << "\n";
+    }
 
     file_input_stack input_stack;
     input_stack.push(service_file_path, std::move(service_file), parent_dir_fd.release());
@@ -2343,14 +2350,17 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
         return 1;
     }
 
-    // The waits-for.d path is relative to the service file path, combine:
-    // XXX should use parent dir fd
+    string dep_link_relative = combine_paths(waits_for_d, to);
+
+    // The waits-for.d path is relative to the service file path, combine; note however that we
+    // use relative access instead (this is for error messages etc).
     string waits_for_d_full = combine_paths(parent_path(service_file_path), waits_for_d.c_str());
+    string dep_link_path = combine_paths(waits_for_d_full, to);
 
     // check if dependency already exists
-    string dep_link_path = combine_paths(waits_for_d_full, to);
     struct stat stat_buf;
-    if (lstat(dep_link_path.c_str(), &stat_buf) == -1) {
+    if (fstatat(parent_dir_fd_retained.get(), dep_link_relative.c_str(), &stat_buf,
+            AT_SYMLINK_NOFOLLOW) == -1) {
         if (errno != ENOENT) {
             cerr << DINITCTL_APPNAME ": checking for existing dependency link: "
                     << dep_link_path << ": " << strerror(errno) << "\n";
@@ -2425,7 +2435,8 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
             }
         }
 
-        if (symlink(symlink_target.c_str(), dep_link_path.c_str()) == -1) {
+        if (symlinkat(symlink_target.c_str(), parent_dir_fd_retained.get(),
+                dep_link_relative.c_str()) == -1) {
             cerr << DINITCTL_APPNAME ": could not create symlink at " << dep_link_path << ": "
                     << strerror(errno);
             if (socknum >= 0) {
@@ -2437,7 +2448,7 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
         }
     }
     else {
-        if (unlink(dep_link_path.c_str()) == -1) {
+        if (unlinkat(parent_dir_fd_retained.get(), dep_link_relative.c_str(), 0) == -1) {
             cerr << DINITCTL_APPNAME ": could not unlink dependency entry " << dep_link_path
                     << ": " << strerror(errno);
             if (socknum >= 0) {
@@ -2448,6 +2459,8 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
             return 1;
         }
     }
+
+    parent_dir_fd_retained = -1; // close and release
 
     if (socknum >= 0) {
         if (verbose) {
