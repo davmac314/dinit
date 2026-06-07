@@ -216,9 +216,9 @@ public:
     const std::string &get_file_name() { return file_name; }
 };
 
-// Error in a service description
-// At least one out of line number and setting name will be available. Note that these are
-// constructed without supplying a service name, but it will be filled in later.
+// Error in a service description.
+// At least one out of line number and setting name will be available. Note that these are often
+// constructed without supplying a service name, with the name filled in later.
 class service_description_exc : public service_load_exc
 {
     public:
@@ -984,8 +984,8 @@ inline void parse_rlimit(const std::string &line, file_pos_ref input_pos,
 
 // forward declaration:
 template <typename resolve_var_t>
-inline string read_include_path(string const &svcname, string const &meta_cmd,
-        file_pos_ref input_pos, string_iterator &i, string_iterator end, const char *argval,
+inline string read_include_path(string const &meta_cmd, file_pos_ref input_pos,
+        string_iterator &i, string_iterator end, const char *argval,
         const resolve_var_t &resolve_var);
 
 // (Dummy function for default argument to process_service_file)
@@ -1078,8 +1078,8 @@ void process_service_file(string name, file_input_stack &service_input, T proces
                 if (is_include_opt || meta_cmd == "include") {
                     // @include-opt or @include
                     file_pos_ref input_pos { service_input.current_file_name(), line_num };
-                    std::string include_name = read_include_path(name, meta_cmd, input_pos, i,
-                            end, argval, resolve_var);
+                    std::string include_name = read_include_path(meta_cmd, input_pos, i, end,
+                            argval, resolve_var);
 
                     const char *include_name_base = base_name(include_name.c_str());
                     const char *include_name_dir;
@@ -1447,10 +1447,20 @@ inline string read_value_resolved(const char *setting_name, file_pos_ref input_p
     return rval;
 }
 
-// XXX this doesn't really need to exist:
-// Reads an include path while performing minimal argument expansion in it.
+// Reads an include path (expected as argument to a meta-command such as '@include') while
+// performing pre-load variable expansion.
+// Parameters:
+//   meta_cmd - the meta-command which the argument is for (used for error messages/exceptions)
+//   input_pos - the current input position (used for error messages/exceptions)
+//   i - the iterator at the beginning of the argument(s)
+//   end - iterator at end of argument string
+//   argval - the value of the service argument if any (or null otherwise)
+//   resolve_var - function to resolve named variables
+// Throws:
+//   service_description_exc (with service name unset) - for a syntax error in the setting value.
+//   May also propagate any exception thrown by resolve_var.
 template <typename resolve_var_t>
-inline string read_include_path(string const &svcname, string const &meta_cmd, file_pos_ref input_pos,
+inline string read_include_path(string const &meta_cmd, file_pos_ref input_pos,
         string_iterator &i, string_iterator end, const char *argval,  const resolve_var_t &resolve_var)
 {
     string rval;
@@ -1458,7 +1468,7 @@ inline string read_include_path(string const &svcname, string const &meta_cmd, f
 
     read_setting_value(rval, setting_op_t::ASSIGN, input_pos, i, end, &parts);
     if (parts.size() != 1) {
-        throw service_description_exc(svcname, "'@" + meta_cmd + "' requires a single argument", input_pos);
+        throw service_description_exc(input_pos, "'@" + meta_cmd + "' requires a single argument");
     }
 
     std::list<std::pair<unsigned,unsigned>> offsets;
