@@ -582,9 +582,10 @@ static void report_service_description_exc(service_description_exc &exc)
     }
 }
 
-static void report_error(std::system_error &exc, const std::string &service_name)
+static void report_error(dio::iostream_system_err &exc, const std::string &service_name)
 {
-    std::cerr << "Service '" << service_name << "', error reading service description: " << exc.what() << "\n";
+    std::cerr << "Service '" << service_name << "', error reading service description: "
+            << strerror(exc.get_errno()) << "\n";
     errors_found = true;
 }
 
@@ -748,7 +749,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
                     // TODO: check valid (known) meta commands
                 });
     }
-    catch (std::system_error &sys_err)
+    catch (dio::iostream_system_err &sys_err)
     {
         report_error(sys_err, name);
         throw service_load_exc(name, input_stack.current_file_name() + ": error while reading service description");
