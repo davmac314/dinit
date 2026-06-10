@@ -2295,8 +2295,13 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
     input_stack.push(service_file_path, std::move(service_file), parent_dir_fd.release());
 
     try {
-        auto is_setting = [](const std::string &setting, dinit_load::setting_id_t setting_id) {
-            return (setting == dinit_load::all_settings[(size_t)setting_id].setting_str);
+        auto is_setting = [](const std::string &setting, dinit_load::setting_id_t setting_id,
+                dinit_load::setting_id_t &store_id) {
+            if (setting == dinit_load::all_settings[(size_t)setting_id].setting_str) {
+                store_id = setting_id;
+                return true;
+            }
+            return false;
         };
 
         process_service_file(from, input_stack, [&](string &line, file_pos_ref fpr,
@@ -2304,10 +2309,13 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
                 dinit_load::string_iterator i, dinit_load::string_iterator end) -> void {
                     using namespace dinit_load;
 
-                    if (is_setting(setting, setting_id_t::WAITS_FOR)
-                            || is_setting(setting, setting_id_t::DEPENDS_ON)
-                            || is_setting(setting, setting_id_t::DEPENDS_MS)) {
-                        string dname = dinit_load::read_setting_value(fpr, i, end);
+                    setting_id_t setting_id;
+                    if (is_setting(setting, setting_id_t::WAITS_FOR, setting_id)
+                            || is_setting(setting, setting_id_t::DEPENDS_ON, setting_id)
+                            || is_setting(setting, setting_id_t::DEPENDS_MS, setting_id)) {
+                        string dname = read_value_resolved(
+                                all_settings[(size_t)setting_id].setting_str, input_stack,
+                                i, end, nullptr, resolve_var);
                         if (dname == to) {
                             // There is already a dependency
                             cerr << DINITCTL_APPNAME ": there is a fixed dependency to service '"
@@ -2316,8 +2324,10 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
                             throw service_op_cancel();
                         }
                     }
-                    else if (is_setting(setting, setting_id_t::WAITS_FOR_D)) {
-                        string dname = dinit_load::read_setting_value(fpr, i, end);
+                    else if (is_setting(setting, setting_id_t::WAITS_FOR_D, setting_id)) {
+                        string dname = read_value_resolved(
+                                all_settings[(size_t)setting_id].setting_str, input_stack,
+                                i, end, nullptr, resolve_var);
                         if (!waits_for_d.empty()) {
                             cerr << DINITCTL_APPNAME ": service '" << from << "' has multiple "
                                     "waits-for.d directories specified in service description\n";
