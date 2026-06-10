@@ -2045,7 +2045,7 @@ static std::pair<int,int> find_service_desc(const char *svc_name, const std::vec
 //   The name of the service specified via the 'enable-via' directive, if any, or an empty string
 //   otherwise
 // Throws:
-//   std::system_error, other service load exceptions
+//   service load exceptions (service_load_exc and subclasses)
 template <typename resolve_var_t>
 static std::string get_enable_via(const char *service_name, const std::string &sd_file_name,
         int sd_fd, int parent_dir_fd, resolve_var_t resolve_var)
@@ -2082,7 +2082,7 @@ static std::string get_enable_via(const char *service_name, const std::string &s
                 }
             );
     }
-    catch (std::system_error &err) {
+    catch (dio::iostream_system_err &sys_err) {
         throw service_load_exc(service_name, input_stack.current_file_name() + ": "
                 + strerror(errno) + "\n");
     }
@@ -2348,8 +2348,9 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
     catch (const service_op_cancel &cexc) {
         return 1;
     }
-    catch (std::system_error &err) {
-        cerr << DINITCTL_APPNAME ": " << input_stack.current_file_name() << ": " << strerror(errno) << "\n";
+    catch (dio::iostream_system_err &err) {
+        cerr << DINITCTL_APPNAME ": " << input_stack.current_file_name() << ": "
+                << strerror(err.get_errno()) << "\n";
         return 1;
     }
 
