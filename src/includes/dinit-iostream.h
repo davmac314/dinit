@@ -88,7 +88,7 @@ class iostream_system_err : public io_failed_exc
     {
     }
 
-    int get_errno()
+    int get_errno() const
     {
         return error_code;
     }
