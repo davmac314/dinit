@@ -585,8 +585,9 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
             fd_holder env_resolve_fd = std::move(settings.env_file_dir_fd);
             try {
                 read_env_file(settings.env_file.c_str(), env_resolve_fd.get(), false, srv_env, true);
-            } catch (const std::system_error &se) {
-                throw service_load_exc(name, std::string("could not load environment file: ") + se.what());
+            } catch (const dio::iostream_system_err &se) {
+                throw service_load_exc(name, std::string("could not load environment file: ")
+                        + strerror(se.get_errno()));
             }
         }
 

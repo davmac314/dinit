@@ -2134,9 +2134,9 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
                 read_env_file_inline(environment_file, AT_FDCWD, true, dinit_env, false,
                     log_bad_setting_or_cmd, log_bad_setting_or_cmd);
             }
-            catch (std::system_error &se) {
+            catch (const dio::iostream_system_err &se) {
                 cerr << DINITCTL_APPNAME ": cannot read environment file '" << environment_file
-                        << "' :" << strerror(errno) << "\n";
+                        << "' :" << strerror(se.get_errno()) << "\n";
                 return EXIT_FAILURE;
             }
         }

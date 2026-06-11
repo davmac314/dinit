@@ -17,14 +17,14 @@ extern environment main_env;
 // Read and set environment variables (encapsulated in an 'environment' object) from a file.
 // File contains "VAR=VALUE" assignments (line by line) and "!" meta-commands.
 // Parameters:
-//   env_file_path - the path to the environment file to process
+//   file - the path to the environment file to process
 //   resolve_fd - directory to resolve path against; may be AT_FDCWD
 //   log_warnings - whether warnings should be logged (eg about invalid embedded commands)
 //   env - the environment to modify
 //   throw_on_open_failure - whether to throw an exception on failure to open the specified
 //                           file. If false, returns instead (without logging failure).
 // Throws:
-//   std::bad_alloc, std::system_error
+//   std::bad_alloc, dio::iostream_system_err
 //
 // This function is available within dinit only, not utilities, but see read_env_file_inline
 // below.
@@ -376,7 +376,7 @@ public:
 //   log_inv_setting - function/functor to log invalid lines
 //   log_bad_cmd - function/functor to log bad meta commands
 // Throws:
-//   std::bad_alloc, std::system_error
+//   std::bad_alloc, dio::iostream_system_err
 template <typename LOG_INV_SETTING, typename LOG_BAD_COMMAND>
 inline void read_env_file_inline(const char *env_file_path, int resolve_fd, bool log_warnings,
         environment &env, bool throw_on_open_failure, LOG_INV_SETTING &log_inv_setting,
@@ -385,7 +385,7 @@ inline void read_env_file_inline(const char *env_file_path, int resolve_fd, bool
     int env_file_fd = bp_sys::openat(resolve_fd, env_file_path, O_RDONLY);
     if (env_file_fd == -1) {
         if (throw_on_open_failure) {
-            throw std::system_error(errno, std::generic_category());
+            throw dio::iostream_system_err(errno);
         }
         return;
     }
