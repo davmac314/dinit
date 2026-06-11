@@ -212,9 +212,9 @@ int main(int argc, char **argv)
                 read_env_file_inline(env_file.c_str(), AT_FDCWD, true, menv, false,
                         log_inv_env_setting, log_bad_env_command);
             }
-            catch (std::system_error &err) {
+            catch (dio::iostream_system_err &err) {
                 std::cerr << DINIT_CHECK_APPNAME ": error reading environment file " << env_file
-                        << ": " << err.code().message() << "\n";
+                        << ": " << strerror(err.get_errno()) << "\n";
                 return EXIT_FAILURE;
             }
         }
@@ -799,12 +799,12 @@ service_record *load_service(service_set_t &services, const std::string &name,
                                 + " (line " + std::to_string(line_num) + ")");
             };
 
-            read_env_file_inline(settings.env_file.c_str(), env_resolve_fd.get(), false, srv_env, true,
-                    log_inv_env_setting, log_bad_env_command);
+            read_env_file_inline(settings.env_file.c_str(), env_resolve_fd.get(), false, srv_env,
+                    true, log_inv_env_setting, log_bad_env_command);
         }
-        catch (const std::system_error &se) {
+        catch (const dio::iostream_system_err &se) {
             report_service_description_err(name, std::string("could not load environment file: ")
-                    + se.what());
+                    + strerror(se.get_errno()));
         }
     }
 
