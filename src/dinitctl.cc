@@ -2346,6 +2346,11 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
                 << strerror(err.get_errno()) << "\n";
         return 1;
     }
+    catch (service_load_exc &sle) {
+        cerr << DINITCTL_APPNAME ": error in service description: "
+                << sle.exc_description << "\n";
+        return 1;
+    }
 
     // If the from service has no waits-for.d specified, we can't continue
     if (waits_for_d.empty()) {
