@@ -1641,8 +1641,11 @@ static int service_status(dinit_conn_t &dinit_conn, const char *service_name, ct
         sdf_path.append(service_name, strip_service_arg(service_name));
 
         // Issue STATUS request
-        char status_req_id = proto_version < 5 ? (char)cp_cmd::SERVICESTATUS : (char)cp_cmd::SERVICESTATUS5;
-        unsigned status_buf_size = proto_version < 5 ? STATUS_BUFFER_SIZE : STATUS_BUFFER5_SIZE;
+        char status_req_id = proto_version >= 6 ? (char)cp_cmd::SERVICESTATUS6
+                : (proto_version == 5 ? (char)cp_cmd::SERVICESTATUS5
+                : (char)cp_cmd::SERVICESTATUS);
+        unsigned status_buf_size = proto_version >= 6 ? STATUS_BUFFER6_SIZE
+                : (proto_version == 5 ? STATUS_BUFFER5_SIZE : STATUS_BUFFER_SIZE);
 
         auto m = membuf()
                 .append(status_req_id)
@@ -1658,6 +1661,23 @@ static int service_status(dinit_conn_t &dinit_conn, const char *service_name, ct
 
         fill_buffer_to(rbuffer, socknum, status_buf_size + 1 /* reserved */);
         rbuffer.consume(1);
+
+        // Check the service description file hasn't changed. We already located said file, so stat
+        // it to find the modification time, then compare that with the modification time according
+        // to dinit.
+        bool sdf_has_changed = false;
+        if (proto_version >= 6) {
+            struct stat sdf_statbuf;
+            if (stat(sdf_path.c_str(), &sdf_statbuf) == 0) {
+                struct timespec dinit_sdf_time;
+                rbuffer.extract(&dinit_sdf_time, STATUS_BUFFER5_SIZE, sizeof(dinit_sdf_time));
+
+                auto &file_time = get_timespec(sdf_statbuf);
+
+                sdf_has_changed = (dinit_sdf_time.tv_sec != file_time.tv_sec
+                        || dinit_sdf_time.tv_nsec != file_time.tv_nsec);
+            }
+        }
 
         service_state_t current = static_cast<service_state_t>(rbuffer[0]);
         service_state_t target = static_cast<service_state_t>(rbuffer[1]);
@@ -1732,8 +1752,9 @@ static int service_status(dinit_conn_t &dinit_conn, const char *service_name, ct
         }
 
         cout << "Service: " << service_name << "\n"
-                "    File: " << sdf_path << "\n"
-                "    State: ";
+                "    File: " << sdf_path;
+        if (sdf_has_changed) cout << " (modified since loaded)";
+        cout << "\n    State: ";
 
         switch (current) {
         case service_state_t::STOPPED:
