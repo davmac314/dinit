@@ -134,7 +134,7 @@ class service_not_found : public service_load_exc
 class service_load_error : public service_load_exc
 {
     public:
-    service_load_error(const std::string &service_name, std::string &&path, int fail_errno)
+    service_load_error(const std::string &service_name, const std::string &path, int fail_errno)
         : service_load_exc(service_name, path + ": " + strerror(fail_errno))
     {
     }
@@ -1813,8 +1813,8 @@ class service_settings_wrapper
 //   lookup_var   : function to look up a variable value
 //
 // Throws:
-//  service_description_exc, std::bad_alloc, std::length_error (string too long; unlikely),
-//  std::system_error, anything thrown by lookup_var
+//  service_description_exc, service_load_error, std::bad_alloc,
+//  std::length_error (string too long; unlikely), anything thrown by lookup_var
 template <typename settings_wrapper,
     typename load_service_t,
     typename process_dep_dir_t,
@@ -1861,8 +1861,10 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                 int rfd = input_pos.get_resolve_fd();
                 rfd = dup(rfd);
                 if (rfd == -1) {
-                    // TODO: throw a more bespoke exception (dio::-exception perhaps)
-                    throw std::system_error(errno, std::generic_category(), "dup");
+                    // Throwing a generic load_error is good enough; the error should relate to
+                    // inability to create a file descriptor (eg EMFILE or ENOMEM) and there's no
+                    // real point in indicating that this was for processing ENV_FILE.
+                    throw service_load_error(name, input_pos.get_file_name(), errno);
                 }
                 settings.env_file_dir_fd = rfd;
             }
