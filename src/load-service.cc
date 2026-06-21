@@ -587,7 +587,7 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
                 read_env_file(settings.env_file.c_str(), env_resolve_fd.get(), false, srv_env, true);
             } catch (const dio::iostream_system_err &se) {
                 throw service_load_exc(name, std::string("could not load environment file: ")
-                        + strerror(se.get_errno()));
+                        + settings.env_file + ": "+ strerror(se.get_errno()));
             }
         }
 
