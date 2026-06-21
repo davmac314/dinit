@@ -1,7 +1,6 @@
 #ifndef LOAD_SERVICE_H_INCLUDED
 #define LOAD_SERVICE_H_INCLUDED 1
 
-#include <iostream>
 #include <list>
 #include <limits>
 #include <utility>
@@ -265,8 +264,14 @@ enum class setting_op_t {
     ASSIGN /* = */, COLON /* : */, PLUSASSIGN /* += */
 };
 
-// skip whitespace and embedded comments.
-inline string_iterator skip_comment(string_iterator i, string_iterator end, unsigned & count) noexcept
+// Utility function to skip white space and embedded comments.
+// Parameters:
+//   i, end - input range within a string
+//   count (in/out) - value which is incremented by the number of newlines encountered.
+// Returns:
+//   An iterator at the first non-whitespace, non-comment position (or at end if no such
+//   position).
+inline string_iterator skip_comment(string_iterator i, string_iterator end, unsigned &count) noexcept
 {
     using std::locale;
     using std::isspace;
@@ -288,8 +293,11 @@ inline string_iterator skip_comment(string_iterator i, string_iterator end, unsi
     return i;
 }
 
-// Utility function to skip white space. Returns an iterator at the
-// first non-white-space position (or at end).
+// Utility function to skip white space.
+// Parameters:
+//   i, end - input range within a string
+// Returns:
+//   An iterator at the first non-whitespace position (or at end if no whitespace).
 inline string_iterator skip_ws(string_iterator i, string_iterator end) noexcept
 {
     using std::locale;
@@ -304,7 +312,8 @@ inline string_iterator skip_ws(string_iterator i, string_iterator end) noexcept
     return i;
 }
 
-// skipws using "char *" instead of iterator
+// Utility function to skip white space. This overload accepts pointers rather than iterators.
+// see skip_ws(string_iterator, string_iterator).
 inline const char *skip_ws(const char *i, const char *end) noexcept
 {
     using std::locale;
@@ -319,7 +328,12 @@ inline const char *skip_ws(const char *i, const char *end) noexcept
     return i;
 }
 
-// skipws, but newlines increment an integer reference.
+// Utility function to skip white space, and count newlines as they are encountered.
+// Parameters:
+//   i, end - input range within a string.
+//   count (in/out) - value which is incremented by the number of newlines encountered.
+// Returns:
+//   An iterator at the first non-whitespace position (or at end if no whitespace).
 inline string_iterator skip_ws_ln(string_iterator i, string_iterator end, unsigned &count) noexcept
 {
     using std::locale;
@@ -336,6 +350,11 @@ inline string_iterator skip_ws_ln(string_iterator i, string_iterator end, unsign
     return i;
 }
 
+// Find whitespace in a string (between two pointers).
+// Parameters:
+//   i, end - the range to look within
+// Returns:
+//   The position of the first whitespace character, or end if none
 inline const char *find_ws(const char *i, const char *end) noexcept
 {
     using std::locale;
@@ -375,8 +394,12 @@ constexpr signal_name_number_pair signal_to_int_map[] = {
 };
 
 // Convert a signal name (without "SIG" prefix) to the corresponding signal number. May only
-// support a subset of signals. Returns 0 if signal name is "none"/"NONE", returns -1 if signal
-// is otherwise unrecognised.
+// support a subset of signals.
+// Parameters:
+//   signame - the signal name
+// Returns:
+//   The signal number if known; 0 if signal name is "none"/"NONE"; -1 if signal is otherwise
+//   unrecognised.
 inline int signal_name_to_number(const std::string &signame) noexcept
 {
     int sig = -1;
@@ -390,6 +413,10 @@ inline int signal_name_to_number(const std::string &signame) noexcept
 }
 
 // Check whether a string is valid as a service name (possibly including a service argument).
+// Parameters:
+//   name_str - the candidate service name.
+// Returns:
+//   true if the string is a valid service name, false otherwise.
 inline bool validate_service_name(string_view name_str) noexcept
 {
     // Should not be empty;
@@ -419,14 +446,17 @@ inline bool validate_service_name(string_view name_str) noexcept
 }
 
 // Read a setting/variable name; return empty string if no valid name.
-//
 // Parameters:
+//   i (in/out), end - iterator at the beginning of the name and the end of the string
+//         respectively; i is updated to the position just beyond the name on return.
 //   env - if set, dashes/dots are not allowed within names (they are not typically allowed by
 //         shells and they interfere with substitution patterns), and numeric "names" will be
 //         allowed.
 //   num - if specified and not null, the pointee will be set true if the name is numeric, and
 //         set false otherwise.
-inline string read_config_name(string_iterator & i, string_iterator end, bool env = false,
+// Returns:
+//   The name that was read.
+inline string read_config_name(string_iterator &i, string_iterator end, bool env = false,
         bool *num = nullptr) noexcept
 {
     using std::locale;
@@ -498,6 +528,8 @@ inline string read_config_name(string_iterator & i, string_iterator end, bool en
 //    end         - iterator at end of line (not including newline character if any)
 //    part_positions - list of pair<unsigned,unsigned> to which the position of each setting value
 //                  part will be added as [start,end). May be null.
+// Throws:
+//   service_description_exc, std::bad_alloc, std::length_error
 inline void read_setting_value(std::string &setting_val, setting_op_t operation,
         file_pos_ref input_pos, string_iterator &i, string_iterator end,
         std::list<std::pair<unsigned,unsigned>> *part_positions = nullptr,
@@ -595,7 +627,8 @@ inline void read_setting_value(std::string &setting_val, setting_op_t operation,
     }
 }
 
-// Read a setting value, with an assignment or plus-assignment (append).
+// Read a setting value, with an assignment or plus-assignment (append). This overload accepts a
+// ha_string reference for the setting_val argument.
 //
 // See read_setting_value(std::string &, ...)
 inline void read_setting_value(ha_string &setting_val, setting_op_t operation,
@@ -606,7 +639,8 @@ inline void read_setting_value(ha_string &setting_val, setting_op_t operation,
     setting_val = sval;
 }
 
-// Read a setting value.
+// Read a setting value. This overload assumes an assignment operation, and returns the setting
+// value directly.
 //
 // See read_setting_value(std::string &, ...)
 inline string read_setting_value(file_pos_ref input_pos, string_iterator &i, string_iterator end,
@@ -617,6 +651,15 @@ inline string read_setting_value(file_pos_ref input_pos, string_iterator &i, str
     return rval;
 }
 
+// Add a standard set of variables with user-specific values (USER, LOGNAME, HOME, SHELL, UID,
+// GID) to an environment block. The values are derived from the system's user database
+// (getpwuid() function).
+// Parameters:
+//   uid - the user ID to obtain values for
+//   service_name - the name of the service (used for errors)
+//   env - the environment block to add the variables to
+// Throws:
+//   service_load_exc
 inline void fill_environment_userinfo(uid_t uid, const std::string &service_name, environment &env)
 {
     if (uid == (uid_t)-1) {
@@ -674,13 +717,22 @@ inline void fill_environment_userinfo(uid_t uid, const std::string &service_name
 }
 
 // Parse a userid parameter which may be a numeric user ID or a username. If a name, the
-// userid is looked up via the system user database (getpwnam() function). In this case,
-// the associated group is stored in the location specified by the group_p parameter if
-// it is not null.
+// userid is looked up via the system user database (getpwnam() function).
+// Parameters:
+//   input_pos - input position of the value (used for errors)
+//   param - the parameter value to parse
+//   service_name - the name of the service (used for errors)
+//   setting_name - the setting name (used for errors)
+//   group_p (out ptr) - if not null and a username was supplied (as opposed to a numeric ID), the
+//       primary group of the user will be stored through
+// Returns:
+//   The ID (uid_t) of the specified user
+// Throws:
+//   service_description_exc
 inline uid_t parse_uid_param(file_pos_ref input_pos, const std::string &param,
         const std::string &service_name, const char *setting_name, gid_t *group_p)
 {
-    const char * uid_err_msg = "specified user id contains invalid numeric characters "
+    const char *uid_err_msg = "specified user id contains invalid numeric characters "
             "or is outside allowed range.";
 
     // Could be a name or a numeric id. But we should assume numeric first, just in case
@@ -730,6 +782,16 @@ inline uid_t parse_uid_param(file_pos_ref input_pos, const std::string &param,
     return pwent->pw_uid;
 }
 
+// Parse a group name or numeric id.
+// Parameters:
+//   input_pos - input position of the value (used for errors)
+//   param - the parameter value to parse
+//   service_name - the name of the service (used for errors)
+//   setting_name - the setting name (used for errors)
+// Returns:
+//   The group ID (gid_t) as specified or looked up by name
+// Throws:
+//   service_description_exc
 inline gid_t parse_gid_param(file_pos_ref input_pos, const std::string &param,
         ::string_view service_name, const char *setting_name)
 {
@@ -741,9 +803,7 @@ inline gid_t parse_gid_param(file_pos_ref input_pos, const std::string &param,
     std::size_t ind = 0;
     try {
         // POSIX does not specify whether uid_t is an signed or unsigned, but regardless
-        // is is probably safe to assume that valid values are positive. We'll also assume
-        // that the value range fits with "unsigned long long" since it seems unlikely
-        // that would ever not be the case.
+        // is is probably safe to assume that valid values are positive.
         static_assert((uintmax_t)std::numeric_limits<gid_t>::max()
                 <= (uintmax_t)std::numeric_limits<unsigned long long>::max(), "gid_t is too large");
         unsigned long long v = std::stoull(param, &ind, 0);
@@ -763,7 +823,7 @@ inline gid_t parse_gid_param(file_pos_ref input_pos, const std::string &param,
     }
 
     errno = 0;
-    struct group * grent = getgrnam(param.c_str());
+    struct group *grent = getgrnam(param.c_str());
     if (grent == nullptr) {
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
@@ -780,8 +840,17 @@ inline gid_t parse_gid_param(file_pos_ref input_pos, const std::string &param,
 }
 
 // Parse a permissions mask parameter value, specified as an octal (such as 0600)
-inline int parse_perms(file_pos_ref input_pos, string &paramval, const std::string &servicename,
-        const char *paramname)
+// Parameters:
+//   input_pos - input position of the value (used for errors)
+//   paramval - the parameter value to parse
+//   service_name - the name of the service (used for errors)
+//   setting_name - the setting name (used for errors)
+// Returns:
+//   The parsed value as an integer
+// Throws:
+//   service_description_exc
+inline int parse_perms(file_pos_ref input_pos, string &paramval, const std::string &service_name,
+        const char *setting_name)
 {
     std::size_t ind = 0;
     try {
@@ -792,15 +861,23 @@ inline int parse_perms(file_pos_ref input_pos, string &paramval, const std::stri
         return perms;
     }
     catch (std::logic_error &exc) {
-        throw service_description_exc(servicename, paramname,
+        throw service_description_exc(service_name, setting_name,
                 "badly-formed or out-of-range numeric value", input_pos);
     }
 }
 
 // Parse a time, specified as a decimal number of seconds (with optional fractional component after decimal
 // point or decimal comma).
+// Parameters:
+//   input_pos - input position of the value (used for errors)
+//   paramval - the parameter value to parse
+//   service_name - the name of the service (used for errors)
+//   paramname - the setting name (used for errors)
+//   ts (out) - the parsed time.
+// Throws:
+//   service_description_exc
 inline void parse_timespec(file_pos_ref input_pos, const std::string &paramval,
-        const std::string &servicename, const char * paramname, timespec &ts)
+        const std::string &servicename, const char *paramname, timespec &ts)
 {
     decltype(ts.tv_sec) isec = 0;
     decltype(ts.tv_nsec) insec = 0;
@@ -839,7 +916,16 @@ inline void parse_timespec(file_pos_ref input_pos, const std::string &paramval,
     ts.tv_nsec = insec;
 }
 
-// Parse an unsigned numeric parameter value
+// Parse an unsigned numeric parameter value.
+// Parameters:
+//   input_pos - input position of the value (used for errors)
+//   param - the parameter value to parse
+//   service_name - the name of the service (used for errors)
+//   max - the maximum allowed value (optional)
+// Returns:
+//   The value parsed from the setting string.
+// Throws:
+//   service_description_exc
 inline unsigned long long parse_unum_param(file_pos_ref input_pos, const std::string &param,
         const std::string &service_name,
         unsigned long long max = std::numeric_limits<unsigned long long>::max())
@@ -863,12 +949,22 @@ inline unsigned long long parse_unum_param(file_pos_ref input_pos, const std::st
     }
 }
 
-// Parse a signed numeric parameter value
+// Parse a signed numeric setting value.
+// Parameters:
+//   input_pos - input position of the value (used for errors)
+//   param - the parameter value to parse
+//   service_name - the name of the service (used for errors)
+//   min - the minimum allowed value (optional)
+//   max - the maximum allowed value (optional)
+// Returns:
+//   The value parsed from the setting string.
+// Throws:
+//   service_description_exc
 inline long long parse_snum_param(file_pos_ref input_pos, const std::string &param,
         const std::string &service_name, long long min = std::numeric_limits<long long>::min(),
         long long max = std::numeric_limits<long long>::max())
 {
-    const char * num_err_msg = "specified value contains invalid numeric characters or is outside "
+    const char *num_err_msg = "specified value contains invalid numeric characters or is outside "
             "allowed range.";
 
     std::size_t ind = 0;
@@ -888,6 +984,13 @@ inline long long parse_snum_param(file_pos_ref input_pos, const std::string &par
 }
 
 // In a vector, find or create rlimits for a particular resource type.
+// Parameters:
+//   all_rlimits - a vector containing limits for different resources
+//   resource_id - the id of the resource find/create an entry for
+// Returns:
+//   A reference to the rlimits for the specified resource type
+// Throws:
+//   std::bad_alloc
 inline service_rlimits &find_rlimits(std::vector<service_rlimits> &all_rlimits, int resource_id)
 {
     for (service_rlimits &limits : all_rlimits) {
@@ -901,6 +1004,14 @@ inline service_rlimits &find_rlimits(std::vector<service_rlimits> &all_rlimits, 
 }
 
 // Parse resource limits setting (can specify both hard and soft limit).
+// Parameters:
+//   line - the resource limits setting value
+//   input_pos - the input position where the setting was found (used for errors)
+//   service_name - the name of the service (used for errors)
+//   param_name - the name of the setting (used for errors)
+//   rlimit - (out parameter) receives the parsed limits
+// Throws:
+//   service_description_exc
 inline void parse_rlimit(const std::string &line, file_pos_ref input_pos,
         const std::string &service_name, const char *param_name, service_rlimits &rlimit)
 {
@@ -918,7 +1029,7 @@ inline void parse_rlimit(const std::string &line, file_pos_ref input_pos,
     rlimit.hard_set = rlimit.soft_set = false;
 
     try {
-        const char * index = cline;
+        const char *index = cline;
         errno = 0;
         if (cline[0] != ':') {
             rlimit.soft_set = true;
@@ -1014,7 +1125,8 @@ inline void null_process_meta(string::iterator begin, string::iterator end) {}
 //                string::iterator e - end of line
 //       Returns: void.
 // Throws:
-//   service load exceptions or I/O exceptions.
+//   service_load_exc, dio::iostream_system_err, and subclasses; also propagates exceptions thrown
+//   from process_line_func, resolve_var, and process_meta.
 template <typename T, typename resolve_var_t,
         typename process_meta_t = decltype(null_process_meta)>
 void process_service_file(string name, file_input_stack &service_input, T process_line_func,
@@ -1181,6 +1293,7 @@ inline const char *resolve_env_var(const string &name, const environment::env_ma
     return envmap.lookup(name);
 };
 
+// A dummy variable resolution function (for use with process_service_line).
 inline const char *null_resolve_env_var(const string &name)
 {
     return nullptr;
@@ -1407,6 +1520,18 @@ static void value_var_subst(const char *setting_name, std::string &line,
 
 // Substitute variable references in a value with their values. See value_var_subst above. This
 // variant supports lookup of variable values via an environment::env_map instance.
+// Parameters:
+//   setting_name - the name of the setting from which the value comes (used for errors)
+//   line (by ref.) - the complete setting value line (on call), with variable references
+//                    replaced on return.
+//   offsets (by ref.) - the position as [start,end) for each token in the line (must be
+//                    valid on call, is updated on return).
+//   envmap - the environment to look up variable values from
+//   argval - the service argument value, if any (nullptr if none).
+// Throws:
+//   service_description_exc - if a $-substitution is ill-formed
+//   std::length_error - if string length limit exceeded or command line is too long
+//   std::bad_alloc - on allocation failure
 template <typename T>
 static void value_var_subst(const char *setting_name, std::string &line,
         std::list<std::pair<unsigned,unsigned>> &offsets, const environment::env_map &envmap,
@@ -1571,7 +1696,6 @@ class service_settings_wrapper
 
     // Finalise settings (after processing all setting lines), perform some basic sanity checks
     // and optionally some additional lint checks.
-    //
     // Template parameters:
     //   propagate_sde - whether to propagate service description errors (if false, they are
     //                   reported via report_err)
@@ -1765,38 +1889,42 @@ class service_settings_wrapper
     // Finalise settings (after processing all setting lines), perform some basic sanity checks
     // and optionally some additional lint checks. Resolve variables from provided env_map.
     // See finalise() above.
-    //
+    // Template parameters:
+    //   (all should be inferred).
+    // Parameters:
+    //   report_error - functor to report any errors
+    //   envmap - environment variables
+    //   service_arg - service argument, if any (may be null)
+    //   report_lint - functor to report lint (default: don't report)
+    //   var_subst - functor to resolve environment variable values
     // Throws:
     //    service_description_exc, bad_alloc
-    //
     template <bool propagate_sde = false, typename T, typename U = decltype(dummy_lint),
             typename V = decltype(resolve_env_var),
             bool do_report_lint = !std::is_same<U, decltype(dummy_lint)>::value>
-    void finalise(T &report_error, environment::env_map const &envmap, const char *argval,
+    void finalise(T &report_error, environment::env_map const &envmap, const char *service_arg,
             U &report_lint = dummy_lint, V &var_subst = resolve_env_var)
     {
         auto do_var_subst = [&](const std::string &name) {
             return var_subst(name, envmap);
         };
         finalise<propagate_sde, T, U, decltype(do_var_subst), do_report_lint>(report_error,
-                argval, report_lint, do_var_subst);
+                service_arg, report_lint, do_var_subst);
     }
 };
 
 // Process a service description line. In general, parse the setting value and record the parsed
 // value in a service settings wrapper object. Errors will be reported via service_description_exc
 // exception.
-//
-// Type parameters:
+// Template parameters:
 //   settings_wrapper : wrapper for service settings
 //   load_service_t   : type of load service function/lambda (see below)
 //   process_dep_dir_t : type of process_dep_dir function/lambda (see below)
-//
 // Parameters:
 //   settings     : wrapper object for service settings
 //   name         : name of the service being processed
 //   service_arg  : service argument, if any (may be null)
-//   line         : the current line of the service description file
+//   line         : the text of the current line of the service description file
 //   input_pos    : the current input position (for error reporting)
 //   setting      : the name of the setting (from the beginning of line)
 //   setting_op   : the operator specified after the setting name
@@ -1811,7 +1939,6 @@ class service_settings_wrapper
 //                               const string &waitsford - directory as specified in parameter
 //                               dependency_type dep_type - type of dependency to add
 //   lookup_var   : function to look up a variable value
-//
 // Throws:
 //  service_description_exc, service_load_error, std::bad_alloc,
 //  std::length_error (string too long; unlikely), anything thrown by lookup_var
