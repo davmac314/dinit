@@ -1,6 +1,18 @@
 #ifndef LOAD_SERVICE_H_INCLUDED
 #define LOAD_SERVICE_H_INCLUDED 1
 
+/*
+ * Functions and definitions related to loading services.
+ *
+ * Some key load functions are declared as inline and are templated allowing to pass in different
+ * functions/functors for actions such as reporting errors. This allows for these load functions
+ * to be used both in dinit and in utilities (dinitctl, dinit-check).
+ *
+ * The key overall function is process_service_file(...) which processes an entire service
+ * description; there is also process_service_line(...) for dealing with invididual lines within a
+ * service description (the latter is called by the former).
+ */
+
 #include <list>
 #include <limits>
 #include <utility>
@@ -102,52 +114,6 @@ struct service_rlimits
     service_rlimits(int id) : resource_id(id), soft_set(0), hard_set(0), limits({0,0}) { }
 };
 
-// Exception while loading a service
-class service_load_exc
-{
-    public:
-    std::string service_name;
-    std::string exc_description;
-
-    service_load_exc(const std::string &service_name_p, std::string &&desc)
-        : service_name(service_name_p), exc_description(std::move(desc))
-    {
-    }
-
-    protected:
-    service_load_exc(std::string &&desc) : exc_description(std::move(desc))
-    {
-    }
-};
-
-class service_not_found : public service_load_exc
-{
-    public:
-    service_not_found(const std::string &service_name)
-        : service_load_exc(service_name, "service description not found.")
-    {
-    }
-};
-
-// Can't load service due to system error (eg error reading service file)
-class service_load_error : public service_load_exc
-{
-    public:
-    service_load_error(const std::string &service_name, const std::string &path, int fail_errno)
-        : service_load_exc(service_name, path + ": " + strerror(fail_errno))
-    {
-    }
-};
-
-class service_cyclic_dependency : public service_load_exc
-{
-    public:
-    service_cyclic_dependency(const std::string &service_name)
-        : service_load_exc(service_name, "has cyclic dependency.")
-    {
-    }
-};
-
 // Non-owning file position reference
 class file_pos_ref
 {
@@ -215,7 +181,58 @@ public:
     const std::string &get_file_name() { return file_name; }
 };
 
-// Error in a service description.
+// Service load exceptions.
+
+// Exception while loading a service. This serves as a base for various more specific exceptions
+// and in general should be avoided in favour of those subclasses.
+class service_load_exc
+{
+    public:
+    std::string service_name;
+    std::string exc_description;
+
+    service_load_exc(const std::string &service_name_p, std::string &&desc)
+        : service_name(service_name_p), exc_description(std::move(desc))
+    {
+    }
+
+    protected:
+    service_load_exc(std::string &&desc) : exc_description(std::move(desc))
+    {
+    }
+};
+
+// Service-not-found exception.
+class service_not_found : public service_load_exc
+{
+    public:
+    service_not_found(const std::string &service_name)
+        : service_load_exc(service_name, "service description not found.")
+    {
+    }
+};
+
+// Can't load service due to system error (eg error reading service file)
+class service_load_error : public service_load_exc
+{
+    public:
+    service_load_error(const std::string &service_name, const std::string &path, int fail_errno)
+        : service_load_exc(service_name, path + ": " + strerror(fail_errno))
+    {
+    }
+};
+
+// Cyclic dependency in services.
+class service_cyclic_dependency : public service_load_exc
+{
+    public:
+    service_cyclic_dependency(const std::string &service_name)
+        : service_load_exc(service_name, "has cyclic dependency.")
+    {
+    }
+};
+
+// Error in a service description (or in processing required for a particular setting within).
 // At least one out of line number and setting name will be available. Note that these are often
 // constructed without supplying a service name, with the name filled in later.
 class service_description_exc : public service_load_exc
