@@ -46,7 +46,7 @@ jobs:
           - arch: 'i386'
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Add i386 repositories
       if: ${{ matrix.arch == 'i386' }}
       run: dpkg --add-architecture i386
@@ -89,7 +89,7 @@ jobs:
           - arch: 'aarch64'
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Print g++ architecture and version
       run: |
         g++ -dumpmachine
@@ -121,7 +121,7 @@ jobs:
           - arch: 'amd64'
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Getting dependencies
       run: |
         apk update
