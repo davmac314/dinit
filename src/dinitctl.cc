@@ -2109,8 +2109,6 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
 
     handle_t to_handle;
 
-    std::vector<string> service_dir_paths;
-
     string service_file_path;
     string to_service_file_path;
     dio::istream service_file;
@@ -2201,14 +2199,6 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
             return 1;
         }
 
-        try {
-            service_dir_paths = get_service_description_dirs(socknum, *dinit_conn.buffer);
-        }
-        catch (dinit_protocol_error &) {
-            cerr << DINITCTL_APPNAME ": unknown configuration or protocol error, unable to load "
-                    "service descriptions\n";
-        }
-
         std::string from_sdf_dir = get_service_description_dir(socknum, *dinit_conn.buffer, from_handle);
 
         service_file_path = from_sdf_dir;
@@ -2227,6 +2217,7 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
     }
     else {
         // offline case
+        std::vector<string> service_dir_paths;
         const auto &path_list = service_dir_opts.get_paths();
         for (auto &path : path_list) {
             service_dir_paths.emplace_back(path.get_dir());
