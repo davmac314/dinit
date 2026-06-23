@@ -504,7 +504,8 @@ inline std::string read_string(int socknum, cpbuffer_t &rbuffer, uint32_t length
 //   A vector of strings representing the absolute directories used as service description
 //   directories by the daemon (i.e. where it will look for service description files).
 // Throws:
-//   dinit_unknown_sd_conf, dinit_protocol_error, cp_read_exception, cp_write_exception
+//   dinit_unknown_sd_conf (including if daemon cwd unknown and any service description dir is a
+//   relative path), dinit_protocol_error, cp_read_exception, cp_write_exception
 inline std::vector<std::string> get_service_description_dirs(int socknum, cpbuffer_t &rbuffer)
 {
     using namespace std;
@@ -540,18 +541,18 @@ inline std::vector<std::string> get_service_description_dirs(int socknum, cpbuff
     rbuffer.consume(2 + sizeof(uint32_t) * 3);
     pktsize -= 2 + sizeof(uint32_t) * 3;
 
-    // Read current working directory of daemon:
+    // Read current working directory of daemon (service directory paths are resolved against
+    // this):
     std::string dinit_cwd = read_string(socknum, rbuffer, cwd_len);
-
-    // dinit daemon base directory against which service paths are resolved is in dinit_cwd
 
     for (uint32_t i = 0; i < path_entries; ++i) {
         uint32_t plen;
         fill_buffer_to(rbuffer, socknum, sizeof(uint32_t));
         rbuffer.extract(&plen, 0, sizeof(uint32_t));
         rbuffer.consume(sizeof(uint32_t));
-        //paths.push_back(read_string(socknum, rbuffer, plen));
         string sd_rel_path = read_string(socknum, rbuffer, plen);
+        if (sd_rel_path.empty()) throw dinit_protocol_error();
+        if (sd_rel_path.front() != '/' && dinit_cwd.empty()) throw dinit_unknown_sd_conf();
         paths.push_back(combine_paths(dinit_cwd, sd_rel_path.c_str()));
     }
 
