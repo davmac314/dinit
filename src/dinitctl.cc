@@ -1979,6 +1979,12 @@ static std::string get_service_description_dir(int socknum, cpbuffer_t &rbuffer,
 
     if (result_str.empty()) throw dinit_protocol_error();
 
+    if (result_str.front() != '/') {
+        // Not absolute; combine with dinit daemon working directory:
+        std::string dinit_cwd = get_daemon_cwd(socknum, rbuffer);
+        result_str = combine_paths(dinit_cwd, result_str);
+    }
+
     return result_str;
 }
 

@@ -559,5 +559,66 @@ inline std::vector<std::string> get_service_description_dirs(int socknum, cpbuff
     return paths;
 }
 
+// Get the current working directory of the dinit daemon.
+// Parameters:
+//   socknum - the file descriptor with the socket connection to the daemon
+//   rbuffer - the communication buffer
+// Returns:
+//   The current working directory of the daemon (non-empty).
+// Throws:
+//   dinit_unknown_sd_conf (including if daemon cwd unknown), dinit_protocol_error,
+//   cp_read_exception, cp_write_exception
+inline std::string get_daemon_cwd(int socknum, cpbuffer_t &rbuffer)
+{
+    char buf[1] = { (char)cp_cmd::QUERY_LOAD_MECH };
+    write_all_x(socknum, buf, 1);
+
+    wait_for_reply(rbuffer, socknum);
+
+    if (rbuffer[0] != (char)cp_rply::LOADER_MECH) {
+        throw dinit_protocol_error();
+    }
+
+    // Packet type, load mechanism type, packet size:
+    fill_buffer_to(rbuffer, socknum, 2 + sizeof(uint32_t));
+
+    if (rbuffer[1] != SSET_TYPE_DIRLOAD) {
+        throw dinit_unknown_sd_conf();
+    }
+
+    fill_buffer_to(rbuffer, socknum, 2 + sizeof(uint32_t) * 3); // path entries, cwd length
+
+    uint32_t pktsize;
+    rbuffer.extract(&pktsize, 2, sizeof(uint32_t));
+
+    uint32_t cwd_len;
+    rbuffer.extract(&cwd_len, 2 + sizeof(uint32_t) * 2, sizeof(uint32_t));
+
+    rbuffer.consume(2 + sizeof(uint32_t) * 3);
+    pktsize -= 2 + sizeof(uint32_t) * 3;
+
+    if (cwd_len == 0) {
+        throw dinit_unknown_sd_conf();
+    }
+
+    std::string dinit_cwd = read_string(socknum, rbuffer, cwd_len);
+
+    pktsize -= cwd_len;
+
+    while (pktsize > 0) {
+        if (rbuffer.get_length() >= pktsize) {
+            rbuffer.consume(pktsize);
+            pktsize = 0;
+        }
+        else {
+            pktsize -= rbuffer.get_length();
+            rbuffer.consume(rbuffer.get_length());
+            rbuffer.fill(socknum);
+        }
+    }
+
+    return dinit_cwd;
+}
+
 // Get the environment from remote dinit instance
 void get_remote_env(int csfd, cpbuffer_t &rbuffer, environment &menv);
