@@ -248,11 +248,11 @@ int main(int argc, char **argv)
             get_remote_env(socknum, rbuffer, menv);
         }
         catch (cp_old_client_exception &e) {
-            std::cerr << DINIT_CHECK_APPNAME ": too old (daemon reports newer protocol version)\n";
+            cerr << DINIT_CHECK_APPNAME ": too old (daemon reports newer protocol version)\n";
             return EXIT_FAILURE;
         }
         catch (cp_old_server_exception &e) {
-            std::cerr << DINIT_CHECK_APPNAME ": daemon too old or protocol error\n";
+            cerr << DINIT_CHECK_APPNAME ": daemon too old or protocol error\n";
             return EXIT_FAILURE;
         }
         catch (cp_read_exception &e) {
@@ -263,23 +263,27 @@ int main(int argc, char **argv)
             cerr << DINIT_CHECK_APPNAME ": control socket write error: " << std::strerror(e.errcode) << "\n";
             return EXIT_FAILURE;
         }
+        catch (dinit_unknown_sd_conf &e) {
+            cerr << DINIT_CHECK_APPNAME ": unable to retrieve service description directories\n";
+            return EXIT_FAILURE;
+        }
         catch (dinit_protocol_error &e) {
             cerr << DINIT_CHECK_APPNAME ": protocol error\n";
             return EXIT_FAILURE;
         }
         catch (general_error &ge) {
-            std::cerr << DINIT_CHECK_APPNAME;
+            cerr << DINIT_CHECK_APPNAME;
             if (ge.get_action() != nullptr) {
-                std::cerr << ": " << ge.get_action();
+                cerr << ": " << ge.get_action();
                 std::string &arg = ge.get_arg();
                 if (!arg.empty()) {
-                    std::cerr << " " << arg;
+                    cerr << " " << arg;
                 }
             }
             if (ge.get_err() != 0) {
-                std::cerr << ": " << strerror(ge.get_err());
+                cerr << ": " << strerror(ge.get_err());
             }
-            std::cerr << '\n';
+            cerr << '\n';
             return EXIT_FAILURE;
         }
     }

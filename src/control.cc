@@ -1420,6 +1420,61 @@ bool control_conn_t::process_query_dsc_dir()
     return true;
 }
 
+// Get current directory and store it at the specified position in a vector. The specified
+// position may be beyond the current length of the vector. A null terminator is *not* appended.
+// Parameters:
+//   vec - the vector to store the current directory path into.
+//   curpos - the position within vec to store the current directory path; must be no greater than
+//            the vector's maximum size (as per vec.max_size()).
+// Returns:
+//   true if successful, false (with errno set) otherwise
+// Throws:
+//   std::bad_alloc
+static bool get_cwd_dinit(std::vector<char> &vec, std::size_t curpos)
+{
+#ifdef PATH_MAX
+        uint32_t try_path_size = PATH_MAX;
+#else
+        uint32_t try_path_size = 2048;
+#endif
+
+    char *wd;
+    while (true) {
+        std::size_t total_size = curpos + std::size_t(try_path_size);
+        if (total_size < curpos || total_size > vec.max_size()) {
+            // Overflow. In theory we could now limit to vec.max_size(), but the size must already
+            // be crazy long; let's abort.
+            errno = ENOMEM;
+            vec.resize(curpos);
+            vec.shrink_to_fit();
+            return false;
+        }
+        vec.resize(total_size);
+        wd = getcwd(vec.data() + curpos, try_path_size);
+        if (wd != nullptr) break;
+        if (errno != ERANGE) {
+            vec.resize(curpos);
+            vec.shrink_to_fit();
+            return false;
+        }
+
+        // Keep doubling the path size we try until it's big enough, or we get numeric overflow
+        uint32_t new_try_path_size = try_path_size * uint32_t(2u);
+        if (new_try_path_size < try_path_size) {
+            // Overflow.
+            errno = ENOMEM;
+            vec.resize(curpos);
+            vec.shrink_to_fit();
+            return false;
+        }
+        try_path_size = new_try_path_size;
+    }
+
+    uint32_t wd_len = std::strlen(vec.data() + curpos);
+    vec.resize(curpos + std::size_t(wd_len));
+    return true;
+}
+
 bool control_conn_t::query_load_mech()
 {
     rbuf.consume(1);
@@ -1436,7 +1491,7 @@ bool control_conn_t::query_load_mech()
         //   uint32_t number of directories
         //
         //  Followed by daemon CWD:
-        //     uint32_t length
+        //     uint32_t length (or 0 if not available)
         //     n bytes  (directory)
         //
         //  Followed by N directories:
@@ -1454,36 +1509,9 @@ bool control_conn_t::query_load_mech()
         // Our current working directory, which above are relative to:
         // leave sizeof(uint32_t) for size, which we'll fill in afterwards:
         std::size_t curpos = reppkt.size() + sizeof(uint32_t);
-#ifdef PATH_MAX
-        uint32_t try_path_size = PATH_MAX;
-#else
-        uint32_t try_path_size = 2048;
-#endif
-        char *wd;
-        while (true) {
-            std::size_t total_size = curpos + std::size_t(try_path_size);
-            if (total_size < curpos) {
-                // Overflow. In theory we could now limit to size_t max, but the size must already
-                // be crazy long; let's abort.
-                char ack_rep[] = { (char)cp_rply::NAK };
-                return queue_packet(ack_rep, 1);
-            }
-            reppkt.resize(total_size);
-            wd = getcwd(reppkt.data() + curpos, try_path_size);
-            if (wd != nullptr) break;
+        get_cwd_dinit(reppkt, curpos);
 
-            // Keep doubling the path size we try until it's big enough, or we get numeric overflow
-            uint32_t new_try_path_size = try_path_size * uint32_t(2u);
-            if (new_try_path_size < try_path_size) {
-                // Overflow.
-                char ack_rep[] = { (char)cp_rply::NAK };
-                return queue_packet(ack_rep, 1);
-            }
-            try_path_size = new_try_path_size;
-        }
-
-        uint32_t wd_len = std::strlen(reppkt.data() + curpos);
-        reppkt.resize(curpos + std::size_t(wd_len));
+        uint32_t wd_len = reppkt.size() - curpos;
         std::memcpy(reppkt.data() + curpos - sizeof(uint32_t), &wd_len, sizeof(wd_len));
 
         // Each directory in the load path:
