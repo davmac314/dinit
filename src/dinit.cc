@@ -638,15 +638,15 @@ int dinit_main(int argc, char **argv)
 
     setup_log_console_handoff(services);
 
-    if (am_system_init) {
+    if (am_system_mgr) {
         log(loglevel_t::NOTICE, false, "Starting system");
     }
     
     // If a log file was specified, open it now.
     if (log_specified) {
         setup_external_log();
-        if (!am_system_init && !external_log_open) {
-            flush_log(); // flush console messages
+        if (!am_system_mgr && !external_log_open) {
+            flush_log();
             return EXIT_FAILURE;
         }
     }
