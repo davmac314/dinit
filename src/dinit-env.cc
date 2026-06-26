@@ -18,8 +18,8 @@ static void log_bad_env_cmd(int linenum)
 }
 
 void read_env_file(const char *env_file_path, int resolve_fd, bool log_warnings, environment &env,
-        bool throw_on_open_failure)
+        bool throw_on_no_file)
 {
-    read_env_file_inline(env_file_path, resolve_fd, log_warnings, env, throw_on_open_failure,
+    read_env_file_inline(env_file_path, resolve_fd, log_warnings, env, throw_on_no_file,
             log_bad_env, log_bad_env_cmd);
 }
