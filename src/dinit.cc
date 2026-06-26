@@ -653,11 +653,15 @@ int dinit_main(int argc, char **argv)
 
     if (env_file != nullptr) {
         try {
-            read_env_file(env_file, AT_FDCWD, true, main_env, true);
+            read_env_file(env_file, AT_FDCWD, true, main_env, env_file_set);
         }
         catch (const dio::iostream_system_err &err) {
             log(loglevel_t::ERROR, "Cannot read environment file '", env_file, "': ",
                     strerror(err.get_errno()));
+            if (!am_system_mgr) {
+                flush_log();
+                return EXIT_FAILURE;
+            }
         }
     }
 
