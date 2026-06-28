@@ -64,7 +64,6 @@ int main(int argc, char **argv)
             { "xdg-config", xdg_config_test }, { "cycles", cycles_test },
             { "svc-arg", svc_arg_test }, { "svc-arg-consumer", svc_arg_consumer_test },
             { "svc-arg-enable", svc_arg_enable_test } };
-    constexpr int num_tests = sizeof(tests) / sizeof(tests[0]);
 
     dinit_bindir = "../..";
     char *env_dinit_bindir = getenv("DINIT_BINDIR");
@@ -87,6 +86,12 @@ int main(int argc, char **argv)
     int passed = 0;
     int failed = 0;
 
+    // Figure out the maximum width (with +2 buffer)
+    size_t max_width = 0;
+    for (test &t : tests) {
+        max_width = std::max(max_width, strlen(t.name) + 2);
+    }
+
     std::cout << "============== INTEGRATION TESTS =====================" << std::endl;
 
     if (mkdir(igr_output_basedir.c_str(), 0700) == -1 && errno != EEXIST) {
@@ -95,9 +100,10 @@ int main(int argc, char **argv)
 
     // A single test can be requested through single argument
     if (argc == 2) {
-        for (struct test test : tests) {
+        for (test test : tests) {
             if (strcmp(test.name, argv[1]) == 0) {
-                std::cout << test.name << "... " << std::flush;
+                std::string ellipsis(max_width - strlen(test.name), '.');
+                std::cout << test.name << ellipsis << " " << std::flush;
                 try {
                     test.func();
                     std::cout << "PASSED" << std::endl;
@@ -114,13 +120,14 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    for (int i = 0; i < num_tests; i++) {
-        std::cout << tests[i].name << "... " << std::flush;
+    for (test test : tests) {
+        std::string ellipsis(max_width - strlen(test.name), '.');
+        std::cout << test.name << ellipsis << " " << std::flush;
 
         bool success;
         std::string failure_msg;
         try {
-            tests[i].func();
+            test.func();
             success = true;
         }
         catch (igr_failure_exc &exc) {
