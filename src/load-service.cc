@@ -24,23 +24,6 @@
 using string = std::string;
 using string_iterator = std::string::iterator;
 
-// Perform environment variable substitution on a command line or other setting.
-//   line -  the string storing the command and arguments
-//   offsets - the [start,end) pair of offsets of the command and each argument within the string
-//
-// throws:  std::bad_alloc, std::length_error, service_description_exc
-static void do_env_subst(const char *setting_name, ha_string &line,
-        std::list<std::pair<unsigned,unsigned>> &offsets,
-        environment::env_map const &envmap, const char *arg)
-{
-    using namespace dinit_load;
-    std::string line_s = std::string(line.c_str(), line.length());
-    value_var_subst(setting_name, line_s, offsets, [&](const std::string &name) {
-        return resolve_env_var(name, envmap);
-    }, arg);
-    line = line_s;
-}
-
 // Process a dependency directory - filenames contained within correspond to service names which
 // are loaded and added as a dependency of the given type. Expected use is with a directory
 // containing symbolic links to other service descriptions, but this isn't required.
@@ -738,8 +721,6 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
         }
 
         if (service_type == service_type_t::PROCESS) {
-            do_env_subst("command", settings.command, settings.command_offsets, srv_envmap, argval);
-            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap, argval);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             process_service *rvalps;
             if (create_new_record) {
@@ -791,8 +772,6 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
             #endif
         }
         else if (service_type == service_type_t::BGPROCESS) {
-            do_env_subst("command", settings.command, settings.command_offsets, srv_envmap, argval);
-            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap, argval);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             bgproc_service *rvalps;
             if (create_new_record) {
@@ -840,8 +819,6 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
             settings.onstart_flags.runs_on_console = false;
         }
         else if (service_type == service_type_t::SCRIPTED) {
-            do_env_subst("command", settings.command, settings.command_offsets, srv_envmap, argval);
-            do_env_subst("stop-command", settings.stop_command, settings.stop_command_offsets, srv_envmap, argval);
             std::vector<const char *> stop_arg_parts = separate_args(settings.stop_command, settings.stop_command_offsets);
             scripted_service *rvalps;
             if (create_new_record) {
