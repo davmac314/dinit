@@ -654,10 +654,10 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     string_view base_name = name;
 
-    string service_arg;
+    const char *service_arg = nullptr;
     auto at_pos = name.find('@');
     if (at_pos != string::npos) {
-    	service_arg = name.substr(at_pos + 1);
+    	service_arg = (&name[at_pos]) + 1;
     	base_name = string_view(name.data(), at_pos);
     }
 
@@ -737,9 +737,9 @@ service_record *load_service(service_set_t &services, const std::string &name,
                     };
 
                     try {
-                        process_service_line(settings, name.c_str(), service_arg.c_str(), line,
-                        		input_pos, setting, op, i, end, load_service_n, process_dep_dir_n,
-								resolve_var);
+                        process_service_line(settings, name.c_str(), service_arg, line, input_pos,
+                                setting, op, i, end, load_service_n, process_dep_dir_n,
+                                resolve_var);
                     }
                     catch (service_description_exc &exc) {
                         if (exc.service_name.empty()) {
@@ -748,7 +748,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
                         report_service_description_exc(exc);
                     }
                 },
-                service_arg.c_str(), resolve_var,
+                service_arg, resolve_var,
                 [](string::iterator i, string::iterator e) -> void {
                     // TODO: check valid (known) meta commands
                 });
@@ -814,7 +814,7 @@ service_record *load_service(service_set_t &services, const std::string &name,
 
     renvmap = srv_env.build(menv);
 
-    settings.finalise(report_err, nullptr, report_lint, resolve_var);
+    settings.finalise(report_err, service_arg, report_lint, resolve_var);
 
     if (!settings.working_dir.empty()) {
         service_wdir = settings.working_dir;
