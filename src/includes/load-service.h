@@ -1724,7 +1724,7 @@ class service_settings_wrapper
     //   report_lint - functor to report lint (default: don't report)
     //   var_subst - functor to resolve environment variable values
     // Throws:
-    //   service_description_exc, bad_alloc
+    //   service_description_exc, std::bad_alloc, std::length_error
     //
     // Note: we have the do_report_lint parameter to prevent code (and strings) being emitted for
     // lint checks even when the dummy_lint function is used. (Ideally the compiler would optimise
@@ -1868,6 +1868,13 @@ class service_settings_wrapper
             do_resolve("logfile", logfile);
             do_resolve("working-dir", working_dir);
             do_resolve("pid-file", pid_file);
+
+            std::string command_s = std::string(command.c_str(), command.length());
+            std::string stop_command_s = std::string(stop_command.c_str(), stop_command.length());
+            value_var_subst("command", command_s, command_offsets, var_subst, service_arg);
+            value_var_subst("stop-command", stop_command_s, stop_command_offsets, var_subst, service_arg);
+            command = command_s;
+            stop_command = stop_command_s;
         }
 
         // If socket_gid hasn't been explicitly set, but the socket_uid was specified as a name (and
