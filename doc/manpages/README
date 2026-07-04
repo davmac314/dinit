@@ -31,9 +31,10 @@ Inline formatting ("escapes"):
 Special characters (see groff_char(7)):
 
 '\ ' - (backslash followed by space) - non-breaking space
+\e - literal backslash ('\[rs]' also works)
 \& - zero-width space
 \- - minus sign (also suppresses line breaking through hyphen)
-\[em] - em-dash (GNU groff accepts "\[em]" as well but it may not be portable)
+\[em] - em-dash
 \[en] - en-dash
 \[bu] - bullet point
 \[lq], \[rq] - left and right double-quote (").

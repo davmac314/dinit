@@ -155,12 +155,12 @@ characters (such as `#') inside the quotes.
 The quote characters are not considered part of the property value.
 White space appearing inside quotes does not act as a delimiter for tokens.
 .IP \(bu
-A backslash (`\\') can be used (even inside double quotes) to escape the next character, causing it
+A backslash (`\e') can be used (even inside double quotes) to escape the next character, causing it
 to lose any special meaning and become part of the property value (escaped newlines are an
 exception\[em]they mark the end of a comment, and otherwise are treated as an unescaped space,
 allowing a property value to extend to the next line; in this case, the following line must begin
 with leading whitespace).
-A double backslash (`\\\\') is collapsed to a single backslash within the parameter value.
+A double backslash (`\e\e') is collapsed to a single backslash within the parameter value.
 White space preceded by a backslash can be used to include whitespace within a token.
 .LP
 Setting a property generally overrides any previous setting (from prior lines).
