@@ -1,5 +1,11 @@
 changequote(`@@@',`$$$')dnl
 @@@.TH DINIT-SERVICE "5" "$$$MONTH YEAR@@@" "Dinit $$$VERSION@@@" "Dinit \- service management system"
+\"
+.\" remap ` and ' to open and close single quotes, respectively. This is the default in groff but
+.\" not in mandoc:
+.char ` \(oq
+.char ' \(cq
+.\"
 .SH NAME
 Dinit service description files
 .\"
@@ -170,7 +176,7 @@ properties.
 Some properties that specify file paths are currently resolved (if the specified path is relative)
 starting from the directory containing the top-level service description file, whereas others are
 resolved from the directory containing the service description fragment in which the setting value
-is defined (a "fragment" may be the service description file itself, or it may be a file included
+is defined (a \[lq]fragment\[rq] may be the service description file itself, or it may be a file included
 via \fB@include\fR or similar; see \fBMETA-COMMANDS\fR).
 In particular, the `\-\-\-.d' settings (such as \fBwaits\-for.d\fR) are resolved from the
 containing fragment.
@@ -195,8 +201,8 @@ The `+=' operator can be used with this setting to append to a command set previ
 .TQ
 \fBstop\-command\fR += \fIcommand-string-addendum\fR
 Specifies the command to stop the service (optional). Applicable to \fBprocess\fR, \fBbgprocess\fR and
-\fBscripted\fR services.  If specified for \fBprocess\fR or \fBbgprocess\fR services, the "stop
-command" will be executed in order to stop the service, instead of signalling the service process. 
+\fBscripted\fR services.  If specified for \fBprocess\fR or \fBbgprocess\fR services, the \[lq]stop
+command\[rq] will be executed in order to stop the service, instead of signalling the service process. 
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
 .IP
 The `+=' operator can be used with this setting to append to a command set previously.
@@ -312,7 +318,7 @@ This is almost equivalent to \fBdepends\-on\fR, with the difference being that t
 will also be restarted if this service is restarted.
 This is useful if a service needs special preparation (such as cleanup of files holding runtime
 state) that must be re-run if the service restarts.
-Note that a service undergoing "smooth recovery" (see \fBsmooth\-recovery\fR) does not count as a
+Note that a service undergoing \[lq]smooth recovery\[rq] (see \fBsmooth\-recovery\fR) does not count as a
 restarting service; a service that has a dependency of this type should generally have smooth
 recovery disabled.
 .IP 
@@ -320,7 +326,7 @@ The \fIservice-name\fR is subject to pre-load variable substitution
 (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
 \fBdepends\-ms\fR: \fIservice-name\fR
-This service has a "milestone" dependency on the named service. Starting this
+This service has a \[lq]milestone\[rq] dependency on the named service. Starting this
 service will start the named service; this service will not start until the
 named service has started, and will fail to start if the named service does
 not start.
@@ -608,7 +614,7 @@ The latter can only be used if there is only a single cgroup hierarchy (either t
 hierarchy with no cgroups v1 hierarchies, or a single cgroups v1 hierarchy).
 .IP
 Note that due to the \[lq]no internal processes\[rq] rule in cgroups v2, a relative path must typically
-begin with ".." if cgroups v2 are used.
+begin with `..' if cgroups v2 are used.
 .IP
 The named cgroup must already exist prior to the service starting; it will not be created by
 \fBdinit\fR.
@@ -618,18 +624,18 @@ This setting is only available if \fBdinit\fR was built with cgroups support.
 \fBcapabilities\fR = \fIiab\fR
 .TQ
 \fBcapabilities\fR += \fIiab-addendum\fR
-Set the "IAB" capability vectors, which will determine the capabilities that the service
+Set the \[lq]IAB\[rq] capability vectors, which will determine the capabilities that the service
 process(es) are run with.
-The syntax of \fIiab\fR follows the regular capabilities "IAB" format, with comma-separated capabilities
-(see \fBcapabilities\fR(7), \fBcap_iab\fR(3)) for three vectors: inheritable (I), "ambient" i.e.
-effective by default (A), and blocked (B).
+The syntax of \fIiab\fR follows the regular capabilities IAB format, with comma-separated capabilities
+(see \fBcapabilities\fR(7), \fBcap_iab\fR(3)) for three vectors: inheritable (I),
+\[lq]ambient\[rq] i.e. effective by default (A), and blocked (B).
 If this property is not specified, the IAB vectors for service processes will not be modified by
 \fBdinit\fR. 
-The append form of this setting will add to the previous IAB string, automatically inserting
+The append form (`+=') of this setting will add to the previous IAB string, automatically inserting
 a comma as separator.
 .IP
-To provide a capability to an otherwise unprivileged process, add the capability to the "Ambient"
-(and "Inherited") capability sets using \fB^CAP_NAME\fR, where CAP_NAME is the name of the capability.
+To provide a capability to an otherwise unprivileged process, add the capability to the \[lq]Ambient\[rq]
+(and \[lq]Inheritable\[rq]) capability sets using \fB^CAP_NAME\fR, where CAP_NAME is the name of the capability.
 For example, to allow a process to bind to privileged TCP/IP ports, use \fB^CAP_NET_BIND_SERVICE\fR. 
 .IP
 This setting is only available if \fBdinit\fR was built with capabilities support.

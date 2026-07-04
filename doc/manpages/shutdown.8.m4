@@ -1,5 +1,11 @@
 changequote(`@@@',`$$$')dnl
 @@@.TH SHUTDOWN "8" "$$$MONTH YEAR@@@" "Dinit $$$VERSION@@@" "Dinit \- service management system"
+\"
+.\" remap ` and ' to open and close single quotes, respectively. This is the default in groff but
+.\" not in mandoc:
+.char ` \(oq
+.char ' \(cq
+.\"
 .SH NAME
 $$$SHUTDOWN_PREFIX@@@shutdown, $$$SHUTDOWN_PREFIX@@@halt, $$$SHUTDOWN_PREFIX@@@poweroff, $$$SHUTDOWN_PREFIX@@@reboot, $$$SHUTDOWN_PREFIX@@@soft-reboot \- system shutdown
 .\"
@@ -19,18 +25,19 @@ $$$SHUTDOWN_PREFIX@@@shutdown, $$$SHUTDOWN_PREFIX@@@halt, $$$SHUTDOWN_PREFIX@@@p
 .\"
 .SH DESCRIPTION
 .\"
-This manual page is for the shutdown utility included with the \fBDinit\fR
-service manager package. See \fBdinit\fR(8).
+This manual page is for the shutdown utility included with the Dinit service manager package.
+See \fBdinit\fR(8).
 .LP
 The \fB$$$SHUTDOWN_PREFIX@@@shutdown\fR, \fB$$$SHUTDOWN_PREFIX@@@reboot\fR,
 \fB$$$SHUTDOWN_PREFIX@@@soft-reboot\fR, \fB$$$SHUTDOWN_PREFIX@@@poweroff\fR and \fB$$$SHUTDOWN_PREFIX@@@halt\fR
 commands can be used to instruct the service manager daemon to perform a service rollback and then to shutdown the system.
 They can also perform shutdown directly, without service rollback.
 .LP
-Note that for consistency with other packages "$$$SHUTDOWN_PREFIX@@@halt" and "$$$SHUTDOWN_PREFIX@@@poweroff" aliases
-are provided, however they have no special significance. The default action
-is to power down the system if called as any of "$$$SHUTDOWN_PREFIX@@@shutdown", "$$$SHUTDOWN_PREFIX@@@halt", or
-"$$$SHUTDOWN_PREFIX@@@poweroff".
+Note that for consistency with other packages \fB$$$SHUTDOWN_PREFIX@@@halt\fR and
+\fB$$$SHUTDOWN_PREFIX@@@poweroff\fR aliases are provided, however they have no special
+significance.
+The default action is to power down the system if called as any of \fB$$$SHUTDOWN_PREFIX@@@shutdown\fR,
+\fB$$$SHUTDOWN_PREFIX@@@halt\fR, or \fB$$$SHUTDOWN_PREFIX@@@poweroff\fR.
 .LP
 Some features are available only on certain operating systems (and require kernel support).
 .\"
@@ -68,7 +75,7 @@ as \fB$$$SHUTDOWN_PREFIX@@@reboot\fR or \fB$$$SHUTDOWN_PREFIX@@@soft\-reboot\fR.
 Instead of attempting to open a socket connection to the service daemon,
 use a pre-opened connection that has been passed to the process from its parent
 via an open file descriptor.
-The file descriptor with the connection is identified by the contents of the DINIT_CS_FD
+The file descriptor with the connection is identified by the contents of the \fBDINIT_CS_FD\fR
 environment variable.
 .TP
 \fB\-\-system\fR
@@ -96,8 +103,8 @@ Only the first existing executable file from the above list will be executed.
 The first location is intended to allow customisation by the system administrator (and should
 usually be a script which on completion executes the 2nd shutdown hook, if present).
 The 2nd location is intended for distribution control.
-The script will be passed a single argument, one of "poweroff", "halt", "reboot" or "soft"
-depending on the shutdown type (for kexec, if supported, the argument will be "reboot", as for a
+The script will be passed a single argument, one of `poweroff', `halt', `reboot' or `soft'
+depending on the shutdown type (for kexec, if supported, the argument will be `reboot', as for a
 regular reboot).
 .LP
 If found and successfully executed, the shutdown hook should perform any special shutdown actions

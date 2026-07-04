@@ -1,5 +1,11 @@
 changequote(`@@@',`$$$')dnl
 @@@.TH DINIT\-MONITOR "8" "$$$MONTH YEAR@@@" "Dinit $$$VERSION@@@" "Dinit \- service management system"
+\"
+.\" remap ` and ' to open and close single quotes, respectively. This is the default in groff but
+.\" not in mandoc:
+.char ` \(oq
+.char ' \(cq
+.\"
 .SH NAME
 dinit\-monitor \- monitor services or environment supervised by Dinit
 .\"
