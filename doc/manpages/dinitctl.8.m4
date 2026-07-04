@@ -98,12 +98,12 @@ Display version and then exit.
 \fB\-s\fR, \fB\-\-system\fR
 Control the system init process (this is the default when run as root).
 This option determines the default path to the control socket used to communicate with the \fBdinit\fR daemon
-process (it does not override the \fB\-p\fR option).
+process (it does not override the `\fB\-p\fR' option).
 .TP
 \fB\-u\fR, \fB\-\-user\fR
-Control the user init process (this is the default when not run as root).
+Control the user service manager process (this is the default when not run as root).
 This option determines the default path to the control socket used to communicate with the \fBdinit\fR daemon process
-(it does not override the \fB\-p\fR option).
+(it does not override the `\fB\-p\fR' option).
 .TP
 \fB\-\-socket\-path\fR \fIsocket-path\fR, \fB\-p\fR \fIsocket-path\fR
 Specify the path to the socket used for communicating with the service manager daemon.
@@ -112,23 +112,23 @@ the default path (as documented for \fBdinit\fR(8)) used if the variable is unse
 .TP
 \fB\-\-use\-passed\-cfd\fR
 Instead of attempting to open a socket connection to the service daemon,
-use a pre-opened connection that has been passed to the dinitctl process from its parent
+use a pre-opened connection that has been passed to the \fBdinitctl\fR process from its parent
 via an open file descriptor.
-The file descriptor with the connection is identified by the contents of the DINIT_CS_FD
+The file descriptor with the connection is identified by the contents of the \fBDINIT_CS_FD\fR
 environment variable.
 .TP
 \fB\-\-quiet\fR
 Suppress status output, except for errors.
 .TP
 \fB\-\-offline\fR, \fB\-o\fR
-Work "offline", without communicating with the \fBdinit\fR daemon.
+Work \[lq]offline\[rq], without communicating with the \fBdinit\fR daemon.
 This is applicable only for the \fBenable\fR and \fBdisable\fR subcommands.
 .TP
 \fB\-\-services\-dir\fR \fIdir\fP, \fB\-d\fR \fIdir\fP
 Specifies \fIdir\fP as the directory containing service description files (can
 be given multiple times to specify multiple service directories).
 Default directories are not searched for services when this option is provided.
-This option is ignored when \fB\-\-offline\fR (\fB\-o\fR) is not also specified (otherwise,
+This option is ignored when `\fB\-\-offline\fR' (`\fB\-o\fR') is not also specified (otherwise,
 \fBdinitctl\fR can query the \fBdinit\fR daemon for the service description directories).
 .\"
 .SH COMMAND OPTIONS
@@ -146,10 +146,12 @@ Dependents (via hard dependency relationships) of the pinned service will be una
 A service that is pinned started cannot be stopped, however its explicit activation can be removed
 (eg via the \fBstop\fR or \fBrelease\fR commands).
 Once unpinned, a service which is not explicitly activated, and which has no active dependents,
-will automatically stop. If a pinned-started service fails to start, the pin is removed.
+will automatically stop.
+If a pinned-started service fails to start, the pin is removed.
 .IP
 Note that a pin takes effect while the service is starting/stopping, before it reaches the target
-state. Stopping or restarting a service that is pinned started and which is already starting or
+state.
+Stopping or restarting a service that is pinned started and which is already starting or
 started is not possible.
 Similarly, starting a service which is pinned stopped and which is stopping or stopped is not possible.
 .TP
@@ -165,8 +167,7 @@ success.
 Clear the log buffer for the service after displaying it.
 .TP
 \fIservice-name\fR
-Specifies the name of the service to which the command applies.
-It may have an argument that is passed to the service.
+Specifies the name of the service to which the command applies (including any argument suffix).
 .\"
 .SH COMMAND DESCRIPTIONS
 .\"
@@ -179,7 +180,7 @@ If the service is currently stopping it will generally continue to stop before i
 \fBstop\fR
 Stop the specified service, and remove explicit activation.
 If the service has (non-soft) dependents, an error will be displayed and no further action taken,
-unless the \fB\-\-force\fR option is used.
+unless the `\fB\-\-force\fR' option is used.
 If the service is pinned started (and not already stopped or stopping) an error will be displayed
 and no further action taken.
 .sp
@@ -195,14 +196,14 @@ interrupted).
 \fBstatus\fR
 Give a status report on the specified service.
 This will show the current state (and target state, if different), and information such as process
-ID (pid) if applicable.
+ID (\[lq]pid\[rq]) if applicable.
 If the service is stopped for any reason other than a normal stop, the reason for the service
 stopping will be displayed (along with any further relevant information, if available).
 .TP
 \fBis\-started\fR
 Check if the specified service is currently started.
 Any other state (including if the service is currently starting or stopping) will exit without returning success.
-Unless \fB\-\-quiet\fR is specified, the current service status (STOPPED, STARTING, STARTED, STOPPING)
+Unless `\fB\-\-quiet\fR' is specified, the current service status (STOPPED, STARTING, STARTED, STOPPING)
 will be printed to standard output.
 .TP
 \fBis\-failed\fR
@@ -210,7 +211,7 @@ Check if the specified service is currently failed.
 The service counts as failed if it is known it is currently stopped either because of startup
 failure, timeout or dependency failure.
 Any other state, including protocol and parse errors, will exit without returning success.
-Unless \fB\-\-quiet\fR is specified, the current service status (STOPPED, STARTING, STARTED, STOPPING)
+Unless `\fB\-\-quiet\fR' is specified, the current service status (STOPPED, STARTING, STARTED, STOPPING)
 will be printed to standard output.
 .TP
 \fBrestart\fR
@@ -226,10 +227,9 @@ Clear the explicit activation mark from a service (the service will then stop if
 .TP
 \fBunpin\fR
 Remove start- and stop- pins from a service.
-If a started service is not explicitly activated and has no active dependents, it will stop.
-If a started service has a dependency service which is stopping, it will stop.
-If a stopped service has a dependent service which is starting, it will start.
-Otherwise, any pending start/stop commands will be carried out.
+An unpinned service that is started but not explicitly activated and with no active dependents will stop.
+An unpinned service that is started and that has a dependency service which is stopping will itself stop
+(and potentially restart, depending on its settings and those of dependents).
 .TP
 \fBunload\fR
 Completely unload a service.
@@ -239,9 +239,11 @@ be unloaded before their dependencies).
 \fBreload\fR
 Attempt to reload a service description.
 This is intended as a convenience for making simple changes to a service, without having to stop,
-remove dependencies to and unload the service. However it is not completely equivalent to doing a
-proper unload/reload; some altered settings may not take effect until the service is restarted,
-and some cannot be changed at all while the service is running.
+remove dependencies to and unload the service.
+However, it is not completely equivalent to doing a proper unload/reload; some altered settings
+may not take effect until the service is restarted, and some cannot be changed at all while the
+service is running\[em]an attempt to do so will cause the reload operation to fail, without having
+any effect on the service.
 .IP
 In particular, the type of a running service cannot be changed; nor can the \fBinittab-id\fR, \fBinittab-line\fR,
 or \fBpid-file\fR settings, or the \fBruns-on-console\fR or \fBshares-console\fR flags.
@@ -260,54 +262,54 @@ Before each service, one of the following state indicators is displayed:
 \m[blue][\ \ \ \ \ {-}]\m[]\fR \[em] service has stopped.
 .EE
 .sp
-The '<<' and '>>' symbols represent a transition state (starting and stopping respectively); curly braces
+The `<<' and `>>' symbols represent a transition state (starting and stopping respectively); curly braces
 indicate the target state (left: started, right: stopped); square brackets are used if the service
 is marked active (target state will always be started if this is the case).
 .IP
-An 's' in place of '+' means that the service startup was skipped (possible only if the service is
+An `s' in place of `+' means that the service startup was skipped (possible only if the service is
 configured as skippable).
-An 'X' in place of '-' means that the service failed to start, or that the
+An `X' in place of `-' means that the service failed to start, or that the
 service process unexpectedly terminated with an error status or signal while running.
 .IP
 Additional information, if available, will be printed after the service name: whether the service owns,
 or is waiting to acquire, the console; the process ID; the exit status or signal that caused termination.
 .TP
 \fBshutdown\fR
-Stop all services (without restart) and terminate Dinit.
-If issued to the system instance of Dinit, this will also shut down the system.
+Stop all services (without restart) and terminate \fBdinit\fR.
+If issued to the system instance of \fBdinit\fR, this will also shut down the system.
 .TP
-\fBadd-dep\fR
+\fBadd\-dep\fR
 Add a dependency between two services.
 The \fIdependency-type\fR must be one of \fBneed\fR, \fBmilestone\fR or \fBwaits-for\fR.
 Note that adding a \fBneed\fR dependency requires that the service states are consistent with the
-dependency (i.e. if the "from" service is started, the "to" service must also be started).
+dependency (i.e. if the \[lq]from\[rq] service is started, the \[lq]to\[rq] service must also be started).
 Circular dependency chains may not be created.
 .IP
-The \fIdependency-type\fR \fBregular\fR is also supported, as a deprecated alias of \fBneed\fR.
+The dependency type \fBregular\fR is also supported, as a deprecated alias of \fBneed\fR.
 .TP
-\fBrm-dep\fR
+\fBrm\-dep\fR
 Remove a dependency between two services.
-The \fIdependency-type\fR must be one of \fBneed\fR, \fBmilestone\fR or \fBwaits-for\fR.
+The \fIdependency-type\fR must be one of \fBneed\fR, \fBmilestone\fR or \fBwaits\-for\fR.
 If the "to" service is not otherwise active it may be stopped as a result of removing the dependency.
 .TP
 \fBenable\fR
-Persistently enable a \fBwaits-for\fR dependency between two services.
-This is much like \fBadd-dep\fR but it also starts the dependency if the dependent is started
+Persistently enable a \fBwaits\-for\fR dependency between two services.
+This is much like \fBadd\-dep\fR but it also starts the dependency if the dependent is started
 (without explicit activation, so the dependency will stop if the dependent stops), and it creates
-a symbolic link in the directory specified via the \fBwaits-for.d\fR directive in the service
+a symbolic link in the directory specified via the \fBwaits\-for.d\fR directive in the service
 description (there must be only one such directive) so that the dependency will survive between
 sessions.
 .IP
-If the \fB--from\fR option is not used to specify the dependent, the dependency is created from the
-service specified by any \fB@meta enable-via\fR directive in the service description, or from the
+If the `\fB--from\fR' option is not used to specify the dependent, the dependency is created from the
+service specified by any `\fB@meta enable-via\fR' directive in the service description, or from the
 \fBboot\fR service by default.
 .TP
 \fBdisable\fR
-Permanently disable a \fBwaits-for\fR dependency between two services.
+Permanently disable a \fBwaits\-for\fR dependency between two services.
 This is the complement of the \fBenable\fR command; see the description above for more information.
 .IP
 Note that the \fBdisable\fR command affects only the dependency specified (or implied).
-It has no other effect, and a service that is "disabled" may still be started if it is a dependency of
+It has no other effect, and a service that is \[lq]disabled\[rq] may still be started if it is a dependency of
 another started service.
 .TP
 \fBtrigger\fR
@@ -317,7 +319,8 @@ This will allow the service to finish starting.
 \fBuntrigger\fR
 Clear the trigger for the specified service (which must be a \fItriggered\fR service).
 This will delay the service from starting, until the trigger is set.
-If the service has already started, this will have no immediate effect.
+If the service has already started, this will have no immediate effect other than clearing the
+trigger; it will not by itself cause the service to stop.
 .TP
 \fBsetenv\fR
 Export one or more variables into the activation environment.

@@ -29,14 +29,18 @@ Inline formatting ("escapes"):
 
 
 Special characters (see groff_char(7)):
+
 '\ ' - (backslash followed by space) - non-breaking space
 \& - zero-width space
-\- - literal hyphen (also suppresses line breaking through dash)
-\(em - em-dash (GNU groff accepts "\[em]" as well but it may not be portable)
-\(en - en-dash
-\(bu - bullet point
+\- - minus sign (also suppresses line breaking through hyphen)
+\[em] - em-dash (GNU groff accepts "\[em]" as well but it may not be portable)
+\[en] - en-dash
+\[bu] - bullet point
+\[lq], \[rq] - left and right double-quote (").
+` and ' (backtick and apostrophe) - use for opening/closing single quotes
 
-` and ' (backtick / apostrophe) - use for opening/closing single quotes
+(Note that '\[xy]' can be written as '\(xy', which is also portable to legacy troff
+implementations, but we prefer the former). 
 
 
 Line commands ("requests"):
@@ -65,15 +69,37 @@ spaces.
 .EE - end example
 
 
+Formatting rules for Dinit man pages:
+
+ * Executable names (dinit, dinit-check, etc) should be in bold, eg: \fBdinit\fR
+ * Keywords, setting names, environment variable names, and literal setting values should be in
+   bold
+ * Literal output of or input for a program should be single-quoted: `like this'
+ * Placeholder names for parameter values should be italicised: \fIlike-this\fR.
+ * Filenames/paths should be italicised.
+ * Command line options with "hyphens" should use minus signs (i.e. as typed): \-\-like\-this
+   ... and should be in bold: \fB\-\-like\-this\fR
+   ... and when appearing in prose should also be single-quoted: `\fB\-\-like\-this\fR'
+ * Scare quotes, used to indicate a non-standard/slang/semi-technical term, use double quotes:
+   \[lq]like this[\rq].
+ * To cross-reference another man page, put the page name in bold and follow it with the section
+   in parentheses (in regular, not bold, text), like this: \fBdinit\fR(8)
+ * To cross-reference a section, specify the section title in CAPITALS and bold,
+   \fBLIKE THIS\fR.
+
 
 Gotchas:
 
-* Sentences should always end (with a period) at the end of a line (this affects spacing in output).
-* hyphens which are actually part of a word (part of a setting name for example) should be
-  preceded by a backslash ("\-") which will prevent the literal from being split over multiple lines.
+* Sentences should always end (with a period) at the end of a line (this affects spacing in
+  output). I.e. a new sentence should always begin on a new line.
+* Hyphens which are actually part of a word (part of a setting name for example) should be
+  preceded by a backslash ("\-") which will prevent the literal from being split over multiple
+  lines.
 * Blank lines should be avoided. Use .LP/.HP/.TP/.IP for example to start a paragraph. Use .IP for
   follow-on paragraphs after .TP. Use .sp for space within a paragraph in the rare case that is
-  needed.
+  needed. Use '.\' (comment) to insert space in the source document in a way that does not affect
+  the output.
+
 
 For synopsis:
 

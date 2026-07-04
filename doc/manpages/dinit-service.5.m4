@@ -44,9 +44,9 @@ allowing for multibyte-encoded characters to be used as part of a service name.
 .\"
 A service description may act as a template for multiple related services.
 The full name of a service can include an argument, following the base name of the service
-suffixed by an 'at' symbol (\fB@\fR), in the form \fIbase-name@argument\fR.
+suffixed by an \[lq]at\[rq] symbol (`\fB@\fR'), in the form `\fIbase-name\fR@\fIargument\fR'.
 The argument value may be substituted into various service setting values by using
-a '\fB$1\fR' marker in the value specified in the service description (see \fBVARIABLE SUBSTITUTION\fR).
+a `\fB$1\fR' marker in the value specified in the service description (see \fBVARIABLE SUBSTITUTION\fR).
 The full name (base name together with argument) uniquely identifies a service instance, and each
 instance is loaded separately, remaining independent of other instances.
 .\"
@@ -59,9 +59,9 @@ is started when the service is started and stopped when the service is stopped. 
 process stops this also affects the service state, i.e. the service's started/stopped state is
 linked to the state of its associated process.
 .IP \(bu
-\fBBgprocess\fR services ("background process" services).
+\fBBgprocess\fR services (\[lq]background process\[rq] services).
 This kind of service is similar to a regular process service, but is for a process which
-"daemonizes" or otherwise forks from the original process which starts it, and writes its
+\[lq]daemonizes\[rq] or otherwise forks from the original process which starts it, and writes its
 new process ID to a file.
 Dinit will read the process ID from the file and, if running as the system init process or if the
 system provides the necessary facilities, can supervise the process just as for a \fBprocess\fR
@@ -79,7 +79,8 @@ They can be started and stopped without any external action.
 They are useful for grouping other services (via service dependencies).
 .IP \(bu
 \fBTriggered\fR services are similar to internal processes, but an external trigger is required
-before they will start (i.e. Dinit will not consider them as started until the trigger is issued).
+before they will reach \[lq]started\[rq] state (Dinit will not consider them as started until
+the trigger is issued).
 The \fBdinitctl trigger\fR command can be used to trigger such a service; see \fBdinitctl\fR(8).
 .LP
 Independent of their type, the state of services can be linked to other
@@ -88,7 +89,7 @@ services via dependency relationships, which are discussed in the next section.
 .SS SERVICE DEPENDENCIES
 .\"
 A service dependency relationship, broadly speaking, specifies that for one
-service to run, another must also be running; when starting a service Dinit will wait until
+service to run, another must also be running; when starting a service, Dinit will wait until
 dependencies are satisfied before starting any processes associated with the service.
 The first service is the \fIdependent\fR service and the latter is the \fIdependency\fR
 service (we will henceforth generally refer to the the dependency relationship as the
@@ -96,7 +97,7 @@ service (we will henceforth generally refer to the the dependency relationship a
 A dependency relationship is specified via the properties of the dependent.
 There are different relationship types, as follows:
 .IP \(bu
-A \fBneed\fR (or "hard") relationship specifies that the dependent must wait
+A \fBneed\fR (or \[lq]hard\[rq]) relationship specifies that the dependent must wait
 for the dependency to be started before it starts, and that the dependency
 must remain started while the dependent is started.
 Starting the dependent will start the dependency, and stopping the dependency will stop the
@@ -137,7 +138,7 @@ new distinct property, and it is recommended to use `=' or `:' (respectively) to
 A small selection of properties can have their value appended to, once set on a previous line,
 by specifying the property name again and using the `+=' operator in place of `=' (or `:').
 .LP
-Comments begin with a hash mark (#) and extend to the end of the line (they must be
+Comments begin with a hash mark (`#') and extend to the end of the line (they must be
 separated from setting values by at least one whitespace character).
 Values are interpreted literally, except that:
 .\"
@@ -148,18 +149,18 @@ leading or trailing white space around the property value, which is stripped.
 For settings which specify a command with arguments, the value is interpreted as a
 series of tokens separated by white space, rather than a single string of characters. 
 .IP \(bu
-Double quotes (") can be used around all or part of a property value, to
+Double quotes (`"') can be used around all or part of a property value, to
 prevent whitespace collapse and prevent interpretation of other special
-characters (such as "#") inside the quotes.
+characters (such as `#') inside the quotes.
 The quote characters are not considered part of the property value.
 White space appearing inside quotes does not act as a delimiter for tokens.
 .IP \(bu
-A backslash (\\) can be used (even inside double quotes) to escape the next character, causing it
+A backslash (`\\') can be used (even inside double quotes) to escape the next character, causing it
 to lose any special meaning and become part of the property value (escaped newlines are an
-exception\(em\&they mark the end of a comment, and otherwise are treated as an unescaped space,
+exception\[em]they mark the end of a comment, and otherwise are treated as an unescaped space,
 allowing a property value to extend to the next line; in this case, the following line must begin
 with leading whitespace).
-A double backslash (\\\\) is collapsed to a single backslash within the parameter value.
+A double backslash (`\\\\') is collapsed to a single backslash within the parameter value.
 White space preceded by a backslash can be used to include whitespace within a token.
 .LP
 Setting a property generally overrides any previous setting (from prior lines).
@@ -170,9 +171,11 @@ Some properties that specify file paths are currently resolved (if the specified
 starting from the directory containing the top-level service description file, whereas others are
 resolved from the directory containing the service description fragment in which the setting value
 is defined (a "fragment" may be the service description file itself, or it may be a file included
-via \fB@include\fR or similar; see \fBMETA-COMMANDS\fR). In particular, the `\-\-\-.d' settings
-(such as \fBwaits\-for.d\fR) are resolved from the containing fragment. For all other settings, it
-is recommended to provide absolute paths to be robust against future changes in Dinit.
+via \fB@include\fR or similar; see \fBMETA-COMMANDS\fR).
+In particular, the `\-\-\-.d' settings (such as \fBwaits\-for.d\fR) are resolved from the
+containing fragment.
+For all other settings, it is recommended to provide absolute paths to be robust against future
+changes in Dinit.
 .LP
 The following properties can be specified:
 .TP
@@ -232,7 +235,7 @@ terminated via a signal (other than SIGHUP, SIGINT, SIGUSR1, SIGUSR2 or SIGTERM,
 deliberate termination).
 Specifying \fBon-failure\fR for any other type of service is the same as specifying \fBfalse\fR
 (the service will not restart automatically).
-Note that if a service stops due to user request, automatic restart is inhibited.
+Automatic restart is inhibited if a service stops due to user command.
 $$$changequote(`,')dnl
 ifelse(DEFAULT_AUTO_RESTART, ALWAYS,
     ``The default is to automatically restart.'',
@@ -267,7 +270,7 @@ The default value is 3.
 \fBstart\-timeout\fR = \fIXXX.YYY\fR
 Specifies the time in seconds allowed for the service to start.
 If the service takes longer than this, its process group is sent a SIGINT signal
-and enters the "stopping" state (this may be subject to a stop timeout, as
+and enters the \[lq]stopping\[rq] state (this may be subject to a stop timeout, as
 specified via \fBstop\-timeout\fR, after which the process group will be
 terminated via SIGKILL).
 The timeout period begins only when all dependencies have been satisfied.
@@ -286,9 +289,10 @@ A value of 0 allows unlimited stop time.
 For \fBbgprocess\fR type services only; specifies the path of the file where
 daemon will write its process ID before detaching.
 Dinit will read the contents of this file when starting the service, once the initial process
-exits, and will supervise the process with the discovered process ID.
+terminates (after having forked a child process), and will supervise the child process with the
+discovered process ID.
 Dinit may also send signals to the process ID to stop the service; if \fBdinit\fR runs as a
-privileged user the path should have appropriate permissions to permit abuse by untrusted
+privileged user, the path should have appropriately restricted permissions to prevent abuse by untrusted
 unprivileged processes.
 .IP
 The value is subject to variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
@@ -298,6 +302,7 @@ This service depends on the named service.
 Starting this service will start the named service; the command to start this service will not be executed
 until the named service has started.
 If the named service stops then this service will also be stopped.
+.IP
 The \fIservice-name\fR is subject to pre-load variable substitution
 (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
@@ -309,7 +314,8 @@ This is useful if a service needs special preparation (such as cleanup of files 
 state) that must be re-run if the service restarts.
 Note that a service undergoing "smooth recovery" (see \fBsmooth\-recovery\fR) does not count as a
 restarting service; a service that has a dependency of this type should generally have smooth
-recovery disabled. 
+recovery disabled.
+.IP 
 The \fIservice-name\fR is subject to pre-load variable substitution
 (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
@@ -320,6 +326,7 @@ named service has started, and will fail to start if the named service does
 not start.
 Once the named (dependent) service reaches the started state, however, the
 dependency may stop without affecting the dependent service.
+.IP
 The \fIservice-name\fR is subject to pre-load variable substitution
 (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
@@ -329,6 +336,7 @@ When this service is started, wait for the named service to finish starting
 Starting this service will automatically start the named service.
 If the named service fails to start, this service will start as usual (subject to
 other dependencies being met).
+.IP
 The \fIservice-name\fR is subject to pre-load variable substitution
 (see \fBVARIABLE SUBSTITUTION\fR).
 .TP
@@ -343,6 +351,7 @@ is not considered fatal.
 .IP
 The directory path, if not absolute, is relative to the directory containing the service
 description file.
+.IP
 The \fIdirectory-path\fR is subject to pre-load variable substitution
 (see \fBVARIABLE SUBSTITUTION\fR).
 
@@ -358,7 +367,7 @@ When starting this service, if the named service is also starting, wait for the 
 to finish starting before bringing this service up. This is similar to a \fBwaits\-for\fR
 dependency except no dependency relationship is implied; if the named service is not starting,
 starting this service will not cause it to start (nor wait for it in that case).
-It does not by itself cause the named service to be loaded (if loaded later, the "after"
+It does not by itself cause the named service to be loaded (if loaded later, the \[lq]after\[rq]
 relationship will be enforced from that point).
 .IP
 The \fIservice-name\fR is subject to pre-load variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
@@ -367,7 +376,7 @@ The \fIservice-name\fR is subject to pre-load variable substitution (see \fBVARI
 When starting the named service, if this service is also starting, wait for this service
 to finish starting before bringing the named service up. This is largely equivalent to specifying
 an \fBafter\fR relationship to this service from the named service.
-However, it does not by itself cause the named service to be loaded (if loaded later, the "before"
+However, it does not by itself cause the named service to be loaded (if loaded later, the \[lq]before\[rq]
 relationship will be enforced from that point).
 .IP
 The \fIservice-name\fR is subject to pre-load variable substitution (see \fBVARIABLE SUBSTITUTION\fR).
@@ -378,7 +387,7 @@ own accord), the named service should be started.
 Note that the named service is not loaded until that time; naming an invalid service will
 not cause this service to fail to load.
 .IP
-This can be used for a service that supplies an interactive "recovery mode"
+This can be used for a service that supplies an interactive \[lq]recovery mode\[rq]
 for another service; once the user exits the recovery shell, the primary
 service (as named via this setting) will then start.
 It also supports multi-stage system startup where later service description files reside on
@@ -386,7 +395,7 @@ a separate filesystem that is mounted during the first stage; such service
 descriptions will not be found at initial start, and so cannot be started
 directly, but can be chained via this directive.
 .IP
-The chain is not executed if the initial service was explicitly stopped,
+By default, the chain is not executed if the initial service was explicitly stopped,
 stopped due to a dependency stopping (for any reason), if it will restart
 (including due to a dependent restarting), or if its process terminates
 abnormally or with an exit status indicating an error.
@@ -398,7 +407,7 @@ The \fIservice-name\fR is subject to pre-load variable substitution (see \fBVARI
 \fBsocket\-listen\fR = \fIsocket-path\fR
 Pre-open a socket for the service and pass it to the service using the
 \fBsystemd\fR activation protocol.
-This by itself does not give so called "socket activation", but does allow any
+This by itself does not give so called \[lq]socket activation\[rq], but does allow any
 process trying to connect to the specified socket to do so immediately after
 the service is started (even before the service process is properly prepared
 to accept connections).
@@ -425,7 +434,7 @@ Specifies the group of the activation socket. See discussion of \fBsocket\-uid\f
 Specifies the signal to send to the process when requesting it to terminate (applies to `process'
 and `bgprocess' services only).
 Signal names are specified as the POSIX signal name without the \fBSIG\fR- prefix.
-At least \fBHUP\fR, \fBTERM\fR, and \fBKILL\fR are supported (use \fBdinitctl signal \-\-list\fR
+At least \fBHUP\fR, \fBTERM\fR, and \fBKILL\fR are supported (use `\fBdinitctl signal \-\-list\fR'
 for the full list of supported signals).
 The default is TERM (the SIGTERM signal).
 See also the discussion of \fBstop\-timeout\fR.
@@ -437,11 +446,11 @@ If not specified, a process service is considered started as soon as it has begu
 The two options are:
 .RS
 .IP \(bu
-\fBpipefd:\fR\fIfd-number\fR \(em the service will write a message to the specified file descriptor,
+\fBpipefd:\fR\fIfd-number\fR \[em] the service will write a message to the specified file descriptor,
 which \fBdinit\fR sets up as the write end of a pipe before execution.
 This mechanism is compatible with the S6 supervision suite.
 .IP \(bu
-\fBpipevar:\fR\fIenv-var-name\fR \(em the service will write a message to file descriptor identified
+\fBpipevar:\fR\fIenv-var-name\fR \[em] the service will write a message to file descriptor identified
 using the contents of the specified environment variable, which will be set by \fBdinit\fR before
 execution to a file descriptor (chosen arbitrarily) attached to the write end of a pipe.
 .RE
@@ -507,8 +516,8 @@ Specifies the group of the log file. See discussion of \fBlogfile\-uid\fR.
 .TP
 \fBlog\-buffer\-size\fR = \fIsize-in-bytes\fR
 If the log type (see \fBlog\-type\fR) is set to \fBbuffer\fR, this setting controls the maximum
-size of the buffer used to store process output. If the buffer becomes full, further output from
-the service process will be discarded.
+size of the buffer used to store process output.
+If the buffer becomes full, further output from the service process will be discarded.
 .TP
 \fBconsumer\-of\fR = \fIservice-name\fR
 Specifies that this service consumes (as its standard input) the output of another service.
@@ -523,42 +532,42 @@ Specifies various options for this service. See the \fBOPTIONS\fR section.
 .TP
 \fBload\-options\fR: \fIload_option\fR...
 Specifies options for interpreting other settings when loading this service description.
-Currently there are two available options. One is \fBexport-passwd-vars\fR, which
-specifies that the environment variables `\fBUSER\fR', `\fBLOGNAME\fR' (same as
-`\fBUSER\fR'), `\fBHOME\fR', `\fBSHELL\fR', `\fBUID\fR', and `\fBGID\fR' should
-be exported into the service's load environment (that is, overriding any global
-environment including the global environment file, but being overridable by the
-service's environment file). The other is \fBexport-service-name\fR, which will
-set the environment variable `\fBDINIT_SERVICE\fR' containing the name of the
-current service.
+Currently there are two available options.
+One is \fBexport-passwd-vars\fR, which specifies that the environment variables `\fBUSER\fR',
+`\fBLOGNAME\fR' (same as `\fBUSER\fR'), `\fBHOME\fR', `\fBSHELL\fR', `\fBUID\fR', and `\fBGID\fR'
+should be exported into the service's load environment (that is, overriding any global
+environment including the global environment file, but being overridable by the service's
+environment file if any).
+The other is \fBexport-service-name\fR, which will set the environment variable
+`\fBDINIT_SERVICE\fR' containing the name of the current service.
 .TP
 \fBinittab\-id\fR = \fIid-string\fR
 When this service is started, if this setting (or the \fBinittab\-line\fR setting) has a
-specified value, an entry will be created in the system "utmp" database which tracks
-processes and logged-in users.
-Typically this database is used by the "who" command to list logged-in users.
+specified value, an entry will be created in the system \[lq]utmp\[rq] database (or equivalent)
+which tracks processes and logged-in users.
 The entry will be cleared when the service terminates.
 .IP
-The \fBinittab\-id\fR setting specifies the "inittab id" to be written in the entry for
+The \fBinittab\-id\fR setting specifies the \[lq]inittab id\[rq] to be written in the entry for
 the process.
-The value is normally quite meaningless.
-However, it should be distinct (or unset) for separate processes.
+The value is normally quite meaningless, however, it should be distinct (or unset) for separate
+processes.
 It is typically limited to a very short length.
 .IP
-The "utmp" database is mostly a historical artifact.
+The \[lq]utmp\[rq] database is mostly a historical artifact.
 Access to it on some systems is prone to denial-of-service by unprivileged users.
 It is therefore recommended that this setting not be used.
-However, "who" and similar utilities may not work correctly without this setting
+However, \fBwho\fR(1) and similar utilities may not work correctly without this setting
 (or \fBinittab\-line\fR) enabled appropriately.
 .IP
-This setting has no effect if Dinit was not built with support for writing to the "utmp"
-database. It applies only to \fBprocess\fR services.
+This setting has no effect if Dinit was not built with support for writing to the \[lq]utmp\[rq]
+database.
+It applies only to \fBprocess\fR services.
 .TP
 \fBinittab\-line\fR = \fItty-name-string\fR
-This specifies the tty line that will be written to the "utmp" database when this service
+This specifies the tty line that will be written to the \[lq]utmp\[rq] database when this service
 is started.
 Normally, for a terminal login service, it would match the terminal device name on which
-the login process runs, without the "/dev/" prefix.
+the login process runs, without the \fI/dev/\fR prefix.
 .IP
 See the description of the \fBinittab\-id\fR setting for details.
 .TP
@@ -574,7 +583,7 @@ See the \fBRESOURCE LIMITS\fR section.
 \fBrlimit\-data\fR = \fIresource-limits\fR
 Specifies the maximum size of the data segment for the process, including statically allocated
 data and heap allocations.
-Precise meaning may vary between operating systems.
+The precise meaning may vary between operating systems.
 See the \fBRESOURCE LIMITS\fR section.
 .TP
 \fBrlimit\-addrspace\fR = \fIresource-limits\fR
@@ -587,10 +596,10 @@ setting will be ignored on such systems.
 Specifies the CPU priority of the process.
 When the given value is out of range for the operating system, it will be clamped to
 supported range, but no error will be issued.
-On Linux, this also sets the autogroup priority, assuming procfs is mounted.
+On Linux, this also sets the autogroup priority (if the procfs filesystem has been mounted appropriately).
 .TP
 \fBrun\-in\-cgroup\fR = \fIcgroup-path\fR
-Run the service process(es) in the specified cgroup (see \fBcgroups\fR(7)).
+Run the service process(es) in the specified \[lq]cgroup\[rq] (see \fBcgroups\fR(7)).
 The cgroup is specified as a path; if it has a leading slash, the remainder of the path is
 interpreted as relative to \fI/sys/fs/cgroup\fR, and otherwise the entire path is interpreted
 relative to the cgroup in which \fBdinit\fR is running (as determined at startup or specified
@@ -598,7 +607,7 @@ by options).
 The latter can only be used if there is only a single cgroup hierarchy (either the cgroups v2
 hierarchy with no cgroups v1 hierarchies, or a single cgroups v1 hierarchy).
 .IP
-Note that due to the "no internal processes" rule in cgroups v2, a relative path must typically
+Note that due to the \[lq]no internal processes\[rq] rule in cgroups v2, a relative path must typically
 begin with ".." if cgroups v2 are used.
 .IP
 The named cgroup must already exist prior to the service starting; it will not be created by
@@ -652,7 +661,7 @@ The value is an integer no less than -1000 and no more than 1000.
 .IP
 This setting is only available if \fBdinit\fR was built with OOM score adjustment support.
 .IP
-This setting requires the `proc' filesystem to be mounted (at \fB/proc\fR) before the service
+This setting requires the \[lq]proc\[rq] filesystem to be mounted (on \fI/proc\fR) before the service
 process begins execution, and will result in a service startup failure if that is not the case.
 .\"
 .SS OPTIONS
@@ -820,32 +829,31 @@ If only one value is specified with no colon separator, it affects both the soft
 .\"
 Some service properties specify a path to a file or directory, or a command line.
 For these properties, the specified value may contain one or more environment
-variable names, each preceded by a single `\fB$\fR' character, as in `\fB$NAME\fR'.
+variable names, each preceded by a single `$' character, as in `$NAME'.
 In each case the value of the named environment variable will be substituted.
 The name must begin with a non-punctuation, non-space, non-digit character, and ends
-before the first control character, space, or punctuation character other than `\fB_\fR'.
-To avoid substitution, a single `\fB$\fR' can be escaped with a second, as in `\fB$$\fR'.
+before the first control character, space, or punctuation character other than underline (`_').
+To avoid substitution, a single `$' can be escaped with a second, as in `$$'.
 .LP
 Variable substitution also supports a limited subset of shell syntax. You can use curly
-braces to enclose the variable, as in `\fB${NAME}\fR'.
-Limited parameter expansion is also supported, specifically the forms `\fB${NAME:\-word}\fR'
-(substitute `\fBword\fR' if variable is unset or empty), `\fB${NAME\-word}\fR' (substitute
-`\fBword\fR' if variable is unset), `\fB${NAME:+word}\fR' (substitute `\fBword\fR' if variable is
-set and non\-empty), and `\fB${NAME+word}\fR' (substitute `\fBword\fR' if variable is set).
-Unlike in shell expansion, the substituted \fBword\fR does not itself undergo expansion and
+braces to enclose the variable, as in `${NAME}'.
+Limited parameter expansion is also supported, specifically the forms `${NAME:\-word}'
+(substitute \fIword\fR if the variable is unset or empty), `${NAME\-word}' (substitute
+\fIword\fR if the variable is unset), `${NAME:+word}' (substitute \fIword\fR if the variable is
+set and non-empty), and `${NAME+word}' (substitute \fIword\fR if the variable is set).
+Unlike in shell expansion, the substituted \fIword\fR does not itself undergo expansion and
 cannot contain closing brace characters or whitespace, even if quoted.
 .LP
-To substitute the service argument, the `\fB$1\fR' syntax may be used.
-The complete syntax of the substitution is supported here.
-Services without an argument are treated as if the variable was unset, which
-affects some of the curly brace syntax variants.
+To substitute the service argument (if any), the variable name `1' can be used (as in `$1').
+All forms of parameter expansion are supported as for other variables.
+Services without an argument are treated as if the variable was unset.
 .LP
 Note that by default, command-line variable substitution occurs after splitting the line into
-separate arguments and so
-a single environment variable cannot be used to add multiple arguments to a command line.
-If a designated variable is not defined, it is replaced with an empty (zero-length) string, possibly producing a
-zero-length argument.
-To alter this behaviour use a slash after \fB$\fR, as in `\fB$/NAME\fR'; the expanded value will then
+separate arguments and so a single environment variable cannot be used to add multiple arguments
+to a command line.
+If a designated variable is not defined, it is replaced with an empty (zero-length) string,
+possibly producing a zero-length argument.
+To alter these behaviours, use a slash (`/') after `$', as in `$/NAME'; the expanded value will then
 be split into several arguments separated by whitespace or, if the value is empty or consists only
 of whitespace, will collapse (instead of producing an empty or whitespace argument).
 .LP
@@ -871,10 +879,10 @@ Using environment variable values in service commands and parameters can be used
 provide easily-adjustable service configuration, but is not ideal for this purpose and alternatives
 should be considered. 
 .LP
-A "pre-load" variable substitution is performed for certain service properties (as documented),
+A \[lq]pre-load\[rq] variable substitution is performed for certain service properties (as documented),
 including \fBdepends\-on\fR as well as \fBbefore\fR/\fBafter\fR and similar, instead of the usual
 (post-load) substitution.
-This form of substitution is performed before the service environment is loaded.
+This form of substitution is performed before any service-specific environment is loaded.
 It can substitute service arguments and environment variables set within \fBdinit\fR only; any
 service-specific variables that will be loaded from file (as specified using \fBenv\-file\fR) are
 not available. 
@@ -882,7 +890,7 @@ not available.
 .SS META-COMMANDS
 .\"
 A number of meta-commands can be used in service description files.
-A meta-command is indicated by an 'at' sign, \fB@\fR, at the beginning of the line (possibly preceded by whitespace).
+A meta-command is indicated by an \[lq]at\[rq] sign, `@', at the beginning of the line (possibly preceded by whitespace).
 Arguments to a meta-command follow on the same line and are interpreted as for setting values.
 .LP  
 The following commands are available:
@@ -906,7 +914,7 @@ The following sub-command is supported by \fBdinitctl\fR(8):
 .TP
 \fB@meta enable-via\fB \fIservice-name\fR
 Specifies the default service that this service should be added as a dependency of in order to
-"enable" it (as per the \fBdinitctl enable\fR command).
+enable it (as per the \fBdinitctl enable\fR command).
 .RE
 .\"
 .SH EXAMPLES
