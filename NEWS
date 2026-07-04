@@ -1,3 +1,23 @@
+== Version 0.22.1 (beta release #12) - July 2026
+
+This is purely a bug-fix release, fixing a small number of minor but potentially irritating bugs
+that have been discovered during ongoing testing since the previous release.
+
+In the absence of further major bugs, the next release is (yet again) expected to be 1.0, with a
+release candidate made available prior.
+
+Thanks to all sponsors and contributors.
+
+Fixes:
+ * In "dinitctl", for the "enable" and "disable" subcommands, perform variable substitution on the
+   "waits-for.d" setting value which is read for the "from" service.
+ * In "dinit-check", perform variable substitution for a range of different setting values.
+
+Build improvements:
+ * 'configure' no longer assumes a cross-build if the build system compiler (CXX_FOR_BUILD) is the
+   same as the host compiler (CXX) and the compilation flags for both are the same. Implemented
+   by Mobin Aydinfar.
+
 == Version 0.22.0 (beta release #11) - May 2026
 
 This is primarily a bug-fix release, resolving a number of small but significant bugs that have
