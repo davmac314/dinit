@@ -652,6 +652,10 @@ service_record *load_service(service_set_t &services, const std::string &name,
         return found->second;
     }
 
+    if (name.length() > std::numeric_limits<uint16_t>::max()) {
+        throw service_load_exc(name, "service name is too long");
+    }
+
     string_view base_name = name;
 
     const char *service_arg = nullptr;

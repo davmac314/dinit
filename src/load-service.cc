@@ -345,6 +345,10 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
         throw service_load_exc(fullname, "maximum recursion depth exceeded");
     }
 
+    if (strlen(fullname) > std::numeric_limits<uint16_t>::max()) {
+        throw service_load_exc(fullname, "service name is too long");
+    }
+
     const auto *argp = strchr(fullname, '@');
     if (!argp) argp = fullname + strlen(fullname);
 
