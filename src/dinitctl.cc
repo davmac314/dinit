@@ -1298,7 +1298,6 @@ static int unpin_service(dinit_conn_t &dinit_conn, const char *service_name, boo
 
     handle_t handle;
     
-    // Build buffer;
     if (!load_service(dinit_conn, service_name, &handle, nullptr)) {
         return 1;
     }
