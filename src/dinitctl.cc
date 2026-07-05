@@ -1224,8 +1224,14 @@ static int start_stop_service(dinit_conn_t &dinit_conn, const char *service_name
 // a response. Returns 1 on failure (with error logged), 0 on success.
 static int issue_load_service(int socknum, const char *service_name, bool find_only)
 {
-    // Build buffer;
-    srvname_len_t srvname_len = strlen(service_name);
+    // Build request buffer:
+    size_t srvname_len = strlen(service_name);
+    if (srvname_len > std::numeric_limits<srvname_len_t>::max()) {
+        std::cerr << DINITCTL_APPNAME ": service name too long.\n";
+        return 1;
+    }
+
+    static_assert(sizeof(int) > sizeof(srvname_len_t), ""); // (ensure following can't overflow)
     int bufsize = 3 + srvname_len;
     
     std::unique_ptr<char[]> ubuf(new char[bufsize]);
@@ -1235,6 +1241,7 @@ static int issue_load_service(int socknum, const char *service_name, bool find_o
     memcpy(buf + 1, &srvname_len, sizeof(srvname_len));
     memcpy(buf + 3, service_name, srvname_len);
 
+    // Issue request:
     write_all_x(socknum, buf, bufsize);
     
     return 0;
