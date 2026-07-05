@@ -1225,11 +1225,12 @@ static int start_stop_service(dinit_conn_t &dinit_conn, const char *service_name
 static int issue_load_service(int socknum, const char *service_name, bool find_only)
 {
     // Build request buffer:
-    size_t srvname_len = strlen(service_name);
-    if (srvname_len > std::numeric_limits<srvname_len_t>::max()) {
+    size_t srvname_len_st = strlen(service_name);
+    if (srvname_len_st > std::numeric_limits<srvname_len_t>::max()) {
         std::cerr << DINITCTL_APPNAME ": service name too long.\n";
         return 1;
     }
+    srvname_len_t srvname_len = srvname_len_st;
 
     static_assert(sizeof(int) > sizeof(srvname_len_t), ""); // (ensure following can't overflow)
     int bufsize = 3 + srvname_len;
