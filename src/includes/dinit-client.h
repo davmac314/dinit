@@ -434,6 +434,7 @@ inline int connect_to_daemon(const char *control_socket_path)
     free(name);
 
     if (connr == -1) {
+        close(socknum);
         throw control_sock_conn_err(errno, control_socket_path);
     }
 
