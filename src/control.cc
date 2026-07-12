@@ -18,7 +18,7 @@ using namespace dinit_cptypes;
 namespace {
     // Control protocol minimum compatible version and current version:
     constexpr uint16_t min_compat_version = 1;
-    constexpr uint16_t cp_version = 6;
+    constexpr uint16_t cp_version = 7;
 
     // check for value in a set
     template <typename T, int N, typename U>
@@ -108,6 +108,8 @@ bool control_conn_t::process_packet()
             return query_load_mech();
         case cp_cmd::ENABLESERVICE:
             return add_service_dep(true);
+        case cp_cmd::ENABLE_SERVICE_V7:
+            return add_service_dep(true, true);
         case cp_cmd::QUERYSERVICENAME:
             return process_query_name();
         case cp_cmd::SETENV:
@@ -892,7 +894,7 @@ bool control_conn_t::process_service_status6()
     return queue_packet(std::move(pkt_buf));
 }
 
-bool control_conn_t::add_service_dep(bool do_enable)
+bool control_conn_t::add_service_dep(bool do_enable, bool v7)
 {
     // 1 byte packet type
     // 1 byte dependency type
@@ -1015,8 +1017,19 @@ bool control_conn_t::add_service_dep(bool do_enable)
         }
     }
 
-    char ack_rep[] = { (char)cp_rply::ACK };
-    if (!queue_packet(ack_rep, 1)) return false;
+    if (v7) {
+        // Protocol version 7: return current status (via SERVICESTATUS) as reply
+        std::vector<char> pkt_buf(2 + STATUS_BUFFER6_SIZE);
+        pkt_buf[0] = char(cp_rply::SERVICESTATUS);
+        pkt_buf[1] = char(dep_exists);
+        fill_status_buffer6(pkt_buf.data() + 2, to_service);
+        if (!queue_packet(std::move(pkt_buf))) return false;
+    }
+    else {
+        char ack_rep[] = { (char)cp_rply::ACK };
+        if (!queue_packet(ack_rep, 1)) return false;
+    }
+
     rbuf.consume(pkt_size);
     chklen = 0;
     return true;

@@ -42,7 +42,7 @@ using namespace dinit_cptypes;
 
 // minimum and maximum protocol verions we can speak
 static constexpr uint16_t min_cp_version = 1;
-static constexpr uint16_t max_cp_version = 6;
+static constexpr uint16_t max_cp_version = 7;
 
 enum class ctl_cmd;
 struct dinit_conn_t;
@@ -2422,6 +2422,9 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
         }
     }
 
+    // Whether we need to send a separate status query after the enable/disable command:
+    bool need_status_query = true;
+
     if (socknum >= 0) {
         // warn if 'from' service is not started
         if (enable && from_state != service_state_t::STARTED) {
@@ -2429,9 +2432,16 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
         }
 
         // add/remove dependency
+        cp_cmd cmd;
+        if (enable) {
+            cmd = proto_version >= 7 ? cp_cmd::ENABLE_SERVICE_V7 : cp_cmd::ENABLESERVICE;
+            need_status_query = proto_version < 7;
+        }
+        else {
+            cmd = cp_cmd::REM_DEP;
+        }
         constexpr int enable_pktsize = 2 + sizeof(handle_t) * 2;
-        char cmdbuf[enable_pktsize] = { char(enable ? cp_cmd::ENABLESERVICE : cp_cmd::REM_DEP),
-                char(dependency_type::WAITS_FOR)};
+        char cmdbuf[enable_pktsize] = { char(cmd), char(dependency_type::WAITS_FOR) };
         memcpy(cmdbuf + 2, &from_handle, sizeof(from_handle));
         memcpy(cmdbuf + 2 + sizeof(from_handle), &to_handle, sizeof(to_handle));
         write_all_x(socknum, cmdbuf, enable_pktsize);
@@ -2449,11 +2459,14 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
             }
             return 1;
         }
-        if (rbuffer[0] != (char)cp_rply::ACK) {
-            cerr << DINITCTL_APPNAME ": control socket protocol error\n";
-            return 1;
+        if (need_status_query) {
+            if (rbuffer[0] != (char)cp_rply::ACK) {
+                cerr << DINITCTL_APPNAME ": control socket protocol error\n";
+                return 1;
+            }
+            rbuffer.consume(1);
         }
-        rbuffer.consume(1);
+        // (If no separate status query is needed, we don't consume the status reply just now)
     }
 
     // create link
@@ -2495,6 +2508,7 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
         }
     }
     else {
+        // Disable - remove existing symbolic link.
         if (unlinkat(parent_dir_fd_retained.get(), dep_link_relative.c_str(), 0) == -1) {
             cerr << DINITCTL_APPNAME ": could not unlink dependency entry " << dep_link_path
                     << ": " << strerror(errno);
@@ -2516,22 +2530,31 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
 
         cpbuffer_t &rbuffer = *dinit_conn.buffer;
 
-        char cmd_pkt = (char)(proto_version < 5 ? cp_cmd::SERVICESTATUS : cp_cmd::SERVICESTATUS5);
+        // Check status of the service now. In protocol version 7+ we don't need to send a
+        // SERVICESTATUS request (need_status_query will be false) as the ENABLE_SERVICE_V7
+        // request will respond with service status (as per a v6+ status request), i.e. we just
+        // wait for the reply (below).
 
-        // Check status of the service now
-        auto m = membuf()
-                .append(cmd_pkt)
-                .append(to_handle);
-        write_all_x(socknum, m);
+        if (need_status_query) {
+            char cmd_pkt = (char)(proto_version < 5 ? cp_cmd::SERVICESTATUS : cp_cmd::SERVICESTATUS5);
+            auto m = membuf()
+                    .append(cmd_pkt)
+                    .append(to_handle);
+            write_all_x(socknum, m);
+        }
 
         int statussize = proto_version < 5 ? STATUS_BUFFER_SIZE : STATUS_BUFFER5_SIZE;
+        if (!need_status_query) statussize = STATUS_BUFFER6_SIZE;
 
         // For an enable, we want to wait until the service has started so we can report any
         // failure. But, if the service is already started, we won't get any service events, so we
         // have to request status via SERVICESTATUS to catch that case. However, we may get
         // a service event before the reply to SERVICESTATUS and in that case should use it to
-        // report status.
-        if (enable) {
+        // report status (although this is still racy). If need_status_query is false (protocol
+        // version 7) it isn't necessary to send SERVICESTATUS, the reply is sent as a response to
+        // enabling the service, and since it reports the status current at the time the service
+        // is enabled it avoids the race.
+        if (enable && need_status_query) {
             int r = rbuffer.fill_to(socknum, 2);
             while (r > 0 && rbuffer[0] >= 100) {
                 unsigned pktlen = (unsigned char) rbuffer[1];
@@ -2584,8 +2607,11 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
         rbuffer.consume(statussize);
 
         if (enable) {
-            if (current != service_state_t::STARTED) {
-                wait_service_state(dinit_conn, to_handle, to, false /* start */, verbose);
+            if (current == service_state_t::STARTED) {
+
+            }
+            if (current != service_state_t::STARTED && target == service_state_t::STARTED) {
+                return wait_service_state(dinit_conn, to_handle, to, false /* start */, verbose);
             }
         }
         else {
