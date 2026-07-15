@@ -144,3 +144,79 @@ jobs:
       with:
           name: igr-tests_output
           path: src/igr-tests/*/output/*
+
+  BSD_build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # By default all "steps" commands are run by "bash" on the runner itself. BSD builds run
+        # inside virtual machines and cpa.sh is a helper to run commands of "steps" inside the
+        # virtual machine, replacing the default "bash".
+        shell: cpa.sh {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: 'FreeBSD'
+            version: '15.1'
+            arch: 'amd64'
+            hardening: 'clang_hardening'
+          - name: 'OpenBSD'
+            version: '7.9'
+            arch: 'amd64'
+          - name: 'NetBSD'
+            version: '10.1'
+            arch: 'amd64'
+
+    steps:
+    - uses: actions/checkout@v7
+    - name: Run VM
+      uses: cross-platform-actions/action@v1.3.0
+      with:
+        operating_system: ${{ matrix.name }}
+        version: ${{ matrix.version }}
+    - name: Install required packages (FreeBSD)
+      if: ${{ matrix.name == 'FreeBSD' }}
+      run: |
+        sudo pkg update
+        sudo pkg install -y gmake m4 llvm
+    - name: Install required packages (OpenBSD)
+      if: ${{ matrix.name == 'OpenBSD' }}
+      run: |
+        sudo pkg_add -I gmake m4 llvm%21
+    - name: Install required packages (NetBSD)
+      if: ${{ matrix.name == 'NetBSD' }}
+      run: |
+        sudo pkgin update
+        sudo pkgin -y install gmake m4 clang
+    - name: Print clang++ architecture and version
+      run: clang++ --version
+    - name: Configure with Clang hardening flags
+      if: ${{ matrix.hardening == 'clang_hardening' }}
+      run: |
+        ./configure CXXFLAGS="-std=c++11 -flto -fstack-clash-protection -fvisibility=hidden \
+        -fsanitize=cfi,address,signed-integer-overflow,integer-divide-by-zero \
+        -fsanitize-trap=cfi,signed-integer-overflow,integer-divide-by-zero \
+        -fno-sanitize-recover" \
+        LDFLAGS="-flto -fsanitize=cfi,address,signed-integer-overflow,integer-divide-by-zero \
+        -fsanitize-trap=cfi,signed-integer-overflow,integer-divide-by-zero"
+    - name: Build
+      run: gmake CXX=clang++
+    - name: Unit tests
+      run: gmake check
+    - name: Integration tests
+      id: igr-tests
+      run: gmake check-igr
+    # cpa.sh doesn't sync files when the step fails. We usually don't need to sync files after a
+    # command failure but we need to sync for the igr-tests output on failure. Explicitly sync
+    # files from the VM to the runner for this case.
+    - name: Sync igr-tests output file(s) from the VM on failure
+      if: ${{ failure() && steps.igr-tests.outcome == 'failure' }}
+      shell: /bin/sh {0}
+      run: cpa.sh --sync-files vm-to-runner
+    - name: Upload igr-tests output file(s) on failure
+      uses: actions/upload-artifact@v6.0.0
+      if: ${{ failure() && steps.igr-tests.outcome == 'failure' }}
+      with:
+        name: igr-tests_output
+        path: src/igr-tests/igr-output/
