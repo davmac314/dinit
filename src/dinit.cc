@@ -281,17 +281,17 @@ static int process_commandline_arg(char **argv, int argc, int &i, options &opts)
             }
         }
         else if (strcmp(argv[i], "--system") == 0 || strcmp(argv[i], "-s") == 0) {
-            am_system_init = true;
+            am_system_mgr = true;
         }
         else if (strcmp(argv[i], "--system-mgr") == 0 || strcmp(argv[i], "-m") == 0) {
-            am_system_mgr = true;
+            am_system_init = true;
             opts.process_sys_args = false;
         }
         else if (strcmp(argv[i], "--user") == 0 || strcmp(argv[i], "-u") == 0) {
-            am_system_init = false;
+            am_system_mgr = false;
         }
         else if (strcmp(argv[i], "--container") == 0 || strcmp(argv[i], "-o") == 0) {
-            am_system_mgr = false;
+            am_system_init = false;
             opts.process_sys_args = false;
         }
         else if (strcmp(argv[i], "--auto-recovery") == 0 || strcmp(argv[i], "-r") == 0) {
@@ -470,14 +470,14 @@ int dinit_main(int argc, char **argv)
 {
     using namespace std;
     
-    am_system_mgr = (getpid() == 1);
-    am_system_init = (getuid() == 0);
+    am_system_init = (getpid() == 1);
+    am_system_mgr = (getuid() == 0);
     
     struct options opts;
 
     // if we are PID 1 and user id 0, we are *most probably* the system init. (Or on linux at least, we
     // could instead be in a container; then we expect -o argument and unset this then).
-    opts.process_sys_args = am_system_mgr && am_system_init;
+    opts.process_sys_args = am_system_init && am_system_mgr;
 
     const char * &env_file = opts.env_file;
     bool &control_socket_path_set = opts.control_socket_path_set;
@@ -498,7 +498,7 @@ int dinit_main(int argc, char **argv)
         }
     }
 
-    if (am_system_mgr) {
+    if (am_system_init) {
         // setup STDIN, STDOUT, STDERR so that we can use them
         int onefd = open("/dev/console", O_RDONLY, 0);
         if (onefd != -1) {
@@ -525,8 +525,8 @@ int dinit_main(int argc, char **argv)
 
     /* Set up signal handlers etc */
     sigset_t sigwait_set;
-    if (am_system_mgr) {
-        // Block all signals in system manager mode - don't want to chance provoking a signal that
+    if (am_system_init) {
+        // Block all signals in system init mode - don't want to chance provoking a signal that
         // will suspend or terminate the process
         sigfillset(&sigwait_set);
     }
@@ -550,7 +550,7 @@ int dinit_main(int argc, char **argv)
     
     event_loop.init();
 
-    if (!am_system_init && !control_socket_path_set) {
+    if (!am_system_mgr && !control_socket_path_set) {
         const char * rundir = getenv("XDG_RUNTIME_DIR");
         const char * sockname = "dinitctl";
         if (rundir == nullptr) {
@@ -575,7 +575,7 @@ int dinit_main(int argc, char **argv)
     callback_signal_handler sigquit_watcher;
     callback_signal_handler sigusr1_watcher {sigusr1_cb};
 
-    if (am_system_mgr) {
+    if (am_system_init) {
         sigint_watcher.set_cb_func(sigint_reboot_cb);
         sigquit_watcher.set_cb_func(sigquit_cb);
     }
@@ -587,7 +587,7 @@ int dinit_main(int argc, char **argv)
     sigterm_watcher.add_watch(event_loop, SIGTERM);
     sigusr1_watcher.add_watch(event_loop, SIGUSR1);
 
-    if (am_system_mgr) {
+    if (am_system_init) {
         // PID 1: we may ask for console input; SIGQUIT exec's shutdown
         console_input_io.add_watch(event_loop, STDIN_FILENO, dasynq::IN_EVENTS, false);
         sigquit_watcher.add_watch(event_loop, SIGQUIT);
@@ -607,13 +607,13 @@ int dinit_main(int argc, char **argv)
 
     // Try to open control socket (may fail due to readonly filesystem, we ignore that if we are
     // system init)
-    if (!open_control_socket(!am_system_init)) {
+    if (!open_control_socket(!am_system_mgr)) {
         flush_log();
         return EXIT_FAILURE;
     }
     
 #ifdef __linux__
-    if (am_system_mgr) {
+    if (am_system_init) {
         // Disable non-critical kernel output to console
         klogctl(6 /* SYSLOG_ACTION_CONSOLE_OFF */, nullptr, 0);
         // Make ctrl+alt+del combination send SIGINT to PID 1 (this process)
@@ -630,7 +630,7 @@ int dinit_main(int argc, char **argv)
     procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL);
 #endif
     
-    service_dir_opts.build_paths(am_system_init);
+    service_dir_opts.build_paths(am_system_mgr);
 
     // Start requested services
 
@@ -638,14 +638,14 @@ int dinit_main(int argc, char **argv)
 
     setup_log_console_handoff(services);
 
-    if (am_system_mgr) {
+    if (am_system_init) {
         log(loglevel_t::NOTICE, false, "Starting system");
     }
     
     // If a log file was specified, open it now.
     if (log_specified) {
         setup_external_log();
-        if (!am_system_mgr && !external_log_open) {
+        if (!am_system_init && !external_log_open) {
             flush_log();
             return EXIT_FAILURE;
         }
@@ -658,7 +658,7 @@ int dinit_main(int argc, char **argv)
         catch (const dio::iostream_system_err &err) {
             log(loglevel_t::ERROR, "Cannot read environment file '", env_file, "': ",
                     strerror(err.get_errno()));
-            if (!am_system_mgr) {
+            if (!am_system_init) {
                 flush_log();
                 return EXIT_FAILURE;
             }
@@ -705,7 +705,7 @@ int dinit_main(int argc, char **argv)
         goto run_event_loop;
     }
     
-    if (am_system_mgr) {
+    if (am_system_init) {
         log_msg_begin(loglevel_t::NOTICE, "No more active services.");
         
         if (shutdown_type == shutdown_type_t::REBOOT) {
@@ -732,7 +732,7 @@ int dinit_main(int argc, char **argv)
     bool need_log_flush = false;
     close_control_socket();
     
-    if (am_system_mgr) {
+    if (am_system_init) {
         if (shutdown_type == shutdown_type_t::SOFTREBOOT) {
             do_soft_reboot(argv);
 

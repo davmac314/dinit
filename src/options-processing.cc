@@ -25,13 +25,13 @@ const char *service_dir_opt::get_user_home()
     return user_home_path;
 }
 
-void service_dir_opt::build_paths(bool am_system_init)
+void service_dir_opt::build_paths(bool am_system_mgr)
 {
     if (service_dirs.empty()) {
         bool home_service_dir_set = false;
 
         /* service directory name */
-        if (!am_system_init) {
+        if (!am_system_mgr) {
             const char * xdg_config_home = getenv("XDG_CONFIG_HOME");
             size_t xdg_config_home_len;
             if (xdg_config_home != nullptr && *xdg_config_home != '\0') {
