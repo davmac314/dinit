@@ -327,11 +327,13 @@ use `log-type = buffered` to log to an in-memory buffer.
   functions:
   - cleans up the `/tmp` directory, the `/var/lock` directory and the `/var/run` directory
   - creates directories that may be needed under `/var/run`
-  - copies saved entropy to the `/dev/urandom` device
+  - invokes `seedrng` (from https://git.zx2c4.com/seedrng) to seed the random number generator
+    devices (/dev/random, /dev/urandom) and fill the entropy pool with entropy saved at the prior
+    shutdown.
   - configures the "lo" (loopback) network device (relies on `ifconfig` from the GNU
     inetutils package)
   - sets the hostname
-  On shutdown, it saves entropy from `/dev/urandom` so that it can be restored next boot.
+  - On shutdown, invokes `seedrng` (again) to save entropy for use at next boot
   
 By the time `rcboot` has started, the system is quite functional. The following additional
 services can then start (this ordering is enforced by a dependency on `rcboot`):
