@@ -104,6 +104,8 @@ bool control_conn_t::process_packet()
             return add_service_dep();
         case cp_cmd::REM_DEP:
             return rm_service_dep();
+        case cp_cmd::REM_DEP_V7:
+            return rm_service_dep(true);
         case cp_cmd::QUERY_LOAD_MECH:
             return query_load_mech();
         case cp_cmd::ENABLESERVICE:
@@ -894,7 +896,7 @@ bool control_conn_t::process_service_status6()
     return queue_packet(std::move(pkt_buf));
 }
 
-bool control_conn_t::add_service_dep(bool do_enable, bool v7)
+bool control_conn_t::add_service_dep(bool do_enable, bool with_status_response)
 {
     // 1 byte packet type
     // 1 byte dependency type
@@ -1017,8 +1019,8 @@ bool control_conn_t::add_service_dep(bool do_enable, bool v7)
         }
     }
 
-    if (v7) {
-        // Protocol version 7: return current status (via SERVICESTATUS) as reply
+    if (with_status_response) {
+        // Protocol version 7: return current status of "to" service as reply (via SERVICESTATUS)
         std::vector<char> pkt_buf(2 + STATUS_BUFFER6_SIZE);
         pkt_buf[0] = char(cp_rply::SERVICESTATUS);
         pkt_buf[1] = char(dep_exists);
@@ -1035,7 +1037,7 @@ bool control_conn_t::add_service_dep(bool do_enable, bool v7)
     return true;
 }
 
-bool control_conn_t::rm_service_dep()
+bool control_conn_t::rm_service_dep(bool with_status_resp)
 {
     // 1 byte packet type
     // 1 byte dependency type
@@ -1108,8 +1110,19 @@ bool control_conn_t::rm_service_dep()
     bool did_remove = from_service->rm_dep(to_service, dep_type);
     services->process_queues();
 
-    char ack_rep[] = { did_remove ? (char)cp_rply::ACK : (char)cp_rply::NAK };
-    if (!queue_packet(ack_rep, 1)) return false;
+    if (with_status_resp) {
+        // Protocol version 7: return current status of "to" service as reply (via SERVICESTATUS)
+        std::vector<char> pkt_buf(2 + STATUS_BUFFER6_SIZE);
+        pkt_buf[0] = char(cp_rply::SERVICESTATUS);
+        pkt_buf[1] = char(did_remove);
+        fill_status_buffer6(pkt_buf.data() + 2, to_service);
+        if (!queue_packet(std::move(pkt_buf))) return false;
+    }
+    else {
+        char ack_rep[] = { did_remove ? (char)cp_rply::ACK : (char)cp_rply::NAK };
+        if (!queue_packet(ack_rep, 1)) return false;
+    }
+
     rbuf.consume(pkt_size);
     chklen = 0;
     return true;

@@ -2438,7 +2438,8 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
             need_status_query = proto_version < 7;
         }
         else {
-            cmd = cp_cmd::REM_DEP;
+            cmd = proto_version >= 7 ? cp_cmd::REM_DEP_V7 : cp_cmd::REM_DEP;
+            need_status_query = proto_version < 7;
         }
         constexpr int enable_pktsize = 2 + sizeof(handle_t) * 2;
         char cmdbuf[enable_pktsize] = { char(cmd), char(dependency_type::WAITS_FOR) };
@@ -2546,15 +2547,15 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
         int statussize = proto_version < 5 ? STATUS_BUFFER_SIZE : STATUS_BUFFER5_SIZE;
         if (!need_status_query) statussize = STATUS_BUFFER6_SIZE;
 
-        // For an enable, we want to wait until the service has started so we can report any
-        // failure. But, if the service is already started, we won't get any service events, so we
-        // have to request status via SERVICESTATUS to catch that case. However, we may get
-        // a service event before the reply to SERVICESTATUS and in that case should use it to
-        // report status (although this is still racy). If need_status_query is false (protocol
-        // version 7) it isn't necessary to send SERVICESTATUS, the reply is sent as a response to
-        // enabling the service, and since it reports the status current at the time the service
-        // is enabled it avoids the race.
-        if (enable && need_status_query) {
+        // We want to wait until the service has started/stopped. But, if the service is already
+        // reached the target state, we won't get any service events, so we have to request status
+        // via SERVICESTATUS to catch that case. However, we may get a service event before the
+        // reply to SERVICESTATUS and in that case should use it to report status (although this
+        // is still racy). If need_status_query is false (protocol version 7) it isn't necessary
+        // to send SERVICESTATUS, the reply is sent as a response to enabling/disabling the
+        // service, and since it reports the status current at the time the service is enabled it
+        // avoids the race.
+        if (need_status_query) {
             int r = rbuffer.fill_to(socknum, 2);
             while (r > 0 && rbuffer[0] >= 100) {
                 unsigned pktlen = (unsigned char) rbuffer[1];
@@ -2607,16 +2608,17 @@ static int enable_disable_service(dinit_conn_t &dinit_conn, service_dir_opt &ser
         rbuffer.consume(statussize);
 
         if (enable) {
-            if (current == service_state_t::STARTED) {
-
-            }
             if (current != service_state_t::STARTED && target == service_state_t::STARTED) {
                 return wait_service_state(dinit_conn, to_handle, to, false /* start */, verbose);
             }
         }
-        else {
+        else { // (disable)
             if (target != service_state_t::STOPPED) {
-                std::cerr << DINITCTL_APPNAME ": note: disabled service may have other dependents\n";
+                std::cerr << DINITCTL_APPNAME ": note: disabled service is not stopping; it may "
+                        "have other dependents.\n";
+            }
+            else if (current != service_state_t::STOPPED) {
+                return wait_service_state(dinit_conn, to_handle, to, true /* stop */, verbose);
             }
         }
     }
