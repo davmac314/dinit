@@ -144,3 +144,79 @@ jobs:
       with:
           name: igr-tests_output
           path: src/igr-tests/*/output/*
+
+  FreeBSD_build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
+      matrix:
+        include:
+          - arch: 'amd64'
+
+    steps:
+    - uses: actions/checkout@v7
+    - name: Build and test in FreeBSD
+      uses: vmactions/freebsd-vm@v1
+      with:
+        usesh: true
+        cache-after-prepare: true
+        prepare: |
+          pkg install -y gmake
+        run: |
+          set -e
+          echo "--- compiler ---"
+          clang++ -dumpmachine
+          clang++ --version
+          echo "--- build ---"
+          gmake
+          echo "--- executable ---"
+          file ./src/dinit
+          echo "--- unit tests ---"
+          gmake check
+          echo "--- integration tests ---"
+          gmake check-igr
+    - name: Upload igr-tests output file(s) on failure
+      uses: actions/upload-artifact@v4.3.2
+      if: failure()
+      with:
+          name: igr-tests_output_freebsd
+          path: src/igr-tests/*/output/*
+
+  OpenBSD_build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # Upload src/igr-tests/*/output/* files in igr-tests
+      matrix:
+        include:
+          - arch: 'amd64'
+
+    steps:
+    - uses: actions/checkout@v7
+    - name: Build and test in OpenBSD
+      uses: vmactions/openbsd-vm@v1
+      with:
+        usesh: true
+        cache-after-prepare: true
+        prepare: |
+          pkg_add -I gmake
+        run: |
+          set -e
+          echo "--- compiler ---"
+          clang++ -dumpmachine
+          clang++ --version
+          echo "--- build ---"
+          gmake
+          echo "--- executable ---"
+          file ./src/dinit
+          echo "--- unit tests ---"
+          gmake check
+          echo "--- integration tests ---"
+          gmake check-igr
+    - name: Upload igr-tests output file(s) on failure
+      uses: actions/upload-artifact@v4.3.2
+      if: failure()
+      with:
+          name: igr-tests_output_openbsd
+          path: src/igr-tests/*/output/*
