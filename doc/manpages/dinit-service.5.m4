@@ -603,7 +603,8 @@ Specifies the CPU priority of the process.
 When the given value is out of range for the operating system, it will be clamped to
 supported range, but no error will be issued.
 On Linux, this also sets the autogroup priority (if the procfs filesystem has been mounted appropriately).
-.TP
+$$$ifelse(SUPPORT_CGROUPS, 1,
+@@@.TP
 \fBrun\-in\-cgroup\fR = \fIcgroup-path\fR
 Run the service process(es) in the specified \[lq]cgroup\[rq] (see \fBcgroups\fR(7)).
 The cgroup is specified as a path; if it has a leading slash, the remainder of the path is
@@ -620,7 +621,8 @@ The named cgroup must already exist prior to the service starting; it will not b
 \fBdinit\fR.
 .IP
 This setting is only available if \fBdinit\fR was built with cgroups support.
-.TP
+$$$)ifelse(SUPPORT_CAPABILITIES, 1,
+@@@.TP
 \fBcapabilities\fR = \fIiab\fR
 .TQ
 \fBcapabilities\fR += \fIiab-addendum\fR
@@ -652,7 +654,8 @@ The `+=' operator used with this setting can be used to add additional securebit
 those specified previously.
 .IP
 This setting is only available if \fBdinit\fR was built with capabilities support.
-.TP
+$$$)ifelse(SUPPORT_IOPRIO, 1,
+@@@.TP
 \fBioprio\fR = \fIioprio-value\fR
 Specifies the I/O priority class and value for the service's process(es).
 The permitted values are \fBnone\fR, \fBidle\fR, \fBrealtime:\fR\fIPRIO\fR, and
@@ -660,7 +663,8 @@ The permitted values are \fBnone\fR, \fBidle\fR, \fBrealtime:\fR\fIPRIO\fR, and
 and no more than 7.
 .IP
 This setting is only available if \fBdinit\fR was built with ioprio support.
-.TP
+$$$)ifelse(SUPPORT_OOM_ADJ, 1,
+@@@.TP
 \fBoom\-score\-adj\fR = \fIadj-value\fR
 Specifies the OOM killer score adjustment for the service's process(es).
 The value is an integer no less than -1000 and no more than 1000.
@@ -669,7 +673,8 @@ This setting is only available if \fBdinit\fR was built with OOM score adjustmen
 .IP
 This setting requires the \[lq]proc\[rq] filesystem to be mounted (on \fI/proc\fR) before the service
 process begins execution, and will result in a service startup failure if that is not the case.
-.\"
+$$$)dnl
+@@@.\"
 .SS OPTIONS
 .\"
 These options are specified via the \fBoptions\fR parameter. 
