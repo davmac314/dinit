@@ -6,6 +6,7 @@
 #include "service.h"
 #include "test_service.h"
 #include "baseproc-sys.h"
+#include "dinit-ll.h"
 
 #ifdef NDEBUG
 #error "This file must be built with assertions ENABLED!"
@@ -17,6 +18,15 @@ constexpr static auto MS = dependency_type::MILESTONE;
 constexpr static auto BEFORE = dependency_type::BEFORE;
 constexpr static auto AFTER = dependency_type::AFTER;
 
+// Element type for use in tests for single-linked list
+struct sll_test_elem {
+    int elem_id;
+    lls_node<sll_test_elem> node;
+};
+
+lls_node<sll_test_elem> &get_node(sll_test_elem *e) { return e->node; }
+
+// Service listener for use in tests
 class test_listener : public service_listener
 {
     public:
@@ -45,6 +55,36 @@ class test_listener : public service_listener
         }
     }
 };
+
+// Test the singly-linked list implementation in dinit-ll.h
+void test_sll() {
+    slist<sll_test_elem, get_node> s;
+
+    sll_test_elem one = { 1111 };
+    sll_test_elem two = { 2222 };
+    sll_test_elem three = { 3333 };
+
+    assert(!s.is_queued(&one) && !s.is_queued(&two) && !s.is_queued(&three));
+
+    s.insert(&one);
+    assert(s.is_queued(&one) && !s.is_queued(&two) && !s.is_queued(&three));
+    assert(!s.is_empty());
+
+    s.insert(&two);
+    assert(s.is_queued(&one) && s.is_queued(&two) && !s.is_queued(&three));
+    assert(!s.is_empty());
+
+    s.insert(&three);
+    assert(s.is_queued(&one) && s.is_queued(&two) && s.is_queued(&three));
+    assert(!s.is_empty());
+
+    assert(s.pop_front() == &three);
+    assert(!s.is_empty());
+    assert(s.pop_front() == &two);
+    assert(!s.is_empty());
+    assert(s.pop_front() == &one);
+    assert(s.is_empty());
+}
 
 // Starting a service starts dependencies; stopping the service releases and
 // stops dependencies.
@@ -1892,6 +1932,7 @@ int main(int argc, char **argv)
 {
     bp_sys::init_bpsys();
 
+    RUN_TEST(test_sll, "                  ");
     RUN_TEST(basic_test1, "               ");
     RUN_TEST(basic_test2, "               ");
     RUN_TEST(basic_test3, "               ");

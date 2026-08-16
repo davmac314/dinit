@@ -113,7 +113,7 @@ class dlist
     }
 };
 
-// Singly-linked list implementation.
+// Singly-linked list implementation, allowing insertion at and removal from the front only.
 template <typename T, lls_node<T> &(*E)(T *)>
 class slist
 {
@@ -125,13 +125,19 @@ class slist
     bool is_queued(T *e) noexcept
     {
         auto &node = E(e);
-        return node.next != nullptr || first == e;
+        return node.next != nullptr;
     }
 
+    // Insert at the front of the list. The element must not already be in the list.
     void insert(T *e) noexcept
     {
         auto &node = E(e);
-        node.next = first;
+        if (first == nullptr) {
+            node.next = e; // self-pointing tail
+        }
+        else {
+            node.next = first;
+        }
         first = e;
     }
 
@@ -144,6 +150,12 @@ class slist
     {
         T * r = first;
         auto &node = E(r);
+        if (first == node.next) {
+            // This was the tail, i.e. only single element in list, which is now empty
+            first = nullptr;
+            node.next = nullptr;
+            return r;
+        }
         first = node.next;
         node.next = nullptr;
         return r;
