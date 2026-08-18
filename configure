@@ -822,13 +822,13 @@ if [ -n "${CXX_FOR_BUILD:-}" ]; then
         echo "CXX_FOR_BUILD=$CXX_FOR_BUILD"
     } >> mconfig
 fi
-if [ -n "${CXXFLAGS_FOR_BUILD:-}" ]; then
+if [ -n "${CXXFLAGS_FOR_BUILD+IS_SET}" ]; then
     echo "CXXFLAGS_FOR_BUILD=$CXXFLAGS_FOR_BUILD" >> mconfig
 fi
-if [ -n "${CPPFLAGS_FOR_BUILD:-}" ]; then
+if [ -n "${CPPFLAGS_FOR_BUILD+IS_SET}" ]; then
     echo "CPPFLAGS_FOR_BUILD=$CPPFLAGS_FOR_BUILD" >> mconfig
 fi
-if [ -n "${LDFLAGS_FOR_BUILD:-}" ]; then
+if [ -n "${LDFLAGS_FOR_BUILD+IS_SET}" ]; then
     echo "LDFLAGS_FOR_BUILD=$LDFLAGS_FOR_BUILD" >> mconfig
 fi
 sub_info "done."
