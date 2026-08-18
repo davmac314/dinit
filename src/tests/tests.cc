@@ -26,6 +26,14 @@ struct sll_test_elem {
 
 lls_node<sll_test_elem> &get_node(sll_test_elem *e) { return e->node; }
 
+// Element type for use in tests for doubly-linked list
+struct dll_test_elem {
+    int elem_id;
+    lld_node<dll_test_elem> node;
+};
+
+lld_node<dll_test_elem> &get_node_d(dll_test_elem *e) { return e->node; }
+
 // Service listener for use in tests
 class test_listener : public service_listener
 {
@@ -84,6 +92,46 @@ void test_sll() {
     assert(!s.is_empty());
     assert(s.pop_front() == &one);
     assert(s.is_empty());
+}
+
+// Test the doubly-linked list implementation in dinit-ll.h
+void test_dll() {
+    dlist<dll_test_elem, get_node_d> d;
+
+    dll_test_elem one = { 1111 };
+    dll_test_elem two = { 2222 };
+    dll_test_elem three = { 3333 };
+
+    assert(!d.is_queued(&one) && !d.is_queued(&two) && !d.is_queued(&three));
+    assert(d.is_empty());
+
+    d.append(&one);
+    assert(d.is_queued(&one) && !d.is_queued(&two) && !d.is_queued(&three));
+    assert(!d.is_empty());
+
+    d.append(&two);
+    assert(d.is_queued(&one) && d.is_queued(&two) && !d.is_queued(&three));
+    assert(!d.is_empty());
+
+    d.append(&three);
+    assert(d.is_queued(&one) && d.is_queued(&two) && d.is_queued(&three));
+    assert(!d.is_empty());
+
+    assert(d.pop_front() == &one);
+    assert(!d.is_queued(&one) && d.is_queued(&two) && d.is_queued(&three));
+
+    d.append(&one); // order is now [2, 3, 1]
+    assert(d.is_queued(&one) && d.is_queued(&two) && d.is_queued(&three));
+    assert(d.tail() == &one);
+    d.unlink(&three); // [2, 1]
+    assert(d.is_queued(&one) && d.is_queued(&two) && !d.is_queued(&three));
+    assert(d.tail() == &one);
+    assert(d.pop_front() == &two); // [1]
+    assert(d.is_queued(&one) && !d.is_queued(&two) && !d.is_queued(&three));
+    assert(d.tail() == &one);
+    assert(d.pop_front() == &one); // empty
+    assert(!d.is_queued(&one) && !d.is_queued(&two) && !d.is_queued(&three));
+    assert(d.is_empty());
 }
 
 // Starting a service starts dependencies; stopping the service releases and
@@ -1933,6 +1981,7 @@ int main(int argc, char **argv)
     bp_sys::init_bpsys();
 
     RUN_TEST(test_sll, "                  ");
+    RUN_TEST(test_dll, "                  ");
     RUN_TEST(basic_test1, "               ");
     RUN_TEST(basic_test2, "               ");
     RUN_TEST(basic_test3, "               ");
