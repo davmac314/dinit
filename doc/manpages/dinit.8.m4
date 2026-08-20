@@ -111,13 +111,15 @@ the user when \fBdinit\fR is running as system manager.
 Run with no output to the terminal/console.
 This disables service status messages and sets the log level for the console log to \fBnone\fR.
 To re-enable (some) output, use the `\fB\-\-console\-level\fR' option after this option.
-.TP
+$$$ifelse(SUPPORT_CGROUPS, 1,
+@@@.TP
 \fB\-b\fR \fIpath\fR, \fB\-\-cgroup\-path\fR \fIpath\fR
 Specify the path to resolve relative cgroup paths against.
 If service description settings contain relative cgroup paths, they will be resolved relative to
 this path.
 This option is only available if \fBdinit\fR is built with cgroups support.
-.TP
+$$$)dnl
+@@@.TP
 \fB\-\-help\fR
 Display brief help text and then exit.
 .TP
