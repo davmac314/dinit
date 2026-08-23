@@ -103,9 +103,9 @@ as shutdown/reboot).
 The \fBdinit\fR daemon will simply exit rather than executing the \fB$$$SHUTDOWN_PREFIX@@@shutdown\fR program.
 .TP
 \fB\-r\fR, \fB\-\-auto\-recovery\fR
-Automatically run the \fBrecovery\fR service on apparent boot failures (if all
-services stop without a shutdown command having been issued) without prompting
-the user when \fBdinit\fR is running as system manager.
+Automatically run the \fBrecovery\fR service on apparent boot failures (if all services stop
+without a shutdown command having been issued) without prompting the user, when \fBdinit\fR is
+running as system manager. This may be useful for \[lq]headless\[rq] or remote systems.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR
 Run with no output to the terminal/console.
@@ -179,7 +179,8 @@ having been issued), when \fBdinit\fR is running as system manager.
 .\"
 .SH OPERATION
 .\"
-On starting, \fBdinit\fR starts the initial service(s) as specified on the command line.
+On starting, \fBdinit\fR starts the initial service(s) as specified on the command line (or
+the \fBboot\fR service if none are specified).
 Starting a service also causes the dependencies of that service to start, and any service
 processes will not be launched until the dependencies are satisfied.
 Similarly, stopping a service first stops any dependent services.
@@ -195,8 +196,13 @@ generally as a means to avoid starting two instances of \fBdinit\fR.
 Process-based services are monitored and, if the process terminates, the service may be stopped or
 the process may be re-started, according to the configuration in the service description.
 .LP
-Once all services stop, the \fBdinit\fR daemon will itself terminate (or, if
-running as system manager, will perform the appropriate type of system shutdown).
+Once all services stop, the \fBdinit\fR daemon will itself terminate if not running as system
+manager; otherwise, if a shutdown command has been issued, it will perform the appropriate type of
+system shutdown or restart.
+If running as system manager and all services stop without any shutdown command being issued,
+\fbdinit\fR will (via the console) issue a prompt and allow choosing several among several recovery
+options, including to run the \fBrecovery\fR service (if available) or restart the system.
+This behaviour can be altered via the \fB\-\-auto\-recovery\fR (\fB\-r\fR) command line option. 
 .\"
 .SS SERVICE ACTIVATION MODEL
 .\"
