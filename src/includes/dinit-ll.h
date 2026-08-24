@@ -12,15 +12,15 @@
 template <typename T>
 struct lld_node
 {
-    T * next = nullptr;
-    T * prev = nullptr;
+    T *next = nullptr;
+    T *prev = nullptr;
 };
 
 // Singly-linked list node:
 template <typename T>
 struct lls_node
 {
-    T * next = nullptr;
+    T *next = nullptr;
 };
 
 // Doubly-linked list implementation. The list is circular, so 'first->prev' yields the tail of
@@ -30,8 +30,7 @@ struct lls_node
 template <typename T, lld_node<T> &(*E)(T *)>
 class dlist
 {
-    T * first;
-    // E extractor;
+    T *first;
 
     public:
     dlist() noexcept : first(nullptr) { }
@@ -58,7 +57,7 @@ class dlist
         }
     }
 
-    T * tail() noexcept
+    T *tail() noexcept
     {
         if (first == nullptr) {
             return nullptr;
@@ -73,7 +72,7 @@ class dlist
         return first == nullptr;
     }
 
-    T * pop_front() noexcept
+    T *pop_front() noexcept
     {
         auto r = first;
         auto &first_node = E(first);
@@ -113,11 +112,13 @@ class dlist
     }
 };
 
-// Singly-linked list implementation, allowing insertion at and removal from the front only.
+// Singly-linked list implementation, allowing insertion at and removal from the front only. Any
+// node in the list has a non-null 'next' pointer; the last element in the list has the 'next'
+// pointer pointing to itself. Any node not in the list has a null 'next' pointer.
 template <typename T, lls_node<T> &(*E)(T *)>
 class slist
 {
-    T * first;
+    T *first;
 
     public:
     slist() noexcept : first(nullptr) { }
@@ -146,9 +147,9 @@ class slist
         return first == nullptr;
     }
 
-    T * pop_front() noexcept
+    T *pop_front() noexcept
     {
-        T * r = first;
+        T *r = first;
         auto &node = E(r);
         if (first == node.next) {
             // This was the tail, i.e. only single element in list, which is now empty
