@@ -932,6 +932,7 @@ bool control_conn_t::add_service_dep(bool do_enable, bool with_status_response)
         char badreqRep[] = { (char)cp_rply::BADREQ };
         if (!queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
+        return true;
     }
     dependency_type dep_type = static_cast<dependency_type>(dep_type_int);
 
@@ -1073,6 +1074,7 @@ bool control_conn_t::rm_service_dep(bool with_status_resp)
         char badreqRep[] = { (char)cp_rply::BADREQ };
         if (!queue_packet(badreqRep, 1)) return false;
         bad_conn_close = true;
+        return true;
     }
     dependency_type dep_type = static_cast<dependency_type>(dep_type_int);
 
