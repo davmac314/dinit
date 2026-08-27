@@ -154,8 +154,8 @@ class process_service;
 /* Service dependency record */
 class service_dep
 {
-    service_record * from;
-    service_record * to;
+    service_record *from;
+    service_record *to;
 
     public:
     /* Whether the 'from' service is waiting for the 'to' service to start */
@@ -178,19 +178,19 @@ class service_dep
         return (dep_type == dependency_type::BEFORE) || (dep_type == dependency_type::AFTER);
     }
 
-    service_dep(service_record * from, service_record * to, dependency_type dep_type_p) noexcept
+    service_dep(service_record *from, service_record* to, dependency_type dep_type_p) noexcept
             : from(from), to(to), waiting_on(false), holding_acq(false), dep_type(dep_type_p)
     {  }
 
     service_dep(const service_dep &) = delete;
     void operator=(const service_dep &) = delete;
 
-    service_record * get_from() const noexcept
+    service_record *get_from() const noexcept
     {
         return from;
     }
 
-    service_record * get_to() const noexcept
+    service_record *get_to() const noexcept
     {
         return to;
     }
@@ -676,13 +676,13 @@ class service_record
     }
 
     // Add a listener. A listener must only be added once. May throw std::bad_alloc.
-    void add_listener(service_listener * listener)
+    void add_listener(service_listener *listener)
     {
         listeners.insert(listener);
     }
     
     // Remove a listener.    
-    void remove_listener(service_listener * listener) noexcept
+    void remove_listener(service_listener *listener) noexcept
     {
         listeners.erase(listener);
     }
@@ -1029,7 +1029,7 @@ class service_set
     
     virtual ~service_set() noexcept
     {
-        for (auto * s : records) {
+        for (auto *s : records) {
             delete s;
         }
     }

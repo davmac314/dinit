@@ -21,7 +21,7 @@
  */
 
 // Find the requested service by name.
-static service_record * find_service(const std::list<service_record *> & records,
+static service_record *find_service(const std::list<service_record *> & records,
                                     const char *name) noexcept
 {
     using std::list;
@@ -34,7 +34,7 @@ static service_record * find_service(const std::list<service_record *> & records
     return nullptr;
 }
 
-service_record * service_set::find_service(const std::string &name, bool find_placeholders) noexcept
+service_record *service_set::find_service(const std::string &name, bool find_placeholders) noexcept
 {
     service_record *r = ::find_service(records, name.c_str());
     if (r != nullptr && !find_placeholders && r->get_type() == service_type_t::PLACEHOLDER) {
