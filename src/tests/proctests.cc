@@ -2426,8 +2426,8 @@ void test_scripted_start_fail()
     assert(p.get_stop_reason() == stopped_reason_t::FAILED);
     assert(s2->get_stop_reason() == stopped_reason_t::DEPFAILED);
     assert(s3->get_stop_reason() == stopped_reason_t::DEPFAILED);
+    assert(event_loop.active_timers.size() == 0);
 
-    event_loop.active_timers.clear();
     sset.remove_service(&p);
 
     assert(sset.count_active_services() == 0);
@@ -2472,8 +2472,8 @@ void test_scripted_start_race()
     p.stop(true);
     sset.process_queues();
     assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
 
-    event_loop.active_timers.clear();
     sset.remove_service(&p);
 
     assert(sset.count_active_services() == 0);
@@ -2535,8 +2535,8 @@ void test_scripted_stop_fail()
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s4->get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
 
-    event_loop.active_timers.clear();
     sset.remove_service(&p);
 }
 
@@ -2586,8 +2586,8 @@ void test_scripted_start_skip()
     assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
     assert(s2->get_stop_reason() == stopped_reason_t::NORMAL);
     assert(sset.count_active_services() == 0);
+    assert(event_loop.active_timers.size() == 0);
 
-    event_loop.active_timers.clear();
     sset.remove_service(&p);
 }
 
@@ -2635,8 +2635,8 @@ void test_scripted_start_skip2()
     assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
     assert(s2->get_stop_reason() == stopped_reason_t::NORMAL);
     assert(sset.count_active_services() == 0);
+    assert(event_loop.active_timers.size() == 0);
 
-    event_loop.active_timers.clear();
     sset.remove_service(&p);
 }
 

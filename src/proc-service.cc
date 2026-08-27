@@ -605,14 +605,15 @@ void scripted_service::handle_exit_status() noexcept
     // - the start script was interrupted to cancel startup; state is STOPPING
     // - the stop script complete (or failed), state is STOPPING
 
+    if (waiting_stopstart_timer) {
+        process_timer.stop_timer(event_loop);
+        waiting_stopstart_timer = false;
+    }
+
     if (current_state == service_state_t::STOPPING) {
         // We might be running the stop script, or we might be running the start script and have issued
         // a cancel order via SIGINT:
         if (interrupting_start) {
-            if (waiting_stopstart_timer) {
-                process_timer.stop_timer(event_loop);
-                waiting_stopstart_timer = false;
-            }
             // We issued a start interrupt, so we expected this failure:
             if (did_exit && exit_status.get_exit_status() != 0) {
                 log(loglevel_t::NOTICE, "Service ", get_name(), " start cancelled; exit code ",
