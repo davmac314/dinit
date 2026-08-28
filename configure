@@ -235,6 +235,37 @@ int main()
 _EOF
 }
 
+write_librt_check()
+{
+    cat << _EOF > "$configtmpdir"/librt-check.cc
+#include <dasynq.h>
+
+using rearm = dasynq::rearm;
+using loop_t = dasynq::event_loop_n;
+
+class my_timer : public loop_t::timer_impl<my_timer>
+{
+public:
+    rearm timer_expiry(loop_t &, int expiry_count)
+    {
+        return rearm::REARM;
+    }
+};
+
+int main()
+{
+    loop_t l1;
+    my_timer t1;
+
+    t1.add_timer(l1);
+    t1.arm_timer_rel(l1, {1,0});
+    l1.run();
+
+    return 0;
+}
+_EOF
+}
+
 # Quote a string to preserve its original form after shell evaluation (except that an empty
 # string remains as an empty string).
 quote_for_shell()
@@ -636,8 +667,27 @@ if [ "$AUTO_LDFLAGS" = true ] && [ "$AUTO_CXXFLAGS" = true ]; then
         HAS_LTO="false"
     fi
 fi
-if [ "$AUTO_LDFLAGS_BASE" = true ] && [ "$PLATFORM" = FreeBSD ]; then
-    check_link_argument LDFLAGS_BASE -lrt
+if [ "$AUTO_LDFLAGS_BASE" = true ]; then
+    info "Checking whether linking with librt is required..."
+    write_librt_check
+    # CPPFLAGS is included in the following check, because it uses the Dasynq library that can be
+    # configured by compile-time macros, which can influence the result of this check. For example,
+    # a user under Linux may specify "-DDASYNQ_HAVE_EPOLL=0" to disable the epoll backend, which
+    # currently also causes Dasynq to use POSIX timers.
+    if ! try_compile_source librt-check.cc librt-check.o "$CPPFLAGS -Idasynq/include"; then
+        sub_info_error "Couldn't compile the test source for the librt check."
+    fi
+    if ! try_link_object librt-check.o librt-check; then
+        if try_link_object librt-check.o librt-check -lrt; then
+            sub_info "Yes."
+            LDFLAGS_BASE="$LDFLAGS_BASE -lrt"
+            LDFLAGS_BASE="${LDFLAGS_BASE# }"
+        else
+            sub_info_error "Couldn't link the test object for the librt check."
+        fi
+    else
+        sub_info "No."
+    fi
 fi
 if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
     if [ "$AUTO_LDFLAGS_LIBCAP" = true ]; then
