@@ -1,6 +1,8 @@
 #ifndef TEST_PROCSERVICE
 #define TEST_PROCSERVICE
 
+#include <dinit.h>
+
 // Friend interface to access base_process_service private/protected members.
 class base_process_service_test
 {
@@ -23,16 +25,14 @@ class base_process_service_test
 
     static void handle_exit(base_process_service *bsp, int exit_status)
     {
-        bsp->pid = -1;
-        bsp->exit_status = eventloop_t::child_proc_watcher::proc_status_t(CLD_EXITED, exit_status);
-        bsp->handle_exit_status();
+        bsp->child_listener.status_change(event_loop, bsp->pid,
+                eventloop_t::child_proc_watcher::proc_status_t(CLD_EXITED, exit_status));
     }
 
     static void handle_signal_exit(base_process_service *bsp, int signo)
     {
-        bsp->pid = -1;
-        bsp->exit_status = eventloop_t::child_proc_watcher::proc_status_t(CLD_KILLED, signo);
-        bsp->handle_exit_status();
+        bsp->child_listener.status_change(event_loop, bsp->pid,
+                eventloop_t::child_proc_watcher::proc_status_t(CLD_KILLED, signo));
     }
 
     static void handle_stop_exit(process_service *ps, int exit_status)

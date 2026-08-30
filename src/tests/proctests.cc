@@ -823,6 +823,10 @@ void test_proc_start_timeout()
 
     assert(p.get_state() == service_state_t::STARTING);
 
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTING);
+
     event_loop.advance_time(time_val(10,0));
     sset.process_queues();
 
@@ -864,6 +868,10 @@ void test_proc_start_timeout2()
 
     assert(p.get_state() == service_state_t::STARTING);
     assert(ts.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTING);
 
     event_loop.advance_time(time_val {1,0}); // start timer should expire
     sset.process_queues();
@@ -1256,6 +1264,7 @@ void test_proc_smooth_recovery5()
     // process before exec() may not respond correctly)
     bp_sys::last_sig_sent = -1;
     p.stop(true);
+    sset.process_queues();
 
     assert(bp_sys::last_sig_sent == -1);
     assert(p.get_state() == service_state_t::STOPPING);
@@ -1397,6 +1406,7 @@ void test_proc_smooth_recovery6a()
 
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
 
     base_process_service_test::handle_exit(&p, 1);
     sset.process_queues();
@@ -2017,6 +2027,7 @@ void test_bgproc_term_restart()
     supply_pid_contents("/run/daemon.pid", &daemon_instance);
 
     // Launch process completes again
+    base_process_service_test::exec_succeeded(&p);
     base_process_service_test::handle_exit(&p, 0);
     assert(p.get_state() == service_state_t::STARTED);
     assert(p.get_pid() == daemon_instance);
