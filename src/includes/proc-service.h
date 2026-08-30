@@ -127,10 +127,10 @@ class stop_status_pipe_watcher : public eventloop_t::fd_watcher_impl<stop_status
 class ready_notify_watcher : public eventloop_t::fd_watcher_impl<ready_notify_watcher>
 {
     public:
-    base_process_service *service;
+    process_service *service;
     dasynq::rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
 
-    ready_notify_watcher(base_process_service * sr) noexcept : service(sr) { }
+    ready_notify_watcher(process_service *sr) noexcept : service(sr) { }
 
     ready_notify_watcher(const ready_notify_watcher &) = delete;
     void operator=(const ready_notify_watcher &) = delete;
@@ -181,7 +181,6 @@ class base_process_service : public service_record
     friend class service_child_watcher;
     friend class exec_status_pipe_watcher;
     friend class base_process_service_test;
-    friend class ready_notify_watcher;
     friend class log_output_watcher;
 
     protected:
@@ -319,6 +318,9 @@ class base_process_service : public service_record
     }
 
     virtual bool interrupt_start() noexcept override;
+
+    // Service start timed out
+    virtual void start_timed_out() noexcept;
 
     void becoming_inactive() noexcept override;
 
@@ -610,11 +612,13 @@ class process_service : public base_process_service
     friend class stop_child_watcher;
     friend class stop_status_pipe_watcher;
     friend class base_process_service_test;
+    friend class ready_notify_watcher;
 
     protected:
     virtual void handle_exit_status() noexcept override;
     virtual void exec_failed(run_proc_err errcode) noexcept override;
     virtual void exec_succeeded() noexcept override;
+    virtual void start_timed_out() noexcept override;
     virtual void bring_down() noexcept override;
     virtual void kill_with_fire() noexcept override;
 
@@ -701,6 +705,12 @@ class process_service : public base_process_service
         }
 
         return true;
+    }
+
+    virtual bool bring_up() noexcept override
+    {
+        doing_smooth_recovery = false;
+        return base_process_service::bring_up();
     }
 
     bool get_input_fd(int *input_fd) noexcept override

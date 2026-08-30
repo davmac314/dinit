@@ -46,8 +46,10 @@ void process_service::exec_succeeded() noexcept
 {
     tracking_child = true;
 
-    // This could be a smooth recovery (state already STARTED). No need to do anything here in
-    // that case. Otherwise, we are STARTING or STOPPING:
+    // Three cases we may have to handle:
+    // - We are STARTING, so have now finished that unless notification is required
+    // - We are STARTED, which means this is a smooth recovery
+    // - We are STOPPING, which means we were asked to stop while in smooth recovery
 
     if (get_state() == service_state_t::STARTING) {
         if (force_notification_fd != -1 || !notification_var.empty()) {
@@ -64,9 +66,12 @@ void process_service::exec_succeeded() noexcept
     }
     else if (get_state() == service_state_t::STARTED) {
         // Smooth recovery (is now complete, if we don't need readiness notification)
-        if (waiting_stopstart_timer && notification_fd == -1) {
-            process_timer.stop_timer(event_loop);
-            waiting_stopstart_timer = false;
+        if (notification_fd == -1) {
+            if (waiting_stopstart_timer) {
+                process_timer.stop_timer(event_loop);
+                waiting_stopstart_timer = false;
+            }
+            doing_smooth_recovery = false;
         }
     }
     else if (get_state() == service_state_t::STOPPING) {
@@ -176,7 +181,7 @@ rearm stop_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
 rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
 {
     char buf[128];
-    if (service->get_state() == service_state_t::STARTING) {
+    if (service->get_state() == service_state_t::STARTING || service->doing_smooth_recovery) {
         // can we actually read anything from the notification pipe?
         int r = bp_sys::read(fd, buf, sizeof(buf));
         if (r > 0) {
@@ -184,6 +189,7 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
                 service->process_timer.stop_timer(event_loop);
                 service->waiting_stopstart_timer = false;
             }
+            service->doing_smooth_recovery = false;
             service->started();
         }
         else if (r == 0 || errno != EAGAIN) {
@@ -191,9 +197,16 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
                 service->process_timer.stop_timer(event_loop);
                 service->waiting_stopstart_timer = false;
             }
-            service->set_state(service_state_t::STOPPING);
-            service->failed_to_start(false, false);
-            service->bring_down();
+            if (service->doing_smooth_recovery) {
+                service->doing_smooth_recovery = false;
+                service->stop_reason = stopped_reason_t::TERMINATED;
+                service->unrecoverable_stop();
+            }
+            else {
+                service->set_state(service_state_t::STOPPING);
+                service->failed_to_start(false, false);
+                service->bring_down();
+            }
         }
         service->services->process_queues();
     }
@@ -209,6 +222,18 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
     }
 
     return rearm::REARM;
+}
+
+void process_service::start_timed_out() noexcept
+{
+    if (doing_smooth_recovery) {
+        doing_smooth_recovery = false;
+        interrupt_start();
+        unrecoverable_stop();
+    }
+    else {
+        base_process_service::start_timed_out();
+    }
 }
 
 dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t child,
@@ -341,14 +366,14 @@ void process_service::handle_exit_status() noexcept
         }
     }
 
+    if (doing_smooth_recovery) {
+        // If doing smooth recovery (state STARTED), treat it the same as STARTING
+        current_state = service_state_t::STARTING;
+    }
+
     if (waiting_stopstart_timer) {
         process_timer.stop_timer(event_loop);
         waiting_stopstart_timer = false;
-        if (current_state == service_state_t::STARTED) {
-            // Must have been in smooth recovery and waiting for readiness notification.
-            // Treat this the same as if we were STARTING:
-            current_state = service_state_t::STARTING;
-        }
     }
 
 #if USE_UTMPX
@@ -360,8 +385,14 @@ void process_service::handle_exit_status() noexcept
     if (current_state == service_state_t::STARTING) {
         // If state is STARTING, we must be waiting for readiness notification; the process has
         // terminated before becoming ready.
-        stop_reason = stopped_reason_t::FAILED;
-        failed_to_start();
+        if (doing_smooth_recovery) {
+            stop_reason = stopped_reason_t::TERMINATED;
+            unrecoverable_stop();
+        }
+        else {
+            stop_reason = stopped_reason_t::FAILED;
+            failed_to_start();
+        }
     }
     else if (current_state == service_state_t::STOPPING) {
         // We won't log a non-zero exit status or termination due to signal here -
@@ -772,6 +803,7 @@ bgproc_service::read_pid_file(proc_status_t *exit_status) noexcept
 
 void process_service::bring_down() noexcept
 {
+    doing_smooth_recovery = false;
     if (stop_pid != -1 || stop_issued) {
         // waiting for stop command to complete (or for process to die after it has complete);
         // can't do anything here.
@@ -824,7 +856,6 @@ void process_service::bring_down() noexcept
     }
     else {
         // The process is already dead (possibly, we are in smooth recovery waiting for timer)
-        doing_smooth_recovery = false;
         if (waiting_restart_timer) {
             process_timer.stop_timer(event_loop);
             waiting_restart_timer = false;

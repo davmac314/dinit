@@ -366,6 +366,7 @@ void base_process_service::do_restart() noexcept
         }
         else {
             // smooth recovery failure
+            stop_reason = stopped_reason_t::TERMINATED;
             unrecoverable_stop();
         }
         services->process_queues();
@@ -456,25 +457,36 @@ void base_process_service::timer_expired() noexcept
 {
     waiting_stopstart_timer = false;
 
-    // Timer expires if:
-    // We are stopping, including after having startup cancelled (stop timeout, state is STOPPING); We are
-    // starting (start timeout, state is STARTING); We are waiting for restart timer before restarting,
-    // including smooth recovery (restart timeout, state is STARTING or STARTED).
+    // This handles expiry of the timer, used for limiting start/stop time and also delaying
+    // before a restart. Possibilities are:
+    // - We are stopping, including after having startup cancelled (stop timeout, state is
+    //   STOPPING);
+    // - We are starting (start timeout, state is STARTING)
+    // - We are waiting for restart timer before restarting, including smooth recovery (restart
+    //   timeout, state is STARTING or STARTED).
+
     if (get_state() == service_state_t::STOPPING) {
         kill_with_fire();
     }
     else if (pid != -1) {
-        // Starting, start timed out.
-        log(loglevel_t::WARN, "Service ", get_name(), " with pid ", pid,
+        log(loglevel_t::WARN, "Process for service ", get_name(), " with pid ", pid,
                 " exceeded allowed start time; cancelling.");
-        interrupt_start();
-        stop_reason = stopped_reason_t::TIMEDOUT;
-        failed_to_start(false, false);
+        start_timed_out();
+        services->process_queues();
     }
     else {
-        // STARTING / STARTED, and we have no pid: must be restarting (smooth recovery if STARTED)
+        // STARTING / STARTED, and we have no pid: must be restarting, and the restart delay timer
+        // expired (smooth recovery if STARTED)
         do_restart();
     }
+}
+
+void base_process_service::start_timed_out() noexcept
+{
+    // Starting, start timed out.
+    interrupt_start();
+    stop_reason = stopped_reason_t::TIMEDOUT;
+    failed_to_start(false, false);
 }
 
 void base_process_service::becoming_inactive() noexcept
