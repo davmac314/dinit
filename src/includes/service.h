@@ -285,8 +285,8 @@ class service_record
     bool pinned_started : 1;
     bool dept_pinned_started : 1; // pinned started due to dependent
 
-    bool waiting_for_deps : 1;  // if STARTING, whether we are waiting for dependencies/console
-                                // if STOPPING, whether we are waiting for dependents to stop
+    bool waiting_for_deps : 1;  // if STARTING, whether we are waiting for dependencies to start;
+                                // if STOPPING, whether we are waiting for dependents to stop.
     bool waiting_for_console : 1;   // waiting for exclusive console access (while STARTING)
     bool have_console : 1;      // whether we have exclusive console access (STARTING/STARTED)
     bool waiting_for_execstat : 1;  // if we are waiting for exec status after fork()
