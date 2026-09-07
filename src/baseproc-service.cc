@@ -414,10 +414,12 @@ bool base_process_service::issue_start_interrupt() noexcept
         kill_pg(SIGINT);
 
         if (stop_timeout != time_val(0,0)) {
+            // Arm the stop/start timer for stop
             process_timer.arm_timer_rel(event_loop, stop_timeout);
             waiting_stopstart_timer = true;
         }
         else if (waiting_stopstart_timer) {
+            // Start timer was running but is no longer required
             process_timer.stop_timer(event_loop);
             waiting_stopstart_timer = false;
         }

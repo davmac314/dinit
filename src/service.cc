@@ -732,7 +732,7 @@ void service_record::do_stop(bool with_restart) noexcept
         else {
             // If we're starting we need to wait for that to complete.
             // If we're already stopping/stopped there's nothing to do.
-            return;
+            return; // XXX can move the check for stopping/stopped earlier for clarity
         }
     }
 
@@ -780,7 +780,7 @@ bool service_record::stop_dependents(bool for_restart, bool restart_deps) noexce
                 // If this service is to be forcefully stopped, dependents must also be.
                 if (desired_state == service_state_t::STOPPED) {
                     // If our target state was forced to STOPPED, this is a failure
-                    dep_from->stop_reason = stopped_reason_t::DEPFAILED;
+                    dep_from->stop_reason = stopped_reason_t::DEPFAILED; // FIXME is it really though?
                     dep_from->unrecoverable_stop();
                 }
                 else {
