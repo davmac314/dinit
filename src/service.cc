@@ -892,8 +892,10 @@ void service_record::unpin() noexcept
 
 void service_record::queue_for_console() noexcept
 {
-    waiting_for_console = true;
-    services->append_console_queue(this);
+    if (!waiting_for_console) {
+        waiting_for_console = true;
+        services->append_console_queue(this);
+    }
 }
 
 void service_record::release_console() noexcept
