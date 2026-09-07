@@ -322,13 +322,13 @@ void service_record::do_propagation() noexcept
 void service_record::execute_transition() noexcept
 {
     if (service_state == service_state_t::STARTING) {
-        if (check_deps_started()) {
+        if (!waiting_for_deps || check_deps_started()) {
             waiting_for_deps = false;
             all_deps_started();
         }
     }
     else if (service_state == service_state_t::STOPPING) {
-        if (stop_check_dependents()) {
+        if (!waiting_for_deps || stop_check_dependents()) {
             waiting_for_deps = false;
             if (onstart_flags.kill_all_on_stop) {
                 log(loglevel_t::NOTICE, true, "Sending TERM/KILL to all processes...\n");
@@ -445,12 +445,12 @@ bool service_record::check_deps_started() noexcept
 
 void service_record::all_deps_started() noexcept
 {
+    waiting_for_deps = false;
+
     if (onstart_flags.starts_on_console && !have_console) {
         queue_for_console();
         return;
     }
-
-    waiting_for_deps = false;
 
     if (!bring_up()) {
         service_state = service_state_t::STOPPING;
