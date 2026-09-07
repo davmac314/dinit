@@ -420,10 +420,10 @@ bool service_record::start_check_dependencies() noexcept
         }
     }
 
-    for (auto * dept : dependents) {
+    for (auto *dept : dependents) {
         if (!dept->waiting_on && dept->is_only_ordering()) {
             service_record *from = dept->get_from();
-            if (from->get_state() == service_state_t::STARTING) {
+            if (from->get_state() == service_state_t::STARTING && from->waiting_for_deps) {
                 dept->waiting_on = true;
             }
         }
