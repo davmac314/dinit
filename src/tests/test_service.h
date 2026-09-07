@@ -43,14 +43,12 @@ class test_service : public service_record
         service_record::stopped();
     }
 
-    // Whether a STARTING service can immediately transition to STOPPED (as opposed to
-    // having to wait for it reach STARTED and then go through STOPPING).
     virtual bool can_interrupt_start() noexcept override
     {
-        return waiting_for_deps || start_interruptible;
+        return start_interruptible;
     }
 
-    virtual bool interrupt_start() noexcept override
+    virtual bool issue_start_interrupt() noexcept override
     {
         return true;
     }

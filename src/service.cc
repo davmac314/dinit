@@ -712,7 +712,7 @@ void service_record::do_stop(bool with_restart) noexcept
                     return;
                 }
 
-                if (!interrupt_start()) {
+                if (!issue_start_interrupt()) {
                     // Now wait for service startup to actually end; we don't need to handle it here.
                     notify_listeners(service_event_t::STARTCANCELLED);
                     return;
@@ -904,7 +904,7 @@ void service_record::release_console() noexcept
     services->pull_console_queue();
 }
 
-bool service_record::interrupt_start() noexcept
+bool service_record::issue_start_interrupt() noexcept
 {
     return true;
 }

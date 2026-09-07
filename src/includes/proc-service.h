@@ -313,11 +313,10 @@ class base_process_service : public service_record
 
     virtual bool can_interrupt_start() noexcept override
     {
-        return waiting_restart_timer || onstart_flags.start_interruptible
-                || service_record::can_interrupt_start();
+        return waiting_restart_timer || onstart_flags.start_interruptible;
     }
 
-    virtual bool interrupt_start() noexcept override;
+    virtual bool issue_start_interrupt() noexcept override;
 
     // Service start timed out
     virtual void start_timed_out() noexcept;
@@ -848,12 +847,12 @@ class scripted_service : public base_process_service
     virtual void exec_failed(run_proc_err errcode) noexcept override;
     virtual void bring_down() noexcept override;
 
-    virtual bool interrupt_start() noexcept override
+    virtual bool issue_start_interrupt() noexcept override
     {
         // if base::interrupt_start() returns false, then start hasn't been fully interrupted, but an
         // interrupt has been issued:
-        interrupting_start = ! base_process_service::interrupt_start();
-        return ! interrupting_start;
+        interrupting_start = !base_process_service::issue_start_interrupt();
+        return !interrupting_start;
     }
 
     bool interrupting_start : 1;  // running start script (true) or stop script (false)

@@ -452,17 +452,25 @@ class service_record
     // All dependents have stopped, and this service should proceed to stop.
     virtual void bring_down() noexcept;
 
-    // Whether a STARTING service can immediately transition to STOPPED (as opposed to
-    // having to wait for it reach STARTED and then go through STOPPING). Note that the
-    // waiting_for_deps flag being set may override this check.
+    // Whether a STARTING service can have its startup interrupted, either immediately or via an
+    // external signal.
+    //
+    // The waiting_for_deps/waiting_for_console flags being set override this check, i.e. it can
+    // be assumed that a service with waiting_for_deps can be transitioned without any other
+    // action and a service with waiting_for_console can be transitioned after removing from the
+    // console queue. These flags should always be checked before calling can_interrupt_start().
+    //
+    // If this function returns true, start can be interrupted by calling issue_start_interrupt().
     virtual bool can_interrupt_start() noexcept
     {
-        return waiting_for_deps;
+        return false;
     }
 
-    // Interrupt startup. Returns true if service start is fully cancelled; returns false if cancel order
-    // issued but service has not yet responded (state will be set to STOPPING).
-    virtual bool interrupt_start() noexcept;
+    // Interrupt startup. Returns true if service start is fully cancelled (state will NOT be
+    // changed and will remain as STARTING in this case); returns false if cancel order issued but
+    // service has not yet responded (state will be set to STOPPING). This must only be called if
+    // can_interrupt_start() returned true.
+    virtual bool issue_start_interrupt() noexcept;
 
     // The service is becoming inactive - i.e. it has stopped and will not be immediately restarted. Perform
     // any appropriate cleanup.

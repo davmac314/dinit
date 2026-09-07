@@ -228,7 +228,7 @@ void process_service::start_timed_out() noexcept
 {
     if (doing_smooth_recovery) {
         doing_smooth_recovery = false;
-        interrupt_start();
+        issue_start_interrupt();
         unrecoverable_stop();
     }
     else {
