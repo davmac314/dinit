@@ -885,8 +885,8 @@ void service_record::unpin() noexcept
     }
     if (pinned_stopped) {
         pinned_stopped = false;
-        // We don't need to check state. If we're pinned stopped we can't be required and so desired
-        // state should always be stopped.
+        // We don't need to check state. If we're pinned stopped we can't be explicitly activated
+        // and so desired state should always be stopped.
     }
 }
 

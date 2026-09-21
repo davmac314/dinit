@@ -124,10 +124,11 @@
  * or STOPPED (that happens in the execution phase).
  *
  * The two-phase transition is needed to avoid problem where a service that becomes STOPPED has
- * an incorrect acquisition count, which may cause it to restart when it should not. The
- * propagation phase allows the acquisition count to settle before the transition to the STOPPED
- * state occurs, and the decision whether to restart can then be made based on the (correct)
- * acquisition count. See "acquisition/release" above for details of when this can occur.
+ * an incorrect acquisition count (due to dependents which will stop in the same phase, but have
+ * not yet stopped), which may cause it to restart when it should not. The propagation phase
+ * allows the acquisition count to settle before the transition to the STOPPED state occurs, and
+ * the decision whether to restart can then be made based on the (correct) acquisition count. See
+ * "acquisition/release" above for details of when this can occur.
  *
  * Propagation variables:
  *   prop_acquire:  the service has transitioned to an acquired state and must issue an acquire
@@ -381,7 +382,7 @@ class service_record
     // Whether a STOPPING service can immediately transition to STARTED.
     bool can_interrupt_stop() noexcept
     {
-        return waiting_for_deps && ! force_stop;
+        return waiting_for_deps && !force_stop;
     }
 
     // A dependent has reached STOPPED state
@@ -410,7 +411,7 @@ class service_record
     
     void notify_listeners(service_event_t event) noexcept
     {
-        for (auto l : listeners) {
+        for (auto *l : listeners) {
             l->service_event(this, event);
         }
     }
