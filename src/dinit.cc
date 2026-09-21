@@ -909,9 +909,19 @@ static void do_soft_reboot(char **argv) noexcept
         }
     }
 
+    // Preserve the startup mask across exec, rather than passing our internal
+    // blocked mask to the new instance and the services it starts.
+    sigset_t saved_signal_mask;
+    if (sigprocmask(SIG_SETMASK, &orig_signal_mask, &saved_signal_mask) == -1) {
+        log(loglevel_t::ERROR, "Could not restore signal mask for soft reboot: ", strerror(errno));
+        return;
+    }
+
     // Re-exec the dinit process.
     execv(dinit_exec, argv);
-    log(loglevel_t::ERROR, error_exec_dinit, strerror(errno));
+    int exec_errno = errno;
+    sigprocmask(SIG_SETMASK, &saved_signal_mask, nullptr);
+    log(loglevel_t::ERROR, error_exec_dinit, strerror(exec_errno));
 }
 
 // Callback for control socket
