@@ -657,6 +657,8 @@ void service_record::do_stop(bool with_restart) noexcept
     // Note: to inhibit automatic restart, including restart due to dependent still requiring this
     //       service, caller must first set desired_state to STOPPED
 
+	// Precondtion: service state is not already STOPPED
+
     if (is_start_pinned()) return;
 
     in_auto_restart = false;
@@ -701,40 +703,35 @@ void service_record::do_stop(bool with_restart) noexcept
 
     bool all_deps_stopped = stop_dependents(for_restart, restart_deps);
 
-    if (service_state != service_state_t::STARTED) {
-        if (service_state == service_state_t::STARTING) {
-            // If waiting for a dependency, or waiting for the console, we can interrupt start. Otherwise,
-            // we need to delegate to can_interrupt_start() (which can be overridden).
-            if (!waiting_for_deps && !waiting_for_console) {
-                if (!can_interrupt_start()) {
-                    // Well this is awkward: we're going to have to continue starting. We can stop once
-                    // we've reached the started state.
-                    return;
-                }
+    if (service_state == service_state_t::STOPPING) return;
 
-                if (!issue_start_interrupt()) {
-                    // Now wait for service startup to actually end; we don't need to handle it here.
-                    notify_listeners(service_event_t::STARTCANCELLED);
-                    return;
-                }
-            }
-            else if (waiting_for_console) {
-                services->unqueue_console(this);
-                waiting_for_console = false;
-            }
+	if (service_state == service_state_t::STARTING) {
+		// If waiting for a dependency, or waiting for the console, we can interrupt start. Otherwise,
+		// we need to delegate to can_interrupt_start() (which can be overridden).
+		if (!waiting_for_deps && !waiting_for_console) {
+			if (!can_interrupt_start()) {
+				// Well this is awkward: we're going to have to continue starting. We can stop once
+				// we've reached the started state.
+				return;
+			}
 
-            // We must have had desired_state == STARTED.
-            notify_listeners(service_event_t::STARTCANCELLED);
+			if (!issue_start_interrupt()) {
+				// Now wait for service startup to actually end; we don't need to handle it here.
+				notify_listeners(service_event_t::STARTCANCELLED);
+				return;
+			}
+		}
+		else if (waiting_for_console) {
+			services->unqueue_console(this);
+			waiting_for_console = false;
+		}
 
-            // Reaching this point, we are starting interruptibly - so we
-            // stop now (by falling through to below).
-        }
-        else {
-            // If we're starting we need to wait for that to complete.
-            // If we're already stopping/stopped there's nothing to do.
-            return;
-        }
-    }
+		// We must have had desired_state == STARTED.
+		notify_listeners(service_event_t::STARTCANCELLED);
+
+		// Reaching this point, we are starting interruptibly - so we
+		// stop now (by falling through to below).
+	}
 
     service_state = service_state_t::STOPPING;
     waiting_for_deps = !all_deps_stopped;
@@ -780,7 +777,7 @@ bool service_record::stop_dependents(bool for_restart, bool restart_deps) noexce
                 // If this service is to be forcefully stopped, dependents must also be.
                 if (desired_state == service_state_t::STOPPED) {
                     // If our target state was forced to STOPPED, this is a failure
-                    dep_from->stop_reason = stopped_reason_t::DEPFAILED;
+                    dep_from->stop_reason = stopped_reason_t::DEPFAILED; // FIXME is it really though?
                     dep_from->unrecoverable_stop();
                 }
                 else {

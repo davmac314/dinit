@@ -429,7 +429,10 @@ class service_record
     // Called on transition of desired state from stopped to started (or unpinned stop)
     void do_start() noexcept;
 
-    // Begin stopping, release activation.
+    // Initiate a definite stop, and release explicit activation, with optional (user-requested)
+    // restart. Note that A service that stops may restart automatically if it or a dependent is
+    // configured to do so, regardless of with_restart. Precondition: the state is not already
+    // STOPPED.
     void do_stop(bool with_restart = false) noexcept;
 
     // Set the service state
