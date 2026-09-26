@@ -116,8 +116,8 @@ try_compile_source()
 #   LDFLAGS, LDFLAGS_EXTRA - any predetermined flags
 try_link_object()
 {
-    eval $CXX $LDFLAGS $LDFLAGS_EXTRA ${3:-} '"$configtmpdir"/"$1"' \
-            -o '"$configtmpdir"/"$2"' > /dev/null 2>&1
+    eval $CXX '"$configtmpdir"/"$1"' -o '"$configtmpdir"/"$2"' $LDFLAGS \
+            $LDFLAGS_EXTRA ${3:-} > /dev/null 2>&1
 }
 
 # Test if the compiler accepts an argument (for compilation only); if so add it to named variable.
