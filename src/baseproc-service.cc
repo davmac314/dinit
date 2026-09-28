@@ -24,7 +24,6 @@ void base_process_service::do_smooth_recovery() noexcept
 {
     if (!restart_ps_process()) {
         unrecoverable_stop();
-        services->process_queues();
     }
 }
 

@@ -414,7 +414,6 @@ void process_service::handle_exit_status() noexcept
         // unexpected termination, with smooth recovery
         doing_smooth_recovery = true;
         do_smooth_recovery();
-        return;
     }
     else {
         handle_unexpected_termination();
