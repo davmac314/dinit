@@ -1180,7 +1180,7 @@ class service_set
     // do_propagation() method called when the queue is processed.
     void add_prop_queue(service_record *service) noexcept
     {
-        if (! prop_queue.is_queued(service)) {
+        if (!prop_queue.is_queued(service)) {
             prop_queue.insert(service);
         }
     }
@@ -1189,7 +1189,7 @@ class service_set
     // execute_transition() method called when the queue is processed.
     void add_transition_queue(service_record *service) noexcept
     {
-        if (! stop_queue.is_queued(service)) {
+        if (!stop_queue.is_queued(service)) {
             stop_queue.insert(service);
         }
     }
@@ -1197,12 +1197,12 @@ class service_set
     // Process state propagation and start/stop queues, until they are empty.
     void process_queues() noexcept
     {
-        while (! stop_queue.is_empty() || ! prop_queue.is_empty()) {
-            while (! prop_queue.is_empty()) {
+        while (!stop_queue.is_empty() || !prop_queue.is_empty()) {
+            while (!prop_queue.is_empty()) {
                 auto next = prop_queue.pop_front();
                 next->do_propagation();
             }
-            if (! stop_queue.is_empty()) {
+            if (!stop_queue.is_empty()) {
                 auto next = stop_queue.pop_front();
                 next->execute_transition();
             }
