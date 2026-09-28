@@ -245,6 +245,12 @@ void service_record::start() noexcept
 
 void service_record::initiate_start() noexcept
 {
+    // Check If this is an automatic restart (due to a dependent). Setting in_auto_restart flags
+    // that restart delay timers and limit checks need to run.
+    if (service_state == service_state_t::STOPPING && stop_reason == stopped_reason_t::TERMINATED) {
+        in_auto_restart = true;
+    }
+
     start_failed = false;
     start_skipped = false;
     service_state = service_state_t::STARTING;
