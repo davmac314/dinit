@@ -1,3 +1,11 @@
+* test: auto-restart of process service dependency is limited
+   (i.e. if fails and then restarts due to a dependent, that it will still fail after exhausting
+   attempts) 
+* Better/more efficient identification of dependency cycles
+* Close fds > 3 on startup?
+* Optional locale support? But also expunge current uses of std::locale
+* dinitctl: check for ok protocol version near beginning of functions
+
 * Document failure_conditions
 * Fix: dependency failure should only propagate failure if configured
   (via failure_conditions)
