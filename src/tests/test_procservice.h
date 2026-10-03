@@ -13,14 +13,23 @@ class base_process_service_test
         bsp->exec_succeeded();
     }
 
-    static void exec_failed(base_process_service *bsp, int errcode)
+    static void exec_failed(base_process_service *sr, int errcode)
     {
-        run_proc_err err;
-        err.stage = exec_stage::DO_EXEC;
-        err.st_errno = errcode;
-        bsp->waiting_for_execstat = false;
-        bsp->pid = -1;
-        bsp->exec_failed(err);
+        run_proc_err exec_status;
+        exec_status.stage = exec_stage::DO_EXEC;
+        exec_status.st_errno = errcode;
+        sr->waiting_for_execstat = false;
+        if (sr->pid != -1) {
+            sr->child_listener.deregister(event_loop, sr->pid);
+            sr->reserved_child_watch = false;
+            if (sr->waiting_stopstart_timer) {
+                sr->process_timer.stop_timer(event_loop);
+                sr->waiting_stopstart_timer = false;
+            }
+        }
+        sr->pid = -1;
+        sr->exec_err_info = exec_status;
+        sr->exec_failed(exec_status);
     }
 
     static void handle_exit(base_process_service *bsp, int exit_status)

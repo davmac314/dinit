@@ -183,9 +183,14 @@ void test_proc_term_start()
     assert(p.get_target_state() == service_state_t::STARTED);
 
     // Unexpected termination - should restart
+    pid_t pre_exit_pid = bp_sys::last_forked_pid;
     base_process_service_test::handle_exit(&p, 0);
     sset.process_queues();
     assert(p.get_target_state() == service_state_t::STARTED);
+    assert(p.get_state() == service_state_t::STARTING);
+    assert(bp_sys::last_forked_pid == pre_exit_pid);
+    event_loop.advance_time(default_restart_interval);
+    assert(bp_sys::last_forked_pid == (pre_exit_pid + 1));
     assert(p.get_state() == service_state_t::STARTING);
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
@@ -199,8 +204,10 @@ void test_proc_term_start()
     assert(p.get_state() == service_state_t::STOPPED);
 
     // explicit restart:
+    pid_t pre_start_pid = bp_sys::last_forked_pid;
     p.start();
-    sset.process_queues(); // <--
+    sset.process_queues();
+    assert(bp_sys::last_forked_pid == (pre_start_pid + 1));
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
     assert(p.get_state() == service_state_t::STARTED);
@@ -212,6 +219,7 @@ void test_proc_term_start()
     sset.process_queues();
     assert(p.get_target_state() == service_state_t::STARTED);
     assert(p.get_state() == service_state_t::STARTING);
+    event_loop.advance_time(default_restart_interval);
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
     assert(p.get_state() == service_state_t::STARTED);
@@ -274,6 +282,12 @@ void test_proc_term_restart()
 
     assert(p.get_state() == service_state_t::STARTED);
     assert(event_loop.active_timers.size() == 0);
+
+    // Stop for cleanup
+    p.stop();
+    sset.process_queues();
+    base_process_service_test::handle_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STOPPED);
 
     sset.remove_service(&p);
 }
@@ -405,6 +419,19 @@ void test_proc_term_restart3()
     assert(d1.get_state() == service_state_t::STARTING);
     assert(d1.get_target_state() == service_state_t::STARTED);
 
+    // Cleanup: complete start and then stop
+    event_loop.advance_time(default_restart_interval);
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(d1.get_state() == service_state_t::STARTED);
+
+    d1.stop();
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STOPPING);
+    base_process_service_test::handle_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STOPPED);
+
     sset.remove_service(&d1);
     sset.remove_service(&p);
     event_loop.active_timers.clear();
@@ -502,6 +529,7 @@ void test_proc_term_restart5()
     sset.process_queues();
     assert(p.get_target_state() == service_state_t::STARTED);
     assert(p.get_state() == service_state_t::STARTING);
+    event_loop.advance_time(default_restart_interval);
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
     assert(p.get_state() == service_state_t::STARTED);
@@ -548,6 +576,7 @@ void test_proc_term_restart6()
     sset.process_queues();
     assert(p.get_target_state() == service_state_t::STARTED);
     assert(p.get_state() == service_state_t::STARTING);
+    event_loop.advance_time(default_restart_interval);
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
     assert(p.get_state() == service_state_t::STARTED);
@@ -569,6 +598,10 @@ void test_proc_term_restart6()
         assert(p.get_state() == service_state_t::STARTED);
         assert(p.get_target_state() == service_state_t::STARTED);
     }
+
+    // Cleanup: return to STOPPED state
+    base_process_service_test::handle_signal_exit(&p, SIGTERM);
+    sset.process_queues();
 
     sset.remove_service(&p);
 }
