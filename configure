@@ -681,7 +681,7 @@ if [ "$SUPPORT_CAPABILITIES" != 0 ]; then
         fi
     else
         # SUPPORT_CAPABILITIES may be set to AUTO, fix that:
-        SUPPORT_CAPABILITES=1
+        SUPPORT_CAPABILITIES=1
     fi
     if [ "$AUTO_CPPFLAGS_LIBCAP" = true ]; then
         CPPFLAGS_LIBCAP=""
