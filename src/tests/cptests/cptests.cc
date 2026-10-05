@@ -1063,8 +1063,8 @@ void cptest_sendsignal()
 
     // Issue a signal:
     std::vector<char> cmd = { (char)cp_cmd::SIGNAL };
-    char * sig_cp = reinterpret_cast<char *>(&sig);
-    char * h_cp = reinterpret_cast<char *>(&h);
+    char *sig_cp = reinterpret_cast<char *>(&sig);
+    char *h_cp = reinterpret_cast<char *>(&h);
     cmd.insert(cmd.end(), sig_cp, sig_cp + sizeof(sig));
     cmd.insert(cmd.end(), h_cp, h_cp + sizeof(h));
 
@@ -1096,6 +1096,11 @@ void cptest_sendsignal()
     assert(wdata[0] == (char)cp_rply::ACK);
 
     assert(bp_sys::last_sig_sent == SIGILL);
+
+    // Cleanup service
+    p.stop();
+    sset.process_queues();
+    base_process_service_test::handle_exit(&p, 0);
 
     sset.remove_service(&p);
 

@@ -57,6 +57,10 @@ class eventloop_t
 
     class child_proc_watcher
     {
+        private:
+        pid_t watched_pid = (pid_t)-1;
+        bool is_reserved = false;
+
         public:
         class proc_status {
             int wait_si_code; // CLD_EXITED or a signal-related status
@@ -83,28 +87,48 @@ class eventloop_t
 
         pid_t fork(eventloop_t &loop, bool reserved_child_watcher, int priority = dasynq::DEFAULT_PRIORITY)
         {
+            assert (watched_pid == (pid_t)-1);
+            assert(is_reserved == reserved_child_watcher);
+
             bp_sys::last_forked_pid++;
+            is_reserved = true; // (so that following call to add_reserved succeeds)
+            add_reserved(loop, bp_sys::last_forked_pid, priority);
             return bp_sys::last_forked_pid;
         }
 
-        void add_reserved(eventloop_t &eloop, pid_t child, int prio = dasynq::DEFAULT_PRIORITY) noexcept
+        void add_reserved(eventloop_t &loop, pid_t child, int prio = dasynq::DEFAULT_PRIORITY) noexcept
         {
+            assert(is_reserved);
+            assert(loop.regd_proc_watchers.find(child) == loop.regd_proc_watchers.end());
+            assert(child != (pid_t)-1);
+            assert(watched_pid == (pid_t)-1);
 
+            watched_pid = child;
+            loop.regd_proc_watchers[child] = this;
         }
 
-        void stop_watch(eventloop_t &eloop) noexcept
+        void stop_watch(eventloop_t &loop) noexcept
         {
+            assert(watched_pid != (pid_t)-1);
 
+            loop.regd_proc_watchers.erase(watched_pid);
+            watched_pid = -1;
         }
 
-        void deregister(eventloop_t &loop, pid_t pid) noexcept
+        void deregister(eventloop_t &loop, pid_t child) noexcept
         {
-
+            assert(child == watched_pid);
+            loop.regd_proc_watchers.erase(watched_pid);
+            watched_pid = -1;
+            is_reserved = false;
         }
 
         void unreserve(eventloop_t &loop) noexcept
         {
+            assert(watched_pid == (pid_t)-1);
+            assert(is_reserved);
 
+            is_reserved = false;
         }
     };
 
@@ -251,6 +275,7 @@ class eventloop_t
     std::unordered_set<timer *> active_timers;
     std::map<int, bidi_fd_watcher *> regd_bidi_watchers;
     std::map<int, fd_watcher *> regd_fd_watchers;
+    std::map<pid_t, child_proc_watcher *> regd_proc_watchers;
 };
 
 inline void rootfs_is_rw() noexcept
