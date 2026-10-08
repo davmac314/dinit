@@ -3083,8 +3083,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_bgproc_stop5, "          ");
     RUN_TEST(test_scripted_stop_timeout, " ");
     RUN_TEST(test_scripted_start_fail, "   ");
-    // FIXME following test needs improvements to system mocks:
-    //RUN_TEST(test_scripted_start_race, "   ");
+    RUN_TEST(test_scripted_start_race, "   ");
     RUN_TEST(test_scripted_stop_fail, "    ");
     RUN_TEST(test_scripted_start_skip, "   ");
     RUN_TEST(test_scripted_start_skip2, "  ");
