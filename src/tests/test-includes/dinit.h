@@ -55,11 +55,16 @@ class eventloop_t
         }
     }
 
-    class child_proc_watcher
+    class ev_dispatch
     {
-        private:
-        pid_t watched_pid = (pid_t)-1;
-        bool is_reserved = false;
+        public:
+        virtual void dispatch(eventloop_t &) {}
+    };
+
+    class child_proc_watcher : private ev_dispatch
+    {
+        friend class eventloop_t;
+        template <typename Derived> friend class child_proc_watcher_impl;
 
         public:
         class proc_status {
@@ -84,6 +89,14 @@ class eventloop_t
         };
 
         using proc_status_t = proc_status;
+
+        private:
+
+        pid_t watched_pid = (pid_t)-1;
+        bool is_reserved = false;
+        proc_status_t proc_status;
+
+        public:
 
         pid_t fork(eventloop_t &loop, bool reserved_child_watcher, int priority = dasynq::DEFAULT_PRIORITY)
         {
@@ -134,8 +147,31 @@ class eventloop_t
 
     template <typename Derived> class child_proc_watcher_impl : public child_proc_watcher
     {
-
+        void dispatch(eventloop_t &loop) override
+        {
+            Derived *d = (Derived *)this;
+            dasynq::rearm rearm_code = d->status_change(loop, watched_pid, proc_status);
+            if (rearm_code == dasynq::rearm::REMOVED) return;
+            if (rearm_code == dasynq::rearm::NOOP) return;
+            if (rearm_code == dasynq::rearm::REMOVE) {
+                stop_watch(loop);
+                unreserve(loop);
+            }
+            else {
+                assert(false && "Unhandled rearm code from child proc watcher");
+            }
+        }
     };
+
+    void send_proc_event(pid_t pid, child_proc_watcher::proc_status_t status)
+    {
+        auto i = regd_proc_watchers.find(pid);
+        if (i != regd_proc_watchers.end()) {
+            child_proc_watcher *watcher = i->second;
+            watcher->proc_status = status;
+            ((ev_dispatch *)watcher)->dispatch(*this);
+        }
+    }
 
     class fd_watcher
     {

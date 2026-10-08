@@ -2318,6 +2318,7 @@ void test_bgproc_stop4()
     // so stop:
     p.stop();
     sset.process_queues();
+    base_process_service_test::stop_exec_succeeded(&p);
     base_process_service_test::handle_stop_exit(&p, 0);
 
     assert(p.get_state() == service_state_t::STOPPING);
@@ -2375,15 +2376,16 @@ void test_bgproc_stop5()
     // so stop:
     p.stop();
     sset.process_queues();
+    base_process_service_test::stop_exec_succeeded(&p);
 
     assert(p.get_state() == service_state_t::STOPPING);
 
-    base_process_service_test::handle_exit(&p, 0);
+    base_process_service_test::handle_exit(&p, 0); // daemon terminates
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPING);
 
-    base_process_service_test::handle_stop_exit(&p, 0); // exit the daemon process
+    base_process_service_test::handle_stop_exit(&p, 0);
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPED);

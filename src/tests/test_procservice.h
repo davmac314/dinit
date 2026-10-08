@@ -7,57 +7,56 @@
 class base_process_service_test
 {
     public:
-    static void exec_succeeded(base_process_service *bsp)
+    static void exec_succeeded(base_process_service *sr)
     {
-        // TODO: signal this directly via simulated pipe/event loop
-        bsp->waiting_for_execstat = false;
-        bsp->exec_succeeded();
+        // When exec succeeds the child status pipe write end will automatically be closed (it is
+        // close-on-exec). Simulate that by presenting an end-of-file to the read end:
+        std::vector<char> status_data;
+        int exec_fd = sr->child_status_listener.get_watched_fd();
+        bp_sys::supply_read_data(exec_fd, std::move(status_data));
+
+        event_loop.send_fd_event(exec_fd, dasynq::IN_EVENTS);
+    }
+
+    static void stop_exec_succeeded(process_service *sr)
+    {
+        std::vector<char> status_data;
+        int exec_fd = sr->stop_pipe_watcher.get_watched_fd();
+        bp_sys::supply_read_data(exec_fd, std::move(status_data));
+
+        event_loop.send_fd_event(exec_fd, dasynq::IN_EVENTS);
     }
 
     static void exec_failed(base_process_service *sr, int errcode)
     {
-        // TODO: signal this directly via simulated pipe/event loop
+        // When exec fails, the child process writes a stage code and errno value to the child
+        // status pipe. Simulate that by presenting equivalent data to the read end:
+        std::vector<char> status_data;
+        status_data.resize(sizeof(run_proc_err));
         run_proc_err exec_status;
         exec_status.stage = exec_stage::DO_EXEC;
         exec_status.st_errno = errcode;
-        sr->waiting_for_execstat = false;
-        if (sr->pid != -1) {
-            sr->child_listener.deregister(event_loop, sr->pid);
-            sr->reserved_child_watch = false;
-            if (sr->waiting_stopstart_timer) {
-                sr->process_timer.stop_timer(event_loop);
-                sr->waiting_stopstart_timer = false;
-            }
-        }
-        sr->pid = -1;
-        sr->exec_err_info = exec_status;
-        sr->exec_failed(exec_status);
+        memcpy(status_data.data(), &exec_status, sizeof(exec_status));
+        int exec_fd = sr->child_status_listener.get_watched_fd();
+        bp_sys::supply_read_data(exec_fd, std::move(status_data));
+
+        event_loop.send_fd_event(exec_fd, dasynq::IN_EVENTS);
+        event_loop.send_proc_event(sr->pid, {CLD_EXITED, 0});
     }
 
-    static void handle_exit(base_process_service *bsp, int exit_status)
+    static void handle_exit(base_process_service *sr, int exit_status)
     {
-        bsp->child_listener.status_change(event_loop, bsp->pid,
-                eventloop_t::child_proc_watcher::proc_status_t(CLD_EXITED, exit_status));
+        event_loop.send_proc_event(sr->pid, {CLD_EXITED, exit_status});
     }
 
-    static void handle_signal_exit(base_process_service *bsp, int signo)
+    static void handle_signal_exit(base_process_service *sr, int signo)
     {
-        bsp->child_listener.status_change(event_loop, bsp->pid,
-                eventloop_t::child_proc_watcher::proc_status_t(CLD_KILLED, signo));
+        event_loop.send_proc_event(sr->pid, {CLD_KILLED, signo});
     }
 
     static void handle_stop_exit(process_service *ps, int exit_status)
     {
-        // (Effectively signals that stop process exec succeeded also)
-        // TODO: signal this directly via event loop watcher
-
-        ps->waiting_for_execstat = false;
-        ps->stop_pid = -1;
-        ps->stop_status = eventloop_t::child_proc_watcher::proc_status_t(CLD_EXITED, exit_status);
-        ps->stop_watcher.stop_watch(event_loop);
-        ps->handle_stop_exit();
-
-        ps->services->process_queues();
+        event_loop.send_proc_event(ps->stop_pid, {CLD_EXITED, exit_status});
     }
 
     static int get_notification_fd(base_process_service *bsp)
