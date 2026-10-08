@@ -102,9 +102,9 @@ rearm exec_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
     sr->waiting_for_execstat = false;
 
     run_proc_err exec_status;
-    int r = read(get_watched_fd(), &exec_status, sizeof(exec_status));
+    int r = bp_sys::read(fd, &exec_status, sizeof(exec_status));
     deregister(loop);
-    close(get_watched_fd());
+    bp_sys::close(fd);
 
     if (r > 0) {
         // We read an errno code; exec() failed, and the service startup failed.
@@ -140,9 +140,9 @@ rearm stop_status_pipe_watcher::fd_event(eventloop_t &loop, int fd, int flags) n
     sr->waiting_for_execstat = false;
 
     run_proc_err exec_status;
-    int r = read(get_watched_fd(), &exec_status, sizeof(exec_status));
+    int r = bp_sys::read(fd, &exec_status, sizeof(exec_status));
     deregister(loop);
-    close(get_watched_fd());
+    bp_sys::close(fd);
 
     if (r > 0) {
         // We read an errno code; exec() failed, and the service startup failed.
