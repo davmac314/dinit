@@ -1,11 +1,18 @@
-# We use a scripted service for udev since (at least with eudev-3.1.2)
-# there is no other way to get notification when the control socket is
-# ready. (The downside is that we cannot properly supervise the process
-# and restart it if it crashes).
+# eudev since 3.2.15 supports readiness notification
 
-type = scripted
-command = /sbin/udevd --daemon
-stop-command = /bin/udevadm control -e
+type = process
+command = /sbin/udevd --ready-notify=3
+ready-notification = pipefd:3
+
+# For older eudev or systemd-udev, we need a scripted service as there is no other way to get
+# notification when the control socket is ready. (The downside is that we cannot properly
+# supervise the process and restart it if it crashes; we can't use bgprocess since udev doesn't
+# support writing its pid to file).
+#
+#type = scripted
+#command = /sbin/udevd --daemon
+#stop-command = /bin/udevadm control -e
+
 log-type = buffer
 restart = false
 

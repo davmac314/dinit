@@ -258,8 +258,9 @@ https://github.com/bus1/dbus-broker
 ## Explanation of example services
 
 A set of example service description files can be found in the [services](services)
-subdirectory; these can be used to boot a real system, assuming the appropriate
-package dependencies are in place. Here are explanations for each package:
+subdirectory; these can (with minor appropriate modifications) be used to boot a real
+system, assuming the appropriate package dependencies are in place. Here are
+explanations for each package:
 
 - `boot` - the internal service which is started on boot. Its dependencies are mostly
   listed in the `boot.d` directory. However, the ttyX services are directly listed
@@ -283,11 +284,8 @@ use `log-type = buffered` to log to an in-memory buffer.
 - `udevd` - this services starts the device node manager, udevd (from the eudev package). This
   daemon receives notification of hotplug events from the kernel, and creates device nodes (in
   `/dev`) according to its configuration. Note that "hotplug" events includes initialisation of
-  devices even when they are not "hot-pluggable" as such. It is a `type = scripted` service
-  because udevd does not support readiness notification; by allowing it to fork, dinit can
-  effectively observe when the daemon has initialised. However, it cannot monitor the process. A
-  patch to add readiness notification to udev has been submitted
-  (https://github.com/eudev-project/eudev/pull/290). 
+  devices even when they are not "hot-pluggable" as such. Since version 3.2.15, Eudev supports
+  dinit-compatible readiness notification.
 - `udev-trigger` - this is a scripted service which triggers device add actions
   for all currently present devices. This is required for `udevd` to process devices
   which already existed when it started.
