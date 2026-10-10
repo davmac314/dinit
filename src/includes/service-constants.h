@@ -5,7 +5,7 @@
 
 #include <control-datatypes.h>
 
-/* Service states */
+// Service states
 enum class service_state_t : dinit_cptypes::srvstate_t {
     STOPPED,    // service is not running.
     STARTING,   // service is starting, and will start (or fail to start) in time.
@@ -13,7 +13,7 @@ enum class service_state_t : dinit_cptypes::srvstate_t {
     STOPPING    // service script is stopping and will stop.
 };
 
-/* Service types */
+// Service types
 enum class service_type_t {
     PLACEHOLDER,  // Placeholder service, used for various reasons
     PROCESS,      // Service runs as a process, and can be stopped by
@@ -26,7 +26,7 @@ enum class service_type_t {
     TRIGGERED     // Externally triggered service
 };
 
-/* Service events */
+// Service events
 enum class service_event_t {
     STARTED,           // Service was started (reached STARTED state)
     STOPPED,           // Service was stopped (reached STOPPED state)
@@ -35,7 +35,7 @@ enum class service_event_t {
     STOPCANCELLED      // Service was set to be stopped but a start was requested
 };
 
-/* Shutdown types */
+// Shutdown types
 enum class shutdown_type_t : char {
     NONE,              // No explicit shutdown
     REMAIN,            // Continue running with no services
@@ -46,7 +46,7 @@ enum class shutdown_type_t : char {
     KEXEC              // Reboot with kexec (without firmware reinitialisation)
 };
 
-/* Reasons for why service stopped */
+// Reasons for why service stopped
 enum class stopped_reason_t
 {
     NORMAL,
@@ -67,7 +67,7 @@ inline bool did_finish(stopped_reason_t reason)
     return reason == stopped_reason_t::TERMINATED;
 }
 
-/* Execution stage */
+// Execution stage
 enum class exec_stage {
     ARRANGE_FDS, READ_ENV_FILE, SET_NOTIFYFD_VAR, SETUP_ACTIVATION_SOCKET, SETUP_CONTROL_SOCKET,
     CHDIR, SETUP_STDINOUTERR, ENTER_CGROUP, SET_RLIMITS, SET_UIDGID,
@@ -79,7 +79,7 @@ enum class exec_stage {
     /* must be last: */ DO_EXEC
 };
 
-/* Strings describing the execution stages (failure points). */
+// Strings describing the execution stages (failure points).
 const char * const exec_stage_descriptions[/* static_cast<int>(exec_stage::DO_EXEC) + 1 */] = {
         "arranging file descriptors",   // ARRANGE_FDS
         "reading environment file",     // READ_ENV_FILE

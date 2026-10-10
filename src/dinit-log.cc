@@ -167,8 +167,8 @@ rearm buffered_log_stream::fd_event(eventloop_t &loop, int fd, int flags) noexce
     }
 
     if ((!partway) && special) {
-        const char * start = special_buf + msg_index;
-        const char * end = start;
+        const char *start = special_buf + msg_index;
+        const char *end = start;
         while (*end != '\n') end++;
         int r = bp_sys::write(fd, start, end - start + 1);
         if (r >= 0) {
@@ -355,7 +355,7 @@ static int sum_length(const char *arg) noexcept
     return std::strlen(arg);
 }
 
-template <typename ... T> static int sum_length(const char * first, T ... args) noexcept
+template <typename ... T> static int sum_length(const char *first, T ... args) noexcept
 {
     return sum_length(first) + sum_length(args...);
 }

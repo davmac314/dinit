@@ -382,13 +382,13 @@ inline const char *get_default_socket_path(std::string &control_socket_str, bool
         control_socket_path = control_socket_str.c_str();
     }
     else if (user_dinit) {
-        const char * rundir = getenv("XDG_RUNTIME_DIR");
-        const char * sockname = "dinitctl";
+        const char *rundir = getenv("XDG_RUNTIME_DIR");
+        const char *sockname = "dinitctl";
         if (rundir == nullptr) {
             sockname = ".dinitctl";
             rundir = getenv("HOME");
             if (rundir == nullptr) {
-                struct passwd * pwuid_p = getpwuid(getuid());
+                struct passwd *pwuid_p = getpwuid(getuid());
                 if (pwuid_p != nullptr) {
                     rundir = pwuid_p->pw_dir;
                 }
@@ -420,7 +420,7 @@ inline int connect_to_daemon(const char *control_socket_path)
         throw general_error(errno, "opening socket");
     }
 
-    struct sockaddr_un * name;
+    struct sockaddr_un *name;
     uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + strlen(control_socket_path) + 1;
     name = (struct sockaddr_un *) malloc(sockaddr_size);
     if (name == nullptr) {
@@ -446,9 +446,9 @@ inline int connect_to_daemon(const char *control_socket_path)
 inline int get_passed_cfd()
 {
     int socknum = -1;
-    char * dinit_cs_fd_env = getenv("DINIT_CS_FD");
+    char *dinit_cs_fd_env = getenv("DINIT_CS_FD");
     if (dinit_cs_fd_env != nullptr) {
-        char * endptr;
+        char *endptr;
         long int cfdnum = strtol(dinit_cs_fd_env, &endptr, 10);
         if (endptr != dinit_cs_fd_env) {
             socknum = (int) cfdnum;

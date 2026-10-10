@@ -15,7 +15,7 @@ class service_dir_opt
 public:
     // Get user home (and set user_home_path). (The return may become invalid after
     // changing the environment (HOME variable) or using the getpwuid() function).
-    static const char * get_user_home();
+    static const char *get_user_home();
 
     void add_specified_service_dir(const char *specified_dir)
     {

@@ -202,7 +202,7 @@ namespace {
 
 // Options handled in dinit_main
 struct options {
-    const char * env_file = nullptr;
+    const char *env_file = nullptr;
     bool control_socket_path_set = false;
     bool env_file_set = false;
     bool log_specified = false;
@@ -551,8 +551,8 @@ int dinit_main(int argc, char **argv)
     event_loop.init();
 
     if (!am_system_init && !control_socket_path_set) {
-        const char * rundir = getenv("XDG_RUNTIME_DIR");
-        const char * sockname = "dinitctl";
+        const char *rundir = getenv("XDG_RUNTIME_DIR");
+        const char *sockname = "dinitctl";
         if (rundir == nullptr) {
             rundir = service_dir_opt::get_user_home();
             sockname = ".dinitctl";
@@ -781,7 +781,7 @@ int dinit_main(int argc, char **argv)
             flush_log();
         }
 
-        const char * cmd_arg;
+        const char *cmd_arg;
         if (shutdown_type == shutdown_type_t::HALT) {
             cmd_arg = "-h";
         }
@@ -982,11 +982,11 @@ static bool open_control_socket(bool report_ro_failure) noexcept
     }
 
     if (!control_socket_open) {
-        const char * saddrname = control_socket_path;
+        const char *saddrname = control_socket_path;
         size_t saddrname_len = strlen(saddrname);
         uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + saddrname_len + 1;
         
-        struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
+        struct sockaddr_un *name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
         if (name == nullptr) {
             log(loglevel_t::ERROR, "Opening control socket: out of memory");
             return false;
@@ -1085,11 +1085,11 @@ void setup_external_log() noexcept
 {
     if (!external_log_open) {
         if (log_is_syslog) {
-            const char * saddrname = log_path;
+            const char *saddrname = log_path;
             size_t saddrname_len = strlen(saddrname);
             uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + saddrname_len + 1;
 
-            struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
+            struct sockaddr_un *name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
             if (name == nullptr) {
                 log(loglevel_t::ERROR, "Connecting to log socket: out of memory");
                 return;

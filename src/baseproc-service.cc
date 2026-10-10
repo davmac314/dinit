@@ -506,7 +506,7 @@ bool base_process_service::open_socket() noexcept
         return true;
     }
 
-    const char * saddrname = socket_path.c_str();
+    const char *saddrname = socket_path.c_str();
 
     // Check the specified socket path
     struct stat stat_buf;
@@ -529,7 +529,7 @@ bool base_process_service::open_socket() noexcept
     unlink(saddrname);
 
     uint sockaddr_size = offsetof(struct sockaddr_un, sun_path) + socket_path.length() + 1;
-    struct sockaddr_un * name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
+    struct sockaddr_un *name = static_cast<sockaddr_un *>(malloc(sockaddr_size));
     if (name == nullptr) {
         log(loglevel_t::ERROR, get_name(), ": opening activation socket: out of memory");
         return false;

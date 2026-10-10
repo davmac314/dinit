@@ -34,7 +34,7 @@ std::vector<const char *> separate_args(ha_string &s,
     }
 
     // Now we can get the C string (c_str) and store offsets into it:
-    const char * cstr = s.c_str();
+    const char *cstr = s.c_str();
     for (auto index_pair : arg_indices) {
         r.push_back(cstr + index_pair.first);
     }
@@ -925,7 +925,7 @@ bool process_service::start_stop_process(const std::vector<const char *> &cmd) n
         return false;
     }
 
-    const char * logfile = this->logfile.c_str();
+    const char *logfile = this->logfile.c_str();
     if (*logfile == 0) {
         logfile = "/dev/null";
     }
@@ -954,7 +954,7 @@ bool process_service::start_stop_process(const std::vector<const char *> &cmd) n
 
     if (forkpid == 0) {
         close(pipefd[0]);
-        const char * working_dir_c = service_dsc_dir;
+        const char *working_dir_c = service_dsc_dir;
         if (!working_dir.empty()) working_dir_c = working_dir.c_str();
         run_proc_params run_params{cmd.data(), working_dir_c, logfile, pipefd[1], run_as_uid, run_as_gid, rlimits};
         run_params.on_console = false;

@@ -16,7 +16,7 @@ const char *service_dir_opt::get_user_home()
     if (user_home_path == nullptr) {
         user_home_path = getenv("HOME");
         if (user_home_path == nullptr) {
-            struct passwd * pwuid_p = getpwuid(getuid());
+            struct passwd *pwuid_p = getpwuid(getuid());
             if (pwuid_p != nullptr) {
                 user_home_path = pwuid_p->pw_dir;
             }
@@ -32,7 +32,7 @@ void service_dir_opt::build_paths(bool am_system_init)
 
         /* service directory name */
         if (!am_system_init) {
-            const char * xdg_config_home = getenv("XDG_CONFIG_HOME");
+            const char *xdg_config_home = getenv("XDG_CONFIG_HOME");
             size_t xdg_config_home_len;
             if (xdg_config_home != nullptr && *xdg_config_home != '\0') {
                 xdg_config_home_len = strlen(xdg_config_home);
@@ -51,7 +51,7 @@ void service_dir_opt::build_paths(bool am_system_init)
                 home_service_dir_set = true;
             }
 
-            const char * user_home = get_user_home();
+            const char *user_home = get_user_home();
             if (user_home != nullptr && *user_home != '\0') {
                 size_t user_home_len = strlen(user_home);
                 if (xdg_config_home != nullptr && *xdg_config_home != '\0'

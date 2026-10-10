@@ -239,7 +239,7 @@ class service_description_exc : public service_load_exc
 {
     public:
     file_pos input_pos;
-    const char * const setting_name = nullptr;
+    const char *const setting_name = nullptr;
 
     service_description_exc(const file_pos_ref &input_pos_p, std::string &&exc_info)
             : service_load_exc(std::move(exc_info)), input_pos(input_pos_p)
@@ -778,7 +778,7 @@ inline uid_t parse_uid_param(file_pos_ref input_pos, const std::string &param,
     }
 
     errno = 0;
-    struct passwd * pwent = getpwnam(param.c_str());
+    struct passwd *pwent = getpwnam(param.c_str());
     if (pwent == nullptr) {
         // Maybe an error, maybe just no entry.
         if (errno == 0) {
@@ -812,7 +812,7 @@ inline uid_t parse_uid_param(file_pos_ref input_pos, const std::string &param,
 inline gid_t parse_gid_param(file_pos_ref input_pos, const std::string &param,
         ::string_view service_name, const char *setting_name)
 {
-    const char * gid_err_msg = "specified group id contains invalid numeric characters or is "
+    const char *gid_err_msg = "specified group id contains invalid numeric characters or is "
             "outside allowed range.";
 
     // Could be a name or a numeric id. But we should assume numeric first, just in case
@@ -947,7 +947,7 @@ inline unsigned long long parse_unum_param(file_pos_ref input_pos, const std::st
         const std::string &service_name,
         unsigned long long max = std::numeric_limits<unsigned long long>::max())
 {
-    const char * num_err_msg = "specified value contains invalid numeric characters or is outside "
+    const char *num_err_msg = "specified value contains invalid numeric characters or is outside "
             "allowed range.";
 
     std::size_t ind = 0;

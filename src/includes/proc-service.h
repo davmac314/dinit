@@ -104,7 +104,7 @@ class exec_status_pipe_watcher : public eventloop_t::fd_watcher_impl<exec_status
     base_process_service *service;
     dasynq::rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
 
-    exec_status_pipe_watcher(base_process_service * sr) noexcept : service(sr) { }
+    exec_status_pipe_watcher(base_process_service *sr) noexcept : service(sr) { }
 
     exec_status_pipe_watcher(const exec_status_pipe_watcher &) = delete;
     void operator=(const exec_status_pipe_watcher &) = delete;
@@ -117,7 +117,7 @@ class stop_status_pipe_watcher : public eventloop_t::fd_watcher_impl<stop_status
     process_service *service;
     dasynq::rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
 
-    stop_status_pipe_watcher(process_service * sr) noexcept : service(sr) { }
+    stop_status_pipe_watcher(process_service *sr) noexcept : service(sr) { }
 
     stop_status_pipe_watcher(const exec_status_pipe_watcher &) = delete;
     void operator=(const exec_status_pipe_watcher &) = delete;
@@ -143,7 +143,7 @@ class service_child_watcher : public eventloop_t::child_proc_watcher_impl<servic
     base_process_service *service;
     dasynq::rearm status_change(eventloop_t &eloop, pid_t child, proc_status_t status) noexcept;
 
-    service_child_watcher(base_process_service * sr) noexcept : service(sr) { }
+    service_child_watcher(base_process_service *sr) noexcept : service(sr) { }
 
     service_child_watcher(const service_child_watcher &) = delete;
     void operator=(const service_child_watcher &) = delete;
@@ -156,7 +156,7 @@ class stop_child_watcher : public eventloop_t::child_proc_watcher_impl<stop_chil
     process_service *service;
     dasynq::rearm status_change(eventloop_t &eloop, pid_t child, proc_status_t status) noexcept;
 
-    stop_child_watcher(process_service * sr) noexcept : service(sr) { }
+    stop_child_watcher(process_service *sr) noexcept : service(sr) { }
 
     stop_child_watcher(const service_child_watcher &) = delete;
     void operator=(const service_child_watcher &) = delete;
@@ -169,7 +169,7 @@ class log_output_watcher : public eventloop_t::fd_watcher_impl<log_output_watche
 
     dasynq::rearm fd_event(eventloop_t &eloop, int fd, int flags) noexcept;
 
-    log_output_watcher(base_process_service * sr) noexcept : service(sr) { }
+    log_output_watcher(base_process_service *sr) noexcept : service(sr) { }
 
     log_output_watcher(const ready_notify_watcher &) = delete;
     void operator=(const ready_notify_watcher &) = delete;

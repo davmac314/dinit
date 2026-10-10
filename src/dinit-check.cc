@@ -101,7 +101,7 @@ int main(int argc, char **argv)
     service_dir_opt service_dir_opts;
     bool user_dinit = (getuid() != 0);  // use user instance defaults/daemon instance
     std::string control_socket_str;
-    const char * control_socket_path = nullptr;
+    const char *control_socket_path = nullptr;
     std::string env_file;
 
     struct service_to_check

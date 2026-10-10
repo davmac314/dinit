@@ -218,7 +218,7 @@ void service_record::release(bool issue_stop) noexcept
 void service_record::release_dependencies() noexcept
 {
     for (auto & dependency : depends_on) {
-        service_record * dep_to = dependency.get_to();
+        service_record *dep_to = dependency.get_to();
         if (dependency.holding_acq) {
             // We must clear holding_acq before calling release, otherwise the dependency
             // may decide to stop, check this link and release itself a second time.
@@ -417,7 +417,7 @@ bool service_record::start_check_dependencies() noexcept
     bool all_deps_started = true;
 
     for (auto & dep : depends_on) {
-        service_record * to = dep.get_to();
+        service_record *to = dep.get_to();
         if (dep.is_only_ordering()
                 && to->service_state != service_state_t::STARTING) continue;
         if (to->service_state != service_state_t::STARTED) {

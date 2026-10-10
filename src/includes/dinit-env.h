@@ -353,12 +353,12 @@ public:
         set_vars.clear();
     }
 
-    void add_listener(env_listener * listener)
+    void add_listener(env_listener *listener)
     {
         listeners.insert(listener);
     }
 
-    void remove_listener(env_listener * listener) noexcept
+    void remove_listener(env_listener *listener) noexcept
     {
         listeners.erase(listener);
     }

@@ -29,7 +29,7 @@ class control_conn_watcher;
 inline dasynq::rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents);
 
 // Pointer to the control connection that is listening for rollback completion
-extern control_conn_t * rollback_handler_conn;
+extern control_conn_t *rollback_handler_conn;
 
 extern int active_control_conns;
 
@@ -55,7 +55,7 @@ class control_conn_watcher : public eventloop_t::bidi_fd_watcher_impl<control_co
         return control_conn_cb(&loop, this, flags);
     }
 
-    eventloop_t * event_loop;
+    eventloop_t *event_loop;
 
     public:
     control_conn_watcher(eventloop_t & event_loop_p) : event_loop(&event_loop_p)
@@ -236,7 +236,7 @@ class control_conn_t : private service_listener, private env_listener
     void environ_event(environment *env, std::string const &var_and_val, bool overridden) noexcept final override;
     
     public:
-    control_conn_t(eventloop_t &loop, service_set * services_p, int fd)
+    control_conn_t(eventloop_t &loop, service_set *services_p, int fd)
             : iob(loop), loop(loop), services(services_p), chklen(0)
     {
         iob.add_watch(loop, fd, dasynq::IN_EVENTS);
@@ -249,7 +249,7 @@ class control_conn_t : private service_listener, private env_listener
 };
 
 
-inline dasynq::rearm control_conn_cb(eventloop_t * loop, control_conn_watcher * watcher, int revents)
+inline dasynq::rearm control_conn_cb(eventloop_t *loop, control_conn_watcher *watcher, int revents)
 {
     // Get the address of the containing control_connt_t object:
     _Pragma ("GCC diagnostic push")

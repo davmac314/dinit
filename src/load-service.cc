@@ -51,7 +51,7 @@ static void process_dep_dir(dirload_service_set &sset,
         char *name =  dent->d_name;
         if (dinit_load::validate_service_name(name)) {
             try {
-                service_record * sr = sset.load_service(name);
+                service_record *sr = sset.load_service(name);
                 deplist.emplace_back(sr, dep_type);
             }
             catch (service_not_found &) {
@@ -72,13 +72,13 @@ static void process_dep_dir(dirload_service_set &sset,
     closedir(depdir);
 }
 
-service_record * dirload_service_set::load_service(const char * name,
+service_record *dirload_service_set::load_service(const char *name,
         const service_record *avoid_circular, int recursion_depth)
 {
     return load_reload_service(name, nullptr, avoid_circular, recursion_depth);
 }
 
-service_record * dirload_service_set::reload_service(service_record * service)
+service_record *dirload_service_set::reload_service(service_record *service)
 {
     return load_reload_service(service->get_name().c_str(), service, service);
 }

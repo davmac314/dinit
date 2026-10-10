@@ -166,7 +166,7 @@ bool control_conn_t::process_find_load(cp_cmd pktType)
         return true;
     }
     
-    service_record * record = nullptr;
+    service_record *record = nullptr;
     
     string service_name = rbuf.extract_string(3, srvname_len);
     if (!dinit_load::validate_service_name(service_name)) {
@@ -954,12 +954,12 @@ bool control_conn_t::add_service_dep(bool do_enable, bool with_status_response)
     std::vector<service_record *> dep_queue;
     dep_queue.push_back(to_service);
     while (!dep_queue.empty()) {
-        service_record * sr = dep_queue.back();
+        service_record *sr = dep_queue.back();
         dep_queue.pop_back();
         // iterate deps; if dep == from, abort; otherwise add to set/queue
         // (only add to queue if not already in set)
         for (auto &dep : sr->get_dependencies()) {
-            service_record * dep_to = dep.get_to();
+            service_record *dep_to = dep.get_to();
             if (dep_to == from_service) {
                 // fail, circular dependency!
                 char nak_rep[] = { (char)cp_rply::NAK };
@@ -981,7 +981,7 @@ bool control_conn_t::add_service_dep(bool do_enable, bool with_status_response)
 
     // Prevent creation of duplicate dependency:
     for (auto &dep : from_service->get_dependencies()) {
-        service_record * dep_to = dep.get_to();
+        service_record *dep_to = dep.get_to();
         if (dep_to == to_service && dep.dep_type == dep_type) {
             // Dependency already exists
             dep_exists = true;

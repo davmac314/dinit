@@ -45,7 +45,7 @@ class subproc_buffer;
 void do_system_shutdown(shutdown_type_t shutdown_type);
 static void unmount_disks(loop_t &loop, subproc_buffer &sub_buf);
 static void swap_off(loop_t &loop, subproc_buffer &sub_buf);
-static loop_t::child_proc_watcher::proc_status_t run_process(const char * prog_args[],
+static loop_t::child_proc_watcher::proc_status_t run_process(const char *prog_args[],
         loop_t &loop, subproc_buffer &sub_buf);
 
 constexpr static int subproc_bufsize = 4096;
@@ -62,7 +62,7 @@ class subproc_buffer : private cpbuffer<subproc_bufsize>
     int last_overflow = -1;  // last marker in the series
     const char *overflow_msg_ptr = nullptr;   // current position in overflow message
     dasynq::event_loop_n &loop;
-    dasynq::event_loop_n::fd_watcher * out_watch;
+    dasynq::event_loop_n::fd_watcher *out_watch;
 
     public:
     enum class fill_status
@@ -221,7 +221,7 @@ class subproc_buffer : private cpbuffer<subproc_bufsize>
             last_overflow = get_length() - sizeof(int16_t);
             overflow_marker = last_overflow;
             int16_t overflow16 = -1;
-            char * overflow16_ptr = reinterpret_cast<char *>(&overflow16);
+            char *overflow16_ptr = reinterpret_cast<char *>(&overflow16);
             *get_ptr(last_overflow + 0) = overflow16_ptr[0];
             *get_ptr(last_overflow + 1) = overflow16_ptr[1];
             return;
@@ -231,7 +231,7 @@ class subproc_buffer : private cpbuffer<subproc_bufsize>
         int new_overflow = i + 1;
         if (last_overflow != -1) {
             int16_t new_overflow16 = new_overflow;
-            char * new_overflow16_ptr = reinterpret_cast<char *>(&new_overflow16);
+            char *new_overflow16_ptr = reinterpret_cast<char *>(&new_overflow16);
             *get_ptr(last_overflow + 0) = new_overflow16_ptr[0];
             *get_ptr(last_overflow + 1) = new_overflow16_ptr[1];
         }
@@ -241,7 +241,7 @@ class subproc_buffer : private cpbuffer<subproc_bufsize>
         }
 
         int16_t overflow16 = -1;
-        char * overflow16_ptr = reinterpret_cast<char *>(&overflow16);
+        char *overflow16_ptr = reinterpret_cast<char *>(&overflow16);
         *get_ptr(last_overflow + 0) = overflow16_ptr[0];
         *get_ptr(last_overflow + 0) = overflow16_ptr[1];
         trim_to(last_overflow + sizeof(int16_t));
@@ -577,7 +577,7 @@ void do_system_shutdown(shutdown_type_t shutdown_type)
     kill(-1, SIGKILL);
 
     // Attempt to execute shutdown hook at three possible locations:
-    const char * const hook_paths[] = {
+    const char *const hook_paths[] = {
             "/etc/dinit/shutdown-hook",
             "/lib/dinit/shutdown-hook"
     };
@@ -699,7 +699,7 @@ class subproc_out_watch : public loop_t::fd_watcher_impl<subproc_out_watch>
 
 // Run process, put its output through the subprocess buffer
 //   may throw: std::system_error, std::bad_alloc
-static loop_t::child_proc_watcher::proc_status_t run_process(const char * prog_args[],
+static loop_t::child_proc_watcher::proc_status_t run_process(const char *prog_args[],
         loop_t &loop, subproc_buffer &sub_buf)
 {
     class sp_watcher_t : public loop_t::child_proc_watcher_impl<sp_watcher_t>
@@ -783,9 +783,9 @@ static void unmount_disks(loop_t &loop, subproc_buffer &sub_buf)
 {
     try {
 #if __NetBSD__
-        const char * unmount_args[] = { "/sbin/umount", "-a", nullptr };
+        const char *unmount_args[] = { "/sbin/umount", "-a", nullptr };
 #elif __linux__
-        const char * unmount_args[] = { "/bin/umount", "-a", "-r", nullptr };
+        const char *unmount_args[] = { "/bin/umount", "-a", "-r", nullptr };
 #else
 #error "Unmount command not known for this system"
 #endif
@@ -802,9 +802,9 @@ static void swap_off(loop_t &loop, subproc_buffer &sub_buf)
 {
     try {
 #if __NetBSD__
-        const char * swapoff_args[] = { "/sbin/swapctl", "-U", nullptr };
+        const char *swapoff_args[] = { "/sbin/swapctl", "-U", nullptr };
 #elif __linux__
-        const char * swapoff_args[] = { "/sbin/swapoff", "-a", nullptr };
+        const char *swapoff_args[] = { "/sbin/swapoff", "-a", nullptr };
 #else
 #error "Swap-off command not known for this system"
 #endif

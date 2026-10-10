@@ -1230,7 +1230,7 @@ class service_set
             enable_console_log(true);
         }
         else {
-            service_record * front = console_queue.pop_front();
+            service_record *front = console_queue.pop_front();
             front->acquired_console();
         }
     }

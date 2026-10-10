@@ -22,7 +22,7 @@
 // To use the string at run time, call the c_str() function to obtain a pointer to the contained
 // string, or simply assign or cast to a 'const char *':
 //
-//   const char * cstr = str3; // now points to "onetwo"
+//   const char *cstr = str3; // now points to "onetwo"
 //
 // Note that to be most effective, it is necessary to construct literals at file/namespace scope.
 // If they are constructed as locals, the compiler may reconstruct the object each time the
@@ -41,7 +41,7 @@ class static_string
     public:
     constexpr static_string(const char (&lit_p)[N+1]) : lit(lit_p) {}
     constexpr char operator[](int i) const { return lit[i]; }
-    constexpr const char * c_str() const { return lit; }
+    constexpr const char *c_str() const { return lit; }
 
     operator const char*() const
     {
