@@ -910,6 +910,7 @@ static void do_soft_reboot(char **argv) noexcept
     }
 
     // Re-exec the dinit process.
+    sigprocmask(SIG_SETMASK, &orig_signal_mask, nullptr);
     execv(dinit_exec, argv);
     log(loglevel_t::ERROR, error_exec_dinit, strerror(errno));
 }
