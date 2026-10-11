@@ -17,6 +17,9 @@ namespace {
 // which simulated file descriptors are currently "open"
 std::vector<bool> usedfds = {true, true, true};
 
+// signal listeners
+std::vector<bp_sys::signal_listener *> signal_listeners;
+
 struct read_result
 {
     read_result(int errcode_p) : errcode(errcode_p) {}
@@ -464,6 +467,20 @@ void supply_file_content(const std::string &path, const std::string &data)
     supply_file_content(path, std::move(vec_data));
 }
 
+// Add a listener to receive notification when any signal is sent to any process
+void add_signal_listener(signal_listener *listener)
+{
+    signal_listeners.push_back(listener);
+}
+
+// Remove a signal listener that was added via add_signal_listener
+void remove_signal_listener(signal_listener *listener)
+{
+    auto i = std::remove(signal_listeners.begin(), signal_listeners.end(), listener);
+    signal_listeners.erase(i, signal_listeners.end());
+}
+
+
 // Mock implementations of system calls:
 
 int open(const char *pathname, int flags)
@@ -572,6 +589,9 @@ int close(int fd)
 int kill(pid_t pid, int sig)
 {
     last_sig_sent = sig;
+    for (auto *l : signal_listeners) {
+        l->signal_sent(pid, sig);
+    }
     return 0;
 }
 

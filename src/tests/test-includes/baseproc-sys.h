@@ -37,6 +37,13 @@ public:
     }
 };
 
+// Listener for signals sent; add via ...
+class signal_listener
+{
+public:
+    virtual void signal_sent(pid_t pid, int signo) = 0;
+};
+
 // Test helper functions:
 
 void init_bpsys();
@@ -52,6 +59,9 @@ void extract_written_data(int fd, std::vector<char> &data);
 void supply_file_content(const std::string &path, const std::vector<char> &data);
 void supply_file_content(const std::string &path, std::vector<char> &&data);
 void supply_file_content(const std::string &path, const std::string &data);
+
+void add_signal_listener(signal_listener *);
+void remove_signal_listener(signal_listener *);
 
 // Mock system calls:
 
