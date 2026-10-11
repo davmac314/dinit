@@ -2159,14 +2159,13 @@ void test_bgproc_term_restart()
     sset.remove_service(&p);
 }
 
+// Basic test for stopping a bgproc service (no stop command)
 void test_bgproc_stop()
 {
-    using namespace std;
-
     service_set sset;
 
     ha_string command = "test-command";
-    list<pair<unsigned,unsigned>> command_offsets;
+    std::list<std::pair<unsigned,unsigned>> command_offsets;
     command_offsets.emplace_back(0, command.length());
     std::list<prelim_dep> depends;
 
@@ -2452,6 +2451,231 @@ void test_bgproc_stop5()
     base_process_service_test::handle_stop_exit(&p, 0);
     sset.process_queues();
 
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
+// Test timeout during bgproc stop
+void test_bgproc_stop_timeout()
+{
+    service_set sset;
+
+    ha_string command = "test-command";
+    std::list<std::pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    bgproc_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_auto_restart(auto_restart_mode::ALWAYS);
+    p.set_pid_file("/run/daemon.pid");
+    p.set_stop_timeout({1, 0});
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    pid_t daemon_instance;
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
+
+    // Launch process completes:
+    base_process_service_test::handle_exit(&p, 0); // exit the launch process
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_pid() == daemon_instance);
+
+    // Issue stop:
+    p.stop();
+    sset.process_queues();
+
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    bp_sys::last_sig_sent = 0;
+
+    // Stop times out:
+    event_loop.advance_time(time_val(1, 0));
+    assert(bp_sys::last_sig_sent == SIGKILL);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    base_process_service_test::handle_exit(&p, 1);
+
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
+// Test timeout during bgproc stop (with stop command)
+void test_bgproc_stop_timeout_2()
+{
+    service_set sset;
+
+    for (int i = 0; i < 2; i++) {
+        ha_string command = "test-command";
+        std::list<std::pair<unsigned,unsigned>> command_offsets;
+        command_offsets.emplace_back(0, command.length());
+        std::list<prelim_dep> depends;
+
+        ha_string stop_command = "stop-command";
+        std::list<std::pair<unsigned,unsigned>> stop_command_offsets;
+        stop_command_offsets.emplace_back(0, stop_command.length());
+
+        bgproc_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+        init_service_defaults(p);
+        p.set_smooth_recovery(true);
+        p.set_restart_delay(time_val {0, 1000});
+        p.set_pid_file("/run/daemon.pid");
+        p.set_stop_timeout({1, 0});
+        p.set_stop_command(stop_command, stop_command_offsets);
+        sset.add_service(&p);
+
+        p.start();
+        sset.process_queues();
+
+        base_process_service_test::exec_succeeded(&p);
+        sset.process_queues();
+
+        pid_t daemon_instance;
+        supply_pid_contents("/run/daemon.pid", &daemon_instance);
+
+        assert(p.get_state() == service_state_t::STARTING);
+
+        base_process_service_test::handle_exit(&p, 0); // exit the launch process
+        sset.process_queues();
+
+        // daemon process has been started now, state should be STARTED
+        assert(p.get_state() == service_state_t::STARTED);
+        assert(daemon_instance == bp_sys::last_forked_pid);
+
+        // so stop:
+        p.stop();
+        sset.process_queues();
+        base_process_service_test::stop_exec_succeeded(&p);
+
+        assert(p.get_state() == service_state_t::STOPPING);
+
+        bp_sys::last_sig_sent = 0;
+
+        struct bst2 : public bp_sys::signal_listener
+        {
+            std::vector<std::pair<pid_t, int>> signals_sent;
+            void signal_sent(pid_t pid, int signo) override {
+                signals_sent.emplace_back(pid, signo);
+            }
+        };
+
+        bst2 bst2_listener;
+
+        // Stop times out:
+        bp_sys::add_signal_listener(&bst2_listener);
+        event_loop.advance_time(time_val(1, 0));
+        assert(bp_sys::last_sig_sent == SIGKILL);
+        assert(p.get_state() == service_state_t::STOPPING);
+        bp_sys::remove_signal_listener(&bst2_listener);
+        // Check that _two_ SIGKILLs were sent - one to main process, one to stop command:
+        assert(bst2_listener.signals_sent.size() == 2);
+
+        if (i == 0) {
+            // daemon terminates before stop command
+            base_process_service_test::handle_exit(&p, 0);
+            assert(p.get_state() == service_state_t::STOPPING);
+            base_process_service_test::handle_stop_exit(&p, 0);
+            assert(p.get_state() == service_state_t::STOPPED);
+            assert(event_loop.active_timers.size() == 0);
+        }
+        else {
+            // stop command terminates before daemon
+            base_process_service_test::handle_stop_exit(&p, 0);
+            assert(p.get_state() == service_state_t::STOPPING);
+            base_process_service_test::handle_exit(&p, 0);
+            assert(p.get_state() == service_state_t::STOPPED);
+            assert(event_loop.active_timers.size() == 0);
+        }
+
+        sset.remove_service(&p);
+    }
+}
+
+// Test timeout during bgproc stop (with stop command), where daemon terminates on time but stop
+// command exceeds timeout
+void test_bgproc_stop_timeout_3()
+{
+    service_set sset;
+
+    ha_string command = "test-command";
+    std::list<std::pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    ha_string stop_command = "stop-command";
+    std::list<std::pair<unsigned,unsigned>> stop_command_offsets;
+    stop_command_offsets.emplace_back(0, stop_command.length());
+
+    bgproc_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_smooth_recovery(true);
+    p.set_restart_delay(time_val {0, 1000});
+    p.set_pid_file("/run/daemon.pid");
+    p.set_stop_timeout({1, 0});
+    p.set_stop_command(stop_command, stop_command_offsets);
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+
+    base_process_service_test::exec_succeeded(&p);
+
+    pid_t daemon_instance;
+    supply_pid_contents("/run/daemon.pid", &daemon_instance);
+
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::handle_exit(&p, 0); // exit the launch process
+
+    // daemon process has been started now, state should be STARTED
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(daemon_instance == bp_sys::last_forked_pid);
+
+    // so stop:
+    p.stop();
+    sset.process_queues();
+    base_process_service_test::stop_exec_succeeded(&p);
+
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    bp_sys::last_sig_sent = 0;
+
+    struct bst2 : public bp_sys::signal_listener
+    {
+        std::vector<std::pair<pid_t, int>> signals_sent;
+        void signal_sent(pid_t pid, int signo) override {
+            signals_sent.emplace_back(pid, signo);
+        }
+    };
+
+    // daemon terminates
+    base_process_service_test::handle_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    bst2 bst2_listener;
+
+    // Stop times out:
+    bp_sys::add_signal_listener(&bst2_listener);
+    event_loop.advance_time(time_val(1, 0));
+    assert(bp_sys::last_sig_sent == SIGKILL);
+    assert(p.get_state() == service_state_t::STOPPING);
+    bp_sys::remove_signal_listener(&bst2_listener);
+
+    // Check that a single SIGKILL was sent (to stop command):
+    assert(bst2_listener.signals_sent.size() == 1);
+
+    base_process_service_test::handle_stop_exit(&p, 0);
     assert(p.get_state() == service_state_t::STOPPED);
     assert(event_loop.active_timers.size() == 0);
 
@@ -3146,6 +3370,9 @@ int main(int argc, char **argv)
     RUN_TEST(test_bgproc_stop3, "          ");
     RUN_TEST(test_bgproc_stop4, "          ");
     RUN_TEST(test_bgproc_stop5, "          ");
+    RUN_TEST(test_bgproc_stop_timeout, "   ");
+    RUN_TEST(test_bgproc_stop_timeout_2, " ");
+    RUN_TEST(test_bgproc_stop_timeout_3, " ");
     RUN_TEST(test_scripted_stop_timeout, " ");
     RUN_TEST(test_scripted_start_fail, "   ");
     RUN_TEST(test_scripted_start_race, "   ");

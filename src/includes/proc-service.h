@@ -674,8 +674,12 @@ class process_service : public base_process_service
 
         if (pid == -1 || !tracking_child) {
             // If service process has already finished, we were just waiting for the stop command
-            // process:
+            // process to also complete:
             stop_issued = false; // reset for next time
+            if (waiting_stopstart_timer) {
+                waiting_stopstart_timer = false;
+                process_timer.stop_timer(event_loop);
+            }
             stopped();
         }
     }

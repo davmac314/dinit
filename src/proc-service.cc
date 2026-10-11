@@ -252,11 +252,6 @@ dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t chil
     // (stop_watch instead of deregister, so that we hold watch reservation).
     stop_watch(loop);
 
-    if (sr->waiting_stopstart_timer) {
-        sr->process_timer.stop_timer(loop);
-        sr->waiting_stopstart_timer = false;
-    }
-
     if (sr->waiting_for_execstat) {
         // We still don't have an exec() status from the forked child, wait for that
         // before doing any further processing.
@@ -477,7 +472,7 @@ void bgproc_service::handle_exit_status() noexcept
         }
     }
 
-    if (waiting_stopstart_timer) {
+    if (waiting_stopstart_timer && stop_pid == -1) {
         process_timer.stop_timer(event_loop);
         waiting_stopstart_timer = false;
     }
@@ -490,15 +485,18 @@ void bgproc_service::handle_exit_status() noexcept
         if (current_state == service_state_t::STOPPING) {
             // Stop was issued during smooth recovery
             if ((did_exit && exit_status.get_exit_status() != 0) || was_signalled) {
-                if (!waiting_for_deps) {
-                    stopped();
-                }
-                else if (get_target_state() == service_state_t::STARTED && !pinned_stopped) {
-                    initiate_start();
+                if (stop_pid == -1) {
+                    if (!waiting_for_deps) {
+                        stopped();
+                    }
+                    else if (get_target_state() == service_state_t::STARTED && !pinned_stopped) {
+                        initiate_start();
+                    }
                 }
             }
             else {
-                // We need to re-read the PID, since it has now changed.
+                // Clean exit: we need to re-read the PID, since it has now changed, then bring
+                // the daemon down to complete the stop.
                 if (pid_file.length() != 0) {
                     auto pid_result = read_pid_file(&exit_status);
 
