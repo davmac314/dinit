@@ -1081,34 +1081,310 @@ void test_proc_stop_timeout()
 
     p.start();
     sset.process_queues();
-
     assert(p.get_state() == service_state_t::STARTING);
 
     base_process_service_test::exec_succeeded(&p);
     sset.process_queues();
-
     assert(p.get_state() == service_state_t::STARTED);
 
     p.stop(true);
     sset.process_queues();
-
     assert(p.get_state() == service_state_t::STOPPING);
     assert(bp_sys::last_sig_sent == SIGTERM);
 
     event_loop.advance_time(time_val {10, 0}); // expire stop timer
-    sset.process_queues();
 
     // kill signal (SIGKILL) should have been sent; process not dead until it's dead, however
     assert(p.get_state() == service_state_t::STOPPING);
     assert(bp_sys::last_sig_sent == SIGKILL);
 
     base_process_service_test::handle_exit(&p, 0);
-    sset.process_queues();
-
     assert(p.get_state() == service_state_t::STOPPED);
     assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
-
     assert(event_loop.active_timers.size() == 0);
+
+    sset.remove_service(&p);
+}
+
+// Test stop timeout with stop command (stop command and process termination timeout)
+void test_proc_stop_timeout_2()
+{
+    using namespace std;
+
+    service_set sset;
+
+    ha_string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    ha_string stop_command = "stop-command";
+    list<pair<unsigned,unsigned>> stop_command_offsets;
+    stop_command_offsets.emplace_back(0, stop_command.length());
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_stop_command(stop_command, stop_command_offsets);
+    p.set_stop_timeout(time_val {10, 0});
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+
+    pid_t pre_stop_pid = bp_sys::last_forked_pid;
+    bp_sys::last_sig_sent = 0;
+    p.stop(true);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(bp_sys::last_sig_sent == 0);
+    assert(bp_sys::last_forked_pid == (pre_stop_pid + 1));
+
+    base_process_service_test::stop_exec_succeeded(&p);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    struct tpst2sl : public bp_sys::signal_listener
+    {
+        std::vector<std::pair<pid_t, int>> signals_sent;
+        void signal_sent(pid_t pid, int signo) override {
+            signals_sent.emplace_back(pid, signo);
+        }
+    };
+
+    tpst2sl tpst2_listener;
+
+    // Advance time, timeout
+    bp_sys::add_signal_listener(&tpst2_listener);
+    event_loop.advance_time(time_val {10, 0}); // expire stop timer
+    bp_sys::remove_signal_listener(&tpst2_listener);
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(bp_sys::last_sig_sent == SIGKILL);
+    assert(tpst2_listener.signals_sent.size() == 2);
+
+    base_process_service_test::handle_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    base_process_service_test::handle_stop_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
+    assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
+
+    sset.remove_service(&p);
+}
+
+// Test stop timeout with stop command (stop command completes, process termination timeout)
+void test_proc_stop_timeout_3()
+{
+    using namespace std;
+
+    service_set sset;
+
+    ha_string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    ha_string stop_command = "stop-command";
+    list<pair<unsigned,unsigned>> stop_command_offsets;
+    stop_command_offsets.emplace_back(0, stop_command.length());
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_stop_command(stop_command, stop_command_offsets);
+    p.set_stop_timeout(time_val {10, 0});
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+
+    pid_t pre_stop_pid = bp_sys::last_forked_pid;
+    bp_sys::last_sig_sent = 0;
+    p.stop(true);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(bp_sys::last_sig_sent == 0);
+    assert(bp_sys::last_forked_pid == (pre_stop_pid + 1));
+
+    base_process_service_test::stop_exec_succeeded(&p);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    struct tpst3sl : public bp_sys::signal_listener
+    {
+        std::vector<std::pair<pid_t, int>> signals_sent;
+        void signal_sent(pid_t pid, int signo) override {
+            signals_sent.emplace_back(pid, signo);
+        }
+    };
+
+    // Stop command completes, primary process remains
+    base_process_service_test::handle_stop_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    tpst3sl tpst3_listener;
+
+    // Advance time, timeout
+    bp_sys::add_signal_listener(&tpst3_listener);
+    event_loop.advance_time(time_val {10, 0}); // expire stop timer
+    bp_sys::remove_signal_listener(&tpst3_listener);
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(bp_sys::last_sig_sent == SIGKILL);
+    assert(tpst3_listener.signals_sent.size() == 1);
+
+    base_process_service_test::handle_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
+    assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
+
+    sset.remove_service(&p);
+}
+
+// Test stop timeout with stop command (process terminates, stop command times out)
+void test_proc_stop_timeout_4()
+{
+    using namespace std;
+
+    service_set sset;
+
+    ha_string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    ha_string stop_command = "stop-command";
+    list<pair<unsigned,unsigned>> stop_command_offsets;
+    stop_command_offsets.emplace_back(0, stop_command.length());
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_stop_command(stop_command, stop_command_offsets);
+    p.set_stop_timeout(time_val {10, 0});
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+
+    pid_t pre_stop_pid = bp_sys::last_forked_pid;
+    bp_sys::last_sig_sent = 0;
+    p.stop(true);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(bp_sys::last_sig_sent == 0);
+    assert(bp_sys::last_forked_pid == (pre_stop_pid + 1));
+
+    base_process_service_test::stop_exec_succeeded(&p);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    struct tpst4sl : public bp_sys::signal_listener
+    {
+        std::vector<std::pair<pid_t, int>> signals_sent;
+        void signal_sent(pid_t pid, int signo) override {
+            signals_sent.emplace_back(pid, signo);
+        }
+    };
+
+    // Primary process completes, stop command continues execution
+    base_process_service_test::handle_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    tpst4sl tpst4_listener;
+
+    // Advance time, timeout
+    bp_sys::add_signal_listener(&tpst4_listener);
+    event_loop.advance_time(time_val {10, 0}); // expire stop timer
+    bp_sys::remove_signal_listener(&tpst4_listener);
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(bp_sys::last_sig_sent == SIGKILL);
+    assert(tpst4_listener.signals_sent.size() == 1);
+
+    base_process_service_test::handle_stop_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
+    assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
+
+    sset.remove_service(&p);
+}
+
+// Test stop timeout with stop command (process terminates, stop command times out without completing exec)
+void test_proc_stop_timeout_5()
+{
+    using namespace std;
+
+    service_set sset;
+
+    ha_string command = "test-command";
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    ha_string stop_command = "stop-command";
+    list<pair<unsigned,unsigned>> stop_command_offsets;
+    stop_command_offsets.emplace_back(0, stop_command.length());
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_stop_command(stop_command, stop_command_offsets);
+    p.set_stop_timeout(time_val {10, 0});
+    sset.add_service(&p);
+
+    p.start();
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTING);
+
+    base_process_service_test::exec_succeeded(&p);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STARTED);
+
+    pid_t pre_stop_pid = bp_sys::last_forked_pid;
+    bp_sys::last_sig_sent = 0;
+    p.stop(true);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(bp_sys::last_sig_sent == 0);
+    assert(bp_sys::last_forked_pid == (pre_stop_pid + 1));
+
+    struct tpst5sl : public bp_sys::signal_listener
+    {
+        std::vector<std::pair<pid_t, int>> signals_sent;
+        void signal_sent(pid_t pid, int signo) override {
+            signals_sent.emplace_back(pid, signo);
+        }
+    };
+
+    // Primary process completes, stop command remains pending
+    base_process_service_test::handle_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    tpst5sl tpst5_listener;
+
+    // Advance time, timeout
+    bp_sys::add_signal_listener(&tpst5_listener);
+    event_loop.advance_time(time_val {10, 0}); // expire stop timer
+    bp_sys::remove_signal_listener(&tpst5_listener);
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(bp_sys::last_sig_sent == SIGKILL);
+    assert(tpst5_listener.signals_sent.size() == 1);
+
+    base_process_service_test::handle_stop_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STOPPING);
+
+    base_process_service_test::stop_exec_succeeded(&p);
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(event_loop.active_timers.size() == 0);
+    assert(p.get_stop_reason() == stopped_reason_t::NORMAL);
 
     sset.remove_service(&p);
 }
@@ -3348,6 +3624,10 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_start_execfail, "   ");
     RUN_TEST(test_proc_notify_fail, "      ");
     RUN_TEST(test_proc_stop_timeout, "     ");
+    RUN_TEST(test_proc_stop_timeout_2, "   ");
+    RUN_TEST(test_proc_stop_timeout_3, "   ");
+    RUN_TEST(test_proc_stop_timeout_4, "   ");
+    RUN_TEST(test_proc_stop_timeout_5, "   ");
     RUN_TEST(test_proc_smooth_recovery1, " ");
     RUN_TEST(test_proc_smooth_recovery2, " ");
     RUN_TEST(test_proc_smooth_recovery3, " ");
