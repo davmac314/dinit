@@ -694,12 +694,11 @@ class process_service : public base_process_service
                     set_target_state(service_state_t::STOPPED);
                     return false;
                 }
-                ++restart_interval_count;
             }
             else {
                 // Not within the last limiting interval; start a new interval
                 restart_interval_time = current_time;
-                restart_interval_count = 1;
+                restart_interval_count = 0;
             }
         }
 

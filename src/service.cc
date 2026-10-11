@@ -111,8 +111,6 @@ void service_record::stopped() noexcept
         dependency.get_to()->dependent_stopped();
     }
 
-    service_state = service_state_t::STOPPED;
-
     if (will_restart) {
         // Look for dependencies of type PREPARED_BY. We must restart them now (forcing them into
         // STOPPING state so that initiate_start() below does not proceed to restart this service
@@ -127,6 +125,7 @@ void service_record::stopped() noexcept
         initiate_start();
     }
     else {
+        service_state = service_state_t::STOPPED;
         becoming_inactive();
 
         if (start_explicit) {
@@ -588,6 +587,7 @@ bool service_record::bring_up() noexcept
 // Mark this and all dependent services to be force-stopped.
 void service_record::forced_stop() noexcept
 {
+    if (force_stop) return;
     if (service_state != service_state_t::STOPPED) {
         force_stop = true;
         if (!is_start_pinned()) {
@@ -693,11 +693,11 @@ void service_record::do_stop(bool with_restart) noexcept
     bool for_restart = with_restart || (do_auto_restart && desired_state == service_state_t::STARTED);
     bool restart_deps = with_restart;
 
-    if (!with_restart && for_restart) {
-        // auto restart - check for restarting too often
-        for_restart = check_restart();
-        in_auto_restart = for_restart;
-    }
+//    if (!with_restart && for_restart) {
+//        // auto restart - check for restarting too often
+//        for_restart = check_restart(); // XXX probably not right place!
+//        in_auto_restart = for_restart;
+//    }
 
     // If we won't restart, release explicit activation:
     if (!for_restart) {

@@ -366,11 +366,6 @@ void process_service::handle_exit_status() noexcept
         }
     }
 
-    if (doing_smooth_recovery) {
-        // If doing smooth recovery (state STARTED), treat it the same as STARTING
-        current_state = service_state_t::STARTING;
-    }
-
     if (waiting_stopstart_timer) {
         process_timer.stop_timer(event_loop);
         waiting_stopstart_timer = false;
@@ -382,17 +377,17 @@ void process_service::handle_exit_status() noexcept
     }
 #endif
 
-    if (current_state == service_state_t::STARTING) {
+    if (doing_smooth_recovery) {
+        // Must have been waiting for readiness (state STARTED), but terminated before readiness
+        // was signalled. We'll treat it as a hard error.
+        stop_reason = stopped_reason_t::TERMINATED;
+        unrecoverable_stop();
+    }
+    else if (current_state == service_state_t::STARTING) {
         // If state is STARTING, we must be waiting for readiness notification; the process has
         // terminated before becoming ready.
-        if (doing_smooth_recovery) {
-            stop_reason = stopped_reason_t::TERMINATED;
-            unrecoverable_stop();
-        }
-        else {
-            stop_reason = stopped_reason_t::FAILED;
-            failed_to_start();
-        }
+        stop_reason = stopped_reason_t::FAILED;
+        failed_to_start();
     }
     else if (current_state == service_state_t::STOPPING) {
         // We won't log a non-zero exit status or termination due to signal here -
@@ -407,13 +402,20 @@ void process_service::handle_exit_status() noexcept
             }
         }
         else if (get_target_state() == service_state_t::STARTED && !pinned_stopped) {
+            // Stopping and waiting for dependents. We don't actually need to wait, though, we can
+            // just transition back to STARTING immediately.
             initiate_start();
         }
     }
-    else if (smooth_recovery && current_state == service_state_t::STARTED && check_restart()) {
-        // unexpected termination, with smooth recovery
-        doing_smooth_recovery = true;
-        do_smooth_recovery();
+    else if (smooth_recovery && current_state == service_state_t::STARTED) {
+        if (check_restart()) {
+            // unexpected termination, with smooth recovery
+            doing_smooth_recovery = true;
+            do_smooth_recovery();
+        }
+        else {
+            handle_unexpected_termination();
+        }
     }
     else {
         handle_unexpected_termination();
@@ -509,7 +511,12 @@ void bgproc_service::handle_exit_status() noexcept
                     case pid_result_t::FAILED:
                     case pid_result_t::TERMINATED:
                         // Failed startup: no auto-restart.
-                        stopped();
+                        force_stop = true;
+                        set_target_state(service_state_t::STOPPED);
+                        do_stop();
+                        // If we are not waiting for dependents, do_stop() must have already put
+                        // us in the transition queue. Otherwise, just stop now anyway:
+                        if (waiting_for_deps) stopped();
                         break;
                     case pid_result_t::OK:
                         // We now need to bring down the daemon process
@@ -804,7 +811,7 @@ void process_service::bring_down() noexcept
 {
     doing_smooth_recovery = false;
     if (stop_pid != -1 || stop_issued) {
-        // waiting for stop command to complete (or for process to die after it has complete);
+        // waiting for stop command to complete (or for process to die after it has completed);
         // can't do anything here.
         return;
     }

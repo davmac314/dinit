@@ -606,8 +606,79 @@ void test_proc_term_restart6()
     sset.remove_service(&p);
 }
 
-// Failure to restart should propagate to dependent
+// Failure to restart (excessive restarts) should propagate to dependent
 void test_proc_term_restart_fail()
+{
+    using namespace std;
+
+    service_set sset;
+
+    for (int j = 0; j < 2; j++) {
+        ha_string command = "test-command";
+        list<pair<unsigned,unsigned>> command_offsets;
+        command_offsets.emplace_back(0, command.length());
+        std::list<prelim_dep> depends;
+
+        process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+        init_service_defaults(p);
+        // Restart option on dependency should make no difference:
+        p.set_auto_restart(j == 0 ? auto_restart_mode::ALWAYS : auto_restart_mode::NEVER);
+
+        sset.add_service(&p);
+
+        service_record p_dpt1 {&sset, "dpt1", service_type_t::INTERNAL, {{ &p, REG }}};
+        p_dpt1.set_auto_restart(auto_restart_mode::ALWAYS);
+        sset.add_service(&p_dpt1);
+
+        service_record p_dpt2 {&sset, "dpt2", service_type_t::INTERNAL, {{ &p_dpt1, WAITS }}};
+        sset.add_service(&p_dpt2);
+
+        p_dpt2.start();
+        sset.process_queues();
+
+        for (int i = 0; i < 3; ++i) {
+            assert(p.get_state() == service_state_t::STARTING);
+            base_process_service_test::exec_succeeded(&p);
+            sset.process_queues();
+
+            assert(p.get_state() == service_state_t::STARTED);
+            assert(event_loop.active_timers.size() == 0);
+
+            base_process_service_test::handle_exit(&p, 0);
+            sset.process_queues();
+
+            // Starting, restart timer should be armed:
+            assert(p.get_state() == service_state_t::STARTING);
+            assert(event_loop.active_timers.size() == 1);
+
+            event_loop.advance_time(default_restart_interval);
+        }
+
+        assert(p.get_state() == service_state_t::STARTING);
+        base_process_service_test::exec_succeeded(&p);
+        sset.process_queues();
+
+        assert(p.get_state() == service_state_t::STARTED);
+        assert(event_loop.active_timers.size() == 0);
+
+        // There should be no attempt to restart this time:
+
+        base_process_service_test::handle_exit(&p, 0);
+        sset.process_queues();
+
+        assert(event_loop.active_timers.size() == 0);
+        assert(p.get_state() == service_state_t::STOPPED);
+        assert(p_dpt1.get_state() == service_state_t::STOPPED);
+
+        sset.remove_service(&p_dpt2);
+        sset.remove_service(&p_dpt1);
+        sset.remove_service(&p);
+    }
+}
+
+// Failure to restart (excessive restarts) should propagate to dependent; variation on above with
+// a single, type = internal, dependent.
+void test_proc_restart_fail_2()
 {
     using namespace std;
 
@@ -620,7 +691,6 @@ void test_proc_term_restart_fail()
 
     process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
     init_service_defaults(p);
-    p.set_auto_restart(auto_restart_mode::ALWAYS);
 
     sset.add_service(&p);
 
@@ -628,14 +698,10 @@ void test_proc_term_restart_fail()
     p_dpt1.set_auto_restart(auto_restart_mode::ALWAYS);
     sset.add_service(&p_dpt1);
 
-    service_record p_dpt2 {&sset, "dpt2", service_type_t::INTERNAL, {{ &p_dpt1, WAITS }}};
-    sset.add_service(&p_dpt2);
-
-    p_dpt2.start();
+    p_dpt1.start();
     sset.process_queues();
 
     for (int i = 0; i < 3; ++i) {
-
         assert(p.get_state() == service_state_t::STARTING);
         base_process_service_test::exec_succeeded(&p);
         sset.process_queues();
@@ -651,7 +717,6 @@ void test_proc_term_restart_fail()
         assert(event_loop.active_timers.size() == 1);
 
         event_loop.advance_time(default_restart_interval);
-
     }
 
     assert(p.get_state() == service_state_t::STARTING);
@@ -670,7 +735,6 @@ void test_proc_term_restart_fail()
     assert(p.get_state() == service_state_t::STOPPED);
     assert(p_dpt1.get_state() == service_state_t::STOPPED);
 
-    sset.remove_service(&p_dpt2);
     sset.remove_service(&p_dpt1);
     sset.remove_service(&p);
 }
@@ -3051,6 +3115,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_term_restart5, "    ");
     RUN_TEST(test_proc_term_restart6, "    ");
     RUN_TEST(test_proc_term_restart_fail, "");
+    RUN_TEST(test_proc_restart_fail_2, "   ");
     RUN_TEST(test_term_via_stop, "         ");
     RUN_TEST(test_term_via_stop2, "        ");
     RUN_TEST(test_term_via_stop3, "        ");

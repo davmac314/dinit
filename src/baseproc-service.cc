@@ -75,6 +75,9 @@ void base_process_service::handle_unexpected_termination() noexcept
     // Note we can't call forced_stop() directly here, because we need to set in_auto_restart in
     // between do_stop() and processing queues (so that it is set correctly if restart occurs):
 
+    // Inhibit restart if outside the allowed restart parameters
+    if (!check_restart()) set_target_state(service_state_t::STOPPED);
+
     force_stop = true;
     do_stop();
     services->process_queues();
@@ -83,8 +86,7 @@ void base_process_service::handle_unexpected_termination() noexcept
         // We must be waiting for dependents;
         // If we're going to restart, we can kick that off now:
         if (get_target_state() == service_state_t::STARTED && !pinned_stopped) {
-            force_stop = false;
-            initiate_start();
+            stopped(); // (will restart us)
             services->process_queues();
         }
     }
@@ -382,6 +384,8 @@ void base_process_service::do_restart() noexcept
 
 bool base_process_service::restart_ps_process() noexcept
 {
+    restart_interval_count++;
+
     using time_val = dasynq::time_val;
 
     time_val current_time;
