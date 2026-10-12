@@ -64,3 +64,33 @@ class test_service : public service_record
         service_record::failed_to_start();
     }
 };
+
+// Service listener for use in tests
+class test_listener : public service_listener
+{
+    public:
+    bool got_started = false;
+    bool got_stopped = false;
+    bool start_cancelled = false;
+    bool stop_cancelled = false;
+
+    void service_event(service_record * service, service_event_t event) noexcept override
+    {
+        switch (event) {
+        case service_event_t::STARTED:
+            got_started = true;
+            break;
+        case service_event_t::STOPPED:
+            got_stopped = true;
+            break;
+        case service_event_t::STARTCANCELLED:
+            start_cancelled = true;
+            break;
+        case service_event_t::STOPCANCELLED:
+            stop_cancelled = true;
+            break;
+        case service_event_t::FAILEDSTART:
+            break;
+        }
+    }
+};

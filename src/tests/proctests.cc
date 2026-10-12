@@ -9,6 +9,7 @@
 #include "proc-service.h"
 #include "dinit-util.h"
 #include "test_procservice.h"
+#include "test_service.h"
 
 // Tests of process-service related functionality.
 //
@@ -603,6 +604,92 @@ void test_proc_term_restart6()
     base_process_service_test::handle_signal_exit(&p, SIGTERM);
     sset.process_queues();
 
+    sset.remove_service(&p);
+}
+
+// Test process terminates (for restart) while a dependent is still stopping
+void test_proc_term_restart7()
+{
+    using namespace std;
+
+    service_set sset;
+
+    ha_string command = "test-command";
+    ha_string command2 = command;
+    list<pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, {}};
+    init_service_defaults(p);
+    sset.add_service(&p);
+
+    process_service p1 {&sset, "test-service-2", std::move(command2), command_offsets, {{&p, REG}}};
+    p1.set_auto_restart(auto_restart_mode::ALWAYS);
+    sset.add_service(&p1);
+
+    pid_t orig_pid = bp_sys::last_forked_pid;
+
+    // Add test listeners
+    test_listener p1_tl;
+    test_listener p_tl;
+    p1.add_listener(&p1_tl);
+    p.add_listener(&p_tl);
+
+    p1.start();
+    sset.process_queues();
+    assert(bp_sys::last_forked_pid == (orig_pid + 1));
+
+    base_process_service_test::exec_succeeded(&p);
+    assert(bp_sys::last_forked_pid == (orig_pid + 2));
+    base_process_service_test::exec_succeeded(&p1);
+
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(p.get_target_state() == service_state_t::STARTED);
+    assert(p1.get_state() == service_state_t::STARTED);
+    assert(p1.get_target_state() == service_state_t::STARTED);
+
+    p.restart();
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STOPPING); // (for restart)
+    assert(p.get_target_state() == service_state_t::STARTED);
+    assert(p1.get_state() == service_state_t::STOPPING); // (for restart)
+    assert(p1.get_target_state() == service_state_t::STARTED);
+
+    // p terminates "unexpectedly" (should restart)
+    base_process_service_test::handle_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STARTING);
+    assert(bp_sys::last_forked_pid == (orig_pid + 2)); // (not yet forked due to restart delay)
+    assert(p.get_target_state() == service_state_t::STARTED);
+    assert(p1.get_state() == service_state_t::STOPPING);
+
+    // p1 terminates (part of stopping process)
+    base_process_service_test::handle_exit(&p1, 0);
+    assert(p.get_state() == service_state_t::STARTING);
+    assert(p1.get_state() == service_state_t::STARTING);
+
+    event_loop.advance_time(default_restart_interval); // (p will be restarted)
+    assert(bp_sys::last_forked_pid == (orig_pid + 3));
+
+    base_process_service_test::exec_succeeded(&p);
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(bp_sys::last_forked_pid == (orig_pid + 4));
+    base_process_service_test::exec_succeeded(&p1);
+    assert(p1.get_state() == service_state_t::STARTED);
+
+    assert(p1_tl.got_stopped);
+    assert(p_tl.got_stopped);
+
+    // Cleanup: stop services
+    p1.stop(true);
+    sset.process_queues();
+    assert(p.get_state() == service_state_t::STOPPING);
+    assert(p1.get_state() == service_state_t::STOPPING);
+    base_process_service_test::handle_exit(&p, 0);
+    base_process_service_test::handle_exit(&p1, 0);
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(p1.get_state() == service_state_t::STOPPED);
+
+    sset.remove_service(&p1);
     sset.remove_service(&p);
 }
 
@@ -3614,6 +3701,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_term_restart4, "    ");
     RUN_TEST(test_proc_term_restart5, "    ");
     RUN_TEST(test_proc_term_restart6, "    ");
+    RUN_TEST(test_proc_term_restart7, "    ");
     RUN_TEST(test_proc_term_restart_fail, "");
     RUN_TEST(test_proc_restart_fail_2, "   ");
     RUN_TEST(test_term_via_stop, "         ");
