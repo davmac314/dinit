@@ -362,7 +362,7 @@ void process_service::handle_exit_status() noexcept
     }
 
     // We've stopped, unless a stop command is running (stop_pid != -1)
-    if (waiting_stopstart_timer  && stop_pid == -1) {
+    if (waiting_stopstart_timer && stop_pid == -1) {
         process_timer.stop_timer(event_loop);
         waiting_stopstart_timer = false;
     }
@@ -386,22 +386,20 @@ void process_service::handle_exit_status() noexcept
         failed_to_start();
     }
     else if (current_state == service_state_t::STOPPING) {
-        // We won't log a non-zero exit status or termination due to signal here -
-        // we assume that the process died because we signalled it.
         if (stop_pid == -1) {
-            if (waiting_stopstart_timer) {
-                process_timer.stop_timer(event_loop);
-            }
             if (!waiting_for_deps) {
                 if (stop_pid == -1 && !waiting_for_execstat) {
+                    // We won't log a non-zero exit status or termination due to signal here - we
+                    // assume that the process died because we signalled it.
                     stop_issued = false; // reset for next time
                     stopped();
                 }
             }
             else if (get_target_state() == service_state_t::STARTED && !pinned_stopped) {
                 // Stopping and waiting for dependents. We don't actually need to wait, though, we can
-                // just transition back to STARTING immediately.
-                initiate_start();
+                // just transition back to STARTING immediately (but invoke auto restart delay).
+                stop_reason = stopped_reason_t::TERMINATED;
+                stopped(); // (will transition to started)
             }
         }
     }
