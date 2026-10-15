@@ -291,6 +291,10 @@ class base_process_service : public service_record
     // rate-limited.
     bool restart_ps_process() noexcept;
 
+    // Unrecoverable service failure occurred; for process-based services, the service can be set
+    // as STOPPED immediately (as well as issuing the usual unrecoverable stop to dependents).
+    void hard_failure() noexcept;
+
     // Perform smooth recovery process
     void do_smooth_recovery() noexcept;
 

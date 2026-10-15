@@ -365,7 +365,8 @@ class service_record
     //   immediate_stop: whether to set state as STOPPED and handle complete stop.
     void failed_to_start(bool dep_failed = false, bool immediate_stop = true) noexcept;
     
-    // Service stopped (failed), unrecoverably; dependents should not auto-restart
+    // Service stopped (failed), unrecoverably; dependents should not auto-restart. Acts as
+    // do_stop() with restart inhibited.
     void unrecoverable_stop() noexcept;
 
     // A dependency has reached STARTED state
@@ -430,9 +431,13 @@ class service_record
     void do_start() noexcept;
 
     // Initiate a definite stop, and release explicit activation, with optional (user-requested)
-    // restart. Note that A service that stops may restart automatically if it or a dependent is
-    // configured to do so, regardless of with_restart. Precondition: the state is not already
-    // STOPPED.
+    // restart. Note that a service that stops may restart automatically if it or a dependent is
+    // configured to do so, regardless of with_restart.
+    //
+    // Stop will be propagated to dependents (via propagation queue). Restart can be inhibited by
+    // setting target state to STOPPED before call.
+    //
+    // Precondition: the state is not already STOPPED.
     void do_stop(bool with_restart = false) noexcept;
 
     // Set the service state

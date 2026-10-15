@@ -54,7 +54,7 @@ enum class stopped_reason_t
 
     // Start failures:
     DEPFAILED, // A dependency failed to start
-    FAILED,    // failed to start (process terminated)
+    FAILED,    // failed to start (process terminated before ready, general failure)
     EXECFAILED, // failed to start (couldn't launch process)
     TIMEDOUT,  // timed out when starting
 

@@ -23,7 +23,7 @@
 void base_process_service::do_smooth_recovery() noexcept
 {
     if (!restart_ps_process()) {
-        unrecoverable_stop();
+        hard_failure();
     }
 }
 
@@ -364,12 +364,12 @@ void base_process_service::do_restart() noexcept
 
     if (!start_ps_process(exec_arg_parts, have_console || onstart_flags.shares_console)) {
         if (service_state == service_state_t::STARTING) {
+            stop_reason = stopped_reason_t::FAILED;
             failed_to_start();
         }
         else {
             // smooth recovery failure
-            stop_reason = stopped_reason_t::TERMINATED;
-            unrecoverable_stop();
+            hard_failure();
         }
         services->process_queues();
     }
@@ -433,6 +433,16 @@ bool base_process_service::issue_start_interrupt() noexcept
     }
 }
 
+void base_process_service::hard_failure() noexcept
+{
+    stop_reason = stopped_reason_t::TERMINATED;
+    unrecoverable_stop();
+    if (waiting_for_deps && !is_start_pinned()) {
+        waiting_for_deps = false;
+        services->add_transition_queue(this);
+    }
+}
+
 void base_process_service::kill_with_fire() noexcept
 {
     if (pid != -1) {
@@ -469,7 +479,7 @@ void base_process_service::timer_expired() noexcept
     //   STOPPING);
     // - We are starting (start timeout, state is STARTING)
     // - We are waiting for restart timer before restarting, including smooth recovery (restart
-    //   timeout, state is STARTING or STARTED).
+    //   pause elapsed, state is STARTING or STARTED).
 
     if (get_state() == service_state_t::STOPPING) {
         kill_with_fire();

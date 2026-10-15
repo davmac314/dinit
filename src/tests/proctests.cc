@@ -1811,7 +1811,7 @@ void test_proc_smooth_recovery6()
     event_loop.advance_time(time_val {1, 0});
 
     // We should see the process has been signalled:
-    assert(bp_sys::last_sig_sent == SIGINT);
+    assert(bp_sys::last_sig_sent == SIGTERM);
     assert(p.get_state() == service_state_t::STOPPING);
 
     base_process_service_test::handle_exit(&p, 1);

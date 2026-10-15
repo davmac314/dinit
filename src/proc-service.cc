@@ -193,17 +193,17 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
             service->started();
         }
         else if (r == 0 || errno != EAGAIN) {
+            // Notification pipe closed before ready notification sent
             if (service->waiting_stopstart_timer) {
                 service->process_timer.stop_timer(event_loop);
                 service->waiting_stopstart_timer = false;
             }
             if (service->doing_smooth_recovery) {
                 service->doing_smooth_recovery = false;
-                service->stop_reason = stopped_reason_t::TERMINATED;
-                service->unrecoverable_stop();
+                service->hard_failure();
             }
             else {
-                service->set_state(service_state_t::STOPPING);
+                service->stop_reason = stopped_reason_t::FAILED;
                 service->failed_to_start(false, false);
                 service->bring_down();
             }
@@ -228,8 +228,7 @@ void process_service::start_timed_out() noexcept
 {
     if (doing_smooth_recovery) {
         doing_smooth_recovery = false;
-        issue_start_interrupt();
-        unrecoverable_stop();
+        hard_failure();
     }
     else {
         base_process_service::start_timed_out();
@@ -259,6 +258,7 @@ dasynq::rearm service_child_watcher::status_change(eventloop_t &loop, pid_t chil
     }
 
     sr->handle_exit_status();
+    sr->services->process_queues();
     return dasynq::rearm::NOOP;
 }
 
@@ -376,8 +376,7 @@ void process_service::handle_exit_status() noexcept
     if (doing_smooth_recovery) {
         // Must have been waiting for readiness (state STARTED), but terminated before readiness
         // was signalled. We'll treat it as a hard error.
-        stop_reason = stopped_reason_t::TERMINATED;
-        unrecoverable_stop();
+        hard_failure();
     }
     else if (current_state == service_state_t::STARTING) {
         // If state is STARTING, we must be waiting for readiness notification; the process has
@@ -437,14 +436,12 @@ void process_service::exec_failed(run_proc_err errcode) noexcept
 
     if (get_state() == service_state_t::STARTING) {
         stop_reason = stopped_reason_t::EXECFAILED;
-        set_state(service_state_t::STOPPING);
         failed_to_start();
     }
     else {
         // Process service in smooth recovery:
         doing_smooth_recovery = false;
-        stop_reason = stopped_reason_t::TERMINATED;
-        unrecoverable_stop();
+        hard_failure();
     }
 }
 
@@ -481,7 +478,9 @@ void bgproc_service::handle_exit_status() noexcept
     if (doing_smooth_recovery) {
         doing_smooth_recovery = false;
 
-        // We're either started, or stopping (i.e. we were requested to stop during smooth recovery).
+        // We're either started, or stopping (i.e. we were requested to stop during smooth
+        // recovery; in this case we need to wait for smooth recovery sequence to complete
+        // before proceeding to stop).
 
         if (current_state == service_state_t::STOPPING) {
             // Stop was issued during smooth recovery

@@ -282,7 +282,6 @@ void service_record::do_propagation() noexcept
     if (prop_failure) {
         prop_failure = false;
         stop_reason = stopped_reason_t::DEPFAILED;
-        service_state = service_state_t::STOPPED;
         failed_to_start(true);
     }
 
@@ -354,6 +353,7 @@ void service_record::do_start() noexcept
 
     if (pinned_stopped) {
         if (!was_active) {
+            stop_reason = stopped_reason_t::FAILED;
             failed_to_start(false, false);
         }
         return;
@@ -458,7 +458,7 @@ void service_record::all_deps_started() noexcept
     }
 
     if (!bring_up()) {
-        service_state = service_state_t::STOPPING;
+        stop_reason = stopped_reason_t::FAILED;
         failed_to_start();
     }
 }
@@ -561,6 +561,10 @@ void service_record::failed_to_start(bool depfailed, bool immediate_stop) noexce
         }
     }
 
+    if (service_state != service_state_t::STOPPED) {
+        service_state = service_state_t::STOPPING;
+    }
+
     start_failed = true;
     log_service_failed(get_name(), depfailed);
     notify_listeners(service_event_t::FAILEDSTART);
@@ -574,7 +578,8 @@ void service_record::failed_to_start(bool depfailed, bool immediate_stop) noexce
 void service_record::unrecoverable_stop() noexcept
 {
     desired_state = service_state_t::STOPPED;
-    forced_stop();
+    force_stop = true;
+    do_stop();
 }
 
 bool service_record::bring_up() noexcept
@@ -663,7 +668,7 @@ void service_record::do_stop(bool with_restart) noexcept
     // Note: to inhibit automatic restart, including restart due to dependent still requiring this
     //       service, caller must first set desired_state to STOPPED
 
-	// Precondtion: service state is not already STOPPED
+	// Precondition: service state is not already STOPPED
 
     if (is_start_pinned()) return;
 
@@ -672,26 +677,27 @@ void service_record::do_stop(bool with_restart) noexcept
 
     // Will we restart? desired state of STOPPED inhibits auto-restart
     bool do_auto_restart = false;
-    if (auto_restart == auto_restart_mode::ALWAYS) {
-        do_auto_restart = true;
-    }
-    else if (auto_restart == auto_restart_mode::ON_FAILURE) {
-        if (get_type() == service_type_t::PROCESS || get_type() == service_type_t::BGPROCESS) {
-            auto exit_status = get_exit_status();
-            if (exit_status.was_signalled()) {
-                if (!value(exit_status.get_signal()).is_in(SIGHUP, SIGINT, SIGUSR1, SIGUSR2, SIGTERM)) {
-                    do_auto_restart = true;
+    if (desired_state == service_state_t::STARTED) {
+        if (auto_restart == auto_restart_mode::ALWAYS) {
+            do_auto_restart = true;
+        }
+        else if (auto_restart == auto_restart_mode::ON_FAILURE) {
+            if (get_type() == service_type_t::PROCESS || get_type() == service_type_t::BGPROCESS) {
+                auto exit_status = get_exit_status();
+                if (exit_status.was_signalled()) {
+                    if (!value(exit_status.get_signal()).is_in(SIGHUP, SIGINT, SIGUSR1, SIGUSR2, SIGTERM)) {
+                        do_auto_restart = true;
+                    }
                 }
-            }
-            else {
-                if (exit_status.get_exit_status() != 0) {
-                    do_auto_restart = true;
+                else {
+                    if (exit_status.get_exit_status() != 0) {
+                        do_auto_restart = true;
+                    }
                 }
             }
         }
     }
-    bool for_restart = with_restart || (do_auto_restart && desired_state == service_state_t::STARTED);
-    bool restart_deps = with_restart;
+    bool for_restart = with_restart || do_auto_restart;
 
     // If we won't restart, release explicit activation:
     if (!for_restart) {
@@ -701,7 +707,7 @@ void service_record::do_stop(bool with_restart) noexcept
         }
     }
 
-    bool all_deps_stopped = stop_dependents(for_restart, restart_deps);
+    bool all_deps_stopped = stop_dependents(for_restart, with_restart);
 
     if (service_state == service_state_t::STOPPING) return;
 
