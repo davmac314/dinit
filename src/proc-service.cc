@@ -485,14 +485,8 @@ void bgproc_service::handle_exit_status() noexcept
         if (current_state == service_state_t::STOPPING) {
             // Stop was issued during smooth recovery
             if ((did_exit && exit_status.get_exit_status() != 0) || was_signalled) {
-                if (stop_pid == -1) {
-                    if (!waiting_for_deps) {
-                        stopped();
-                    }
-                    else if (get_target_state() == service_state_t::STARTED && !pinned_stopped) {
-                        initiate_start();
-                    }
-                }
+                // ... and smooth recovery failed anyway
+                hard_failure();
             }
             else {
                 // Clean exit: we need to re-read the PID, since it has now changed, then bring
@@ -509,12 +503,7 @@ void bgproc_service::handle_exit_status() noexcept
                     case pid_result_t::FAILED:
                     case pid_result_t::TERMINATED:
                         // Failed startup: no auto-restart.
-                        force_stop = true;
-                        set_target_state(service_state_t::STOPPED);
-                        do_stop();
-                        // If we are not waiting for dependents, do_stop() must have already put
-                        // us in the transition queue. Otherwise, just stop now anyway:
-                        if (waiting_for_deps) stopped();
+                        hard_failure();
                         break;
                     case pid_result_t::OK:
                         // We now need to bring down the daemon process
@@ -551,9 +540,7 @@ void bgproc_service::handle_exit_status() noexcept
 
             if (need_stop) {
                 // Failed startup: no auto-restart.
-                stop_reason = stopped_reason_t::TERMINATED;
-                unrecoverable_stop();
-                services->process_queues();
+                hard_failure();
             }
 
             return;
@@ -618,13 +605,11 @@ void bgproc_service::exec_failed(run_proc_err errcode) noexcept
 
     if (doing_smooth_recovery) {
         doing_smooth_recovery = false;
-        stop_reason = stopped_reason_t::TERMINATED;
-        unrecoverable_stop();
+        hard_failure();
     }
     else {
-        // Only time we execute is for startup:
+        // The only time we execute is for startup (STARTING):
         stop_reason = stopped_reason_t::EXECFAILED;
-        set_state(service_state_t::STOPPING);
         failed_to_start();
     }
 }
