@@ -61,6 +61,7 @@ class test_service : public service_record
 
     void failed_to_start() noexcept
     {
+        stop_reason = stopped_reason_t::FAILED;
         service_record::failed_to_start();
     }
 };

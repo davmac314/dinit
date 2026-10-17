@@ -782,13 +782,12 @@ bool service_record::stop_dependents(bool for_restart, bool restart_deps) noexce
             if (force_stop) {
                 // If this service is to be forcefully stopped, dependents must also be.
                 if (desired_state == service_state_t::STOPPED) {
-                    // If our target state was forced to STOPPED, this is a failure
-                    dep_from->stop_reason = stopped_reason_t::DEPFAILED; // FIXME is it really though?
-                    dep_from->unrecoverable_stop();
+                    // If our target state was forced to STOPPED, this must propagate
+                    dep_from->stop_reason = (stop_reason == stopped_reason_t::NORMAL)
+                            ? stopped_reason_t::NORMAL : stopped_reason_t::DEPFAILED;
+                    dep_from->desired_state = service_state_t::STOPPED;
                 }
-                else {
-                    dep_from->forced_stop();
-                }
+                dep_from->forced_stop();
             }
 
             if (dep_from->get_state() != service_state_t::STOPPED) {

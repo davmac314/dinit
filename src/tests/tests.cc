@@ -205,6 +205,9 @@ void basic_test3()
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(s1->get_state() == service_state_t::STOPPED);
+    assert(s1->get_stop_reason() == stopped_reason_t::NORMAL);
+    assert(s2->get_stop_reason() == stopped_reason_t::NORMAL);
+    assert(s3->get_stop_reason() == stopped_reason_t::NORMAL);
     assert(sset.count_active_services() == 0);
 }
 
@@ -1938,6 +1941,9 @@ void test_release_from_failed()
     assert(s1->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(s3->get_state() == service_state_t::STOPPED);
+    assert(s1->get_stop_reason() == stopped_reason_t::FAILED);
+    assert(s2->get_stop_reason() == stopped_reason_t::NORMAL);
+    assert(s3->get_stop_reason() == stopped_reason_t::DEPFAILED);
 }
 
 
