@@ -697,17 +697,17 @@ void service_record::do_stop(bool with_restart) noexcept
             }
         }
     }
-    bool for_restart = with_restart || do_auto_restart;
+    bool keep_soft_links = with_restart || do_auto_restart;
 
-    // If we won't restart, release explicit activation:
-    if (!for_restart) {
+    // If we won't definitely restart, release explicit activation:
+    if (!keep_soft_links) {
         if (start_explicit) {
             start_explicit = false;
             release(false);
         }
     }
 
-    bool all_deps_stopped = stop_dependents(for_restart, with_restart);
+    bool all_deps_stopped = stop_dependents(keep_soft_links, with_restart);
 
     if (service_state == service_state_t::STOPPING) return;
 
