@@ -618,7 +618,8 @@ void service_record::dependent_stopped() noexcept
 
 void service_record::stop(bool bring_down) noexcept
 {
-    // Stop; remove activation, and don't self-restart.
+    // Stop: remove activation, and optionally, force the service (and any dependents) to stop
+    // without restarting.
 
     if (start_explicit) {
         start_explicit = false;
