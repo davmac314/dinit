@@ -185,15 +185,19 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
         // can we actually read anything from the notification pipe?
         int r = bp_sys::read(fd, buf, sizeof(buf));
         if (r > 0) {
-            if (service->waiting_stopstart_timer) {
-                service->process_timer.stop_timer(event_loop);
-                service->waiting_stopstart_timer = false;
+            if (memchr(buf, '\n', r) != nullptr) {
+                if (service->waiting_stopstart_timer) {
+                    service->process_timer.stop_timer(event_loop);
+                    service->waiting_stopstart_timer = false;
+                }
+                service->doing_smooth_recovery = false;
+                service->started();
             }
-            service->doing_smooth_recovery = false;
-            service->started();
         }
-        else if (r == 0 || errno != EAGAIN) {
+        else if (r == 0 || (errno != EAGAIN && errno != EINTR)) {
             // Notification pipe closed before ready notification sent
+            log(loglevel_t::ERROR, "Service ", service->get_name(),
+                    ": readiness pipe not readable: ", strerror(errno));
             if (service->waiting_stopstart_timer) {
                 service->process_timer.stop_timer(event_loop);
                 service->waiting_stopstart_timer = false;

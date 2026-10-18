@@ -452,8 +452,9 @@ If not specified, a process service is considered started as soon as it has begu
 The two options are:
 .RS
 .IP \(bu
-\fBpipefd:\fR\fIfd-number\fR \[em] the service will write a message to the specified file descriptor,
-which \fBdinit\fR sets up as the write end of a pipe before execution.
+\fBpipefd:\fR\fIfd-number\fR \[em] the service will write a message including newline character to
+the specified file descriptor, which \fBdinit\fR sets up as the write end of a pipe before
+execution.
 This mechanism is compatible with the S6 supervision suite.
 .IP \(bu
 \fBpipevar:\fR\fIenv-var-name\fR \[em] the service will write a message to file descriptor identified
