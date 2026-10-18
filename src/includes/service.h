@@ -350,6 +350,16 @@ class service_record
     // Propagation and start/stop queues
     lls_node<service_record> prop_queue_node;
     lls_node<service_record> stop_queue_node;
+
+    private:
+
+    // Issue a stop to all dependents.
+    // Parameters:
+    //   keep_soft_links - whether to retain dependency links from active soft dependencies
+    //   restart_deps - whether to issue a restart to dependents (user-issued restart)
+    // Returns:
+    //   True if all dependents are stopped, false if some are still stopping
+    bool stop_dependents(bool keep_soft_links, bool restart_deps) noexcept;
     
     protected:
 
@@ -392,9 +402,6 @@ class service_record
     // check if all dependents have stopped
     bool stop_check_dependents() noexcept;
     
-    // issue a stop to all dependents, return true if they are all already stopped
-    bool stop_dependents(bool with_restart, bool for_restart) noexcept;
-
     // issue a restart to all hard dependents
     bool restart_dependents() noexcept;
     
