@@ -115,11 +115,18 @@ void service_record::stopped() noexcept
         // Look for dependencies of type PREPARED_BY. We must restart them now (forcing them into
         // STOPPING state so that initiate_start() below does not proceed to restart this service
         // immediately).
+
+        // We temporarily set our state to STOPPED to prevent the dependency from waiting for us
+        // before it restarts:
+        service_state = service_state_t::STOPPED;
+
         for (service_dep &dependency : depends_on) {
             if (dependency.dep_type == dependency_type::PREPARED_BY) {
                 dependency.get_to()->restart();
             }
         }
+
+        service_state = service_state_t::STOPPING;
 
         // Desired state is "started".
         initiate_start();
@@ -763,9 +770,8 @@ bool service_record::stop_check_dependents() noexcept
     return all_deps_stopped;
 }
 
-bool service_record::stop_dependents(bool for_restart, bool restart_deps) noexcept
+bool service_record::stop_dependents(bool keep_soft_links, bool restart_deps) noexcept
 {
-    // We are in either STARTED or STARTING states.
     bool all_deps_stopped = true;
     for (auto dept : dependents) {
         if (dept->is_hard()) {
@@ -779,6 +785,8 @@ bool service_record::stop_dependents(bool for_restart, bool restart_deps) noexce
                 all_deps_stopped = false;
             }
 
+            if (dep_from->service_state == service_state_t::STOPPED) continue;
+
             if (force_stop) {
                 // If this service is to be forcefully stopped, dependents must also be.
                 if (desired_state == service_state_t::STOPPED) {
@@ -786,35 +794,47 @@ bool service_record::stop_dependents(bool for_restart, bool restart_deps) noexce
                     dep_from->stop_reason = (stop_reason == stopped_reason_t::NORMAL)
                             ? stopped_reason_t::NORMAL : stopped_reason_t::DEPFAILED;
                     dep_from->desired_state = service_state_t::STOPPED;
+                    dep_from->forced_stop();
                 }
-                dep_from->forced_stop();
-            }
-
-            if (dep_from->get_state() != service_state_t::STOPPED) {
-                if (desired_state == service_state_t::STOPPED) {
-                    if (dep_from->desired_state != service_state_t::STOPPED) {
-                        // if we don't want to restart, don't restart dependent
-                        dep_from->desired_state = service_state_t::STOPPED;
-                        if (dep_from->start_explicit) {
-                            dep_from->start_explicit = false;
-                            dep_from->release(true);
-                        }
-                        dep_from->prop_stop = true;
-                        services->add_prop_queue(dep_from);
+                // Otherwise, this must be a restart:
+                else if (dep_from->desired_state == service_state_t::STARTED
+                        && dep_from->service_state != service_state_t::STOPPING
+                        && (dep_from->service_state != service_state_t::STARTING
+                                || !dep_from->is_fundamentally_stopped())) {
+                    // Restart
+                    if (restart_deps) {
+                        dep_from->stop_reason = stopped_reason_t::DEPRESTART;
+                        dep_from->in_user_restart = restart_deps;
                     }
+                    else {
+                        dep_from->stop_reason = stopped_reason_t::DEPFAILED;
+                    }
+                    dep_from->forced_stop();
                 }
-                else if (restart_deps && dep_from->get_state() != service_state_t::STOPPING) {
-                    // restart dependent and propagate restart to all their hard dependents.
-                    dep_from->stop_reason = stopped_reason_t::DEPRESTART;
-                    dep_from->in_user_restart = true;
+            }
+            else if (desired_state == service_state_t::STOPPED) {
+                if (dep_from->desired_state != service_state_t::STOPPED) {
+                    // if we don't want to restart, don't restart dependent
+                    if (dep_from->service_state != service_state_t::STOPPING) {
+                        // Only set stop reason if not already set (already stopping)
+                        dep_from->stop_reason = stopped_reason_t::NORMAL;
+                    }
+                    dep_from->desired_state = service_state_t::STOPPED;
                     dep_from->prop_stop = true;
                     services->add_prop_queue(dep_from);
                 }
             }
+            else if (restart_deps && dep_from->get_state() != service_state_t::STOPPING
+                    && !dep_from->is_fundamentally_stopped()) {
+                // restart dependent and propagate restart to all their hard dependents.
+                dep_from->stop_reason = stopped_reason_t::DEPRESTART;
+                dep_from->in_user_restart = true;
+                dep_from->prop_stop = true;
+                services->add_prop_queue(dep_from);
+            }
         }
-        // Note that soft dependencies are retained if restarting, but otherwise
-        // they are broken.
-        else if (!for_restart) {
+        // Soft dependencies are retained if required, but otherwise they are broken:
+        else if (!keep_soft_links) {
             if (dept->waiting_on) {
                 // Note, milestone which is still waiting is considered a hard dependency and
                 // is handled above. This is therefore a true soft dependency, and we can just
