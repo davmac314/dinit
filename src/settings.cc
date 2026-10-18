@@ -82,4 +82,7 @@ setting_details all_settings[] = {
         {nullptr,                   setting_id_t::LAST,                     false,  false,  false}
 };
 
+static_assert((sizeof(all_settings)/sizeof(all_settings[0]))
+        == static_cast<unsigned>(setting_id_t::LAST) + 1);
+
 } // dinit_load namespace

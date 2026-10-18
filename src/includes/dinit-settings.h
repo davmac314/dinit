@@ -82,7 +82,6 @@ constexpr auto str_oom_score_adj = cts::literal("oom-score-adj");
 
 // The setting ids - these correspond to the index of the setting within the all_settings array.
 enum class setting_id_t {
-    LAST = -1, // used to indicate end of settings
     TYPE, COMMAND, WORKING_DIR, ENV_FILE, SOCKET_LISTEN, SOCKET_PERMISSIONS, SOCKET_UID,
     SOCKET_GID, STOP_COMMAND, PID_FILE, DEPENDS_ON, DEPENDS_MS, WAITS_FOR, WAITS_FOR_D,
     DEPENDS_ON_D, DEPENDS_MS_D, AFTER, BEFORE, PREPARED_BY, LOGFILE, LOGFILE_PERMISSIONS,
@@ -106,6 +105,7 @@ enum class setting_id_t {
 #if SUPPORT_OOM_ADJ
     OOM_SCORE_ADJ,
 #endif
+    LAST // used to indicate end of settings
 };
 
 struct setting_details {
