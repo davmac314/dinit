@@ -64,6 +64,12 @@ class test_service : public service_record
         stop_reason = stopped_reason_t::FAILED;
         service_record::failed_to_start();
     }
+
+    void failed() noexcept
+    {
+        stop_reason = stopped_reason_t::TERMINATED;
+        forced_stop();
+    }
 };
 
 // Service listener for use in tests

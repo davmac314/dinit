@@ -211,8 +211,9 @@ void basic_test3()
     assert(sset.count_active_services() == 0);
 }
 
-// An explicitly activated service with automatic restart will restart if it
-// stops due to a dependency stopping, therefore also causing the dependency to restart.
+// An explicitly activated service will automatically restart if it stops due to a dependency
+// stopping (and it has an appropriate restart mode set), thereby also causing the dependency to
+// restart.
 void basic_test4()
 {
     service_set sset;
@@ -244,12 +245,15 @@ void basic_test4()
 
     // Now stop s1, which should also force s2 and s3 to stop.
     // s2 (and therefore s1) should restart:
-    s1->forced_stop();
+    s1->failed();
     sset.process_queues();
 
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STARTING);
     assert(s1->get_state() == service_state_t::STARTING);
+    assert(s1->get_stop_reason() == stopped_reason_t::TERMINATED);
+    assert(s2->get_stop_reason() == stopped_reason_t::DEPFAILED);
+    assert(s3->get_stop_reason() == stopped_reason_t::DEPFAILED);
 
     s1->started();
     sset.process_queues();
@@ -1537,8 +1541,6 @@ void test_log2()
 
     log(loglevel_t::ERROR, "test two");
 
-    // flush
-    //event_loop.
     event_loop.send_fd_event(logfd, dasynq::OUT_EVENTS);
 
     assert(was_closed);
@@ -1922,9 +1924,7 @@ void test_release_from_failed()
     test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
     test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {});
     test_service *s3 = new test_service(&sset, "test-service-3", service_type_t::INTERNAL, {{s1, REG}, {s2, WAITS}});
-    //s1->auto_stop = false;
     s2->start_interruptible = true;
-    //s3->auto_stop = false;
     sset.add_service(s1);
     sset.add_service(s2);
     sset.add_service(s3);
@@ -1942,6 +1942,48 @@ void test_release_from_failed()
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s1->get_stop_reason() == stopped_reason_t::FAILED);
+    assert(s2->get_stop_reason() == stopped_reason_t::NORMAL);
+    assert(s3->get_stop_reason() == stopped_reason_t::DEPFAILED);
+}
+
+// Test that dependents are correctly stopped on service failure (not start failure)
+void test_service_failure()
+{
+    service_set sset;
+
+    test_service *s1 = new test_service(&sset, "test-service-1", service_type_t::INTERNAL, {});
+    test_service *s2 = new test_service(&sset, "test-service-2", service_type_t::INTERNAL, {});
+    test_service *s3 = new test_service(&sset, "test-service-3", service_type_t::INTERNAL, {{s1, REG}, {s2, WAITS}});
+
+    sset.add_service(s1);
+    sset.add_service(s2);
+    sset.add_service(s3);
+    assert(sset.find_service("test-service-1") == s1);
+    assert(sset.find_service("test-service-2") == s2);
+    assert(sset.find_service("test-service-3") == s3);
+
+    // start s3, which also starts s1/s2
+    sset.start_service(s3);
+    assert(s1->bring_up_reqd == true);
+    s1->started();
+    sset.process_queues();
+    s2->started();
+    sset.process_queues();
+    s3->started();
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STARTED);
+    assert(s2->get_state() == service_state_t::STARTED);
+    assert(s3->get_state() == service_state_t::STARTED);
+
+    s1->failed();
+    sset.process_queues();
+
+    assert(s1->get_state() == service_state_t::STOPPED);
+    assert(s2->get_state() == service_state_t::STOPPED);
+    assert(s3->get_state() == service_state_t::STOPPED);
+
+    assert(s1->get_stop_reason() == stopped_reason_t::TERMINATED);
     assert(s2->get_stop_reason() == stopped_reason_t::NORMAL);
     assert(s3->get_stop_reason() == stopped_reason_t::DEPFAILED);
 }
@@ -2002,4 +2044,5 @@ int main(int argc, char **argv)
     RUN_TEST(test_restart_stop3, "        ");
     RUN_TEST(test_restart_stop4, "        ");
     RUN_TEST(test_release_from_failed, "  ");
+    RUN_TEST(test_service_failure, "      ");
 }
