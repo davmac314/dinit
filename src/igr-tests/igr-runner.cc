@@ -922,13 +922,26 @@ void catlog_test()
 
     igr_assert_eq("Output...\n", dinitctl_p.get_stdout());
 
+    // Check for the restarting message
+    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "restart", "output"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "catlog", "output"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    igr_assert_eq("Output...\n(dinit: note: service restarted)\nOutput...\n",
+                  dinitctl_p.get_stdout());
+
     // Check output again, this time also clear the buffer
 
     dinitctl_p.start("catlog", {"-u", "-p", socket_path, "catlog", "--clear", "output"});
     status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
-    igr_assert_eq("Output...\n", dinitctl_p.get_stdout());
+    igr_assert_eq("Output...\n(dinit: note: service restarted)\nOutput...\n",
+                  dinitctl_p.get_stdout());
 
     // Check a third time, buffer should be clear now
 
@@ -937,6 +950,18 @@ void catlog_test()
     igr_assert(status == 0, "dinitctl did not exit cleanly");
 
     igr_assert_eq("", dinitctl_p.get_stdout());
+
+    // Restart a service with empty log buffer should yield no restarting message
+
+    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "restart", "output"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "catlog", "output"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    igr_assert_eq("Output...\n", dinitctl_p.get_stdout());
 }
 
 void offline_enable_test()
