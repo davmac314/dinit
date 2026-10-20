@@ -200,28 +200,17 @@ bool base_process_service::start_ps_process(const std::vector<const char *> &cmd
         }
 
         if (log_type == log_type_id::BUFFER) {
-            // Set watcher enabled if space in buffer
-            if (log_buf_size > 0) {
-                // Append a "restarted" message to buffer contents
+            if (log_buf_size) {
                 const char *restarting_msg = "\n(dinit: note: service restarted)\n";
-                unsigned restarting_msg_len = strlen(restarting_msg);
-                bool trailing_nl = log_buffer[log_buf_size - 1] == '\n';
-                if (trailing_nl) {
-                    ++restarting_msg; // trim leading newline
-                    --restarting_msg_len;
-                }
-                if (log_buf_size + restarting_msg_len >= log_buf_max) {
-                    goto skip_enable_log_watch;
-                }
-                if (!ensure_log_buffer_backing(log_buf_size + restarting_msg_len)) {
-                    goto skip_enable_log_watch;
-                }
-                memcpy(log_buffer.data() + log_buf_size, restarting_msg, restarting_msg_len);
-                log_buf_size += restarting_msg_len;
+
+                // Trim the leading newline if it leads to empty lines
+                if (log_buffer_peek(-1) == '\n')
+                    restarting_msg++;
+
+                log_buffer_append(restarting_msg, strlen(restarting_msg));
             }
             log_output_listener.set_enabled(event_loop, true);
         }
-        skip_enable_log_watch: ;
 
         // Set up complete, now fork and exec:
 
@@ -614,5 +603,51 @@ bool base_process_service::ensure_log_buffer_backing(unsigned new_size) noexcept
             log_buffer.resize(new_size);
         }
     }
+    log_buf_size = new_size;
     return true;
+}
+
+bool base_process_service::log_buffer_append(const char *log, unsigned size) noexcept
+{
+    if (!ensure_log_buffer_backing(std::min((unsigned)log_buf_size + size, log_buf_max))) {
+        return false;
+    }
+
+    if (size > log_buf_max) {
+        log += size - log_buf_max;
+        size = log_buf_max;
+    }
+
+    if (log_buf_pointer + size > log_buf_max) {
+        unsigned int slice1 = log_buf_max - log_buf_pointer;
+        unsigned int slice2 = size - slice1;
+        memcpy(log_buffer.data() + log_buf_pointer, log, slice1);
+        memcpy(log_buffer.data(), log + slice1, slice2);
+    }
+    else {
+        memcpy(log_buffer.data() + log_buf_pointer, log, size);
+    }
+
+    log_buf_pointer = (log_buf_pointer + size) % log_buf_max;
+
+    return true;
+}
+
+static void reverse_in_place(char *s, unsigned int len)
+{
+    for (unsigned i = 0; i < len / 2; i++)
+        std::swap(s[i], s[len - i - 1]);
+}
+
+void base_process_service::linearize_log_buffer() noexcept
+{
+    if (log_buf_size < log_buf_max) {
+        return;
+    }
+
+    reverse_in_place(log_buffer.data(), log_buf_pointer);
+    reverse_in_place(log_buffer.data() + log_buf_pointer, log_buf_max - log_buf_pointer);
+    reverse_in_place(log_buffer.data(), log_buf_max);
+
+    log_buf_pointer = 0;
 }
