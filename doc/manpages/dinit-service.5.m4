@@ -525,6 +525,7 @@ Specifies the group of the log file. See discussion of \fBlogfile\-uid\fR.
 If the log type (see \fBlog\-type\fR) is set to \fBbuffer\fR, this setting controls the maximum
 size of the buffer used to store process output.
 If the buffer becomes full, further output from the service process will be discarded.
+Only positive integers are allowed for this setting.
 .TP
 \fBconsumer\-of\fR = \fIservice-name\fR
 Specifies that this service consumes (as its standard input) the output of another service.
