@@ -920,120 +920,82 @@ void catlog_test()
     dinit_proc dinit_p;
     dinit_p.start("catlog", {"-u", "-d", sd_dir, "-p", socket_path, "-q"}, true);
 
-    // wait until "output" has actually started
     dinitctl_proc dinitctl_p;
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "start", "output"});
-    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
+    auto dinitctl_run = [&](std::vector<std::string> extraArgs) {
+        std::vector<std::string> args = {"-u", "-p", socket_path};
+        args.insert(args.end(), extraArgs.begin(), extraArgs.end());
 
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "catlog", "output"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
+        dinitctl_p.start("catlog", args);
+        int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+        igr_assert(status == 0, "dinitctl did not exit cleanly");
+    };
 
+    // wait until "output" has actually started
+
+    dinitctl_run({"start", "output"});
+    dinitctl_run({"catlog", "output"});
     igr_assert_eq("Output...\n", dinitctl_p.get_stdout());
 
     // Check for the restarting message
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "restart", "output"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
 
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "catlog", "output"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
-
+    dinitctl_run({"restart", "output"});
+    dinitctl_run({"catlog", "output"});
     igr_assert_eq("Output...\n(dinit: note: service restarted)\nOutput...\n",
                   dinitctl_p.get_stdout());
 
     // Check output again, this time also clear the buffer
 
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "catlog", "--clear", "output"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
-
+    dinitctl_run({"catlog", "--clear", "output"});
     igr_assert_eq("Output...\n(dinit: note: service restarted)\nOutput...\n",
                   dinitctl_p.get_stdout());
 
     // Check a third time, buffer should be clear now
 
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "catlog", "--clear", "output"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
+    dinitctl_run({"catlog", "--clear", "output"});
 
     igr_assert_eq("", dinitctl_p.get_stdout());
 
     // Restart a service with empty log buffer should yield no restarting message
-
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "restart", "output"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
-
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "catlog", "output"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
-
+    dinitctl_run({"restart", "output"});
+    dinitctl_run({"catlog", "output"});
     igr_assert_eq("Output...\n", dinitctl_p.get_stdout());
 
     // wait until "output-long" has actually started
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "start", "output-long"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
+    dinitctl_run({"start", "output-long"});
 
     // Check whether log buffer is correctly rotated
 
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "catlog", "output-long"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
+    dinitctl_run({"catlog", "output-long"});
+
+    igr_assert_eq("defghi\ndeadbeaf\n", dinitctl_p.get_stdout());
 
     // Restart the service, which will cause a message longer than the buffer
     // being buffered
 
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "restart", "output-long"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
-
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "catlog", "output-long"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
-
+    dinitctl_run({"restart", "output-long"});
+    dinitctl_run({"catlog", "output-long"});
     igr_assert_eq("defghi\ndeadbeaf\n", dinitctl_p.get_stdout());
 
     replace_sd_dir("/catlog/sd2");
 
     // Reload output-long, increasing its log buffer's size
 
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "reload", "output-long"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
-
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "catlog", "output-long"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
-
+    dinitctl_run({"reload", "output-long"});
+    dinitctl_run({"catlog", "output-long"});
     igr_assert_eq("defghi\ndeadbeaf\n", dinitctl_p.get_stdout());
 
     // Restart the service, then roll back to the smaller buffer size, see whether the log is
     // correctly truncated
 
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "restart", "output-long"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
-
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "catlog", "output-long"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
-
+    dinitctl_run({"restart", "output-long"});
+    dinitctl_run({"catlog", "output-long"});
     igr_assert_eq("defghi\ndeadbeaf\n(dinit: note: service restarted)\n123456789\nabcdefghi\ndeadbeaf\n",
                   dinitctl_p.get_stdout());
 
     replace_sd_dir("/catlog/sd1");
 
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "reload", "output-long"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
-
-    dinitctl_p.start("catlog", {"-u", "-p", socket_path, "catlog", "output-long"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
+    dinitctl_run({"reload", "output-long"});
+    dinitctl_run({"catlog", "output-long"});
 
     igr_assert_eq("defghi\ndeadbeaf\n", dinitctl_p.get_stdout());
 
