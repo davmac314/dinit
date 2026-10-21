@@ -9,6 +9,7 @@ class test_service : public service_record
 {
     public:
     bool bring_up_reqd = false;
+    bool bring_down_reqd = false;
     bool start_interruptible = false;
 
     test_service(service_set *set, std::string name, service_type_t type_p,
@@ -31,7 +32,7 @@ class test_service : public service_record
     // All dependents have stopped.
     virtual void bring_down() noexcept override
     {
-        waiting_for_deps = false;
+        bring_down_reqd = true;
         if (auto_stop) {
             stopped();
         }
@@ -40,6 +41,9 @@ class test_service : public service_record
     void stopped() noexcept
     {
         assert(get_state() != service_state_t::STOPPED);
+        assert(bring_down_reqd);
+        assert(!waiting_for_deps);
+        bring_down_reqd = false;
         service_record::stopped();
     }
 
