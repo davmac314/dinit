@@ -603,7 +603,7 @@ void service_record::forced_stop() noexcept
     if (force_stop) return;
     if (service_state != service_state_t::STOPPED) {
         force_stop = true;
-        if (!is_start_pinned()) {
+        if (!is_start_pinned()) { // XXX this should probably apply only if actually STARTED
             prop_stop = true;
             services->add_prop_queue(this);
         }

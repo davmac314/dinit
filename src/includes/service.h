@@ -675,7 +675,7 @@ class service_record
     
     bool is_start_pinned() noexcept
     {
-        return pinned_started || dept_pinned_started;
+        return pinned_started || dept_pinned_started; // XXX should check state == started?
     }
 
     bool is_stop_pinned() noexcept
@@ -1144,6 +1144,7 @@ class service_set
             }
         };
 
+        // If we have a log consumer, make a placeholder to take ownership of the output pipe:
         auto *consumer = svc->get_log_consumer();
         if (consumer != nullptr) {
             make_placeholder();
