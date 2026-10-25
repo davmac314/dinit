@@ -520,20 +520,17 @@ inline string read_config_name(string_iterator &i, string_iterator end, bool env
 
 // Read a setting value, with an assignment or plus-assignment (append).
 //
-// In general a setting value is a single-line string. It may contain multiple parts
-// separated by white space (which is normally collapsed). A hash mark - # - denotes
-// the end of the value and the beginning of a comment (it should be preceded by
-// whitespace).
+// In general a setting value is a single-line string. It may contain multiple parts separated by
+// white space (which is normally collapsed). A hash mark - # - denotes the end of the value and
+// the beginning of a comment (it should be preceded by whitespace).
 //
-// Part of a value may be quoted using double quote marks, which prevents collapse
-// of whitespace and interpretation of most special characters (the quote marks will
-// not be considered part of the value). A backslash can precede a character (such
-// as '#' or '"' or another backslash) to remove its special meaning. Newline
-// characters are not allowed in values and cannot be quoted.
+// Part of a value may be quoted using double quote marks, which prevents collapse of whitespace
+// and interpretation of most special characters (the quote marks will not be considered part of
+// the value). A backslash can precede a character (such as '#' or '"' or another backslash) to
+// remove its special meaning. Newline characters are not allowed in values and cannot be quoted.
 //
-// This function expects the string to be in an ASCII-compatible encoding (the "classic" locale).
-//
-// Throws service_description_exc (with service name unset) on error.
+// This function is not encoding-aware (but is UTF-8 safe); characters with special meanings
+// (#, ", whitspace characters, etc) are recognised via their ascii-equivalent code.
 //
 // Parameters:
 //    setting_val - the (current) setting value, to be modified by the call
@@ -545,8 +542,10 @@ inline string read_config_name(string_iterator &i, string_iterator end, bool env
 //    end         - iterator at end of line (not including newline character if any)
 //    part_positions - list of pair<unsigned,unsigned> to which the position of each setting value
 //                  part will be added as [start,end). May be null.
+//    delimiter   - for plus-assign, the delimiter to be inserted between the original value and
+//                  the addendum.
 // Throws:
-//   service_description_exc, std::bad_alloc, std::length_error
+//   service_description_exc (with unset service name), std::bad_alloc, std::length_error
 inline void read_setting_value(std::string &setting_val, setting_op_t operation,
         file_pos_ref input_pos, string_iterator &i, string_iterator end,
         std::list<std::pair<unsigned,unsigned>> *part_positions = nullptr,
