@@ -54,6 +54,13 @@ value_cls<T> value(const T &v)
     return value_cls<T>(v);
 }
 
+// Get the number of elements in an array. (Once C++17, we can use std::size(...)).
+template <class T, std::size_t N>
+constexpr size_t array_size(const T (&)[N])
+{
+    return N;
+}
+
 // Since we are C++11, we don't have a std::string_view.
 class string_view
 {

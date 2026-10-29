@@ -704,6 +704,19 @@ static const char *describe_verb(bool stop)
     return stop ? "stop" : "start";
 }
 
+// Get the description of an execution stage, guarding against invalid stage codes.
+static const char *get_exec_stage_descr(unsigned launch_stage)
+{
+    if (launch_stage >= array_size(exec_stage_descriptions)
+            || exec_stage_descriptions[launch_stage] == nullptr) {
+        return "Unknown";
+    }
+    else {
+        return exec_stage_descriptions[launch_stage];
+    }
+
+}
+
 // Load a service: issue load command, wait for reply.
 // Parameters:
 //   dinit_conn - details of the connection to dinit server process
@@ -831,7 +844,7 @@ static void print_failure_details(stopped_reason_t stop_reason, uint16_t launch_
             break;
         case stopped_reason_t::EXECFAILED:
             cout << "Reason: execution of service process failed:\n";
-            cout << "        Stage: " << exec_stage_descriptions[launch_stage] << "\n";
+            cout << "        Stage: " << get_exec_stage_descr(launch_stage) << "\n";
             cout << "        Error: " << strerror(exit_status) << "\n";
             break;
         case stopped_reason_t::FAILED:
@@ -1790,7 +1803,7 @@ static int service_status(dinit_conn_t &dinit_conn, const char *service_name, ct
                     exit_status = exit_si_code;
                 }
                 cout << " (could not be launched)\n";
-                cout << "        Stage: " << exec_stage_descriptions[launch_stage] << "\n";
+                cout << "        Stage: " << get_exec_stage_descr(launch_stage) << "\n";
                 cout << "        Error: " << strerror(exit_status);
                 break;
             case stopped_reason_t::TERMINATED:
