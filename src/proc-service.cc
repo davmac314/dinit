@@ -391,7 +391,7 @@ void process_service::handle_exit_status() noexcept
     else if (current_state == service_state_t::STOPPING) {
         if (stop_pid == -1) {
             if (!waiting_for_deps) {
-                if (stop_pid == -1 && !waiting_for_execstat) {
+                if (!waiting_for_execstat) {
                     // We won't log a non-zero exit status or termination due to signal here - we
                     // assume that the process died because we signalled it.
                     stop_issued = false; // reset for next time
