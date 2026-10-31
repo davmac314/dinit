@@ -2283,6 +2283,11 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
             string log_buffer_size_str = read_setting_value(input_pos, i, end);
             unsigned bufsize = (unsigned)parse_unum_param(input_pos, log_buffer_size_str, name,
                     std::numeric_limits<unsigned>::max() / 2);
+
+            if (!bufsize)
+                throw service_description_exc(name, "log-buffer-size cannot be zero",
+                                              details->setting_str, input_pos);
+
             settings.max_log_buffer_sz = bufsize;
             break;
         }

@@ -469,7 +469,8 @@ This setting is valid only for process-based services (including \fBscripted\fR 
 .IP \(bu
 \fBfile\fR: output will be written to a file; see the \fBlogfile\fR setting.
 .IP \(bu
-\fBbuffer\fR: output will be buffered in memory, up to a limit specified via the
+\fBbuffer\fR: output will be buffered in memory, and automatically rotated when reaching the limit
+specified via the
 \fBlog\-buffer\-size\fR setting.
 The buffer contents can be examined via the \fBdinitctl\fR(8) \fBcatlog\fR subcommand. 
 .IP \(bu
@@ -524,7 +525,8 @@ Specifies the group of the log file. See discussion of \fBlogfile\-uid\fR.
 \fBlog\-buffer\-size\fR = \fIsize-in-bytes\fR
 If the log type (see \fBlog\-type\fR) is set to \fBbuffer\fR, this setting controls the maximum
 size of the buffer used to store process output.
-If the buffer becomes full, further output from the service process will be discarded.
+The output from the service will be rotated, i.e. FIFO, if the buffer becomes full.
+Only positive integers are allowed for this setting.
 .TP
 \fBconsumer\-of\fR = \fIservice-name\fR
 Specifies that this service consumes (as its standard input) the output of another service.
