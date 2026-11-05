@@ -1,3 +1,12 @@
+* Document failure_conditions
+* Fix: dependency failure should only propagate failure if configured
+  (via failure_conditions)
+* Tests for failure_conditions.
+* Separate stopped reason codes from failure status, i.e. do not realy on stop reason to indicate
+  failure, and repair cases where the reason is being set to "normal" to avoid being considered
+  a failure.
+
+
 For version 1.0 (release requirements):
 ---------------------------------------
 * Be able to boot and shutdown Linux and FreeBSD (or OpenBSD).
