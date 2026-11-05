@@ -1655,6 +1655,7 @@ class service_settings_wrapper
     service_flags_t onstart_flags;
     int term_signal = SIGTERM;  // termination signal
     auto_restart_mode auto_restart = auto_restart_mode::DEFAULT_AUTO_RESTART;
+    failure_conditions_t failure_conditions = failure_conditions_t::PROCESS_ERR;
     bool smooth_recovery = false;
     string socket_path;
     int socket_perms = 0666;
@@ -2317,6 +2318,25 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                 throw service_description_exc(name, (setting_str::str_restart + " must be one of: "
                         "\"yes\", \"true\", \"no\", \"false\" or \"on-failure\"").c_str(),
                         details->setting_str, input_pos);
+            }
+            break;
+        }
+        case setting_id_t::FAILURE_CONDITIONS:
+        {
+            std::string setting_val = read_setting_value(input_pos, i, end);;
+            if (setting_val == "none") {
+                settings.failure_conditions = failure_conditions_t::NONE;
+            }
+            else if (setting_val == "process-fails") {
+                settings.failure_conditions = failure_conditions_t::PROCESS_ERR;
+            }
+            else if (setting_val == "process-stops") {
+                settings.failure_conditions = failure_conditions_t::PROCESS_TERMINATES;
+            }
+            else {
+                throw service_description_exc(name, (setting_str::str_failure_conditions
+                        + " value can contain only: \"none\", \"process-fails\", and "
+                        + "\"process-stops\"").c_str(), details->setting_str, input_pos);
             }
             break;
         }

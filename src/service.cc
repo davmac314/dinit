@@ -253,7 +253,8 @@ void service_record::initiate_start() noexcept
 {
     // Check If this is an automatic restart (due to a dependent). Setting in_auto_restart flags
     // that restart delay timers and limit checks need to run.
-    if (service_state == service_state_t::STOPPING && stop_reason == stopped_reason_t::TERMINATED) {
+    if (service_state == service_state_t::STOPPING && value(stop_reason).is_in(
+            stopped_reason_t::TERMINATED, stopped_reason_t::TERMINATED_FAILED) && !start_failed) {
         in_auto_restart = true;
     }
 
@@ -676,7 +677,7 @@ void service_record::do_stop(bool with_restart) noexcept
     // Note: to inhibit automatic restart, including restart due to dependent still requiring this
     //       service, caller must first set desired_state to STOPPED
 
-	// Precondition: service state is not already STOPPED
+	// Preconditions: service state is not already STOPPED; stop_reason has been set.
 
     if (is_start_pinned()) return;
 
@@ -690,18 +691,9 @@ void service_record::do_stop(bool with_restart) noexcept
             do_auto_restart = true;
         }
         else if (auto_restart == auto_restart_mode::ON_FAILURE) {
-            if (get_type() == service_type_t::PROCESS || get_type() == service_type_t::BGPROCESS) {
-                auto exit_status = get_exit_status();
-                if (exit_status.was_signalled()) {
-                    if (!value(exit_status.get_signal()).is_in(SIGHUP, SIGINT, SIGUSR1, SIGUSR2, SIGTERM)) {
-                        do_auto_restart = true;
-                    }
-                }
-                else {
-                    if (exit_status.get_exit_status() != 0) {
-                        do_auto_restart = true;
-                    }
-                }
+            if (value(stop_reason).is_in(stopped_reason_t::FAILED, stopped_reason_t::DEPFAILED,
+                    stopped_reason_t::TERMINATED_FAILED)) {
+                do_auto_restart = true;
             }
         }
     }
@@ -793,12 +785,15 @@ bool service_record::stop_dependents(bool keep_soft_links, bool restart_deps) no
                 // If this service is to be forcefully stopped, dependents must also be.
                 if (desired_state == service_state_t::STOPPED) {
                     // If our target state was forced to STOPPED, this must propagate
-                    dep_from->stop_reason = (stop_reason == stopped_reason_t::NORMAL)
-                            ? stopped_reason_t::NORMAL : stopped_reason_t::DEPFAILED;
+                    bool is_dept_failure = value(stop_reason).is_in(stopped_reason_t::FAILED,
+                            stopped_reason_t::DEPFAILED, stopped_reason_t::TERMINATED_FAILED);
+
+                    dep_from->stop_reason = is_dept_failure ? stopped_reason_t::DEPFAILED
+                            : stopped_reason_t::NORMAL;
                     dep_from->desired_state = service_state_t::STOPPED;
                     dep_from->forced_stop();
                 }
-                // Otherwise, this must be a restart:
+                // Otherwise, this may be a restart:
                 else if (dep_from->desired_state == service_state_t::STARTED
                         && dep_from->service_state != service_state_t::STOPPING
                         && (dep_from->service_state != service_state_t::STARTING
@@ -809,7 +804,10 @@ bool service_record::stop_dependents(bool keep_soft_links, bool restart_deps) no
                         dep_from->in_user_restart = restart_deps;
                     }
                     else {
-                        dep_from->stop_reason = stopped_reason_t::DEPFAILED;
+                        bool did_fail = value(stop_reason).is_in(stopped_reason_t::FAILED,
+                                stopped_reason_t::DEPFAILED, stopped_reason_t::TERMINATED_FAILED);
+                        dep_from->stop_reason = did_fail
+                                ? stopped_reason_t::DEPFAILED : stopped_reason_t::NORMAL;
                     }
                     dep_from->forced_stop();
                 }
@@ -825,14 +823,6 @@ bool service_record::stop_dependents(bool keep_soft_links, bool restart_deps) no
                     dep_from->prop_stop = true;
                     services->add_prop_queue(dep_from);
                 }
-            }
-            else if (restart_deps && dep_from->get_state() != service_state_t::STOPPING
-                    && !dep_from->is_fundamentally_stopped()) {
-                // restart dependent and propagate restart to all their hard dependents.
-                dep_from->stop_reason = stopped_reason_t::DEPRESTART;
-                dep_from->in_user_restart = true;
-                dep_from->prop_stop = true;
-                services->add_prop_queue(dep_from);
             }
         }
         // Soft dependencies are retained if required, but otherwise they are broken:

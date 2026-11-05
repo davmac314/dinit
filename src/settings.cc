@@ -37,6 +37,7 @@ setting_details all_settings[] = {
 
         {str_consumer_of,           setting_id_t::CONSUMER_OF,              false,  true,   false},
         {str_restart,               setting_id_t::RESTART,                  false,  true,   false},
+        {str_failure_conditions,    setting_id_t::FAILURE_CONDITIONS,       false,  true,   false},
         {str_smooth_recovery,       setting_id_t::SMOOTH_RECOVERY,          false,  true,   false},
         {str_options,               setting_id_t::OPTIONS,                  true,   true,   false}, // TODO +=?
         {str_load_options,          setting_id_t::LOAD_OPTIONS,             true,   true,   false}, // +=?

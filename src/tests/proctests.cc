@@ -2375,7 +2375,7 @@ void test_bgproc_smooth_recove3()
     sset.process_queues();
 
     assert(p.get_state() == service_state_t::STOPPED);
-    assert(p.get_stop_reason() == stopped_reason_t::TERMINATED);
+    assert(p.get_stop_reason() == stopped_reason_t::FAILED);
     assert(event_loop.active_timers.size() == 0);
 
     sset.remove_service(&p);
@@ -3684,6 +3684,65 @@ void test_prepared_by_restart()
     sset.remove_service(&prep_svc);
 }
 
+void test_failure_cond()
+{
+    service_set sset;
+
+    ha_string command = "test-command";
+    std::list<std::pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+    std::list<prelim_dep> depends;
+
+    process_service p {&sset, "testproc", std::move(command), command_offsets, depends};
+    init_service_defaults(p);
+    p.set_failure_conditions(failure_conditions_t::PROCESS_ERR);
+    p.set_auto_restart(auto_restart_mode::NEVER);
+
+    sset.add_service(&p);
+
+    service_record tp {&sset, "test-service", service_type_t::INTERNAL, {{&p, REG}}};
+    tp.set_auto_restart(auto_restart_mode::ON_FAILURE);
+    sset.add_service(&tp);
+
+    sset.start_service(&tp);
+    assert(p.get_state() == service_state_t::STARTING);
+    assert(tp.get_state() == service_state_t::STARTING);
+    base_process_service_test::exec_succeeded(&p);
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(tp.get_state() == service_state_t::STARTED);
+
+    // Process terminates with an error: failure; tp restarts due to dependency failure:
+    base_process_service_test::handle_exit(&p, 1);
+    assert(p.get_state() == service_state_t::STARTING);
+    assert(tp.get_state() == service_state_t::STARTING);
+    event_loop.advance_time(default_restart_interval);
+    base_process_service_test::exec_succeeded(&p);
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(tp.get_state() == service_state_t::STARTED);
+
+    // Process terminates with no error: no failure, no restart
+    base_process_service_test::handle_exit(&p, 0);
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(tp.get_state() == service_state_t::STOPPED);
+
+    // (Manual restart)
+    sset.start_service(&tp);
+    base_process_service_test::exec_succeeded(&p);
+    assert(p.get_state() == service_state_t::STARTED);
+    assert(tp.get_state() == service_state_t::STARTED);
+
+    // Set failure conditions to "NONE" for process service (should inhibit ON_FAILURE restart)
+    p.set_failure_conditions(failure_conditions_t::NONE);
+
+    // Terminate process with failure again
+    base_process_service_test::handle_exit(&p, 1);
+    assert(p.get_state() == service_state_t::STOPPED);
+    assert(tp.get_state() == service_state_t::STOPPED);
+
+    sset.remove_service(&tp);
+    sset.remove_service(&p);
+}
+
 #define RUN_TEST(name, spacing) \
     std::cout << #name "..." spacing << std::flush; \
     name(); \
@@ -3750,4 +3809,5 @@ int main(int argc, char **argv)
     RUN_TEST(test_scripted_auto_restart, " ");
     RUN_TEST(test_waitsfor_restart, "      ");
     RUN_TEST(test_prepared_by_restart, "   ");
+    RUN_TEST(test_failure_cond, "          ");
 }

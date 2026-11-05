@@ -251,7 +251,7 @@ void basic_test4()
     assert(s3->get_state() == service_state_t::STOPPED);
     assert(s2->get_state() == service_state_t::STARTING);
     assert(s1->get_state() == service_state_t::STARTING);
-    assert(s1->get_stop_reason() == stopped_reason_t::TERMINATED);
+    assert(s1->get_stop_reason() == stopped_reason_t::FAILED);
     assert(s2->get_stop_reason() == stopped_reason_t::DEPFAILED);
     assert(s3->get_stop_reason() == stopped_reason_t::DEPFAILED);
 
@@ -2069,7 +2069,7 @@ void test_service_failure()
     assert(s2->get_state() == service_state_t::STOPPED);
     assert(s3->get_state() == service_state_t::STOPPED);
 
-    assert(s1->get_stop_reason() == stopped_reason_t::TERMINATED);
+    assert(s1->get_stop_reason() == stopped_reason_t::FAILED);
     assert(s2->get_stop_reason() == stopped_reason_t::NORMAL);
     assert(s3->get_stop_reason() == stopped_reason_t::DEPFAILED);
 }

@@ -888,6 +888,7 @@ service_record *dirload_service_set::load_reload_service(const char *fullname,
         rval->set_auto_restart(settings.auto_restart);
         rval->set_smooth_recovery(settings.smooth_recovery);
         rval->set_flags(settings.onstart_flags);
+        rval->set_failure_conditions(settings.failure_conditions);
         rval->set_socket_details(std::move(settings.socket_path), settings.socket_perms,
                 settings.socket_uid, settings.socket_gid);
         rval->set_chain_to(std::move(settings.chain_to_name));

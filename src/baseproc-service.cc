@@ -65,6 +65,23 @@ void base_process_service::handle_unexpected_termination() noexcept
     // unexpected termination, with possible restart
     stop_reason = stopped_reason_t::TERMINATED;
 
+    // Now set the reason to TERMINATED_FAILED instead, if we consider it failure:
+    if (failure_conditions == failure_conditions_t::PROCESS_TERMINATES) {
+        stop_reason = stopped_reason_t::TERMINATED_FAILED;
+    }
+    else if (failure_conditions == failure_conditions_t::PROCESS_ERR) {
+        if (exit_status.was_signalled()) {
+            if (!value(exit_status.get_signal()).is_in(SIGHUP, SIGINT, SIGUSR1, SIGUSR2, SIGTERM)) {
+                stop_reason = stopped_reason_t::TERMINATED_FAILED;
+            }
+        }
+        else {
+            if (exit_status.get_exit_status() != 0) {
+                stop_reason = stopped_reason_t::TERMINATED_FAILED;
+            }
+        }
+    }
+
     // We want to circumvent the normal process of waiting for dependents to stop before we
     // attempt to restart, for two reasons:
     // 1) we can restart more quickly
@@ -364,7 +381,9 @@ void base_process_service::do_restart() noexcept
 
     if (!start_ps_process(exec_arg_parts, have_console || onstart_flags.shares_console)) {
         if (service_state == service_state_t::STARTING) {
-            stop_reason = stopped_reason_t::FAILED;
+            if (stop_reason == stopped_reason_t::NORMAL) {
+                stop_reason = stopped_reason_t::FAILED;
+            }
             failed_to_start();
         }
         else {
@@ -435,7 +454,7 @@ bool base_process_service::issue_start_interrupt() noexcept
 
 void base_process_service::hard_failure() noexcept
 {
-    stop_reason = stopped_reason_t::TERMINATED;
+    stop_reason = stopped_reason_t::FAILED;
     unrecoverable_stop();
     if (waiting_for_deps && !is_start_pinned()) {
         waiting_for_deps = false;

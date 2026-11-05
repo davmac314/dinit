@@ -278,6 +278,7 @@ class service_record
     const char *service_dsc_dir = nullptr; // directory containing service description file
 
     auto_restart_mode auto_restart; // whether to restart this (process) if it dies unexpectedly
+    failure_conditions_t failure_conditions; // when to consider this service failed vs stopped
     bool smooth_recovery : 1; // whether the service process can restart without bringing down service
 
     // Pins. Start pins are directly transitive (hence pinned_started and dept_pinned_started) whereas
@@ -492,7 +493,8 @@ class service_record
     // any appropriate cleanup.
     virtual void becoming_inactive() noexcept { }
 
-    // Check whether the service should automatically restart (assuming auto_restart is ALWAYS or ON_FAILURE)
+    // Check whether it is possible for the service to automatically restart (i.e. if it hasn't
+    // exceeded restart limits and is not otherwise prevented from starting).
     virtual bool check_restart() noexcept
     {
         return true;
@@ -648,6 +650,11 @@ class service_record
     process_service *get_log_consumer()
     {
         return log_consumer;
+    }
+
+    void set_failure_conditions(failure_conditions_t new_conditions)
+    {
+        failure_conditions = new_conditions;
     }
 
     const std::string &get_name() const noexcept { return service_name; }

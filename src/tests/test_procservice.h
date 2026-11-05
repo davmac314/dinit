@@ -78,6 +78,8 @@ static void init_service_defaults(base_process_service &ps)
     ps.set_restart_interval(time_val(10,0), 3);
     ps.set_restart_delay(default_restart_interval); // 200 milliseconds
     ps.set_stop_timeout(time_val(10,0));
+    ps.set_failure_conditions(failure_conditions_t::PROCESS_ERR);
+
 }
 
 #endif /* TEST_PROCSERVICE */

@@ -619,6 +619,15 @@ bool control_conn_t::process_reload_service()
     return true;
 }
 
+// Get the stop reason as a char, with values mapped to those clients expect
+// TODO probably shouldn't need this
+static char get_stop_reason_code(service_record *service)
+{
+    stopped_reason_t reason = service->get_stop_reason();
+    if (reason == stopped_reason_t::TERMINATED_FAILED) reason = stopped_reason_t::TERMINATED;
+    return static_cast<char>(reason);
+}
+
 constexpr static unsigned SIZEOF_INT_PIDT_UNION = ((sizeof(pid_t) > sizeof(int)) ? sizeof(pid_t) : sizeof(int));
 constexpr static unsigned STATUS_BUFFER_SIZE = 6 + SIZEOF_INT_PIDT_UNION;
 
@@ -635,7 +644,7 @@ static void fill_status_buffer(char *buffer, service_record *service)
     b0 |= service->is_marked_active() ? 8 : 0;
     b0 |= (proc_pid != -1) ? 16 : 0;
     buffer[2] = b0;
-    buffer[3] = static_cast<char>(service->get_stop_reason());
+    buffer[3] = get_stop_reason_code(service);
 
     buffer[4] = 0; // (if exec failed, these are replaced with stage)
     buffer[5] = 0;
@@ -678,7 +687,7 @@ static void fill_status_buffer5(char *buffer, service_record *service)
     b0 |= service->is_marked_active() ? 8 : 0;
     b0 |= (proc_pid != -1) ? 16 : 0;
     buffer[2] = b0;
-    buffer[3] = static_cast<char>(service->get_stop_reason());
+    buffer[3] = get_stop_reason_code(service);
 
     buffer[4] = 0; // (if exec failed, these are replaced with stage)
     buffer[5] = 0;

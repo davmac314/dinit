@@ -1,6 +1,8 @@
 #ifndef SERVICE_CONSTANTS_H
 #define SERVICE_CONSTANTS_H
 
+#include <cstdint>
+
 #include <mconfig.h>
 
 #include <control-datatypes.h>
@@ -52,14 +54,15 @@ enum class stopped_reason_t
     NORMAL,
     DEPRESTART, // A hard dependency was restarted
 
-    // Start failures:
-    DEPFAILED, // A dependency failed to start
-    FAILED,    // failed to start (process terminated before ready, general failure)
-    EXECFAILED, // failed to start (couldn't launch process)
-    TIMEDOUT,  // timed out when starting
+    // Failures (including start failures)
+    DEPFAILED, // A dependency failed
+    FAILED,    // Failed to start or after starting
+    EXECFAILED, // failed to (re)start (couldn't launch process)
+    TIMEDOUT,  // timed out when (re)starting
 
-    // Failure(?) after starting:
-    TERMINATED // process terminated
+    // Non-failure unscheduled stop:
+    TERMINATED, // process terminated
+    TERMINATED_FAILED  // process terminated, considered failure
 };
 
 inline bool did_finish(stopped_reason_t reason)
@@ -143,8 +146,37 @@ enum class auto_restart_mode
 {
     NEVER,      // Never automatically restart
     ALWAYS,     // Always restart
-    ON_FAILURE, // Only restart when process fails
+    ON_FAILURE, // Only restart when service fails (according to failure conditions for service)
 };
+
+enum class failure_conditions_t : uint8_t
+{
+    NONE = 0,               // Nothing is considered failure (except dependency failure)
+    PROCESS_ERR = 1,        // Process terminates with an error condition or fails to restart
+    PROCESS_TERMINATES = 2, // Process terminates (at all)
+};
+
+inline failure_conditions_t operator|(failure_conditions_t a, failure_conditions_t b)
+{
+    uint8_t a_int = static_cast<uint8_t>(a);
+    uint8_t b_int = static_cast<uint8_t>(b);
+    return static_cast<failure_conditions_t>(a_int | b_int);
+}
+
+inline failure_conditions_t operator|=(failure_conditions_t &a, failure_conditions_t b)
+{
+    uint8_t a_int = static_cast<uint8_t>(a);
+    uint8_t b_int = static_cast<uint8_t>(b);
+    a = static_cast<failure_conditions_t>(a_int | b_int);
+    return a;
+}
+
+inline failure_conditions_t operator&(failure_conditions_t a, failure_conditions_t b)
+{
+    uint8_t a_int = static_cast<uint8_t>(a);
+    uint8_t b_int = static_cast<uint8_t>(b);
+    return static_cast<failure_conditions_t>(a_int & b_int);
+}
 
 // Service set type identifiers:
 constexpr int SSET_TYPE_NONE = 0;
