@@ -71,7 +71,7 @@ class test_service : public service_record
 
     void failed() noexcept
     {
-        stop_reason = stopped_reason_t::TERMINATED;
+        stop_reason = stopped_reason_t::FAILED;
         forced_stop();
     }
 };

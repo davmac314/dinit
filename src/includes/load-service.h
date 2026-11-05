@@ -1655,6 +1655,7 @@ class service_settings_wrapper
     service_flags_t onstart_flags;
     int term_signal = SIGTERM;  // termination signal
     auto_restart_mode auto_restart = auto_restart_mode::DEFAULT_AUTO_RESTART;
+    failure_conditions_t failure_conditions = failure_conditions_t::PROCESS_OR_DEP_FAILURE;
     bool smooth_recovery = false;
     string socket_path;
     int socket_perms = 0666;
@@ -2318,6 +2319,33 @@ void process_service_line(settings_wrapper &settings, ::string_view name, const 
                         "\"yes\", \"true\", \"no\", \"false\" or \"on-failure\"").c_str(),
                         details->setting_str, input_pos);
             }
+            break;
+        }
+        case setting_id_t::FAILURE_CONDITIONS:
+        {
+            failure_conditions_t new_value = failure_conditions_t::NONE;
+            std::string setting_val;
+            std::list<std::pair<unsigned,unsigned>> part_positions;
+            read_setting_value(setting_val, setting_op_t::ASSIGN, input_pos, i, end, &part_positions);
+            for (const auto &part_pos : part_positions) {
+                string_view part(setting_val.c_str() + part_pos.first, part_pos.second - part_pos.first);
+                if (part == "none") continue;
+                else if (part == "dependency-fails") {
+                    new_value |= failure_conditions_t::DEP_FAILURE;
+                }
+                else if (part == "process-fails") {
+                    new_value |= failure_conditions_t::PROCESS_ERR;
+                }
+                else if (part == "process-stops") {
+                    new_value |= failure_conditions_t::PROCESS_TERMINATES;
+                }
+                else {
+                    throw service_description_exc(name, (setting_str::str_failure_conditions
+                            + " value can contain only: \"none\", \"dependency-fails\", \"process-fails\", "
+                            + "and \"process-stops\"").c_str(), details->setting_str, input_pos);
+                }
+            }
+            settings.failure_conditions = new_value;
             break;
         }
         case setting_id_t::SMOOTH_RECOVERY:

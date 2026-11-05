@@ -40,6 +40,7 @@ constexpr auto str_log_type = cts::literal("log-type");
 constexpr auto str_log_buffer_size = cts::literal("log-buffer-size");
 constexpr auto str_consumer_of = cts::literal("consumer-of");
 constexpr auto str_restart = cts::literal("restart");
+constexpr auto str_failure_conditions = cts::literal("failure-conditions");
 constexpr auto str_smooth_recovery = cts::literal("smooth-recovery");
 constexpr auto str_options = cts::literal("options");
 constexpr auto str_load_options = cts::literal("load-options");
@@ -85,10 +86,10 @@ enum class setting_id_t {
     TYPE, COMMAND, WORKING_DIR, ENV_FILE, SOCKET_LISTEN, SOCKET_PERMISSIONS, SOCKET_UID,
     SOCKET_GID, STOP_COMMAND, PID_FILE, DEPENDS_ON, DEPENDS_MS, WAITS_FOR, WAITS_FOR_D,
     DEPENDS_ON_D, DEPENDS_MS_D, AFTER, BEFORE, PREPARED_BY, LOGFILE, LOGFILE_PERMISSIONS,
-    LOGFILE_UID, LOGFILE_GID, LOG_TYPE, LOG_BUFFER_SIZE, CONSUMER_OF, RESTART, SMOOTH_RECOVERY,
-    OPTIONS, LOAD_OPTIONS, TERM_SIGNAL, TERMSIGNAL /* deprecated */, RESTART_LIMIT_INTERVAL,
-    RESTART_DELAY, RESTART_LIMIT_COUNT, STOP_TIMEOUT, START_TIMEOUT, RUN_AS, CHAIN_TO,
-    READY_NOTIFICATION, INITTAB_ID, INITTAB_LINE, NICE,
+    LOGFILE_UID, LOGFILE_GID, LOG_TYPE, LOG_BUFFER_SIZE, CONSUMER_OF, RESTART, FAILURE_CONDITIONS,
+    SMOOTH_RECOVERY, OPTIONS, LOAD_OPTIONS, TERM_SIGNAL, TERMSIGNAL /* deprecated */,
+    RESTART_LIMIT_INTERVAL, RESTART_DELAY, RESTART_LIMIT_COUNT, STOP_TIMEOUT, START_TIMEOUT,
+    RUN_AS, CHAIN_TO, READY_NOTIFICATION, INITTAB_ID, INITTAB_LINE, NICE,
     // Prefixed with SETTING_ to avoid name collision with system macros:
     SETTING_RLIMIT_NOFILE, SETTING_RLIMIT_CORE, SETTING_RLIMIT_DATA, SETTING_RLIMIT_ADDRSPACE,
     // Possibly unsupported depending on platform/build options:
