@@ -60,6 +60,7 @@ bool base_process_service::bring_up() noexcept
     return start_success;
 }
 
+// XXX can be moved to process_service?
 void base_process_service::handle_unexpected_termination() noexcept
 {
     // unexpected termination, with possible restart

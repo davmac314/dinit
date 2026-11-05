@@ -348,6 +348,13 @@ class base_process_service : public service_record
 
     bool ensure_log_buffer_backing(unsigned size) noexcept;
 
+    // Check whether it is possible for the service to automatically restart (i.e. if it hasn't
+    // exceeded restart limits and is not otherwise prevented from starting).
+    virtual bool check_restart() noexcept
+    {
+        return true;
+    }
+
     public:
     // Constructor for a base_process_service. Note that the various parameters not specified here must in
     // general be set separately (using the appropriate set_xxx function for each).
