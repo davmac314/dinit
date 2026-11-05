@@ -1827,6 +1827,8 @@ static int service_status(dinit_conn_t &dinit_conn, const char *service_name, ct
                 break;
             case stopped_reason_t::NORMAL:
                 break;
+            default:
+                break;
             }
             break;
         case service_state_t::STARTING:
