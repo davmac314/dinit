@@ -232,21 +232,32 @@ Pre-load variable substitution is performed on the \fBenv\-file\fR property valu
 If the path is not absolute, it is resolved relative to the directory containing the service
 description.
 .TP
+\fBfailure\-conditions\fR = {none | process\-stops | process\-fails}
+Specifies the conditions that determine this service as failed, rather than stopped normally.
+This setting is only meaningful for \fBprocess\fR and \fBbgprocess\fR services. If
+\fBprocess\-stops\fR is specified, then the service is considered failed if the process stops
+for any reason (other than a service stop initiated within Dinit). If \fBprocess\-fails\fR is
+specified, the service is considered failed if it terminates with an exit status of non-zero,
+or if it terminates via a signal that does not indicate deliberate termination (any signal other
+than SIGHUP, SIGINT, SIGUSR1, SIGUSR2 or SIGTERM).
+.IP
+Any service with a hard dependency that fails is also considered to have failed (regardless of
+this setting).
+.TP
 \fBrestart\fR = {yes | true | on-failure | no | false}
 Indicates whether the service should automatically restart if it stops, including due to
-unexpected process termination or a dependency stopping.
-Specifying \fBon-failure\fR for a \fBprocess\fR or \fBbgprocess\fR service causes the service to
-be restarted only when the exit status of the service process is non-zero, or if the process was
-terminated via a signal (other than SIGHUP, SIGINT, SIGUSR1, SIGUSR2 or SIGTERM, which indicate
-deliberate termination).
-Specifying \fBon-failure\fR for any other type of service is the same as specifying \fBfalse\fR
-(the service will not restart automatically).
-Automatic restart is inhibited if a service stops due to user command.
+unexpected process termination or a dependency failing.
+Specifying \fBon-failure\fR causes the service to restart if it fails, including if a dependent
+fails (see \fBfailure\-conditions\fR).
+If the originally failing service has restart limits in place (see \fBrestart\-limit\-count\fR)
+and these limits would be exceeded, automatic restart is inhibited.
+Restart is also inhibited if a service stops due to user command (including if a dependency was
+stopped due to user command).
 $$$changequote(`,')dnl
 ifelse(DEFAULT_AUTO_RESTART, ALWAYS,
     ``The default is to automatically restart.'',
     DEFAULT_AUTO_RESTART, ON_FAILURE,
-    ``The default is to automatically restart only on process failure (\fBon-failure\fR).'',
+    ``The default is to automatically restart only on failure (\fBon-failure\fR).'',
     ``The default is to not automatically restart.'')
 changequote(`@@@',`$$$')dnl
 @@@.TP
