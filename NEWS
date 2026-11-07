@@ -1,3 +1,53 @@
+== Version 0.23.0 (beta release #13) - November 2026
+
+This release resolves several bug reports from users, and fixes a large number of minor bugs being
+uncovered due to greatly expanded test coverage. It also includes a minor feature intended to
+improve Dinit's support for certain service dependency tree configurations.
+
+As is tradition, we proclaim that this shall be the last beta release, and the next release is
+intended to a be a candidate for Dinit 1.0.
+
+Thanks to all sponsors and contributors.
+
+New feature:
+ * The "failure-conditions" service setting allows specifying when process-based services should
+   be considered failed. Non-process-based services with a process-based dependency will be
+   considered as failed if their dependency fails, according to this setting, and can restart
+   "on failure" if configured to do so. Dependency failure is now always considered to be a
+   failure of the dependent. 
+
+Fixes:
+ * Fix bug sometimes causing a service process to be started twice.
+ * Fix a bug causing dependencies to be ignored in some configurations when stopping a service
+   (also observable at shutdown).
+ * Services now consistently restart (if configured to do so) when one of their hard dependencies
+   fails.
+ * Fix a theoretical race when enabling a service, where if the service was stopped or restarted
+   just after enabling an already-started service, dinitctl might wait until the service
+   restarted.
+ * Many minor fixes to service restart delay, restart limiting, stop timeouts, and service status
+   in various conditions.
+ * The original signal mask is restored before dinit re-executes when a soft-reboot is issued.
+   This ensures services see a consistent signal mask between initial boot and soft reboot.
+ * S6-compatible readiness notification now waits for a newline to be written to the notification
+   pipe, just as S6 does. Previously, dinit would take the service as ready immediately upon
+   anything being written to the pipe.
+
+Other improvements:
+ * "dinitctl status" now reports the location of the service description file, along with other
+   service status information. If the file has been modified since the service was loaded, this
+   information is also included. Implemented by Mobin Aydinfar.
+ * "dinitctl disable" now waits for the disabled service to stop, or reports if it will not stop
+   for any reason, for consistently with "dinitctl enable" (which waits until the service starts).
+
+Build fixes and improvements:
+ * configure: If set in the environment or on the command line, the CXXFLAGS_FOR_BUILD,
+   CPPFLAGS_FOR_BUILD and LDFLAGS_FOR_BUILD are written to mconfig and used for the build even
+   when their value is empty (fixing a bug where they did not get written if set but empty). 
+   Fixed by Mobin Aydinfar.
+ * configure no longer outright assumes (without confirming) that "-lrt" is always required on
+   some platforms. In particular, recent versions of FreeBSD no longer require this.
+
 == Version 0.22.1 (beta release #12) - July 2026
 
 This is purely a bug-fix release, fixing a small number of minor but potentially irritating bugs
