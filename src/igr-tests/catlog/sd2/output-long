@@ -1,0 +1,5 @@
+type = scripted
+command = ../output-long.sh
+restart = false
+log-type = buffer
+log-buffer-size = 4096
