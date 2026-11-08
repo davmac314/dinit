@@ -2076,7 +2076,7 @@ static std::pair<int,int> find_service_desc(const char *svc_name, const std::vec
     }
 
     for (std::string path : paths) {
-        std::string test_path = combine_paths(path, ::string_view(svc_name, at_ptr - svc_name));
+        std::string test_path = combine_paths(path, svc_name);
 
         auto sdf_fds = open_with_dir(path.c_str(), svc_name);
         if (sdf_fds.first != -1 || sdf_fds.second != ENOENT) {
