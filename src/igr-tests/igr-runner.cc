@@ -45,6 +45,7 @@ void cycles_test();
 void svc_arg_test();
 void svc_arg_consumer_test();
 void svc_arg_enable_test();
+void svc_arg_enable_offline_test();
 
 int main(int argc, char **argv)
 {
@@ -63,7 +64,8 @@ int main(int argc, char **argv)
             { "catlog", catlog_test }, { "offline-enable", offline_enable_test },
             { "xdg-config", xdg_config_test }, { "cycles", cycles_test },
             { "svc-arg", svc_arg_test }, { "svc-arg-consumer", svc_arg_consumer_test },
-            { "svc-arg-enable", svc_arg_enable_test } };
+            { "svc-arg-enable", svc_arg_enable_test },
+            { "svc-arg-enable-offline" , svc_arg_enable_offline_test} };
 
     dinit_bindir = "../..";
     char *env_dinit_bindir = getenv("DINIT_BINDIR");
@@ -1171,5 +1173,59 @@ void svc_arg_enable_test()
     }
 
     igr_assert(file_gone, "Service A@1 not disabled after disable command; sd/boot.d/A@1 still exists");
+    rm_tree(sd_dir.c_str());
+}
+
+void svc_arg_enable_offline_test()
+{
+    igr_test_setup setup("svc-arg-enable-offline");
+
+    std::string sd_dir = setup.get_output_dir() + "/sd";
+
+    if (faccessat(AT_FDCWD, sd_dir.c_str(), F_OK, AT_EACCESS) == -1) {
+        if (errno != ENOENT) {
+            throw std::system_error(errno, std::generic_category(), std::string("faccessat: ") + sd_dir);
+        }
+    }
+    else {
+        rm_r(sd_dir.c_str());
+    }
+
+    mkdir(sd_dir.c_str(), S_IRWXU);
+    cp_file((igr_input_basedir + "/svc-arg-enable-offline/sd/AAAAAAAAAAAAAAAA").c_str(),
+            (sd_dir + "/AAAAAAAAAAAAAAAA").c_str());
+    cp_file((igr_input_basedir + "/svc-arg-enable-offline/sd/boot").c_str(), (sd_dir + "/boot").c_str());
+    mkdir((sd_dir + "/boot.d").c_str(), S_IRWXU);
+
+    // dinitctl -d "$IGR_OUTPUT/sd" -o enable AAAAAAAAAAAAAAAA@1
+    dinitctl_proc dinitctl_p;
+    dinitctl_p.start("svc-arg-enable-offline", {"-d", sd_dir.c_str(), "-o", "enable",
+            "AAAAAAAAAAAAAAAA@1"});
+    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    if (faccessat(AT_FDCWD, (sd_dir + "/boot.d/AAAAAAAAAAAAAAAA@1").c_str(), F_OK, AT_EACCESS) == -1) {
+        throw std::system_error(errno, std::generic_category(), std::string("faccessat: ")
+        + sd_dir + "/boot.d/AAAAAAAAAAAAAAAA@1");
+    }
+
+    dinitctl_p.start("svc-arg-enable-offline", {"-d", sd_dir.c_str(), "-o", "disable",
+            "AAAAAAAAAAAAAAAA@1"});
+    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+    igr_assert(status == 0, "dinitctl did not exit cleanly");
+
+    bool file_gone = false;
+    if (faccessat(AT_FDCWD, (sd_dir + "/boot.d/AAAAAAAAAAAAAAAA@1").c_str(), F_OK, AT_EACCESS) == -1) {
+        if (errno == ENOENT) {
+            file_gone = true;
+        }
+        else {
+            throw std::system_error(errno, std::generic_category(), std::string("faccessat: ") + sd_dir);
+        }
+    }
+
+    igr_assert(file_gone,
+            "Service AAAAAAAAAAAAAAAA@1 not disabled after disable command;"
+            "sd/boot.d/AAAAAAAAAAAAAAAA@1 still exists");
     rm_tree(sd_dir.c_str());
 }
