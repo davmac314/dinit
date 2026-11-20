@@ -92,6 +92,7 @@ void service_set::unload_service(service_record *svc)
     if (consumer != nullptr) {
         make_placeholder();
         placeholder->set_output_pipe(svc->transfer_output_pipe());
+        placeholder->set_log_consumer(consumer);
         consumer->set_consumer_for(placeholder);
     }
 
