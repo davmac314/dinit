@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cstring>
 #include <vector>
 #include <string>
 #include <list>
@@ -202,6 +204,7 @@ class base_process_service : public service_record
     gid_t logfile_gid = -1;  // logfile group id
     unsigned log_buf_max = 0; // log buffer maximum size
     unsigned log_buf_size = 0; // log buffer current size
+    unsigned log_buf_pointer = 0; // log buffer write pointer
     std::vector<char, default_init_allocator<char>> log_buffer;
 
     bool nice_is_set = false;
@@ -346,7 +349,17 @@ class base_process_service : public service_record
         return nullptr;
     }
 
+    bool log_buffer_append(const char *log, unsigned size) noexcept;
+    // Peek the buffer, negative index counts backwards
+    char log_buffer_peek(int index) noexcept
+    {
+        return log_buffer.data()[(log_buf_pointer + index + log_buf_max) % log_buf_max];
+    }
+
+    private:
     bool ensure_log_buffer_backing(unsigned size) noexcept;
+    // Linearize the circular buffer to be used externally
+    void linearize_log_buffer() noexcept;
 
     public:
     // Constructor for a base_process_service. Note that the various parameters not specified here must in
@@ -403,6 +416,28 @@ class base_process_service : public service_record
     // (must be checked by caller).
     void set_log_buf_max(unsigned max_size) noexcept
     {
+        if (log_buf_max == max_size) {
+            return;
+        }
+
+        linearize_log_buffer();
+
+        if (log_buf_max < max_size) {
+            // Growing the buffer, move the writing pointer past the end of the current buffer.
+            log_buf_pointer = log_buf_size;
+        }
+        else if (log_buf_size >= max_size) {
+            // The buffer will become full
+            log_buf_pointer = 0;
+
+            if (log_buf_size > max_size) {
+                // Shrinking the buffer, and the content must be truncated to fit.
+                // Move the content forward.
+                memmove(log_buffer.data(), log_buffer.data() + log_buf_size - max_size, max_size);
+                log_buf_size = max_size;
+            }
+        }
+
         this->log_buf_max = max_size;
     }
 
@@ -468,7 +503,8 @@ class base_process_service : public service_record
     // Get the log buffer (address, length)
     std::pair<const char *, unsigned> get_log_buffer() noexcept
     {
-        return {log_buffer.data(), log_buf_size};
+        linearize_log_buffer();
+        return {log_buffer.data(), std::min(log_buf_size, log_buf_max)};
     }
 
     void clear_log_buffer() noexcept
@@ -476,6 +512,7 @@ class base_process_service : public service_record
         log_buffer.clear();
         log_buffer.shrink_to_fit();
         log_buf_size = 0;
+        log_buf_pointer = 0;
     }
 
     void set_env_file(const std::string &env_file_p)
