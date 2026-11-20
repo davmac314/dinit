@@ -864,6 +864,11 @@ void before_after2_test()
 
 void log_via_pipe_test()
 {
+    // For this test we have two services, "producer" and "consumer", with a consumer-of
+    // relationship between them. The "producer" is not started by default. We test that
+    // starting and stopping (and even unloading) the producer doesn't break the pipe
+    // that the consumer listens on.
+
     igr_test_setup setup("log-via-pipe");
 
     std::string logged_output_file = setup.prep_output_file("logged-output");
@@ -877,29 +882,47 @@ void log_via_pipe_test()
     igr_assert_eq(read_file_contents(logged_output_file), "");
 
     dinitctl_proc dinitctl_p;
-    dinitctl_p.start("log-via-pipe", {"-u", "-p", socket_path, "start", "producer"});
-    int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
 
-    dinitctl_p.start("log-via-pipe", {"-u", "-p", socket_path, "stop", "producer"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
+    // run_dinitctl: run dinitctl command and make sure it exits cleanly
+    auto run_dinitctl = [&](std::initializer_list<std::string> args) {
+        std::vector<std::string> all_args = {"-u", "-p", socket_path};
+        all_args.insert(all_args.end(), args);
+        dinitctl_p.start("log-via-pipe", all_args);
+        int status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
+        igr_assert(status == 0, "dinitctl did not exit cleanly");
+    };
 
+    // Start and stop the producer; check the output has been logged.
+
+    run_dinitctl({"start", "producer"});
+    run_dinitctl({"stop", "producer"});
     nanosleepx(0, (1000000000u / 10u) * 2u);
-
     igr_assert_eq(read_file_contents(logged_output_file), "Producing output...\n");
 
-    dinitctl_p.start("log-via-pipe", {"-u", "-p", socket_path, "start", "producer"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
+    // Start and stop the producer again, and ensure it produces further output.
 
-    dinitctl_p.start("log-via-pipe", {"-u", "-p", socket_path, "stop", "producer"});
-    status = dinitctl_p.wait_for_term({1, 0}); /* max 1 second */
-    igr_assert(status == 0, "dinitctl did not exit cleanly");
-
+    run_dinitctl({"start", "producer"});
+    run_dinitctl({"stop", "producer"});
     nanosleepx(0, (1000000000u / 10u) * 2u);
-
     igr_assert_eq(read_file_contents(logged_output_file), "Producing output...\n" "Producing output...\n");
+
+    // Unload, and then start (i.e. with reload) and stop the producer a third time:
+
+    run_dinitctl({"unload", "producer"});
+    run_dinitctl({"start", "producer"});
+    run_dinitctl({"stop", "producer"});
+    nanosleepx(0, (1000000000u / 10u) * 2u);
+    igr_assert_eq(read_file_contents(logged_output_file), "Producing output...\n"
+            "Producing output...\n" "Producing output...\n");
+
+    // And one final time:
+
+    run_dinitctl({"unload", "producer"});
+    run_dinitctl({"start", "producer"});
+    run_dinitctl({"stop", "producer"});
+    nanosleepx(0, (1000000000u / 10u) * 2u);
+    igr_assert_eq(read_file_contents(logged_output_file), "Producing output...\n"
+            "Producing output...\n" "Producing output...\n" "Producing output...\n");
 }
 
 void catlog_test()
