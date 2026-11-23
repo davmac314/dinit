@@ -493,13 +493,6 @@ class service_record
     // any appropriate cleanup.
     virtual void becoming_inactive() noexcept { }
 
-    // Check whether it is possible for the service to automatically restart (i.e. if it hasn't
-    // exceeded restart limits and is not otherwise prevented from starting).
-    virtual bool check_restart() noexcept
-    {
-        return true;
-    }
-
     public:
 
     using proc_status_t = eventloop_t::child_proc_watcher::proc_status_t;

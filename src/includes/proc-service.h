@@ -295,9 +295,6 @@ class base_process_service : public service_record
     // as STOPPED immediately (as well as issuing the usual unrecoverable stop to dependents).
     void hard_failure() noexcept;
 
-    // Perform smooth recovery process
-    void do_smooth_recovery() noexcept;
-
     // Start the process, return true on success
     virtual bool bring_up() noexcept override;
 
@@ -306,8 +303,6 @@ class base_process_service : public service_record
 
     // Called when the process exits. The exit_status variable must be set before calling.
     virtual void handle_exit_status() noexcept = 0;
-
-    void handle_unexpected_termination() noexcept;
 
     // Called if an exec fails.
     virtual void exec_failed(run_proc_err errcode) noexcept = 0;
@@ -625,6 +620,11 @@ class process_service : public base_process_service
     virtual void bring_down() noexcept override;
     virtual void kill_with_fire() noexcept override;
 
+    void handle_unexpected_termination() noexcept;
+
+    // Perform smooth recovery process
+    void do_smooth_recovery() noexcept;
+
     bool start_stop_process(const std::vector<const char *> &cmd) noexcept;
 
     bool reserved_stop_watch : 1;
@@ -688,7 +688,7 @@ class process_service : public base_process_service
         }
     }
 
-    virtual bool check_restart() noexcept override
+    bool check_restart() noexcept
     {
         if (max_restart_interval_count != 0) {
             // Check whether we're still in the most recent restart check interval:

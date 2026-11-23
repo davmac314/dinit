@@ -20,13 +20,6 @@
  * See proc-service.h for interface documentation.
  */
 
-void base_process_service::do_smooth_recovery() noexcept
-{
-    if (!restart_ps_process()) {
-        hard_failure();
-    }
-}
-
 bool base_process_service::bring_up() noexcept
 {
     if (!open_socket()) {
@@ -58,55 +51,6 @@ bool base_process_service::bring_up() noexcept
     }
 
     return start_success;
-}
-
-void base_process_service::handle_unexpected_termination() noexcept
-{
-    // unexpected termination, with possible restart
-    stop_reason = stopped_reason_t::TERMINATED;
-
-    // Now set the reason to TERMINATED_FAILED instead, if we consider it failure:
-    if (failure_conditions == failure_conditions_t::PROCESS_TERMINATES) {
-        stop_reason = stopped_reason_t::TERMINATED_FAILED;
-    }
-    else if (failure_conditions == failure_conditions_t::PROCESS_ERR) {
-        if (exit_status.was_signalled()) {
-            if (!value(exit_status.get_signal()).is_in(SIGHUP, SIGINT, SIGUSR1, SIGUSR2, SIGTERM)) {
-                stop_reason = stopped_reason_t::TERMINATED_FAILED;
-            }
-        }
-        else {
-            if (exit_status.get_exit_status() != 0) {
-                stop_reason = stopped_reason_t::TERMINATED_FAILED;
-            }
-        }
-    }
-
-    // We want to circumvent the normal process of waiting for dependents to stop before we
-    // attempt to restart, for two reasons:
-    // 1) we can restart more quickly
-    // 2) we can use the restart rate-limiting logic from restart_ps_process rather than
-    //    the usual start_ps_process (the usual bring-up).
-    // But we need to issue a forced stop and process queues, to discover our eventual target
-    // state (so we know whether we actually want to restart or not).
-    // Note we can't call forced_stop() directly here, because we need to set in_auto_restart in
-    // between do_stop() and processing queues (so that it is set correctly if restart occurs):
-
-    // Inhibit restart if outside the allowed restart parameters
-    if (!check_restart()) set_target_state(service_state_t::STOPPED);
-
-    force_stop = true;
-    do_stop();
-    services->process_queues();
-
-    if (get_state() == service_state_t::STOPPING) {
-        // We must be waiting for dependents;
-        // If we're going to restart, we can kick that off now:
-        if (get_target_state() == service_state_t::STARTED && !pinned_stopped) {
-            stopped(); // (will restart us)
-            services->process_queues();
-        }
-    }
 }
 
 bool base_process_service::start_ps_process(const std::vector<const char *> &cmd, bool on_console) noexcept
