@@ -128,6 +128,7 @@ void buffered_log_stream::release_console()
         fcntl(1, F_SETFL, flags & ~O_NONBLOCK);
         if (services != nullptr) {
             services->pull_console_queue();
+            services->process_queues();
         }
         if (release) {
             // release still set, we didn't immediately get the console back; record the

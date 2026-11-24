@@ -521,10 +521,7 @@ void service_record::all_deps_started() noexcept
         return;
     }
 
-    if (!bring_up()) {
-        stop_reason = stopped_reason_t::FAILED;
-        failed_to_start();
-    }
+    bring_up();
 }
 
 void service_record::acquired_console() noexcept

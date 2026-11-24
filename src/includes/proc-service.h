@@ -276,8 +276,15 @@ class base_process_service : public service_record
     run_proc_err exec_err_info;
 
     private:
-    // Re-launch process
-    void do_restart() noexcept;
+
+    // Re-launch process. This is called as part of automatic restart. Rate limiting and delay is
+    // performed by callers (see restart_ps_process). On return, target state set to STOPPED if
+    // restart failed prematurely (process could not be launched).
+    // Preconditions:
+    //   Service state is STARTING or STARTED (latter for smooth recovery).
+    // Returns:
+    //   False if the restart failed immediately; true otherwise
+    bool do_restart() noexcept;
 
     protected:
     // Run a child process (call after forking). Note that some parameters specify file descriptors,
@@ -289,6 +296,10 @@ class base_process_service : public service_record
 
     // Restart the process (due to start failure or unexpected termination). Restarts will be
     // rate-limited.
+    // Preconditions:
+    //   The target state is STARTED.
+    // Returns:
+    //   False if the restart failed immediately; true otherwise.
     bool restart_ps_process() noexcept;
 
     // Unrecoverable service failure occurred; for process-based services, the service can be set

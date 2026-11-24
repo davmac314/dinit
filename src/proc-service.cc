@@ -230,7 +230,9 @@ rearm ready_notify_watcher::fd_event(eventloop_t &, int fd, int flags) noexcept
 
 void process_service::do_smooth_recovery() noexcept
 {
+    doing_smooth_recovery = true;
     if (!restart_ps_process()) {
+        doing_smooth_recovery = false;
         hard_failure();
     }
 }
@@ -462,18 +464,13 @@ void process_service::handle_exit_status() noexcept
             }
         }
     }
-    else if (smooth_recovery && current_state == service_state_t::STARTED) {
-        if (check_restart()) {
-            // unexpected termination, with smooth recovery
-            doing_smooth_recovery = true;
+    else {
+        if (check_restart() && smooth_recovery && current_state == service_state_t::STARTED) {
             do_smooth_recovery();
         }
         else {
             handle_unexpected_termination();
         }
-    }
-    else {
-        handle_unexpected_termination();
     }
     services->process_queues();
 }
@@ -640,15 +637,12 @@ void bgproc_service::handle_exit_status() noexcept
     }
     else {
         // we must be STARTED
-        if (smooth_recovery && get_target_state() == service_state_t::STARTED && check_restart()) {
-            doing_smooth_recovery = true;
+        if (check_restart() && smooth_recovery && current_state == service_state_t::STARTED) {
             do_smooth_recovery();
-            if (get_state() != service_state_t::STARTED) {
-                doing_smooth_recovery = false;
-            }
-            return;
         }
-        handle_unexpected_termination();
+        else {
+            handle_unexpected_termination();
+        }
     }
     services->process_queues();
 }

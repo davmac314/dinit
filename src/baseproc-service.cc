@@ -29,6 +29,13 @@ bool base_process_service::bring_up() noexcept
     bool start_success;
     if (in_auto_restart) {
         start_success = restart_ps_process();
+        // (Arming of start timer is handled by restart_ps_process).
+        if (!start_success) {
+            if (stop_reason == stopped_reason_t::NORMAL) {
+                stop_reason = stopped_reason_t::FAILED;
+            }
+            failed_to_start();
+        }
     }
     else {
         restart_interval_count = 0;
@@ -37,15 +44,12 @@ bool base_process_service::bring_up() noexcept
         // start_ps_process updates last_start_time, use it also for restart_interval_time:
         restart_interval_time = last_start_time;
 
-        // Arm start timer. (For restarts, this is only done once the restart interval expires).
+        // Arm start timer (for restarts, this is only done once the restart interval expires, in
+        // do_restart()).
         if (start_success) {
             if (start_timeout != time_val(0,0)) {
                 process_timer.arm_timer_rel(event_loop, start_timeout);
                 waiting_stopstart_timer = true;
-            }
-            else if (waiting_stopstart_timer) {
-                process_timer.stop_timer(event_loop);
-                waiting_stopstart_timer = false;
             }
         }
     }
@@ -315,34 +319,22 @@ base_process_service::base_process_service(service_set *sset, string name,
     tracking_child = false;
 }
 
-void base_process_service::do_restart() noexcept
+bool base_process_service::do_restart() noexcept
 {
-    // Actually perform process restart. We may be in smooth recovery (state = STARTED) or this may
-    // be a regular restart.
+    // Actually perform process restart.
 
     waiting_restart_timer = false;
-    auto service_state = get_state();
 
     if (!start_ps_process(exec_arg_parts, have_console || onstart_flags.shares_console)) {
-        if (service_state == service_state_t::STARTING) {
-            if (stop_reason == stopped_reason_t::NORMAL) {
-                stop_reason = stopped_reason_t::FAILED;
-            }
-            failed_to_start();
-        }
-        else {
-            // smooth recovery failure
-            hard_failure();
-        }
-        services->process_queues();
+        return false;
     }
-    else {
-        // started process successfully (at least as far as fork)
-        if (start_timeout != time_val(0,0)) {
-            process_timer.arm_timer_rel(event_loop, start_timeout);
-            waiting_stopstart_timer = true;
-        }
+
+    // started process successfully (at least as far as fork)
+    if (start_timeout != time_val(0,0)) {
+        process_timer.arm_timer_rel(event_loop, start_timeout);
+        waiting_stopstart_timer = true;
     }
+    return true;
 }
 
 bool base_process_service::restart_ps_process() noexcept
@@ -358,7 +350,7 @@ bool base_process_service::restart_ps_process() noexcept
     time_val tdiff = current_time - last_start_time;
     if (restart_delay <= tdiff) {
         // > restart delay (normally 200ms)
-        do_restart();
+        return do_restart();
     }
     else {
         time_val timeout = restart_delay - tdiff;
@@ -451,13 +443,22 @@ void base_process_service::timer_expired() noexcept
         log(loglevel_t::WARN, "Process for service ", get_name(), " with pid ", pid,
                 " exceeded allowed start time; cancelling.");
         start_timed_out();
-        services->process_queues();
     }
     else {
         // STARTING / STARTED, and we have no pid: must be restarting, and the restart delay timer
         // expired (smooth recovery if STARTED)
-        do_restart();
+        if (!do_restart()) {
+            if (get_state() == service_state_t::STARTING) {
+                // stop reason should already be set
+                failed_to_start();
+            }
+            else {
+                // smooth recovery failure
+                hard_failure();
+            }
+        }
     }
+    services->process_queues();
 }
 
 void base_process_service::start_timed_out() noexcept
