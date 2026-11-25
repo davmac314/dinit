@@ -323,8 +323,6 @@ bool base_process_service::do_restart() noexcept
 {
     // Actually perform process restart.
 
-    waiting_restart_timer = false;
-
     if (!start_ps_process(exec_arg_parts, have_console || onstart_flags.shares_console)) {
         return false;
     }
@@ -427,6 +425,7 @@ void base_process_service::kill_pg(int signo) noexcept
 void base_process_service::timer_expired() noexcept
 {
     waiting_stopstart_timer = false;
+    waiting_restart_timer = false;
 
     // This handles expiry of the timer, used for limiting start/stop time and also delaying
     // before a restart. Possibilities are:
