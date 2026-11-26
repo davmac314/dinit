@@ -277,14 +277,11 @@ class base_process_service : public service_record
 
     private:
 
-    // Re-launch process. This is called as part of automatic restart. Rate limiting and delay is
-    // performed by callers (see restart_ps_process). On return, target state set to STOPPED if
-    // restart failed prematurely (process could not be launched).
-    // Preconditions:
-    //   Service state is STARTING or STARTED (latter for smooth recovery).
+    // (Re-)launch process. The start timer is armed. Restart rate limiting and delay must be
+    // performed by callers.
     // Returns:
-    //   False if the restart failed immediately; true otherwise
-    bool do_restart() noexcept;
+    //   False if the process launch failed immediately; true otherwise
+    bool launch_process() noexcept;
 
     protected:
     // Run a child process (call after forking). Note that some parameters specify file descriptors,

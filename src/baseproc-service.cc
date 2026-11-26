@@ -39,19 +39,8 @@ bool base_process_service::bring_up() noexcept
     }
     else {
         restart_interval_count = 0;
-        start_success = start_ps_process(exec_arg_parts,
-                onstart_flags.starts_on_console || onstart_flags.shares_console);
-        // start_ps_process updates last_start_time, use it also for restart_interval_time:
+        start_success = launch_process();
         restart_interval_time = last_start_time;
-
-        // Arm start timer (for restarts, this is only done once the restart interval expires, in
-        // do_restart()).
-        if (start_success) {
-            if (start_timeout != time_val(0,0)) {
-                process_timer.arm_timer_rel(event_loop, start_timeout);
-                waiting_stopstart_timer = true;
-            }
-        }
     }
 
     return start_success;
@@ -319,10 +308,8 @@ base_process_service::base_process_service(service_set *sset, string name,
     tracking_child = false;
 }
 
-bool base_process_service::do_restart() noexcept
+bool base_process_service::launch_process() noexcept
 {
-    // Actually perform process restart.
-
     if (!start_ps_process(exec_arg_parts, have_console || onstart_flags.shares_console)) {
         return false;
     }
@@ -332,6 +319,7 @@ bool base_process_service::do_restart() noexcept
         process_timer.arm_timer_rel(event_loop, start_timeout);
         waiting_stopstart_timer = true;
     }
+
     return true;
 }
 
@@ -348,7 +336,7 @@ bool base_process_service::restart_ps_process() noexcept
     time_val tdiff = current_time - last_start_time;
     if (restart_delay <= tdiff) {
         // > restart delay (normally 200ms)
-        return do_restart();
+        return launch_process();
     }
     else {
         time_val timeout = restart_delay - tdiff;
@@ -446,7 +434,7 @@ void base_process_service::timer_expired() noexcept
     else {
         // STARTING / STARTED, and we have no pid: must be restarting, and the restart delay timer
         // expired (smooth recovery if STARTED)
-        if (!do_restart()) {
+        if (!launch_process()) {
             if (get_state() == service_state_t::STARTING) {
                 // stop reason should already be set
                 failed_to_start();
