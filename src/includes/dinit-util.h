@@ -1291,6 +1291,17 @@ public:
         return *this;
     }
 
+    ha_string &operator=(const char *other)
+    {
+        size_t length = strlen(other);
+        char *new_str_data = new char[length + 1];
+        delete[] str_data;
+        memcpy(new_str_data, other, length + 1);
+        str_data = new_str_data;
+        str_len = length;
+        return *this;
+    }
+
     ~ha_string()
     {
         delete[] str_data;

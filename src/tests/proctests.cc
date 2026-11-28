@@ -826,6 +826,67 @@ void test_proc_restart_fail_2()
     sset.remove_service(&p);
 }
 
+void test_secondary_proc_fail() {
+    service_set sset;
+
+    ha_string command = "test-command";
+    std::list<std::pair<unsigned,unsigned>> command_offsets;
+    command_offsets.emplace_back(0, command.length());
+
+    process_service p1 {&sset, "testproc", std::move(command), command_offsets, {}};
+    init_service_defaults(p1);
+    p1.set_restart_interval({1, 0}, 2); // max 2 restarts in one second
+    p1.set_auto_restart(auto_restart_mode::ALWAYS);
+
+    sset.add_service(&p1);
+
+    command = "test-command-2";
+    command_offsets.clear();
+    command_offsets.emplace_back(0, command.length());
+    process_service p2 {&sset, "testproc2", std::move(command), command_offsets, {{&p1, REG}}};
+    init_service_defaults(p2);
+    p2.set_restart_interval({1, 0}, 2); // max 2 restarts in one second
+    p2.set_auto_restart(auto_restart_mode::ALWAYS);
+
+    sset.add_service(&p2);
+
+    p2.start();
+    sset.process_queues();
+    assert(p1.get_state() == service_state_t::STARTING);
+    assert(p2.get_state() == service_state_t::STARTING);
+    base_process_service_test::exec_succeeded(&p1);
+    assert(p1.get_state() == service_state_t::STARTED);
+    base_process_service_test::exec_succeeded(&p2);
+    assert(p2.get_state() == service_state_t::STARTED);
+
+    // p1 can restart 4 times in a second, p2 only twice. If p2 restarts due to p1 failing, the p2
+    // limit should still take effect.
+
+    for (int i = 0; i < 2; ++i) {
+        base_process_service_test::handle_exit(&p1, 1);
+        assert(p1.get_state() == service_state_t::STARTING);
+        assert(p2.get_state() == service_state_t::STOPPING);
+        base_process_service_test::handle_exit(&p2, 0);
+        assert(p1.get_state() == service_state_t::STARTING);
+        assert(p2.get_state() == service_state_t::STARTING);
+        event_loop.advance_time(default_restart_interval);
+        base_process_service_test::exec_succeeded(&p1);
+        assert(p1.get_state() == service_state_t::STARTED);
+        base_process_service_test::exec_succeeded(&p2);
+        assert(p2.get_state() == service_state_t::STARTED);
+    }
+
+    // Final time: p2 shouldn't restart, and so p1 neither
+    base_process_service_test::handle_exit(&p1, 1);
+    assert(p1.get_state() == service_state_t::STOPPING); // TODO should go straight to STOPPED
+    assert(p2.get_state() == service_state_t::STOPPING);
+    base_process_service_test::handle_exit(&p2, 0);
+    assert(p2.get_state() == service_state_t::STOPPED);
+
+    sset.remove_service(&p2);
+    sset.remove_service(&p1);
+}
+
 // Termination via stop request
 void test_term_via_stop()
 {
@@ -3763,6 +3824,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_proc_term_restart7, "    ");
     RUN_TEST(test_proc_term_restart_fail, "");
     RUN_TEST(test_proc_restart_fail_2, "   ");
+    RUN_TEST(test_secondary_proc_fail, "   ");
     RUN_TEST(test_term_via_stop, "         ");
     RUN_TEST(test_term_via_stop2, "        ");
     RUN_TEST(test_term_via_stop3, "        ");
